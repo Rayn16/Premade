@@ -459,9 +459,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .awards { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
 .awards b { color: var(--gold); }
 
-/* Profile, the first page: you in League like a stats site's profile. Icon and level, Riot ID, region and status;
-   a crest for each rank; recent games with their items; mastery; looking anyone up */
+/* Profile, the first page: you in League like a stats site's profile. Icon and level, Riot ID, region and status,
+   with looking anyone up beside them; a crest for each rank; recent games with their items; mastery */
 .prohead { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; }
+.proside { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
+#proFindBox { display: grid; gap: 6px; width: min(100%, 400px); }
+#proFindNote:empty { display: none; }
 .proicon { position: relative; width: 96px; height: 96px; flex: none; border-radius: 50%; border: 2px solid var(--gold); background: var(--raised); }
 .proicon img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .lvl { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 2px 8px; border: 1px solid var(--gold-line); border-radius: 999px; background: var(--bg); font: 500 12px/1.3 var(--mono); color: var(--gold-hi); white-space: nowrap; }
@@ -548,12 +551,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
           <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
         </div>
-        <div class="toolbar">
-          <button id="proRoom" class="btn primary" type="button">Voice room</button>
-          <button id="profileBtn" class="btn" type="button" hidden>Share my profile</button>
-          <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
-          <button id="proForget" class="btn" type="button" hidden>Not you?</button>
-          <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
+        <div class="proside">
+          <div id="proFindBox" hidden>
+            <form id="proFind" class="chatform" role="search">
+              <input id="proId" type="search" autocomplete="off" spellcheck="false" placeholder="Look up a player: Name#TAG" aria-label="Look up a player by Riot ID">
+              <button id="proGo" class="btn" type="submit">Look up</button>
+            </form>
+            <p id="proFindNote" class="hint" role="status"></p>
+          </div>
+          <div class="toolbar">
+            <button id="proRoom" class="btn primary" type="button">Voice room</button>
+            <button id="profileBtn" class="btn" type="button" hidden>Share my profile</button>
+            <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
+            <button id="proForget" class="btn" type="button" hidden>Not you?</button>
+            <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
+          </div>
         </div>
       </header>
       <section id="profileOut" class="panel" aria-label="Your profile link" hidden>
@@ -598,15 +610,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <section id="proMasteryBox" class="panel" aria-labelledby="h-promastery">
             <h2 id="h-promastery" class="ph">Mastery</h2>
             <div id="proMastery" class="stack"></div>
-          </section>
-          <section id="proFindBox" class="panel" aria-labelledby="h-profind">
-            <h2 id="h-profind" class="ph">Look up a player</h2>
-            <form id="proFind" class="stack">
-              <label class="field">Riot ID <input id="proId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label>
-              <label id="proRegionRow" class="field" hidden>Region <select id="proRegion"></select></label>
-              <div><button id="proGo" class="btn" type="submit">Look up</button></div>
-            </form>
-            <p id="proFindNote" class="hint" role="status"></p>
           </section>
         </div>
       </div>
@@ -5527,10 +5530,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const qOk = (x, q) => (q === 'tft' ? !!x.tft : !x.tft && (!PROQ[q][1] || PROQ[q][1].includes(x.queue)));
   let ddTft = null, ddTftAt = -Infinity; // TFT's units, traits, items and augments from Data Dragon: id -> { name, img }
   const liveRk = new Map(); // puuid -> { at, rk } for the players in a live game on Profile: undefined while asked, null when it failed
-  let proSaved = '', proList = '', regionPicked = false, riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
-  $('proRegion').append(...Object.entries(PLATS).map(([k, [n]]) => new Option(n, k)));
-  $('proRegion').value = (proMine && PLATS[proMine.plat] && proMine.plat) || 'euw1';
-  $('proRegion').addEventListener('change', () => { regionPicked = true; });
+  let proSaved = '', proList = '', riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
   function liveMine() { // yours from League's client, once it has said who you are and given your games
     if (!lcuOn() || !me0 || !me0.gameName || !myHist) return null;
     return { n: `${me0.gameName}#${me0.tagLine || ''}`, u: me0.puuid, lvl: me0.summonerLevel | 0, icon: me0.profileIconId | 0, plat: myPlat || (proMine && proMine.plat) || '',
@@ -5671,7 +5671,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proSub').textContent = p ? [PLATS[p.plat] ? PLATS[p.plat][0] : '', p.lvl ? `Level ${p.lvl}` : ''].filter(Boolean).join(' · ') : '';
     const when = p ? new Date(p.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     $('proNote').textContent = !p ? (lcuOn() ? 'Start League and your profile fills in here: your rank, status and recent games.'
-      : riotOn ? 'Type your Riot ID and server below to see your profile here: your rank, whether you’re in a game, and your recent games.'
+      : riotOn ? 'Type your Riot ID above to see your profile here: your rank, whether you’re in a game, and your recent games.'
       : 'Your League profile shows up here in the desktop app while League is open: your rank, status and recent games.')
       : mine && !lm ? `As of ${when}.${lcuOn() ? ' Start League to update it.' : ''}` : '';
     $('proNote').hidden = !$('proNote').textContent;
@@ -5682,10 +5682,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proForget').hidden = !(mine && p && !lcuOn());
     const setup = !lcuOn() && !proMine; // in a browser, the first Riot ID you give is you
     $('proFindBox').hidden = !(riotOn || (lcuOn() && lcu));
-    $('proRegionRow').hidden = !riotOn;
-    $('h-profind').textContent = setup ? 'Your Riot ID' : 'Look up a player';
+    $('proId').placeholder = setup ? 'Your Riot ID: Name#TAG' : 'Look up a player: Name#TAG';
+    $('proId').setAttribute('aria-label', setup ? 'Your Riot ID' : 'Look up a player by Riot ID');
     $('proGo').textContent = setup ? 'Show my profile' : 'Look up';
-    if (!regionPicked && (myPlat || (proMine && PLATS[proMine.plat]))) $('proRegion').value = myPlat || proMine.plat;
     for (const id of ['proRanks', 'proGamesBox', 'proMasteryBox', 'proPast', 'proTagsBox', 'proRolesBox']) $(id).hidden = !p;
     proStatus();
     renderLive(p);
@@ -5760,14 +5759,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return r.json();
   }
   // anyone's profile from Riot: account, level and icon, ranks, top mastery, whether they're in a game and their last
-  // 10 games. 16 calls: our server lets one address make 60 every 2 minutes.
+  // 10 games. plat: their server when it's known, else Riot says which one they play League on (until our server passes
+  // that call, a guess from their tag, like Name#EUW, or yours). 17 calls at most: our server lets one address make 60
+  // every 2 minutes.
+  const platOf = (s) => { const x = String(s || '').toLowerCase(); return Object.keys(PLATS).find((k) => k === x || PLATS[k][0].toLowerCase() === x.replace(/\d+$/, '')) || ''; }; // euw1, EUW, NA1 -> the platform
   async function riotProfile(id, plat) {
-    const [g, t] = riotId(id), reg = PLATS[plat][1];
-    const a = await riotGet(reg === 'sea' ? 'asia' : reg, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(g)}/${encodeURIComponent(t)}`); // accounts aren't on sea
+    const [g, t] = riotId(id), home = (PLATS[plat || myPlat || (proMine && proMine.plat)] || PLATS.euw1)[1], acc = home === 'sea' ? 'asia' : home; // accounts aren't on sea; every region has them all
+    const a = await riotGet(acc, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(g)}/${encodeURIComponent(t)}`);
     if (!a || typeof a.puuid !== 'string') return null;
     const u = a.puuid, by = `by-puuid/${u}`;
+    if (!PLATS[plat]) plat = platOf(((await riotGet(acc, `/riot/account/v1/region/by-game/lol/${by}`)) || {}).region) || platOf(t) || myPlat || (proMine && proMine.plat);
+    if (!PLATS[plat]) return null;
+    const reg = PLATS[plat][1];
     const [s, e, m, live, ids] = await Promise.all([riotGet(plat, `/lol/summoner/v4/summoners/${by}`), riotGet(plat, `/lol/league/v4/entries/${by}`),
       riotGet(plat, `/lol/champion-mastery/v4/champion-masteries/${by}/top?count=5`), riotLive(u, plat), riotGet(reg, `/lol/match/v5/matches/${by}/ids?count=10`)]);
+    if (!s) return null; // they don't play on that server
     const games = await riotGames(u, reg, (Array.isArray(ids) ? ids : []).slice(0, 10), true);
     return { n: `${a.gameName || g}#${a.tagLine || t}`, u, lvl: (s && s.summonerLevel) | 0, icon: (s && s.profileIconId) | 0, plat, rk: ranksOf(e), games, m: Array.isArray(m) ? m : [], live, at: Date.now(), src: 'riot' };
   }
@@ -5810,7 +5816,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const name = tr.querySelector('b');
       if (x.n && x.u !== p.u) {
         const b = Object.assign(document.createElement('button'), { type: 'button', className: 'plink', textContent: x.n, title: `Open ${x.n}’s profile` });
-        b.addEventListener('click', () => { $('proRegion').value = p.plat; regionPicked = true; $('proId').value = x.n; $('proFind').requestSubmit(); });
+        b.addEventListener('click', () => lookUp(x.n, p.plat));
         name.append(b);
       } else name.textContent = x.bot ? 'Bot' : x.n || 'Name hidden (streamer mode)';
       tr.querySelector('.sub').textContent = champName(x.c);
@@ -5998,26 +6004,29 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     el.dataset.key = key;
     el.querySelector('ul').replaceChildren(...t.lines.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
   }
-  $('proFind').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const v = $('proId').value.trim(), plat = $('proRegion').value, note = $('proFindNote'), setup = !lcuOn() && !proMine;
+  // a Riot ID's profile: from League's client while it's open, for players on your server, else from Riot on whichever
+  // server they play. plat: their server when it's known (everyone in a live game is on its server)
+  async function lookUp(v, plat) {
+    const note = $('proFindNote'), setup = !lcuOn() && !proMine, viaLeague = lcuOn() && !!lcu && (!plat || plat === myPlat); // League's client finds players on your own server only
     if (!riotId(v)) return void (note.textContent = 'Type a Riot ID with its tag, like Name#EUW.');
-    const viaLeague = lcuOn() && !!lcu && (!riotOn || plat === myPlat); // League's client finds players on your own server only
     if (!viaLeague && !riotOn) return void (note.textContent = 'Start League to look players up.');
     note.textContent = 'Looking them up…';
     let p = null;
     try {
       const f = viaLeague ? await findPlayer(v) : null, s = f && (await scoutFetch(f.puuid));
-      p = !viaLeague ? await riotProfile(v, plat) : s && { n: f.name, u: f.puuid, lvl: s.level, icon: s.icon, plat: myPlat, rk: s.ranked, games: s.games || [],
-        m: s.mastery.slice().sort((x, y) => y.championPoints - x.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
-      if (viaLeague && p && riotOn && PLATS[plat]) p.live = await riotLive(p.u, plat).catch(() => undefined); // League's client doesn't say who's in a game
+      if (s && s.level) {
+        p = { n: f.name, u: f.puuid, lvl: s.level, icon: s.icon, plat: myPlat, rk: s.ranked, games: s.games || [],
+          m: s.mastery.slice().sort((x, y) => y.championPoints - x.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
+        if (riotOn && PLATS[myPlat]) p.live = await riotLive(p.u, myPlat).catch(() => undefined); // League's client doesn't say who's in a game
+      } else if (riotOn) p = await riotProfile(v, plat);
     } catch (err) { return void (note.textContent = err.message === 'busy' ? 'Too many lookups right now. Try again in a minute.' : 'Riot didn’t answer. Try again in a minute.'); }
-    if (!p) return void (note.textContent = `Nobody called ${v} on ${viaLeague ? 'your server' : PLATS[plat][0]}.`);
+    if (!p) return void (note.textContent = riotOn ? `No League player is called ${v}.` : `Nobody called ${v} on your server.`);
     note.textContent = '';
     $('proId').value = '';
     if (setup || (proMine && p.u === proMine.u) || (me0 && p.u === me0.puuid)) { proOther = null; if (!liveMine()) saveMine(p); } else proOther = p;
     renderProfile();
-  });
+  }
+  $('proFind').addEventListener('submit', (e) => { e.preventDefault(); lookUp($('proId').value.trim()); });
   $('proBack').addEventListener('click', () => { proOther = null; renderProfile(); });
   $('proRefresh').addEventListener('click', () => riotMine(true));
   // Show more games: 20 more each time, and older ones once those run out: from League's client while it's open (for
