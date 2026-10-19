@@ -1,7 +1,8 @@
 // Checks the Riot object (/riot/...) under `wrangler dev` against a fake Riot API: it counts each high-elo game once
 // (only full ranked solo games on Summoner's Rift), keeps what each champion bought, levelled and took, with their
 // lane opponent and gold at 10, and passes only the lookup calls on its list through, with our key and its limits.
-// Then, restarted with the sweep going 8 days back, it counts the older games a day at a time, newer days first.
+// Then, restarted with the sweep going 8 days back, it carries on with the day it was on and counts the older games
+// a day at a time, newer days first.
 // WRANGLER=<path to wrangler> node riot.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
@@ -101,6 +102,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.equal(sum.today, 4);
   assert.equal(sum.p, '16.20');
   assert.equal(sum.from, undefined, 'no older days counted');
+  assert.equal(sum.on, undefined);
   assert.deepEqual(sum.c['103'], { MIDDLE: [3, 2] }, 'Ahri: three games this patch, won two');
   assert.deepEqual(sum.old, { p: '16.19', c: Object.fromEntries(TEAM.map(([c, r], i) => [c, { [r]: [1, i < 5 ? 1 : 0] }])) }, 'the patch before');
   const crawl = calls.filter((c) => c.host === 'kr' || c.host === 'asia');
@@ -175,8 +177,8 @@ const counted = async (n) => { // the summary once n games are counted and nothi
     assert(!text.includes(KEY) && ![...x.headers.values()].some((v) => v.includes(KEY)), p);
   }
 
-  // the sweep: restarted as if it had left off 6 days back (so the newer days come first), with a month of lane
-  // matchups older than it keeps
+  // the sweep: restarted as if it had stopped while on the day 6 days ago, its games listed (so the newer days come
+  // next), with a month of lane matchups older than it keeps
   try { process.kill(-wr.pid); } catch {}
   for (let i = 0; ; i++) {
     try { await fetch(BASE + '/'); } catch { if (wr.exitCode !== null || wr.signalCode !== null) break; }
@@ -185,19 +187,20 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   }
   const { DatabaseSync } = require('node:sqlite'), dir = path.join(persist, 'v3', 'do', 'league-proxchat-Riot');
   const db = new DatabaseSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith('.sqlite'))));
-  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('sweep', JSON.stringify({ lo: today - 6, hi: today - 6, li: 0 }));
-  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('y:2020-01', JSON.stringify({ 103: { MIDDLE: { 238: [50, 0] } } }));
+  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('sweep', JSON.stringify({ lo: today - 6, hi: today - 6, li: 0, w: { d: today - 6, asked: 3, found: ['KR_2001'], q: ['KR_2001'], g: [] } }));
+  db.prepare('INSERT INTO matchups VALUES (?, ?, ?)').run(103 % 16, '2020-01', JSON.stringify({ 103: { MIDDLE: { 238: [50, 0] } } }));
   db.close();
   const mark = calls.length;
   await up('SWEEP_DAYS:8', 'SWEEP_ROOM:100'); // room for the sweep beside this test's busy crawl
   sum = await counted(7);
   assert.equal(sum.total, 7, 'KR_2001, KR_2002 and KR_2003 count; not the ARAM, the remake, KR_1001 again or KR_2006, 9 days old');
   assert.equal(sum.from, (today - 8) * DAY, 'counted back to 8 days ago');
+  assert.equal(sum.on, undefined, 'and on no day now');
   assert.deepEqual(sum.c['103'], { MIDDLE: [4, 3] }, 'KR_2001 joins this patch');
   assert.deepEqual(sum.old.c['103'], { MIDDLE: [2, 2] }, 'KR_2002 the patch before, and KR_2003 neither');
   const swept = calls.slice(mark).filter((c) => c.p.endsWith('/ids') && c.q.includes('endTime')).map((c) => c.q.match(/^\?queue=420&type=ranked&startTime=(\d+)&endTime=(\d+)&count=100$/));
   assert(swept.every((x) => x && x[1] % DAY === 0 && x[2] - x[1] === DAY - 1), 'a whole UTC day each');
-  assert.deepEqual(swept.map((x) => today - x[1] / DAY), [6, 6, 6, 5, 5, 5, 4, 4, 4, 7, 7, 7, 8, 8, 8], 'each ladder player, newer days first, then back in time');
+  assert.deepEqual(swept.map((x) => today - x[1] / DAY), [5, 5, 5, 4, 4, 4, 7, 7, 7, 8, 8, 8], 'after the day it was on, each ladder player, newer days first, then back in time');
   for (const id of Object.keys(GAMES)) assert.equal(calls.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, id === 'KR_2006' ? 0 : 1, `${id} asked for ${id === 'KR_2006' ? 'never' : 'once'}`);
   assert(!calls.some((c) => /KR_2\d+\/timeline$/.test(c.p)), 'no timelines for older games');
   const old = await (await get('/riot/champ?c=103&r=MIDDLE')).json();

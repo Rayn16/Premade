@@ -101,7 +101,7 @@ export class Stats extends DurableObject {
 // ---- Riot data. Our Riot API key (the secret RIOT_KEY) only lives here, in the Riot object (one for everything).
 // It counts high-elo ranked games for the voice page's popular builds, runes, skill orders and matchups
 // (/riot/champ, /riot/summary): the last 3 days' in full, one Riot call every 30 s, and the last year's more lightly
-// (the sweep, up to 12 calls every 30 s). It passes a few read-only calls through for player lookups
+// (the sweep, a few calls every 15 s). It passes a few read-only calls through for player lookups
 // (/riot/api/<region>/<path>), keeping under our key's limits: 20 calls a second and 100 every 2 minutes, per region.
 // What it keeps of a game is each champion, its role and what it did, with no player in it.
 const riot = (env) => env.RIOT.get(env.RIOT.idFromName('riot'));
@@ -143,6 +143,8 @@ export class Riot extends DurableObject {
     this.sql = ctx.storage.sql;
     this.sql.exec('CREATE TABLE IF NOT EXISTS games (champ INTEGER, role TEXT, slot INTEGER, patch TEXT, at INTEGER, win INTEGER, opp INTEGER, gd INTEGER, d TEXT, PRIMARY KEY (champ, role, slot)) WITHOUT ROWID');
     this.sql.exec('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID');
+    // the sweep's lane matchups, for champions by id % 16 (b) and month ('YYYY-MM'): champion -> role -> lane opponent -> [games, wins]
+    this.sql.exec('CREATE TABLE IF NOT EXISTS matchups (b INTEGER, m TEXT, v TEXT, PRIMARY KEY (b, m)) WITHOUT ROWID');
     this.calls = {}; // routing value -> times of our calls in the last 2 minutes
     this.until = {}; // routing value -> when Riot lets us call again
     this.ips = new Map(); // lookups each address made in the last 2 minutes
@@ -169,8 +171,9 @@ export class Riot extends DurableObject {
     const url = new URL(req.url), o = req.headers.get('origin') || '', cors = ORIGIN.test(o) ? { 'access-control-allow-origin': o, vary: 'origin' } : {};
     const json = { ...cors, 'content-type': 'application/json' };
     if (url.pathname === '/riot/summary') {
-      const { p, c, old, today, total, at } = this.sumOf(), sw = this.swOf(); // from: the oldest day the sweep counted (seconds)
-      return new Response(JSON.stringify({ p, c, old, today, total, at, from: sw.lo < sw.hi ? sw.lo * DAY : undefined }), { headers: json });
+      // from: the oldest day the sweep counted (seconds); on: the day it's on, [day, players asked, games found, games left]
+      const { p, c, old, today, total, at } = this.sumOf(), sw = this.swOf(), w = sw.w;
+      return new Response(JSON.stringify({ p, c, old, today, total, at, from: sw.lo < sw.hi ? sw.lo * DAY : undefined, on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined }), { headers: json });
     }
     if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r')), { headers: json });
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
@@ -218,21 +221,22 @@ export class Riot extends DurableObject {
     if (!Number.isInteger(c) || c <= 0 || c > 1e5) return '{"games":[]}';
     const s = this.sumOf(), mine = s.c[c] || (s.old && s.old.c[c]) || {}, y = { n: 0, w: 0, vs: {} };
     if (!ROLES.has(role)) role = Object.keys(mine).sort((a, b) => mine[b][0] - mine[a][0])[0] || 'MIDDLE';
-    for (const b of Object.values(this.ybk())) for (const [o, [n, w]] of Object.entries((b[c] || {})[role] || {})) { const v = (y.vs[o] ||= [0, 0]); v[0] += n; v[1] += w; y.n += n; y.w += w; }
+    for (const { v } of this.sql.exec('SELECT v FROM matchups WHERE b = ?', c % 16)) for (const [o, [n, w]] of Object.entries((JSON.parse(v)[c] || {})[role] || {})) { const x = (y.vs[o] ||= [0, 0]); x[0] += n; x[1] += w; y.n += n; y.w += w; }
     const rows = this.sql.exec('SELECT patch, at, win, opp, gd, d FROM games WHERE champ = ? AND role = ? ORDER BY at DESC', c, role).toArray();
     return `{"patch":${JSON.stringify(s.p)},"role":"${role}","roles":${JSON.stringify(s.c[c] || {})},"y":${JSON.stringify(y)},"games":[${rows.map((x) => `{"p":${JSON.stringify(x.patch)},"t":${x.at},"w":${x.win},"o":${x.opp},"g":${x.gd ?? 'null'},${x.d.slice(1)}`).join(',')}]}`;
   }
-  // the sweep's lane matchups by month ('YYYY-MM' -> champion -> role -> lane opponent -> [games, wins]), all of them
-  // in memory once asked for (a few MB at most)
-  ybk() { return (this.yb ||= Object.fromEntries(this.sql.exec("SELECT k, v FROM kv WHERE k LIKE 'y:%'").toArray().map((x) => [x.k.slice(2), JSON.parse(x.v)]))); }
-  // the days the sweep has done: lo up to (not with) hi, in days since 1970; li, the next ladder player it asks
+  // the days the sweep has done: lo up to (not with) hi, in days since 1970; li, the next ladder player it asks; w, the
+  // day it's on
   swOf() { const d = Math.floor(Date.now() / 864e5) - 3; return (this.sw ||= this.get('sweep', { lo: d, hi: d, li: 0 })); }
 
+  // Every 15 s: a step of the crawl every other time (every 30 s), then a turn of the sweep, unless the crawl just read
+  // a timeline. A turn only has 10 ms of CPU time on the free plan, and a timeline is a big answer to read.
   async alarm() {
     if (!this.env.RIOT_KEY) return;
-    await this.ctx.storage.setAlarm(Date.now() + (+this.env.CRAWL_EVERY || 30000));
-    try { await this.crawl(); } catch (e) { console.log('crawl:', e && e.message); }
-    try { await this.sweep(); } catch (e) { console.log('sweep:', e && e.message); }
+    await this.ctx.storage.setAlarm(Date.now() + (+this.env.CRAWL_EVERY || 30000) / 2);
+    let big = false;
+    if ((this.odd = !this.odd)) try { big = await this.crawl(); } catch (e) { console.log('crawl:', e && e.message); }
+    if (!big) try { await this.sweep(); } catch (e) { console.log('sweep:', e && e.message); }
   }
   // One step each time, mostly one Riot call: the Challenger and Grandmaster ladders every 6 hours, then a ladder
   // player's ranked solo games of the last 3 days, a game nobody counted yet, or that game's timeline. Only full
@@ -245,7 +249,7 @@ export class Riot extends DurableObject {
     st.steps++;
     this.seen ||= new Set(this.get('seen', []));
     this.lad ||= this.get('ladder', []);
-    if (st.cur) return this.timeline(r, st);
+    if (st.cur) { await this.timeline(r, st); return true; }
     while (st.q.length) {
       const id = st.q.shift();
       if (this.seen.has(id)) continue;
@@ -306,46 +310,51 @@ export class Riot extends DurableObject {
   // The sweep: the ladder's ranked solo games of the last year (SWEEP_DAYS), where the crawl only asks for the last
   // 3 days. One UTC day at a time: up to 50 ladder players' games that day until 200 are found, then each game,
   // without its timeline (builds and runes that old are out of date). A day that turns 3 days old goes first, then
-  // it works back to a year ago, 12 calls a turn at most and only while our calls on the region stay under 40 in
-  // 2 minutes, so the crawl and lookups keep their room. A game counts toward its patch's games and wins (this patch
-  // and the one before) and toward its champions' lane matchups (/riot/champ y), kept by month so a month leaves once
-  // it's over a year old. A day's games are only kept once the day is done, so a restart redoes that day.
+  // it works back to a year ago, only while our calls on the region stay under 40 in 2 minutes, so the crawl and
+  // lookups keep their room. A turn is small, 6 lists of games or 4 games (a game is a big answer to read), and saves
+  // where it is, so a restart carries on. A game counts toward its patch's games and wins (this patch and the one
+  // before) and its champions' lane matchups (/riot/champ y), kept by month so a month leaves once it's a year old.
   async sweep() {
     const r = REGION[this.env.CRAWL || 'kr'], cap = +this.env.SWEEP_ROOM || 40, today = Math.floor(Date.now() / 864e5), back = today - (+this.env.SWEEP_DAYS || 365);
-    const sw = this.swOf(), lad = (this.lad ||= this.get('ladder', [])), seen = (this.seen ||= new Set(this.get('seen', []))), q = (this.st && this.st.q) || [];
-    for (let calls = 0; calls < 12 && lad.length && this.room(r, cap); ) {
-      if (!this.win) {
-        const d = sw.hi < today - 3 ? sw.hi : sw.lo > back ? sw.lo - 1 : null;
-        if (d === null) return;
-        this.win = { d, asked: 0, q: [], found: new Set(), g: [] }; // the day's games: [patch, when, [champion, role, win, lane opponent] x 10]
-      }
-      const w = this.win;
-      if (w.q.length) {
-        const jobs = [];
-        while (w.q.length && calls < 12 && this.room(r, cap)) { calls++; jobs.push(this.json(r, `/lol/match/v5/matches/${w.q.shift()}`).catch(() => null)); }
-        for (const g of (await Promise.all(jobs)).map(gameOf)) if (g) w.g.push([g.patch, g.at, ...g.ps.map((x) => [x.championId, x.teamPosition, x.win ? 1 : 0, g.ps.find((y) => y.teamId !== x.teamId && y.teamPosition === x.teamPosition).championId])]);
-      } else if (w.asked < Math.min(50, lad.length) && w.found.size < 200) {
+    const sw = this.swOf(), lad = (this.lad ||= this.get('ladder', [])), room = () => this.room(r, cap);
+    if (!lad.length || !room()) return;
+    if (!sw.w) {
+      const d = sw.hi < today - 3 ? sw.hi : sw.lo > back ? sw.lo - 1 : null;
+      if (d === null) return;
+      sw.w = { d, asked: 0, found: [], q: [], g: [] }; // g: the day's games, [patch, when, [champion, role, win, lane opponent] x 10]
+    }
+    const w = sw.w, most = Math.min(50, lad.length);
+    if (w.q.length) {
+      const jobs = [];
+      while (w.q.length && jobs.length < 4 && room()) jobs.push(this.json(r, `/lol/match/v5/matches/${w.q.shift()}`).catch(() => null));
+      for (const g of (await Promise.all(jobs)).map(gameOf)) if (g) w.g.push([g.patch, g.at, ...g.ps.map((x) => [x.championId, x.teamPosition, x.win ? 1 : 0, g.ps.find((y) => y.teamId !== x.teamId && y.teamPosition === x.teamPosition).championId])]);
+    } else if (w.asked < most && w.found.length < 200) {
+      const seen = (this.seen ||= new Set(this.get('seen', []))), q = (this.st && this.st.q) || []; // the crawl's games
+      for (let n = 0; n < 6 && w.asked < most && w.found.length < 200 && room(); n++) {
         w.asked++;
-        calls++;
         const ids = await this.json(r, `/lol/match/v5/matches/by-puuid/${lad[sw.li++ % lad.length]}/ids?queue=420&type=ranked&startTime=${w.d * DAY}&endTime=${w.d * DAY + DAY - 1}&count=100`);
-        for (const id of Array.isArray(ids) ? ids : []) if (typeof id === 'string' && !w.found.has(id) && !seen.has(id) && !q.includes(id)) { w.found.add(id); w.q.push(id); }
-      } else this.done(w, sw, back);
-    }
+        for (const id of Array.isArray(ids) ? ids : []) if (typeof id === 'string' && !w.found.includes(id) && !seen.has(id) && !q.includes(id)) { w.found.push(id); w.q.push(id); }
+      }
+    } else this.done(sw, back);
+    this.put('sweep', sw);
   }
-  done(w, sw, back) { // a day the sweep finished: its games join the counts, all at once
-    this.win = null;
-    const yb = this.ybk(), keep = new Date(back * 864e5).toISOString().slice(0, 7), months = new Set();
+  done(sw, back) { // a day the sweep finished: its games join the counts, all at once
+    const w = sw.w, keep = new Date(back * 864e5).toISOString().slice(0, 7), add = {}; // 'month b' -> champion -> role -> lane opponent -> [games, wins]
+    const inc = (t, c, role, o, n, wins) => { const v = (((t[c] ||= {})[role] ||= {})[o] ||= [0, 0]); v[0] += n; v[1] += wins; };
     for (const [patch, at, ...ps] of w.g) {
-      const m = new Date(at * 1000).toISOString().slice(0, 7), b = (yb[m] ||= {});
-      months.add(m);
-      for (const [c, role, win, o] of ps) { this.count(patch, c, role, win); const v = (((b[c] ||= {})[role] ||= {})[o] ||= [0, 0]); v[0]++; v[1] += win; }
+      const m = new Date(at * 1000).toISOString().slice(0, 7);
+      for (const [c, role, win, o] of ps) { this.count(patch, c, role, win); inc((add[`${m} ${c % 16}`] ||= {}), c, role, o, 1, win); }
     }
-    for (const m of Object.keys(yb)) if (m < keep) { delete yb[m]; months.delete(m); this.sql.exec('DELETE FROM kv WHERE k = ?', 'y:' + m); } // over a year old
+    for (const [k, t] of Object.entries(add)) {
+      const [m, b] = k.split(' '), [row] = this.sql.exec('SELECT v FROM matchups WHERE b = ? AND m = ?', +b, m).toArray(), all = row ? JSON.parse(row.v) : {};
+      for (const [c, rs] of Object.entries(t)) for (const [role, os] of Object.entries(rs)) for (const [o, [n, wins]] of Object.entries(os)) inc(all, c, role, o, n, wins);
+      this.sql.exec('INSERT INTO matchups VALUES (?, ?, ?) ON CONFLICT (b, m) DO UPDATE SET v = excluded.v', +b, m, JSON.stringify(all));
+    }
+    this.sql.exec('DELETE FROM matchups WHERE m < ?', keep); // over a year old
     if (w.d < sw.lo) sw.lo = w.d;
     else sw.hi = w.d + 1;
     sw.lo = Math.max(sw.lo, Date.parse(keep + '-01') / 864e5);
-    for (const m of months) this.put('y:' + m, yb[m]);
-    this.put('sweep', sw);
+    sw.w = null;
     this.counted(w.g.length);
   }
 }
