@@ -11,34 +11,62 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <script>
-  try { if (localStorage.getItem('lpc-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch {}
   if (window.lpcClient) document.documentElement.classList.add('in-client'); // the Windows client (client/preload.js)
   if (window.lpcClient && window.lpcClient.lcu) document.documentElement.classList.add('has-lcu'); // version 1.6+: League's own client
 </script>
 <style>
-/* The League client's look: navy with gold trim and hextech-blue accents (data-theme="light" swaps to parchment).
+/* The themes (Settings > Look), red and black unless you pick another: the page, its panels and raised parts, text,
+   trim in the theme's colour (--gold, from when League's gold was the only look), buttons and the focus ring in its
+   accent, links, the glow on whoever is talking, gold for the best (an S tier, a first place), and green, amber and
+   red. data-theme on <html> picks one; on a preview in Settings it gives that preview its theme's colours.
    A dashboard: sections down the left like Discord, the chosen one in the middle, a status bar along the bottom. */
 :root {
-  --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
-  --gold: #c8aa6e; --gold-hi: #f0e6d2; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13;
-  --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   --display: "Cinzel", Georgia, serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+:root, [data-theme="red"] {
+  --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a;
+  --gold: #ff4f5a; --gold-hi: #ffffff; --gold-line: #7a1f28; --accent: #d9202d; --accent-fg: #ffffff; --link: #ff5c66; --talk: #ffffff;
+  --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   color-scheme: dark;
 }
-:root[data-theme="light"] {
+[data-theme="league"] {
+  --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
+  --gold: #c8aa6e; --gold-hi: #f0e6d2; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --link: #0ac8b9; --talk: #0ac8b9;
+  --best: #c8aa6e; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
+  color-scheme: dark;
+}
+[data-theme="light"] {
   --bg: #f2eee4; --panel: #fffdf7; --raised: #f5efe1; --fg: #0a1428; --muted: #575550; --line: #dcd2bd;
-  --gold: #85662b; --gold-hi: #4d3a12; --gold-line: #c8aa6e; --accent: #03717d; --accent-fg: #ffffff;
-  --good: #1a7443; --warn: #8a5d00; --bad: #b3261e;
+  --gold: #85662b; --gold-hi: #4d3a12; --gold-line: #c8aa6e; --accent: #03717d; --accent-fg: #ffffff; --link: #03717d; --talk: #03717d;
+  --best: #85662b; --good: #1a7443; --warn: #8a5d00; --bad: #b3261e;
   color-scheme: light;
+}
+[data-theme="purple"] {
+  --bg: #0c0913; --panel: #151022; --raised: #1e1730; --fg: #efeaf8; --muted: #a39cb5; --line: #2e2445;
+  --gold: #b794ff; --gold-hi: #f5f0ff; --gold-line: #5b3f99; --accent: #7c4dff; --accent-fg: #ffffff; --link: #b794ff; --talk: #c4a8ff;
+  --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
+  color-scheme: dark;
+}
+[data-theme="green"] {
+  --bg: #07100d; --panel: #0d1915; --raised: #13231d; --fg: #e8f3ee; --muted: #93a89f; --line: #1f3a30;
+  --gold: #5ee6a8; --gold-hi: #f0fff7; --gold-line: #1f6b4f; --accent: #27c381; --accent-fg: #07100d; --link: #4fdc9c; --talk: #7dffc4;
+  --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
+  color-scheme: dark;
+}
+[data-theme="mono"] {
+  --bg: #000000; --panel: #0e0e0e; --raised: #181818; --fg: #f2f2f2; --muted: #9a9a9a; --line: #2a2a2a;
+  --gold: #e6e6e6; --gold-hi: #ffffff; --gold-line: #4a4a4a; --accent: #ffffff; --accent-fg: #000000; --link: #ffffff; --talk: #ffffff;
+  --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
+  color-scheme: dark;
 }
 :root:not(.in-client) .client-only, :root:not(.has-lcu) .lcu-only, .in-client .browser-only, [hidden] { display: none !important; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
 h1, h2, h3, p { margin: 0; }
-a { color: var(--accent); }
+a { color: var(--link); }
 
 .app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100vh; height: 100dvh; }
 .rail { grid-area: rail; display: flex; flex-direction: column; gap: 4px; width: 196px; padding: 14px 10px; background: var(--panel); border-right: 1px solid var(--gold-line); overflow-y: auto; }
@@ -47,7 +75,7 @@ a { color: var(--accent); }
 .nav { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); font: 600 12.5px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; text-align: left; cursor: pointer; }
 .nav svg { width: 20px; height: 20px; flex: none; }
 .nav:hover { color: var(--fg); background: var(--raised); }
-.nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: linear-gradient(90deg, rgb(200 170 110 / 0.18), transparent); }
+.nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 18%, transparent), transparent); }
 main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32px; }
 .view, #msg { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
@@ -64,7 +92,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 14px; min-width: 0; align-content: start; }
 .title { font: 700 clamp(22px, 2.6vw, 30px)/1.15 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold-hi); }
 .ph { display: flex; align-items: center; gap: 8px; font: 600 12px/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
-.eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--link); }
 .hint { color: var(--muted); font-size: 14px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .btn { font: 600 14px/1 var(--body); padding: 10px 16px; border-radius: 4px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--gold-hi); cursor: pointer; }
@@ -119,7 +147,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 @media (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }
 .mapbox { display: grid; gap: 12px; justify-items: center; }
 .mapbox > * { width: min(100%, 640px); }
-#map { aspect-ratio: 1; display: block; border-radius: 8px; border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px rgb(200 170 110 / 0.06); }
+#map { aspect-ratio: 1; display: block; border-radius: 8px; border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 6%, transparent); }
 .cardbox { display: grid; gap: 10px; }
 .players { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .player { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-areas: "pic main mute" "vol vol vol"; gap: 10px 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; background: var(--panel); }
@@ -127,7 +155,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .player[data-team="enemy"] { border-left-color: #ff5c5c; }
 .pic { grid-area: pic; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--raised); border: 2px solid var(--gold-line); font: 700 18px/1 var(--display); color: var(--gold); transition: box-shadow 0.15s, border-color 0.15s; }
 .pic img { width: 100%; height: 100%; object-fit: cover; }
-.player[data-talking] .pic { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(10 200 185 / 0.35), 0 0 18px rgb(10 200 185 / 0.65); }
+.player[data-talking] .pic { border-color: var(--talk); box-shadow: 0 0 0 3px color-mix(in srgb, var(--talk) 35%, transparent), 0 0 18px color-mix(in srgb, var(--talk) 65%, transparent); }
 .player[data-dead] .pic { filter: grayscale(1) brightness(0.7); }
 .pmain { grid-area: main; display: grid; gap: 2px; min-width: 0; }
 .pname { display: flex; align-items: center; gap: 8px; font-weight: 600; overflow-wrap: anywhere; }
@@ -190,6 +218,17 @@ kbd { font: 500 13px/1 var(--mono); padding: 6px 8px; border: 1px solid var(--li
 .screen[aria-pressed="true"] { border-color: var(--gold); }
 .screen img { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; border-radius: 3px; }
 fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+/* Look: a card for each theme, with a preview in that theme's own colours (the page, a panel with its trim, a button) */
+fieldset.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.themes legend { margin-bottom: 8px; }
+.theme { position: relative; display: grid; gap: 8px; padding: 8px; border: 2px solid var(--line); border-radius: 8px; background: var(--raised); font-size: 13px; font-weight: 500; line-height: 1.25; cursor: pointer; }
+.theme:hover { border-color: var(--gold-line); }
+.theme:has(:checked) { border-color: var(--gold); }
+.theme:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme input { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.sw { position: relative; height: 44px; border: 1px solid var(--gold-line); border-radius: 5px; background: var(--bg); }
+.sw::before { content: ""; position: absolute; inset: 7px auto 7px 7px; width: 46%; border-top: 3px solid var(--gold); border-radius: 3px; background: var(--panel); }
+.sw::after { content: ""; position: absolute; right: 7px; bottom: 7px; width: 30%; height: 10px; border-radius: 3px; background: var(--accent); }
 
 /* status bar along the bottom, and the compact strip */
 .statusbar { grid-area: bar; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 5px 10px; background: var(--panel); border-top: 1px solid var(--gold-line); font-size: 13px; }
@@ -203,15 +242,15 @@ button.sb:hover { background: var(--raised); border-color: var(--line); }
 #muteBtn .slash { display: none; }
 #muteBtn[data-state="muted"] { color: var(--bad); border-color: var(--bad); }
 #muteBtn[data-state="muted"] .slash { display: inline; }
-#muteBtn[data-state="talk"] { color: var(--accent); border-color: var(--accent); }
+#muteBtn[data-state="talk"] { color: var(--talk); border-color: var(--talk); }
 .sb.new { color: var(--gold-hi); border-color: var(--gold-line); text-decoration: none; }
 .chips { grid-area: chips; display: none; }
 body.compact .app { grid-template: "chips" auto "bar" auto / minmax(0, 1fr); height: auto; }
 body.compact :is(.rail, main, .toasts, #sbLeague) { display: none !important; }
 body.compact .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 2px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; }
-.chip[data-talking] { border-color: var(--accent); box-shadow: 0 0 10px rgb(10 200 185 / 0.55); }
-.chip[data-talking] .dot { background: var(--accent); }
+.chip[data-talking] { border-color: var(--talk); box-shadow: 0 0 10px color-mix(in srgb, var(--talk) 55%, transparent); }
+.chip[data-talking] .dot { background: var(--talk); }
 .chips:empty::before { content: attr(data-empty); color: var(--muted); font-size: 13px; }
 
 /* popups */
@@ -239,7 +278,7 @@ dialog.wizard::backdrop { background: rgb(1 10 19 / 0.78); }
 .scout td:nth-child(2) { min-width: 240px; } /* the rank with its emblem, on one line */
 .scout tr[data-team="ally"] td:first-child { box-shadow: inset 3px 0 #4aa8ff; }
 .scout tr[data-team="enemy"] td:first-child { box-shadow: inset 3px 0 #ff5c5c; }
-tr[data-me] td { background: rgb(200 170 110 / 0.09); }
+tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .who { display: flex; align-items: center; gap: 10px; }
 .who > span:last-child { display: grid; min-width: 0; }
 .pic0 { width: 34px; height: 34px; flex: none; display: inline-block; border-radius: 50%; border: 2px solid var(--gold-line); background: var(--raised); object-fit: cover; }
@@ -258,7 +297,7 @@ tr[data-me] td { background: rgb(200 170 110 / 0.09); }
 .champ:disabled { cursor: default; }
 .champ[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .tl { display: inline-block; min-width: 2em; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; font: 700 13px/1.2 var(--mono); text-align: center; }
-.tl[data-t="S"] { border-color: var(--gold); color: var(--gold); }
+.tl[data-t="S"] { border-color: var(--best); color: var(--best); }
 .tl[data-t="A"] { border-color: var(--good); color: var(--good); }
 .tl[data-t="D"] { border-color: var(--bad); color: var(--bad); }
 .tier td { vertical-align: middle; }
@@ -331,7 +370,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .noteedit textarea { font: 14px/1.4 var(--body); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); width: min(32em, 100%); }
 .laning, .rtl, .buylist { display: grid; gap: 10px; }
 .buyrow { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px; border-radius: 6px; }
-.buyrow[data-me] { background: rgb(200 170 110 / 0.09); }
+.buyrow[data-me] { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .buys { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--muted); }
 .buy { display: grid; justify-items: center; gap: 2px; }
 .buy img { width: 28px; height: 28px; border-radius: 4px; }
@@ -364,7 +403,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .draftcell img { width: 36px; height: 36px; border-radius: 4px; }
 .draftcell span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .draftcell:has(img) { border-style: solid; color: var(--fg); }
-.draftcell[data-now] { border: 1px solid var(--gold); background: rgb(200 170 110 / 0.09); }
+.draftcell[data-now] { border: 1px solid var(--gold); background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .champgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 320px; overflow-y: auto; }
 .champbtn { display: grid; justify-items: center; gap: 4px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 500 11px/1.2 var(--body); cursor: pointer; }
 .champbtn img { width: 44px; height: 44px; border-radius: 4px; }
@@ -400,10 +439,39 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .gitems img { width: 22px; height: 22px; border-radius: 3px; }
 .place { min-width: 40px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 4px; text-align: center; font: 700 13px/1 var(--mono); color: var(--muted); }
 .place[data-r="top"] { color: var(--good); border-color: currentColor; }
-.place[data-r="first"] { color: var(--gold); border-color: currentColor; }
+.place[data-r="first"] { color: var(--best); border-color: currentColor; }
 .plink { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .plink:hover { color: var(--gold); text-decoration: underline; }
 </style>
+<script>
+  // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
+  // blue and gold back when it was the default, counts as the default), Light while your computer is in light mode if
+  // you ticked that, and your own main colour. That colour fills buttons, with black or white text, whichever reads
+  // better; the trim, links and lines in it are mixed toward the theme's text until they read well (4.5:1) on all of
+  // its backgrounds. Settings calls this again after a change.
+  function lpcLook() {
+    const root = document.documentElement;
+    let t = '', o = {};
+    try { t = localStorage.getItem('lpc-theme') || ''; o = JSON.parse(localStorage.getItem('lpc-opts')) || {}; } catch {}
+    if (o.themeAuto && matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
+    root.dataset.theme = ['league', 'light', 'purple', 'green', 'mono'].includes(t) ? t : 'red';
+    const own = { accent: '', 'accent-fg': '', gold: '', 'gold-line': '', link: '' }; // '' takes off your colour
+    if (/^#[0-9a-f]{6}$/i.test(o.main || '')) {
+      const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+      const lin = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4), lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+      const mix = (a, b, w) => a.map((v, i) => Math.round(v * w + b[i] * (1 - w)));
+      const css = getComputedStyle(root), [fg, ...backs] = ['fg', 'bg', 'panel', 'raised'].map((k) => rgb(css.getPropertyValue('--' + k).trim()));
+      const reads = (c) => backs.every((b) => (Math.max(lum(c), lum(b)) + 0.05) / (Math.min(lum(c), lum(b)) + 0.05) >= 4.5);
+      const m = rgb(o.main);
+      let w = 20;
+      while (w && !reads(mix(m, fg, w / 20))) w--;
+      const text = hex(mix(m, fg, w / 20));
+      Object.assign(own, { accent: hex(m), 'accent-fg': lum(m) > 0.179 ? '#000000' : '#ffffff', gold: text, link: text, 'gold-line': hex(mix(m, backs[1], 0.5)) });
+    }
+    for (const k in own) root.style.setProperty('--' + k, own[k]);
+  }
+  lpcLook();
+</script>
 </head>
 <body>
 <div class="app">
@@ -942,10 +1010,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </section>
         <section class="panel">
           <h2 class="ph">Look</h2>
-          <fieldset><legend class="hint">Theme</legend>
-            <label class="check"><input type="radio" name="theme" value="dark"> League (dark)</label>
-            <label class="check"><input type="radio" name="theme" value="light"> Light</label>
+          <fieldset class="themes"><legend class="hint">Theme</legend>
+            <label class="theme"><input type="radio" name="theme" value="red"><span class="sw" data-theme="red"></span>Red and black</label>
+            <label class="theme"><input type="radio" name="theme" value="league"><span class="sw" data-theme="league"></span>League blue and gold</label>
+            <label class="theme"><input type="radio" name="theme" value="light"><span class="sw" data-theme="light"></span>Light</label>
+            <label class="theme"><input type="radio" name="theme" value="purple"><span class="sw" data-theme="purple"></span>Purple</label>
+            <label class="theme"><input type="radio" name="theme" value="green"><span class="sw" data-theme="green"></span>Green</label>
+            <label class="theme"><input type="radio" name="theme" value="mono"><span class="sw" data-theme="mono"></span>Black and white</label>
           </fieldset>
+          <div class="toolbar"><label class="check">Main colour <input id="optMain" type="color"></label><button id="mainReset" class="btn small" type="button">Use the theme’s colour</button></div>
+          <label class="check"><input id="optThemeAuto" type="checkbox"> Light when my computer is in light mode</label>
         </section>
         <section class="panel">
           <h2 class="ph">App</h2>
@@ -1119,11 +1193,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '',
+    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false,
     ...load('lpc-opts', {}),
   };
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
+  // The theme's colours (Settings > Look) for what's drawn in code: the live map, the season recap and the overlay
+  const lookNow = () => {
+    const css = getComputedStyle(document.documentElement), c = { dark: css.colorScheme !== 'light' };
+    for (const k of ['bg', 'panel', 'raised', 'fg', 'muted', 'line', 'gold', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'good', 'bad']) c[k] = css.getPropertyValue('--' + k).trim();
+    return c;
+  };
+  let look = lookNow();
 
   // Our own connection server (server/worker.js on Cloudflare) introduces players, and PeerJS's default STUN/TURN
   // servers get voice through home routers. ?peer=127.0.0.1:9000 points at a local server for tests.
@@ -1454,7 +1535,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const p of peers.values()) {
       if (!fresh(p.pos) || teamOf(p) === 'enemy') continue; // the other team never shows on the map
       const t = teamOf(p), img = p.row.querySelector('.pic img');
-      marker(g, p.pos.x * S, p.pos.y * S, 11 * k, k, t === 'enemy' ? '#ff5c5c' : t === 'ally' ? '#4aa8ff' : '#0ac8b9', img, nameOf(p), shownTalking(p), fresh(me) && p.vol <= 0, p.dead);
+      marker(g, p.pos.x * S, p.pos.y * S, 11 * k, k, t === 'enemy' ? '#ff5c5c' : t === 'ally' ? '#4aa8ff' : mapTalk(), img, nameOf(p), shownTalking(p), fresh(me) && p.vol <= 0, p.dead);
       markers.push({ name: nameOf(p), x: p.pos.x, y: p.pos.y, talking: shownTalking(p) });
     }
     if (fresh(me)) {
@@ -1468,12 +1549,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('offmap').textContent = [fresh(me) ? '' : share ? 'Looking for your champion on your minimap.' : 'Share your League screen to put yourself on the map.',
       off.length ? `Not on the map yet, ${inGameNow() ? 'so silent' : 'heard at full volume'}: ${off.join(', ')}.` : '', hid ? 'The other team is hidden on the map.' : ''].filter(Boolean).join(' ');
   }
+  const mapTalk = () => (look.dark ? look.talk : '#0ac8b9'); // the theme's talking glow; in Light League's teal, as Light's own is too dark for a minimap
   function marker(g, x, y, r, k, color, img, label, talking, dim, dead) {
     g.save();
     g.globalAlpha = dim ? 0.45 : 1;
     if (talking) {
-      g.shadowColor = '#0ac8b9'; g.shadowBlur = 18 * k;
-      g.strokeStyle = '#0ac8b9'; g.lineWidth = 3 * k;
+      g.shadowColor = g.strokeStyle = mapTalk(); g.shadowBlur = 18 * k; g.lineWidth = 3 * k;
       g.beginPath(); g.arc(x, y, r + 5 * k, 0, 7); g.stroke();
       g.shadowBlur = 0;
     }
@@ -2671,9 +2752,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- the in-game overlay (Windows client), with what Settings picks: who's talking and voice swap's countdown; your
   // mic, who can hear you and the effects on your voice; room chat; the objective timers and gold; your CS a minute;
-  // recent popups. Move it (edit) shows it with a frame to drag anywhere; the client says where it was left
-  // (overlay-moved). The overlay shortcut hides all of it until it's pressed again (overlayHide); in a game it first
-  // shows everyone's rank (boardKey).
+  // recent popups; in the theme's colours (theme) unless that's Light, as it sits over the game. Move it (edit) shows it
+  // with a frame to drag anywhere; the client says where it was left (overlay-moved). The overlay shortcut hides all of
+  // it until it's pressed again (overlayHide); in a game it first shows everyone's rank (boardKey).
   let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false;
   const chats = []; // the last few chat messages, for the overlay
   function pushOverlay() {
@@ -2686,7 +2767,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const s = !visible ? { visible: false } : {
-      visible, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, board,
+      visible, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, board, theme: look.dark ? look : null,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -4789,17 +4870,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const v of g.slice().reverse()) { run = v.win ? run + 1 : 0; streak = Math.max(streak, run); }
     const pics = await Promise.all(top.map((s) => loadImg(champImg(s.c))));
     const cv = $('recap'), x = cv.getContext('2d'), W = cv.width, H = cv.height, css = getComputedStyle(document.documentElement);
-    const gold = '#c8aa6e', fg = '#f0e6d2', muted = '#a09b8c', display = css.getPropertyValue('--display') || 'serif', body = css.getPropertyValue('--body') || 'sans-serif';
+    const { gold, fg, muted } = look, display = css.getPropertyValue('--display') || 'serif', body = css.getPropertyValue('--body') || 'sans-serif';
     const bg = x.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0a1428');
-    bg.addColorStop(1, '#010a13');
+    bg.addColorStop(0, look.panel);
+    bg.addColorStop(1, look.bg);
     x.fillStyle = bg;
     x.fillRect(0, 0, W, H);
-    x.strokeStyle = '#785a28';
+    x.strokeStyle = look['gold-line'];
     x.lineWidth = 3;
     x.strokeRect(10, 10, W - 20, H - 20);
     const text = (t, px, py, font, color, align = 'left') => { x.font = font; x.fillStyle = color; x.textAlign = align; x.fillText(t, px, py); };
-    const head = (t, py) => { text(t.toUpperCase(), 40, py, `600 14px ${body}`, gold); x.fillStyle = '#1f2f45'; x.fillRect(40, py + 8, W - 80, 1); };
+    const head = (t, py) => { text(t.toUpperCase(), 40, py, `600 14px ${body}`, gold); x.fillStyle = look.line; x.fillRect(40, py + 8, W - 80, 1); };
     text('SEASON RECAP', W / 2, 70, `700 34px ${display}`, gold, 'center');
     text(`${me0 && me0.gameName ? me0.gameName + ' · ' : ''}your last ${g.length} games`, W / 2, 100, `400 16px ${body}`, muted, 'center');
     text(`${w}W ${g.length - w}L`, W / 2, 170, `700 46px ${display}`, fg, 'center');
@@ -4818,7 +4899,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!pals.length) text('Your games with friends show up here as the app reads your history.', 40, 660, `400 15px ${body}`, muted);
     pals.forEach((s, i) => text(`${s.name.split('#')[0]}: ${s.n} games, ${s.w} won`, 40, 660 + i * 24, `400 16px ${body}`, fg));
     text([`Longest win streak ${streak}`, (fame.pentas || []).length ? `pentakills ${(fame.pentas || []).length}` : '', role ? `favourite role ${POS[role[0]].toLowerCase()}` : ''].filter(Boolean).join(' · '), W / 2, 755, `400 15px ${body}`, muted, 'center');
-    text('Premade', W / 2, 780, `400 12px ${body}`, '#5b5a56', 'center');
+    text('Premade', W / 2, 780, `400 12px ${body}`, muted, 'center');
     cv.hidden = false;
     try { $('recapSave').href = cv.toDataURL('image/png'); $('recapSave').hidden = false; } catch { $('recapSave').hidden = true; } // a picture Riot's server didn't allow taints it
   }
@@ -6213,13 +6294,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (peer) send({ t: 'hi', name: myName });
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record) }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'],
-    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet']]) {
+    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || pushOverlay)(); });
   }
@@ -6253,8 +6334,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
   }
   $('recordingsBtn').addEventListener('click', () => client && client.recordingsFolder && client.recordingsFolder());
-  document.querySelector(`input[name="theme"][value="${store.get('lpc-theme') === 'light' ? 'light' : 'dark'}"]`).checked = true;
-  for (const r of document.querySelectorAll('input[name="theme"]')) r.addEventListener('change', () => { document.documentElement.dataset.theme = r.value; store.set('lpc-theme', r.value); render(); });
+  // Look: the theme, your own main colour and Light with your computer's light mode (lpcLook, at the top, puts them on
+  // the page), then everything drawn in its colours again
+  const themeRadios = [...document.querySelectorAll('input[name="theme"]')];
+  (themeRadios.find((r) => r.value === store.get('lpc-theme')) || themeRadios[0]).checked = true; // the old 'dark' is red and black now
+  const lookUi = () => { $('optMain').value = opts.main || look.accent; $('mainReset').hidden = !opts.main; };
+  function relook() {
+    lpcLook();
+    look = lookNow();
+    lookUi();
+    render();
+    pushOverlay();
+  }
+  lookUi();
+  for (const r of themeRadios) r.addEventListener('change', () => { store.set('lpc-theme', r.value); relook(); });
+  $('optMain').addEventListener('input', (e) => { opts.main = e.target.value; saveOpts(); relook(); });
+  $('mainReset').addEventListener('click', () => { opts.main = ''; saveOpts(); relook(); });
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (opts.themeAuto) relook(); });
   if (!client && window.Notification) {
     $('notifyAllow').hidden = Notification.permission !== 'default';
     $('notifyAllow').addEventListener('click', async () => { await Notification.requestPermission(); $('notifyAllow').hidden = Notification.permission !== 'default'; });
