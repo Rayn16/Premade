@@ -295,6 +295,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .tag { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .tag[data-k="good"] { border-color: var(--good); color: var(--good); }
 .tag[data-k="bad"] { border-color: var(--bad); color: var(--bad); }
+.tag[data-k="fun"] { border-color: var(--best); color: var(--best); }
 .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; color: var(--muted); font-size: 14px; }
 .champ { display: grid; grid-template: "pic name" auto "pic sub" auto / 40px minmax(0, 1fr); gap: 0 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 600 14px/1.25 var(--body); text-align: left; cursor: pointer; }
 .champ img { grid-area: pic; width: 40px; height: 40px; border-radius: 4px; }
@@ -1274,7 +1275,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
-<div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery and Riot's ranked flags. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
+<div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key (Settings, Keyboard shortcuts), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment.</div>
@@ -3182,14 +3183,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return g.gameMode !== 'CLASSIC' ? '' : l === 'BOTTOM' && /SUPPORT/i.test(t.role || '') ? 'UTILITY' : l;
   }
   // games from a match history: newest first, without remakes (under 5 minutes). perks: the rune trees, then the six
-  // runes (match history leaves out the stat shards)
+  // runes (match history leaves out the stat shards). spells: the D and F summoner spells. Profile's tags use the rest,
+  // undefined where a game's data doesn't have it (League's client gives no kill participation, solo kills, steals or pings)
   function gamesOf(h) {
     const list = (h && h.games && Array.isArray(h.games.games) && h.games.games) || [];
     return list.map((g) => {
-      const p = (g.participants && g.participants[0]) || {}, s = p.stats || {};
+      const p = (g.participants && g.participants[0]) || {}, s = p.stats || {}, c = s.challenges || {}, num = (v) => (typeof v === 'number' ? v : undefined), pk = Object.keys(s).filter((k) => /Pings$/.test(k));
       return { id: g.gameId, at: +g.gameCreation || 0, len: +g.gameDuration || 0, queue: g.queueId, mode: g.gameMode, champ: p.championId, win: !!s.win, gold: s.goldEarned | 0,
         k: s.kills | 0, d: s.deaths | 0, a: s.assists | 0, cs: (s.totalMinionsKilled | 0) + (s.neutralMinionsKilled | 0), team: p.teamId | 0, lane: laneOf(g, p),
         vision: s.visionScore | 0, dmg: s.totalDamageDealtToChampions | 0, penta: s.pentaKills | 0, quadra: s.quadraKills | 0, multi: s.largestMultiKill | 0, fb: !!s.firstBloodKill,
+        spells: [p.spell1Id || s.summoner1Id | 0, p.spell2Id || s.summoner2Id | 0], pinks: num(s.visionWardsBoughtInGame), towers: num(s.turretKills), cc: num(s.timeCCingOthers),
+        taken: num(s.totalDamageTaken), spree: num(s.largestKillingSpree), kp: num(c.killParticipation), solo: num(c.soloKills), steals: num(s.objectivesStolen),
+        qping: num(s.enemyMissingPings), pings: pk.length ? pk.reduce((t, k) => t + (s[k] | 0), 0) : undefined,
         items: [0, 1, 2, 3, 4, 5].map((i) => s['item' + i] | 0).filter(Boolean), perks: s.perk0 ? [s.perkPrimaryStyle | 0, s.perkSubStyle | 0, ...[0, 1, 2, 3, 4, 5].map((i) => s['perk' + i] | 0)] : null };
     }).filter((g) => g.len >= 300).sort((a, b) => b.at - a.at);
   }
@@ -5586,6 +5591,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // { peak, last: [tier, division, LP], at } } }; asked again after 10 minutes, null until it answers
   const pasts = new Map(); // puuid -> { at, s }
   let pastSent = ''; // you and the day our server was last asked for your rank, so it keeps yours season by season
+  // someone's puuid in Riot's API: League's client has its own kind, which Riot and our server's record of ranks don't
+  // know, so it's asked for by Riot ID (once). null until known.
+  const riotUs = new Map(); // 'name#tag' -> puuid, undefined while asked, null when Riot doesn't know them
+  function riotU(p) {
+    if (p.src === 'riot') return p.u;
+    const id = riotOn && PLATS[p.plat] ? riotId(p.n) : null, reg = id && PLATS[p.plat][1];
+    if (id && !riotUs.has(p.n)) {
+      riotUs.set(p.n, undefined);
+      riotGet(reg === 'sea' ? 'asia' : reg, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(id[0])}/${encodeURIComponent(id[1])}`)
+        .then((a) => { riotUs.set(p.n, a && typeof a.puuid === 'string' ? a.puuid : null); if (!profView.hidden) renderProfile(); }, () => riotUs.set(p.n, null));
+    }
+    return riotUs.get(p.n) || null;
+  }
   function pastOf(u) {
     const t = pasts.get(u);
     if (riotOn && u && (!t || performance.now() - t.at > 600000)) {
@@ -5597,15 +5615,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return t ? t.s : null;
   }
-  // past seasons' ranks, newest first: last season's from League's client (where it ended and its peak), and each
-  // season our server saw that's over (the last rank it saw then, and the highest)
-  function pastRanks(p) {
-    const now = seasonNow(), out = new Map(), rec = pastOf(p.u) || {};
-    for (const [s, qs] of Object.entries(rec)) for (const q of QS) { const v = qs && qs[q]; if (+s < now && v) out.set(`${s} ${q}`, { s: +s, q, end: rkArr(v.last), peak: rkArr(v.peak), at: +v.at || 0 }); }
+  // what League's client says about someone's seasons, { season: { queue: [end, peak] } }: where last season ended and
+  // its peak, and this season's peak. Yours is kept on this computer (lpc-past), for when League is closed; by Riot ID,
+  // since your profile from Riot has another puuid than League's client.
+  const leaguePast = load('lpc-past', {}); // 'name#tag' in lower case -> { season: { queue: [end, peak] } }
+  function leagueRanks(p) {
+    const now = seasonNow(), id = String(p.n || '').toLowerCase(), kept = JSON.parse(JSON.stringify(leaguePast[id] || {}));
     for (const q of QS) {
-      const x = p.rk && p.rk[q], end = x && rankFrom(x.previousSeasonEndTier, x.previousSeasonEndDivision), peak = x && rankFrom(x.previousSeasonHighestTier, x.previousSeasonHighestDivision);
-      if (now && (end || peak)) out.set(`${now - 1} ${q}`, { s: now - 1, q, end, peak, league: true });
+      const x = p.rk && p.rk[q], end = x && rankFrom(x.previousSeasonEndTier, x.previousSeasonEndDivision), peak = x && rankFrom(x.previousSeasonHighestTier, x.previousSeasonHighestDivision), hi = x && rankFrom(x.highestTier, x.highestDivision);
+      if (now && (end || peak)) (kept[now - 1] ||= {})[q] = [end, peak];
+      if (now && hi) (kept[now] ||= {})[q] = [null, hi];
     }
+    if (me0 && p.u && p.u === me0.puuid && JSON.stringify(kept) !== JSON.stringify(leaguePast[id] || {})) { leaguePast[id] = kept; store.set('lpc-past', JSON.stringify(leaguePast)); }
+    return kept;
+  }
+  // past seasons' ranks, newest first: from League's client (where a season ended and its peak), and each season our
+  // server saw that's over (the last rank it saw then, and the highest)
+  function pastRanks(p) {
+    const now = seasonNow(), out = new Map(), rec = pastOf(riotU(p)) || {};
+    for (const [s, qs] of Object.entries(rec)) for (const q of QS) { const v = qs && qs[q]; if (+s < now && v) out.set(`${s} ${q}`, { s: +s, q, end: rkArr(v.last), peak: rkArr(v.peak), at: +v.at || 0 }); }
+    for (const [s, qs] of Object.entries(leagueRanks(p))) for (const q of QS) { const v = qs && qs[q]; if (+s < now && Array.isArray(v)) out.set(`${s} ${q}`, { s: +s, q, end: v[0], peak: v[1], league: true }); }
     return [...out.values()].filter((x) => x.end || x.peak).sort((a, b) => b.s - a.s || QS.indexOf(a.q) - QS.indexOf(b.q));
   }
   function pastChip(x) { // S2025 Diamond II · peak Diamond I, with the emblem
@@ -5616,44 +5645,102 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : `${x.end ? `${rkName(x.end)} when our server last saw it${x.at ? ` (${new Date(x.at * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })})` : ''}` : ''}${x.end && x.peak ? ', ' : ''}${x.peak ? `highest it saw ${rkName(x.peak)}` : ''}. From Riot, kept by our server.`}`;
     return t;
   }
-  const peakNow = (p, q) => { // this season's highest rank: from League's client, or the highest our server saw
-    const x = p.rk && p.rk[q], v = ((pastOf(p.u) || {})[seasonNow()] || {})[q], a = x && rankFrom(x.highestTier, x.highestDivision), b = v && rkArr(v.peak);
+  const peakNow = (p, q) => { // this season's highest rank: from League's client (now or when it last said), or the highest our server saw
+    const k = (leagueRanks(p)[seasonNow()] || {})[q], v = ((pastOf(riotU(p)) || {})[seasonNow()] || {})[q], a = Array.isArray(k) && k[1], b = v && rkArr(v.peak);
     return rkVal(a) >= rkVal(b) ? a : b;
   };
   // Porofessor-style tags for Profile: the scouting ones (a streak, a one-trick, a possible smurf, seen before) and
-  // more from the last 20 games (Summoner's Rift's for play style), top mastery and Riot's ranked flags
+  // more from the last 20 games (Summoner's Rift's for play style), top mastery, level and Riot's ranked flags. Green
+  // and red ones are good to know, gold ones ('fun') just for fun, shown in that order
   function proTags(p) {
     const g = proAll(p).filter((x) => !x.tft).slice(0, 20), n = g.length, rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), avg = (l, f) => l.reduce((t, x) => t + f(x), 0) / l.length;
+    const stat = (f, perMin) => { const l = rift.filter((x) => Number.isFinite(x[f])); return l.length >= 5 ? avg(l, (x) => x[f] / (perMin ? x.len / 60 : 1)) : NaN; }; // from 5 games that have it
+    const won = (l) => l.filter((x) => x.win).length, top = (l, f) => l.reduce((m, x) => (x[f] > (m ? m[f] : 0) ? x : m), null);
     const out = tagsOf({ games: g, mastery: p.m || [], ranked: p.rk || {}, level: p.lvl }, 0, { puuid: proOther ? p.u : '', me: !proOther });
-    for (const m of p.m || []) if (m.championPoints >= 1e6) out.push(['good', `Millionaire: ${champName(m.championId)}`]);
+    for (const m of p.m || []) if (m.championPoints >= 1e6) out.push(['fun', `Millionaire: ${champName(m.championId)}`]);
     const by = {};
-    for (const x of g) by[x.champ] = (by[x.champ] || 0) + 1;
-    const [c, k] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || [];
-    if (n >= 10 && k / n >= 0.4 && k / n < 0.7) out.push(['', `${champName(+c)} lover: ${k} of ${n} games`]); // 70% is a one-trick
+    for (const x of g) (by[x.champ] ||= []).push(x);
+    const pool = Object.entries(by).sort((a, b) => b[1].length - a[1].length), [c, k = 0] = pool.length ? [pool[0][0], pool[0][1].length] : [];
+    if (n >= 10 && k / n >= 0.4 && k / n < 0.7) out.push(['fun', `${champName(+c)} lover: ${k} of ${n} games`]); // 70% is a one-trick
+    const rated = pool.filter(([, l]) => l.length >= 4).map(([c, l]) => [+c, won(l), l.length]).sort((a, b) => b[1] / b[2] - a[1] / a[2] || b[2] - a[2]), best = rated[0], worst = rated[rated.length - 1];
+    if (best && best[1] / best[2] >= 0.75) out.push(['good', `Best on ${champName(best[0])}: ${best[1]} of ${best[2]} won`]);
+    if (worst && worst[1] / worst[2] <= 0.25) out.push(['bad', `Struggles on ${champName(worst[0])}: ${worst[1]} of ${worst[2]} won`]);
     if (rift.length >= 5) {
-      const d = avg(rift, (x) => x.d), lane = rift.filter((x) => x.lane && x.lane !== 'UTILITY'), cs = lane.length >= 5 ? avg(lane, (x) => x.cs / (x.len / 60)) : 0;
+      const d = avg(rift, (x) => x.d), kills = avg(rift, (x) => x.k), assists = avg(rift, (x) => x.a), lane = rift.filter((x) => x.lane && x.lane !== 'UTILITY'), cs = lane.length >= 5 ? avg(lane, (x) => x.cs / (x.len / 60)) : 0;
       if (d <= 3) out.push(['good', `Hard to kill: ${d.toFixed(1)} deaths a game`]);
       else if (d >= 8) out.push(['bad', `Dies a lot: ${d.toFixed(1)} deaths a game`]);
+      if (kills >= 9) out.push(['good', `Kill hungry: ${kills.toFixed(1)} kills a game`]);
+      else if (kills <= 2 && assists >= 10) out.push(['fun', `Pacifist: ${kills.toFixed(1)} kills a game`]);
+      if (assists >= 12) out.push(['good', `Assist king: ${assists.toFixed(1)} assists a game`]);
       if (cs >= 8) out.push(['good', `Farmer: ${cs.toFixed(1)} CS a minute`]);
+      const vis = stat('vision', true), pinks = stat('pinks'), kp = stat('kp'), solo = stat('solo'), dpm = stat('dmg', true), taken = stat('taken', true), cc = stat('cc'), towers = stat('towers');
+      if (vis >= 1.8) out.push(['good', `Lights up the map: ${vis.toFixed(1)} vision a minute`]);
+      else if (vis <= 0.5) out.push(['bad', `Plays in the dark: ${vis.toFixed(1)} vision a minute`]);
+      if (pinks >= 2) out.push(['good', `Buys control wards: ${pinks.toFixed(1)} a game`]);
+      else if (pinks < 0.3) out.push(['bad', `Rarely buys control wards: ${pinks.toFixed(1)} a game`]);
+      if (kp >= 0.65) out.push(['good', `Team player: ${pct(kp)} kill participation`]);
+      else if (kp <= 0.35) out.push(['', `Lone wolf: ${pct(kp)} kill participation`]);
+      if (solo >= 1.5) out.push(['good', `Duelist: ${solo.toFixed(1)} solo kills a game`]);
+      if (dpm >= 900) out.push(['good', `Big damage: ${Math.round(dpm)} a minute`]);
+      if (taken >= 1100) out.push(['', `Frontline: takes ${Math.round(taken).toLocaleString('en-US')} damage a minute`]);
+      if (cc >= 40) out.push(['good', `Lockdown: ${Math.round(cc)} s of crowd control a game`]);
+      if (towers >= 1.5) out.push(['good', `Tower taker: ${towers.toFixed(1)} towers a game`]);
       const seen = rift.filter((x) => typeof x.fb === 'boolean'), fb = seen.filter((x) => x.fb).length; // games kept before first blood was
       if (seen.length >= 5 && fb / seen.length >= 0.25) out.push(['good', `First blood in ${fb} of ${seen.length} games`]);
-      const long = rift.filter((x) => x.len >= 1800), short = rift.filter((x) => x.len < 1800), won = (l) => l.filter((x) => x.win).length;
+      const long = rift.filter((x) => x.len >= 1800), short = rift.filter((x) => x.len < 1800);
       if (long.length >= 4 && short.length >= 4 && Math.abs(won(long) / long.length - won(short) / short.length) >= 0.3) {
         const lg = won(long) / long.length > won(short) / short.length, l = lg ? long : short;
         out.push(['', `Better in ${lg ? 'long' : 'short'} games: ${won(l)} of ${l.length} won ${lg ? 'over' : 'under'} 30 minutes`]);
       }
+      const clean = rift.filter((x) => x.win && !x.d).length, fast = rift.filter((x) => x.win && x.len < 1200).length, roles = {}, champs = new Set(rift.map((x) => x.champ)).size;
+      if (clean >= 2) out.push(['good', `Untouchable: ${clean} wins without dying`]);
+      if (fast >= 2) out.push(['fun', `Speedrunner: ${fast} wins under 20 minutes`]);
+      for (const x of rift) if (x.lane) roles[x.lane] = (roles[x.lane] || 0) + 1;
+      const many = Object.values(roles).filter((v) => v >= 2).length;
+      if (many >= 4) out.push(['', `Flexible: ${many} roles in ${rift.length} games`]);
+      if (rift.length >= 15 && champs >= 0.6 * rift.length) out.push(['', `Wide champion pool: ${champs} champions in ${rift.length} games`]);
+      const big = top(rift, 'dmg'), longest = top(rift, 'len');
+      if (big && big.dmg >= 50000) out.push(['fun', `Big hitter: ${big.dmg.toLocaleString('en-US')} damage in one game`]);
+      if (longest && longest.len >= 2700) out.push(['fun', `Marathon: a ${Math.round(longest.len / 60)}-minute game`]);
     }
-    const penta = g.find((x) => x.penta || x.multi >= 5);
-    if (penta) out.push(['good', `Pentakill on ${champName(penta.champ)}`]);
+    const penta = g.find((x) => x.penta || x.multi >= 5), quadra = g.find((x) => x.quadra || x.multi === 4), spree = top(g, 'spree');
+    if (penta) out.push(['fun', `Pentakill on ${champName(penta.champ)}`]);
+    else if (quadra) out.push(['fun', `So close: a quadra kill on ${champName(quadra.champ)}`]);
+    if (spree && spree.spree >= 8) out.push(['fun', `Legendary: ${spree.spree} kills without dying on ${champName(spree.champ)}`]);
+    const steals = g.reduce((t, x) => t + (x.steals | 0), 0), mejai = g.filter((x) => (x.items || []).includes(3041)).length, aram = g.filter((x) => ARAMS.includes(x.queue)).length;
+    if (steals) out.push(['fun', `Objective thief: ${steals} steal${steals === 1 ? '' : 's'}`]);
+    if (mejai >= 2) out.push(['fun', `Mejai’s gambler: ${mejai} games`]);
+    if (n >= 10 && aram / n >= 0.5) out.push(['fun', `ARAM lover: ${aram} of ${n} games`]);
+    const sp = g.filter((x) => (x.mode === 'CLASSIC' || x.mode === 'ARAM') && x.spells && x.spells[0]), fl = sp.filter((x) => x.spells.includes(4)), onF = fl.filter((x) => x.spells[1] === 4).length;
+    if (fl.length >= 5 && onF / fl.length >= 0.8) out.push(['fun', 'Flash on F']);
+    else if (fl.length >= 5 && onF / fl.length <= 0.2) out.push(['fun', 'Flash on D']);
+    if (sp.length >= 5 && fl.length / sp.length <= 0.6) out.push(['fun', `Flashless: no Flash in ${sp.length - fl.length} of ${sp.length} games`]);
+    const pinged = g.filter((x) => Number.isFinite(x.pings)), qp = pinged.length >= 5 ? avg(pinged, (x) => x.qping | 0) : 0, pings = pinged.length >= 5 ? avg(pinged, (x) => x.pings) : NaN;
+    if (qp >= 5) out.push(['fun', `Loves the ? ping: ${qp.toFixed(1)} a game`]);
+    else if (pings >= 50) out.push(['fun', `Shot caller: ${Math.round(pings)} pings a game`]);
+    else if (pings <= 5) out.push(['fun', `Silent type: ${pings.toFixed(1)} pings a game`]);
+    // ponytail: hours and days on this computer's clock, not the player's (off for someone far away); their server's time zone if it matters
+    const hr = (x) => new Date(x.at).getHours(), night = g.filter((x) => hr(x) < 5).length, early = g.filter((x) => hr(x) >= 5 && hr(x) < 9).length, weekend = g.filter((x) => [0, 6].includes(new Date(x.at).getDay())).length;
+    const today = g.filter((x) => new Date(x.at).toDateString() === new Date().toDateString()).length;
+    if (n >= 10 && night / n >= 0.3) out.push(['fun', `Night owl: ${night} of ${n} games after midnight`]);
+    if (n >= 10 && early / n >= 0.25) out.push(['fun', `Early bird: ${early} of ${n} games before 9 AM`]);
+    if (n >= 10 && weekend / n >= 0.65) out.push(['fun', `Weekend warrior: ${weekend} of ${n} games on weekends`]);
+    if (today >= 6) out.push(['fun', `Grinder: ${today} games today`]);
+    if (n >= 2 && g[0].at - g[1].at >= 14 * 864e5) out.push(['', `Back after a break: ${Math.round((g[0].at - g[1].at) / 864e5)} days off`]);
+    if (p.lvl >= 500) out.push(['fun', `Dedicated: level ${p.lvl}`]);
     const streak = out.some(([, t]) => / wins in a row$/.test(t));
     for (const q of QS) {
-      const x = p.rk && p.rk[q], of = q === 'RANKED_FLEX_SR' ? ' in Flex' : '';
+      const x = p.rk && p.rk[q], of = q === 'RANKED_FLEX_SR' ? ' in Flex' : '', gn = x ? (x.wins | 0) + (x.losses | 0) : 0;
       if (!x || !TIERS.includes(x.tier)) continue;
       if (x.hotStreak && !streak) out.push(['good', `Hot streak in ${QN[q]}`]);
+      if (gn >= 30 && x.wins / gn >= 0.58) out.push(['good', `Climbing: ${pct(x.wins / gn)} won in ${QN[q]}`]);
+      else if (gn >= 30 && x.wins / gn <= 0.44) out.push(['bad', `Struggling: ${pct(x.wins / gn)} won in ${QN[q]}`]);
       if (x.veteran) out.push(['', `Veteran of ${rkName(x)}${of}`]);
       if (x.freshBlood) out.push(['', `New to ${rkName(x)}${of}`]);
+      if (x.inactive) out.push(['', `Inactive in ${QN[q]}`]);
     }
-    return out;
+    const order = ['good', 'bad', '', 'fun'];
+    return out.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
   }
   function renderTags(p) { // past ranks under the name, and the tags
     const past = pastRanks(p), tags = proTags(p), pk = JSON.stringify([past, Object.keys(emblems).length]), tk = JSON.stringify(tags);
@@ -5693,7 +5780,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     riotCheck();
     if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
     if (mine && !lm) riotMine();
-    else if (lm && riotOn && PLATS[lm.plat] && pastSent !== lm.u + new Date().toDateString()) { pastSent = lm.u + new Date().toDateString(); riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${lm.u}`).catch(() => {}); } // our server keeps the ranks it gets
+    const ru = lm && riotU(lm), day = ru + new Date().toDateString();
+    if (ru && pastSent !== day) { pastSent = day; riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${ru}`).catch(() => {}); } // once a day, so our server keeps your rank
     $('proName').textContent = p ? name : 'Your League profile';
     $('proTag').textContent = tag ? '#' + tag : '';
     $('proIcon').hidden = !(p && p.icon && ddVersion);
@@ -5809,7 +5897,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return { n: `${a.gameName || g}#${a.tagLine || t}`, u, lvl: (s && s.summonerLevel) | 0, icon: (s && s.profileIconId) | 0, plat, rk: ranksOf(e), games, m: Array.isArray(m) ? m : [], live, at: Date.now(), src: 'riot' };
   }
   const ranksOf = (e) => Object.fromEntries((Array.isArray(e) ? e : []).filter((x) => x && /^RANKED_(SOLO_5x5|FLEX_SR)$/.test(x.queueType))
-    .map((x) => [x.queueType, { tier: x.tier, division: x.rank, leaguePoints: x.leaguePoints, wins: x.wins, losses: x.losses, hotStreak: !!x.hotStreak, veteran: !!x.veteran, freshBlood: !!x.freshBlood }])); // Riot's ranks as League's client gives them, with Riot's flags
+    .map((x) => [x.queueType, { tier: x.tier, division: x.rank, leaguePoints: x.leaguePoints, wins: x.wins, losses: x.losses, hotStreak: !!x.hotStreak, veteran: !!x.veteran, freshBlood: !!x.freshBlood, inactive: !!x.inactive }])); // Riot's ranks as League's client gives them, with Riot's flags
   // whether someone is in a League game right now (Riot's spectator: not TFT, and not someone in streamer mode), with
   // everyone in it: null when not. Players in streamer mode come without a name.
   async function riotLive(u, plat) {
