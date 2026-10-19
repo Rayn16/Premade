@@ -5592,18 +5592,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const pasts = new Map(); // puuid -> { at, s }
   let pastSent = ''; // you and the day our server was last asked for your rank, so it keeps yours season by season
   // someone's puuid in Riot's API: League's client has its own kind, which Riot and our server's record of ranks don't
-  // know, so it's asked for by Riot ID (once). null until known.
-  const riotUs = new Map(); // 'name#tag' -> puuid, undefined while asked, null when Riot doesn't know them
-  function riotU(p) {
-    if (p.src === 'riot') return p.u;
-    const id = riotOn && PLATS[p.plat] ? riotId(p.n) : null, reg = id && PLATS[p.plat][1];
-    if (id && !riotUs.has(p.n)) {
-      riotUs.set(p.n, undefined);
-      riotGet(reg === 'sea' ? 'asia' : reg, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(id[0])}/${encodeURIComponent(id[1])}`)
-        .then((a) => { riotUs.set(p.n, a && typeof a.puuid === 'string' ? a.puuid : null); if (!profView.hidden) renderProfile(); }, () => riotUs.set(p.n, null));
-    }
-    return riotUs.get(p.n) || null;
+  // know, so it's asked for by Riot ID, once (again after a failure, with again). riotUp: a promise of it, null when
+  // Riot doesn't know them; riotU: it now, null until Riot answers (then Profile draws again)
+  const riotUs = new Map(); // 'name#tag' -> that promise, with .u once Riot has answered and .bad when it failed
+  function riotUp(p, again) {
+    if (p.src === 'riot') return Promise.resolve(p.u);
+    const id = riotOn && PLATS[p.plat] ? riotId(p.n) : null, reg = id && PLATS[p.plat][1], old = riotUs.get(p.n);
+    if (!id || (old && !(again && old.bad))) return old || Promise.resolve(null);
+    const w = riotGet(reg === 'sea' ? 'asia' : reg, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(id[0])}/${encodeURIComponent(id[1])}`)
+      .then((a) => { w.u = a && typeof a.puuid === 'string' ? a.puuid : null; if (!profView.hidden) renderProfile(); return w.u; }, (err) => { w.bad = true; throw err; });
+    riotUs.set(p.n, w);
+    return w;
   }
+  const riotU = (p) => (p.src === 'riot' ? p.u : (riotUp(p).catch(() => {}), (riotUs.get(p.n) || {}).u || null));
   function pastOf(u) {
     const t = pasts.get(u);
     if (riotOn && u && (!t || performance.now() - t.at > 600000)) {
@@ -5905,35 +5906,32 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return me ? { q: g.gameQueueConfigId | 0, c: me.championId | 0, start: +g.gameStartTime || 0, team: me.teamId | 0,
       ps: ps.map((x) => ({ u: typeof x.puuid === 'string' ? x.puuid : '', n: typeof x.riotId === 'string' && x.riotId.includes('#') ? x.riotId : '', c: x.championId | 0, team: x.teamId | 0, bot: !!x.bot })) } : null;
   }
-  async function rankOf(u, plat) { // someone's ranks: from League's client for players on your server, else Riot
-    if (lcuOn() && lcu && plat === myPlat) { const r = await lcuGet(`/lol-ranked/v1/ranked-stats/${u}`); return r && r.queueMap ? r.queueMap : null; }
-    return ranksOf(await riotGet(plat, `/lol/league/v4/entries/by-puuid/${u}`));
-  }
-  // the live game on Profile: everyone in it with their rank (asked for once in 10 minutes), the shown player's team
-  // first; a name opens that player's profile
+  // the live game on Profile: everyone in it with their rank from Riot (asked for once in 10 minutes: the game's puuids
+  // are Riot's, which League's client doesn't know), the shown player's team first; a name opens that player's profile
   function renderLive(p) {
     const live = p && p.live, box = $('proLiveBox');
     box.hidden = !(live && live.ps && live.ps.length);
     if (box.hidden) return void (box.dataset.key = '');
+    const pu = riotU(p); // the shown player in it
     for (const x of live.ps) {
       const old = liveRk.get(x.u);
-      if (!x.u || x.bot || x.u === p.u || (old && performance.now() - old.at < 600000)) continue;
+      if (!x.u || x.bot || x.u === pu || (old && performance.now() - old.at < 600000)) continue;
       const t = { at: performance.now(), rk: old ? old.rk : undefined };
       liveRk.set(x.u, t);
-      rankOf(x.u, p.plat).catch(() => null).then((rk) => { t.rk = rk; if (!profView.hidden) renderLive(shownPro()); });
+      riotGet(p.plat, `/lol/league/v4/entries/by-puuid/${x.u}`).then(ranksOf).catch(() => null).then((rk) => { t.rk = rk; if (!profView.hidden) renderLive(shownPro()); });
     }
-    const rows = live.ps.slice().sort((a, b) => (a.team !== live.team) - (b.team !== live.team)), rkFor = (x) => (x.u === p.u ? p.rk : (liveRk.get(x.u) || {}).rk);
+    const rows = live.ps.slice().sort((a, b) => (a.team !== live.team) - (b.team !== live.team)), rkFor = (x) => (x.u === pu ? p.rk : (liveRk.get(x.u) || {}).rk);
     const key = JSON.stringify([p.n, ddVersion, rows.map((x) => [x.u, x.c, rkFor(x)])]);
     if (box.dataset.key === key) return;
     box.dataset.key = key;
     $('proLiveRows').replaceChildren(...rows.map((x) => {
       const tr = document.createElement('tr'), rk = rkFor(x), solo = rk && rk.RANKED_SOLO_5x5, flex = rk && rk.RANKED_FLEX_SR;
       tr.dataset.team = x.team === live.team ? 'ally' : 'enemy';
-      tr.toggleAttribute('data-me', x.u === p.u);
+      tr.toggleAttribute('data-me', x.u === pu);
       tr.innerHTML = '<td><div class="who"><img class="pic0" alt=""><span><b></b><span class="sub"></span></span></div></td><td></td>';
       tr.querySelector('img').src = champImg(x.c);
       const name = tr.querySelector('b');
-      if (x.n && x.u !== p.u) {
+      if (x.n && x.u !== pu) {
         const b = Object.assign(document.createElement('button'), { type: 'button', className: 'plink', textContent: x.n, title: `Open ${x.n}’s profile` });
         b.addEventListener('click', () => lookUp(x.n, p.plat));
         name.append(b);
@@ -6136,7 +6134,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (s && s.level) {
         p = { n: f.name, u: f.puuid, lvl: s.level, icon: s.icon, plat: myPlat, rk: s.ranked, games: s.games || [],
           m: s.mastery.slice().sort((x, y) => y.championPoints - x.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
-        if (riotOn && PLATS[myPlat]) p.live = await riotLive(p.u, myPlat).catch(() => undefined); // League's client doesn't say who's in a game
+        if (riotOn && PLATS[myPlat]) p.live = await riotUp(p, true).then((u) => (u ? riotLive(u, myPlat) : undefined)).catch(() => undefined); // League's client doesn't say who's in a game
       } else if (riotOn) p = await riotProfile(v, plat);
     } catch (err) { return void (note.textContent = err.message === 'busy' ? 'Too many lookups right now. Try again in a minute.' : 'Riot didn’t answer. Try again in a minute.'); }
     if (!p) return void (note.textContent = riotOn ? `No League player is called ${v}.` : `Nobody called ${v} on your server.`);
@@ -6175,8 +6173,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       }
       for (let i = 0; i < 5 && !got.some(ok) && moreFrom(p, m, q) === 'riot'; i++) { // a page a time; pages of games already listed are skipped
         m.riot[q] ??= q === 'all' ? lol : 0;
-        const reg = PLATS[p.plat][1], ids = await riotGet(reg, `/lol/match/v5/matches/by-puuid/${p.u}/ids?start=${m.riot[q]}&count=20${PROQ[q][2] || ''}`), list = Array.isArray(ids) ? ids : [];
-        add(await riotGames(p.u, reg, list.filter((x) => !known.has(+String(x).split('_')[1]))));
+        const u = await riotUp(p, true), reg = PLATS[p.plat][1], ids = u && (await riotGet(reg, `/lol/match/v5/matches/by-puuid/${u}/ids?start=${m.riot[q]}&count=20${PROQ[q][2] || ''}`)), list = Array.isArray(ids) ? ids : [];
+        add(await riotGames(u, reg, list.filter((x) => !known.has(+String(x).split('_')[1]))));
         m.riot[q] = list.length ? m.riot[q] + list.length : -1;
       }
       m.note = got.some(ok) || moreFrom(p, m, q) || !have.some(ok) ? '' : 'No older games.';

@@ -640,12 +640,18 @@ const leagueData = (over = {}) => ({
     // and wins in each role), and each champion's games
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
-    const riotAsked = [], pastAsked = []; // Riot through our server: nothing there but your account, with Riot's kind of puuid
-    const MY_RIOT = 'riot-me-'.padEnd(78, '0');
+    const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, and Sniper in a game
+    const MY_RIOT = 'riot-me-'.padEnd(78, '0'), SNIPER = 'riot-sniper-'.padEnd(78, '0'), FOE = 'riot-foe-'.padEnd(78, '0');
+    const RIOT = {
+      '/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW': { puuid: MY_RIOT, gameName: 'Rayan', tagLine: 'EUW' },
+      '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW': { puuid: SNIPER, gameName: 'Sniper', tagLine: 'EUW' },
+      [`/euw1/lol/spectator/v5/active-games/by-summoner/${SNIPER}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: SNIPER, riotId: 'Sniper#EUW', championId: 51, teamId: 200 },
+        { puuid: FOE, riotId: 'Foe#EUW', championId: 86, teamId: 100 }] },
+      [`/euw1/lol/league/v4/entries/by-puuid/${FOE}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'SILVER', rank: 'I', leaguePoints: 50, wins: 10, losses: 10 }],
+    };
     await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past)/, (r) => {
-      const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
-      if (u.pathname === '/riot/api/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW') return riotAsked.push(u.pathname.slice(9)), r.fulfill({ json: { puuid: MY_RIOT, gameName: 'Rayan', tagLine: 'EUW' }, headers: cors });
-      if (u.pathname.startsWith('/riot/api/')) return riotAsked.push(u.pathname.slice(9) + u.search), r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
+      const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' }, k = u.pathname.slice(9) + u.search;
+      if (u.pathname.startsWith('/riot/api/')) return riotAsked.push(k), k in RIOT ? r.fulfill({ json: RIOT[k], headers: cors }) : r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       if (u.pathname.endsWith('/past')) return pastAsked.push(u.searchParams.get('u')), r.fulfill({ json: { s: {} }, headers: cors });
       if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: SUM, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
       const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
@@ -718,13 +724,18 @@ const leagueData = (over = {}) => ({
     await pc.click('#proMore');
     await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
     assert.deepStrictEqual([callsTo(/\/enemy4\/matches\?begIndex=20&endIndex=39$/).length, callsTo(/\/enemy4\/matches\?begIndex=30&endIndex=49$/).length], [1, 1]);
-    assert.deepStrictEqual(riotAsked, ['/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW', `/euw1/lol/league/v4/entries/by-puuid/${MY_RIOT}`, '/euw1/lol/spectator/v5/active-games/by-summoner/enemy4',
-      '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW', '/europe/lol/match/v5/matches/by-puuid/enemy4/ids?start=30&count=20'],
-      'your puuid in Riot’s API (League’s client has its own kind) and your rank once, for our server to keep; Sniper’s game, puuid and older games');
+    assert.deepStrictEqual(riotAsked, ['/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW', `/euw1/lol/league/v4/entries/by-puuid/${MY_RIOT}`, '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW',
+      `/euw1/lol/spectator/v5/active-games/by-summoner/${SNIPER}`, `/euw1/lol/league/v4/entries/by-puuid/${FOE}`, `/europe/lol/match/v5/matches/by-puuid/${SNIPER}/ids?start=30&count=20`],
+      'your puuid in Riot’s API (League’s client has its own kind) and your rank once, for our server to keep; Sniper’s puuid, game, his opponent’s rank and his older games');
     assert(pastAsked.includes(MY_RIOT) && !pastAsked.includes(ME), `our server’s record of your ranks asked for by Riot’s puuid: ${pastAsked}`);
     assert(/One-trick: Caitlyn/.test(await text(pc, '#proTags')), 'Sniper’s tags');
-    assert.strictEqual(await text(pc, '#proStatus'), 'Not in a game right now'); // from Riot: League's client doesn't say
-    assert(await pc.locator('#profileBtn').isHidden() && await pc.locator('#proLiveBox').isHidden(), 'no Share, and no game to show');
+    // his game, from Riot (League's client doesn't say): him marked with his rank from League's client, his
+    // opponent's from Riot, as League's client doesn't know Riot's puuids
+    assert.match(await text(pc, '#proStatus'), /^In game as Caitlyn · Ranked Solo\/Duo · \d+ min$/);
+    await wait(pc, () => /Silver I/.test(document.getElementById('proLiveRows').textContent), null, 'his opponent’s rank');
+    assert.deepStrictEqual(await pc.$$eval('#proLiveRows tr', (trs) => trs.map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), !!tr.querySelector('.plink'), tr.innerText.replace(/\s+/g, ' ').trim()])),
+      [['ally', true, false, 'Sniper#EUW Caitlyn Gold II · 45 LP · 55% of 55'], ['enemy', false, true, 'Foe#EUW Garen Silver I · 50 LP · 50% of 20']]);
+    assert(!callsTo(/\/lol-ranked\/v1\/ranked-stats\/riot-/).length && await pc.locator('#profileBtn').isHidden(), 'no ranks asked of League’s client with Riot’s puuids, and no Share');
     await pc.click('#proBack');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'back to you');
     // your queues: Solo/Duo has all 20; Flex none here, in League's client (nothing older) or from Riot
@@ -732,7 +743,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 Solo/Duo games', null, 'your Solo/Duo games');
     await pc.click('#proQueues [data-q="flex"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Recent Flex games' && document.getElementById('proGames').textContent === 'No recent Flex games.' && document.getElementById('proMoreBar').hidden, null, 'no Flex games');
-    assert.deepStrictEqual(riotAsked.slice(5), ['/europe/lol/match/v5/matches/by-puuid/me-puuid/ids?start=0&count=20&queue=440']);
+    assert.deepStrictEqual(riotAsked.slice(6), [`/europe/lol/match/v5/matches/by-puuid/${MY_RIOT}/ids?start=0&count=20&queue=440`]);
     // TFT from League's client: your ranks and games, with the place, traits, units, items and augments
     await pc.click('#proQueues [data-q="tft"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 5 TFT games' && document.querySelectorAll('#proGames > li').length === 5, null, 'your TFT games');
