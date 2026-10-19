@@ -103,7 +103,8 @@ export class Stats extends DurableObject {
 // (/riot/champ, /riot/summary): the last 3 days' in full, one Riot call every 30 s, and the last year's more lightly
 // (the sweep, a few calls every 15 s). It passes a few read-only calls through for player lookups
 // (/riot/api/<region>/<path>), keeping under our key's limits: 20 calls a second and 100 every 2 minutes, per region.
-// What it keeps of a game is each champion, its role and what it did, with no player in it.
+// What it keeps of a game is each champion, its role and what it did, with no player in it. The ranks lookups get
+// are kept for each season (/riot/past), since Riot only gives the season being played.
 const riot = (env) => env.RIOT.get(env.RIOT.idFromName('riot'));
 const ROLES = new Set(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']);
 const REGION = { kr: 'asia', jp1: 'asia', euw1: 'europe', eun1: 'europe', tr1: 'europe', ru: 'europe', me1: 'europe', na1: 'americas', br1: 'americas', la1: 'americas', la2: 'americas', oc1: 'sea', sg2: 'sea', tw2: 'sea', vn2: 'sea' };
@@ -120,6 +121,8 @@ const LOOKUPS = [ // [path, on a region (else a platform), the query parameters 
   [/^\/lol\/match\/v5\/matches\/[A-Z0-9]{2,6}_\d{5,15}$/, true, []],
 ];
 const KEEP = 500; // games kept for each champion and role: a new one takes a random place, so older ones thin out
+const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
+const rkVal = ([t, d, lp]) => { const i = TIERS.indexOf(t); return i * 1e5 + (i < 7 ? Math.max(0, ['IV', 'III', 'II', 'I'].indexOf(d)) * 1e4 : 0) + lp; }; // the higher rank is bigger
 const DAY = 86400; // seconds
 const hash = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 const newer = (a, b) => { const [x, y] = a.split('.').map(Number), [u, v] = (b || '0.0').split('.').map(Number); return x > u || (x === u && y > v); };
@@ -145,6 +148,7 @@ export class Riot extends DurableObject {
     this.sql.exec('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID');
     // the sweep's lane matchups, for champions by id % 16 (b) and month ('YYYY-MM'): champion -> role -> lane opponent -> [games, wins]
     this.sql.exec('CREATE TABLE IF NOT EXISTS matchups (b INTEGER, m TEXT, v TEXT, PRIMARY KEY (b, m)) WITHOUT ROWID');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS ranks (u TEXT, s INTEGER, q TEXT, peak TEXT, last TEXT, at INTEGER, PRIMARY KEY (u, s, q)) WITHOUT ROWID');
     this.calls = {}; // routing value -> times of our calls in the last 2 minutes
     this.until = {}; // routing value -> when Riot lets us call again
     this.ips = new Map(); // lookups each address made in the last 2 minutes
@@ -176,6 +180,7 @@ export class Riot extends DurableObject {
       return new Response(JSON.stringify({ p, c, old, today, total, at, from: sw.lo < sw.hi ? sw.lo * DAY : undefined, on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined }), { headers: json });
     }
     if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r')), { headers: json });
+    if (url.pathname === '/riot/past') return new Response(this.past(url.searchParams.get('u') || ''), { headers: json });
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
     if (m && this.env.RIOT_KEY) return this.lookup(m[1], m[2], url.searchParams, req.headers.get('cf-connecting-ip') || '', cors);
     return new Response('Not found', { status: 404, headers: cors });
@@ -191,8 +196,27 @@ export class Riot extends DurableObject {
     if (mine.length >= 60 || !this.room(host, 90)) return new Response('Too many lookups for now', { status: 429, headers: { ...cors, 'retry-after': '30' } });
     this.ips.set(ip, [...mine, now]);
     if (this.ips.size > 500) for (const [k, t] of this.ips) if (now - t[t.length - 1] > 120000) this.ips.delete(k);
-    const r = await this.riot(host, path + (qs.size ? '?' + qs : ''));
-    return new Response(r.body, { status: r.status, headers: { ...cors, 'content-type': 'application/json', 'cache-control': `private, max-age=${/\/matches\/[A-Z]/.test(path) ? 86400 : 60}` } });
+    const r = await this.riot(host, path + (qs.size ? '?' + qs : '')), headers = { ...cors, 'content-type': 'application/json', 'cache-control': `private, max-age=${/\/matches\/[A-Z]/.test(path) ? 86400 : 60}` };
+    if (!r.ok || !path.includes('/entries/by-puuid/')) return new Response(r.body, { status: r.status, headers });
+    const text = await r.text();
+    try { this.keep(path.split('/').pop(), JSON.parse(text)); } catch {}
+    return new Response(text, { headers });
+  }
+  // someone's Solo/Duo and Flex ranks from a lookup, kept for this season (its patch's year: 16.x is 2026): the
+  // highest seen and the last, with when
+  keep(u, list) {
+    const a = parseInt(this.sumOf().p, 10), s = a >= 15 ? a + 2010 : new Date().getUTCFullYear(), at = Math.round(Date.now() / 1000);
+    for (const e of Array.isArray(list) ? list : []) {
+      if (!e || !['RANKED_SOLO_5x5', 'RANKED_FLEX_SR'].includes(e.queueType) || !TIERS.includes(e.tier)) continue;
+      const rk = [e.tier, String(e.rank || ''), e.leaguePoints | 0], [old] = this.sql.exec('SELECT peak FROM ranks WHERE u = ? AND s = ? AND q = ?', u, s, e.queueType).toArray();
+      const peak = old && rkVal(JSON.parse(old.peak)) > rkVal(rk) ? old.peak : JSON.stringify(rk);
+      this.sql.exec('INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (u, s, q) DO UPDATE SET peak = excluded.peak, last = excluded.last, at = excluded.at', u, s, e.queueType, peak, JSON.stringify(rk), at);
+    }
+  }
+  past(u) { // what keep() has for someone: { s: { season: { queue: { peak, last: [tier, division, LP], at } } } }
+    const s = {};
+    if (RegExp(`^${PUUID}$`).test(u)) for (const r of this.sql.exec('SELECT s, q, peak, last, at FROM ranks WHERE u = ?', u)) (s[r.s] ||= {})[r.q] = { peak: JSON.parse(r.peak), last: JSON.parse(r.last), at: r.at };
+    return JSON.stringify({ s });
   }
 
   // games and wins for each champion and role, this patch and the one before; and how many games were counted

@@ -1,8 +1,8 @@
 // Checks the Riot object (/riot/...) under `wrangler dev` against a fake Riot API: it counts each high-elo game once
 // (only full ranked solo games on Summoner's Rift), keeps what each champion bought, levelled and took, with their
-// lane opponent and gold at 10, and passes only the lookup calls on its list through, with our key and its limits.
-// Then, restarted with the sweep going 8 days back, it carries on with the day it was on and counts the older games
-// a day at a time, newer days first.
+// lane opponent and gold at 10, and passes only the lookup calls on its list through, with our key and its limits,
+// keeping the ranks they get for each season. Then, restarted with the sweep going 8 days back, it carries on with
+// the day it was on and counts the older games a day at a time, newer days first.
 // WRANGLER=<path to wrangler> node riot.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
@@ -46,7 +46,7 @@ const timeline = () => {
 
 // the fake Riot API: the routing value is the first part of the path
 const calls = [];
-let slowDown = false;
+let slowDown = false, anaLost = false; // Ana's rank drops for her second lookup
 const riot = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x'), [, host, ...rest] = u.pathname.split('/'), p = '/' + rest.join('/');
   calls.push({ host, p, q: u.search, key: req.headers['x-riot-token'] });
@@ -63,7 +63,7 @@ const riot = http.createServer((req, res) => {
   // lookups
   if (host === 'europe' && p === '/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW') return send(200, { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
   if (host === 'europe' && p.startsWith('/riot/account/v1/accounts/by-riot-id/')) return send(404, { status: { message: 'Data not found' } });
-  if (host === 'euw1' && p === `/lol/league/v4/entries/by-puuid/${P('a')}`) return send(200, [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'II', leaguePoints: 40, wins: 10, losses: 8 }]);
+  if (host === 'euw1' && p === `/lol/league/v4/entries/by-puuid/${P('a')}`) return send(200, [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: anaLost ? 'III' : 'II', leaguePoints: anaLost ? 75 : 40, wins: 10, losses: 8 }, { queueType: 'CHERRY', tier: 'GOLD' }]);
   if (host === 'kr' && p.startsWith('/lol/summoner/v4/summoners/by-puuid/')) return send(200, { puuid: P('k'), summonerLevel: 300 });
   if (host === 'jp1') return slowDown ? send(429, { status: { message: 'Rate limit exceeded' } }, { 'retry-after': '2' }) : send(200, { summonerLevel: 1 });
   if (host === 'europe' && p === `/lol/match/v5/matches/by-puuid/${P('a')}/ids`) return send(200, ['EUW1_7123456789']);
@@ -152,6 +152,21 @@ const counted = async (n) => { // the summary once n games are counted and nothi
     '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`])
     assert.equal((await get(bad)).status, 404, bad);
   assert.equal(looked().length, 6, 'nothing off the list reached Riot');
+
+  // the ranks lookups get, kept for each season (16.20 is 2026): the highest and the last, for the page's past ranks
+  let past = (await (await get(`/riot/past?u=${P('a')}`)).json()).s;
+  assert.deepEqual(Object.keys(past), ['2026']);
+  assert.deepEqual(Object.keys(past['2026']), ['RANKED_SOLO_5x5'], 'not Arena');
+  assert.deepEqual(past['2026'].RANKED_SOLO_5x5.last, ['GOLD', 'II', 40]);
+  anaLost = true;
+  assert.equal((await get(`/riot/api/euw1/lol/league/v4/entries/by-puuid/${P('a')}`)).status, 200);
+  r = await get(`/riot/past?u=${P('a')}`);
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  past = (await r.json()).s['2026'].RANKED_SOLO_5x5;
+  assert.deepEqual([past.peak, past.last], [['GOLD', 'II', 40], ['GOLD', 'III', 75]], 'the highest stays');
+  assert(Math.abs(past.at - Date.now() / 1000) < 60, 'with when it was seen');
+  assert.deepEqual(await (await get(`/riot/past?u=${P('b')}`)).json(), { s: {} }, 'nobody looked up');
+  assert.deepEqual(await (await get('/riot/past?u=..%2Fx')).json(), { s: {} });
 
   // one address gets 60 lookups every 2 minutes
   const ip = { 'cf-connecting-ip': '198.51.100.7' };
