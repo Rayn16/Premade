@@ -23,6 +23,31 @@ svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width:
 /* Move it: a frame you can drag anywhere, with a sample of what shows in it */
 body.edit { outline: 2px dashed #c8aa6e; outline-offset: -2px; background: rgb(1 10 19 / 0.4); -webkit-app-region: drag; cursor: move; }
 .edit .toast { border-color: #c8aa6e; }
+/* Everyone's rank (board): the whole screen, over League's loading screen. Your team on the left in the top half and
+   theirs in the bottom half, the tips for your lane on the right, the middle left to League. Sized by the screen's
+   height, like League's own screens; a half cuts off what doesn't fit rather than run into the other. */
+body.board { display: block; padding: 0; font-size: calc(1.25vh * var(--k, 1)); }
+.board .stack { position: absolute; top: 1vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; }
+.side { position: absolute; top: 1.2vh; bottom: 1.2vh; left: 0.6vw; width: calc(36vh * var(--k, 1)); display: flex; flex-direction: column; gap: 1.2vh; }
+.half { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.35em; }
+.team { font-size: 0.8em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #c8aa6e; }
+.card { flex: none; display: flex; align-items: flex-start; gap: 0.5em; padding: 0.35em 0.5em; border: 1px solid #785a28; border-radius: 0.45em; background: rgb(1 10 19 / 0.88); font-weight: 500; }
+.card.me { border-color: #f0e6d2; box-shadow: 0 0 0.5em rgb(200 170 110 / 0.7); }
+.card .pic { width: 2.4em; height: 2.4em; margin-top: 0.1em; font-size: 1em; }
+.card > div { flex: 1; min-width: 0; }
+.who { display: flex; align-items: baseline; gap: 0.4em; white-space: nowrap; }
+.who b { overflow: hidden; text-overflow: ellipsis; }
+.sub { overflow: hidden; text-overflow: ellipsis; color: #a09b8c; font-size: 0.9em; }
+.lane { margin-left: auto; padding: 0 0.4em; border-radius: 0.3em; background: #c8aa6e; color: #010a13; font-size: 0.8em; font-weight: 700; text-shadow: none; }
+.rk { font-weight: 600; }
+.ch { color: #cdbe91; font-size: 0.92em; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.2em 0.3em; margin-top: 0.2em; }
+.chip { padding: 0 0.45em; border: 1px solid #5b5a56; border-radius: 999px; font-size: 0.85em; white-space: nowrap; }
+.chip.good { border-color: #3ccf8e; color: #8be8bb; }
+.chip.bad { border-color: #ff6b6b; color: #ffb3b3; }
+.tipcol { position: absolute; top: 1.2vh; right: 0.6vw; width: calc(36vh * var(--k, 1)); max-height: 97.6vh; overflow: hidden; }
+.tipcol ul { margin: 0.35em 0 0; padding: 0.5em 0.7em 0.5em 1.7em; border: 1px solid #785a28; border-radius: 0.45em; background: rgb(1 10 19 / 0.88); font-weight: 500; }
+.tipcol li { margin: 0.3em 0; }
 button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; border: 1px solid #c8aa6e; border-radius: 4px; background: #0ac8b9; color: #010a13; font: 600 13px/1.2 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
 </style>
 </head>
@@ -33,7 +58,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // (game), your CS a minute (cs), in ARAM: Mayhem what kind of augment suits your champion (aug), your mic when it's
   // muted or you're talking, who can hear you, the effects on your voice, who's talking (a teal glow, red for the other
   // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
-  // you move it (edit), it shows a frame and a sample.
+  // you move it (edit), it shows a frame and a sample. With board (app 1.10) it covers the screen with everyone's rank,
+  // their record on their champion and tags, and the tips for your lane, and the rest goes at the top in the middle.
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
   function pill(name, pic, team) {
@@ -45,10 +71,44 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     p.append(face, n);
     return p;
   }
+  // a player on the board: champion picture, name, champion and role, rank (in its tier's color), their record on
+  // the champion, and tags (good ones green, bad ones red)
+  function card(p) {
+    const c = el('card' + (p.ally ? '' : ' enemy') + (p.me ? ' me' : '')), face = document.createElement('span'), text = el(''), who = el('who'), n = document.createElement('b');
+    face.className = 'pic';
+    if (p.pic) { const img = new Image(); img.alt = ''; img.src = p.pic; face.append(img); }
+    n.textContent = String(p.name || '');
+    who.append(n);
+    if (p.sub) who.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: String(p.sub) }));
+    if (p.lane) who.append(Object.assign(document.createElement('span'), { className: 'lane', textContent: 'Your lane' }));
+    const rk = el('rk', String(p.rank || ''));
+    if (/^#[0-9a-f]{6}$/i.test(p.tc || '')) rk.style.color = p.tc;
+    const chips = el('chips');
+    for (const [k, t] of Array.isArray(p.tags) ? p.tags : []) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
+    text.append(who, rk, ...(p.rec ? [el('ch', String(p.rec))] : []), chips);
+    c.append(face, text);
+    return c;
+  }
+  function board(b, out) {
+    const half = (head, list) => { const h = el('half'); h.append(el('team', head), ...(Array.isArray(list) ? list : []).map(card)); return h; };
+    const side = el('side'), parts = [side];
+    side.append(half('Your team', b.us), half('Their team', b.them));
+    if (b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length) {
+      const col = el('tipcol'), ul = document.createElement('ul');
+      ul.append(...b.tips.lines.map((t) => Object.assign(document.createElement('li'), { textContent: String(t) })));
+      col.append(el('team', `Tips: ${b.tips.title}`), ul);
+      parts.push(col);
+    }
+    const stack = el('stack');
+    stack.append(...out);
+    return [stack, ...parts];
+  }
   window.lpcClient.on('overlay', (s) => {
     if (!s.visible) return document.body.replaceChildren();
     document.body.dataset.pos = s.pos === 'mr' || s.pos === 'ml' ? s.pos : 'tl';
-    document.body.style.zoom = s.scale || 1;
+    document.body.classList.toggle('board', !!s.board);
+    document.body.style.zoom = s.board ? 1 : s.scale || 1;
+    document.body.style.setProperty('--k', Math.min(s.board ? 1.2 : 2, Math.max(0.7, +s.scale || 1))); // the board fills the screen at 1.2
     document.body.style.opacity = s.edit ? 1 : Math.min(1, Math.max(0.2, +s.opacity || 1));
     document.body.classList.toggle('edit', !!s.edit);
     const out = [];
@@ -85,7 +145,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       out.push(m);
     }
     for (const t of s.toasts || []) out.push(el('toast', String(t)));
-    document.body.replaceChildren(...out);
+    document.body.replaceChildren(...(s.board ? board(s.board, out) : out));
   });
 </script>
 </body>

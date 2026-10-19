@@ -1,5 +1,5 @@
 // Test of the desktop app's League features in site/index.html and site/remote.html, in headless Chromium, with a
-// stand-in for the desktop app 1.9 (window.lpcClient with lcu, clips, the gallery and front) and a fake League client behind it.
+// stand-in for the desktop app 1.10 (window.lpcClient with lcu, clips, the gallery and front) and a fake League client behind it.
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node league.e2e.js
 // Checks: the Pregame and Game pages only in the desktop app, with a note to restart an old one; the ready check (Accept here, on the
@@ -7,8 +7,10 @@
 // from the phone); champ select: your turn's alarm, trades here and on the phone, your team's ranks, recent games and tags, nobody whose name Riot hides
 // looked up, bans and the best picks for you (high elo, against their laner, your games), the tier list, the damage mix, Riot's recommended runes as a new page
 // and then over it, summoner spells with Flash on the right key; the phone remote (QR code, accept, hover, lock in,
-// auto-accept); in game: all ten players scouted (one found by Riot ID), objective timers, kills, towers and the gold
-// difference on the page, the overlay (what it shows, see-through, hidden by its key) and the phone, your lane and CS a
+// auto-accept); the tips for your lane in champ select and on the loading screen; the loading screen: everyone's rank,
+// record on their champion and tags on the overlay with the tips, hidden and back by its key; in game: all ten players
+// scouted (one found by Riot ID), objective timers, kills, towers and the gold difference on the page, the overlay (what it
+// shows, see-through, everyone's rank then hidden by its key) and the phone, your lane and CS a
 // minute, the sound before Dragon; clips from the clip key and a multikill, cut to the last seconds and playable, and the
 // gallery (keep, rename, drag, play, cut, bin); after the game: the LP, the game report with MVP and ACE, Stats' LP
 // tracker and chart, match history with its reports and the spreadsheet export, the voice game history with the
@@ -48,7 +50,8 @@ http.createServer((req, res) => {
 // ---- Data Dragon
 const CHAMPS = [['Ahri', 103, 3, 8, 'Mage'], ['Garen', 86, 7, 1, 'Fighter Tank'], ['LeeSin', 64, 8, 3, 'Fighter'], ['Jinx', 222, 9, 4, 'Marksman'], ['Thresh', 412, 5, 6, 'Support'],
   ['Lux', 99, 2, 9, 'Mage Support'], ['Darius', 122, 9, 1, 'Fighter Tank'], ['Zed', 238, 9, 1, 'Assassin'], ['Sona', 37, 5, 8, 'Support'], ['Vi', 254, 8, 3, 'Fighter'], ['Caitlyn', 51, 8, 2, 'Marksman']];
-const DDATA = Object.fromEntries(CHAMPS.map(([id, key, attack, magic, tags]) => [id, { id, key: String(key), name: id === 'LeeSin' ? 'Lee Sin' : id, info: { attack, magic }, tags: tags.split(' ') }]));
+const RANGE = { Ahri: 550, Garen: 175, LeeSin: 125, Jinx: 525, Thresh: 450, Lux: 550, Darius: 175, Zed: 125, Sona: 550, Vi: 125, Caitlyn: 650 }; // attack range
+const DDATA = Object.fromEntries(CHAMPS.map(([id, key, attack, magic, tags]) => [id, { id, key: String(key), name: id === 'LeeSin' ? 'Lee Sin' : id, info: { attack, magic }, tags: tags.split(' '), stats: { attackrange: RANGE[id] } }]));
 const ITEM = (name, total, tags = [], into) => ({ name, gold: { total }, tags, ...(into && { into }) });
 const ITEMS = { data: {
   1001: ITEM('Boots', 300, ['Boots'], ['3020', '3047']), 3031: ITEM('Infinity Edge', 3400), 1056: ITEM('Doran’s Ring', 400), 1055: ITEM('Doran’s Blade', 450),
@@ -59,8 +62,11 @@ const RUNE_TREES = [
   { id: 8100, name: 'Domination', slots: [[8112, 'Electrocute'], [8126, 'Cheap Shot'], [8139, 'Taste of Blood'], [8138, 'Eyeball Collection'], [8135, 'Treasure Hunter']].map(([id, name]) => ({ runes: [{ id, name }] })) },
   { id: 8200, name: 'Sorcery', slots: [[8229, 'Arcane Comet'], [8226, 'Manaflow Band'], [8210, 'Transcendence'], [8237, 'Scorch']].map(([id, name]) => ({ runes: [{ id, name }] })) },
 ];
-// a champion's full Data Dragon file, for patch changes: Ahri got more health and a shorter Q in 1.1
-const champFull = (id, v) => ({ data: { [id]: { id, stats: { hp: id === 'Ahri' && v === '1.1' ? 600 : 590, armor: 21 }, passive: { name: 'Passive', description: 'Same.' },
+// a champion's full Data Dragon file, for patch changes: Ahri got more health and a shorter Q in 1.1; and Riot's tips
+// for playing it (allytips) and against it (enemytips)
+const TIPS = { Ahri: [['Use Charm to set up your combos.', 'Spirit Rush gets you in and out.'], ['Ahri is weak while Spirit Rush is down.']],
+  Zed: [['Living Shadow first.'], ['Zed’s shadows copy his abilities: stand away from them.', 'Zhonya’s Hourglass stops Death Mark.', 'A third tip, not shown.']] };
+const champFull = (id, v) => ({ data: { [id]: { id, allytips: (TIPS[id] || [[]])[0], enemytips: (TIPS[id] || [[], []])[1], stats: { hp: id === 'Ahri' && v === '1.1' ? 600 : 590, armor: 21 }, passive: { name: 'Passive', description: 'Same.' },
   spells: ['Q', 'W', 'E', 'R'].map((k, i) => ({ name: id === 'Ahri' ? ['Orb of Deception', 'Fox-Fire', 'Charm', 'Spirit Rush'][i] : k, cooldownBurn: id === 'Ahri' && !i && v === '1.1' ? '6' : '7', costBurn: '50', rangeBurn: '900', tooltip: '', description: '' })) } } });
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 
@@ -262,7 +268,7 @@ const until = async (fn, what, ms = 15000) => {
 // Runs in the page before its own scripts: the desktop app 1.6 (client/preload.js), with League's client answering
 // through fakeLcu and clips going to nodeClip; and a screen that changes every frame, with a tone as what you hear.
 function fakeApp(version) {
-  const on = {};
+  const on = {}, from = (v) => version.localeCompare(v, 'en', { numeric: true }) >= 0; // 1.10 is after 1.9
   window.lpcClient = {
     calls: [], version,
     screens: async () => [{ id: '1', main: true, thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
@@ -270,7 +276,7 @@ function fakeApp(version) {
     overlay(s) { this.lastOverlay = s; },
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
-    ...(version >= '1.6' && {
+    ...(from('1.6') && {
       lcu: (m, p, b) => window.fakeLcu(m, p, b === undefined ? null : b),
       async clip(data) {
         const u8 = new Uint8Array(data);
@@ -282,7 +288,7 @@ function fakeApp(version) {
       clipsFolder() { this.calls.push('clips-folder'); },
     }),
     // 1.7: the gallery, with the clips kept here (and saved by nodeClip), the performance meter and test recordings
-    ...(version >= '1.7' && {
+    ...(from('1.7') && {
       async clip(data, pic, like) {
         const u8 = new Uint8Array(data);
         window.lastClip = u8;
@@ -310,7 +316,7 @@ function fakeApp(version) {
       record(on) { this.calls.push('record ' + on); },
       recordingsFolder() { this.calls.push('recordings-folder'); },
     }),
-    ...(version >= '1.9' && { front() { this.calls.push('front'); } }), // 1.9: in front when a match is found
+    ...(from('1.9') && { front() { this.calls.push('front'); } }), // 1.9: in front when a match is found
   };
   const fakeClips = new Map();
   const cv = document.createElement('canvas');
@@ -365,6 +371,14 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
 });
 const text = (page, sel) => page.locator(sel).innerText();
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.join(process.env.SHOTS, name + '.png'), fullPage: true }); // SHOTS=folder saves screenshots
+// the tips for Ahri against Zed in the middle (site/index.html tipsFor), after your note when you have one
+const TIPS_AHRI_ZED = ['High elo: Ahri won 4 of 10 games against Zed, −200 gold and +5 CS at 10 minutes. A hard matchup for Ahri.',
+  'You: 9 of 13 games won against Zed in your lane, 6 of 8 on Ahri.',
+  'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
+  'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
+  'Against Zed, high elo Ahri players take Electrocute (10 of 10 games) and Flash + Ignite (10 of 10 games).',
+  'Against Ahri, high elo Zed players take Flash + Ignite (10 of 10 games).', 'Riot’s tip for Ahri: Use Charm to set up your combos.'];
+const tipsIn = (page, sel) => page.$$eval(`${sel} li`, (l) => l.map((e) => e.textContent));
 const leagueData = (over = {}) => ({
   inGame: true, phase: 'InProgress', mode: 'CLASSIC', t: 600, room: 'g0123456789a', result: '',
   me: { champ: 'Ahri', champName: 'Ahri', team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 },
@@ -522,7 +536,7 @@ const leagueData = (over = {}) => ({
       console.log(`Profile in a browser: Ana B by Riot ID (in game with her game's ranks, Emerald III, 3 games and a report, 19 older ones, Solo/Duo and ARAM tabs), Bob opened from her game, kept and refreshed; ${riotCalls.length} calls to Riot`);
     }
 
-    const [ctx, pc] = await context(browser, { version: '1.9.0' });
+    const [ctx, pc] = await context(browser, { version: '1.10.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
     const highAsked = []; // our server's Riot data: the high elo games it counted, 50 this patch (each champion's games
     // and wins in each role), and each champion's games
@@ -789,21 +803,58 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#skillNote'), 'Your skill order on Ahri (from 8 games): start Q, W, E, then max Q, then W, then E. In high elo: start Q, E, W, then max Q, then E, then W.');
     assert.strictEqual(await text(pc, '#topNote'), 'In high elo, Ahri middle won 55% of 40 games. Against their picks: Zed, 40% won in 10 games (−200 gold at 10).');
     assert.strictEqual(await text(pc, '#runesOther'), 'Use my own usual runes instead');
+    // the tips for your lane: how Ahri does against Zed in high elo and in your games, the two champions, what high elo
+    // players take in the matchup, and Riot's own tips
+    await wait(pc, () => !document.getElementById('csTips').hidden && /Riot’s tip for Ahri/.test(document.getElementById('csTips').textContent), null, 'the tips for your lane');
+    assert.strictEqual(await pc.textContent('#csTips h3'), 'Tips: Ahri against Zed');
+    assert.deepStrictEqual(await tipsIn(pc, '#csTips'), TIPS_AHRI_ZED);
     await pc.click('#csNotes summary');
     await pc.fill('#csNotes input', 'Zed');
     await pc.fill('#csNotes textarea', 'Respect his level 6. Ward the side bushes.');
     await pc.click('#csNotes button[type="submit"]');
     await wait(pc, () => document.querySelector('#csNotes .notelist').textContent === 'Ahri against Zed: Respect his level 6. Ward the side bushes.', null, 'the matchup note');
     assert(await pc.evaluate(() => lpc.toasts().includes('Saved your note on Ahri against Zed.')));
+    await wait(pc, () => document.querySelector('#csTips li').textContent === 'Your note: Respect his level 6. Ward the side bushes.', null, 'your note first in the tips');
     await shot(pc, 'champ-select');
     await shot(phone, 'phone-champ-select');
     console.log(`champ select: ranks, recent games and tags (${rows[0].match(/6 wins in a row|Comfort pick/g).join(', ')}), hidden names never looked up, a ban, picks for middle, hover from the phone, lock in, high elo's runes, spells, build, skill order and matchup`);
 
-    // ---- in game: everyone scouted, timers, gold, the overlay and the phone
+    // ---- the loading screen: everyone's rank on the overlay, your team first, each team top to support, with their
+    // record on their champion and tags; and the tips for your lane, there and on the Game page. Settings turns it off;
+    // the overlay key hides it and brings it back.
     lcu.cs = null;
     lcu.phase = 'InProgress';
+    await league({ inGame: false, phase: 'InProgress' });
+    await wait(pc, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && [...b.us, ...b.them].every((p) => /LP|Unranked/.test(p.rank)) && !!b.tips && b.tips.lines.length === 9; }, null, 'everyone’s rank on the loading screen');
+    const board = await pc.evaluate(() => lpcClient.lastOverlay.board);
+    const cardOf = (p) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic) });
+    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55',
+      rec: 'Zed: not in the last 20', tags: [['bad', 'First time on this champion'], ['', 'One-trick: Ahri'], ['', 'Seen before']] });
+    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55',
+      rec: 'Garen: 8 of the last 20, 75% won · mastery 3', tags: [['good', '6 wins in a row'], ['good', 'Comfort pick'], ['', 'Seen before']] });
+    assert.deepStrictEqual([board.us.map((p) => p.me), board.them.map((p) => p.lane)], [[false, false, true, false, false], [false, false, true, false, false]], 'you, and who’s in your lane');
+    assert.deepStrictEqual([...board.us, ...board.them].map((p) => p.tags.map(([, t]) => t).filter((t) => /Premade|smurf|Off-role/.test(t)).join()),
+      ['', 'Premade with Shooter', '', 'Premade with Jungler', 'Off-role', '', '', '', 'Maybe a smurf', '']);
+    assert.deepStrictEqual([board.us.map((p) => p.name), board.them.map((p) => p.name)], [['Friend', 'Jungler', 'Rayan', 'Shooter', 'Hooks'], ['Axe', 'Puncher', 'Shadow', 'Sniper', 'Singer']]);
+    assert.deepStrictEqual(board.tips, { title: 'Ahri against Zed', lines: ['Your note: Respect his level 6. Ward the side bushes.', ...TIPS_AHRI_ZED] });
+    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('gameTips').hidden, null, 'the tips on the Game page');
+    assert.strictEqual(await pc.textContent('#gameTips h3'), 'Tips: Ahri against Zed');
+    assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
+    await shot(pc, 'loading-screen');
+    await pc.click('.nav[data-view="settings"]');
+    await pc.uncheck('#optOverlayBoard');
+    await wait(pc, () => !lpcClient.lastOverlay.board, null, 'no ranks on the loading screen when Settings says so');
+    await pc.check('#optOverlayBoard');
+    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().includes('Overlay hidden. Ctrl+Shift+O brings it back.'), null, 'the loading screen’s overlay hidden by its key');
+    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await wait(pc, () => !!lpcClient.lastOverlay.board && lpc.toasts().includes('Overlay back on.'), null, 'and back');
+    await pc.click('.nav[data-view="game"]');
+    console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane, also on the Game page; off in Settings, hidden by the key');
+
+    // ---- in game: everyone scouted, timers, gold, the overlay and the phone
     await league(leagueData());
-    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('liveBox').hidden && document.querySelectorAll('#liveRows tr').length === 10, null, 'the Game page, opened by itself');
+    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('liveBox').hidden && document.querySelectorAll('#liveRows tr').length === 10 && /Dragon/i.test(document.getElementById('timers').textContent), null, 'the Game page in game');
     await wait(pc, () => lpc.lcu().scouted.includes('enemy5') && [...document.querySelectorAll('#liveRows tr')].every((tr) => /LP|Unranked/.test(tr.textContent)), null, 'all ten scouted');
     assert.strictEqual(callsTo(/alias\/lookup\?gameName=Singer&tagLine=EUW/).length, 1, 'the player League gave no puuid is found by Riot ID');
     const live = await pc.$$eval('#liveRows tr', (trs) => trs.map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ')]));
@@ -821,6 +872,7 @@ const leagueData = (over = {}) => ({
     const timers = await text(pc, '#timers');
     assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[0-4]\d BARON (10:00|9:[1-5]\d) THEIR MID INHIBITOR (4:[01]\d|3:[3-5]\d) KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i); // counting down since the game data came: up to 50 s on a busy container
     await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k$/.test(lpcClient.lastOverlay.game), null, 'the overlay line');
+    assert(await pc.evaluate(() => !lpcClient.lastOverlay.board && document.getElementById('gameTips').hidden), 'no ranks on the overlay and no tips once the game is on');
     await wait(phone, () => /Dragon1:\d\dBaron.*Gold\+15\.5k/.test(document.getElementById('timers').textContent), null, 'the timers on the phone');
     // your lane and CS a minute: on the Game page and the overlay, against your usual on Ahri
     await wait(pc, () => /^Your lane against Zed: level 11 vs 10 · CS 100 vs 90 · kills 3 vs 2\. CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(document.getElementById('laneStats').textContent) && !document.getElementById('laneStats').hidden, null, 'lane stats');
@@ -833,10 +885,13 @@ const leagueData = (over = {}) => ({
     await pc.$eval('#optOpacity', (el) => { el.value = 0.6; el.dispatchEvent(new Event('input')); });
     await wait(pc, () => lpcClient.lastOverlay.opacity === 0.6 && document.getElementById('opacityOut').textContent === '60%', null, 'a see-through overlay');
     assert.strictEqual(await text(pc, '#kOverlay'), 'Ctrl+Shift+O');
+    // its key: everyone's rank (no tips in a game), then hidden, then back
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().includes('Overlay hidden. Ctrl+Shift+O brings it back.'), null, 'the overlay hidden by its key');
+    await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Ctrl+Shift+O again hides the overlay.'); }, null, 'everyone’s rank on the overlay by its key');
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => lpcClient.lastOverlay.visible && lpcClient.lastOverlay.cs, null, 'the overlay back');
+    await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().slice(-1)[0] === 'Overlay hidden. Ctrl+Shift+O brings it back.', null, 'the overlay hidden by its key');
+    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await wait(pc, () => lpcClient.lastOverlay.visible && lpcClient.lastOverlay.cs && !lpcClient.lastOverlay.board, null, 'the overlay back');
     // the sound 30 seconds before Dragon (the last one was at 6:40, so the next at 11:40)
     await league(leagueData({ t: 672 }));
     await wait(pc, () => lpc.toasts().includes('Dragon in 30 seconds') && lpc.played().includes('spawn'), null, 'the Dragon warning');
@@ -1164,9 +1219,8 @@ const leagueData = (over = {}) => ({
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
     await pc.click('.nav[data-view="pregame"]');
-    await wait(pc, () => document.querySelectorAll('#bench .champ').length === 3 && !document.getElementById('rerollBtn').hidden, null, 'the bench');
-    const bench = () => pc.$$eval('#bench .champ', (l) => l.map((b) => [b.innerText.replace(/\s+/g, ' '), b.getAttribute('aria-pressed')]));
-    assert.deepStrictEqual(await bench(), [['Ahri You: 8 games, 75% won · Mastery 7', 'false'], ['Garen Yours now · You: 4 games, 25% won · Mastery 4', 'true'], ['Sona You: 3 games, 100% won', 'false']]);
+    const BENCH = [['Ahri You: 8 games, 75% won · Mastery 7', 'false'], ['Garen Yours now · You: 4 games, 25% won · Mastery 4', 'true'], ['Sona You: 3 games, 100% won', 'false']];
+    await wait(pc, (b) => !document.getElementById('rerollBtn').hidden && b === JSON.stringify([...document.querySelectorAll('#bench .champ')].map((e) => [e.innerText.replace(/\s+/g, ' '), e.getAttribute('aria-pressed')])), JSON.stringify(BENCH), 'the bench'); // as shown: innerText needs it on screen
     assert.strictEqual(await text(pc, '#rerollBtn'), 'Reroll (1 left)');
     await pc.click('#bench .champ:first-child');
     await until(() => callsTo(/bench\/swap\/103$/, 'POST').length === 1, 'Ahri taken from the bench');
@@ -1187,11 +1241,11 @@ const leagueData = (over = {}) => ({
     await pc.click('#recordingsBtn');
     assert(await pc.evaluate(() => lpcClient.calls.includes('record false') && lpcClient.calls.includes('record true') && lpcClient.calls.includes('recordings-folder')), 'test recordings on, and their folder');
     // your version in the status bar, and What's new from it
-    assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.9.0 (2.0.0 is out)');
+    assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.10.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
-    assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.9.0 (2.0.0 is out).');
+    assert.match(await text(pc, '#newsList'), /^October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.10.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
     // an app link: lolprox://join/<room> brings the app into that room, after asking to leave the one you're in

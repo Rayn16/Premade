@@ -321,6 +321,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .notes { display: grid; gap: 8px; }
 .note { font-size: 14px; white-space: pre-line; }
 .note b { color: var(--gold); }
+.tipsbox ul { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+.tipsbox li { margin: 4px 0; }
 .noteedit summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .noteedit form { margin-top: 8px; }
 .noteedit textarea { font: 14px/1.4 var(--body); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); width: min(32em, 100%); }
@@ -700,6 +702,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="buildNote" class="hint" role="status"></p>
         <p id="skillNote" class="hint"></p>
         <p id="topNote" class="hint"></p>
+        <div id="csTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div id="csNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
       <section id="clashBox" class="panel" aria-labelledby="h-clash" hidden>
@@ -761,6 +764,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div id="timers" class="timers"></div>
         <p id="laneStats" class="phase" role="status" hidden></p>
         <p id="augTips" class="phase" hidden></p>
+        <div id="gameTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
@@ -882,7 +886,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <h2 class="ph">Keyboard shortcuts <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
           <div class="keyrow client-only"><span>Show or hide this window</span><kbd id="kShow"></kbd><button class="btn small" type="button" data-key="show">Change</button><span></span></div>
           <div class="keyrow lcu-only"><span>Save a clip</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
-          <div class="keyrow client-only"><span>Hide or show the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
+          <div class="keyrow client-only"><span>Everyone’s rank in a game, or hide the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
           <p id="keysNote" class="hint"></p>
         </section>
         <section class="panel client-only">
@@ -902,6 +906,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optOverlayChat" type="checkbox"> Room chat</label>
             <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"> Objective timers and gold</label>
             <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"> CS counter</label>
+            <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
             <label class="check"><input id="optOverlayToasts" type="checkbox"> Popups</label>
           </fieldset>
           <label class="field">Where <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
@@ -1060,12 +1065,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
-<div id="t-overlay" class="tipbox" popover>A small see-through bubble on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. Press Move it to drag it anywhere on the League screen, and the overlay shortcut (Keyboard shortcuts) hides or shows it during a game. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS.</div>
+<div id="t-overlay" class="tipbox" popover>A small see-through bubble on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. Press Move it to drag it anywhere on the League screen. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keyboard shortcuts) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS.</div>
 <div id="t-compact" class="tipbox" popover>While a game is on, this window shrinks to a strip with your mic and who's talking, and grows back when the game ends.</div>
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
 
-<div id="t-cs" class="tipbox" popover>Best picks for you weighs each champion you may pick for your role: how it does there in high elo, how it does in high elo against their champion in your lane (their pick that plays there most), your own games and mastery on it, and what your team still lacks (magic or physical damage, a tank). Click one to hover it, and again on your turn to lock it in. On your ban turn, Bans for you lists the champions you lose to most, then the strongest in your role in high elo, leaving out the ones you play. Your team's ranks and last 20 games come from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Pregame settings), sets the summoner spells and puts the high elo build and your usual build in League's shop. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-cs" class="tipbox" popover>Best picks for you weighs each champion you may pick for your role: how it does there in high elo, how it does in high elo against their champion in your lane (their pick that plays there most), your own games and mastery on it, and what your team still lacks (magic or physical damage, a tank). Click one to hover it, and again on your turn to lock it in. On your ban turn, Bans for you lists the champions you lose to most, then the strongest in your role in high elo, leaving out the ones you play. Your team's ranks and last 20 games come from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Pregame settings), sets the summoner spells and puts the high elo build and your usual build in League's shop. Tips for your lane show up once your champion and the one in your lane are known: how that matchup goes in high elo, the runes, spells and early items high elo players take in it, your own games against it, its range and damage, Riot's own tips for both champions and your matchup note. They show again on the loading screen, but not in the game itself, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: Korea's Challenger and Grandmaster ranked games our server counts from Riot, this patch (with the last one added while this one is new). The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions and answer trades from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
@@ -1110,7 +1115,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
-    overlayMe: true, overlayCs: true, overlayToasts: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
+    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '',
     ...load('lpc-opts', {}),
   };
@@ -2658,8 +2663,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- the in-game overlay (Windows client), with what Settings picks: who's talking and voice swap's countdown; your
   // mic, who can hear you and the effects on your voice; room chat; the objective timers and gold; your CS a minute;
   // recent popups. Move it (edit) shows it with a frame to drag anywhere; the client says where it was left
-  // (overlay-moved). The overlay shortcut hides all of it until it's pressed again (overlayHide).
-  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false;
+  // (overlay-moved). The overlay shortcut hides all of it until it's pressed again (overlayHide); in a game it first
+  // shows everyone's rank (boardKey).
+  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false;
   const chats = []; // the last few chat messages, for the overlay
   function pushOverlay() {
     if (!client) return;
@@ -2667,11 +2673,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const talk = on(opts.overlay && voice), meOn = on(opts.overlayMe && voice);
     overlayOn = on(opts.overlayChat && voice); // room chat shows there, so it needs no popup
     const game = on(opts.overlayGame && league) ? gameLine() : '', cs = on(opts.overlayCs && league) ? csText() : '', aug = on(opts.overlayGame && league) ? augNow() : '';
-    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug;
+    const board = boardNow(), visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!board;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const s = !visible ? { visible: false } : {
-      visible, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug,
+      visible, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, board,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -2684,9 +2690,44 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (j !== overlayWas) { overlayWas = j; client.overlay(s); }
   }
   function toggleOverlay() {
-    overlayHide = !overlayHide;
-    notify(overlayHide ? `Overlay hidden.${keys.overlay ? ` ${keys.overlay} brings it back.` : ''}` : 'Overlay back on.', true);
+    if (!overlayHide && !boardNow() && boardCan()) { boardKey = true; notify(`Everyone’s rank is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides the overlay.` : ''}`, true); }
+    else {
+      overlayHide = !overlayHide;
+      boardKey = false;
+      notify(overlayHide ? `Overlay hidden.${keys.overlay ? ` ${keys.overlay} brings it back.` : ''}` : 'Overlay back on.', true);
+    }
     pushOverlay();
+  }
+  // Everyone's rank on the overlay (app 1.10), like Porofessor: over League's loading screen (Settings, Overlay) and
+  // in a game when the overlay shortcut asks for it. Your team on the left in the top half and theirs in the bottom
+  // half, each with their rank, their record on their champion and tags; and on the loading screen, the tips for your
+  // lane. From scouting (League's client), so not while scouting is off.
+  const boardOk = () => !!client && !!client.version && !newer('1.10.0', client.version);
+  const loadingNow = () => lcuOn() && PHASES[lcu] === 'loading' && !(league && league.t >= 1); // League's clock starts once everyone has loaded
+  const boardRows = () => { const r = liveList(); return r.length >= 2 && r.length <= 10 && r.every((p) => p.champ) ? r : []; }; // not Practice Tool, Arena or TFT
+  const boardCan = () => boardOk() && opts.scout && boardRows().length > 0;
+  function myLane(rows) { // you in this game and their champion in your lane, by League's positions
+    const me = rows.find((p) => p.me);
+    return me && POS[me.pos] ? { me, foe: laneFoe(me.pos, rows.filter((p) => !p.ally).map((p) => ({ c: p.champ, pos: p.pos }))) } : null;
+  }
+  function boardNow() {
+    if (overlayEdit || overlayHide || !(boardKey || PHASES[lcu] === 'loading')) return null; // first: nothing below is set up yet while the page starts
+    const loading = loadingNow() && opts.overlayBoard;
+    if (!(loading || boardKey) || !boardCan()) return null;
+    const rows = boardRows(), lane = myLane(rows), order = Object.keys(POS), byPos = (a, b) => order.indexOf(a.pos) - order.indexOf(b.pos); // top to support, League's order
+    premade = findPremades(rows);
+    const card = (p) => {
+      const c = champOf(p.champ), s = p.puuid ? scoutData.get(p.puuid) : null, rk = s && [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((q) => q && TIERS.includes(q.tier));
+      const on = s && s.games ? s.games.filter((x) => x.champ === p.champ) : [], m = s && s.mastery.find((x) => x.championId === p.champ);
+      return {
+        name: p.name.split('#')[0] || 'A player', sub: [c ? c.name : '', POS[p.pos] || ''].filter(Boolean).join(' · '), pic: champImg(p.champ), me: !!p.me, ally: !!p.ally, lane: !p.ally && !!lane && lane.foe === p.champ,
+        rank: !s ? (p.puuid ? 'Looking up…' : '') : rk ? (rk === s.ranked.RANKED_SOLO_5x5 ? '' : 'Flex: ') + rankText(rk) : 'Unranked', tc: rk ? TIER_C[TIERS.indexOf(rk.tier)] : '',
+        rec: !s || !c ? '' : !s.games ? 'Match history hidden' : `${c.name}: ${on.length ? `${on.length} of the last ${s.games.length}, ${pct(on.filter((x) => x.win).length / on.length)} won` : `not in the last ${s.games.length}`}${m ? ` · mastery ${m.championLevel}` : ''}`,
+        tags: s && s.games ? tagsOf(s, p.champ, p).map(([k, t]) => [k, t.replace(/ \(.*$/, '').replace(/^(Off-role|Maybe a smurf|Seen before):.*$/, '$1')]) : [],
+      };
+    };
+    return { us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
+      tips: loading && lane && lane.foe ? tipsFor(lane.me.champ, lane.foe, lane.me.pos) : null };
   }
   function moveOverlay(on) {
     overlayEdit = on;
@@ -3181,17 +3222,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderGame();
   }
   // their champion in your lane: the one League says plays your position, else their pick played there most in high elo
-  // (or, without those counts, the one League recommends there), when that's at least half its games
-  function laneFoe(pos) {
-    const them = (cs && Array.isArray(cs.theirTeam) ? cs.theirTeam : []).filter((p) => p && p.championId > 0);
+  // (or, without those counts, the one League recommends there), when that's at least half its games. them: their
+  // champions with their positions, from champ select unless given
+  function laneFoe(pos, them = (cs && Array.isArray(cs.theirTeam) ? cs.theirTeam : []).filter((p) => p).map((p) => ({ c: p.championId, pos: p.assignedPosition }))) {
+    them = them.filter((p) => p.c > 0);
     if (!pos || !them.length) return 0;
-    const said = them.find((p) => String(p.assignedPosition || '').toUpperCase() === pos);
-    if (said) return said.championId;
+    const said = them.find((p) => String(p.pos || '').toUpperCase() === pos);
+    if (said) return said.c;
     const share = (c) => {
       const all = Object.keys(POS).reduce((n, r) => n + recIn(c, r)[0], 0), rp = champPos && champPos[c] ? champPos[c].recommendedPositions || [] : [];
       return all >= 5 ? recIn(c, pos)[0] / all : rp.includes(pos) ? 1 / rp.length : 0;
     };
-    const [c, sh] = them.map((p) => [p.championId, share(p.championId)]).sort((a, b) => b[1] - a[1])[0];
+    const [c, sh] = them.map((p) => [p.c, share(p.c)]).sort((a, b) => b[1] - a[1])[0];
     return sh >= 0.5 ? c : 0;
   }
   // physical against magic damage on your team so far (and on theirs), from Data Dragon's ratings of each champion
@@ -3275,7 +3317,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const c = champOf(q.champ), m = livePlayers.find((p) => p.team === q.team && c && p.champ === +c.key) || livePlayers.find((p) => sameName(p.name, q.name)) || {};
         return { puuid: m.puuid || aliasPuuid.get(q.name) || '', name: q.name, champ: c ? +c.key : 0, team: q.team, pos: q.pos || m.pos, score: `${q.k}/${q.d}/${q.a} · level ${q.lvl}` };
       })
-      : livePlayers;
+      : livePlayers.map((p) => (p.puuid ? p : { ...p, puuid: aliasPuuid.get(p.name) || '' }));
     return rows.map((p) => ({ ...p, ally: p.team === team, me: !!me0 && (p.puuid === me0.puuid || sameName(p.name, `${me0.gameName}#${me0.tagLine}`)) })).sort((a, b) => b.ally - a.ally);
   }
   // players League's client didn't name with a puuid: looked up by their Riot ID, once
@@ -3496,7 +3538,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const m = mayhem() && meIn(), tip = m ? augTip(m.champ) : '';
       $('augTips').hidden = !tip;
       $('augTips').textContent = tip;
-      const rows = liveList();
+      const rows = liveList(), ln = loadingNow() ? myLane(rows) : null; // the tips only before the game starts
+      renderTips($('gameTips'), ln && ln.foe ? tipsFor(ln.me.champ, ln.foe, ln.me.pos) : null);
       premade = findPremades(rows);
       $('liveRows').replaceChildren(...rows.map(scoutRow));
       renderNotes($('liveNotes'), myChampNow(), rows.filter((p) => !p.ally).map((p) => p.champ).filter(Boolean));
@@ -3554,6 +3597,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const top = mineC ? topNow(mineC, myPos(), renderGame) : null, tk = topOk(top) ? skillsFrom(top.skills) : null, vs = topOk(top) ? theirs.map((c) => top.vs.find((v) => v.c === c && v.n >= 5)).filter(Boolean) : [];
     $('skillNote').textContent = [skillText(mineC), tk ? `In high elo: start ${tk.first}, then max ${tk.max}.` : ''].filter(Boolean).join(' ');
     $('topNote').textContent = topOk(top) ? `In high elo, ${champName(mineC)}${POS[top.role] ? ' ' + POS[top.role].toLowerCase() : ''} won ${pct(top.w / top.n)} of ${top.n} games${vs.length ? `. Against their picks: ${vs.map(vsText).join('; ')}` : ''}.` : '';
+    renderTips($('csTips'), mineC && foe && POS[myPos()] ? tipsFor(mineC, foe, myPos()) : null);
     renderNotes($('csNotes'), mineC, theirs);
   }
   // a champion button: click to hover it, and on your turn click it again to lock it in (or ban it); or click does what's given
@@ -3668,7 +3712,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           autoDone.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
-        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; }
+        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = false; }
       }
       if (ph === 'ReadyCheck') await readyTick();
       if (ph === 'ChampSelect') await champTick();
@@ -3676,7 +3720,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ph) await patchTick();
       if (ph) { rankTick(); crawl(); watchTick(); } // one League call at most each, in the background
       if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !preViewEl.hidden) clashTick();
-      if (league) { if (curGame && league.result) curGame.result = league.result; await aliasTick(); }
+      if (league) { if (curGame && league.result) curGame.result = league.result; await aliasTick(); } else if (PHASES[ph] === 'loading') await aliasTick();
       if (ph && !me0) loadMine();
       if ((ph === 'ChampSelect' || league || (clash && clash.players.length)) && !ddVersion) ddSoon();
     } finally { lcuBusy = false; }
@@ -5094,7 +5138,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const rn = most(games.filter((g) => ok(g.rn, 11)).map((g) => [g.rn.join(','), g.w])), sp = most(games.filter((g) => ok(g.s, 2)).map((g) => [g.s.slice().sort((a, b) => a - b).join(','), g.w]));
     const vs = new Map();
     for (const g of games) if (Number.isInteger(g.o)) { const v = vs.get(g.o) || { c: g.o, n: 0, w: 0, gold: [] }; v.n++; v.w += g.w; if (Number.isFinite(g.g)) v.gold.push(g.g); vs.set(g.o, v); }
-    return { role: POS[j.role] ? j.role : '', roles: j.roles && typeof j.roles === 'object' ? j.roles : {}, patch: now.length >= 30 ? String(j.patch) : '', n: games.length, w: games.filter((g) => g.w).length,
+    return { role: POS[j.role] ? j.role : '', roles: j.roles && typeof j.roles === 'object' ? j.roles : {}, patch: now.length >= 30 ? String(j.patch) : '', n: games.length, w: games.filter((g) => g.w).length, all,
       runes: rn ? { perks: rn[0].split(',').map(Number), n: rn[1][0], w: rn[1][1] } : null, spells: sp ? sp[0].split(',').map(Number) : null,
       buys: games.map((g) => (Array.isArray(g.b) ? g.b.filter((x) => ok(x, 2)) : [])).filter((b) => b.length), skills: games.map((g) => g.k).filter((k) => Array.isArray(k) && k.length >= 9 && k.every((x) => x >= 1 && x <= 4)),
       vs: [...vs.values()].map((v) => ({ c: v.c, n: v.n, w: v.w, gold: v.gold.length ? Math.round(v.gold.reduce((a, b) => a + b, 0) / v.gold.length) : null })).sort((a, b) => b.n - a.n) };
@@ -5150,6 +5194,79 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   for (const b of $('tierRoles').children) b.addEventListener('click', () => { tierRole = b.dataset.role; renderGame(); });
   const vsText = (v) => `${champName(v.c)}, ${pct(v.w / v.n)} won in ${v.n} games${v.gold == null ? '' : ` (${v.gold >= 0 ? '+' : '−'}${Math.abs(v.gold)} gold at 10)`}`;
+
+  // ---- matchup tips: playing your champion against their champion in your lane, before the game (champ select and the
+  // loading screen: Riot's rules keep advice out of the game itself). From the high elo games our server counts (how
+  // the matchup goes, gold and CS at 10 minutes, the runes, spells and early items players take in it, and what their
+  // champion takes against yours; 5 games or more), your own games against it, the two champions' range and damage,
+  // Riot's own tips for both (Data Dragon's allytips and enemytips) and your matchup note. Nothing from other sites.
+  const riotTipsOf = new Map(); // a champion's Data Dragon id -> { ally, enemy }: Riot's tips, null while they load
+  function riotTips(c) {
+    if (!riotTipsOf.has(c.id) && ddVersion) {
+      riotTipsOf.set(c.id, null);
+      fetch(`${DD}/cdn/${ddVersion}/data/en_US/champion/${c.id}.json`).then((r) => r.json())
+        .then((j) => { const d = j.data[c.id]; return { ally: (d.allytips || []).map(String), enemy: (d.enemytips || []).map(String) }; })
+        .catch(() => ({ ally: [], enemy: [] })).then((t) => { riotTipsOf.set(c.id, t); renderGame(); });
+    }
+    return riotTipsOf.get(c.id) || null;
+  }
+  const sgn = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v))}`;
+  const most = (list) => { const m = new Map(); for (const x of list) m.set(x, (m.get(x) || 0) + 1); return [...m].sort((a, b) => b[1] - a[1])[0] || null; }; // [the most common, how often]
+  const spellsText = (k) => String(k).split(',').map((x) => SPELLS[x] || 'a spell').join(' + ');
+  // the keystone and summoner spells most of these games took, and the usual ones when they differ: "Electrocute (6 of
+  // 8 games; usually Arcane Comet) and Flash + Ignite (8 of 8 games)"
+  function picksIn(games, usual) {
+    const rn = games.filter((g) => Array.isArray(g.rn) && g.rn.length === 11), ks = most(rn.map((g) => g.rn[2]));
+    const sp = games.filter((g) => Array.isArray(g.s) && g.s.length === 2), two = most(sp.map((g) => g.s.slice().sort((a, b) => a - b).join(',')));
+    const out = [];
+    if (rn.length >= 5 && ks && 2 * ks[1] >= rn.length && runeName(ks[0])) out.push(`${runeName(ks[0])} (${ks[1]} of ${rn.length} games${usual && usual.runes && usual.runes.perks[2] !== ks[0] && runeName(usual.runes.perks[2]) ? `; usually ${runeName(usual.runes.perks[2])}` : ''})`);
+    if (sp.length >= 5 && two && 2 * two[1] >= sp.length) out.push(`${spellsText(two[0])} (${two[1]} of ${sp.length} games${usual && usual.spells && usual.spells.slice().sort((a, b) => a - b).join(',') !== two[0] ? `; usually ${spellsText(usual.spells.slice().sort((a, b) => a - b).join(','))}` : ''})`);
+    return out.join(' and ');
+  }
+  let tipsMemo = {};
+  function tipsFor(mine, foe, role) {
+    const a = champOf(mine), b = champOf(foe);
+    if (!a || !b || a === b) return null;
+    const top = topNow(mine, role, renderGame), them = topNow(foe, role, renderGame), ta = riotTips(a), tb = riotTips(b);
+    const key = [mine, foe, role, notes[noteKey(mine, foe)] || '', deepVer, !!ddItems, !!runeNames].join();
+    if (tipsMemo.key === key && tipsMemo.top === top && tipsMemo.them === them && tipsMemo.ta === ta && tipsMemo.tb === tb) return tipsMemo.out;
+    const A = a.name, B = b.name, lines = [], note = notes[noteKey(mine, foe)];
+    if (note) lines.push(`Your note: ${note}`);
+    const vs = ((top && top.all) || []).filter((g) => g.o === foe);
+    if (vs.length >= 5) {
+      const w = vs.filter((g) => g.w).length, k = adj(w, vs.length, 10), avg = (f) => { const v = vs.map(f).filter(Number.isFinite); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
+      const gold = avg((g) => g.g), cs = avg((g) => (Array.isArray(g.l) ? g.l[0] : NaN));
+      lines.push(`High elo: ${A} won ${w} of ${vs.length} games against ${B}${gold == null ? '' : `, ${sgn(gold)} gold${cs == null ? '' : ` and ${sgn(cs)} CS`} at 10 minutes`}. ${k < 0.46 ? `A hard matchup for ${A}.` : k > 0.54 ? `A good matchup for ${A}.` : 'An even matchup.'}`);
+    }
+    const mg = myGames().filter((g) => g.mode === 'CLASSIC').map((g) => { const m = g.ps[g.me], o = m.l ? g.ps.find((p) => p.t !== m.t && p.l === m.l) : null; return o && o.c === foe ? m : null; }).filter(Boolean);
+    const on = mg.filter((m) => m.c === mine);
+    if (mg.length) lines.push(`You: ${mg.filter((m) => m.w).length} of ${mg.length} games won${on.length === mg.length ? ` on ${A}` : ''} against ${B} in your lane${on.length && on.length < mg.length ? `, ${on.filter((m) => m.w).length} of ${on.length} on ${A}` : ''}.`);
+    const ra = +((a.stats || {}).attackrange) || 0, rb = +((b.stats || {}).attackrange) || 0, melee = (r) => r < 300, cls = String((b.tags || [])[0] || 'champion').toLowerCase();
+    lines.push(`${B} is ${rb ? (melee(rb) ? 'a melee ' : 'a ranged ') : 'a '}${cls} with mostly ${isMagic(b) ? 'magic' : 'physical'} damage, so ${isMagic(b) ? 'magic resist' : 'armor'} helps against them.${ra && rb && (melee(ra) !== melee(rb) || Math.abs(ra - rb) >= 75) ? (ra > rb ? ` You outrange ${B}: ${ra} against ${rb}.` : ` ${B} outranges you: ${rb} against ${ra}.`) : ''}`);
+    for (const t of ((tb && tb.enemy) || []).slice(0, 2)) lines.push(`Riot’s tip against ${B}: ${t}`);
+    const ours = picksIn(vs, top);
+    if (ours) lines.push(`Against ${B}, high elo ${A} players take ${ours}.`);
+    if (ddItems && vs.length >= 5) { // items high elo players have by 15 minutes against them more often than usual
+      const early = (g) => new Set((Array.isArray(g.b) ? g.b : []).filter(([t, id]) => t <= 900 && ddItems[id] && !ddItems[id].use && (ddItems[id].gold >= 900 || ddItems[id].boots)).map(([, id]) => id));
+      const here = vs.filter((g) => Array.isArray(g.b) && g.b.length).map(early), all = top.all.filter((g) => Array.isArray(g.b) && g.b.length).map(early), share = (l, id) => l.filter((x) => x.has(id)).length / l.length;
+      const more = here.length < 5 ? [] : [...new Set(here.flatMap((x) => [...x]))].map((id) => [id, share(here, id), share(all, id)]).filter(([, h, u]) => h >= 0.4 && h - u >= 0.2).sort((x, y) => y[1] - y[2] - (x[1] - x[2])).slice(0, 2);
+      if (more.length) lines.push(`Against ${B}, high elo ${A} players more often have ${more.map(([id, h, u]) => `${itemName(id)} by 15 minutes (${Math.round(h * here.length)} of ${here.length} games, ${pct(u)} usually)`).join(' and ')}.`);
+    }
+    const theirs = picksIn(((them && them.all) || []).filter((g) => g.o === mine), them);
+    if (theirs) lines.push(`Against ${A}, high elo ${B} players take ${theirs}.`);
+    for (const t of ((ta && ta.ally) || []).slice(0, 1)) lines.push(`Riot’s tip for ${A}: ${t}`);
+    tipsMemo = { key, top, them, ta, tb, out: { title: `${A} against ${B}`, lines } };
+    return tipsMemo.out;
+  }
+  function renderTips(el, t) { // a tips box on Pregame or Game
+    el.hidden = !t;
+    if (!t) return;
+    el.querySelector('h3').textContent = `Tips: ${t.title}`;
+    const key = t.lines.join('\n');
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    el.querySelector('ul').replaceChildren(...t.lines.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
+  }
   $('proFind').addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = $('proId').value.trim(), plat = $('proRegion').value, note = $('proFindNote'), setup = !lcuOn() && !proMine;
@@ -6083,13 +6200,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'],
-    ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'],
+    ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'],
     ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || pushOverlay)(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  if (!(client && client.front)) { $('optFront').disabled = true; $('optFront').parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
+  for (const [id, ok] of [['optFront', client && client.front], ['optOverlayBoard', boardOk()]]) {
+    if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
+  }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
   // can't, so it gets a link to the installer
   if (client) {
@@ -6170,6 +6289,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [14, 'October 19: everyone’s rank on the loading screen, and tips for your lane', [
+      'On League’s loading screen the overlay shows all ten players, like Porofessor: your team on the left at the top and theirs below, each with their rank, their record on their champion and tags such as a win streak or a first time on the champion. It needs app 1.10 and League in Borderless mode.',
+      'In a game, the overlay shortcut (Ctrl+Shift+O unless you changed it) shows everyone’s rank again. Press it again to hide the overlay, and once more to bring it back.',
+      'Tips for your lane: in champ select and on the loading screen, tips for your champion against the one in your lane. How the matchup goes in high elo (with gold and CS at 10 minutes), the runes, spells and early items high elo players take in it, your own games against it, its range and damage, Riot’s own tips for both champions and your matchup note. Riot’s rules keep tips out of the game itself.',
+    ]],
     [13, 'October 19: queues, TFT and live games', [
       'Profile has a tab for each queue: All, Solo/Duo, Flex, Normal, ARAM and TFT. Each lists that queue’s games with their own record, and loads older ones when fewer than 20 are known.',
       'TFT on Profile: TFT, Double Up and Hyper Roll ranks, and TFT games with the place, level, traits, units, items and augments. They come from League’s client, so in the desktop app while League is open (app 1.9), for you and players on your server.',

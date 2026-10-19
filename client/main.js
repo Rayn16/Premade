@@ -287,7 +287,8 @@ function hider() {
 
 // ---- the in-game overlay: see-through and click-through, over League when it runs in Borderless mode. Its size is
 // 300x360 times the page's scale, at a corner (pos) or where it was dragged (box: fractions of the screen). While the
-// page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved).
+// page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved). With
+// everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
 let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null;
 const display = async () => { const s = chosen(await screens(false)); return screen.getAllDisplays().find((d) => s && String(d.id) === s.display_id) || screen.getPrimaryDisplay(); };
 ipcMain.on('overlay', async (e, s) => {
@@ -319,7 +320,7 @@ ipcMain.on('overlay', async (e, s) => {
     overlay.setFocusable(editing);
   }
   const k = Math.min(2, Math.max(0.7, +s.scale || 1)), box = s.pos === 'custom' && s.box && Number.isFinite(s.box.x) && Number.isFinite(s.box.y) ? s.box : null;
-  const key = JSON.stringify([s.pos, k, box]), shape = JSON.stringify([s.pos, k]);
+  const board = !!s.board && !editing, key = JSON.stringify([s.pos, k, box, board]), shape = JSON.stringify([s.pos, k, board]);
   if (placed === key) return;
   const dragged = editing && s.pos === 'custom' && shape === placedShape; // the page keeping where it was dragged: it's there
   placed = key;
@@ -327,8 +328,8 @@ ipcMain.on('overlay', async (e, s) => {
   if (dragged) return;
   const { x, y, width, height } = (await display()).bounds;
   if (!overlayState.visible) return;
-  const w = Math.round(300 * k), h = Math.round(360 * k);
-  const at = box ? { x: x + Math.round(box.x * width), y: y + Math.round(box.y * height) }
+  const w = board ? width : Math.round(300 * k), h = board ? height : Math.round(360 * k);
+  const at = board ? { x, y } : box ? { x: x + Math.round(box.x * width), y: y + Math.round(box.y * height) }
     : { x: s.pos === 'mr' ? x + width - w - 16 : x + 16, y: s.pos === 'ml' || s.pos === 'mr' ? y + Math.round((height - h) / 2) : y + 16 };
   placedAt = { x: Math.min(Math.max(at.x, x), x + width - w), y: Math.min(Math.max(at.y, y), y + height - h) };
   overlay.setBounds({ ...placedAt, width: w, height: h });

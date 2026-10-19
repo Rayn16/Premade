@@ -874,7 +874,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: queues, TFT and live games'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: everyone’s rank on the loading screen, and tips for your lane'], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);

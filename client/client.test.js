@@ -6,7 +6,7 @@
 // calls to League's client (only those on the list, with League's password, and nothing else), saving clips in Videos,
 // the clip gallery (pictures, rename, the Recycle Bin, the clean-up), the compact strip, the overlay window (the game's
 // objective timers and kills from the page, moved and resized, with chat, who hears you, your voice effects and voice
-// swap's countdown), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
+// swap's countdown, and everyone's rank over the whole screen), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
 // pipe), the performance meter, app links, the window kept where you left it, and test recordings with names hidden.
 // Prints ok.
 const http = require('http'), https = require('https'), net = require('net'), fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
@@ -261,6 +261,19 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.y === d.y + Math.round(0.5 * d.height) && o.width === 300 && !ov.isFocusable(); }, 'the overlay where it was dragged');
     console.log(`overlay moved and resized: ${JSON.stringify(ov.getBounds())}`);
+    // everyone's rank (board, app 1.10): over the whole screen, still click-through, then back where it was
+    await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: {
+      us: [{ name: 'Rayan', sub: 'Ahri · Middle', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', rec: 'Ahri: 8 of the last 20, 75% won', tags: [['good', '3 wins in a row']] }],
+      them: [{ name: 'Shadow', sub: 'Zed · Middle', lane: true, rank: 'Unranked', tc: 'red;x', tags: [['bad', 'First time on this champion'], ['', 'Seen before']] }],
+      tips: { title: 'Ahri against Zed', lines: ['High elo: Ahri won 4 of 10 games against Zed.'] } } })`);
+    await until(() => { const o = ov.getBounds(); return o.x === d.x && o.y === d.y && o.width === d.width && o.height === d.height && !ov.isFocusable(); }, 'the overlay over the whole screen');
+    const boardText = await ov.webContents.executeJavaScript('document.body.innerText');
+    for (const t of ['Overlay back on.', 'Your team', 'Rayan', 'Gold II · 45 LP', 'Ahri: 8 of the last 20, 75% won', '3 wins in a row', 'Their team', 'Shadow', 'Your lane', 'First time on this champion', 'Tips: Ahri against Zed', 'High elo: Ahri won 4 of 10'])
+      assert(boardText.toLowerCase().includes(t.toLowerCase()), `the board shows ${JSON.stringify(t)}: ${JSON.stringify(boardText)}`);
+    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".rk")].map((e) => e.style.color)'), ['rgb(217, 173, 85)', ''], 'the tier’s color, and nothing that isn’t a color');
+    await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
+    await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.width === 300 && o.height === 360; }, 'the overlay back in its box');
+    console.log(`everyone's rank over the whole screen: ${JSON.stringify(boardText.slice(0, 120))}`);
     await js('lpcClient.overlay({ visible: false })');
     await until(() => !ov.isVisible(), 'the overlay hidden');
 
