@@ -173,6 +173,7 @@ const LCU_OK = [
   ['PATCH', /^\/lol-champ-select\/v1\/session\/(actions\/\d+|my-selection)$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/actions\/\d+\/complete$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/(champion-swaps|position-swaps|pick-order-swaps)\/\d+\/(request|accept|decline|cancel)$/], // trades
+  ['POST', /^\/lol-champ-select\/v1\/session\/(bench\/swap\/\d+|my-selection\/reroll)$/], // ARAM's bench and rerolls
   ['GET', /^\/lol-matchmaking\/v1\/(ready-check|search)$/],
   ['POST', /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/],
   ['GET', /^\/lol-lobby\/v2\/lobby$/],
@@ -184,7 +185,7 @@ const LCU_OK = [
   ['GET', /^\/lol-summoner\/v1\/(current-summoner|summoners\/\d+|alias\/lookup\?gameName=[\w.!~*'()%-]*&tagLine=[\w.!~*'()%-]*)$/], // encoded names only
   ['GET', /^\/lol-summoner\/v2\/summoners\/puuid\/[\w-]+$/],
   ['GET', /^\/lol-ranked\/v1\/(current-ranked-stats|current-lp-change-notification|ranked-stats\/[\w-]+)$/],
-  ['GET', /^\/lol-match-history\/v1\/(products\/lol\/[\w-]+\/matches\?begIndex=\d+&endIndex=\d+|games\/\d+|game-timelines\/\d+)$/],
+  ['GET', /^\/lol-match-history\/v1\/(products\/lol\/[\w-]+\/matches\?begIndex=\d+&endIndex=\d+|products\/tft\/[\w-]+\/matches\?begin=\d+&count=\d+|games\/\d+|game-timelines\/\d+)$/],
   ['GET', /^\/lol-champion-mastery\/v1\/[\w-]+\/champion-mastery$/],
   ['GET', /^\/lol-perks\/v1\/(pages|recommended-champion-positions|recommended-pages\/champion\/\d+\/position\/[A-Z]+\/map\/\d+|recommended-pages-position\/champion\/\d+)$/],
   ['POST', /^\/lol-perks\/v1\/pages$/],
@@ -383,6 +384,17 @@ function checkUpdates() {
   setInterval(check, 4 * 3600e3);
   ipcMain.on('update', (e) => { if (fromSite(e) && updateReady) autoUpdater.quitAndInstall(true, true); });
 }
+
+// ---- a match found (Pregame settings): the window in front of League's client. Windows hands the keyboard only to
+// the window you use, so it's kept on top for a moment instead.
+ipcMain.on('front', (e) => {
+  if (!fromSite(e)) return;
+  if (win.isMinimized()) win.restore();
+  win.setAlwaysOnTop(true);
+  win.show();
+  win.focus();
+  setTimeout(() => { if (!win.isDestroyed()) win.setAlwaysOnTop(false); }, 1000);
+});
 
 // ---- compact view: the window shrinks to the strip's height (h, from the page), and grows back with h = 0
 let full = null;

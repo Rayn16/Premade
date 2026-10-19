@@ -30,9 +30,10 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
 <script>
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what Settings picks: the objective timers, kills and gold difference
-  // (game), your CS a minute (cs), your mic when it's muted or you're talking, who can hear you, the effects on your
-  // voice, who's talking (a teal glow, red for the other team), voice swap's countdown, room chat and the last popups,
-  // as see-through as the slider says (opacity). While you move it (edit), it shows a frame and a sample.
+  // (game), your CS a minute (cs), in ARAM: Mayhem what kind of augment suits your champion (aug), your mic when it's
+  // muted or you're talking, who can hear you, the effects on your voice, who's talking (a teal glow, red for the other
+  // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
+  // you move it (edit), it shows a frame and a sample.
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
   function pill(name, pic, team) {
@@ -62,6 +63,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     if (s.game) out.push(el('toast game', String(s.game)));
     if (s.cs) out.push(el('toast game', String(s.cs)));
+    if (s.aug) out.push(el('toast', String(s.aug)));
     if (s.muted) {
       const m = el('pill muted');
       m.innerHTML = MIC + '<path d="M4 4l16 16"/></svg>';

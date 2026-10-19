@@ -1,5 +1,5 @@
 // Test of the desktop app's League features in site/index.html and site/remote.html, in headless Chromium, with a
-// stand-in for the desktop app 1.7 (window.lpcClient with lcu, clips and the gallery) and a fake League client behind it.
+// stand-in for the desktop app 1.9 (window.lpcClient with lcu, clips, the gallery and front) and a fake League client behind it.
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node league.e2e.js
 // Checks: the Pregame and Game pages only in the desktop app, with a note to restart an old one; the ready check (Accept here, on the
@@ -106,6 +106,13 @@ const LUX = { lane: 'MIDDLE', perks: [8200, 8100, 8229, 8226, 8210, 8237, 8139, 
 const MY_HIST = hist([[103, true, AHRI], ...rep(7, 103, (i) => i < 5, (i) => ({ ...AHRI, penta: i === 2 ? 1 : 0, vision: 15 + i })), ...rep(5, 99, (i) => i < 3, LUX),
   ...rep(4, 86, (i) => i < 1, { lane: 'TOP', items: [3071, 3047] }), ...rep(3, 37, true, { lane: 'BOTTOM', role: 'DUO_SUPPORT' })]); // 13 won
 MY_HIST.games.games[0].gameId = GAME;
+// your TFT games in League's client (products/tft), newest first: 1st, 3rd, 6th (Double Up), 4th (normal), 8th; the
+// same traits, units and augments each time
+const TFT = [[1, 1100], [3, 1100], [6, 1160], [4, 1090], [8, 1100]].map(([placement, queue], i) => ({ metadata: { match_id: `EUW1_${8000 + i}`, timestamp: t0 - i * 3600e3 },
+  json: { gameId: 8000 + i, game_datetime: t0 - i * 3600e3, game_length: 1900, queue_id: queue, participants: [{ puuid: 'other', placement: placement === 1 ? 2 : 1, level: 9, traits: [], units: [] },
+    { puuid: ME, placement, level: 8, augments: ['TFT13_Augment_CyberneticBulk', 'TFT9_Augment_Ascension'],
+      traits: [{ name: 'TFT13_Rebel', num_units: 3, style: 1 }, { name: 'TFT13_Sniper', num_units: 4, style: 2 }, { name: 'TFT13_Ambusher', num_units: 1, style: 0 }],
+      units: [{ character_id: 'TFT13_Jinx', tier: 2, itemNames: ['TFT_Item_InfinityEdge', 'TFT_Item_GuinsoosRageblade'] }, { character_id: 'TFT13_Vi', tier: 1, itemNames: [] }] }] } }));
 const MASTERY = { [ME]: [[103, 7, 120000], [99, 5, 40000], [86, 4, 20000], [238, 6, 50000]], enemy3: [[103, 5, 30000]] };
 const mastery = (who) => (MASTERY[who] || [[86, 3, 5000]]).map(([championId, championLevel, championPoints]) => ({ championId, championLevel, championPoints }));
 const POSITIONS = { 103: ['MIDDLE'], 99: ['MIDDLE', 'UTILITY'], 86: ['TOP'], 37: ['UTILITY'], 238: ['MIDDLE'] };
@@ -184,6 +191,12 @@ function fakeLcu(method, p, body) {
     return { status: 204, data: null };
   }
   if (p === '/lol-champ-select/v1/session/my-selection') { Object.assign(lcu.cs.myTeam[2], body); return { status: 204, data: null }; }
+  if ((m = /^\/lol-champ-select\/v1\/session\/bench\/swap\/(\d+)$/.exec(p))) { // ARAM: yours goes to the bench
+    const b = lcu.cs.benchChampions.find((x) => x.championId === +m[1]);
+    [b.championId, lcu.cs.myTeam[2].championId] = [lcu.cs.myTeam[2].championId, b.championId];
+    return { status: 204, data: null };
+  }
+  if (p === '/lol-champ-select/v1/session/my-selection/reroll') { lcu.cs.rerollsRemaining--; lcu.cs.myTeam[2].championId = 222; return { status: 204, data: null }; }
   if (p === '/lol-summoner/v1/current-summoner') return ok({ puuid: ME, gameName: 'Rayan', tagLine: 'EUW', summonerId: 1234, summonerLevel: 300, profileIconId: 4568 });
   if ((m = /^\/lol-summoner\/v2\/summoners\/puuid\/([\w-]+)$/.exec(p))) return ok({ puuid: m[1], summonerLevel: m[1] === 'enemy4' ? 30 : 200 });
   if ((m = /^\/lol-summoner\/v1\/summoners\/(\d+)$/.exec(p))) return CLASH_SUMS[m[1]] ? ok({ ...CLASH_SUMS[m[1]], summonerId: +m[1] }) : { status: 404, data: null };
@@ -192,12 +205,14 @@ function fakeLcu(method, p, body) {
     return who && m[2] === 'EUW' ? ok({ puuid: who }) : { status: 404, data: null };
   }
   if ((m = /^\/lol-ranked\/v1\/ranked-stats\/(.+)$/.exec(p))) return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lp[m[1]] || 45, wins: 30, losses: 25 }, ...(m[1] === 'ally1' && { RANKED_FLEX_SR: { tier: 'SILVER', division: 'I', leaguePoints: 10, wins: 3, losses: 1 } }) } });
-  if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lpNote ? 63 : 45, wins: 31, losses: 25 } } });
+  if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lpNote ? 63 : 45, wins: 31, losses: 25 },
+    RANKED_TFT: { tier: 'PLATINUM', division: 'I', leaguePoints: 77, wins: 9, losses: 51 }, RANKED_TFT_DOUBLE_UP: { tier: '', division: 'NA', wins: 0, losses: 0 }, RANKED_TFT_TURBO: { tier: '', ratedTier: 'PURPLE', ratedRating: 3200, wins: 2, losses: 10 } } });
   if (p === '/lol-ranked/v1/current-lp-change-notification') return lcu.lpNote ? ok(lcu.lpNote) : { status: 404, data: null };
   if ((m = /^\/lol-match-history\/v1\/products\/lol\/([\w-]+)\/matches\?begIndex=(\d+)&endIndex=(\d+)$/.exec(p))) { // both ends in, as League's client does
     const h = m[1] === 'current-summoner' ? MY_HIST : histOf(m[1]);
     return ok({ games: { games: h.games.games.slice(+m[2], +m[3] + 1) } });
   }
+  if ((m = /^\/lol-match-history\/v1\/products\/tft\/([\w-]+)\/matches\?begin=(\d+)&count=(\d+)$/.exec(p))) return ok({ active_puuid: m[1], games: m[1] === ME ? TFT.slice(+m[2], +m[2] + +m[3]) : [] });
   if ((m = /^\/lol-match-history\/v1\/games\/(\d+)$/.exec(p))) return ok(report(+m[1]));
   if ((m = /^\/lol-match-history\/v1\/game-timelines\/(\d+)$/.exec(p))) return ok(timeline(+m[1]));
   if ((m = /^\/lol-item-sets\/v1\/item-sets\/(\d+)\/sets$/.exec(p))) {
@@ -295,6 +310,7 @@ function fakeApp(version) {
       record(on) { this.calls.push('record ' + on); },
       recordingsFolder() { this.calls.push('recordings-folder'); },
     }),
+    ...(version >= '1.9' && { front() { this.calls.push('front'); } }), // 1.9: in front when a match is found
   };
   const fakeClips = new Map();
   const cv = document.createElement('canvas');
@@ -325,7 +341,7 @@ async function context(browser, { version = '', phone = false } = {}) {
   });
   if (phone) await ctx.addInitScript(() => { window.buzzes = []; navigator.vibrate = (p) => { buzzes.push(p); return true; }; }); // the phone's buzz
   if (!phone) {
-    await ctx.route('**/latest.yml', (r) => r.fulfill({ body: 'version: 1.8.0\npath: Premade-Setup.exe\n', contentType: 'text/yaml' })); // a newer app is out
+    await ctx.route('**/latest.yml', (r) => r.fulfill({ body: 'version: 2.0.0\npath: Premade-Setup.exe\n', contentType: 'text/yaml' })); // a newer app is out
     await ctx.addInitScript(() => {
       localStorage.setItem('lpc-setup', '1');
       localStorage.setItem('lpc-name', 'Rayan');
@@ -389,8 +405,8 @@ const leagueData = (over = {}) => ({
         participants: Array.from({ length: 10 }, (_, i) => ({ puuid: i ? PU(`p${i}-`) : ANA, riotIdGameName: i ? `P${i}` : 'Ana B', riotIdTagline: 'EUW', championId: i ? CHAMPS[i][1] : champ, teamId: i < 5 ? 100 : 200,
           teamPosition: POSN[i % 5], win: i < 5 ? win : !win, kills: i ? 3 : 8, deaths: 2, assists: 5, totalMinionsKilled: 180, neutralMinionsKilled: 10, visionScore: 22, totalDamageDealtToChampions: 20000,
           goldEarned: 11000, totalDamageTaken: 15000, damageSelfMitigated: 4000, item0: 6655, item1: 3020, item6: 3340 })) } });
-      const old5 = (id, champ, win, days) => { const m = match5(id, champ, win); m.info.gameCreation = Date.now() - days * 86400e3; return m; }; // a game days ago
-      const OLD = Array.from({ length: 19 }, (_, k) => 7000000010 + k); // her older games: 120 to 390 days ago
+      const old5 = (id, champ, win, days, queueId = 420) => { const m = match5(id, champ, win); Object.assign(m.info, { gameCreation: Date.now() - days * 86400e3, queueId }); return m; }; // a game days ago
+      const OLD = Array.from({ length: 19 }, (_, k) => 7000000010 + k); // her older games: 120 to 390 days ago, five of them ARAM
       const RIOT = {
         '/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW': { puuid: ANA, gameName: 'Ana B', tagLine: 'EUW' },
         '/europe/riot/account/v1/accounts/by-riot-id/Bob/EUW': { puuid: BOB, gameName: 'Bob', tagLine: 'EUW' },
@@ -400,14 +416,17 @@ const leagueData = (over = {}) => ({
         [`/euw1/lol/league/v4/entries/by-puuid/${BOB}`]: [],
         [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${ANA}/top?count=5`]: [{ championId: 103, championLevel: 12, championPoints: 251000 }],
         [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${BOB}/top?count=5`]: [],
-        [`/euw1/lol/spectator/v5/active-games/by-summoner/${ANA}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: ANA, championId: 103, teamId: 100 }, { puuid: BOB, championId: 86, teamId: 200 }] },
+        [`/euw1/lol/spectator/v5/active-games/by-summoner/${ANA}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: ANA, riotId: 'Ana B#EUW', championId: 103, teamId: 100 },
+          { puuid: BOB, riotId: 'Bob#EUW', championId: 86, teamId: 200 }, { puuid: null, riotId: null, championId: 99, teamId: 100 }] }, // the last one in streamer mode
         [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?count=10`]: ['EUW1_7000000001', 'EUW1_7000000002', 'EUW1_7000000003', '../oops'],
         [`/europe/lol/match/v5/matches/by-puuid/${BOB}/ids?count=10`]: [],
         '/europe/lol/match/v5/matches/EUW1_7000000001': match5(7000000001, 103, true),
         '/europe/lol/match/v5/matches/EUW1_7000000002': match5(7000000002, 103, false),
         '/europe/lol/match/v5/matches/EUW1_7000000003': match5(7000000003, 99, true),
         [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=3&count=20`]: ['EUW1_7000000003', ...OLD.map((x) => `EUW1_${x}`)], // older: one already listed, then 19
-        ...Object.fromEntries(OLD.map((x, k) => [`/europe/lol/match/v5/matches/EUW1_${x}`, old5(x, k % 2 ? 99 : 86, k % 3 === 0, 120 + 15 * k)])),
+        ...Object.fromEntries(OLD.map((x, k) => [`/europe/lol/match/v5/matches/EUW1_${x}`, old5(x, k % 2 ? 99 : 86, k % 3 === 0, 120 + 15 * k, k % 4 === 1 ? 450 : 420)])),
+        [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=0&count=20&queue=420`]: ['EUW1_7000000001', 'EUW1_7000000002', 'EUW1_7000000003', 'EUW1_7000000050'], // Solo/Duo: one more
+        '/europe/lol/match/v5/matches/EUW1_7000000050': old5(7000000050, 103, true, 30),
       };
       const riotAt = []; // when each lookup got through: our server lets 15 a second through
       await ctx.route(/127\.0\.0\.1:9001\/riot\//, (r) => {
@@ -451,7 +470,11 @@ const leagueData = (over = {}) => ({
       await wait(page, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'the report from Riot');
       assert(await page.locator('#proGames > li:first-child .report tr[data-me]').count() === 1, 'Ana marked in it');
       assert(!riotCalls.some((c) => c.includes('oops')), 'only real match ids asked for');
-      assert.strictEqual(riotCalls.length, 13, `Nobody, Busy (asked again after a second), Ana in 9 calls and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
+      assert.strictEqual(riotCalls.length, 14, `Nobody, Busy (asked again after a second), Ana in 9 calls, Bob's rank in her game and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
+      // her game right now: her team first, everyone's rank, the name hidden for streamer mode
+      const liveRows = () => page.$$eval('#proLiveRows tr', (trs) => trs.map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ').trim()]));
+      await wait(page, () => /Unranked/.test(document.getElementById('proLiveRows').textContent), null, 'Bob’s rank in her game');
+      assert.deepStrictEqual(await liveRows(), [['ally', true, 'Ana B#EUW Ahri Emerald III · 12 LP · 53% of 75'], ['ally', false, 'Name hidden (streamer mode) Lux'], ['enemy', false, 'Bob#EUW Garen Unranked']]);
       // older games, from Riot: the next page, without the game already listed, 10 lookups a second at most; the open
       // report stays open
       await page.click('#proMore');
@@ -461,10 +484,22 @@ const leagueData = (over = {}) => ({
       assert(await page.$eval('#proGames > li:first-child details', (d) => d.open), 'the report still open');
       await page.click('#proMore');
       await wait(page, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
-      assert.strictEqual(riotCalls.length, 34, `a page of 20 with 19 new games, then an empty page: ${riotCalls.slice(13).join(' ')}`);
-      // someone else: Bob, not in a game and unranked
-      await page.fill('#proId', 'Bob#EUW');
-      await page.click('#proGo');
+      assert.strictEqual(riotCalls.length, 35, `a page of 20 with 19 new games, then an empty page: ${riotCalls.slice(14).join(' ')}`);
+      // the queues: Solo/Duo loads its own games (one more), ARAM has five and Riot no more, TFT needs League's client
+      await page.click('#proQueues [data-q="solo"]');
+      await wait(page, () => document.getElementById('h-proform').textContent === 'Last 18 Solo/Duo games' && document.querySelectorAll('#proGames > li').length === 18, null, 'her Solo/Duo games');
+      assert.strictEqual(riotCalls.slice(35).join(' '), `/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=0&count=20&queue=420 /europe/lol/match/v5/matches/EUW1_7000000050`);
+      await page.click('#proQueues [data-q="aram"]');
+      await wait(page, () => document.getElementById('h-proform').textContent === 'Last 5 ARAM games' && document.getElementById('proMoreNote').textContent === 'No older games.', null, 'her ARAM games');
+      assert.match(await page.textContent('#proForm'), /^Record\s*1W 4L · 20%/);
+      assert.strictEqual(riotCalls.length, 38, 'Riot asked for her ARAM games once');
+      await page.click('#proQueues [data-q="tft"]');
+      assert.strictEqual(await text(page, '#proGames'), 'TFT games come from League’s client: open Profile in Premade’s desktop app while League is running.');
+      assert(await page.locator('#proRanks').isHidden(), 'no TFT ranks from Riot');
+      await page.click('#proQueues [data-q="all"]');
+      await wait(page, () => document.getElementById('h-proform').textContent === 'Last 20 games' && document.querySelectorAll('#proGames > li').length === 20 && !document.getElementById('proMore').hidden, null, 'all her games');
+      // someone else from her game: Bob, not in a game and unranked
+      await page.click('#proLiveRows .plink');
       await wait(page, () => document.getElementById('proName').textContent === 'Bob' && !document.getElementById('proBack').hidden, null, 'Bob’s profile');
       assert.strictEqual(await text(page, '#proStatus'), 'Not in a game right now');
       assert.strictEqual(await text(page, '#proGames'), 'No recent games.');
@@ -478,16 +513,16 @@ const leagueData = (over = {}) => ({
       await page.reload();
       await wait(page, () => window.lpc && document.getElementById('proName').textContent === 'Ana B', null, 'Ana kept');
 
-      await until(() => riotCalls.length === before + 9, 'Ana updated from Riot');
+      await until(() => riotCalls.length === before + 10, 'Ana updated from Riot, with Bob’s rank in her game');
       await wait(page, () => /^In game as Ahri/.test(document.getElementById('proStatus').textContent), null, 'and in a game');
       assert.match(await text(page, '#proNote'), /^As of /);
       await page.click('#proForget');
       await wait(page, () => document.getElementById('proName').textContent === 'Your League profile' && document.getElementById('proGo').textContent === 'Show my profile', null, 'forgotten');
       await ctx.close();
-      console.log(`Profile in a browser: Ana B by Riot ID (in game, Emerald III, 3 games and a report, 19 older ones), Bob looked up, kept and refreshed; ${riotCalls.length} calls to Riot`);
+      console.log(`Profile in a browser: Ana B by Riot ID (in game with her game's ranks, Emerald III, 3 games and a report, 19 older ones, Solo/Duo and ARAM tabs), Bob opened from her game, kept and refreshed; ${riotCalls.length} calls to Riot`);
     }
 
-    const [ctx, pc] = await context(browser, { version: '1.7.0' });
+    const [ctx, pc] = await context(browser, { version: '1.9.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
     const highAsked = []; // our server's Riot data: the high elo games it counted, 50 this patch (each champion's games
     // and wins in each role), and each champion's games
@@ -560,11 +595,33 @@ const leagueData = (over = {}) => ({
     await pc.click('#proMore');
     await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
     assert.deepStrictEqual([callsTo(/\/enemy4\/matches\?begIndex=20&endIndex=39$/).length, callsTo(/\/enemy4\/matches\?begIndex=30&endIndex=49$/).length], [1, 1]);
-    assert.deepStrictEqual(riotAsked, ['/europe/lol/match/v5/matches/by-puuid/enemy4/ids?start=30&count=20']);
-    assert(await pc.locator('#proStatus').isHidden() && await pc.locator('#profileBtn').isHidden(), 'no status or Share for someone else');
+    assert.deepStrictEqual(riotAsked, ['/euw1/lol/spectator/v5/active-games/by-summoner/enemy4', '/europe/lol/match/v5/matches/by-puuid/enemy4/ids?start=30&count=20']);
+    assert.strictEqual(await text(pc, '#proStatus'), 'Not in a game right now'); // from Riot: League's client doesn't say
+    assert(await pc.locator('#profileBtn').isHidden() && await pc.locator('#proLiveBox').isHidden(), 'no Share, and no game to show');
     await pc.click('#proBack');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'back to you');
-    console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games');
+    // your queues: Solo/Duo has all 20; Flex none here, in League's client (nothing older) or from Riot
+    await pc.click('#proQueues [data-q="solo"]');
+    await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 Solo/Duo games', null, 'your Solo/Duo games');
+    await pc.click('#proQueues [data-q="flex"]');
+    await wait(pc, () => document.getElementById('h-proform').textContent === 'Recent Flex games' && document.getElementById('proGames').textContent === 'No recent Flex games.' && document.getElementById('proMoreBar').hidden, null, 'no Flex games');
+    assert.deepStrictEqual(riotAsked.slice(2), ['/europe/lol/match/v5/matches/by-puuid/me-puuid/ids?start=0&count=20&queue=440']);
+    // TFT from League's client: your ranks and games, with the place, traits, units, items and augments
+    await pc.click('#proQueues [data-q="tft"]');
+    await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 5 TFT games' && document.querySelectorAll('#proGames > li').length === 5, null, 'your TFT games');
+    assert.deepStrictEqual(await proRanks(), ['TFT|Platinum I|77 LP · 60 games', 'Double Up|Unranked|', 'Hyper Roll|Purple|3200 rating']);
+    assert.match(await pc.textContent('#proForm'), /^Average place\s*4\.4\s*Top 4\s*3 of 5 · 60%\s*Firsts\s*1\s*Main trait\s*Sniper, 5 of 5$/);
+    assert.deepStrictEqual(await pc.$$eval('#proGames .place', (l) => l.map((e) => e.textContent + (e.dataset.r ? ' ' + e.dataset.r : ''))), ['1st first', '3rd top', '6th', '4th top', '8th']);
+    assert.strictEqual(await pc.textContent('#proGames > li:first-child .gwhat'), 'Ranked TFT · Level 8 · 32 min · 4 Sniper · 3 Rebel');
+    await pc.click('#proGames > li:first-child summary');
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .talk li', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' '))),
+      ['Traits 4 Sniper, 3 Rebel', 'Augments Cybernetic Bulk, Ascension', 'Jinx ★★ Infinity Edge, Guinsoos Rageblade', 'Vi ★ no items']);
+    await pc.click('#proMore');
+    await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older TFT games');
+    assert.deepStrictEqual(callsTo(/\/products\/tft\//).map(([, p]) => p.split('?')[1]), ['begin=0&count=20', 'begin=5&count=20']);
+    await pc.click('#proQueues [data-q="all"]');
+    await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
+    console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
     assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Stats', 'Clips', 'Settings'], 'the menu in the app');
     await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
@@ -638,6 +695,7 @@ const leagueData = (over = {}) => ({
     const backToQueue = async () => { lcu.rc = null; lcu.phase = 'Matchmaking'; await league({ inGame: false, phase: 'Matchmaking' }); };
     await readyCheck();
     await wait(pc, () => !document.querySelector('.view[data-view="pregame"]').hidden && !document.getElementById('rcBox').hidden, null, 'Pregame with the ready check');
+    assert.deepStrictEqual(await pc.evaluate(() => lpcClient.calls.filter((c) => c === 'front')), ['front'], 'the app in front');
     assert.match(await text(pc, '#rcState'), /\d+ s left/);
     await pc.click('#acceptBtn');
     await wait(pc, () => /You accepted/.test(document.getElementById('rcState').textContent), null, 'accepted');
@@ -782,6 +840,16 @@ const leagueData = (over = {}) => ({
     // the sound 30 seconds before Dragon (the last one was at 6:40, so the next at 11:40)
     await league(leagueData({ t: 672 }));
     await wait(pc, () => lpc.toasts().includes('Dragon in 30 seconds') && lpc.played().includes('spawn'), null, 'the Dragon warning');
+    // ARAM: Mayhem: what kind of augment suits Ahri, on the overlay at the start and while dead, on the Game page all game
+    await pc.click('.nav[data-view="game"]');
+    assert(await pc.evaluate(() => !lpcClient.lastOverlay.aug && document.getElementById('augTips').hidden), 'no augment tips in a ranked game');
+    const AHRI_AUG = 'Augments for Ahri: look for ability power, ability haste, magic penetration and mana; skip attack speed and critical strikes.';
+    await league(leagueData({ mode: 'KIWI', t: 30 }));
+    await wait(pc, (a) => lpcClient.lastOverlay.aug === a && document.getElementById('augTips').textContent === a, AHRI_AUG, 'augment tips in Mayhem');
+    await league(leagueData({ mode: 'KIWI', t: 300 }));
+    await wait(pc, () => lpcClient.lastOverlay.aug === '' && !document.getElementById('augTips').hidden, null, 'off the overlay between augments');
+    await league(leagueData({ mode: 'KIWI', t: 300, me: { ...leagueData().me, dead: true } }));
+    await wait(pc, (a) => lpcClient.lastOverlay.aug === a, AHRI_AUG, 'back on the overlay while dead');
     await league(leagueData());
     await shot(pc, 'in-game');
     await shot(phone, 'phone-in-game');
@@ -1087,6 +1155,29 @@ const leagueData = (over = {}) => ({
     await pc.waitForTimeout(2500);
     assert.strictEqual(hovers().length, 2, 'once each');
     console.log('auto hover: Darius banned for you (Garen is Friend’s), Ahri hovered (Zed is taken)');
+    // ARAM: the bench, best for you first (your games and mastery), taken with a click; then a reroll
+    lcu.phase = 'None';
+    await league({ inGame: false, phase: 'None' });
+    await pc.waitForTimeout(1500);
+    champSelect(780, { championId: 86 });
+    Object.assign(lcu.cs, { actions: [], benchEnabled: true, allowRerolling: true, rerollsRemaining: 1, benchChampions: [{ championId: 37, isPriority: false }, { championId: 103, isPriority: false }] });
+    lcu.phase = 'ChampSelect';
+    await league({ inGame: false, phase: 'ChampSelect' });
+    await pc.click('.nav[data-view="pregame"]');
+    await wait(pc, () => document.querySelectorAll('#bench .champ').length === 3 && !document.getElementById('rerollBtn').hidden, null, 'the bench');
+    const bench = () => pc.$$eval('#bench .champ', (l) => l.map((b) => [b.innerText.replace(/\s+/g, ' '), b.getAttribute('aria-pressed')]));
+    assert.deepStrictEqual(await bench(), [['Ahri You: 8 games, 75% won · Mastery 7', 'false'], ['Garen Yours now · You: 4 games, 25% won · Mastery 4', 'true'], ['Sona You: 3 games, 100% won', 'false']]);
+    assert.strictEqual(await text(pc, '#rerollBtn'), 'Reroll (1 left)');
+    await pc.click('#bench .champ:first-child');
+    await until(() => callsTo(/bench\/swap\/103$/, 'POST').length === 1, 'Ahri taken from the bench');
+    await wait(pc, () => document.querySelector('#bench .champ[aria-pressed="true"] b').textContent === 'Ahri', null, 'Ahri yours');
+    await pc.click('#rerollBtn');
+    await until(() => callsTo(/my-selection\/reroll$/, 'POST').length === 1, 'a reroll');
+    await wait(pc, () => document.getElementById('rerollBtn').hidden && /You’re playing Jinx/.test(document.getElementById('csTurn').textContent), null, 'no rerolls left');
+    lcu.cs = null;
+    lcu.phase = 'None';
+    await league({ inGame: false, phase: 'None' });
+    console.log('ARAM: the bench with Ahri first, taken with a click, then a reroll');
     await pc.click('.nav[data-view="settings"]');
     await shot(pc, 'settings');
     // the patch check, the performance meter and test recordings
@@ -1096,11 +1187,11 @@ const leagueData = (over = {}) => ({
     await pc.click('#recordingsBtn');
     assert(await pc.evaluate(() => lpcClient.calls.includes('record false') && lpcClient.calls.includes('record true') && lpcClient.calls.includes('recordings-folder')), 'test recordings on, and their folder');
     // your version in the status bar, and What's new from it
-    assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.7.0 (1.8.0 is out)');
+    assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.9.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
-    assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.7.0 (1.8.0 is out).');
+    assert.match(await text(pc, '#newsList'), /^October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.9.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
     // an app link: lolprox://join/<room> brings the app into that room, after asking to leave the one you're in
