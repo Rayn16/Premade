@@ -478,6 +478,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .place[data-r="first"] { color: var(--best); border-color: currentColor; }
 .plink { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .plink:hover { color: var(--gold); text-decoration: underline; }
+.past .tag { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.past .emb { width: 24px; height: 24px; margin: -2px 0 -2px -5px; }
+.rank .peak { grid-column: 2; font-size: 13px; }
+.games summary .tags:empty { display: none; }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -531,6 +535,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="proid">
           <h1 class="proname"><span id="proName"></span><small id="proTag"></small></h1>
           <p id="proSub" class="hint"></p>
+          <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
           <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
         </div>
         <div class="toolbar">
@@ -571,6 +576,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div id="proMoreBar" class="toolbar" hidden><button id="proMore" class="btn small" type="button">Show more games</button><span id="proMoreNote" class="hint" role="status"></span></div>
         </section>
         <div class="stack">
+          <section id="proTagsBox" class="panel" aria-labelledby="h-protags" hidden>
+            <h2 id="h-protags" class="ph">Tags <button class="tip" type="button" popovertarget="t-tags" aria-label="About tags and past ranks">?</button></h2>
+            <div id="proTags" class="tags"></div>
+          </section>
+          <section id="proRolesBox" class="panel" aria-labelledby="h-proroles" hidden>
+            <h2 id="h-proroles" class="ph">Roles</h2>
+            <p id="proRolesNote" class="hint"></p>
+            <div class="tablewrap"><table class="ready"><thead><tr><th>Role</th><th>Games</th><th>Won</th></tr></thead><tbody id="proRoles"></tbody></table></div>
+          </section>
           <section id="proMasteryBox" class="panel" aria-labelledby="h-promastery">
             <h2 id="h-promastery" class="ph">Mastery</h2>
             <div id="proMastery" class="stack"></div>
@@ -1205,6 +1219,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
+<div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery and Riot's ranked flags. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key (Settings, Keyboard shortcuts), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment.</div>
@@ -3113,7 +3128,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const p = (g.participants && g.participants[0]) || {}, s = p.stats || {};
       return { id: g.gameId, at: +g.gameCreation || 0, len: +g.gameDuration || 0, queue: g.queueId, mode: g.gameMode, champ: p.championId, win: !!s.win,
         k: s.kills | 0, d: s.deaths | 0, a: s.assists | 0, cs: (s.totalMinionsKilled | 0) + (s.neutralMinionsKilled | 0), team: p.teamId | 0, lane: laneOf(g, p),
-        vision: s.visionScore | 0, dmg: s.totalDamageDealtToChampions | 0, penta: s.pentaKills | 0, quadra: s.quadraKills | 0,
+        vision: s.visionScore | 0, dmg: s.totalDamageDealtToChampions | 0, penta: s.pentaKills | 0, quadra: s.quadraKills | 0, multi: s.largestMultiKill | 0, fb: !!s.firstBloodKill,
         items: [0, 1, 2, 3, 4, 5].map((i) => s['item' + i] | 0).filter(Boolean), perks: s.perk0 ? [s.perkPrimaryStyle | 0, s.perkSubStyle | 0, ...[0, 1, 2, 3, 4, 5].map((i) => s['perk' + i] | 0)] : null };
     }).filter((g) => g.len >= 300).sort((a, b) => b.at - a.at);
   }
@@ -4446,14 +4461,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('champTable').hidden = !by.size;
     $('matches').replaceChildren(...g.slice(0, 20).map((x) => gameLi(x)));
   }
-  // one game in a list: the champion, when, K/D/A, CS, items and the result; opened, the game's report. who: whose
-  // game it is (you if not said); plat: their server, for Riot's copy of a game League's client can't give
+  // one game in a list: the champion, when, K/D/A, CS, its biggest multikill and first blood, items and the result;
+  // opened, the game's report. who: whose game it is (you if not said); plat: their server, for Riot's copy of a game
+  // League's client can't give
+  const MULTI = ['', '', 'Double kill', 'Triple kill', 'Quadra kill', 'Pentakill'];
   function gameLi(x, who, plat) {
     const li = document.createElement('li');
-    li.innerHTML = '<details><summary><img class="pic0" alt=""><span class="gwhen"></span><span class="gwhat"></span><span class="gitems"></span><span class="gres"></span></summary><div class="gbody"></div></details>';
+    li.innerHTML = '<details><summary><img class="pic0" alt=""><span class="gwhen"></span><span class="gwhat"></span><span class="tags"></span><span class="gitems"></span><span class="gres"></span></summary><div class="gbody"></div></details>';
     li.querySelector('img').src = champImg(x.champ);
     li.querySelector('.gwhen').textContent = whenText(x.at);
     li.querySelector('.gwhat').textContent = [champName(x.champ), `${x.k}/${x.d}/${x.a}`, `${x.cs} CS`, `${Math.round(x.len / 60)} min`, QUEUES[x.queue] || cap(x.mode)].join(' · ');
+    li.querySelector('.tags').append(...[MULTI[Math.min(5, Math.max(x.multi | 0, x.penta ? 5 : x.quadra ? 4 : 0))], x.fb && 'First blood'].filter(Boolean).map((t) => tag('good', t)));
     li.querySelector('.gitems').append(...(x.items || []).map((id) => { const img = Object.assign(new Image(), { src: itemPic(id), alt: '', title: itemName(id) }); img.dataset.id = id; return img; }));
     li.querySelector('.gres').dataset.r = x.win ? 'Win' : 'Lose';
     li.querySelector('.gres').textContent = x.win ? 'Win' : 'Loss';
@@ -5218,7 +5236,94 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     store.set('lpc-profile', JSON.stringify(keep));
   }
   const TIER_C = ['#8c7a73', '#b0714f', '#a9b9c4', '#d9ad55', '#4fb0aa', '#34b37a', '#7088e8', '#b867e6', '#e65c5c', '#f4cf73']; // each tier's crest
-  function rankCard(label, q, more) { // q: the queue's rank, null unranked, undefined not known yet
+  const QS = ['RANKED_SOLO_5x5', 'RANKED_FLEX_SR'], QN = { RANKED_SOLO_5x5: 'Solo/Duo', RANKED_FLEX_SR: 'Flex' };
+  const rkName = (q) => `${cap(q.tier)}${TIERS.indexOf(q.tier) < 7 && q.division && q.division !== 'NA' ? ' ' + q.division : ''}`; // Diamond II, Master
+  const rkVal = (q) => { const i = q ? TIERS.indexOf(q.tier) : -1; return i < 0 ? -1 : i * 1e5 + (i < 7 ? Math.max(0, LADDER_DIV.indexOf(q.division)) * 1e4 : 0) + (q.leaguePoints | 0); }; // the higher rank is bigger
+  const rankFrom = (t, d, lp) => (TIERS.includes(t) ? { tier: t, division: String(d || ''), leaguePoints: lp | 0 } : null);
+  const rkArr = (a) => (Array.isArray(a) ? rankFrom(...a) : null); // [tier, division, LP], as our server keeps them
+  // the ranked season League is in: Data Dragon's 16.x is 2026 (one ranked season a year since 2025), else this year
+  const seasonNow = () => { const a = parseInt(ddVersion, 10); return !ddVersion ? 0 : a >= 15 ? a + 2010 : new Date().getFullYear(); };
+  // the ranks our server got from Riot for someone, season by season (server/worker.js /riot/past): { season: { queue:
+  // { peak, last: [tier, division, LP], at } } }; asked again after 10 minutes, null until it answers
+  const pasts = new Map(); // puuid -> { at, s }
+  let pastSent = ''; // you and the day our server was last asked for your rank, so it keeps yours season by season
+  function pastOf(u) {
+    const t = pasts.get(u);
+    if (riotOn && u && (!t || performance.now() - t.at > 600000)) {
+      const n = { at: performance.now(), s: t ? t.s : null };
+      pasts.set(u, n);
+      fetch(`${serverUrl}/riot/past?u=${encodeURIComponent(u)}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+        if (j && j.s && typeof j.s === 'object') { n.s = j.s; if (!profView.hidden) renderProfile(); }
+      }).catch(() => {});
+    }
+    return t ? t.s : null;
+  }
+  // past seasons' ranks, newest first: last season's from League's client (where it ended and its peak), and each
+  // season our server saw that's over (the last rank it saw then, and the highest)
+  function pastRanks(p) {
+    const now = seasonNow(), out = new Map(), rec = pastOf(p.u) || {};
+    for (const [s, qs] of Object.entries(rec)) for (const q of QS) { const v = qs && qs[q]; if (+s < now && v) out.set(`${s} ${q}`, { s: +s, q, end: rkArr(v.last), peak: rkArr(v.peak), at: +v.at || 0 }); }
+    for (const q of QS) {
+      const x = p.rk && p.rk[q], end = x && rankFrom(x.previousSeasonEndTier, x.previousSeasonEndDivision), peak = x && rankFrom(x.previousSeasonHighestTier, x.previousSeasonHighestDivision);
+      if (now && (end || peak)) out.set(`${now - 1} ${q}`, { s: now - 1, q, end, peak, league: true });
+    }
+    return [...out.values()].filter((x) => x.end || x.peak).sort((a, b) => b.s - a.s || QS.indexOf(a.q) - QS.indexOf(b.q));
+  }
+  function pastChip(x) { // S2025 Diamond II · peak Diamond I, with the emblem
+    const r = x.end || x.peak, up = x.end && x.peak && rkVal(x.peak) > rkVal(x.end), name = `S${x.s}${x.q === 'RANKED_FLEX_SR' ? ' Flex' : ''}`;
+    const t = tag('', `${name} ${x.end ? rkName(x.end) : 'peak ' + rkName(x.peak)}${up ? ` · peak ${rkName(x.peak)}` : ''}`);
+    t.prepend(emblem(r.tier));
+    t.title = `Season ${x.s}, ${QN[x.q]}: ${x.league ? `${x.end ? `ended at ${rkName(x.end)}` : ''}${x.end && x.peak ? ', ' : ''}${x.peak ? `highest ${rkName(x.peak)}` : ''}. From League’s client.`
+      : `${x.end ? `${rkName(x.end)} when our server last saw it${x.at ? ` (${new Date(x.at * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })})` : ''}` : ''}${x.end && x.peak ? ', ' : ''}${x.peak ? `highest it saw ${rkName(x.peak)}` : ''}. From Riot, kept by our server.`}`;
+    return t;
+  }
+  const peakNow = (p, q) => { // this season's highest rank: from League's client, or the highest our server saw
+    const x = p.rk && p.rk[q], v = ((pastOf(p.u) || {})[seasonNow()] || {})[q], a = x && rankFrom(x.highestTier, x.highestDivision), b = v && rkArr(v.peak);
+    return rkVal(a) >= rkVal(b) ? a : b;
+  };
+  // Porofessor-style tags for Profile: the scouting ones (a streak, a one-trick, a possible smurf, seen before) and
+  // more from the last 20 games (Summoner's Rift's for play style), top mastery and Riot's ranked flags
+  function proTags(p) {
+    const g = proAll(p).filter((x) => !x.tft).slice(0, 20), n = g.length, rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), avg = (l, f) => l.reduce((t, x) => t + f(x), 0) / l.length;
+    const out = tagsOf({ games: g, mastery: p.m || [], ranked: p.rk || {}, level: p.lvl }, 0, { puuid: proOther ? p.u : '', me: !proOther });
+    for (const m of p.m || []) if (m.championPoints >= 1e6) out.push(['good', `Millionaire: ${champName(m.championId)}`]);
+    const by = {};
+    for (const x of g) by[x.champ] = (by[x.champ] || 0) + 1;
+    const [c, k] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || [];
+    if (n >= 10 && k / n >= 0.4 && k / n < 0.7) out.push(['', `${champName(+c)} lover: ${k} of ${n} games`]); // 70% is a one-trick
+    if (rift.length >= 5) {
+      const d = avg(rift, (x) => x.d), lane = rift.filter((x) => x.lane && x.lane !== 'UTILITY'), cs = lane.length >= 5 ? avg(lane, (x) => x.cs / (x.len / 60)) : 0;
+      if (d <= 3) out.push(['good', `Hard to kill: ${d.toFixed(1)} deaths a game`]);
+      else if (d >= 8) out.push(['bad', `Dies a lot: ${d.toFixed(1)} deaths a game`]);
+      if (cs >= 8) out.push(['good', `Farmer: ${cs.toFixed(1)} CS a minute`]);
+      const seen = rift.filter((x) => typeof x.fb === 'boolean'), fb = seen.filter((x) => x.fb).length; // games kept before first blood was
+      if (seen.length >= 5 && fb / seen.length >= 0.25) out.push(['good', `First blood in ${fb} of ${seen.length} games`]);
+      const long = rift.filter((x) => x.len >= 1800), short = rift.filter((x) => x.len < 1800), won = (l) => l.filter((x) => x.win).length;
+      if (long.length >= 4 && short.length >= 4 && Math.abs(won(long) / long.length - won(short) / short.length) >= 0.3) {
+        const lg = won(long) / long.length > won(short) / short.length, l = lg ? long : short;
+        out.push(['', `Better in ${lg ? 'long' : 'short'} games: ${won(l)} of ${l.length} won ${lg ? 'over' : 'under'} 30 minutes`]);
+      }
+    }
+    const penta = g.find((x) => x.penta || x.multi >= 5);
+    if (penta) out.push(['good', `Pentakill on ${champName(penta.champ)}`]);
+    const streak = out.some(([, t]) => / wins in a row$/.test(t));
+    for (const q of QS) {
+      const x = p.rk && p.rk[q], of = q === 'RANKED_FLEX_SR' ? ' in Flex' : '';
+      if (!x || !TIERS.includes(x.tier)) continue;
+      if (x.hotStreak && !streak) out.push(['good', `Hot streak in ${QN[q]}`]);
+      if (x.veteran) out.push(['', `Veteran of ${rkName(x)}${of}`]);
+      if (x.freshBlood) out.push(['', `New to ${rkName(x)}${of}`]);
+    }
+    return out;
+  }
+  function renderTags(p) { // past ranks under the name, and the tags
+    const past = pastRanks(p), tags = proTags(p), pk = JSON.stringify([past, Object.keys(emblems).length]), tk = JSON.stringify(tags);
+    $('proPast').hidden = !past.length;
+    if ($('proPast').dataset.key !== pk) { $('proPast').dataset.key = pk; $('proPast').replaceChildren(...past.map(pastChip)); }
+    $('proTagsBox').hidden = !tags.length;
+    if ($('proTags').dataset.key !== tk) { $('proTags').dataset.key = tk; $('proTags').replaceChildren(...tags.map(([k, t]) => tag(k, t))); }
+  }
+  function rankCard(label, q, more, peak) { // q: the queue's rank, null unranked, undefined not known yet; peak: this season's highest
     const s = document.createElement('section'), i = q ? TIERS.indexOf(q.tier) : -1, n = i < 0 ? 0 : (q.wins | 0) + (q.losses | 0);
     s.className = 'panel rank';
     s.innerHTML = '<svg class="crest" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 56 14v19c0 13-9.5 22-24 27C17.5 55 8 46 8 33V14z"/><text x="32" y="40"></text></svg><h2 class="ph"></h2><p class="rtier"></p><p class="hint"></p>';
@@ -5226,8 +5331,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     s.querySelector('text').textContent = i < 0 ? '' : i === 8 ? 'GM' : q.tier[0];
     if (i >= 0 && emblems[q.tier]) s.querySelector('.crest').replaceWith(Object.assign(emblem(q.tier), { className: 'crest' }));
     s.querySelector('h2').textContent = label;
-    s.querySelector('.rtier').textContent = q === undefined ? '…' : i < 0 ? 'Unranked' : `${cap(q.tier)}${i < 7 && q.division && q.division !== 'NA' ? ' ' + q.division : ''}`;
+    s.querySelector('.rtier').textContent = q === undefined ? '…' : i < 0 ? 'Unranked' : rkName(q);
     s.querySelector('.hint').textContent = i < 0 ? '' : [`${q.leaguePoints | 0} LP`, n ? `${q.wins | 0}W ${q.losses | 0}L · ${Math.round((100 * q.wins) / n)}%` : '', more].filter(Boolean).join(' · ');
+    if (i >= 0 && rkVal(peak) > rkVal(q)) s.append(Object.assign(document.createElement('p'), { className: 'hint peak', textContent: `Peak this season: ${rkName(peak)}` }));
     return s;
   }
   function tftCard(label, q) { // a TFT queue from League's client: its games, not a record (TFT's wins are firsts); Hyper Roll has a colour and a rating
@@ -5248,6 +5354,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     riotCheck();
     if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
     if (mine && !lm) riotMine();
+    else if (lm && riotOn && PLATS[lm.plat] && pastSent !== lm.u + new Date().toDateString()) { pastSent = lm.u + new Date().toDateString(); riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${lm.u}`).catch(() => {}); } // our server keeps the ranks it gets
     $('proName').textContent = p ? name : 'Your League profile';
     $('proTag').textContent = tag ? '#' + tag : '';
     $('proIcon').hidden = !(p && p.icon && ddVersion);
@@ -5271,23 +5378,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('h-profind').textContent = setup ? 'Your Riot ID' : 'Look up a player';
     $('proGo').textContent = setup ? 'Show my profile' : 'Look up';
     if (!regionPicked && (myPlat || (proMine && PLATS[proMine.plat]))) $('proRegion').value = myPlat || proMine.plat;
-    for (const id of ['proRanks', 'proGamesBox', 'proMasteryBox']) $(id).hidden = !p;
+    for (const id of ['proRanks', 'proGamesBox', 'proMasteryBox', 'proPast', 'proTagsBox', 'proRolesBox']) $(id).hidden = !p;
     proStatus();
     renderLive(p);
     if (!p) { proList = ''; return; }
     if (!proMore || proMore.n !== p.n) { proMore = { n: p.n, games: [], lcu: null, riot: {}, tft: null, auto: {}, busy: false, note: '' }; proShow = 20; }
+    renderTags(p);
     const q = proQ, tft = q === 'tft', all = proAll(p).filter((x) => qOk(x, q)), label = PROQ[q][0] ? PROQ[q][0] + ' ' : '';
     for (const b of $('proQueues').children) b.setAttribute('aria-selected', String(b.dataset.q === q));
     if (q !== 'all' && all.length < 20 && !proMore.busy && !proMore.auto[q] && moreFrom(p)) { proMore.auto[q] = true; return void moreGames(p); } // the tab's own games, once
     $('proRanks').hidden = tft && p.src !== 'league'; // TFT ranks come from League's client only
     $('proRanks').replaceChildren(...(tft ? [['TFT', 'RANKED_TFT'], ['Double Up', 'RANKED_TFT_DOUBLE_UP'], ['Hyper Roll', 'RANKED_TFT_TURBO']].map(([n, k]) => tftCard(n, p.rk && p.rk[k]))
-      : [['Solo/Duo', 'RANKED_SOLO_5x5'], ['Flex', 'RANKED_FLEX_SR']].map(([n, k]) => rankCard(n, p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k) : ''))));
+      : QS.map((k) => rankCard(QN[k], p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k) : '', peakNow(p, k)))));
     const g = all.slice(0, 20), n = g.length, w = g.filter((x) => (tft ? x.place <= 4 : x.win)).length, [k, d, a] = ['k', 'd', 'a'].map((s) => g.reduce((t, x) => t + (x[s] | 0), 0));
     const rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), lanes = {}, by = new Map(), traits = {};
-    for (const x of g) { if (x.lane) lanes[x.lane] = (lanes[x.lane] || 0) + 1; if (x.champ) by.set(x.champ, [...(by.get(x.champ) || []), x]); if (tft && x.traits[0]) traits[x.traits[0][0]] = (traits[x.traits[0][0]] || 0) + 1; }
-    const [role, rn] = Object.entries(lanes).sort((x, y) => y[1] - x[1])[0] || [], [main, mn] = Object.entries(traits).sort((x, y) => y[1] - x[1])[0] || [];
+    for (const x of g) { if (x.lane) { const v = (lanes[x.lane] ||= [0, 0]); v[0]++; v[1] += x.win; } if (x.champ) by.set(x.champ, [...(by.get(x.champ) || []), x]); if (tft && x.traits[0]) traits[x.traits[0][0]] = (traits[x.traits[0][0]] || 0) + 1; }
+    const roles = Object.entries(lanes).sort((x, y) => y[1][0] - x[1][0]), [role, [rn] = []] = roles[0] || [], [main, mn] = Object.entries(traits).sort((x, y) => y[1] - x[1])[0] || [];
     const tile = (label, v) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = label; s.append(b, v); return s; };
     $('h-proform').textContent = n ? `Last ${n} ${label}game${n === 1 ? '' : 's'}` : `Recent ${label}games`;
+    $('proRolesBox').hidden = !roles.length; // Summoner's Rift games of this tab: games and wins in each role
+    $('proRolesNote').textContent = $('h-proform').textContent;
+    $('proRoles').replaceChildren(...roles.map(([r, [m, v]]) => { const tr = document.createElement('tr'); for (const t of [POS[r], m, `${v}W ${m - v}L · ${pct(v / m)}`]) tr.append(Object.assign(document.createElement('td'), { textContent: t })); return tr; }));
     $('proForm').replaceChildren(...(!n ? [] : tft ? [tile('Average place', (g.reduce((t, x) => t + x.place, 0) / n).toFixed(1)), tile('Top 4', `${w} of ${n} · ${pct(w / n)}`), tile('Firsts', String(g.filter((x) => x.place === 1).length)),
       main && tile('Main trait', `${tftName(main)}, ${mn} of ${n}`)] : [tile('Record', `${w}W ${n - w}L · ${Math.round((100 * w) / n)}%`), tile('KDA', `${(k / n).toFixed(1)} / ${(d / n).toFixed(1)} / ${(a / n).toFixed(1)} · ${kda(k, d, a)}`),
       rift.length && tile('CS a minute', (rift.reduce((t, x) => t + x.cs / (x.len / 60), 0) / rift.length).toFixed(1)), role && tile('Main role', `${POS[role]}, ${rn} of ${n}`)]).filter(Boolean));
@@ -5353,7 +5464,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return { n: `${a.gameName || g}#${a.tagLine || t}`, u, lvl: (s && s.summonerLevel) | 0, icon: (s && s.profileIconId) | 0, plat, rk: ranksOf(e), games, m: Array.isArray(m) ? m : [], live, at: Date.now(), src: 'riot' };
   }
   const ranksOf = (e) => Object.fromEntries((Array.isArray(e) ? e : []).filter((x) => x && /^RANKED_(SOLO_5x5|FLEX_SR)$/.test(x.queueType))
-    .map((x) => [x.queueType, { tier: x.tier, division: x.rank, leaguePoints: x.leaguePoints, wins: x.wins, losses: x.losses }])); // Riot's ranks as League's client gives them
+    .map((x) => [x.queueType, { tier: x.tier, division: x.rank, leaguePoints: x.leaguePoints, wins: x.wins, losses: x.losses, hotStreak: !!x.hotStreak, veteran: !!x.veteran, freshBlood: !!x.freshBlood }])); // Riot's ranks as League's client gives them, with Riot's flags
   // whether someone is in a League game right now (Riot's spectator: not TFT, and not someone in streamer mode), with
   // everyone in it: null when not. Players in streamer mode come without a name.
   async function riotLive(u, plat) {

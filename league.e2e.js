@@ -214,7 +214,8 @@ function fakeLcu(method, p, body) {
     return who && m[2] === 'EUW' ? ok({ puuid: who }) : { status: 404, data: null };
   }
   if ((m = /^\/lol-ranked\/v1\/ranked-stats\/(.+)$/.exec(p))) return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lp[m[1]] || 45, wins: 30, losses: 25 }, ...(m[1] === 'ally1' && { RANKED_FLEX_SR: { tier: 'SILVER', division: 'I', leaguePoints: 10, wins: 3, losses: 1 } }) } });
-  if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lpNote ? 63 : 45, wins: 31, losses: 25 },
+  if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lpNote ? 63 : 45, wins: 31, losses: 25,
+    highestTier: 'GOLD', highestDivision: 'I', previousSeasonEndTier: 'PLATINUM', previousSeasonEndDivision: 'IV', previousSeasonHighestTier: 'PLATINUM', previousSeasonHighestDivision: 'II' },
     RANKED_TFT: { tier: 'PLATINUM', division: 'I', leaguePoints: 77, wins: 9, losses: 51 }, RANKED_TFT_DOUBLE_UP: { tier: '', division: 'NA', wins: 0, losses: 0 }, RANKED_TFT_TURBO: { tier: '', ratedTier: 'PURPLE', ratedRating: 3200, wins: 2, losses: 10 } } });
   if (p === '/lol-ranked/v1/current-lp-change-notification') return lcu.lpNote ? ok(lcu.lpNote) : { status: 404, data: null };
   if ((m = /^\/lol-match-history\/v1\/products\/lol\/([\w-]+)\/matches\?begIndex=(\d+)&endIndex=(\d+)$/.exec(p))) { // both ends in, as League's client does
@@ -425,6 +426,7 @@ const leagueData = (over = {}) => ({
       const match5 = (id, champ, win) => ({ metadata: { matchId: `EUW1_${id}` }, info: { gameId: id, gameCreation: Date.now() - (id % 10) * 3600e3, gameDuration: 1500, gameEndTimestamp: Date.now(), queueId: 420, gameMode: 'CLASSIC',
         participants: Array.from({ length: 10 }, (_, i) => ({ puuid: i ? PU(`p${i}-`) : ANA, riotIdGameName: i ? `P${i}` : 'Ana B', riotIdTagline: 'EUW', championId: i ? CHAMPS[i][1] : champ, teamId: i < 5 ? 100 : 200,
           teamPosition: POSN[i % 5], win: i < 5 ? win : !win, kills: i ? 3 : 8, deaths: 2, assists: 5, totalMinionsKilled: 180, neutralMinionsKilled: 10, visionScore: 22, totalDamageDealtToChampions: 20000,
+          largestMultiKill: !i && id === 7000000001 ? 3 : 1, firstBloodKill: !i && id === 7000000001,
           goldEarned: 11000, totalDamageTaken: 15000, damageSelfMitigated: 4000, item0: 6655, item1: 3020, item6: 3340 })) } });
       const old5 = (id, champ, win, days, queueId = 420) => { const m = match5(id, champ, win); Object.assign(m.info, { gameCreation: Date.now() - days * 86400e3, queueId }); return m; }; // a game days ago
       const OLD = Array.from({ length: 19 }, (_, k) => 7000000010 + k); // her older games: 120 to 390 days ago, five of them ARAM
@@ -433,9 +435,9 @@ const leagueData = (over = {}) => ({
         '/europe/riot/account/v1/accounts/by-riot-id/Bob/EUW': { puuid: BOB, gameName: 'Bob', tagLine: 'EUW' },
         [`/euw1/lol/summoner/v4/summoners/by-puuid/${ANA}`]: { profileIconId: 29, summonerLevel: 87 },
         [`/euw1/lol/summoner/v4/summoners/by-puuid/${BOB}`]: { profileIconId: 1, summonerLevel: 31 },
-        [`/euw1/lol/league/v4/entries/by-puuid/${ANA}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'EMERALD', rank: 'III', leaguePoints: 12, wins: 40, losses: 35 }, { queueType: 'CHERRY', tier: 'GOLD' }],
+        [`/euw1/lol/league/v4/entries/by-puuid/${ANA}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'EMERALD', rank: 'III', leaguePoints: 12, wins: 40, losses: 35, hotStreak: true, veteran: true }, { queueType: 'CHERRY', tier: 'GOLD' }],
         [`/euw1/lol/league/v4/entries/by-puuid/${BOB}`]: [],
-        [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${ANA}/top?count=5`]: [{ championId: 103, championLevel: 12, championPoints: 251000 }],
+        [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${ANA}/top?count=5`]: [{ championId: 103, championLevel: 12, championPoints: 251000 }, { championId: 99, championLevel: 40, championPoints: 1200000 }],
         [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${BOB}/top?count=5`]: [],
         [`/euw1/lol/spectator/v5/active-games/by-summoner/${ANA}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: ANA, riotId: 'Ana B#EUW', championId: 103, teamId: 100 },
           { puuid: BOB, riotId: 'Bob#EUW', championId: 86, teamId: 200 }, { puuid: null, riotId: null, championId: 99, teamId: 100 }] }, // the last one in streamer mode
@@ -450,9 +452,15 @@ const leagueData = (over = {}) => ({
         '/europe/lol/match/v5/matches/EUW1_7000000050': old5(7000000050, 103, true, 30),
       };
       const riotAt = []; // when each lookup got through: our server lets 15 a second through
+      // the ranks our server kept for Ana: this season's highest (Diamond IV, higher than now), last season's
+      // Solo/Duo and Flex the season before
+      const Y = new Date().getFullYear(), at = Math.round(Date.now() / 1000);
+      const ANA_PAST = { s: { [Y]: { RANKED_SOLO_5x5: { peak: ['DIAMOND', 'IV', 10], last: ['EMERALD', 'III', 12], at } }, [Y - 1]: { RANKED_SOLO_5x5: { peak: ['DIAMOND', 'I', 20], last: ['DIAMOND', 'III', 50], at: at - 300 * 86400 } },
+        [Y - 2]: { RANKED_FLEX_SR: { peak: ['GOLD', 'I', 0], last: ['GOLD', 'I', 0], at: at - 650 * 86400 } } } };
       await ctx.route(/127\.0\.0\.1:9001\/riot\//, (r) => {
         const u = r.request().url().replace(/^.*?\/riot/, '');
         if (u === '/summary') return r.fulfill({ json: { p: '16.20', c: {}, old: null, today: 5, total: 50, at: Date.now() }, headers: cors });
+        if (u.startsWith('/past?')) return r.fulfill({ json: u.endsWith(ANA) ? ANA_PAST : { s: {} }, headers: cors });
         const p = u.replace(/^\/api/, '');
         riotCalls.push(p);
         if (p.includes('/Busy/') || riotAt.filter((t) => Date.now() - t < 1000).length >= 15) return r.fulfill({ status: 429, body: 'Too many lookups for now', headers: cors });
@@ -478,8 +486,17 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await text(page, '#proSub'), 'EUW · Level 87');
       assert.match(await page.getAttribute('#proIcon', 'src'), /\/cdn\/1\.1\/img\/profileicon\/29\.png$/);
       assert.match(await text(page, '#proStatus'), /^In game as Ahri · Ranked Solo\/Duo · [56] min$/);
+      await wait(page, () => !document.getElementById('proPast').hidden, null, 'Ana’s past ranks');
       const rk = await page.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint')].map((x) => x.textContent).join('|')));
-      assert.deepStrictEqual(rk, ['Solo/Duo|Emerald III|12 LP · 40W 35L · 53%', 'Flex|Unranked|']);
+      assert.deepStrictEqual(rk, ['Solo/Duo|Emerald III|12 LP · 40W 35L · 53%|Peak this season: Diamond IV', 'Flex|Unranked|']);
+      // past ranks our server kept, with their emblems; tags; her roles; and her triple kill and first blood
+      assert.deepStrictEqual(await page.$$eval('#proPast .tag', (l) => l.map((e) => e.textContent)), [`S${Y - 1} Diamond III · peak Diamond I`, `S${Y - 2} Flex Gold I`]);
+      assert.deepStrictEqual(await embs(page, '#proPast img'), ['TFT_Regalia_Diamond.png', 'TFT_Regalia_Gold.png']);
+      assert.match(await page.getAttribute('#proPast .tag', 'title'), /^Season \d{4}, Solo\/Duo: Diamond III when our server last saw it \(.+\), highest it saw Diamond I\. From Riot, kept by our server\.$/);
+      assert.deepStrictEqual(await page.$$eval('#proTags .tag', (l) => l.map((e) => e.textContent)), ['Millionaire: Lux', 'Hot streak in Solo/Duo', 'Veteran of Emerald III']);
+      assert.deepStrictEqual(await page.$$eval('#proRoles tr', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' ').trim())), ['Middle 3 2W 1L · 67%']);
+      assert.strictEqual(await text(page, '#proRolesNote'), 'Last 3 games');
+      assert.deepStrictEqual(await page.$$eval('#proGames > li', (l) => l.map((e) => [...e.querySelectorAll('summary .tag')].map((t) => t.textContent).join(', '))), ['Triple kill, First blood', '', '']);
       assert.deepStrictEqual(await embs(page, '#proRanks img.crest'), ['TFT_Regalia_Emerald.png'], 'Riot’s emblem for her rank');
       assert.strictEqual(await page.textContent('#h-proform'), 'Last 3 games');
       assert.match(await page.textContent('#proForm'), /^Record\s*2W 1L · 67%\s*KDA\s*8\.0 \/ 2\.0 \/ 5\.0 · 6\.5\s*CS a minute\s*7\.6\s*Main role\s*Middle, 3 of 3$/);
@@ -527,6 +544,7 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await text(page, '#proGames'), 'No recent games.');
       assert(await page.locator('#proMoreBar').isHidden(), 'no Show more games');
       assert(await page.locator('#proMasteryBox').isHidden(), 'no mastery to show');
+      assert(await page.locator('#proPast').isHidden() && await page.locator('#proTagsBox').isHidden() && await page.locator('#proRolesBox').isHidden(), 'no past ranks, tags or roles');
       await page.click('#proBack');
       await wait(page, () => document.getElementById('proName').textContent === 'Ana B', null, 'back to Ana');
       // the next visit: Ana as she was, then fresh from Riot; and Not you? forgets her
@@ -553,9 +571,10 @@ const leagueData = (over = {}) => ({
     const riotAsked = []; // Riot through our server: nothing there
     // and how champions did with (a) and against (e) each other: Lux won 15 of 20 with Garen, Zed 4 of 12 against Lee Sin
     const PAIRS = { 86: { '99a': [20, 15] }, 238: { '64e': [12, 4] } };
-    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|pairs)/, (r) => {
+    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past|pairs)/, (r) => {
       const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
       if (u.pathname.startsWith('/riot/api/')) return riotAsked.push(u.pathname.slice(9) + u.search), r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
+      if (u.pathname.endsWith('/past')) return r.fulfill({ json: { s: {} }, headers: cors });
       if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: SUM, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
       if (u.pathname.endsWith('/pairs')) { const p = PAIRS[u.searchParams.get('c')]; return r.fulfill(p ? { json: { c: +u.searchParams.get('c'), p }, headers: cors } : { status: 404, json: {}, headers: cors }); }
       const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
@@ -597,7 +616,13 @@ const leagueData = (over = {}) => ({
     assert.match(await pc.getAttribute('#proIcon', 'src'), /\/cdn\/1\.1\/img\/profileicon\/4568\.png$/);
     assert.strictEqual(await text(pc, '#proStatus'), 'In the client');
     const proRanks = () => pc.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint')].map((x) => x.textContent).join('|')));
-    assert.deepStrictEqual(await proRanks(), ['Solo/Duo|Gold II|45 LP · 31W 25L · 55%', 'Flex|Unranked|']);
+    assert.deepStrictEqual(await proRanks(), ['Solo/Duo|Gold II|45 LP · 31W 25L · 55%|Peak this season: Gold I', 'Flex|Unranked|']);
+    // last season from League's client; tags from your games; your roles; the pentakill in your fourth game
+    assert.deepStrictEqual(await pc.$$eval('#proPast .tag', (l) => l.map((e) => e.textContent)), [`S${new Date().getFullYear() - 1} Platinum IV · peak Platinum II`]);
+    assert.match(await pc.getAttribute('#proPast .tag', 'title'), /^Season \d{4}, Solo\/Duo: ended at Platinum IV, highest Platinum II\. From League’s client\.$/);
+    assert.deepStrictEqual(await pc.$$eval('#proTags .tag', (l) => l.map((e) => e.textContent)), ['6 wins in a row', 'Ahri lover: 8 of 20 games', 'Hard to kill: 3.0 deaths a game', 'Pentakill on Ahri']);
+    assert.deepStrictEqual(await pc.$$eval('#proRoles tr', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' ').trim())), ['Middle 13 9W 4L · 69%', 'Top 4 1W 3L · 25%', 'Support 3 3W 0L · 100%']);
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:nth-child(-n+4) summary', (l) => l.map((e) => [...e.querySelectorAll('.tag')].map((t) => t.textContent).join())), ['', '', '', 'Pentakill']);
     assert.strictEqual(await pc.textContent('#h-proform'), 'Last 20 games');
     assert.match(await pc.textContent('#proForm'), /^Record\s*13W 7L · 65%\s*KDA\s*5\.0 \/ 3\.0 \/ 7\.0 · 4\.0\s*CS a minute\s*5\.3\s*Main role\s*Middle, 13 of 20$/);
     assert.deepStrictEqual(await pc.$$eval('#proChamps .champ', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' '))), ['Ahri 8 games · 75% won · 4.0 KDA', 'Lux 5 games · 60% won · 4.0 KDA', 'Garen 4 games · 25% won · 4.0 KDA']);
@@ -620,7 +645,9 @@ const leagueData = (over = {}) => ({
     await pc.click('#proMore');
     await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
     assert.deepStrictEqual([callsTo(/\/enemy4\/matches\?begIndex=20&endIndex=39$/).length, callsTo(/\/enemy4\/matches\?begIndex=30&endIndex=49$/).length], [1, 1]);
-    assert.deepStrictEqual(riotAsked, ['/euw1/lol/spectator/v5/active-games/by-summoner/enemy4', '/europe/lol/match/v5/matches/by-puuid/enemy4/ids?start=30&count=20']);
+    assert.deepStrictEqual(riotAsked, ['/euw1/lol/league/v4/entries/by-puuid/me-puuid', '/euw1/lol/spectator/v5/active-games/by-summoner/enemy4', '/europe/lol/match/v5/matches/by-puuid/enemy4/ids?start=30&count=20'],
+      'your rank once, for our server to keep; Sniper’s game and older games');
+    assert(/One-trick: Caitlyn/.test(await text(pc, '#proTags')), 'Sniper’s tags');
     assert.strictEqual(await text(pc, '#proStatus'), 'Not in a game right now'); // from Riot: League's client doesn't say
     assert(await pc.locator('#profileBtn').isHidden() && await pc.locator('#proLiveBox').isHidden(), 'no Share, and no game to show');
     await pc.click('#proBack');
@@ -630,7 +657,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 Solo/Duo games', null, 'your Solo/Duo games');
     await pc.click('#proQueues [data-q="flex"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Recent Flex games' && document.getElementById('proGames').textContent === 'No recent Flex games.' && document.getElementById('proMoreBar').hidden, null, 'no Flex games');
-    assert.deepStrictEqual(riotAsked.slice(2), ['/europe/lol/match/v5/matches/by-puuid/me-puuid/ids?start=0&count=20&queue=440']);
+    assert.deepStrictEqual(riotAsked.slice(3), ['/europe/lol/match/v5/matches/by-puuid/me-puuid/ids?start=0&count=20&queue=440']);
     // TFT from League's client: your ranks and games, with the place, traits, units, items and augments
     await pc.click('#proQueues [data-q="tft"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 5 TFT games' && document.querySelectorAll('#proGames > li').length === 5, null, 'your TFT games');
@@ -1080,7 +1107,7 @@ const leagueData = (over = {}) => ({
     // open, all of it in the link
     await pc.click('.nav[data-view="profile"]');
     await wait(pc, () => /\+18 LP/.test(document.getElementById('proRanks').textContent), null, 'today’s LP on your profile');
-    assert.deepStrictEqual((await proRanks())[0], 'Solo/Duo|Gold II|63 LP · 31W 25L · 55% · today 1W 0L, +18 LP');
+    assert.deepStrictEqual((await proRanks())[0], 'Solo/Duo|Gold II|63 LP · 31W 25L · 55% · today 1W 0L, +18 LP|Peak this season: Gold I');
     await pc.click('#profileBtn');
     await wait(pc, () => !document.getElementById('profileOut').hidden && /^http:\/\/127\.0\.0\.1:8081\/profile\.html#[\w-]+$/.test(document.getElementById('profileLink').value), null, 'the profile link');
     const plink = await pc.inputValue('#profileLink');
