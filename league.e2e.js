@@ -64,6 +64,18 @@ const champFull = (id, v) => ({ data: { [id]: { id, stats: { hp: id === 'Ahri' &
   spells: ['Q', 'W', 'E', 'R'].map((k, i) => ({ name: id === 'Ahri' ? ['Orb of Deception', 'Fox-Fire', 'Charm', 'Spirit Rush'][i] : k, cooldownBurn: id === 'Ahri' && !i && v === '1.1' ? '6' : '7', costBurn: '50', rangeBurn: '900', tooltip: '', description: '' })) } } });
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 
+// our server's high elo games (server/worker.js /riot/champ) of Ahri: 40 in the middle on patch 15.20, 22 won: the
+// most popular runes in 30 (19 won), Luden's, Rabadon's then Zhonya's in 30, Black Cleaver in 14, start Q, E, W and
+// max Q, E, W; against Zed (4 of 10 won), Lux (10 of 15) and Garen (8 of 15). And 3 at the top.
+function highElo(role) {
+  const SEQ = [1, 3, 2, 1, 1, 4, 1, 3, 1, 3, 4, 3, 3, 2, 2, 4, 2, 2];
+  const games = role === 'TOP' ? [0, 1, 2].map((i) => ({ p: '15.20', t: 1000 + i, w: i % 2, o: 86, g: 0, s: [4, 12], rn: null, b: [], k: SEQ, x: [1, 1, 1, 100], l: null }))
+    : Array.from({ length: 40 }, (_, i) => ({ p: '15.20', t: 2000 + i, w: +(i < 4 || (i >= 10 && i < 20) || (i >= 25 && i < 33)), o: i < 10 ? 238 : i < 25 ? 99 : 86, g: i < 10 ? -200 : i < 25 ? 150 : 50, s: [14, 4],
+      rn: i < 30 ? [8100, 8200, 8112, 8139, 8138, 8135, 8226, 8237, 5008, 5008, 5011] : [8100, 8200, 8112, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5002],
+      b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, i < 30 ? 3089 : 3157], [1500, i < 30 ? 3157 : 3089], ...(i % 3 ? [] : [[1800, 3071]])], k: SEQ, x: [6, 3, 8, 210], l: [5, 100] }));
+  return { patch: '15.20', role, roles: { MIDDLE: [40, 22], TOP: [3, 1] }, games };
+}
+
 // ---- the fake League client
 const ME = 'me-puuid', GAME = 5550001;
 const TEAM1 = [[ME, 'Rayan', 103, 'MIDDLE'], ['ally1', 'Friend', 86, 'TOP'], ['ally2', 'Jungler', 64, 'JUNGLE'], ['ally3', 'Shooter', 222, 'BOTTOM'], ['ally4', 'Hooks', 412, 'UTILITY']];
@@ -330,7 +342,7 @@ async function context(browser, { version = '', phone = false } = {}) {
 const clips = process.env.CLIPS || fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-clips-')); // CLIPS=folder keeps them
 const savedClips = [];
 const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout }).catch(async (err) => {
-  throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; lcu ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.lcu()).catch(() => null))}; last calls ${JSON.stringify(lcu.calls.slice(-6))}; toasts ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.toasts().slice(-5)).catch(() => null))}; page ${JSON.stringify(await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => ''))}`);
+  throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; lcu ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.lcu()).catch(() => null))}; last calls ${JSON.stringify(lcu.calls.slice(-6))}; toasts ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.toasts().slice(-5)).catch(() => null))}; clips ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.clips && lpc.clips()).catch(() => null))}; page ${JSON.stringify(await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => ''))}`);
 });
 const text = (page, sel) => page.locator(sel).innerText();
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.join(process.env.SHOTS, name + '.png'), fullPage: true }); // SHOTS=folder saves screenshots
@@ -455,6 +467,14 @@ const leagueData = (over = {}) => ({
 
     const [ctx, pc] = await context(browser, { version: '1.7.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
+    const highAsked = []; // our server's Riot data: the high elo games it counted
+    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ)/, (r) => {
+      const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
+      if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
+      const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
+      highAsked.push(`${c}/${u.searchParams.get('r')}`);
+      r.fulfill({ json: c === 103 ? highElo(role) : { patch: '15.20', role, roles: {}, games: [] }, headers: cors });
+    });
     await ctx.addInitScript(() => { // four games in voice last week: the two where the room talked a lot were won
       if (localStorage.getItem('lpc-games')) return;
       const g = (n, talk, result) => ({ at: Date.now() - (8 + n) * 86400e3, ms: 1800000, room: 'abcd', mode: 'CLASSIC', result, id: 0, me: { name: 'Rayan', champ: 'Ahri', talk }, players: [{ name: 'Fren', champ: 'Garen', talk }],
@@ -634,22 +654,25 @@ const leagueData = (over = {}) => ({
     await phone.click('#picks button:has-text("Ahri")');
     await wait(pc, () => /hovering Ahri/.test(document.getElementById('csTurn').textContent), null, 'Ahri hovered from the phone');
     await pc.click('#picks button:has-text("Ahri")');
-    await wait(pc, () => /Runes: Riot’s page/.test(document.getElementById('runesNote').textContent), null, 'the runes');
-    assert.strictEqual(await text(pc, '#runesNote'), 'Runes: Riot’s page for Ahri, middle (Electrocute). Spells: Flash on D, Ignite on F.');
+    await wait(pc, () => /Runes: the most popular page/.test(document.getElementById('runesNote').textContent), null, 'the runes');
+    assert.strictEqual(await text(pc, '#runesNote'), 'Runes: the most popular page for Ahri, middle, in high elo (Electrocute: 63% won in 30 games). Spells: Flash on D, Ignite on F.');
     const page1 = callsTo(/^\/lol-perks\/v1\/pages$/, 'POST');
     assert.strictEqual(page1.length, 1);
-    assert.deepStrictEqual(page1[0][2], { name: 'LPC Ahri', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8112, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5002], current: true });
+    assert.deepStrictEqual(page1[0][2], { name: 'LPC Ahri', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8112, 8139, 8138, 8135, 8226, 8237, 5008, 5008, 5011], current: true });
+    assert(highAsked.includes('103/MIDDLE'), 'high elo Ahri in the middle asked for');
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH').pop()[2], { spell1Id: 4, spell2Id: 14 });
     assert.match(await text(pc, '#csTurn'), /You’re playing Ahri/);
     // your usual build in League's shop, your skill order, and a matchup note against Zed
-    await wait(pc, () => document.getElementById('buildNote').textContent === 'Items: your build on Ahri from 8 of your games is in League’s shop as “LPC Ahri”.', null, 'the item set');
+    await wait(pc, () => document.getElementById('buildNote').textContent === 'Items: the high elo build on Ahri (from 40 games) and yours (from 8 of your games) are in League’s shop as “LPC Ahri”.', null, 'the item set');
     const sets = callsTo(/^\/lol-item-sets\/v1\/item-sets\/1234\/sets$/, 'PUT');
     assert.strictEqual(sets.length, 1);
     const set = sets[0][2], lpcSet = set.itemSets[1];
     assert.deepStrictEqual(set.itemSets.map((s) => s.title), ['My set', 'LPC Ahri']);
-    assert.deepStrictEqual(lpcSet.blocks.map((b) => [b.type, b.items.map((i) => i.id).join()]), [['Your start', '1056,2003'], ['Your first items, in order', '6655,3157,3089'], ['Your boots', '3020']]);
+    assert.deepStrictEqual(lpcSet.blocks.map((b) => [b.type, b.items.map((i) => i.id).join()]), [['High elo start', '1056,2003'], ['High elo first items, in order', '6655,3089,3157'], ['High elo boots', '3020'], ['High elo also build', '3071'],
+      ['Your start', '1056,2003'], ['Your first items, in order', '6655,3157,3089'], ['Your boots', '3020']]);
     assert.deepStrictEqual([lpcSet.uid, lpcSet.associatedChampions, lpcSet.associatedMaps, set.accountId], ['lpc-103', [103], [11], 77]);
-    assert.strictEqual(await text(pc, '#skillNote'), 'Your skill order on Ahri (from 8 games): start Q, W, E, then max Q, then W, then E.');
+    assert.strictEqual(await text(pc, '#skillNote'), 'Your skill order on Ahri (from 8 games): start Q, W, E, then max Q, then W, then E. In high elo: start Q, E, W, then max Q, then E, then W.');
+    assert.strictEqual(await text(pc, '#topNote'), 'In high elo, Ahri middle won 55% of 40 games. Against their picks: Zed, 40% won in 10 games (−200 gold at 10).');
     assert.strictEqual(await text(pc, '#runesOther'), 'Use my own usual runes instead');
     await pc.click('#csNotes summary');
     await pc.fill('#csNotes input', 'Zed');
@@ -659,7 +682,7 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => lpc.toasts().includes('Saved your note on Ahri against Zed.')));
     await shot(pc, 'champ-select');
     await shot(phone, 'phone-champ-select');
-    console.log(`champ select: ranks, recent games and tags (${rows[0].match(/6 wins in a row|Comfort pick/g).join(', ')}), hidden names never looked up, a ban, picks for middle, hover from the phone, lock in, Riot's runes and spells`);
+    console.log(`champ select: ranks, recent games and tags (${rows[0].match(/6 wins in a row|Comfort pick/g).join(', ')}), hidden names never looked up, a ban, picks for middle, hover from the phone, lock in, high elo's runes, spells, build, skill order and matchup`);
 
     // ---- in game: everyone scouted, timers, gold, the overlay and the phone
     lcu.cs = null;
@@ -847,13 +870,18 @@ const leagueData = (over = {}) => ({
     assert.match(await text(pc, '#patchHead'), /^Patch 1\.1 against 1\.0 for the champions you play most/);
     assert.match((await text(pc, '#patchList')).replace(/\s+/g, ' '), /^Ahri Health 590 → 600 Q \(Orb of Deception\) cooldown 7 → 6 Lux No changes/);
     await pc.click('#champRows tr:first-child .champlink');
-    await wait(pc, () => document.getElementById('champDlg').open && /Your build/.test(document.getElementById('champDlgBody').textContent), null, 'Ahri’s page');
+    await wait(pc, () => document.getElementById('champDlg').open && /Your build/.test(document.getElementById('champDlgBody').textContent) && /Worst against/.test(document.getElementById('champDlgBody').textContent), null, 'Ahri’s page');
     const champPage = (await text(pc, '#champDlgBody')).replace(/\s+/g, ' ');
     for (const re of [/^8 games in your last 20: 6W 2L \(75%\), KDA 4\.0\. Mastery 7, 120,000 points\./, /By role Middle: 8 games, 6 won/i,
       /Your runes Electrocute, Taste of Blood, Eyeball Collection, Treasure Hunter, Manaflow Band, Transcendence \(Domination with Sorcery\): in 8 of your 8 games with runes on it\./i,
       /Your build \(from 8 games\) Start Doran’s Ring Health Potion First items, in order Luden’s Companion Zhonya’s Hourglass Rabadon’s Deathcap Boots Sorcerer’s Shoes/i,
       /Skill order Your skill order on Ahri \(from 8 games\): start Q, W, E, then max Q, then W, then E\./i, /Against your lane opponents Zed: 6W 2L/i,
-      /Your matchup notes Against Zed: Respect his level 6\. Ward the side bushes\. Delete/i, /Patch 1\.1 Health 590 → 600 Q \(Orb of Deception\) cooldown 7 → 6$/i]) assert.match(champPage, re);
+      /Your matchup notes Against Zed: Respect his level 6\. Ward the side bushes\. Delete/i, /Patch 1\.1 Health 590 → 600 Q \(Orb of Deception\) cooldown 7 → 6$/i,
+      /In high elo Role\s.*Ahri middle won 55% of 40 Challenger and Grandmaster games on patch 25\.20\. Runes: Electrocute, Taste of Blood, Eyeball Collection, Treasure Hunter, Manaflow Band, Scorch \(Domination with Sorcery\): 63% won in 30 games\. Spells: Flash and Ignite\. Start Doran’s Ring Health Potion First items, in order Luden’s Companion Rabadon’s Deathcap Zhonya’s Hourglass Boots Sorcerer’s Shoes Also Black Cleaver Skill order: start Q, E, W, then max Q, then E, then W\. Best against: Lux, 67% won in 15 games \(\+150 gold at 10\); Garen, 53% won in 15 games \(\+50 gold at 10\)\. Worst against: Zed, 40% won in 10 games \(−200 gold at 10\)\. Your runes/i]) assert.match(champPage, re);
+    assert.deepStrictEqual(await pc.$$eval('#champDlgBody select option', (o) => o.map((x) => [x.value, x.textContent])), [['MIDDLE', 'Middle (40 games)'], ['TOP', 'Top (3 games)']]);
+    await pc.selectOption('#champDlgBody select', 'TOP');
+    await wait(pc, () => /Not enough Challenger and Grandmaster games with Ahri top counted yet/.test(document.getElementById('champDlgBody').textContent), null, 'too few games at the top');
+    assert(highAsked.includes('103/') && highAsked.includes('103/TOP'), 'Ahri’s most played role, then the top');
     await shot(pc, 'champion-page');
     await pc.click('#champDlgClose');
     // the Games tab: match history, each report with its replay, your laning and when everyone bought each item

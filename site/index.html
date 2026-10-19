@@ -624,6 +624,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="toolbar"><button id="runesOther" class="btn small" type="button" hidden></button></div>
         <p id="buildNote" class="hint" role="status"></p>
         <p id="skillNote" class="hint"></p>
+        <p id="topNote" class="hint"></p>
         <div id="csNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
       <section id="liveBox" class="panel" aria-labelledby="h-live" hidden>
@@ -840,9 +841,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <label class="check"><input id="optGameView" type="checkbox"> Open the Game page when a match is found</label>
           <label class="check"><input id="optAutoAccept" type="checkbox"> Accept matches for me</label>
           <label class="check"><input id="optScout" type="checkbox"> Look up players' ranks and recent games</label>
-          <label class="check"><input id="optRunes" type="checkbox"> Riot's recommended runes and spells when I lock in</label>
-          <div class="toolbar"><label class="field">Runes <select id="optRuneSrc"><option value="riot">Riot's recommended page</option><option value="mine">My own usual page (from my games)</option></select></label></div>
-          <label class="check"><input id="optItemSet" type="checkbox"> Put my usual build for my champion in League's shop</label>
+          <label class="check"><input id="optRunes" type="checkbox"> Runes and summoner spells when I lock in</label>
+          <div class="toolbar"><label class="field">Runes <select id="optRuneSrc"><option value="riot">The most popular in high elo, or Riot's recommended</option><option value="mine">My own usual page (from my games)</option></select></label></div>
+          <label class="check"><input id="optItemSet" type="checkbox"> Put the high elo build and my usual one for my champion in League's shop</label>
           <label class="field">Hover for me: champions, first choice first <input id="optHoverPicks" autocomplete="off" spellcheck="false" placeholder="Ahri, Lux, Syndra"></label>
           <label class="field">And bans <input id="optHoverBans" autocomplete="off" spellcheck="false" placeholder="Yasuo, Zed"></label>
           <p id="hoverNote" class="hint" role="status"></p>
@@ -897,6 +898,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <p id="serverToday"></p>
           <div><svg id="serverChart" class="chart" viewBox="0 0 600 114" role="img"></svg><div class="chartx"><span id="serverFrom"></span><span>Today</span></div></div>
           <p class="hint">Players each day for the last two weeks, counted by our connection server (days in UTC). It keeps no names or internet addresses.</p>
+          <p id="serverRiot" hidden></p>
         </section>
       </div>
     </section>
@@ -1007,7 +1009,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
 
-<div id="t-cs" class="tipbox" popover>Your team's ranks and last 20 games, from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Your champions for this role come from your last 100 games and your mastery: click one to hover it, and again on your turn to lock it in. On your ban turn, the champions you lose to most come first. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: Riot's recommended one, or your own usual one, Settings, League), sets Riot's summoner spells and puts your usual build in League's shop.</div>
+<div id="t-cs" class="tipbox" popover>Your team's ranks and last 20 games, from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Your champions for this role come from your last 100 games and your mastery: click one to hover it, and again on your turn to lock it in. On your ban turn, the champions you lose to most come first. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Settings, League), sets the summoner spells and puts the high elo build and your usual build in League's shop. High elo is Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions and answer trades from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
@@ -3076,8 +3078,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return { ad, ap, text: champs.length ? `Your team so far: ${ad} physical, ${ap} magic damage.${note}${champs.length >= 4 && !tank ? ' No tank yet.' : ''}` : '' };
   }
   // A rune page and summoner spells for your champion and position in a page of this app's own ("LPC ..."), with
-  // Flash on the key you want: Riot's recommended page as the League client offers it, or your own usual page from
-  // your games (Settings, League). Your own page keeps Riot's stat shards, which match history leaves out.
+  // Flash on the key you want: the most popular page in high elo (our server's count, on Summoner's Rift), else Riot's
+  // recommended page as the League client offers it; or your own usual page from your games (Settings, League). Your
+  // own page keeps the other page's stat shards, which match history leaves out. Spells: high elo's, else Riot's.
   // runesAlt: the other kind, when there's both, for the button that switches; runesPick: the one you switched to.
   let runesAlt = '', runesPick = '';
   const mapNow = () => (gfs && gfs.map && gfs.map.id) || (gfs && gfs.gameData && gfs.gameData.queue && gfs.gameData.queue.mapId) || 11;
@@ -3085,23 +3088,25 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const key = `${champ}/${pos}/${runesPick}`, src = runesPick || opts.runeSrc;
     if (!opts.runes || runesFor === key) return;
     runesFor = key;
-    const name = champName(champ), map = mapNow();
+    runesSoon();
+    const name = champName(champ), map = mapNow(), top = map === 11 ? await topGet(champ, pos) : null, pop = topOk(top) && top.runes && top.runes.n >= 5 ? top.runes : null;
     let best = null;
     for (const p of [...new Set([pos || (map === 11 ? await lcuGet(`/lol-perks/v1/recommended-pages-position/champion/${champ}`) : ''), 'NONE'])].filter((p) => /^[A-Z]+$/.test(p || ''))) {
       const recs = await lcuGet(`/lol-perks/v1/recommended-pages/champion/${champ}/position/${p}/map/${map}`);
       best = Array.isArray(recs) ? recs.find((r) => r && Array.isArray(r.perks) && r.perks.length >= 6) : null;
       if (best) break;
     }
-    const own = map === 11 ? myRunesOf(champ, pos) : null, useOwn = !!own && (src === 'mine' || !best);
-    runesAlt = own && best ? (useOwn ? 'riot' : 'mine') : '';
-    if (!best && !own) { runesNote = `Riot has no recommended runes for ${name} here.`; return renderGame(); }
-    const shards = best ? best.perks.slice(6, 9).map((x) => x.id) : [];
+    const own = map === 11 ? myRunesOf(champ, pos) : null, useOwn = !!own && (src === 'mine' || (!pop && !best));
+    runesAlt = own && (pop || best) ? (useOwn ? (pop ? 'top' : 'riot') : 'mine') : '';
+    if (!pop && !best && !own) { runesNote = `Riot has no recommended runes for ${name} here.`; return renderGame(); }
+    const shards = pop ? pop.perks.slice(8) : best ? best.perks.slice(6, 9).map((x) => x.id) : [];
     const page = useOwn ? { name: `LPC ${name}`.slice(0, 25), primaryStyleId: own.perks[0], subStyleId: own.perks[1], selectedPerkIds: [...own.perks.slice(2), ...(shards.length === 3 ? shards : [5008, 5008, 5011])], current: true }
+      : pop ? { name: `LPC ${name}`.slice(0, 25), primaryStyleId: pop.perks[0], subStyleId: pop.perks[1], selectedPerkIds: pop.perks.slice(2), current: true }
       : { name: `LPC ${name}`.slice(0, 25), primaryStyleId: best.primaryPerkStyleId, subStyleId: best.secondaryPerkStyleId, selectedPerkIds: best.perks.map((x) => x.id), current: true };
     const pages = await lcuGet('/lol-perks/v1/pages'), old = Array.isArray(pages) && pages.find((x) => x && String(x.name).startsWith('LPC ') && x.isEditable);
     const r = old ? await lcuAsk('PUT', `/lol-perks/v1/pages/${old.id}`, { ...old, ...page }) : await lcuAsk('POST', '/lol-perks/v1/pages', page);
     if (okStatus(r) && old) await lcuAsk('PUT', '/lol-perks/v1/currentpage', old.id);
-    const sp = (best && Array.isArray(best.summonerSpellIds) ? best.summonerSpellIds : []).filter(Number.isInteger), me = myCell();
+    const sp = ((topOk(top) && top.spells) || (best && Array.isArray(best.summonerSpellIds) ? best.summonerSpellIds : [])).filter(Number.isInteger), me = myCell();
     let spells = '';
     if (sp.length === 2) {
       const onF = opts.flash === 'F' || (opts.flash === 'keep' && !(me && me.spell1Id === 4)), other = sp.find((x) => x !== 4);
@@ -3110,6 +3115,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     runesNote = !okStatus(r) ? `Couldn’t add a rune page: League may be out of room for pages. Delete one in League and this app makes its own next time.${spells}`
       : useOwn ? `Runes: your own page for ${name} from ${own.n} of your games${runeName(own.perks[2]) ? ` (${runeName(own.perks[2])})` : ''}.${spells}`
+      : pop ? `Runes: the most popular page for ${name}${POS[top.role] ? ', ' + POS[top.role].toLowerCase() : ''}, in high elo (${runeName(pop.perks[2]) ? runeName(pop.perks[2]) + ': ' : ''}${pct(pop.w / pop.n)} won in ${pop.n} games).${spells}`
       : `Runes: Riot’s page for ${name}${POS[pos] ? ', ' + POS[pos].toLowerCase() : ''}${best.keystone && best.keystone.name ? ` (${best.keystone.name})` : ''}.${spells}`;
     renderGame();
   }
@@ -3318,7 +3324,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const ph = lcu || '';
     renderQueue(ph);
     $('lcuNote').textContent = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.'
-      : lcu === null ? 'Looking for League…' : !ph ? 'Start League. This page fills in when you find a match: the ready check, champ select with everyone’s rank and Riot’s runes, then the loading screen with timers and gold.'
+      : lcu === null ? 'Looking for League…' : !ph ? 'Start League. This page fills in when you find a match: the ready check, champ select with everyone’s rank, runes and builds, then the loading screen with timers and gold.'
       : ph === 'ReadyCheck' ? 'Match found!' : ph === 'ChampSelect' ? 'Champ select' : playing(PHASES[ph]) || league ? 'In game' : STATUS[PHASES[ph] || 'client'][1] + '. Find a match and this page fills in.';
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
@@ -3369,12 +3375,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('mixAp').style.flexGrow = mix.ap;
     $('mixBox').hidden = !mix.text;
     $('mixNote').textContent = mix.text;
-    $('runesNote').textContent = opts.runes ? runesNote || 'Riot’s recommended runes and spells go on once you lock in.' : '';
+    $('runesNote').textContent = opts.runes ? runesNote || 'Runes and spells go on once you lock in.' : '';
     $('runesOther').hidden = !opts.runes || !runesAlt;
-    $('runesOther').textContent = runesAlt === 'mine' ? 'Use my own usual runes instead' : 'Use Riot’s recommended runes instead';
+    $('runesOther').textContent = runesAlt === 'mine' ? 'Use my own usual runes instead' : runesAlt === 'top' ? 'Use the most popular runes instead' : 'Use Riot’s recommended runes instead';
     $('buildNote').textContent = opts.itemSet ? buildNote : '';
     const mineC = (me && (me.championId || me.championPickIntent)) || (a && a.type === 'pick' && a.championId) || 0;
-    $('skillNote').textContent = skillText(mineC);
+    const top = mineC ? topNow(mineC, myPos(), renderGame) : null, tk = topOk(top) ? skillsFrom(top.skills) : null, vs = topOk(top) ? theirs.map((c) => top.vs.find((v) => v.c === c && v.n >= 5)).filter(Boolean) : [];
+    $('skillNote').textContent = [skillText(mineC), tk ? `In high elo: start ${tk.first}, then max ${tk.max}.` : ''].filter(Boolean).join(' ');
+    $('topNote').textContent = topOk(top) ? `In high elo, ${champName(mineC)}${POS[top.role] ? ' ' + POS[top.role].toLowerCase() : ''} won ${pct(top.w / top.n)} of ${top.n} games${vs.length ? `. Against their picks: ${vs.map(vsText).join('; ')}` : ''}.` : '';
     renderNotes($('csNotes'), mineC, theirs);
   }
   // a champion button: click to hover it, and on your turn click it again to lock it in (or ban it)
@@ -3594,7 +3602,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (!want && recorder) stopRec();
   }
   async function startRec() {
-    const r = (recorder = { parts: [] }), hd = opts.clipQ !== '720';
+    const r = (recorder = { parts: [], at: performance.now() }), hd = opts.clipQ !== '720';
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30, width: { max: hd ? 1920 : 1280 }, height: { max: hd ? 1080 : 720 } }, audio: true }); } catch (err) {
       console.warn('clips:', err);
@@ -4103,25 +4111,30 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // there); without timelines, from the items you ended your games with
   function buildOf(champ, pos) {
     if (!ddItems) return null;
-    const it = (id) => ddItems[id] || {}, all = myGames().filter((g) => g.ps[g.me].c === champ && g.tl && g.tl.buys.length);
+    const all = myGames().filter((g) => g.ps[g.me].c === champ && g.tl && g.tl.buys.length);
     const there = pos ? all.filter((g) => g.ps[g.me].l === pos) : [], games = (there.length >= 3 ? there : all).sort((a, b) => b.at - a.at).slice(0, 20);
     const finals = games.length ? [] : (myHist || []).filter((g) => g.champ === champ && g.mode === 'CLASSIC' && g.items.length);
     if (!games.length && !finals.length) return null;
-    const count = new Map(), order = new Map(), starts = new Map(), boots = new Map(), add = (m, k, v = 1) => m.set(k, (m.get(k) || 0) + v);
-    for (const g of games) {
-      const b = g.tl.buys, start = b.filter(([t, id]) => t <= 90 && !it(id).done && !it(id).trinket).map(([, id]) => id).sort((x, y) => x - y);
+    return { n: games.length || finals.length, timed: games.length > 0, ...buildFrom(games.map((g) => g.tl.buys), finals.map((g) => g.items)) };
+  }
+  // a build from games' buys ([seconds, item id], in order) or, without them, the items games ended with: the most
+  // common start, the three finished items bought most (in their usual order), boots, and the next six
+  function buildFrom(buys, finals = []) {
+    const it = (id) => ddItems[id] || {}, count = new Map(), order = new Map(), starts = new Map(), boots = new Map(), add = (m, k, v = 1) => m.set(k, (m.get(k) || 0) + v);
+    for (const b of buys) {
+      const start = b.filter(([t, id]) => t <= 90 && !it(id).done && !it(id).trinket).map(([, id]) => id).sort((x, y) => x - y);
       if (start.length) add(starts, start.join(','));
       [...new Set(b.filter(([, id]) => it(id).done).map(([, id]) => id))].forEach((id, i) => { add(count, id); add(order, id, i); });
       const bt = b.map(([, id]) => id).filter((id) => it(id).boots).pop(); // the last boots: tier 2 or 3
       if (bt) add(boots, bt);
     }
-    for (const g of finals) g.items.forEach((id, i) => { if (it(id).done) { add(count, id); add(order, id, i); } else if (it(id).boots) add(boots, id); });
+    for (const items of finals) items.forEach((id, i) => { if (it(id).done) { add(count, id); add(order, id, i); } else if (it(id).boots) add(boots, id); });
     const avg = (id) => order.get(id) / count.get(id), top = [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || avg(a) - avg(b));
     const best = (m) => ([...m].sort((a, b) => b[1] - a[1])[0] || [])[0];
-    return { n: games.length || finals.length, timed: games.length > 0, start: games.length && best(starts) ? best(starts).split(',').map(Number) : [], core: top.slice(0, 3).sort((a, b) => avg(a) - avg(b)), boots: best(boots) || 0, more: top.slice(3, 9) };
+    return { start: best(starts) ? best(starts).split(',').map(Number) : [], core: top.slice(0, 3).sort((a, b) => avg(a) - avg(b)), boots: best(boots) || 0, more: top.slice(3, 9) };
   }
-  // your build as an item set in League's shop ("LPC <champion>", Summoner's Rift), over the one this app made before,
-  // once you lock in
+  // the high elo build and yours as an item set in League's shop ("LPC <champion>", Summoner's Rift), over the one this
+  // app made before, once you lock in
   let buildNote = '', itemsFor = '';
   async function setItems(champ, pos) {
     if (itemsFor === `${champ}/${pos}`) return;
@@ -4129,32 +4142,35 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     buildNote = '';
     if (!opts.itemSet || !has17() || !me0 || !me0.summonerId || mapNow() !== 11) return;
     itemsSoon();
+    const top = await topGet(champ, pos);
     for (let i = 0; i < 10 && !ddItems; i++) await sleep(500);
-    const b = buildOf(champ, pos), name = champName(champ);
-    if (!b) { buildNote = ddItems ? `No build of yours on ${name} yet: it comes from your games on it.` : ''; return renderGame(); }
+    const b = buildOf(champ, pos), t = topOk(top) && ddItems ? buildFrom(top.buys) : null, name = champName(champ);
+    if (!b && !(t && t.core.length)) { buildNote = ddItems ? `No build of yours on ${name} yet: it comes from your games on it.` : ''; return renderGame(); }
     const block = (type, ids) => ({ type, hideIfSummonerSpell: '', showIfSummonerSpell: '', items: ids.map((id) => ({ id: String(id), count: 1 })) });
-    const blocks = [b.start.length && block('Your start', b.start), b.core.length && block(b.timed ? 'Your first items, in order' : 'Your usual items', b.core),
-      b.boots && block('Your boots', [b.boots]), b.more.length && block('You also build', b.more)].filter(Boolean);
+    const blocks = [...(t && t.core.length ? [t.start.length && block('High elo start', t.start), block('High elo first items, in order', t.core), t.boots && block('High elo boots', [t.boots]), t.more.length && block('High elo also build', t.more)] : []),
+      ...(b ? [b.start.length && block('Your start', b.start), b.core.length && block(b.timed ? 'Your first items, in order' : 'Your usual items', b.core), b.boots && block('Your boots', [b.boots]), b.more.length && block('You also build', b.more)] : [])].filter(Boolean);
     const set = { uid: `lpc-${champ}`, title: `LPC ${name}`.slice(0, 25), mode: 'any', map: 'any', type: 'custom', sortrank: 0, startedFrom: 'blank', associatedChampions: [champ], associatedMaps: [11], blocks, preferredItemSlots: [] };
     const path = `/lol-item-sets/v1/item-sets/${me0.summonerId}/sets`, cur = await lcuGet(path);
     const r = cur && Array.isArray(cur.itemSets) ? await lcuAsk('PUT', path, { accountId: cur.accountId, timestamp: Date.now(), itemSets: [...cur.itemSets.filter((s) => s && s.uid !== set.uid), set] }) : { status: 0 };
-    buildNote = okStatus(r) ? `Items: your build on ${name} from ${b.n} of your games is in League’s shop as “${set.title}”.` : 'Couldn’t add your build to League’s shop.';
+    buildNote = !okStatus(r) ? 'Couldn’t add the build to League’s shop.' : !(t && t.core.length) ? `Items: your build on ${name} from ${b.n} of your games is in League’s shop as “${set.title}”.`
+      : `Items: the high elo build on ${name} (from ${top.n} games)${b ? ` and yours (from ${b.n} of your games) are` : ' is'} in League’s shop as “${set.title}”.`;
     renderGame();
   }
   // the order you usually level your abilities: your most common first three, then which of Q, W and E you max first
   // (the order they get their fifth point)
   const SK = ['', 'Q', 'W', 'E', 'R'];
   function skillText(champ) {
-    const seqs = champ ? myGames().filter((g) => g.ps[g.me].c === champ && g.tl && g.tl.skills.length >= 9).map((g) => g.tl.skills) : [];
-    if (!seqs.length) return '';
+    const seqs = champ ? myGames().filter((g) => g.ps[g.me].c === champ && g.tl && g.tl.skills.length >= 9).map((g) => g.tl.skills) : [], sk = skillsFrom(seqs);
+    return sk ? `Your skill order on ${champName(champ)} (from ${seqs.length} game${seqs.length === 1 ? '' : 's'}): start ${sk.first}, then max ${sk.max}.` : '';
+  }
+  function skillsFrom(seqs) { // games' ability level-ups (1 Q to 4 R): the most common first three, and max order
+    if (!seqs.length) return null;
     const most = (keys) => { const n = new Map(); for (const k of keys) n.set(k, (n.get(k) || 0) + 1); return [...n].sort((a, b) => b[1] - a[1])[0][0]; };
-    const first = most(seqs.map((s) => s.slice(0, 3).map((x) => SK[x]).join(', ')));
-    const max = most(seqs.map((s) => {
+    return { first: most(seqs.map((s) => s.slice(0, 3).map((x) => SK[x]).join(', '))), max: most(seqs.map((s) => {
       const pts = { 1: 0, 2: 0, 3: 0 }, at = {};
       s.forEach((x, i) => { if (x < 4 && ++pts[x] === 5) at[x] = i; });
       return [1, 2, 3].sort((a, b) => (at[a] ?? 99 - pts[a]) - (at[b] ?? 99 - pts[b])).map((x) => SK[x]).join(', then ');
-    }));
-    return `Your skill order on ${champName(champ)} (from ${seqs.length} game${seqs.length === 1 ? '' : 's'}): start ${first}, then max ${max}.`;
+    })) };
   }
 
   // ---- champ select: auto hover, ban ideas and matchup notes
@@ -4597,6 +4613,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }).join('') + `<line class="axis" x1="8" x2="${W - 8}" y1="${base}" y2="${base}"/>`;
     $('serverFrom').textContent = label(list[0]);
     $('serverBox').hidden = false;
+    let sum = null; // and the high elo games it counted from Riot, for popular runes, builds and matchups
+    try { const r = await fetch(`${serverUrl}/riot/summary`); if (r.ok) sum = await r.json(); } catch {}
+    $('serverRiot').hidden = !(sum && Number.isFinite(sum.total));
+    if (!$('serverRiot').hidden) $('serverRiot').textContent = `High elo games counted from Riot: ${(sum.total | 0).toLocaleString('en-US')}, ${n(sum.today | 0, 'game')} today${/^\d+\.\d+$/.test(sum.p) ? `, patch ${patchName(sum.p)}` : ''}. They give the most popular runes, builds, skill orders and matchups.`;
   }
   $('profileCopy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('profileLink').value); notify('Profile link copied', true); } catch { $('profileLink').select(); }
@@ -4758,6 +4778,41 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     try { const p = await riotProfile(proMine.n, proMine.plat); if (p) saveMine(p); } catch {} finally { riotBusy = false; }
     if (!profView.hidden) renderProfile();
   }
+  // ---- high elo: what Challenger and Grandmaster players do on a champion in a role, from the ranked games our server
+  // counts (server/worker.js /riot/champ keeps up to 500 for each, without the players): the most popular rune page,
+  // spells, build and skill order, and the record against each lane opponent. This patch's games once there are 30.
+  // Champ select puts the runes, spells and build on for you; champion pages show it all. Asked again after 10 minutes.
+  const tops = new Map(); // `${champ}/${role}` -> { at, p (a promise of d), d (worked out, once the server answered) }
+  function topGet(c, role = '') {
+    const k = `${c}/${role}`, old = tops.get(k);
+    if (!riotOn || !(c > 0)) return Promise.resolve(old ? old.d : null);
+    if (old && performance.now() - old.at < 600000) return old.p;
+    const t = { at: performance.now(), d: old ? old.d : null }; // the old answer until the new one comes
+    t.p = fetch(`${serverUrl}/riot/champ?c=${c}&r=${role}`).then((r) => (r.ok ? r.json() : null)).then(topFrom).catch(() => null).then((d) => (t.d = d || t.d));
+    tops.set(k, t);
+    return t.p;
+  }
+  function topNow(c, role, redraw) { // what's known now, asking for it when it isn't (then redraw)
+    riotCheck();
+    const t = tops.get(`${c}/${role || ''}`);
+    if (riotOn && (!t || performance.now() - t.at >= 600000)) topGet(c, role || '').then((d) => { if (d) redraw(); });
+    return t ? t.d : null;
+  }
+  function topFrom(j) {
+    if (!j || !Array.isArray(j.games)) return null;
+    const ok = (a, n) => Array.isArray(a) && a.length === n && a.every(Number.isInteger), all = j.games.filter((g) => g && typeof g === 'object' && (g.w === 0 || g.w === 1));
+    const now = all.filter((g) => g.p === j.patch), games = now.length >= 30 ? now : all;
+    const most = (list) => { const m = new Map(); for (const [k, w] of list) { const v = m.get(k) || [0, 0]; v[0]++; v[1] += w; m.set(k, v); } return [...m].sort((a, b) => b[1][0] - a[1][0])[0]; }; // [key, [games, wins]]
+    const rn = most(games.filter((g) => ok(g.rn, 11)).map((g) => [g.rn.join(','), g.w])), sp = most(games.filter((g) => ok(g.s, 2)).map((g) => [g.s.slice().sort((a, b) => a - b).join(','), g.w]));
+    const vs = new Map();
+    for (const g of games) if (Number.isInteger(g.o)) { const v = vs.get(g.o) || { c: g.o, n: 0, w: 0, gold: [] }; v.n++; v.w += g.w; if (Number.isFinite(g.g)) v.gold.push(g.g); vs.set(g.o, v); }
+    return { role: POS[j.role] ? j.role : '', roles: j.roles && typeof j.roles === 'object' ? j.roles : {}, patch: now.length >= 30 ? String(j.patch) : '', n: games.length, w: games.filter((g) => g.w).length,
+      runes: rn ? { perks: rn[0].split(',').map(Number), n: rn[1][0], w: rn[1][1] } : null, spells: sp ? sp[0].split(',').map(Number) : null,
+      buys: games.map((g) => (Array.isArray(g.b) ? g.b.filter((x) => ok(x, 2)) : [])).filter((b) => b.length), skills: games.map((g) => g.k).filter((k) => Array.isArray(k) && k.length >= 9 && k.every((x) => x >= 1 && x <= 4)),
+      vs: [...vs.values()].map((v) => ({ c: v.c, n: v.n, w: v.w, gold: v.gold.length ? Math.round(v.gold.reduce((a, b) => a + b, 0) / v.gold.length) : null })).sort((a, b) => b.n - a.n) };
+  }
+  const topOk = (t) => !!t && t.n >= 10; // enough games to go by
+  const vsText = (v) => `${champName(v.c)}, ${pct(v.w / v.n)} won in ${v.n} games${v.gold == null ? '' : ` (${v.gold >= 0 ? '+' : '−'}${Math.abs(v.gold)} gold at 10)`}`;
   $('proFind').addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = $('proId').value.trim(), plat = $('proRegion').value, note = $('proFindNote'), setup = !lcuOn() && !proMine;
@@ -4833,8 +4888,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     row.append(b, list);
     return row;
   }
+  let champRole = ''; // the role picked for a champion page's high elo part ('': its most played)
   function openChamp(c) {
     if (!champOf(c)) return;
+    if (+$('champDlg').dataset.c !== c) champRole = '';
     itemsSoon();
     runesSoon();
     $('champDlgPic').src = champImg(c);
@@ -4854,6 +4911,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : `No games on ${champName(c)} in your last ${(myHist || []).length}.${m ? ` Mastery ${m.championLevel}, ${m.championPoints.toLocaleString('en-US')} points.` : ''}`)];
     const roles = Object.keys(POS).map((r) => [r, g.filter((x) => x.lane === r)]).filter(([, l]) => l.length);
     if (roles.length) out.push(sec('By role', ul(roles.map(([r, l]) => `${POS[r]}: ${l.length} games, ${l.filter((x) => x.win).length} won`))));
+    const top = topNow(c, champRole, () => { if ($('champDlg').open && +$('champDlg').dataset.c === c) renderChampPage(c); });
+    if (top) out.push(topSec(c, top, sec, p));
     const rs = myRunesOf(c, '');
     if (rs) out.push(sec('Your runes', p(`${rs.perks.slice(2).map((id) => runeName(id) || `rune ${id}`).join(', ')}${runeName(rs.perks[0]) ? ` (${runeName(rs.perks[0])} with ${runeName(rs.perks[1])})` : ''}: in ${rs.n} of your ${rs.of} games with runes on it.`)));
     const b = buildOf(c, '');
@@ -4877,6 +4936,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const pd = patchDiff && ch && patchDiff.lines[ch.id];
     if (pd) out.push(sec(`Patch ${patchName(patchDiff.v)}`, pd.length ? ul(pd) : p('No changes to its base stats, cooldowns, costs or ranges.')));
     $('champDlgBody').replaceChildren(...out);
+  }
+  // a champion page's high elo part: its record, the most popular runes, spells, build and skill order, and the lane
+  // matchups it wins and loses most (5 games or more), in a role you can change
+  function topSec(c, top, sec, p) {
+    const roles = Object.entries(top.roles).filter(([r, v]) => POS[r] && Array.isArray(v) && v[0] > 0).sort((a, b) => b[1][0] - a[1][0]);
+    let pick = null;
+    if (roles.length > 1) {
+      const sel = document.createElement('select');
+      sel.append(...roles.map(([r, [n]]) => new Option(`${POS[r]} (${n} game${n === 1 ? '' : 's'})`, r)));
+      sel.value = top.role;
+      sel.addEventListener('change', () => { champRole = sel.value; renderChampPage(c); });
+      pick = Object.assign(document.createElement('label'), { className: 'field' });
+      pick.append('Role ', sel);
+    }
+    const role = POS[top.role] ? ` ${POS[top.role].toLowerCase()}` : '';
+    if (!topOk(top)) return sec('In high elo', pick, p(`Not enough Challenger and Grandmaster games with ${champName(c)}${role} counted yet: our server adds some every few minutes.`));
+    const b = ddItems ? buildFrom(top.buys) : null, sk = skillsFrom(top.skills), rn = top.runes, vs = top.vs.filter((v) => v.n >= 5), wr = (v) => v.w / v.n;
+    const best = vs.filter((v) => wr(v) >= 0.5).sort((x, y) => wr(y) - wr(x)).slice(0, 4), worst = vs.filter((v) => wr(v) < 0.5).sort((x, y) => wr(x) - wr(y)).slice(0, 4);
+    return sec('In high elo', pick,
+      p(`${champName(c)}${role} won ${pct(top.w / top.n)} of ${top.n} Challenger and Grandmaster games${top.patch ? ` on patch ${patchName(top.patch)}` : ''}.`),
+      rn && p(`Runes: ${rn.perks.slice(2, 8).map((id) => runeName(id) || `rune ${id}`).join(', ')}${runeName(rn.perks[0]) ? ` (${runeName(rn.perks[0])} with ${runeName(rn.perks[1])})` : ''}: ${pct(rn.w / rn.n)} won in ${rn.n} games.`),
+      top.spells && p(`Spells: ${top.spells.map((x) => SPELLS[x] || 'a spell').join(' and ')}.`),
+      b && itemRow('Start', b.start), b && itemRow('First items, in order', b.core), b && itemRow('Boots', b.boots ? [b.boots] : []), b && itemRow('Also', b.more),
+      sk && p(`Skill order: start ${sk.first}, then max ${sk.max}.`),
+      best.length && p(`Best against: ${best.map(vsText).join('; ')}.`), worst.length && p(`Worst against: ${worst.map(vsText).join('; ')}.`));
   }
   // Patch changes: the champions you play most, this patch against the last, from Riot's Data Dragon (base stats,
   // and each ability's cooldown, cost, range and description), kept until the next patch (lpc-patchdiff)
@@ -5854,7 +5938,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
     quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
-    clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames] }),
+    clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
+      age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),
     saveClip,
     gate: (v) => { gateNode.parameters.get('threshold').value = v; },
     heard: async (id) => { // loudest sample coming out of the speakers from this player over 1.5 s
