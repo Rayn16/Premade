@@ -1239,7 +1239,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
 <div id="t-cs" class="tipbox" popover>Best picks for you weighs each champion you may pick for your role: how it does there in high elo, how it does in high elo against their champion in your lane (their pick that plays there most), your own games and mastery on it, and what your team still lacks (magic or physical damage, a tank). Click one to hover it, and again on your turn to lock it in. On your ban turn, Bans for you lists the champions you lose to most, then the strongest in your role in high elo, leaving out the ones you play. Your team's ranks and last 20 games come from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Pregame settings), sets the summoner spells and puts the high elo build and your usual build in League's shop. Tips for your lane show up once your champion and the one in your lane are known: how that matchup goes in high elo, the runes, spells and early items high elo players take in it, your own games against it, its range and damage, Riot's own tips for both champions and your matchup note. They show again on the loading screen, but not in the game itself, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: Korea's Challenger and Grandmaster ranked games our server counts from Riot, this patch (with the last one added while this one is new). The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games.</div>
-<div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane and, as our server counts them, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions and answer trades from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
@@ -3434,7 +3434,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- the draft (champ select on Summoner's Rift): both teams by role, each champion with its score in this draft and
   // each team's total, and every champion ranked for a role you pick. Meta: its high elo win rate there (our server's
   // /riot/summary). Matchups: how it does in high elo against their champion in that lane (/riot/champ, the last year
-  // too) and, as our server counts them (/riot/pairs), with your team's champions and against the rest of theirs.
+  // too), and with your team's champions and against the rest of theirs (who was on each team in those games).
   // Balanced: both. Scores are win rate points above or below 50%; a matchup counts how much better or worse the games
   // went than the two champions' own win rates give, pulled toward that while games are few.
   let advRole = '', advQ = ''; // the role picked to rank for ('': yours), and the search
@@ -3458,17 +3458,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (best[1]) rest.forEach((c, i) => out.set(c, best[1][i]));
     return out;
   }
-  // our server's /riot/pairs for a champion: { '<champion>a': [games, wins] } with (a) and against (e) each other
-  // champion, the wins this one's; null while unknown. Asked again after 10 minutes.
-  const pairsOf = new Map();
-  function pairsNow(c) {
-    const t = pairsOf.get(c);
-    if (riotOn && (!t || performance.now() - t.at >= 600000)) {
-      const n = { at: performance.now(), d: t ? t.d : null };
-      pairsOf.set(c, n);
-      fetch(`${serverUrl}/riot/pairs?c=${c}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.p && typeof j.p === 'object') { n.d = j.p; renderGame(); } }).catch(() => {});
+  // with (a) and against (e) each other champion in a champion's high elo games in a role (/riot/champ keeps who was on
+  // each team): champion -> [games, wins], the wins this one's; null while unknown. Worked out once for each answer.
+  const pairMemo = new WeakMap();
+  function pairsIn(c, role) {
+    const t = topNow(c, role, renderGame);
+    if (!t) return null;
+    if (!pairMemo.has(t)) {
+      const p = { a: new Map(), e: new Map() };
+      for (const g of t.all) for (const k of ['a', 'e']) for (const x of Array.isArray(g[k]) ? g[k] : []) if (Number.isInteger(x) && x > 0) { const v = p[k].get(x) || [0, 0]; v[0]++; v[1] += g.w; p[k].set(x, v); }
+      pairMemo.set(t, p);
     }
-    return t ? t.d : null;
+    return pairMemo.get(t);
   }
   // a champion's score in a role in this draft: m (meta) and v (matchups), with why
   function advScore(c, role, mates, foes) {
@@ -3482,11 +3483,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (games >= 5) why.push(`${text}: won ${wins} of ${games} (${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1)})`);
     };
     for (const f of foes) {
-      const lane = f.role === role, x = lane ? ((topNow(f.c, role, renderGame) || {}).vs || []).find((y) => y.c === c) : null, p = lane ? null : (pairsNow(f.c) || {})[c + 'e'];
+      const lane = f.role === role, x = lane ? ((topNow(f.c, role, renderGame) || {}).vs || []).find((y) => y.c === c) : null, p = lane ? null : (pairsIn(f.c, f.role) || { e: new Map() }).e.get(c);
       if (x) add(x.n, x.n - x.w, clamp(mine - base(f.c, role) + 0.5), 10, `Against ${champName(f.c)} in lane`);
-      else if (Array.isArray(p)) add(p[0] | 0, (p[0] | 0) - (p[1] | 0), clamp(mine - base(f.c, f.role) + 0.5), 20, `Against ${champName(f.c)}`);
+      else if (p) add(p[0], p[0] - p[1], clamp(mine - base(f.c, f.role) + 0.5), 20, `Against ${champName(f.c)}`);
     }
-    for (const a of mates) { const p = (pairsNow(a.c) || {})[c + 'a']; if (Array.isArray(p)) add(p[0] | 0, p[1] | 0, clamp(mine + base(a.c, a.role) - 0.5), 20, `With ${champName(a.c)}`); }
+    for (const a of mates) { const p = (pairsIn(a.c, a.role) || { a: new Map() }).a.get(c); if (p) add(p[0], p[1], clamp(mine + base(a.c, a.role) - 0.5), 20, `With ${champName(a.c)}`); }
     return { m: 100 * (mine - 0.5), v, why };
   }
   // both teams now: each player's champion (a teammate's hover too) and role, each champion with its score

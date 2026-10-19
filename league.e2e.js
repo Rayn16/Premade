@@ -87,8 +87,11 @@ function highElo(role) {
   return { patch: '15.20', role, roles: { MIDDLE: [40, 22], TOP: [3, 1] }, games, ...(role !== 'TOP' && { y: { n: 20, w: 8, vs: { 238: [20, 8] } } }) };
 }
 
-// and Zed in the middle: 10 games against Ahri (won 6) and 6 against Lux (won 1)
-const zedMid = () => ({ patch: '15.20', role: 'MIDDLE', roles: { MIDDLE: [16, 7] }, games: Array.from({ length: 16 }, (_, i) => ({ p: '15.20', t: 3000 + i, w: +(i < 6 || i === 10), o: i < 10 ? 103 : 99, g: 0, s: [4, 14], rn: null, b: [], k: null, x: null, l: null })) });
+// and Zed in the middle: 10 games against Ahri (won 6) and 6 against Lux (won 1), 12 of them against Lee Sin (won 4)
+const zedMid = () => ({ patch: '15.20', role: 'MIDDLE', roles: { MIDDLE: [16, 7] }, games: Array.from({ length: 16 }, (_, i) => ({ p: '15.20', t: 3000 + i, w: +(i < 6 || i === 10), o: i < 10 ? 103 : 99, g: 0, s: [4, 14], rn: null, b: [], k: null, x: null, l: null,
+  e: i < 4 || (i >= 6 && i < 10) || (i >= 11 && i < 15) ? [64] : [] })) });
+// and Garen at the top: 20 games with Lux, 15 won
+const garenTop = () => ({ patch: '15.20', role: 'TOP', roles: { TOP: [20, 15] }, games: Array.from({ length: 20 }, (_, i) => ({ p: '15.20', t: 4000 + i, w: +(i < 15), o: null, g: 0, s: [4, 12], rn: null, b: [], k: null, x: null, l: null, a: [99] })) });
 
 // ---- the fake League client
 const ME = 'me-puuid', GAME = 5550001;
@@ -594,17 +597,14 @@ const leagueData = (over = {}) => ({
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     const riotAsked = []; // Riot through our server: nothing there
-    // and how champions did with (a) and against (e) each other: Lux won 15 of 20 with Garen, Zed 4 of 12 against Lee Sin
-    const PAIRS = { 86: { '99a': [20, 15] }, 238: { '64e': [12, 4] } };
-    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past|pairs)/, (r) => {
+    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past)/, (r) => {
       const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
       if (u.pathname.startsWith('/riot/api/')) return riotAsked.push(u.pathname.slice(9) + u.search), r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       if (u.pathname.endsWith('/past')) return r.fulfill({ json: { s: {} }, headers: cors });
       if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: SUM, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
-      if (u.pathname.endsWith('/pairs')) { const p = PAIRS[u.searchParams.get('c')]; return r.fulfill(p ? { json: { c: +u.searchParams.get('c'), p }, headers: cors } : { status: 404, json: {}, headers: cors }); }
       const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
       highAsked.push(`${c}/${u.searchParams.get('r')}`);
-      r.fulfill({ json: c === 103 ? highElo(role) : c === 238 && role === 'MIDDLE' ? zedMid() : { patch: '15.20', role, roles: {}, games: [] }, headers: cors });
+      r.fulfill({ json: c === 103 ? highElo(role) : c === 238 && role === 'MIDDLE' ? zedMid() : c === 86 && role === 'TOP' ? garenTop() : { patch: '15.20', role, roles: {}, games: [] }, headers: cors });
     });
     await ctx.addInitScript(() => { // four games in voice last week: the two where the room talked a lot were won
       if (localStorage.getItem('lpc-games')) return;
