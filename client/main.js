@@ -173,10 +173,15 @@ const LCU_OK = [
   ['PATCH', /^\/lol-champ-select\/v1\/session\/(actions\/\d+|my-selection)$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/actions\/\d+\/complete$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/(champion-swaps|position-swaps|pick-order-swaps)\/\d+\/(request|accept|decline|cancel)$/], // trades
+  ['POST', /^\/lol-champ-select\/v1\/session\/(bench\/swap\/\d+|my-selection\/reroll)$/], // ARAM's bench and rerolls
   ['GET', /^\/lol-matchmaking\/v1\/(ready-check|search)$/],
   ['POST', /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/],
   ['GET', /^\/lol-lobby\/v2\/lobby$/],
-  ['POST', /^\/lol-lobby\/v2\/lobby$/], // a Practice Tool game
+  ['POST', /^\/lol-lobby\/v2\/lobby$/], // a Practice Tool game, or the game picked on Pregame
+  ['DELETE', /^\/lol-lobby\/v2\/lobby$/], // Leave lobby
+  ['POST', /^\/lol-lobby\/v2\/lobby\/invitations$/], // inviting a friend
+  ['GET', /^\/lol-game-queues\/v1\/queues$/],
+  ['GET', /^\/lol-chat\/v1\/friends$/], // your friends, to invite
   ['POST', /^\/lol-lobby\/v1\/lobby\/custom\/start-champ-select$/],
   ['POST', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
   ['DELETE', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
@@ -184,7 +189,7 @@ const LCU_OK = [
   ['GET', /^\/lol-summoner\/v1\/(current-summoner|summoners\/\d+|alias\/lookup\?gameName=[\w.!~*'()%-]*&tagLine=[\w.!~*'()%-]*)$/], // encoded names only
   ['GET', /^\/lol-summoner\/v2\/summoners\/puuid\/[\w-]+$/],
   ['GET', /^\/lol-ranked\/v1\/(current-ranked-stats|current-lp-change-notification|ranked-stats\/[\w-]+)$/],
-  ['GET', /^\/lol-match-history\/v1\/(products\/lol\/[\w-]+\/matches\?begIndex=\d+&endIndex=\d+|games\/\d+|game-timelines\/\d+)$/],
+  ['GET', /^\/lol-match-history\/v1\/(products\/lol\/[\w-]+\/matches\?begIndex=\d+&endIndex=\d+|products\/tft\/[\w-]+\/matches\?begin=\d+&count=\d+|games\/\d+|game-timelines\/\d+)$/],
   ['GET', /^\/lol-champion-mastery\/v1\/[\w-]+\/champion-mastery$/],
   ['GET', /^\/lol-perks\/v1\/(pages|recommended-champion-positions|recommended-pages\/champion\/\d+\/position\/[A-Z]+\/map\/\d+|recommended-pages-position\/champion\/\d+)$/],
   ['POST', /^\/lol-perks\/v1\/pages$/],
@@ -286,7 +291,8 @@ function hider() {
 
 // ---- the in-game overlay: see-through and click-through, over League when it runs in Borderless mode. Its size is
 // 300x360 times the page's scale, at a corner (pos) or where it was dragged (box: fractions of the screen). While the
-// page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved).
+// page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved). With
+// everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
 let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null;
 const display = async () => { const s = chosen(await screens(false)); return screen.getAllDisplays().find((d) => s && String(d.id) === s.display_id) || screen.getPrimaryDisplay(); };
 ipcMain.on('overlay', async (e, s) => {
@@ -318,7 +324,7 @@ ipcMain.on('overlay', async (e, s) => {
     overlay.setFocusable(editing);
   }
   const k = Math.min(2, Math.max(0.7, +s.scale || 1)), box = s.pos === 'custom' && s.box && Number.isFinite(s.box.x) && Number.isFinite(s.box.y) ? s.box : null;
-  const key = JSON.stringify([s.pos, k, box]), shape = JSON.stringify([s.pos, k]);
+  const board = !!s.board && !editing, key = JSON.stringify([s.pos, k, box, board]), shape = JSON.stringify([s.pos, k, board]);
   if (placed === key) return;
   const dragged = editing && s.pos === 'custom' && shape === placedShape; // the page keeping where it was dragged: it's there
   placed = key;
@@ -326,8 +332,8 @@ ipcMain.on('overlay', async (e, s) => {
   if (dragged) return;
   const { x, y, width, height } = (await display()).bounds;
   if (!overlayState.visible) return;
-  const w = Math.round(300 * k), h = Math.round(360 * k);
-  const at = box ? { x: x + Math.round(box.x * width), y: y + Math.round(box.y * height) }
+  const w = board ? width : Math.round(300 * k), h = board ? height : Math.round(360 * k);
+  const at = board ? { x, y } : box ? { x: x + Math.round(box.x * width), y: y + Math.round(box.y * height) }
     : { x: s.pos === 'mr' ? x + width - w - 16 : x + 16, y: s.pos === 'ml' || s.pos === 'mr' ? y + Math.round((height - h) / 2) : y + 16 };
   placedAt = { x: Math.min(Math.max(at.x, x), x + width - w), y: Math.min(Math.max(at.y, y), y + height - h) };
   overlay.setBounds({ ...placedAt, width: w, height: h });
@@ -383,6 +389,17 @@ function checkUpdates() {
   setInterval(check, 4 * 3600e3);
   ipcMain.on('update', (e) => { if (fromSite(e) && updateReady) autoUpdater.quitAndInstall(true, true); });
 }
+
+// ---- a match found (Pregame settings): the window in front of League's client. Windows hands the keyboard only to
+// the window you use, so it's kept on top for a moment instead.
+ipcMain.on('front', (e) => {
+  if (!fromSite(e)) return;
+  if (win.isMinimized()) win.restore();
+  win.setAlwaysOnTop(true);
+  win.show();
+  win.focus();
+  setTimeout(() => { if (!win.isDestroyed()) win.setAlwaysOnTop(false); }, 1000);
+});
 
 // ---- compact view: the window shrinks to the strip's height (h, from the page), and grows back with h = 0
 let full = null;

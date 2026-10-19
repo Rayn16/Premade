@@ -4,9 +4,11 @@
 // picker, full speed in the background, the screen list, League's data on the page (with the game's big moments, the
 // window mode from League's settings file and where you are in League's client, from a fake client API), the page's
 // calls to League's client (only those on the list, with League's password, and nothing else), saving clips in Videos,
-// the clip gallery (pictures, rename, the Recycle Bin, the clean-up), the compact strip, the overlay window (the game's objective timers and kills from the page,
-// moved and resized, with chat, who hears you, your voice effects and voice swap's countdown), the shortcuts, Discord status (against a fake Discord pipe), the
-// performance meter, app links, the window kept where you left it, and test recordings with names hidden. Prints ok.
+// the clip gallery (pictures, rename, the Recycle Bin, the clean-up), the compact strip, the overlay window (the game's
+// objective timers and kills from the page, moved and resized, with chat, who hears you, your voice effects and voice
+// swap's countdown, and everyone's rank over the whole screen), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
+// pipe), the performance meter, app links, the window kept where you left it, and test recordings with names hidden.
+// Prints ok.
 const http = require('http'), https = require('https'), net = require('net'), fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
 const { execFileSync } = require('child_process');
 const SITE = path.join(__dirname, '..', 'site');
@@ -116,6 +118,10 @@ assert.deepStrictEqual(summary(OBJ).events.map(({ e, t, of, name, team }) => [e,
   ['inhib-back', 1200, 'ORDER', 'Barracks_T1_C1', ''], ['grubs', 400, undefined, undefined, 'CHAOS'], ['herald', 800, undefined, undefined, 'ORDER']]);
 // the calls the page may make to League's client
 assert(lcuOk('GET', '/lol-ranked/v1/ranked-stats/abc-123') && lcuOk('POST', '/lol-champ-select/v1/session/actions/7/complete') && lcuOk('PUT', '/lol-perks/v1/pages/42'));
+assert(lcuOk('GET', '/lol-match-history/v1/products/tft/abc-123/matches?begin=20&count=20') && lcuOk('POST', '/lol-champ-select/v1/session/bench/swap/86')
+  && lcuOk('POST', '/lol-champ-select/v1/session/my-selection/reroll') && !lcuOk('POST', '/lol-champ-select/v1/session/bench/swap/86/x'), 'TFT games, ARAM’s bench and rerolls');
+assert(lcuOk('GET', '/lol-game-queues/v1/queues') && lcuOk('GET', '/lol-chat/v1/friends') && lcuOk('POST', '/lol-lobby/v2/lobby/invitations') && lcuOk('DELETE', '/lol-lobby/v2/lobby')
+  && !lcuOk('DELETE', '/lol-lobby/v2/lobby/members/abc') && !lcuOk('POST', '/lol-chat/v1/friends'), 'the lobby: games, friends, invites and leaving');
 assert(!lcuOk('DELETE', '/lol-perks/v1/pages') && !lcuOk('get', '/lol-gameflow/v1/session') && !lcuOk('GET', '/lol-chat/v1/me') && !lcuOk('POST', '/lol-store/v1/purchase')
   && !lcuOk('GET', '/lol-ranked/v1/ranked-stats/../../lol-chat/v1/me') && !lcuOk('GET', '/lol-summoner/v1/current-summoner?x=1') && !lcuOk('GET', null), 'nothing else');
 assert.deepStrictEqual(summary(null), { inGame: false });
@@ -257,6 +263,20 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.y === d.y + Math.round(0.5 * d.height) && o.width === 300 && !ov.isFocusable(); }, 'the overlay where it was dragged');
     console.log(`overlay moved and resized: ${JSON.stringify(ov.getBounds())}`);
+    // everyone's rank (board, app 1.10): over the whole screen, still click-through, then back where it was
+    await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: {
+      us: [{ name: 'Rayan', sub: 'Ahri · Middle', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', emb: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png', rec: 'Ahri: 8 of the last 20, 75% won', tags: [['good', '3 wins in a row']] }],
+      them: [{ name: 'Shadow', sub: 'Zed · Middle', lane: true, rank: 'Unranked', tc: 'red;x', tags: [['bad', 'First time on this champion'], ['', 'Seen before']] }],
+      tips: { title: 'Ahri against Zed', lines: ['High elo: Ahri won 4 of 10 games against Zed.'] } } })`);
+    await until(() => { const o = ov.getBounds(); return o.x === d.x && o.y === d.y && o.width === d.width && o.height === d.height && !ov.isFocusable(); }, 'the overlay over the whole screen');
+    const boardText = await ov.webContents.executeJavaScript('document.body.innerText');
+    for (const t of ['Overlay back on.', 'Your team', 'Rayan', 'Gold II · 45 LP', 'Ahri: 8 of the last 20, 75% won', '3 wins in a row', 'Their team', 'Shadow', 'Your lane', 'First time on this champion', 'Tips: Ahri against Zed', 'High elo: Ahri won 4 of 10'])
+      assert(boardText.toLowerCase().includes(t.toLowerCase()), `the board shows ${JSON.stringify(t)}: ${JSON.stringify(boardText)}`);
+    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".rk")].map((e) => e.style.color)'), ['rgb(217, 173, 85)', ''], 'the tier’s color, and nothing that isn’t a color');
+    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".card .emb")].map((e) => e.src)'), ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png'], 'the rank’s emblem');
+    await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
+    await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.width === 300 && o.height === 360; }, 'the overlay back in its box');
+    console.log(`everyone's rank over the whole screen: ${JSON.stringify(boardText.slice(0, 120))}`);
     await js('lpcClient.overlay({ visible: false })');
     await until(() => !ov.isVisible(), 'the overlay hidden');
 
@@ -264,6 +284,10 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     const keys = await js(`lpcClient.keys({ mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: 'KeyV' })`);
     assert.deepStrictEqual(keys, { mute: true, clip: true, overlay: true, show: true, ptt: process.platform === 'win32' }, JSON.stringify(keys));
     assert(['M', 'L', 'K', 'O'].every((k) => globalShortcut.isRegistered('Ctrl+Shift+' + k)));
+    // a match found (Pregame settings): the window in front of League's client, on top for a moment only
+    await js('lpcClient.front()');
+    await until(() => win.isVisible() && win.isAlwaysOnTop(), 'the window in front');
+    await until(() => !win.isAlwaysOnTop(), 'and not kept on top');
 
     // Discord status through Discord's local pipe; null closes it, which clears the status
     process.env.XDG_RUNTIME_DIR = tmp; // where the fake Discord listens (here, not for the whole app: Chromium reads it too)

@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   keys: (keys) => ipcRenderer.invoke('keys', keys),
   windowMode: () => ipcRenderer.invoke('window-mode'),
   compact: (height) => ipcRenderer.send('compact', +height || 0),
+  front: () => ipcRenderer.send('front'),
   overlay: (state) => ipcRenderer.send('overlay', state),
   overlayDone: () => ipcRenderer.send('overlay-done'),
   discord: (state) => ipcRenderer.send('discord', state),

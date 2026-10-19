@@ -141,6 +141,9 @@ const hears = (page, names, vol, what) => waitFor(page, ([names, vol]) => {
 }, [names, vol], what);
 const volOf = async (page, name) => (await others(page)).find((p) => p.name === name);
 const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) : page).screenshot({ path: path.join(process.env.SHOTS, name + '.png') });
+// WCAG's contrast between two #rrggbb colours (4.5 reads well)
+const lum = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
@@ -678,13 +681,32 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await shot(ana, 'ana-compact');
     await ana.click('#compactBtn');
     assert(await ana.isVisible('main'), 'full view again');
-    await ana.context().route('**/riot/summary', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
+    await ana.context().route('**/riot/summary', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
     await ana.click('.nav[data-view="settings"]');
     await ana.waitForSelector('#serverBox', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverToday'), 'Today: 3 players in 2 rooms. Busiest day of the last two weeks: 7 players.');
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
-    assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20. They give the most popular runes, builds, skill orders and matchups.');
+    assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20, going back to October 20, 2025. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).');
     assert.deepStrictEqual(await ana.$$eval('#serverChart g', (g) => [g.length, g.filter((x) => x.querySelector('.bar')).length, g[11].querySelector('title').textContent.endsWith(': 7 players in 3 rooms')]), [14, 2, true], 'a bar for each day with players');
+    // themes: red and black by default, Light, your own main colour, Light with the computer's light mode
+    const look = (...ks) => ana.evaluate((ks) => { const c = getComputedStyle(document.documentElement); return ks.map((k) => c.getPropertyValue('--' + k).trim()); }, ks);
+    assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'accent')], ['red', '#0b0809', '#d9202d'], 'red and black at first');
+    assert.strictEqual(await ana.$$eval('.sw', (l) => l.map((e) => getComputedStyle(e).backgroundColor).join(' ')), 'rgb(11, 8, 9) rgb(1, 10, 19) rgb(242, 238, 228) rgb(12, 9, 19) rgb(7, 16, 13) rgb(0, 0, 0)', 'each theme’s card in its own colours');
+    await shot(ana, 'ana-settings-red');
+    await ana.$eval('#optMain', (el) => { el.value = '#0000ff'; el.dispatchEvent(new Event('input')); });
+    const [accent, accentFg, gold, link, ...backs] = await look('accent', 'accent-fg', 'gold', 'link', 'bg', 'panel', 'raised');
+    assert(accent === '#0000ff' && accentFg === '#ffffff' && link === gold && gold !== accent && backs.every((b) => contrast(gold, b) >= 4.5), `a dark blue of your own, its trim lightened to read on the page: ${[accent, accentFg, gold]}`);
+    await ana.$eval('#optMain', (el) => { el.value = '#ffd700'; el.dispatchEvent(new Event('input')); });
+    assert.deepStrictEqual(await look('accent', 'accent-fg', 'gold'), ['#ffd700', '#000000', '#ffd700'], 'gold of your own: black text on its buttons, and readable as it is');
+    assert(await ana.isVisible('#mainReset'));
+    await ana.click('#mainReset');
+    assert.deepStrictEqual([...await look('accent', 'gold'), await ana.inputValue('#optMain'), await ana.isHidden('#mainReset')], ['#d9202d', '#ff4f5a', '#d9202d', true], 'the theme’s own colour again');
+    await ana.check('#optThemeAuto'); // Playwright's pages are in light mode unless told otherwise
+    assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light', 'Light while the computer is in light mode');
+    await ana.emulateMedia({ colorScheme: 'dark' });
+    await waitFor(ana, () => document.documentElement.dataset.theme === 'red', null, 'red and black again in dark mode');
+    await ana.uncheck('#optThemeAuto');
+    await ana.emulateMedia({ colorScheme: null });
     await ana.check('input[name="theme"][value="light"]');
     assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light');
     await shot(ana, 'ana-settings-light');
@@ -696,9 +718,9 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await shot(ana, 'ana-voice-light');
     await ana.click('#voiceSet > summary');
     await ana.click('.nav[data-view="settings"]');
-    await ana.check('input[name="theme"][value="dark"]');
+    await ana.check('input[name="theme"][value="red"]');
     await ana.click('.nav[data-view="voice"]');
-    console.log('compact view, light theme and help tips');
+    console.log('compact view, themes and help tips');
 
     // game history: the game Ana has been in since her minimap was tracked
     await ana.evaluate(() => lpc.endGame());
@@ -770,6 +792,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     assert(!(await dee.evaluate(() => lpc.micOn())), 'mute shortcut from the client');
     const muted = await dee.evaluate(() => lpcClient.calls.filter(([k]) => k === 'overlay').pop()[1]);
     assert(muted.muted === true, 'overlay shows you\'re muted');
+    assert.deepStrictEqual([muted.theme.bg, muted.theme.gold, muted.theme.talk], ['#0b0809', '#ff4f5a', '#ffffff'], 'the overlay in red and black too');
     await dee.evaluate(() => lpcClient.emit('key', 'mute'));
 
     // hurt voice: rough and shaky as Dee's health drops
@@ -874,7 +897,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: voice in one place'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: app 1.11, your lobby on Pregame'], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);
