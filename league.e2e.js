@@ -97,7 +97,7 @@ const HIST = {
   ally3: hist(rep(20, 222, (i) => i % 2 === 0, (i) => (i < 3 ? { id: 32000 + i } : {})), 36000),   // three of the same games as Lee Sin: a premade
   ally4: hist(rep(20, 412, (i) => i % 2 === 0, { lane: 'MIDDLE' }), 34000),                        // plays middle, not support: off-role
   enemy3: hist(rep(20, 103, (i) => i % 3 === 0), 33000),                                          // never played Zed
-  enemy4: hist(rep(20, 51, (i) => i % 5 !== 0), 35000),                                           // won 80%, at level 30: a smurf?
+  enemy4: hist(rep(30, 51, (i) => i % 5 !== 0), 35000),                                           // won 80%, at level 30: a smurf?
 };
 const BASES = new Map(); // everyone else's games numbered apart, so nobody's a premade by chance
 const histOf = (who) => HIST[who] || hist(rep(20, 86, (i) => i % 2 === 1), BASES.get(who) || BASES.set(who, 40000 + 100 * BASES.size).get(who));
@@ -389,6 +389,7 @@ const leagueData = (over = {}) => ({
         participants: Array.from({ length: 10 }, (_, i) => ({ puuid: i ? PU(`p${i}-`) : ANA, riotIdGameName: i ? `P${i}` : 'Ana B', riotIdTagline: 'EUW', championId: i ? CHAMPS[i][1] : champ, teamId: i < 5 ? 100 : 200,
           teamPosition: POSN[i % 5], win: i < 5 ? win : !win, kills: i ? 3 : 8, deaths: 2, assists: 5, totalMinionsKilled: 180, neutralMinionsKilled: 10, visionScore: 22, totalDamageDealtToChampions: 20000,
           goldEarned: 11000, totalDamageTaken: 15000, damageSelfMitigated: 4000, item0: 6655, item1: 3020, item6: 3340 })) } });
+      const old5 = (id, champ, win, days) => { const m = match5(id, champ, win); m.info.gameCreation = Date.now() - days * 86400e3; return m; }; // a game days ago
       const RIOT = {
         '/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW': { puuid: ANA, gameName: 'Ana B', tagLine: 'EUW' },
         '/europe/riot/account/v1/accounts/by-riot-id/Bob/EUW': { puuid: BOB, gameName: 'Bob', tagLine: 'EUW' },
@@ -404,6 +405,9 @@ const leagueData = (over = {}) => ({
         '/europe/lol/match/v5/matches/EUW1_7000000001': match5(7000000001, 103, true),
         '/europe/lol/match/v5/matches/EUW1_7000000002': match5(7000000002, 103, false),
         '/europe/lol/match/v5/matches/EUW1_7000000003': match5(7000000003, 99, true),
+        [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=3&count=20`]: ['EUW1_7000000003', 'EUW1_7000000004', 'EUW1_7000000005'], // older: one already listed, then two
+        '/europe/lol/match/v5/matches/EUW1_7000000004': old5(7000000004, 86, false, 120),
+        '/europe/lol/match/v5/matches/EUW1_7000000005': old5(7000000005, 99, true, 400),
       };
       await ctx.route(/127\.0\.0\.1:9001\/riot\//, (r) => {
         const u = r.request().url().replace(/^.*?\/riot/, '');
@@ -446,12 +450,22 @@ const leagueData = (over = {}) => ({
       assert(await page.locator('#proGames > li:first-child .report tr[data-me]').count() === 1, 'Ana marked in it');
       assert(!riotCalls.some((c) => c.includes('oops')), 'only real match ids asked for');
       assert.strictEqual(riotCalls.length, 12, `Nobody, Busy, Ana in 9 calls and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
+      // older games, from Riot: the next page, without the game already listed; the open report stays open
+      await page.click('#proMore');
+      await wait(page, () => document.querySelectorAll('#proGames > li').length === 5, null, 'two older games');
+      const when = await page.$$eval('#proGames .gwhen', (l) => l.map((e) => e.textContent));
+      assert(when[4].includes(String(new Date(Date.now() - 400 * 86400e3).getFullYear())) && !/\d{4}/.test(when[0]), `the year on a game from another year: ${when}`);
+      assert(await page.$eval('#proGames > li:first-child details', (d) => d.open), 'the report still open');
+      await page.click('#proMore');
+      await wait(page, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
+      assert.strictEqual(riotCalls.length, 16, `a page of 3 with 2 new games, then an empty page: ${riotCalls.slice(12).join(' ')}`);
       // someone else: Bob, not in a game and unranked
       await page.fill('#proId', 'Bob#EUW');
       await page.click('#proGo');
       await wait(page, () => document.getElementById('proName').textContent === 'Bob' && !document.getElementById('proBack').hidden, null, 'Bob’s profile');
       assert.strictEqual(await text(page, '#proStatus'), 'Not in a game right now');
       assert.strictEqual(await text(page, '#proGames'), 'No recent games.');
+      assert(await page.locator('#proMoreBar').isHidden(), 'no Show more games');
       assert(await page.locator('#proMasteryBox').isHidden(), 'no mastery to show');
       await page.click('#proBack');
       await wait(page, () => document.getElementById('proName').textContent === 'Ana B', null, 'back to Ana');
@@ -467,7 +481,7 @@ const leagueData = (over = {}) => ({
       await page.click('#proForget');
       await wait(page, () => document.getElementById('proName').textContent === 'Your League profile' && document.getElementById('proGo').textContent === 'Show my profile', null, 'forgotten');
       await ctx.close();
-      console.log(`Profile in a browser: Ana B by Riot ID (in game, Emerald III, 3 games and a report), Bob looked up, kept and refreshed; ${riotCalls.length} calls to Riot`);
+      console.log(`Profile in a browser: Ana B by Riot ID (in game, Emerald III, 3 games and a report, 2 older ones), Bob looked up, kept and refreshed; ${riotCalls.length} calls to Riot`);
     }
 
     const [ctx, pc] = await context(browser, { version: '1.7.0' });
@@ -476,8 +490,10 @@ const leagueData = (over = {}) => ({
     // and wins in each role), and each champion's games
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
-    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ)/, (r) => {
+    const riotAsked = []; // Riot through our server: nothing there
+    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api)/, (r) => {
       const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
+      if (u.pathname.startsWith('/riot/api/')) return riotAsked.push(u.pathname.slice(9) + u.search), r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: SUM, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
       const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
       highAsked.push(`${c}/${u.searchParams.get('r')}`);
@@ -523,7 +539,7 @@ const leagueData = (over = {}) => ({
     assert.match(await pc.textContent('#proForm'), /^Record\s*13W 7L · 65%\s*KDA\s*5\.0 \/ 3\.0 \/ 7\.0 · 4\.0\s*CS a minute\s*5\.3\s*Main role\s*Middle, 13 of 20$/);
     assert.deepStrictEqual(await pc.$$eval('#proChamps .champ', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' '))), ['Ahri 8 games · 75% won · 4.0 KDA', 'Lux 5 games · 60% won · 4.0 KDA', 'Garen 4 games · 25% won · 4.0 KDA']);
     assert.deepStrictEqual(await pc.$$eval('#proMastery .sub', (l) => l.map((e) => e.textContent)), ['Level 7 · 120k points', 'Level 6 · 50k points', 'Level 5 · 40k points', 'Level 4 · 20k points']);
-    assert.strictEqual(await pc.locator('#proGames > li').count(), 10);
+    assert.strictEqual(await pc.locator('#proGames > li').count(), 20);
     assert.strictEqual(await pc.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 4);
     await pc.click('#proGames > li:first-child summary');
     await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'a game’s report on your profile');
@@ -533,12 +549,19 @@ const leagueData = (over = {}) => ({
     // someone on your server, through League's client
     await pc.fill('#proId', 'Sniper#EUW');
     await pc.click('#proGo');
-    await wait(pc, () => document.getElementById('proName').textContent === 'Sniper' && document.querySelectorAll('#proGames > li').length === 10, null, 'Sniper’s profile');
+    await wait(pc, () => document.getElementById('proName').textContent === 'Sniper' && document.querySelectorAll('#proGames > li').length === 20, null, 'Sniper’s profile');
     assert.strictEqual(await text(pc, '#proSub'), 'EUW · Level 30');
+    // older games: from League's client while it has them, then Riot
+    await pc.click('#proMore');
+    await wait(pc, () => document.querySelectorAll('#proGames > li').length === 30, null, 'Sniper’s older games');
+    await pc.click('#proMore');
+    await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
+    assert.deepStrictEqual([callsTo(/\/enemy4\/matches\?begIndex=20&endIndex=39$/).length, callsTo(/\/enemy4\/matches\?begIndex=30&endIndex=49$/).length], [1, 1]);
+    assert.deepStrictEqual(riotAsked, ['/europe/lol/match/v5/matches/by-puuid/enemy4/ids?start=30&count=20']);
     assert(await pc.locator('#proStatus').isHidden() && await pc.locator('#profileBtn').isHidden(), 'no status or Share for someone else');
     await pc.click('#proBack');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'back to you');
-    console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up');
+    console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games');
     assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Stats', 'Clips', 'Settings'], 'the menu in the app');
     await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
@@ -1073,7 +1096,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.7.0 (1.8.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.7.0 (1.8.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
@@ -1119,7 +1142,7 @@ const leagueData = (over = {}) => ({
     await sp.evaluate(() => lpcClient.emit('league', { inGame: false, phase: '' }));
     await wait(sp, () => document.getElementById('proName').textContent === 'Rayan' && document.getElementById('proStatus').textContent === 'League isn’t running', null, 'your saved profile with League closed');
     assert.match(await text(sp, '#proNote'), /^As of .+\. Start League to update it\.$/);
-    assert.strictEqual(await sp.locator('#proGames > li').count(), 10);
+    assert.strictEqual(await sp.locator('#proGames > li').count(), 20);
     assert(await sp.locator('#profileBtn').isHidden() && await sp.locator('#proFindBox').isHidden(), 'no Share or lookups without League');
     await sctx.close();
     console.log('Profile with League closed: as it was last time');
