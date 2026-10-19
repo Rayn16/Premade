@@ -725,6 +725,12 @@ const leagueData = (over = {}) => ({
     console.log('tier list: Middle (Vi, Ahri, Lux, Zed), then Top (Garen, Lee Sin, Darius)');
     await pc.click('.nav[data-view="settings"]');
     assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
+    // its boxes stack with no holes: each is at the top or 16px under the one above it in its column
+    const holes = await pc.$$eval('.view[data-view="settings"] .settings > *', (l) => {
+      const r = l.filter((p) => p.offsetParent).map((p) => p.getBoundingClientRect()), top = Math.min(...r.map((b) => b.top));
+      return r.filter((b) => b.top > top && !r.some((a) => a.left === b.left && b.top - a.bottom >= 16 && b.top - a.bottom < 17.5)).length;
+    });
+    assert.strictEqual(holes, 0, 'Settings boxes with a hole above them');
     await preSettings();
     await pc.check('#optRemote');
     await pc.click('.nav[data-view="voice"]');

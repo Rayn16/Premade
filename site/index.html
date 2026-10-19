@@ -63,7 +63,7 @@
   color-scheme: dark;
 }
 :root:not(.in-client) .client-only, :root:not(.has-lcu) .lcu-only, .in-client .browser-only, [hidden] { display: none !important; }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: none; } /* no scrollbars: the wheel, keys and touch still scroll */
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
 h1, h2, h3, p { margin: 0; }
@@ -207,8 +207,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .gbody > img { width: 200px; height: 200px; border-radius: 6px; flex: none; }
 .gbody .talk { flex: 1 1 240px; align-content: start; }
 
-/* settings */
-.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; align-items: start; }
+/* settings: 1px rows, each box spans its height plus the 16px gap (the script's brick), so boxes stack with no holes */
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); grid-auto-rows: 1px; column-gap: 16px; align-items: start; }
 .mic { display: grid; gap: 12px; }
 .mic meter { width: 100%; }
 .keyrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; align-items: center; font-size: 14px; }
@@ -7173,6 +7173,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const o of document.querySelectorAll('.tip')) o.style.anchorName = '';
     b.style.anchorName = '--tip';
   });
+
+  // ---- settings boxes stack like bricks: each spans as many of its grid's 1px rows as it is tall, plus 16 for the gap,
+  // so a short box leaves no hole beside a tall one and the next box goes up into the shortest column
+  const brick = new ResizeObserver((list) => { for (const e of list) e.target.style.gridRowEnd = `span ${Math.ceil(e.borderBoxSize[0].blockSize) + 16}`; });
+  for (const p of document.querySelectorAll('.settings > *')) brick.observe(p);
 
   // ---- the room's own buttons
   const inviteLink = () => location.origin + location.pathname + '#' + room + (roomKey ? '.' + roomKey : '');
