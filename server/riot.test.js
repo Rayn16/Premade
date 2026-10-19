@@ -52,6 +52,7 @@ const riot = http.createServer((req, res) => {
   // lookups
   if (host === 'europe' && p === '/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW') return send(200, { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
   if (host === 'europe' && p.startsWith('/riot/account/v1/accounts/by-riot-id/')) return send(404, { status: { message: 'Data not found' } });
+  if (host === 'europe' && p === `/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`) return send(200, { puuid: P('a'), game: 'lol', region: 'euw1' });
   if (host === 'euw1' && p === `/lol/league/v4/entries/by-puuid/${P('a')}`) return send(200, [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'II', leaguePoints: 40, wins: 10, losses: 8 }]);
   if (host === 'kr' && p.startsWith('/lol/summoner/v4/summoners/by-puuid/')) return send(200, { puuid: P('k'), summonerLevel: 300 });
   if (host === 'jp1') return slowDown ? send(429, { status: { message: 'Rate limit exceeded' } }, { 'retry-after': '2' }) : send(200, { summonerLevel: 1 });
@@ -120,6 +121,7 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
   assert.equal(r.headers.get('access-control-allow-origin'), SITE);
   assert.deepEqual(await r.json(), { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
   assert.equal((await get('/riot/api/europe/riot/account/v1/accounts/by-riot-id/Nobody/EUW')).status, 404, "Riot's not found passes through");
+  assert.deepEqual(await (await get(`/riot/api/europe/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`)).json(), { puuid: P('a'), game: 'lol', region: 'euw1' }, 'the server Ana plays League on');
   assert.equal((await get(`/riot/api/euw1/lol/league/v4/entries/by-puuid/${P('a')}`)).status, 200);
   assert.equal((await get(`/riot/api/euw1/lol/spectator/v5/active-games/by-summoner/${P('a')}`)).status, 404, 'not in a game');
   r = await get(`/riot/api/europe/lol/match/v5/matches/by-puuid/${P('a')}/ids?count=500&type=ranked&evil=1`);
@@ -129,9 +131,10 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
   assert.equal(r.status, 200);
   assert.match(r.headers.get('cache-control'), /max-age=86400/);
   for (const bad of ['/riot/api/europe/lol/match/v5/matches/EUW1_7123456789/timeline', '/riot/api/euw1/riot/account/v1/accounts/by-riot-id/Ana/EUW', '/riot/api/evil/lol/match/v5/matches/EUW1_7123456789',
-    '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`])
+    '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`,
+    `/riot/api/europe/riot/account/v1/region/by-game/val/by-puuid/${P('a')}`, `/riot/api/euw1/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`])
     assert.equal((await get(bad)).status, 404, bad);
-  assert.equal(looked().length, 6, 'nothing off the list reached Riot');
+  assert.equal(looked().length, 7, 'nothing off the list reached Riot');
 
   // one address gets 60 lookups every 2 minutes
   const ip = { 'cf-connecting-ip': '198.51.100.7' };

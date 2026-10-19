@@ -111,6 +111,7 @@ const ORIGIN = /^(https:\/\/([a-z0-9]+--)?league-proxchat\.netlify\.app|http:\/\
 const PUUID = '[A-Za-z0-9_-]{60,100}';
 const LOOKUPS = [ // [path, on a region (else a platform), the query parameters it may have]
   [/^\/riot\/account\/v1\/accounts\/by-riot-id\/[^/]{1,200}\/[^/]{1,40}$/, true, []],
+  [RegExp(`^/riot/account/v1/region/by-game/lol/by-puuid/${PUUID}$`), true, []], // the server they play League on
   [RegExp(`^/lol/league/v4/entries/by-puuid/${PUUID}$`), false, []],
   [RegExp(`^/lol/summoner/v4/summoners/by-puuid/${PUUID}$`), false, []],
   [RegExp(`^/lol/champion-mastery/v4/champion-masteries/by-puuid/${PUUID}/top$`), false, ['count']],
