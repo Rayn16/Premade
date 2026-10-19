@@ -4730,7 +4730,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (!proMine || typeof proMine !== 'object' || typeof proMine.n !== 'string' || !Array.isArray(proMine.games)) proMine = null;
   let proOther = null; // a player you looked up, while their profile is open
   let proMore = null, proShow = 20; // the shown player's older games (Show more games), and how many games are listed
-  let proSaved = '', proList = '', regionPicked = false, riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false;
+  let proSaved = '', proList = '', regionPicked = false, riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
   $('proRegion').append(...Object.entries(PLATS).map(([k, [n]]) => new Option(n, k)));
   $('proRegion').value = (proMine && PLATS[proMine.plat] && proMine.plat) || 'euw1';
   $('proRegion').addEventListener('change', () => { regionPicked = true; });
@@ -4847,9 +4847,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (on !== riotOn) { riotOn = on; if (!profView.hidden) renderProfile(); }
     if (on) renderGame(); // the tier list and the picks go by its counts
   }
-  async function riotGet(host, path) { // one of Riot's API calls through our server; null when Riot has nothing there
+  async function riotGet(host, path, again) { // one of Riot's API calls through our server; null when Riot has nothing there
+    await sleep((riotSlot = Math.max(Date.now(), riotSlot + 100)) - Date.now()); // 10 a second at most: our server lets 15 a second through for everyone
     const r = await fetch(`${serverUrl}/riot/api/${host}${path}`);
     if (r.status === 404) return null;
+    if (r.status === 429 && !again) return sleep(1500).then(() => riotGet(host, path, true)); // a busy second: once more
     if (!r.ok) throw new Error(r.status === 429 ? 'busy' : 'down');
     return r.json();
   }

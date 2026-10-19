@@ -390,6 +390,7 @@ const leagueData = (over = {}) => ({
           teamPosition: POSN[i % 5], win: i < 5 ? win : !win, kills: i ? 3 : 8, deaths: 2, assists: 5, totalMinionsKilled: 180, neutralMinionsKilled: 10, visionScore: 22, totalDamageDealtToChampions: 20000,
           goldEarned: 11000, totalDamageTaken: 15000, damageSelfMitigated: 4000, item0: 6655, item1: 3020, item6: 3340 })) } });
       const old5 = (id, champ, win, days) => { const m = match5(id, champ, win); m.info.gameCreation = Date.now() - days * 86400e3; return m; }; // a game days ago
+      const OLD = Array.from({ length: 19 }, (_, k) => 7000000010 + k); // her older games: 120 to 390 days ago
       const RIOT = {
         '/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW': { puuid: ANA, gameName: 'Ana B', tagLine: 'EUW' },
         '/europe/riot/account/v1/accounts/by-riot-id/Bob/EUW': { puuid: BOB, gameName: 'Bob', tagLine: 'EUW' },
@@ -405,16 +406,17 @@ const leagueData = (over = {}) => ({
         '/europe/lol/match/v5/matches/EUW1_7000000001': match5(7000000001, 103, true),
         '/europe/lol/match/v5/matches/EUW1_7000000002': match5(7000000002, 103, false),
         '/europe/lol/match/v5/matches/EUW1_7000000003': match5(7000000003, 99, true),
-        [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=3&count=20`]: ['EUW1_7000000003', 'EUW1_7000000004', 'EUW1_7000000005'], // older: one already listed, then two
-        '/europe/lol/match/v5/matches/EUW1_7000000004': old5(7000000004, 86, false, 120),
-        '/europe/lol/match/v5/matches/EUW1_7000000005': old5(7000000005, 99, true, 400),
+        [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=3&count=20`]: ['EUW1_7000000003', ...OLD.map((x) => `EUW1_${x}`)], // older: one already listed, then 19
+        ...Object.fromEntries(OLD.map((x, k) => [`/europe/lol/match/v5/matches/EUW1_${x}`, old5(x, k % 2 ? 99 : 86, k % 3 === 0, 120 + 15 * k)])),
       };
+      const riotAt = []; // when each lookup got through: our server lets 15 a second through
       await ctx.route(/127\.0\.0\.1:9001\/riot\//, (r) => {
         const u = r.request().url().replace(/^.*?\/riot/, '');
         if (u === '/summary') return r.fulfill({ json: { p: '16.20', c: {}, old: null, today: 5, total: 50, at: Date.now() }, headers: cors });
         const p = u.replace(/^\/api/, '');
         riotCalls.push(p);
-        if (p.includes('/Busy/')) return r.fulfill({ status: 429, body: 'Too many lookups for now', headers: cors });
+        if (p.includes('/Busy/') || riotAt.filter((t) => Date.now() - t < 1000).length >= 15) return r.fulfill({ status: 429, body: 'Too many lookups for now', headers: cors });
+        riotAt.push(Date.now());
         return p in RIOT ? r.fulfill({ json: RIOT[p], headers: cors }) : r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       });
       await page.goto(URL_);
@@ -449,16 +451,17 @@ const leagueData = (over = {}) => ({
       await wait(page, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'the report from Riot');
       assert(await page.locator('#proGames > li:first-child .report tr[data-me]').count() === 1, 'Ana marked in it');
       assert(!riotCalls.some((c) => c.includes('oops')), 'only real match ids asked for');
-      assert.strictEqual(riotCalls.length, 12, `Nobody, Busy, Ana in 9 calls and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
-      // older games, from Riot: the next page, without the game already listed; the open report stays open
+      assert.strictEqual(riotCalls.length, 13, `Nobody, Busy (asked again after a second), Ana in 9 calls and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
+      // older games, from Riot: the next page, without the game already listed, 10 lookups a second at most; the open
+      // report stays open
       await page.click('#proMore');
-      await wait(page, () => document.querySelectorAll('#proGames > li').length === 5, null, 'two older games');
+      await wait(page, () => document.querySelectorAll('#proGames > li').length === 22, null, '19 older games');
       const when = await page.$$eval('#proGames .gwhen', (l) => l.map((e) => e.textContent));
-      assert(when[4].includes(String(new Date(Date.now() - 400 * 86400e3).getFullYear())) && !/\d{4}/.test(when[0]), `the year on a game from another year: ${when}`);
+      assert(when[21].includes(String(new Date(Date.now() - 390 * 86400e3).getFullYear())) && !/\d{4}/.test(when[0]), `the year on a game from another year: ${when}`);
       assert(await page.$eval('#proGames > li:first-child details', (d) => d.open), 'the report still open');
       await page.click('#proMore');
       await wait(page, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
-      assert.strictEqual(riotCalls.length, 16, `a page of 3 with 2 new games, then an empty page: ${riotCalls.slice(12).join(' ')}`);
+      assert.strictEqual(riotCalls.length, 34, `a page of 20 with 19 new games, then an empty page: ${riotCalls.slice(13).join(' ')}`);
       // someone else: Bob, not in a game and unranked
       await page.fill('#proId', 'Bob#EUW');
       await page.click('#proGo');
@@ -481,7 +484,7 @@ const leagueData = (over = {}) => ({
       await page.click('#proForget');
       await wait(page, () => document.getElementById('proName').textContent === 'Your League profile' && document.getElementById('proGo').textContent === 'Show my profile', null, 'forgotten');
       await ctx.close();
-      console.log(`Profile in a browser: Ana B by Riot ID (in game, Emerald III, 3 games and a report, 2 older ones), Bob looked up, kept and refreshed; ${riotCalls.length} calls to Riot`);
+      console.log(`Profile in a browser: Ana B by Riot ID (in game, Emerald III, 3 games and a report, 19 older ones), Bob looked up, kept and refreshed; ${riotCalls.length} calls to Riot`);
     }
 
     const [ctx, pc] = await context(browser, { version: '1.7.0' });
