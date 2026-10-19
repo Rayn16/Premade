@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>League profile</title>
+<meta name="description" content="A League of Legends profile shared from Premade.">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#010a13">
+<style>
+/* A profile shared from Premade (index.html, Stats > You > Profile link): rank, record and top champions
+   from the player's last 100 games. All of it is in the link after the #, compressed, so no server keeps anything.
+   The same navy and gold as the app. */
+:root {
+  --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
+  --gold: #c8aa6e; --gold-line: #785a28;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+header { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+header img { width: 28px; height: 28px; border-radius: 6px; }
+h1 { margin: 0; font-size: 28px; line-height: 1.2; overflow-wrap: anywhere; }
+h2 { margin: 0; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+p { margin: 0; }
+a { color: var(--gold); }
+.hint { color: var(--muted); font-size: 14px; }
+.panel { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { display: grid; align-content: start; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.tile b { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.tile span { font-size: 18px; font-weight: 600; }
+.tile small { color: var(--muted); font-size: 13px; }
+.champs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.champs li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.champs img, .champs .noimg { width: 44px; height: 44px; border-radius: 6px; background: var(--raised); }
+.champs .sub { color: var(--muted); font-size: 14px; }
+.champs .wr { font-weight: 600; }
+footer { display: grid; gap: 8px; text-align: center; }
+.legal { font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="icon-192.png" alt=""><span>Premade profile</span></header>
+  <p id="bad" class="panel" hidden>This profile link is broken or cut off. Ask for the whole link again.</p>
+  <section id="top" class="panel" hidden>
+    <h1 id="name"></h1>
+    <p id="when" class="hint"></p>
+    <div id="ranks" class="tiles"></div>
+  </section>
+  <section id="games" class="panel" aria-labelledby="gamesHead" hidden>
+    <h2 id="gamesHead">Last games</h2>
+    <div id="nums" class="tiles"></div>
+  </section>
+  <section id="champsBox" class="panel" aria-labelledby="champsHead" hidden>
+    <h2 id="champsHead">Top champions</h2>
+    <ul id="champs" class="champs"></ul>
+  </section>
+  <section id="fameBox" class="panel" aria-labelledby="fameHead" hidden>
+    <h2 id="fameHead">Highlights</h2>
+    <div id="fame" class="tiles"></div>
+  </section>
+  <footer class="hint">
+    <p>Made with <a href="./">Premade</a>, proximity voice chat and game tools for League of Legends.</p>
+    <p class="legal">Premade isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
+  </footer>
+</main>
+<script>
+const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
+const POS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Middle', BOTTOM: 'Bottom', UTILITY: 'Support' };
+const $ = (id) => document.getElementById(id);
+// the link is someone else's text: numbers are clamped, strings cut short, and nothing is put in as HTML
+const num = (v, hi = 1e13) => (Number.isFinite(v) ? Math.min(hi, Math.max(0, v)) : 0);
+const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+const cap = (s) => s.charAt(0) + s.slice(1).toLowerCase();
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const day = (t, year) => new Date(t).toLocaleDateString([], { month: year ? 'long' : 'short', day: 'numeric', ...(year && { year: 'numeric' }) });
+function tile(label, big, small) {
+  const t = el('div', 'tile');
+  t.append(el('b', '', label), el('span', '', big));
+  if (small) t.append(el('small', '', small));
+  return t;
+}
+async function unpack(h) { // base64url of deflated JSON, at most 30 KB once unpacked
+  if (!h || h.length > 8000 || !/^[\w-]+$/.test(h)) throw new Error('not a profile');
+  const bytes = Uint8Array.from(atob(h.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  const r = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader(), dec = new TextDecoder();
+  let s = '';
+  for (;;) {
+    const { done, value } = await r.read();
+    if (done) break;
+    s += dec.decode(value, { stream: true });
+    if (s.length > 30000) throw new Error('too big');
+  }
+  return JSON.parse(s);
+}
+function rank(r) { // [tier, division, LP, wins, losses] -> [rank, LP and win rate]
+  if (!Array.isArray(r) || !TIERS.includes(r[0])) return null;
+  const w = num(r[3], 1e5), n = w + num(r[4], 1e5);
+  return [`${cap(r[0])}${TIERS.indexOf(r[0]) < 7 && /^(I|II|III|IV)$/.test(r[1]) ? ' ' + r[1] : ''}`, `${num(r[2], 1e5)} LP${n ? ` · ${Math.round((100 * w) / n)}% of ${n}` : ''}`];
+}
+(async () => {
+  let p;
+  try {
+    p = await unpack(location.hash.slice(1));
+    if (!p || p.v !== 1) throw new Error('not a profile');
+  } catch {
+    $('bad').hidden = false;
+    return;
+  }
+  const dd = /^[\d.]{1,20}$/.test(p.dd) ? p.dd : '';
+  const pic = (id) => (dd && /^[A-Za-z0-9]{1,30}$/.test(id) ? `https://ddragon.leagueoflegends.com/cdn/${dd}/img/champion/${id}.png` : '');
+  const kda = (k, d, a) => `${num(k, 100)} / ${num(d, 100)} / ${num(a, 100)}`;
+  const name = str(p.n, 40) || 'A League player';
+  document.title = `${name} · League profile`;
+  $('name').textContent = name;
+  $('when').textContent = num(p.at) ? `As of ${day(num(p.at), true)}` : '';
+  const rk = Array.isArray(p.rk) ? p.rk : [];
+  $('ranks').replaceChildren(...[['Solo/Duo', rank(rk[0])], ['Flex', rank(rk[1])]].map(([q, r]) => tile(q, r ? r[0] : 'Unranked', r ? r[1] : '')));
+  $('top').hidden = false;
+
+  const g = Array.isArray(p.g) ? p.g : [], n = num(g[0], 1000), w = num(g[1], n), k = Array.isArray(p.kda) ? p.kda : [];
+  if (n) {
+    $('gamesHead').textContent = `Last ${n} game${n === 1 ? '' : 's'}`;
+    $('nums').replaceChildren(...[
+      tile('Record', `${w}W ${n - w}L`, `${Math.round((100 * w) / n)}% won`),
+      tile('Average KDA', kda(k[0], k[1], k[2]), `${((num(k[0], 100) + num(k[2], 100)) / Math.max(1, num(k[1], 100))).toFixed(1)} ratio`),
+      num(p.cs, 30) ? tile('CS a minute', String(num(p.cs, 30)), 'on Summoner’s Rift') : null,
+      POS[p.role] ? tile('Main role', POS[p.role]) : null,
+      num(g[2]) >= 3600 ? tile('Time played', `${Math.round(num(g[2]) / 3600)} hours`) : null,
+    ].filter(Boolean));
+    $('games').hidden = false;
+  }
+
+  const cs = (Array.isArray(p.c) ? p.c : []).filter(Array.isArray).slice(0, 5);
+  $('champs').replaceChildren(...cs.map((c) => {
+    const li = el('li'), src = pic(c[0]), games = num(c[2], 1000), wins = num(c[3], games), mid = el('div');
+    if (src) { const img = el('img'); img.alt = ''; img.width = img.height = 44; img.src = src; li.append(img); } else li.append(el('span', 'noimg'));
+    mid.append(el('div', '', str(c[1], 30) || 'A champion'), el('div', 'sub', `${games} game${games === 1 ? '' : 's'} · ${kda(c[4], c[5], c[6])}`));
+    li.append(mid, el('span', 'wr', games ? `${Math.round((100 * wins) / games)}%` : ''));
+    return li;
+  }));
+  $('champsBox').hidden = !cs.length;
+
+  const f = Array.isArray(p.f) ? p.f : [], b = Array.isArray(p.best) ? p.best : null;
+  const hi = [
+    num(f[0], 1e4) ? tile('Pentakills', String(num(f[0], 1e4))) : null,
+    num(f[1], 1e4) ? tile('Quadrakills', String(num(f[1], 1e4))) : null,
+    num(f[2], 1e4) > 1 ? tile('Longest win streak', `${num(f[2], 1e4)} in a row`) : null,
+    b ? tile('Best game', `${str(b[1], 30) || 'A champion'} ${num(b[2], 100)}/${num(b[3], 100)}/${num(b[4], 100)}`, `${b[5] ? 'A win' : 'A loss'}${num(b[6]) ? ', ' + day(num(b[6])) : ''}`) : null,
+  ].filter(Boolean);
+  $('fame').replaceChildren(...hi);
+  $('fameBox').hidden = !hi.length;
+})();
+</script>
+</body>
+</html>

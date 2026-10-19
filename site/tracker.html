@@ -1,0 +1,415 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Minimap Camera Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Saira+Semi+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: a workbench. The screenshot sits on the left, the zoomed minimap and its readout on the right; they stack on phones. */
+:root {
+  --bg: #eef2f4; --panel: #ffffff; --fg: #15212b; --muted: #566673; --line: #d3dce2;
+  --accent: #136b7a; --accent-fg: #ffffff; --good: #1a7443; --bad: #ad2a20;
+  --box: #f2b630; /* detected camera box, always drawn on the dark minimap */
+  --icon: #7fe0ff; /* blue-ringed champion icons found, drawn on the dark minimap */
+  --display: "Saira Semi Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1419; --panel: #152029; --fg: #e1e9ee; --muted: #8fa1ad; --line: #26343f;
+    --accent: #58bccd; --accent-fg: #071116; --good: #5ccf8c; --bad: #ff8b7e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1419; --panel: #152029; --fg: #e1e9ee; --muted: #8fa1ad; --line: #26343f;
+  --accent: #58bccd; --accent-fg: #071116; --good: #5ccf8c; --bad: #ff8b7e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 40px; display: grid; gap: 20px; }
+header { display: grid; gap: 6px; max-width: 70ch; }
+h1 { margin: 0; font: 700 clamp(28px, 4vw, 38px)/1.05 var(--display); letter-spacing: 0.01em; text-wrap: balance; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+header p { margin: 0; color: var(--muted); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.btn { font: 600 14px/1 var(--body); padding: 10px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn:focus-visible, .chip:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { color: var(--muted); font-size: 14px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { margin: 0; font: 600 13px/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+#screen { width: 100%; height: auto; display: block; border-radius: 4px; background: #000; cursor: crosshair; touch-action: none; }
+#mini { width: 100%; max-width: 360px; aspect-ratio: 1; height: auto; display: block; border-radius: 4px; background: #000; image-rendering: pixelated; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 13px/1 var(--mono); padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: var(--muted); vertical-align: 0; }
+.chip[data-state="good"]::before { background: var(--good); }
+.chip[data-state="bad"]::before { background: var(--bad); }
+.pill { justify-self: start; font: 600 13px/1 var(--body); padding: 7px 11px; border-radius: 999px; border: 1px solid currentColor; color: var(--muted); }
+.pill[data-state="good"] { color: var(--good); }
+.pill[data-state="bad"] { color: var(--bad); }
+dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; }
+dt { color: var(--muted); font-size: 14px; }
+dd { margin: 0; font: 500 14px/1.5 var(--mono); font-variant-numeric: tabular-nums; }
+#msg { margin: 0; color: var(--bad); font-size: 14px; }
+#msg:empty { display: none; }
+.legend { margin: 0; color: var(--muted); font-size: 13px; }
+.legend b { font-weight: 600; color: var(--fg); }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Premade · step 1</span>
+    <h1>Minimap Camera Tracker</h1>
+    <p>Checks that the app can see your minimap: the white camera box and the champion icons with your team's blue ring. Live, it also shows which icon it follows as you; until it knows, it uses the camera box.</p>
+  </header>
+
+  <div class="toolbar">
+    <label class="btn primary" for="files">Add screenshots</label>
+    <input id="files" type="file" accept="image/*" multiple hidden>
+    <button id="live" class="btn" type="button">Share screen (live)</button>
+    <span class="hint">You can also paste a screenshot with Ctrl+V or drop images anywhere on the page.</span>
+  </div>
+  <p id="msg" role="status"></p>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-screen">
+      <div class="row">
+        <h2 id="h-screen">Screen</h2>
+        <button id="resetCrop" class="btn" type="button">Find minimap again</button>
+      </div>
+      <canvas id="screen" width="960" height="540" aria-label="Screenshot preview. Drag to draw a square around the minimap."></canvas>
+      <p class="legend">The page finds your minimap on its own, at any Minimap Scale. If the dashed square is off, drag a new one around the minimap.</p>
+      <div id="shots" class="chips" aria-label="Screenshots"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-mini">
+      <h2 id="h-mini">Minimap</h2>
+      <canvas id="mini" width="360" height="360" aria-label="Zoomed minimap with the detected camera box"></canvas>
+      <p class="legend"><b>Gold box</b>: the camera box the app found. <b>Blue circles</b>: champion icons with your team's ring. <b>Gold dot and dashed circle</b>: the spot used as you and its hearing range, about 1,350 game units. <b>Dots</b>: where you were over the last minute (live only).</p>
+      <span id="status" class="pill">No image yet</span>
+      <dl>
+        <dt>Minimap</dt><dd id="square">–</dd>
+        <dt>Following</dt><dd id="by">–</dd>
+        <dt>Position</dt><dd id="pos">–</dd>
+        <dt>Champion icons</dt><dd id="icons">–</dd>
+        <dt>Outline match</dt><dd id="match">–</dd>
+        <dt>Box size</dt><dd id="size">–</dd>
+        <dt>Found rate</dt><dd id="rate">live mode only</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+
+<script src="camera-box.js"></script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const screenCv = $('screen'), sctx = screenCv.getContext('2d');
+  const miniCv = $('mini'), mctx = miniCv.getContext('2d');
+  const cctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  const HEARING = 1350 / 14870; // hearing range over the width of Summoner's Rift, in game units
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const shots = [];   // { name, src, w, h, auto, res }
+  let current = 0;
+  let live = null;    // { track, w, h, auto, frames, follower, trail, seen }
+  let drag = null, dragRect = null;
+
+  // ---- minimap square: found from the minimap's gold frame, unless you dragged one (kept per screen size)
+  const manual = {};
+  function manualSquare(w, h) {
+    const key = w + 'x' + h;
+    if (!(key in manual)) {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem('crop:' + key)); } catch {}
+      manual[key] = saved && saved.s ? saved : null;
+    }
+    const c = manual[key];
+    return c && { x: w - c.dx - c.s, y: h - c.dy - c.s, s: c.s };
+  }
+  function setManual(w, h, c) {
+    const key = w + 'x' + h;
+    manual[key] = c ? { s: c.s, dx: w - c.x - c.s, dy: h - c.y - c.s } : null;
+    try { c ? localStorage.setItem('crop:' + key, JSON.stringify(manual[key])) : localStorage.removeItem('crop:' + key); } catch {}
+  }
+  // item is a screenshot or the live share: anything with w, h and the square found for it (auto)
+  function squareFor(item) {
+    const m = manualSquare(item.w, item.h);
+    if (m) return { ...m, how: 'set by you' };
+    if (item.auto) return { ...item.auto, how: 'found automatically' };
+    const s = Math.round(item.h * 0.3);
+    return { x: item.w - s, y: item.h - s, s, how: 'not found, using the corner' };
+  }
+  const autoSquare = (src, w, h) => CameraBox.locateMinimap(cctx, src, w, h);
+  function cropPixels(src, item) {
+    const c = squareFor(item);
+    return { data: CameraBox.minimapPixels(cctx, src, c), s: c.s };
+  }
+
+  // ---- drawing
+  // res: the camera box found; fol: the Follower's answer (live only); icons: blue-ringed icons in minimap pixels
+  function draw(src, item, res, trail, fol, icons) {
+    const { w, h } = item;
+    const scale = Math.min(1, 1100 / w);
+    const cw = Math.round(w * scale), ch = Math.round(h * scale);
+    if (screenCv.width !== cw || screenCv.height !== ch) { screenCv.width = cw; screenCv.height = ch; }
+    sctx.drawImage(src, 0, 0, cw, ch);
+    const sq = squareFor(item), c = dragRect || sq;
+    sctx.lineWidth = 2; sctx.strokeStyle = css('--box'); sctx.setLineDash([8, 5]);
+    sctx.strokeRect(c.x * scale + 1, c.y * scale + 1, c.s * scale - 2, c.s * scale - 2);
+    sctx.setLineDash([]);
+
+    const S = miniCv.width, k = S / sq.s;
+    mctx.imageSmoothingEnabled = false;
+    mctx.fillStyle = '#000'; mctx.fillRect(0, 0, S, S);
+    mctx.drawImage(src, sq.x, sq.y, sq.s, sq.s, 0, 0, S, S);
+    if (trail && trail.length) {
+      const now = performance.now();
+      for (const p of trail) {
+        mctx.globalAlpha = Math.max(0.15, 1 - (now - p.t) / 60000);
+        mctx.fillStyle = css('--box');
+        mctx.fillRect(p.x * S - 2, p.y * S - 2, 4, 4);
+      }
+      mctx.globalAlpha = 1;
+    }
+    mctx.strokeStyle = css('--icon'); mctx.lineWidth = 1.5;
+    for (const i of icons || []) { mctx.beginPath(); mctx.arc(i.x * k, i.y * k, (CameraBox.RING * sq.s + 3) * k, 0, Math.PI * 2); mctx.stroke(); }
+    if (res && res.found) {
+      mctx.strokeStyle = css('--box');
+      mctx.lineWidth = 2;
+      mctx.strokeRect(res.box.x * k, res.box.y * k, res.box.w * k, res.box.h * k);
+    }
+    const spot = fol ? fol.found && fol : res && res.found && { x: res.cx, y: res.cy };
+    if (spot) {
+      const cx = spot.x * S, cy = spot.y * S;
+      mctx.strokeStyle = css('--box');
+      mctx.setLineDash([5, 5]); mctx.lineWidth = 1.5;
+      mctx.beginPath(); mctx.arc(cx, cy, HEARING * S, 0, Math.PI * 2); mctx.stroke();
+      mctx.setLineDash([]);
+      mctx.fillStyle = css('--box');
+      mctx.beginPath(); mctx.arc(cx, cy, 4, 0, Math.PI * 2); mctx.fill();
+    }
+    readout(res, sq, fol, icons);
+  }
+
+  const pct = (v) => Math.round(v * 100) + '%';
+  function readout(res, sq, fol, icons) {
+    $('square').textContent = sq ? `${sq.how}, ${sq.s} px` : '–';
+    const st = $('status');
+    st.textContent = !res ? 'No image yet' : fol && fol.by === 'icon' ? 'Following your champion' : res.found ? 'Camera box found' : 'Camera box not found';
+    st.dataset.state = !res ? '' : res.found || (fol && fol.found) ? 'good' : 'bad';
+    $('by').textContent = !res ? '–' : !fol ? 'the camera box (live mode follows your champion)'
+      : fol.by === 'icon' ? 'your champion’s icon'
+      : fol.learned ? 'the camera box: your champion isn’t on the minimap'
+      : 'the camera box, until it knows your icon: hold Space a couple of seconds while you walk';
+    const spot = fol ? fol.found && fol : res && res.found && { x: res.cx, y: res.cy };
+    $('pos').textContent = spot ? `${pct(spot.x)} across, ${pct(spot.y)} down` : '–';
+    $('icons').textContent = icons ? `${icons.length} with your team’s blue ring` : '–';
+    $('match').textContent = res ? `${pct(res.score)} of the visible outline is white` : '–';
+    $('size').textContent = res && res.box ? `${res.box.w} × ${res.box.h} px` : 'not learned yet';
+    if (live) {
+      const seen = live.seen;
+      $('rate').textContent = seen.length ? `${pct(seen.filter((f) => f.found).length / seen.length)} of ${seen.length} frames, last minute` : 'waiting for frames';
+    } else {
+      $('rate').textContent = 'live mode only';
+    }
+  }
+
+  function say(text) { $('msg').textContent = text || ''; }
+
+  // ---- screenshots
+  function analyzeShots() {
+    // Two passes: the first teaches each tracker the box size from every shot of that size, the second reads them.
+    const trackers = {};
+    for (let pass = 0; pass < 2; pass++) {
+      for (const shot of shots) {
+        const t = trackers[shot.w + 'x' + shot.h] || (trackers[shot.w + 'x' + shot.h] = new CameraBox.Tracker());
+        const px = cropPixels(shot.src, shot);
+        shot.res = t.update(px.data, px.s, px.s);
+        shot.icons = CameraBox.findIcons(px.data, px.s);
+      }
+    }
+  }
+
+  function renderShots() {
+    const list = $('shots');
+    list.replaceChildren();
+    shots.forEach((shot, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.setAttribute('aria-pressed', String(!live && i === current));
+      b.dataset.state = shot.res && shot.res.found ? 'good' : 'bad';
+      b.textContent = `${shot.name} · ${shot.res && shot.res.found ? 'found' : 'missed'}`;
+      b.title = shot.name;
+      b.addEventListener('click', () => { if (live) stopLive(); current = i; showShot(); });
+      list.append(b);
+    });
+  }
+
+  function showShot() {
+    const shot = shots[current];
+    if (shot) draw(shot.src, shot, shot.res, null, null, shot.icons);
+    renderShots();
+  }
+
+  function refresh() { analyzeShots(); showShot(); }
+
+  async function addFiles(files) {
+    const images = [...files].filter((f) => f.type.startsWith('image/'));
+    if (!images.length) return;
+    say('');
+    const first = shots.length;
+    for (const f of images) {
+      try {
+        const bmp = await createImageBitmap(f);
+        const w = bmp.width, h = bmp.height;
+        shots.push({ name: f.name && f.name !== 'image.png' ? f.name : `Screenshot ${shots.length}`, src: bmp, w, h, auto: autoSquare(bmp, w, h) });
+      } catch {
+        say(`Could not open ${f.name || 'that image'}. Try a PNG or JPG screenshot.`);
+      }
+    }
+    if (shots.length > first) {
+      if (live) stopLive();
+      current = first;
+      refresh();
+    }
+  }
+
+  // An example drawn by this page (not a real game), so the tool shows what it does before you add anything.
+  function exampleShot() {
+    const w = 960, h = 540, s = Math.round(h * 0.3), ox = w - s, oy = h - s;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    const sky = g.createLinearGradient(0, 0, w, h);
+    sky.addColorStop(0, '#1d2d26'); sky.addColorStop(1, '#2c3a2a');
+    g.fillStyle = sky; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,0.06)';
+    g.font = '600 22px sans-serif';
+    g.fillText('Example screen, drawn by this page', 28, 48);
+    g.fillStyle = '#0b100d'; g.fillRect(ox, oy, s, s);
+    g.fillStyle = '#26352a'; g.fillRect(ox + 4, oy + 4, s - 8, s - 8);
+    g.fillStyle = '#a0874f'; g.fillRect(ox, oy, s, 2); g.fillRect(ox, oy, 2, s); // gold frame on the left and top
+    const line = (pts, color, width) => {
+      g.strokeStyle = color; g.lineWidth = width; g.lineJoin = 'round'; g.beginPath();
+      pts.forEach(([x, y], i) => (i ? g.lineTo(ox + x * s, oy + y * s) : g.moveTo(ox + x * s, oy + y * s)));
+      g.stroke();
+    };
+    line([[0.12, 0.12], [0.88, 0.88]], '#2b5562', 9);                    // river
+    line([[0.09, 0.82], [0.09, 0.09], [0.82, 0.09]], '#8c9776', 6);      // top lane
+    line([[0.18, 0.91], [0.91, 0.91], [0.91, 0.18]], '#8c9776', 6);      // bot lane
+    line([[0.15, 0.85], [0.85, 0.15]], '#8c9776', 6);                    // mid lane
+    g.fillStyle = '#2f6f8a'; g.fillRect(ox + 6, oy + s - 34, 28, 28);    // blue base
+    g.fillStyle = '#8a3a33'; g.fillRect(ox + s - 34, oy + 6, 28, 28);    // red base
+    const icon = (x, y, ring) => {
+      g.fillStyle = '#6b5a4a'; g.beginPath(); g.arc(ox + x * s, oy + y * s, 7, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = ring; g.lineWidth = 2; g.stroke();
+    };
+    icon(0.45, 0.52, '#2fb5c6'); icon(0.53, 0.46, '#d6453d'); icon(0.09, 0.3, '#2fb5c6'); icon(0.8, 0.91, '#2fb5c6'); icon(0.86, 0.91, '#d6453d');
+    const bw = Math.round(s * 0.21), bh = Math.round(s * 0.13);
+    g.strokeStyle = '#ffffff'; g.lineWidth = 1;
+    g.strokeRect(Math.round(ox + 0.49 * s - bw / 2) + 0.5, Math.round(oy + 0.49 * s - bh / 2) + 0.5, bw - 1, bh - 1);
+    return { name: 'Example (drawn, not a real game)', src: cv, w, h, auto: autoSquare(cv, w, h) };
+  }
+
+  // ---- live screen share
+  async function startLive() {
+    say('');
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 10 }, audio: false });
+    } catch (e) {
+      say(window.top === window
+        ? 'Screen sharing was cancelled.'
+        : 'This page can’t share your screen while it is open on claude.ai. To try it live, open https://league-proxchat.netlify.app/tracker.html in Chrome or Edge.');
+      return;
+    }
+    const track = stream.getVideoTracks()[0];
+    live = { track, w: 0, h: 0, auto: null, frames: 0, follower: new CameraBox.Follower(), trail: [], seen: [] };
+    track.addEventListener('ended', stopLive);
+    $('live').textContent = 'Stop sharing';
+    renderShots();
+
+    const onFrame = (src, w, h) => {
+      if (!live) return;
+      const now = performance.now();
+      live.w = w; live.h = h;
+      if (live.frames++ % 50 === 0) live.auto = autoSquare(src, w, h) || live.auto; // every 5 s, in case Minimap Scale changes
+      const px = cropPixels(src, live);
+      const fol = live.follower.update(px.data, px.s, now), res = fol.cam;
+      live.seen.push({ t: now, found: fol.found });
+      if (fol.found) live.trail.push({ t: now, x: fol.x, y: fol.y });
+      while (live.seen.length && now - live.seen[0].t > 60000) live.seen.shift();
+      while (live.trail.length && now - live.trail[0].t > 60000) live.trail.shift();
+      if (document.visibilityState === 'visible') draw(src, live, res, live.trail, fol, fol.icons);
+    };
+
+    live.stop = CameraBox.watch(stream, 100, onFrame);
+  }
+
+  function stopLive() {
+    if (!live) return;
+    live.stop();
+    live.track.stop();
+    live = null;
+    $('live').textContent = 'Share screen (live)';
+    showShot();
+  }
+
+  // ---- input
+  $('files').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+  document.addEventListener('paste', (e) => addFiles(e.clipboardData ? e.clipboardData.files : []));
+  document.addEventListener('dragover', (e) => e.preventDefault());
+  document.addEventListener('drop', (e) => { e.preventDefault(); addFiles(e.dataTransfer.files); });
+  $('live').addEventListener('click', () => (live ? stopLive() : startLive()));
+
+  const size = () => (live ? live : shots[current] || null);
+  $('resetCrop').addEventListener('click', () => {
+    const sz = size();
+    if (!sz || !sz.w) return;
+    setManual(sz.w, sz.h, null);
+    if (live) live.frames = 0; // look for the minimap again on the next frame
+    else refresh();
+  });
+
+  function toSource(e, sz) {
+    const r = screenCv.getBoundingClientRect();
+    return { x: ((e.clientX - r.left) / r.width) * sz.w, y: ((e.clientY - r.top) / r.height) * sz.h };
+  }
+  screenCv.addEventListener('pointerdown', (e) => {
+    const sz = size();
+    if (!sz || !sz.w) return;
+    screenCv.setPointerCapture(e.pointerId);
+    drag = { start: toSource(e, sz), sz };
+  });
+  screenCv.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const { start, sz } = drag, p = toSource(e, sz);
+    let s = Math.max(Math.abs(p.x - start.x), Math.abs(p.y - start.y));
+    const nx = Math.max(0, p.x < start.x ? start.x - s : start.x), ny = Math.max(0, p.y < start.y ? start.y - s : start.y);
+    s = Math.min(s, sz.w - nx, sz.h - ny);
+    dragRect = { x: Math.round(nx), y: Math.round(ny), s: Math.round(s) };
+    if (!live) showShot();
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    const { sz } = drag;
+    drag = null;
+    if (dragRect && dragRect.s >= 40) setManual(sz.w, sz.h, dragRect);
+    dragRect = null;
+    if (!live) refresh();
+  };
+  screenCv.addEventListener('pointerup', endDrag);
+  screenCv.addEventListener('pointercancel', endDrag);
+
+  shots.push(exampleShot());
+  refresh();
+})();
+</script>

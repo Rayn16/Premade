@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Premade overlay</title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+body { box-sizing: border-box; padding: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font: 600 14px/1.2 'Segoe UI', system-ui, sans-serif; color: #f0e6d2; text-shadow: 0 1px 2px #000; user-select: none; }
+body[data-pos="ml"], body[data-pos="mr"] { justify-content: center; }
+body[data-pos="mr"] { align-items: flex-end; }
+.pill { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 3px 14px 3px 3px; border: 1px solid #785a28; border-radius: 999px; background: rgb(1 10 19 / 0.85); }
+.pic { flex: none; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #0f1e35; border: 2px solid #0ac8b9; box-shadow: 0 0 10px #0ac8b9; color: #c8aa6e; font: 700 13px/1 Georgia, serif; }
+.pic img { width: 100%; height: 100%; object-fit: cover; }
+.enemy .pic { border-color: #ff5c5c; box-shadow: 0 0 10px #ff5c5c; }
+.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { padding: 5px 14px 5px 10px; border-color: #ff6b6b; color: #ffb3b3; }
+.toast { max-width: 100%; box-sizing: border-box; padding: 6px 12px; border: 1px solid #785a28; border-radius: 6px; background: rgb(10 20 40 / 0.9); font-weight: 500; white-space: pre-line; overflow-wrap: anywhere; }
+.chat b { color: #c8aa6e; margin-right: 6px; }
+.swap { border-color: #0ac8b9; color: #0ac8b9; font-weight: 600; }
+.note { padding: 4px 12px; font-weight: 500; font-size: 13px; }
+.game { border-color: #c8aa6e; font-variant-numeric: tabular-nums; }
+svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+/* Move it: a frame you can drag anywhere, with a sample of what shows in it */
+body.edit { outline: 2px dashed #c8aa6e; outline-offset: -2px; background: rgb(1 10 19 / 0.4); -webkit-app-region: drag; cursor: move; }
+.edit .toast { border-color: #c8aa6e; }
+button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; border: 1px solid #c8aa6e; border-radius: 4px; background: #0ac8b9; color: #010a13; font: 600 13px/1.2 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+</style>
+</head>
+<body data-pos="tl">
+<script>
+  // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
+  // index.html fills it through the client with what Settings picks: the objective timers, kills and gold difference
+  // (game), your CS a minute (cs), your mic when it's muted or you're talking, who can hear you, the effects on your
+  // voice, who's talking (a teal glow, red for the other team), voice swap's countdown, room chat and the last popups,
+  // as see-through as the slider says (opacity). While you move it (edit), it shows a frame and a sample.
+  const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
+  const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
+  function pill(name, pic, team) {
+    const p = el('pill' + (team === 'enemy' ? ' enemy' : '')), face = document.createElement('span'), n = document.createElement('span');
+    face.className = 'pic';
+    if (pic) { const img = new Image(); img.alt = ''; img.src = pic; face.append(img); } else face.textContent = name.slice(0, 1).toUpperCase();
+    n.className = 'name';
+    n.textContent = name;
+    p.append(face, n);
+    return p;
+  }
+  window.lpcClient.on('overlay', (s) => {
+    if (!s.visible) return document.body.replaceChildren();
+    document.body.dataset.pos = s.pos === 'mr' || s.pos === 'ml' ? s.pos : 'tl';
+    document.body.style.zoom = s.scale || 1;
+    document.body.style.opacity = s.edit ? 1 : Math.min(1, Math.max(0.2, +s.opacity || 1));
+    document.body.classList.toggle('edit', !!s.edit);
+    const out = [];
+    if (s.edit) {
+      const hint = el('toast', 'Drag this where you want it');
+      const done = document.createElement('button');
+      done.textContent = 'Done';
+      done.onclick = () => window.lpcClient.overlayDone();
+      hint.append(done);
+      out.push(hint);
+      if (!(s.talkers || []).length) out.push(pill('A friend talking', '', ''));
+    }
+    if (s.game) out.push(el('toast game', String(s.game)));
+    if (s.cs) out.push(el('toast game', String(s.cs)));
+    if (s.muted) {
+      const m = el('pill muted');
+      m.innerHTML = MIC + '<path d="M4 4l16 16"/></svg>';
+      m.append('You’re muted');
+      out.push(m);
+    } else if (s.talking) {
+      const you = pill('You', '', '');
+      you.firstChild.innerHTML = MIC + '</svg>';
+      out.push(you);
+    }
+    if (s.hear) out.push(el('pill note', s.hear.length ? `Heard by ${s.hear.join(', ')}` : 'No teammate can hear you'));
+    if (s.fx && s.fx.length) out.push(el('pill note', `Your voice: ${s.fx.join(', ')}`));
+    for (const t of s.talkers || []) out.push(pill(String(t.name), t.pic, t.team));
+    if (s.swapIn) out.push(el('toast swap', `Voices swap in ${s.swapIn}…`));
+    for (const c of s.chat || []) {
+      const m = el('toast chat'), b = document.createElement('b');
+      b.textContent = String(c.name);
+      m.append(b, String(c.text));
+      out.push(m);
+    }
+    for (const t of s.toasts || []) out.push(el('toast', String(t)));
+    document.body.replaceChildren(...out);
+  });
+</script>
+</body>
+</html>

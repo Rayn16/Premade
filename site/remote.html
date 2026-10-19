@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone Remote</title>
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="remote-manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LPC Remote">
+<meta name="theme-color" content="#010a13">
+<style>
+/* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone
+   (index.html's Game page shows the QR code that opens it). It can live on the home screen (remote-manifest.json).
+   The same navy and gold as the app. */
+:root {
+  --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
+  --gold: #c8aa6e; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --good: #3ccf8e; --bad: #ff6b6b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 520px; margin: 0 auto; padding: 16px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+header { display: flex; align-items: center; gap: 10px; }
+header img { width: 32px; height: 32px; border-radius: 6px; }
+h1 { flex: 1; margin: 0; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+h2 { margin: 0; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+p { margin: 0; }
+.hint { color: var(--muted); font-size: 14px; }
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.dot[data-on] { background: var(--good); }
+.phase { padding: 10px 14px; border-left: 3px solid var(--gold-line); border-radius: 6px; background: var(--panel); }
+.panel { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.btn { padding: 14px 18px; border: 1px solid var(--gold-line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 600 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn:disabled { opacity: 0.5; }
+.btn.small { padding: 9px 12px; font-size: 14px; }
+.trade { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.trade span { flex: 1 1 100%; color: var(--muted); font-size: 14px; }
+input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; min-width: 0; }
+input[type="search"] { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.ch { display: grid; justify-items: center; gap: 4px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+.ch img { width: 52px; height: 52px; border-radius: 6px; background: var(--bg); }
+.ch[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.team { display: flex; flex-wrap: wrap; gap: 6px; }
+.team img, .team span { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--gold-line); background: var(--raised); }
+.team [data-me] { border-color: var(--gold); }
+.timers { display: flex; flex-wrap: wrap; gap: 8px; }
+.timers span { display: grid; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font: 500 16px/1.2 ui-monospace, Consolas, monospace; }
+.timers b { font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.check { display: flex; align-items: center; gap: 10px; }
+input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
+:is(.btn, .ch, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="icon-192.png" alt=""><h1>Phone remote</h1><span class="state"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></span></header>
+  <p id="phase" class="phase" role="status">Connecting to the app on your PC…</p>
+  <form id="linkForm" class="panel" hidden>
+    <p>Scan the QR code in the app on your PC (Game page, Phone remote), or paste its link here:</p>
+    <input id="link" type="url" autocomplete="off" spellcheck="false" placeholder="https://…/remote.html#…" aria-label="Phone remote link">
+    <button class="btn primary">Connect</button>
+  </form>
+  <section id="queue" class="panel" aria-labelledby="h-queue" hidden>
+    <h2 id="h-queue">Queue</h2>
+    <p id="queueState" role="status"></p>
+    <button id="queueBtn" class="btn primary" type="button">Find match</button>
+  </section>
+  <section id="rc" class="panel" aria-labelledby="h-rc" hidden>
+    <h2 id="h-rc">Match found</h2>
+    <p id="rcLeft" role="status"></p>
+    <div class="row"><button id="accept" class="btn primary" type="button">Accept</button><button id="decline" class="btn" type="button">Decline</button></div>
+  </section>
+  <section id="cs" class="panel" aria-labelledby="h-cs" hidden>
+    <h2 id="h-cs">Champ select</h2>
+    <p id="turn" role="status"></p>
+    <div id="team" class="team" aria-label="Your team"></div>
+    <div id="trades"></div>
+    <p id="theirs" class="hint"></p>
+    <p id="picksHead" class="hint">Your champions for this role: tap to hover, tap again on your turn to lock in.</p>
+    <div id="picks" class="grid"></div>
+    <form id="find" class="row">
+      <input id="q" type="search" list="names" autocomplete="off" spellcheck="false" placeholder="Any champion" aria-label="Champion name">
+      <button id="hover" class="btn">Hover</button>
+    </form>
+    <datalist id="names"></datalist>
+    <button id="lock" class="btn primary" type="button">Lock in</button>
+  </section>
+  <section id="game" class="panel" aria-labelledby="h-game" hidden>
+    <h2 id="h-game">In game</h2>
+    <div id="timers" class="timers"></div>
+  </section>
+  <label class="check"><input id="auto" type="checkbox"> Accept matches for me</label>
+  <p id="sound" class="hint" hidden>Tap anywhere to turn on the ring when a match is found.</p>
+  <label id="awakeRow" class="check" hidden><input id="awake" type="checkbox"> Keep the screen on while this page is open</label>
+  <p id="install" class="hint" hidden>Put the remote on your home screen: in Chrome, the ⋮ menu, Add to Home screen; on an iPhone, Safari’s Share button, Add to Home Screen. <button id="installBtn" class="btn small" type="button" hidden>Add it now</button></p>
+  <p class="hint">This page talks to Premade on your PC, which talks to League. Keep the link to yourself: anyone with it can accept and pick for you while the app is open.</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
+<script>
+(() => {
+  // The PC's page is lolprox-r<code>-0 on our connection server; this phone takes the first free one of -1 to -9 and
+  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game } (index.html remoteState) whenever it
+  // changes; this page sends accept, decline, hover, lock, auto, queue and trade. The code is kept on the phone, so the
+  // home screen icon (which opens remote.html with no code) connects too.
+  const $ = (id) => document.getElementById(id);
+  const local = new URLSearchParams(location.search).get('peer'); // ?peer=127.0.0.1:9000 for tests, as in index.html
+  const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
+    : { host: 'league-proxchat.league-proxchat-server.workers.dev', port: 443, secure: true, path: '/' };
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  const valid = (c) => /^[a-z0-9]{12}$/.test(c || '');
+  if (valid(location.hash.slice(1))) store.set('lpc-remote-code', location.hash.slice(1));
+  const code = valid(location.hash.slice(1)) ? location.hash.slice(1) : store.get('lpc-remote-code') || '', pc = `lolprox-r${code}-0`;
+  const POS = { TOP: 'top', JUNGLE: 'jungle', MIDDLE: 'mid', BOTTOM: 'bot', UTILITY: 'support' };
+  const PHASE = { '': 'League isn’t running on your PC.', None: 'In League’s client.', Lobby: 'In a lobby.', Matchmaking: 'Finding a match…', ReadyCheck: 'Match found!',
+    ChampSelect: 'In champ select.', GameStart: 'Loading into the game.', InProgress: 'In game.', Reconnect: 'In game.', WaitingForStats: 'Game over.', PreEndOfGame: 'Game over.', EndOfGame: 'Game over.' };
+  let peer = null, conn = null, state = null, redial = 0, ddv = '';
+  const champs = {}; // number -> Data Dragon's champion
+  const send = (m) => { if (conn && conn.open) conn.send(m); };
+  const name = (k) => (champs[k] || {}).name || 'a champion';
+  const pic = (k) => (champs[k] && ddv ? `https://ddragon.leagueoflegends.com/cdn/${ddv}/img/champion/${champs[k].id}.png` : '');
+  const mmss = (s) => (s <= 0 ? 'up' : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
+  const goldText = (g) => (Math.abs(g) < 100 ? 'even' : `${g > 0 ? '+' : '−'}${(Math.abs(g) / 1000).toFixed(1)}k`);
+  // on the home screen? If not, how to put it there (Chrome also offers its own button)
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  $('install').hidden = standalone;
+  let installAsk = null;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installAsk = e; $('installBtn').hidden = false; });
+  $('installBtn').addEventListener('click', () => { if (installAsk) installAsk.prompt(); installAsk = null; $('installBtn').hidden = true; });
+  if (!valid(code)) {
+    $('phase').hidden = true;
+    $('conn').textContent = '';
+    $('linkForm').hidden = false;
+    $('linkForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const c = (/#([a-z0-9]{12})\s*$/.exec($('link').value) || [])[1];
+      if (!c) return void ($('link').value = '');
+      store.set('lpc-remote-code', c);
+      location.replace(`${location.pathname}#${c}`);
+      location.reload();
+    });
+    return;
+  }
+
+  // the ring when a match is found, and when it's your turn to pick or ban (if the PC has its turn alarm on): the phone
+  // vibrates, and plays a ring once a tap on the page has allowed sound. (The tap's own button still works: nothing
+  // above the note moves, and nothing is drawn again.)
+  let ac = null, rang = false, turnRang = -1;
+  const soundNote = () => { $('sound').hidden = !!ac && ac.state === 'running'; };
+  const unlock = () => {
+    if (!ac) try { ac = new AudioContext(); } catch {}
+    if (ac && ac.state === 'suspended') ac.resume().then(soundNote, () => {});
+    soundNote();
+  };
+  addEventListener('pointerdown', unlock, true);
+  function ring(notes, buzz) {
+    if (navigator.vibrate) navigator.vibrate(buzz);
+    if (!ac || ac.state !== 'running') return;
+    notes.forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + i * 0.18;
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g).connect(ac.destination);
+      o.start(t);
+      o.stop(t + 0.17);
+    });
+  }
+  const MATCH = [880, 1175, 880, 1175, 880, 1175, 880, 1175], TURN = [880, 660, 880, 660];
+  // Keep the screen on (where the phone allows it), as a screen that goes off stops the page and its ring
+  let wake = null;
+  async function keepAwake(on) {
+    store.set('lpc-remote-awake', on ? '1' : '');
+    if (on && !wake) try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } catch { wake = null; }
+    if (!on && wake) { wake.release(); wake = null; }
+  }
+  if ('wakeLock' in navigator) {
+    $('awakeRow').hidden = false;
+    $('awake').checked = !!store.get('lpc-remote-awake');
+    $('awake').addEventListener('change', (e) => keepAwake(e.target.checked));
+    if ($('awake').checked) keepAwake(true);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('awake').checked) keepAwake(true); });
+  }
+
+  fetch('https://ddragon.leagueoflegends.com/api/versions.json').then((r) => r.json()).then((v) => { ddv = v[0]; return fetch(`https://ddragon.leagueoflegends.com/cdn/${ddv}/data/en_US/champion.json`); })
+    .then((r) => r.json()).then((j) => { for (const c of Object.values(j.data)) champs[c.key] = c; render(); }).catch(() => {});
+
+  function claim(n) {
+    const p = (peer = new Peer(`lolprox-r${code}-${n}`, peerOpts));
+    p.on('open', dial);
+    p.on('error', (err) => {
+      if (err.type === 'unavailable-id' && n < 9) { p.destroy(); claim(n + 1); }
+      else if (err.type === 'peer-unavailable') { down('Can’t reach the app on your PC. Open it with the phone remote on (Settings, League), or scan its QR code again if you made a new code.'); later(); }
+      else if (err.type === 'unavailable-id') down('Too many phones are connected to this PC.');
+      else { console.warn('remote:', err.type); later(); }
+    });
+    p.on('disconnected', () => setTimeout(() => { if (!p.destroyed) p.reconnect(); }, 3000));
+  }
+  function later() { clearTimeout(redial); redial = setTimeout(dial, 5000); }
+  function dial() {
+    if (!peer || peer.destroyed || peer.disconnected || (conn && conn.open)) return;
+    const old = conn;
+    conn = null;
+    if (old) old.close(); // a try that never opened
+    const c = (conn = peer.connect(pc, { reliable: true }));
+    c.on('open', () => { if (conn !== c) return; c.send({ t: 'hi' }); render(); }); // any message has the PC send its state again: its first one can get lost
+    c.on('data', (m) => { if (conn === c && m && m.t === 'state') { state = m; render(); } });
+    c.on('close', () => { if (conn !== c) return; conn = null; state = null; down('Lost the app on your PC. Trying again…'); later(); });
+  }
+  function down(text) { $('phase').textContent = text; render(); }
+
+  const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function render() {
+    const on = !!(conn && conn.open), s = on ? state : null;
+    $('dot').toggleAttribute('data-on', on);
+    $('conn').textContent = on ? 'Connected' : 'Connecting…';
+    soundNote();
+    if (s) $('phase').textContent = PHASE[s.phase] || 'In League’s client.';
+    const found = !!(s && s.rc && s.rc.response !== 'Accepted' && s.rc.response !== 'Declined');
+    if (found && !rang) ring(MATCH, [500, 200, 500, 200, 500, 200, 500]);
+    rang = !!(s && s.rc);
+    const a = s && s.cs && s.cs.action;
+    if (a && a.now && a.id !== turnRang) { turnRang = a.id; if (s.alarm) ring(TURN, [300, 150, 300]); }
+    const q = s && s.queue;
+    $('queue').hidden = !q || (s.phase !== 'Lobby' && s.phase !== 'Matchmaking');
+    if (!$('queue').hidden) {
+      const finding = s.phase === 'Matchmaking';
+      $('queueState').textContent = finding ? `Finding a match: ${clock(q.time || 0)}${q.est ? `, usually about ${clock(q.est)}` : ''}.` : q.lead ? `In a lobby${q.custom ? ' for a custom game' : ''}.` : 'In a lobby. Its leader starts the game.';
+      $('queueBtn').hidden = !finding && !q.lead;
+      $('queueBtn').textContent = finding ? 'Stop' : q.custom ? 'Start the game' : 'Find match';
+      $('queueBtn').classList.toggle('primary', !finding);
+    }
+    $('rc').hidden = !(s && s.rc);
+    if (s && s.rc) $('rcLeft').textContent = s.rc.response === 'Accepted' ? 'You accepted. Waiting for the others…' : s.rc.response === 'Declined' ? 'You declined.' : `${s.rc.left} s left`;
+    $('cs').hidden = !(s && s.cs);
+    if (s && s.cs) renderCs(s.cs);
+    $('game').hidden = !(s && s.game);
+    if (s && s.game) {
+      const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])];
+      $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
+    }
+    $('auto').checked = !!(s && s.auto);
+    $('auto').disabled = !s;
+  }
+  function renderCs(cs) {
+    const a = cs.action, ban = !!a && a.type === 'ban';
+    $('turn').textContent = !a ? 'Waiting for the others.' : `${a.now ? `Your turn to ${a.type}` : 'Your pick comes later'}${a.champ ? `, hovering ${name(a.champ)}` : ''}.`;
+    $('team').replaceChildren(...cs.team.map((p) => {
+      const el = p.champ && pic(p.champ) ? Object.assign(new Image(), { src: pic(p.champ), alt: name(p.champ) }) : document.createElement('span');
+      el.toggleAttribute('data-me', !!p.me);
+      return el;
+    }));
+    // trades League offers with each teammate (index.html tradesWith): ask, or answer what they asked
+    $('trades').replaceChildren(...cs.team.filter((p) => Array.isArray(p.trades) && p.trades.length).map((p) => {
+      const row = document.createElement('div'), who = document.createElement('span');
+      row.className = 'trade';
+      who.textContent = `${p.champ ? name(p.champ) : 'A teammate'}${POS[p.pos] ? `, ${POS[p.pos]}` : ''}`;
+      row.append(who);
+      for (const t of p.trades) {
+        const acts = t.state === 'AVAILABLE' ? [['request', `Ask to swap ${t.what}`]] : t.state === 'RECEIVED' ? [['accept', `Swap ${t.what}`], ['decline', 'No thanks']] : [['cancel', `Cancel the ${t.what} swap`]];
+        for (const [act, label] of acts) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn small' + (act === 'accept' ? ' primary' : '');
+          b.textContent = label;
+          b.addEventListener('click', () => send({ t: 'trade', path: t.path, id: t.id, act }));
+          row.append(b);
+        }
+      }
+      return row;
+    }));
+    $('theirs').textContent = cs.theirs.filter(Boolean).length ? `Their picks: ${cs.theirs.filter(Boolean).map(name).join(', ')}.` : '';
+    $('picksHead').hidden = $('picks').hidden = !a || ban || !cs.picks.length;
+    $('find').hidden = $('lock').hidden = !a; // nothing left to pick or ban
+    $('picks').replaceChildren(...cs.picks.map((k) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ch';
+      b.setAttribute('aria-pressed', String(!!a && a.champ === k));
+      b.append(Object.assign(new Image(), { src: pic(k), alt: '' }), name(k));
+      b.addEventListener('click', () => send(a && a.now && a.champ === k ? { t: 'lock', champ: k } : { t: 'hover', champ: k }));
+      return b;
+    }));
+    const can = cs.can.filter((k) => champs[k]).map((k) => name(k)).sort();
+    if ($('names').childElementCount !== can.length) $('names').replaceChildren(...can.map((n) => new Option(n)));
+    $('hover').textContent = ban ? 'Hover ban' : 'Hover';
+    $('lock').textContent = ban ? 'Ban' : 'Lock in';
+    $('lock').disabled = !(a && a.now && a.champ);
+  }
+  $('accept').addEventListener('click', () => send({ t: 'accept' }));
+  $('decline').addEventListener('click', () => send({ t: 'decline' }));
+  $('find').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = $('q').value.trim().toLowerCase(), c = Object.values(champs).find((x) => x.name.toLowerCase() === v);
+    if (c) { send({ t: 'hover', champ: +c.key }); $('q').value = ''; }
+  });
+  $('lock').addEventListener('click', () => send({ t: 'lock' }));
+  $('auto').addEventListener('change', (e) => send({ t: 'auto', on: e.target.checked }));
+  $('queueBtn').addEventListener('click', () => send({ t: 'queue', on: !(state && state.phase === 'Matchmaking') }));
+  claim(1);
+})();
+</script>
+</body>
+</html>

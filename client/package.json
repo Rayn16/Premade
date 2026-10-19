@@ -1,0 +1,48 @@
+{
+  "name": "league-proxchat",
+  "productName": "Premade",
+  "version": "1.8.0",
+  "description": "Proximity voice chat and game tools for League of Legends",
+  "main": "main.js",
+  "author": "Rayan",
+  "dependencies": {
+    "electron-updater": "6.6.2",
+    "koffi": "3.3.3"
+  },
+  "devDependencies": {
+    "electron": "37.2.0",
+    "electron-builder": "26.0.12",
+    "resedit": "1.7.2"
+  },
+  "build": {
+    "appId": "app.netlify.league-proxchat",
+    "files": [
+      "main.js",
+      "preload.js",
+      "icon.png"
+    ],
+    "npmRebuild": false,
+    "afterPack": "./afterPack.js",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "icon.png",
+      "signAndEditExecutable": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://league-proxchat.netlify.app/"
+      }
+    ],
+    "nsis": {
+      "artifactName": "Premade-Setup.exe",
+      "shortcutName": "Premade",
+      "include": "installer.nsh"
+    }
+  },
+  "scripts": {
+    "build": "node build.js"
+  }
+}

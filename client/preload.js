@@ -1,0 +1,29 @@
+// What the Windows client adds to its pages (index.html and overlay.html) as window.lpcClient. main.js checks that
+// every message comes from the site.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('lpcClient', {
+  version: (process.argv.find((a) => a.startsWith('--lpc-version=')) || '').slice(14),
+  screens: () => ipcRenderer.invoke('screens'),
+  useScreen: (id) => ipcRenderer.send('screen', String(id)),
+  keys: (keys) => ipcRenderer.invoke('keys', keys),
+  windowMode: () => ipcRenderer.invoke('window-mode'),
+  compact: (height) => ipcRenderer.send('compact', +height || 0),
+  overlay: (state) => ipcRenderer.send('overlay', state),
+  overlayDone: () => ipcRenderer.send('overlay-done'),
+  discord: (state) => ipcRenderer.send('discord', state),
+  update: () => ipcRenderer.send('update'),
+  lcu: (method, path, body) => ipcRenderer.invoke('lcu', method, path, body),
+  clip: (data, pic, like) => ipcRenderer.invoke('clip', data, pic, like),
+  clipsFolder: () => ipcRenderer.send('clips-folder'),
+  clips: () => ipcRenderer.invoke('clips'),
+  clipRead: (name) => ipcRenderer.invoke('clip-read', String(name)),
+  clipRename: (name, to) => ipcRenderer.invoke('clip-rename', String(name), String(to)),
+  clipTrash: (name) => ipcRenderer.invoke('clip-trash', String(name)),
+  clipDrag: (name) => ipcRenderer.send('clip-drag', String(name)),
+  clipsClean: (limit, keep) => ipcRenderer.invoke('clips-clean', +limit || 0, Array.isArray(keep) ? keep.map(String) : []),
+  metrics: () => ipcRenderer.invoke('metrics'),
+  record: (on) => ipcRenderer.send('record', !!on),
+  recordingsFolder: () => ipcRenderer.send('recordings-folder'),
+  on: (name, fn) => { if (['league', 'key', 'overlay', 'overlay-moved', 'update', 'join'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+});
