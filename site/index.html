@@ -803,7 +803,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section id="queueBox" class="panel" aria-labelledby="h-queue" hidden>
         <h2 id="h-queue" class="ph">Queue</h2>
         <p id="queueState" role="status"></p>
-        <div class="toolbar"><button id="queueBtn" class="btn primary" type="button">Find match</button><button id="practiceBtn" class="btn" type="button">Practice Tool</button></div>
+        <div id="lobbyBar" class="pick" hidden>
+          <label>Game <select id="queuePick"></select></label>
+          <label id="pos1Label">Main role <select id="pos1"></select></label>
+          <label id="pos2Label">Second role <select id="pos2"></select></label>
+        </div>
+        <div class="toolbar"><button id="queueBtn" class="btn primary" type="button">Find match</button><button id="practiceBtn" class="btn" type="button">Practice Tool</button><button id="lobbyLeave" class="btn" type="button" hidden>Leave lobby</button></div>
+        <p id="lobbyNote" class="hint" hidden>Update the app (1.11) to pick the game and your roles and invite friends here.</p>
+        <div id="inviteBox" hidden>
+          <h3 class="ph">Invite friends</h3>
+          <p id="friendNote" class="hint" role="status"></p>
+          <div class="tablewrap"><table class="ready"><tbody id="friendRows"></tbody></table></div>
+        </div>
       </section>
       <section id="rcBox" class="panel" aria-labelledby="h-rc" hidden>
         <h2 id="h-rc" class="ph">Match found</h2>
@@ -3995,13 +4006,105 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if ($('queueBox').hidden) return;
     $('practiceBtn').hidden = !(ph === 'None' || (ph === 'Lobby' && alone && !custom())); // never breaks up a party
     const q = lobby && lobby.gameConfig && QUEUES[lobby.gameConfig.queueId];
-    $('queueState').textContent = ph === 'None' ? 'Not in a lobby. Make one in League, or try a Practice Tool game.' : ph === 'Matchmaking' ? `Finding a match: ${mmss(search.timeInQueue || 0)}${search.estimatedQueueTime ? `, usually about ${mmss(search.estimatedQueueTime)}` : ''}.`
+    $('queueState').textContent = ph === 'None' ? (lobbyOk() ? 'Not in a lobby. Pick a game to make one, or try a Practice Tool game.' : 'Not in a lobby. Make one in League, or try a Practice Tool game.') : ph === 'Matchmaking' ? `Finding a match: ${mmss(search.timeInQueue || 0)}${search.estimatedQueueTime ? `, usually about ${mmss(search.estimatedQueueTime)}` : ''}.`
       : !lead() ? 'In a lobby. Its leader starts the game.' : `In a lobby${custom() ? ' for a custom game' : q ? ` for ${q}` : ''}.`;
     $('queueBtn').hidden = ph === 'None' || (ph === 'Lobby' && !lead());
     $('queueBtn').textContent = ph === 'Matchmaking' ? 'Stop' : custom() ? 'Start the game' : 'Find match';
     $('queueBtn').classList.toggle('primary', ph !== 'Matchmaking');
+    renderLobby(ph);
   }
   $('queueBtn').addEventListener('click', async () => { await (lcu === 'Matchmaking' ? stopQueue() : startQueue()); leagueTick(); });
+  // ---- your lobby (app 1.11): the game to play, your two roles, inviting your League friends, and leaving it. League's
+  // list of the queues open now (every 10 minutes) and your friends (every 5 seconds) while Pregame is open.
+  let queueList = [], queuesAt = -Infinity, friends = [], friendsAt = -Infinity;
+  const lobbyOk = () => !!client && !!client.version && !newer('1.11.0', client.version);
+  const mayInvite = () => !!(lobby && lobby.localMember && (lobby.localMember.isLeader || lobby.localMember.allowedInviteOthers));
+  const MODE_GROUP = { CLASSIC: 'Summoner’s Rift', ARAM: 'ARAM', KIWI: 'ARAM: Mayhem', CHERRY: 'Arena', TFT: 'Teamfight Tactics' };
+  const GAME_STATUS = { inQueue: 'In queue', championSelect: 'In champ select', inGame: 'In a game', spectating: 'Watching a game' };
+  for (const id of ['pos1', 'pos2']) $(id).replaceChildren(...[['UNSELECTED', 'Pick one'], ...Object.entries(POS), ['FILL', 'Fill']].map(([v, t]) => new Option(t, v)));
+  async function lobbyTick(ph) {
+    if (!lobbyOk() || preViewEl.hidden || !(ph === 'None' || ph === 'Lobby')) return;
+    if (performance.now() - queuesAt > 600000) {
+      queuesAt = performance.now();
+      const q = await lcuGet('/lol-game-queues/v1/queues');
+      if (Array.isArray(q)) queueList = q.filter((x) => x && Number.isInteger(x.id) && x.queueAvailability === 'Available' && x.isVisible !== false && !x.isCustom && (x.category === 'PvP' || x.category === 'VersusAi'));
+    }
+    if (ph === 'Lobby' && mayInvite() && performance.now() - friendsAt > 5000) {
+      friendsAt = performance.now();
+      const f = await lcuGet('/lol-chat/v1/friends');
+      if (Array.isArray(f)) friends = f.filter((x) => x && x.product === 'league_of_legends' && typeof x.puuid === 'string' && x.puuid && !['offline', 'mobile'].includes(x.availability));
+    }
+  }
+  function renderLobby(ph) {
+    const ok = lobbyOk() && lcuOn(), here = ph === 'Lobby' && !!lobby, cfg = (here && lobby.gameConfig) || {}, me = (here && lobby.localMember) || {};
+    $('lobbyNote').hidden = !client || ok || !(ph === 'None' || here);
+    $('lobbyBar').hidden = !ok || !(ph === 'None' || here);
+    $('lobbyLeave').hidden = !ok || !here;
+    $('inviteBox').hidden = !ok || !here || !mayInvite();
+    if ($('lobbyBar').hidden) return;
+    // the game: League's open queues by kind; only the lobby's leader changes it
+    const now = here && !custom() ? cfg.queueId : 0, key = JSON.stringify([now, here && custom(), queueList.map((q) => q.id)]);
+    if ($('queuePick').dataset.key !== key) {
+      $('queuePick').dataset.key = key;
+      const groups = new Map();
+      for (const q of queueList) { const g = q.category === 'VersusAi' ? 'Co-op vs. AI' : MODE_GROUP[q.gameMode] || 'Other'; groups.set(g, [...(groups.get(g) || []), q]); }
+      $('queuePick').replaceChildren(new Option(!here ? 'Pick a game' : custom() ? 'Custom game' : QUEUES[now] || 'This game', ''), ...[...groups].map(([g, qs]) => {
+        const o = document.createElement('optgroup');
+        o.label = g;
+        o.append(...qs.sort((a, b) => (b.gameSelectPriority | 0) - (a.gameSelectPriority | 0) || a.id - b.id).map((q) => new Option(q.description || q.name || QUEUES[q.id] || `Queue ${q.id}`, q.id)));
+        return o;
+      }));
+      $('queuePick').value = queueList.some((q) => q.id === now) ? String(now) : '';
+    }
+    $('queuePick').disabled = here && !lead();
+    // your roles, where the queue has them: Fill needs no second
+    const roles = here && !!cfg.showPositionSelector;
+    $('pos1Label').hidden = !roles;
+    $('pos2Label').hidden = !roles || me.firstPositionPreference === 'FILL';
+    for (const [id, v] of [['pos1', me.firstPositionPreference], ['pos2', me.secondPositionPreference]]) if (roles && document.activeElement !== $(id)) $(id).value = v || 'UNSELECTED';
+    if ($('inviteBox').hidden) return;
+    // friends to invite: your League friends who are online and not in your lobby, the ones free to play first
+    const inLobby = new Set((lobby.members || []).map((m) => m && m.puuid)), asked = new Set((lobby.invitations || []).filter((i) => i && ['Pending', 'Requested', 'OnHold'].includes(i.state)).map((i) => i.toPuuid));
+    const list = friends.filter((f) => !inLobby.has(f.puuid)).map((f) => ({ f, st: (f.lol && GAME_STATUS[f.lol.gameStatus]) || (f.availability === 'away' ? 'Away' : 'Online'), asked: asked.has(f.puuid) }))
+      .sort((a, b) => (b.st === 'Online') - (a.st === 'Online') || String(a.f.gameName).localeCompare(String(b.f.gameName)));
+    $('friendNote').textContent = list.length ? '' : 'None of your League friends are online.';
+    const fk = JSON.stringify(list.map((x) => [x.f.puuid, x.f.gameName, x.st, x.asked]));
+    if ($('friendRows').dataset.key === fk) return;
+    $('friendRows').dataset.key = fk;
+    $('friendRows').replaceChildren(...list.map(({ f, st, asked }) => {
+      const tr = document.createElement('tr'), b = document.createElement('button');
+      tr.innerHTML = '<td><b></b></td><td></td><td></td>';
+      tr.querySelector('b').textContent = f.gameName ? f.gameName + (f.gameTag ? '#' + f.gameTag : '') : 'A friend';
+      tr.children[1].textContent = st;
+      b.type = 'button';
+      b.className = 'btn small';
+      b.textContent = asked ? 'Invited' : 'Invite';
+      b.disabled = asked;
+      b.addEventListener('click', () => invite(f));
+      tr.lastChild.append(b);
+      return tr;
+    }));
+  }
+  const lobbyAgain = async () => { lobby = (await lcuGet('/lol-lobby/v2/lobby')) || lobby; renderGame(); };
+  async function invite(f) {
+    if (!okStatus(await lcuAsk('POST', '/lol-lobby/v2/lobby/invitations', [{ toSummonerId: f.summonerId, toPuuid: f.puuid }]))) notify(`League didn’t invite ${f.gameName || 'them'}.`, true);
+    await lobbyAgain();
+  }
+  async function setRoles(first, second) {
+    if (!okStatus(await lcuAsk('PUT', '/lol-lobby/v2/lobby/members/localMember/position-preferences', { firstPreference: first, secondPreference: first === 'FILL' ? 'UNSELECTED' : second }))) notify('League didn’t take those roles.', true);
+    await lobbyAgain();
+  }
+  // picking the role that's in the other box swaps the two
+  $('pos1').addEventListener('change', () => { const me = lobby && lobby.localMember, a = $('pos1').value; if (me) setRoles(a, a === me.secondPositionPreference ? me.firstPositionPreference || 'UNSELECTED' : me.secondPositionPreference || 'UNSELECTED'); });
+  $('pos2').addEventListener('change', () => { const me = lobby && lobby.localMember, b = $('pos2').value; if (me) setRoles(b === me.firstPositionPreference ? me.secondPositionPreference || 'UNSELECTED' : me.firstPositionPreference || 'UNSELECTED', b); });
+  $('queuePick').addEventListener('change', async () => {
+    const id = +$('queuePick').value;
+    if (!id) return;
+    if (!okStatus(await lcuAsk('POST', '/lol-lobby/v2/lobby', { queueId: id }))) notify('League didn’t switch to that game. It may need more champions or a higher level.', true);
+    $('queuePick').dataset.key = '';
+    leagueTick();
+  });
+  $('lobbyLeave').addEventListener('click', async () => { if (!okStatus(await lcuAsk('DELETE', '/lol-lobby/v2/lobby'))) notify('Couldn’t leave the lobby.', true); leagueTick(); });
 
   // ---- patch check: after League updates (its version from League's client), the first games show whether this app
   // still reads League right: its game data, champ select, match history, and the minimap and your champion on it.
@@ -4067,6 +4170,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ph === 'ReadyCheck') await readyTick();
       if (ph === 'ChampSelect') await champTick();
       [lobby, search] = await Promise.all([ph === 'Lobby' ? lcuGet('/lol-lobby/v2/lobby') : null, ph === 'Matchmaking' ? lcuGet('/lol-matchmaking/v1/search') : null]);
+      await lobbyTick(ph);
       if (ph) await patchTick();
       if (ph) { rankTick(); crawl(); watchTick(); } // one League call at most each, in the background
       if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !preViewEl.hidden) clashTick();
@@ -6931,6 +7035,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [16, 'October 19: app 1.11, your lobby on Pregame', [
+      'Pregame runs your lobby now: pick the game to play from the queues League has open, your two roles, invite your League friends who are online, and leave the lobby. It needs app 1.11, which installs itself.',
+    ]],
     [15, 'October 19: red and black, the draft, past ranks and how you played', [
       'Premade is red and black now. Settings > Look has six themes (Red and black, League blue and gold, Light, Purple, Green, Black and white), a main colour of your own, and Light while your computer is in light mode. The in-game overlay takes your theme’s colours too.',
       'Champ select has the draft: both teams by role, each champion with its score and each team’s total, and every champion ranked for whichever role you pick, by its high elo win rate (Meta), how it does against their champions and with yours (Matchups) or both (Balanced). Type anywhere on Pregame to find a champion, click one to hover it and again to lock it in, and right-click one to make it a favorite.',

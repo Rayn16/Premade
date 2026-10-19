@@ -177,7 +177,11 @@ const LCU_OK = [
   ['GET', /^\/lol-matchmaking\/v1\/(ready-check|search)$/],
   ['POST', /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/],
   ['GET', /^\/lol-lobby\/v2\/lobby$/],
-  ['POST', /^\/lol-lobby\/v2\/lobby$/], // a Practice Tool game
+  ['POST', /^\/lol-lobby\/v2\/lobby$/], // a Practice Tool game, or the game picked on Pregame
+  ['DELETE', /^\/lol-lobby\/v2\/lobby$/], // Leave lobby
+  ['POST', /^\/lol-lobby\/v2\/lobby\/invitations$/], // inviting a friend
+  ['GET', /^\/lol-game-queues\/v1\/queues$/],
+  ['GET', /^\/lol-chat\/v1\/friends$/], // your friends, to invite
   ['POST', /^\/lol-lobby\/v1\/lobby\/custom\/start-champ-select$/],
   ['POST', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
   ['DELETE', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],

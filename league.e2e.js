@@ -189,6 +189,12 @@ function champSelect(gameId, me = {}) {
     trades: [{ id: 5, cellId: 0, state: 'AVAILABLE' }], positionSwaps: [{ id: 6, cellId: 4, state: 'RECEIVED' }], pickOrderSwaps: [],
   };
 }
+// the games League has open (Arena isn't now, Practice Tool isn't a queue) and your friends: Friend's in your lobby, Duo
+// is free, Gamer's in a game, Agent plays Valorant and Sleepy is offline
+const QUEUE_LIST = [[420, 'CLASSIC', 'PvP', 'Ranked Solo/Duo', 30], [400, 'CLASSIC', 'PvP', 'Draft Pick', 40], [450, 'ARAM', 'PvP', 'ARAM', 0], [870, 'CLASSIC', 'VersusAi', 'Intro', 0], [1700, 'CHERRY', 'PvP', 'Arena', 0, 'PlatformDisabled'],
+  [3140, 'PRACTICETOOL', 'Custom', 'Practice Tool', 0, 'Available', true]].map(([id, gameMode, category, description, gameSelectPriority, queueAvailability = 'Available', isCustom = false]) => ({ id, gameMode, category, description, name: description, gameSelectPriority, queueAvailability, isCustom, isVisible: true }));
+const FRIENDS = [['ally1', 30, 'Friend', 'chat', 'league_of_legends', 'hosting_RANKED_SOLO_5x5'], ['duo1', 31, 'Duo', 'chat', 'league_of_legends', 'outOfGame'], ['gamer1', 32, 'Gamer', 'dnd', 'league_of_legends', 'inGame'],
+  ['val1', 33, 'Agent', 'chat', 'valorant', ''], ['off1', 34, 'Sleepy', 'offline', '', '']].map(([puuid, summonerId, gameName, availability, product, gameStatus]) => ({ puuid, summonerId, gameName, gameTag: 'EUW', availability, product, lol: gameStatus ? { gameStatus } : {} }));
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(method, p, body) {
   lcu.calls.push([method, p, body]);
@@ -263,9 +269,13 @@ function fakeLcu(method, p, body) {
   if (p === '/lol-perks/v1/currentpage') return { status: 204, data: null };
   if (p === '/lol-patch/v1/game-version') return ok('14.20.612.1234');
   if (p === '/lol-lobby/v2/lobby' && method === 'GET') return lcu.lobby ? ok(lcu.lobby) : { status: 404, data: null };
+  if (p === '/lol-lobby/v2/lobby' && method === 'DELETE') { lcu.lobby = null; return { status: 204, data: null }; }
   if (p === '/lol-lobby/v2/lobby') return ok({ ...body, localMember: { isLeader: true } });
+  if (p === '/lol-lobby/v2/lobby/invitations') { lcu.lobby.invitations.push(...body.map((i) => ({ ...i, state: 'Pending' }))); return ok(lcu.lobby.invitations); }
+  if (p === '/lol-game-queues/v1/queues') return ok(QUEUE_LIST);
+  if (p === '/lol-chat/v1/friends') return ok(FRIENDS);
   if (p === '/lol-matchmaking/v1/search') return lcu.search ? ok(lcu.search) : { status: 404, data: null };
-  if (p === '/lol-lobby/v2/lobby/members/localMember/position-preferences') return { status: 201, data: null };
+  if (p === '/lol-lobby/v2/lobby/members/localMember/position-preferences') { if (lcu.lobby) Object.assign(lcu.lobby.localMember, { firstPositionPreference: body.firstPreference, secondPositionPreference: body.secondPreference }); return { status: 201, data: null }; }
   if (/^\/lol-lobby\/(v2\/lobby\/matchmaking\/search|v1\/lobby\/custom\/start-champ-select)$/.test(p)) return { status: 204, data: null };
   if ((m = /^\/lol-champ-select\/v1\/session\/(champion-swaps|position-swaps|pick-order-swaps)\/(\d+)\/(request|accept|decline|cancel)$/.exec(p))) {
     const k = { 'champion-swaps': 'trades', 'position-swaps': 'positionSwaps', 'pick-order-swaps': 'pickOrderSwaps' }[m[1]], t = lcu.cs[k].find((x) => x.id === +m[2]);
@@ -577,7 +587,7 @@ const leagueData = (over = {}) => ({
       console.log(`Profile in a browser: Ana B by Riot ID (in game with her game's ranks, Emerald III, 3 games and a report, 19 older ones, Solo/Duo and ARAM tabs), Bob opened from her game, kept and refreshed; ${riotCalls.length} calls to Riot`);
     }
 
-    const [ctx, pc] = await context(browser, { version: '1.10.0' });
+    const [ctx, pc] = await context(browser, { version: '1.11.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
     const highAsked = []; // our server's Riot data: the high elo games it counted, 50 this patch (each champion's games
     // and wins in each role), and each champion's games
@@ -741,10 +751,39 @@ const leagueData = (over = {}) => ({
     await until(() => callsTo(/custom\/start-champ-select$/, 'POST').length === 1, 'the Practice Tool game started');
     assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST')[0][2], { isCustom: true, customGameLobby: { lobbyName: 'Premade practice', lobbyPassword: '',
       configuration: { gameMode: 'PRACTICETOOL', gameMutator: '', gameServerRegion: '', mapId: 11, mutators: { id: 1 }, spectatorPolicy: 'AllAllowed', teamSize: 5 } } });
-    lcu.lobby = { localMember: { isLeader: true }, gameConfig: { isCustom: false, queueId: 420 }, members: [{}, {}] };
+    // the game picked here makes a lobby for it: League's open queues, by kind
+    assert.strictEqual(await text(pc, '#queueState'), 'Not in a lobby. Pick a game to make one, or try a Practice Tool game.');
+    await wait(pc, () => [...document.querySelectorAll('#queuePick optgroup')].map((g) => g.label).join() === 'Summoner’s Rift,ARAM,Co-op vs. AI', null, 'the games to pick');
+    assert.deepStrictEqual(await pc.$$eval('#queuePick option', (l) => l.map((o) => o.textContent)), ['Pick a game', 'Draft Pick', 'Ranked Solo/Duo', 'ARAM', 'Intro']);
+    assert(await pc.locator('#pos1Label').isHidden() && await pc.locator('#inviteBox').isHidden() && await pc.locator('#lobbyLeave').isHidden(), 'no roles, friends or Leave outside a lobby');
+    await pc.selectOption('#queuePick', '420');
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST').length === 2, 'a Ranked Solo/Duo lobby');
+    assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST')[1][2], { queueId: 420 });
+    lcu.lobby = { localMember: { isLeader: true, puuid: ME, firstPositionPreference: 'MIDDLE', secondPositionPreference: 'UNSELECTED' }, gameConfig: { isCustom: false, queueId: 420, showPositionSelector: true },
+      members: [{ puuid: ME }, { puuid: 'ally1' }], invitations: [] };
     lcu.phase = 'Lobby';
     await league({ inGame: false, phase: 'Lobby' });
     await wait(pc, () => document.getElementById('queueState').textContent === 'In a lobby for Ranked Solo/Duo.' && document.getElementById('practiceBtn').hidden && !document.getElementById('queueBtn').hidden, null, 'the lobby, with a friend in it');
+    // your roles: Top second, then Top first swaps Middle into second
+    await wait(pc, () => !document.getElementById('pos1Label').hidden && document.getElementById('pos1').value === 'MIDDLE', null, 'your roles');
+    assert.strictEqual(await pc.inputValue('#queuePick'), '420');
+    const put1 = lcu.calls.length;
+    await pc.selectOption('#pos2', 'TOP');
+    await until(() => callsTo(/position-preferences$/, 'PUT', put1).length === 1, 'Top second');
+    assert.deepStrictEqual(callsTo(/position-preferences$/, 'PUT', put1)[0][2], { firstPreference: 'MIDDLE', secondPreference: 'TOP' });
+    await wait(pc, () => document.getElementById('pos2').value === 'TOP', null, 'Top second, shown');
+    await pc.selectOption('#pos1', 'TOP');
+    await until(() => callsTo(/position-preferences$/, 'PUT', put1).length === 2, 'Top first');
+    assert.deepStrictEqual(callsTo(/position-preferences$/, 'PUT', put1)[1][2], { firstPreference: 'TOP', secondPreference: 'MIDDLE' });
+    await wait(pc, () => document.getElementById('pos1').value === 'TOP' && document.getElementById('pos2').value === 'MIDDLE', null, 'the roles swapped');
+    // friends to invite: online on League and not in the lobby, free ones first; invite Duo
+    await wait(pc, () => document.querySelectorAll('#friendRows tr').length === 2, null, 'friends to invite');
+    assert.deepStrictEqual(await texts(pc, '#friendRows tr'), ['Duo#EUW Online Invite', 'Gamer#EUW In a game Invite']);
+    await pc.click('#friendRows tr:first-child button');
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST').length === 1, 'Duo invited');
+    assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST')[0][2], [{ toSummonerId: 31, toPuuid: 'duo1' }]);
+    await wait(pc, () => document.querySelector('#friendRows tr:first-child button').textContent === 'Invited' && document.querySelector('#friendRows tr:first-child button').disabled, null, 'Invited');
+    await shot(pc, 'pregame-lobby');
     await pc.click('#queueBtn');
     await until(() => callsTo(/matchmaking\/search$/, 'POST').length === 1, 'Find match');
     lcu.search = { timeInQueue: 65.4, estimatedQueueTime: 120 };
@@ -754,7 +793,13 @@ const leagueData = (over = {}) => ({
     await wait(phone, () => document.getElementById('queueState').textContent === 'Finding a match: 1:05, usually about 2:00.' && document.getElementById('queueBtn').textContent === 'Stop', null, 'the queue on the phone');
     await phone.click('#queueBtn');
     await until(() => callsTo(/matchmaking\/search$/, 'DELETE').length === 1, 'Stop from the phone');
-    console.log('queue: a Practice Tool game in one click, Find match here, Stop from the phone');
+    // and Leave lobby
+    lcu.phase = 'Lobby';
+    await league({ inGame: false, phase: 'Lobby' });
+    await wait(pc, () => !document.getElementById('lobbyLeave').hidden, null, 'Leave lobby');
+    await pc.click('#lobbyLeave');
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'DELETE').length === 1, 'the lobby left');
+    console.log('queue: a Practice Tool game in one click, a lobby for the game picked here, your roles, a friend invited, Find match here, Stop from the phone, Leave lobby');
 
     // ---- ready checks: accepted here, on the phone, then for you
     await pc.click('.nav[data-view="voice"]');
@@ -1364,11 +1409,11 @@ const leagueData = (over = {}) => ({
     await pc.click('#recordingsBtn');
     assert(await pc.evaluate(() => lpcClient.calls.includes('record false') && lpcClient.calls.includes('record true') && lpcClient.calls.includes('recordings-folder')), 'test recordings on, and their folder');
     // your version in the status bar, and What's new from it
-    assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.10.0 (2.0.0 is out)');
+    assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
-    assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.10.0 (2.0.0 is out).');
+    assert.match(await text(pc, '#newsList'), /^October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
     // an app link: lolprox://join/<room> brings the app into that room, after asking to leave the one you're in
