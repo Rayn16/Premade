@@ -206,6 +206,11 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     console.log(`smart noise removal: fan noise down to ${(kept.fan * 100).toFixed(1)}%, the voiced sound kept at ${(kept.voice * 100).toFixed(0)}%`);
     assert(kept.fan < 0.1 && kept.voice > 0.7, 'noise removal takes out the noise and keeps the voice');
 
+    // the first page is your League profile; in a browser, with no League and no Riot data, it says where it comes from
+    assert(await ana.isVisible('.view[data-view="profile"]') && await ana.isHidden('#createBtn'), 'Profile first');
+    assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
+    assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
+    await ana.click('#proRoom');
     // the big join screen: Create room
     assert(await ana.isVisible('#createBtn') && await ana.isVisible('#code'), 'join screen');
     await ana.click('#createBtn');
@@ -862,7 +867,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: League Proximity Chat is now Premade'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: your League profile first'], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);

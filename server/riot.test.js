@@ -1,0 +1,160 @@
+// Checks the Riot object (/riot/...) under `wrangler dev` against a fake Riot API: it counts each high-elo game once
+// (only full ranked solo games on Summoner's Rift), keeps what each champion bought, levelled and took, with their
+// lane opponent and gold at 10, and passes only the lookup calls on its list through, with our key and its limits.
+// WRANGLER=<path to wrangler> node riot.test.js
+const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
+const { spawn } = require('child_process');
+
+const PORT = 8788, RIOT = 8899, BASE = `http://127.0.0.1:${PORT}`, KEY = 'test-key-123', SITE = 'http://127.0.0.1:8096';
+const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-riot-'));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const P = (n) => `${n}`.repeat(78).slice(0, 78); // a puuid
+const TEAM = [[266, 'TOP'], [64, 'JUNGLE'], [103, 'MIDDLE'], [222, 'BOTTOM'], [412, 'UTILITY'], [86, 'TOP'], [254, 'JUNGLE'], [238, 'MIDDLE'], [145, 'BOTTOM'], [117, 'UTILITY']];
+// the games: KR_1001 is the patch before; KR_1004 is ARAM and KR_1005 a remake, which don't count
+const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1700], KR_1003: ['16.20.3.4', 420, 2000], KR_1004: ['16.20.3.4', 450, 1200], KR_1005: ['16.20.3.4', 420, 300], KR_1006: ['16.20.5.1', 420, 1500] };
+const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR_1004', 'KR_1005'], [P(3)]: ['KR_1006'] };
+const match = (id) => {
+  const [v, q, len] = GAMES[id], blueWins = id !== 'KR_1003';
+  return { metadata: { matchId: id }, info: { gameVersion: v, queueId: q, mapId: q === 450 ? 12 : 11, gameDuration: len, gameCreation: 1760000000000 + +id.slice(3) * 1000,
+    participants: TEAM.map(([c, r], i) => ({ participantId: i + 1, championId: c, teamPosition: r, teamId: i < 5 ? 100 : 200, win: i < 5 === blueWins, summoner1Id: 4, summoner2Id: i % 5 === 1 ? 11 : 14,
+      kills: i, deaths: 2, assists: 7, totalMinionsKilled: 150 + i, neutralMinionsKilled: 4, riotIdGameName: 'Secret' + i, puuid: P(9),
+      perks: { statPerks: { defense: 5011, flex: 5008, offense: 5005 }, styles: [{ description: 'primaryStyle', style: 8100, selections: [8112, 8139, 8138, 8135].map((perk) => ({ perk })) }, { description: 'subStyle', style: 8300, selections: [8306, 8347].map((perk) => ({ perk })) }] } })) } };
+};
+const timeline = () => {
+  const frames = [];
+  for (let m = 0; m <= 12; m++) {
+    const events = [];
+    if (m === 0) for (let p = 1; p <= 10; p++) events.push({ type: 'ITEM_PURCHASED', itemId: 1055, participantId: p, timestamp: 2000 }, { type: 'ITEM_PURCHASED', itemId: 2003, participantId: p, timestamp: 2500 });
+    if (m === 1) for (let p = 1; p <= 10; p++) for (const [i, s] of [1, 2, 3].entries()) events.push({ type: 'SKILL_LEVEL_UP', levelUpType: 'NORMAL', skillSlot: s, participantId: p, timestamp: 61000 + i * 1000 });
+    if (m === 6) events.push({ type: 'ITEM_PURCHASED', itemId: 3006, participantId: 3, timestamp: 400000 }, { type: 'ITEM_UNDO', beforeId: 3006, afterId: 0, goldGain: 1100, participantId: 3, timestamp: 401000 },
+      { type: 'ITEM_PURCHASED', itemId: 3020, participantId: 3, timestamp: 402000 }, { type: 'SKILL_LEVEL_UP', levelUpType: 'EVOLVE', skillSlot: 1, participantId: 3, timestamp: 403000 },
+      { type: 'CHAMPION_KILL', killerId: 3, victimId: 8, timestamp: 404000, victimDamageDealt: [] });
+    const participantFrames = {};
+    for (let p = 1; p <= 10; p++) participantFrames[p] = { participantId: p, totalGold: 3000 + 100 * p * (m === 10), minionsKilled: 80 + p, jungleMinionsKilled: 0, xp: 4000 + 10 * p };
+    frames.push({ timestamp: m * 60000 + (m ? 30 : 0), events, participantFrames });
+  }
+  return { metadata: {}, info: { frameInterval: 60000, frames } };
+};
+
+// the fake Riot API: the routing value is the first part of the path
+const calls = [];
+let slowDown = false;
+const riot = http.createServer((req, res) => {
+  const u = new URL(req.url, 'http://x'), [, host, ...rest] = u.pathname.split('/'), p = '/' + rest.join('/');
+  calls.push({ host, p, q: u.search, key: req.headers['x-riot-token'] });
+  const send = (code, body, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(body)); };
+  if (req.headers['x-riot-token'] !== KEY) return send(401, { status: { message: 'Unauthorized' } });
+  let m;
+  if (host === 'kr' && p === '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5') return send(200, { tier: 'CHALLENGER', entries: [{ puuid: P(1), leaguePoints: 1500 }, { puuid: P(2), leaguePoints: 1400 }] });
+  if (host === 'kr' && p === '/lol/league/v4/grandmasterleagues/by-queue/RANKED_SOLO_5x5') return send(200, { tier: 'GRANDMASTER', entries: [{ puuid: P(3), leaguePoints: 700 }] });
+  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/))) return send(200, IDS[m[1]] || []);
+  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/(KR_\d+)(\/timeline)?$/)) && GAMES[m[1]]) return send(200, m[2] ? timeline() : match(m[1]));
+  // lookups
+  if (host === 'europe' && p === '/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW') return send(200, { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
+  if (host === 'europe' && p.startsWith('/riot/account/v1/accounts/by-riot-id/')) return send(404, { status: { message: 'Data not found' } });
+  if (host === 'euw1' && p === `/lol/league/v4/entries/by-puuid/${P('a')}`) return send(200, [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'II', leaguePoints: 40, wins: 10, losses: 8 }]);
+  if (host === 'kr' && p.startsWith('/lol/summoner/v4/summoners/by-puuid/')) return send(200, { puuid: P('k'), summonerLevel: 300 });
+  if (host === 'jp1') return slowDown ? send(429, { status: { message: 'Rate limit exceeded' } }, { 'retry-after': '2' }) : send(200, { summonerLevel: 1 });
+  if (host === 'europe' && p === `/lol/match/v5/matches/by-puuid/${P('a')}/ids`) return send(200, ['EUW1_7123456789']);
+  if (host === 'europe' && p === '/lol/match/v5/matches/EUW1_7123456789') return send(200, { info: { gameId: 7123456789 } });
+  send(404, { status: { message: 'Not found' } });
+}).listen(RIOT, '127.0.0.1');
+
+const env = { ...process.env, NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost' };
+const wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist,
+  '--var', `RIOT_KEY:${KEY}`, '--var', `RIOT_BASE:http://127.0.0.1:${RIOT}/{host}`, '--var', 'CRAWL_EVERY:150'], { cwd: __dirname, detached: true, stdio: 'ignore', env });
+const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...headers } });
+
+(async () => {
+  for (let i = 0; ; i++) {
+    try { if ((await fetch(BASE + '/')).ok) break; } catch {}
+    assert(i < 120, 'wrangler dev did not start');
+    await sleep(500);
+  }
+  // the counting starts by itself once the Riot object wakes up
+  let sum;
+  for (let i = 0; ; i++) {
+    sum = await (await get('/riot/summary')).json();
+    if (sum.total >= 4) break;
+    assert(i < 120, `only ${sum.total} games counted: ${JSON.stringify(calls.map((c) => c.p))}`);
+    await sleep(500);
+  }
+  await sleep(1500); // nothing more to count
+  sum = await (await get('/riot/summary')).json();
+  assert.equal(sum.total, 4, 'KR_1004 (ARAM) and KR_1005 (a remake) are not counted');
+  assert.equal(sum.today, 4);
+  assert.equal(sum.p, '16.20');
+  assert.deepEqual(sum.c['103'], { MIDDLE: [3, 2] }, 'Ahri: three games this patch, won two');
+  assert.deepEqual(sum.old, { p: '16.19', c: Object.fromEntries(TEAM.map(([c, r], i) => [c, { [r]: [1, i < 5 ? 1 : 0] }])) }, 'the patch before');
+  const crawl = calls.filter((c) => c.host === 'kr' || c.host === 'asia');
+  for (const id of Object.keys(GAMES)) assert.equal(crawl.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, 1, `${id} asked for once`);
+  assert.deepEqual(crawl.filter((c) => c.p.endsWith('/timeline')).map((c) => c.p.split('/')[5]).sort(), ['KR_1001', 'KR_1002', 'KR_1003', 'KR_1006'], 'timelines only for games that count');
+  for (const c of crawl.filter((x) => x.p.endsWith('/ids'))) assert.match(c.q, /^\?queue=420&type=ranked&count=20&startTime=\d+$/);
+  assert(calls.every((c) => c.key === KEY), 'our key on every call');
+
+  // a champion's games for the page
+  let r = await get('/riot/champ?c=103&r=MIDDLE');
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  const ahri = await r.json();
+  assert.equal(ahri.patch, '16.20');
+  assert.equal(ahri.role, 'MIDDLE');
+  assert.deepEqual(ahri.roles, { MIDDLE: [3, 2] });
+  assert.equal(ahri.games.length, 4);
+  assert.deepEqual(ahri.games.map((g) => g.p), ['16.20', '16.20', '16.20', '16.19'], 'newest first');
+  const g = ahri.games.find((x) => x.t === 1760000000000 / 1000 + 1002);
+  assert.deepEqual({ ...g, b: undefined }, { p: '16.20', t: 1760001002, w: 1, o: 238, g: -500, s: [4, 14], rn: [8100, 8300, 8112, 8139, 8138, 8135, 8306, 8347, 5005, 5008, 5011], k: [1, 2, 3], x: [2, 2, 7, 156], l: [-5, -50], b: undefined });
+  assert.deepEqual(g.b, [[2, 1055], [3, 2003], [402, 3020]], 'the boots Ahri undid are left out');
+  assert.equal(ahri.games.filter((x) => x.w).length, 3);
+  assert.equal((await (await get('/riot/champ?c=103')).json()).role, 'MIDDLE', 'its most played role when none is asked for');
+  const jungle = await (await get('/riot/champ?c=64')).json();
+  assert.equal(jungle.role, 'JUNGLE');
+  assert.deepEqual(jungle.games[0].s, [4, 11]);
+  assert.deepEqual(await (await get('/riot/champ?c=nope')).json(), { games: [] });
+  assert.equal((await get('/riot/champ?c=103', { origin: 'https://evil.example' })).headers.get('access-control-allow-origin'), null, 'other sites are not let in');
+
+  // lookups: only the calls on the list, with their own query parameters, as Riot answers them (the counting goes on
+  // meanwhile, on kr and asia)
+  const before = calls.length, looked = () => calls.slice(before).filter((c) => c.host !== 'kr' && c.host !== 'asia');
+  r = await get('/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW');
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.deepEqual(await r.json(), { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
+  assert.equal((await get('/riot/api/europe/riot/account/v1/accounts/by-riot-id/Nobody/EUW')).status, 404, "Riot's not found passes through");
+  assert.equal((await get(`/riot/api/euw1/lol/league/v4/entries/by-puuid/${P('a')}`)).status, 200);
+  assert.equal((await get(`/riot/api/euw1/lol/spectator/v5/active-games/by-summoner/${P('a')}`)).status, 404, 'not in a game');
+  r = await get(`/riot/api/europe/lol/match/v5/matches/by-puuid/${P('a')}/ids?count=500&type=ranked&evil=1`);
+  assert.deepEqual(await r.json(), ['EUW1_7123456789']);
+  assert.equal(looked().pop().q, '?count=20&type=ranked', 'count capped at 20, other parameters dropped');
+  r = await get('/riot/api/europe/lol/match/v5/matches/EUW1_7123456789');
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('cache-control'), /max-age=86400/);
+  for (const bad of ['/riot/api/europe/lol/match/v5/matches/EUW1_7123456789/timeline', '/riot/api/euw1/riot/account/v1/accounts/by-riot-id/Ana/EUW', '/riot/api/evil/lol/match/v5/matches/EUW1_7123456789',
+    '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`])
+    assert.equal((await get(bad)).status, 404, bad);
+  assert.equal(looked().length, 6, 'nothing off the list reached Riot');
+
+  // one address gets 60 lookups every 2 minutes
+  const ip = { 'cf-connecting-ip': '198.51.100.7' };
+  let codes = [];
+  for (let i = 0; i < 61; i++) { codes.push((await get(`/riot/api/kr/lol/summoner/v4/summoners/by-puuid/${P('k')}`, ip)).status); await sleep(80); }
+  assert.deepEqual(codes, [...Array(60).fill(200), 429]);
+  assert.equal((await get(`/riot/api/kr/lol/summoner/v4/summoners/by-puuid/${P('k')}`, { 'cf-connecting-ip': '198.51.100.8' })).status, 200, 'someone else still can');
+
+  // when Riot says to wait, the server waits too
+  slowDown = true;
+  const jp = `/riot/api/jp1/lol/summoner/v4/summoners/by-puuid/${P('j')}`;
+  assert.equal((await get(jp)).status, 429);
+  slowDown = false;
+  const jpCalls = () => calls.filter((c) => c.host === 'jp1').length, n = jpCalls();
+  assert.equal((await get(jp)).status, 429, 'held off');
+  assert.equal(jpCalls(), n, 'without asking Riot');
+  await sleep(2200);
+  assert.equal((await get(jp)).status, 200, 'and asks again once the wait is over');
+
+  // the key never comes back
+  for (const p of ['/riot/summary', '/riot/champ?c=103', '/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW']) {
+    const x = await get(p), text = await x.text();
+    assert(!text.includes(KEY) && ![...x.headers.values()].some((v) => v.includes(KEY)), p);
+  }
+  console.log('riot ok');
+})().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} riot.close(); fs.rmSync(persist, { recursive: true, force: true }); });

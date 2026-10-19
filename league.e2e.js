@@ -71,7 +71,7 @@ const TEAM2 = [['enemy1', 'Axe', 122, 'TOP'], ['enemy2', 'Puncher', 254, 'JUNGLE
 let t0 = Date.now() - 3600e3;
 // a match history: [champion, win, more] newest first, its games numbered from base; more: { id, lane, role, items,
 // perks (the trees, then six runes), penta, vision }
-const hist = (games, base = 9000) => ({ games: { games: games.map(([champ, win, x = {}], i) => ({ gameId: x.id || base + i, gameCreation: t0 - i * 3600e3, gameDuration: 1800, queueId: 420, gameMode: 'CLASSIC',
+const hist = (games, base = 9000) => ({ games: { games: games.map(([champ, win, x = {}], i) => ({ gameId: x.id || base + i, platformId: 'EUW1', gameCreation: t0 - i * 3600e3, gameDuration: 1800, queueId: 420, gameMode: 'CLASSIC',
   participants: [{ championId: champ, teamId: 100, ...(x.lane && { timeline: { lane: x.lane, role: x.role || 'SOLO' } }), stats: { win, kills: 5, deaths: 3, assists: 7, totalMinionsKilled: 150, neutralMinionsKilled: 10,
     visionScore: x.vision || 20, totalDamageDealtToChampions: 20000, pentaKills: x.penta || 0, quadraKills: x.penta || 0, ...Object.fromEntries((x.items || []).map((id, k) => ['item' + k, id])),
     ...(x.perks && { perkPrimaryStyle: x.perks[0], perkSubStyle: x.perks[1], ...Object.fromEntries(x.perks.slice(2).map((id, k) => ['perk' + k, id])) }) } }] })) } });
@@ -169,7 +169,7 @@ function fakeLcu(method, p, body) {
     return { status: 204, data: null };
   }
   if (p === '/lol-champ-select/v1/session/my-selection') { Object.assign(lcu.cs.myTeam[2], body); return { status: 204, data: null }; }
-  if (p === '/lol-summoner/v1/current-summoner') return ok({ puuid: ME, gameName: 'Rayan', tagLine: 'EUW', summonerId: 1234, summonerLevel: 300 });
+  if (p === '/lol-summoner/v1/current-summoner') return ok({ puuid: ME, gameName: 'Rayan', tagLine: 'EUW', summonerId: 1234, summonerLevel: 300, profileIconId: 4568 });
   if ((m = /^\/lol-summoner\/v2\/summoners\/puuid\/([\w-]+)$/.exec(p))) return ok({ puuid: m[1], summonerLevel: m[1] === 'enemy4' ? 30 : 200 });
   if ((m = /^\/lol-summoner\/v1\/summoners\/(\d+)$/.exec(p))) return CLASH_SUMS[m[1]] ? ok({ ...CLASH_SUMS[m[1]], summonerId: +m[1] }) : { status: 404, data: null };
   if ((m = /alias\/lookup\?gameName=([^&]*)&tagLine=(.*)$/.exec(p))) {
@@ -324,13 +324,13 @@ async function context(browser, { version = '', phone = false } = {}) {
   const page = await ctx.newPage();
   const who = phone ? 'phone' : version || 'web';
   page.on('pageerror', (e) => console.log(`[${who}] page error:`, e.message));
-  page.on('console', (m) => m.type() === 'error' && !m.text().startsWith('Failed to load resource') && console.log(`[${who}]`, m.text()));
+  page.on('console', (m) => ((m.type() === 'error' && !m.text().startsWith('Failed to load resource')) || (m.type() === 'warning' && /^clips?:/.test(m.text()))) && console.log(`[${who}]`, m.text()));
   return [ctx, page];
 }
 const clips = process.env.CLIPS || fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-clips-')); // CLIPS=folder keeps them
 const savedClips = [];
 const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout }).catch(async (err) => {
-  throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; lcu ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.lcu()).catch(() => null))}; last calls ${JSON.stringify(lcu.calls.slice(-6))}; page ${JSON.stringify(await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => ''))}`);
+  throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; lcu ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.lcu()).catch(() => null))}; last calls ${JSON.stringify(lcu.calls.slice(-6))}; toasts ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.toasts().slice(-5)).catch(() => null))}; page ${JSON.stringify(await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => ''))}`);
 });
 const text = (page, sel) => page.locator(sel).innerText();
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.join(process.env.SHOTS, name + '.png'), fullPage: true }); // SHOTS=folder saves screenshots
@@ -362,6 +362,97 @@ const leagueData = (over = {}) => ({
       console.log('Game page: only in the desktop app; an old app is told to restart for its update');
     }
 
+    // ---- Profile in a browser: from Riot, through our server, by Riot ID; the first one given is you
+    {
+      const [ctx, page] = await context(browser);
+      const cors = { 'access-control-allow-origin': '*' }, riotCalls = [];
+      const PU = (n) => n.padEnd(78, '0'), ANA = PU('ana-'), BOB = PU('bob-');
+      const POSN = ['MIDDLE', 'TOP', 'JUNGLE', 'BOTTOM', 'UTILITY'];
+      const match5 = (id, champ, win) => ({ metadata: { matchId: `EUW1_${id}` }, info: { gameId: id, gameCreation: Date.now() - (id % 10) * 3600e3, gameDuration: 1500, gameEndTimestamp: Date.now(), queueId: 420, gameMode: 'CLASSIC',
+        participants: Array.from({ length: 10 }, (_, i) => ({ puuid: i ? PU(`p${i}-`) : ANA, riotIdGameName: i ? `P${i}` : 'Ana B', riotIdTagline: 'EUW', championId: i ? CHAMPS[i][1] : champ, teamId: i < 5 ? 100 : 200,
+          teamPosition: POSN[i % 5], win: i < 5 ? win : !win, kills: i ? 3 : 8, deaths: 2, assists: 5, totalMinionsKilled: 180, neutralMinionsKilled: 10, visionScore: 22, totalDamageDealtToChampions: 20000,
+          goldEarned: 11000, totalDamageTaken: 15000, damageSelfMitigated: 4000, item0: 6655, item1: 3020, item6: 3340 })) } });
+      const RIOT = {
+        '/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW': { puuid: ANA, gameName: 'Ana B', tagLine: 'EUW' },
+        '/europe/riot/account/v1/accounts/by-riot-id/Bob/EUW': { puuid: BOB, gameName: 'Bob', tagLine: 'EUW' },
+        [`/euw1/lol/summoner/v4/summoners/by-puuid/${ANA}`]: { profileIconId: 29, summonerLevel: 87 },
+        [`/euw1/lol/summoner/v4/summoners/by-puuid/${BOB}`]: { profileIconId: 1, summonerLevel: 31 },
+        [`/euw1/lol/league/v4/entries/by-puuid/${ANA}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'EMERALD', rank: 'III', leaguePoints: 12, wins: 40, losses: 35 }, { queueType: 'CHERRY', tier: 'GOLD' }],
+        [`/euw1/lol/league/v4/entries/by-puuid/${BOB}`]: [],
+        [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${ANA}/top?count=5`]: [{ championId: 103, championLevel: 12, championPoints: 251000 }],
+        [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${BOB}/top?count=5`]: [],
+        [`/euw1/lol/spectator/v5/active-games/by-summoner/${ANA}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: ANA, championId: 103, teamId: 100 }, { puuid: BOB, championId: 86, teamId: 200 }] },
+        [`/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?count=10`]: ['EUW1_7000000001', 'EUW1_7000000002', 'EUW1_7000000003', '../oops'],
+        [`/europe/lol/match/v5/matches/by-puuid/${BOB}/ids?count=10`]: [],
+        '/europe/lol/match/v5/matches/EUW1_7000000001': match5(7000000001, 103, true),
+        '/europe/lol/match/v5/matches/EUW1_7000000002': match5(7000000002, 103, false),
+        '/europe/lol/match/v5/matches/EUW1_7000000003': match5(7000000003, 99, true),
+      };
+      await ctx.route(/127\.0\.0\.1:9001\/riot\//, (r) => {
+        const u = r.request().url().replace(/^.*?\/riot/, '');
+        if (u === '/summary') return r.fulfill({ json: { p: '16.20', c: {}, old: null, today: 5, total: 50, at: Date.now() }, headers: cors });
+        const p = u.replace(/^\/api/, '');
+        riotCalls.push(p);
+        if (p.includes('/Busy/')) return r.fulfill({ status: 429, body: 'Too many lookups for now', headers: cors });
+        return p in RIOT ? r.fulfill({ json: RIOT[p], headers: cors }) : r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
+      });
+      await page.goto(URL_);
+      await wait(page, () => window.lpc && lpc.riotOn() && !document.getElementById('proFindBox').hidden, null, 'the Riot ID form');
+      assert.match(await text(page, '#proNote'), /^Type your Riot ID and server below/);
+      assert.strictEqual(await page.textContent('#h-profind'), 'Your Riot ID');
+      assert.strictEqual(await text(page, '#proGo'), 'Show my profile');
+      await page.fill('#proId', 'Nobody#EUW');
+      await page.click('#proGo');
+      await wait(page, () => document.getElementById('proFindNote').textContent === 'Nobody called Nobody#EUW on EUW.', null, 'nobody by that name');
+      await page.fill('#proId', 'Busy#EUW');
+      await page.click('#proGo');
+      await wait(page, () => document.getElementById('proFindNote').textContent === 'Too many lookups right now. Try again in a minute.', null, 'our server busy');
+      await page.fill('#proId', 'Ana B#EUW');
+      await page.selectOption('#proRegion', 'euw1');
+      await page.click('#proGo');
+      await wait(page, () => document.getElementById('proName').textContent === 'Ana B' && document.querySelectorAll('#proGames > li').length === 3 && /Ahri/.test(document.getElementById('proStatus').textContent), null, 'Ana’s profile from Riot');
+      assert.strictEqual(await text(page, '#proTag'), '#EUW');
+      assert.strictEqual(await text(page, '#proSub'), 'EUW · Level 87');
+      assert.match(await page.getAttribute('#proIcon', 'src'), /\/cdn\/1\.1\/img\/profileicon\/29\.png$/);
+      assert.match(await text(page, '#proStatus'), /^In game as Ahri · Ranked Solo\/Duo · [56] min$/);
+      const rk = await page.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint')].map((x) => x.textContent).join('|')));
+      assert.deepStrictEqual(rk, ['Solo/Duo|Emerald III|12 LP · 40W 35L · 53%', 'Flex|Unranked|']);
+      assert.strictEqual(await page.textContent('#h-proform'), 'Last 3 games');
+      assert.match(await page.textContent('#proForm'), /^Record\s*2W 1L · 67%\s*KDA\s*8\.0 \/ 2\.0 \/ 5\.0 · 6\.5\s*CS a minute\s*7\.6\s*Main role\s*Middle, 3 of 3$/);
+      assert.strictEqual(await page.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 2, 'items, not the trinket');
+      assert.match(await text(page, '#proMastery'), /Ahri\s*Level 12 · 251k points/);
+      assert(await page.locator('#proMastery .champ').first().isDisabled(), 'champion pages need League’s client');
+      assert.strictEqual(await page.textContent('#h-profind'), 'Look up a player');
+      // a game's report, from Riot's copy of the game
+      await page.click('#proGames > li:first-child summary');
+      await wait(page, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'the report from Riot');
+      assert(await page.locator('#proGames > li:first-child .report tr[data-me]').count() === 1, 'Ana marked in it');
+      assert(!riotCalls.some((c) => c.includes('oops')), 'only real match ids asked for');
+      assert.strictEqual(riotCalls.length, 12, `Nobody, Busy, Ana in 9 calls and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
+      // someone else: Bob, not in a game and unranked
+      await page.fill('#proId', 'Bob#EUW');
+      await page.click('#proGo');
+      await wait(page, () => document.getElementById('proName').textContent === 'Bob' && !document.getElementById('proBack').hidden, null, 'Bob’s profile');
+      assert.strictEqual(await text(page, '#proStatus'), 'Not in a game right now');
+      assert.strictEqual(await text(page, '#proGames'), 'No recent games.');
+      assert(await page.locator('#proMasteryBox').isHidden(), 'no mastery to show');
+      await page.click('#proBack');
+      await wait(page, () => document.getElementById('proName').textContent === 'Ana B', null, 'back to Ana');
+      // the next visit: Ana as she was, then fresh from Riot; and Not you? forgets her
+      assert(await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('lpc-profile')); return p.n === 'Ana B#EUW' && p.plat === 'euw1' && !('live' in p); }), 'Ana kept, without whether she’s in a game');
+      const before = riotCalls.length;
+      await page.reload();
+      await wait(page, () => window.lpc && document.getElementById('proName').textContent === 'Ana B', null, 'Ana kept');
+
+      await until(() => riotCalls.length === before + 9, 'Ana updated from Riot');
+      await wait(page, () => /^In game as Ahri/.test(document.getElementById('proStatus').textContent), null, 'and in a game');
+      assert.match(await text(page, '#proNote'), /^As of /);
+      await page.click('#proForget');
+      await wait(page, () => document.getElementById('proName').textContent === 'Your League profile' && document.getElementById('proGo').textContent === 'Show my profile', null, 'forgotten');
+      await ctx.close();
+      console.log(`Profile in a browser: Ana B by Riot ID (in game, Emerald III, 3 games and a report), Bob looked up, kept and refreshed; ${riotCalls.length} calls to Riot`);
+    }
+
     const [ctx, pc] = await context(browser, { version: '1.7.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
     await ctx.addInitScript(() => { // four games in voice last week: the two where the room talked a lot were won
@@ -390,6 +481,35 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(deep[9001].ps.map((p) => p.l), ['MIDDLE', 'TOP', 'JUNGLE', 'BOTTOM', 'UTILITY', 'TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'], 'lanes from the timeline');
     assert.deepStrictEqual(deep[9001].tl.lane, [[10, [80, 4000, 5000], [70, 3500, 5200]], [15, [120, 6000, 7500], [105, 5250, 7800]]]);
     console.log('your games in detail: 20 games with their timelines, one game’s lanes guessed right');
+    // ---- Profile, the first page: you in League like a stats site's profile, from League's client
+    await wait(pc, () => !document.querySelector('.view[data-view="profile"]').hidden && document.getElementById('proName').textContent === 'Rayan' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'your profile');
+    assert.strictEqual(await text(pc, '#proTag'), '#EUW');
+    assert.strictEqual(await text(pc, '#proSub'), 'EUW · Level 300');
+    assert.strictEqual(await text(pc, '#proLvl'), '300');
+    assert.match(await pc.getAttribute('#proIcon', 'src'), /\/cdn\/1\.1\/img\/profileicon\/4568\.png$/);
+    assert.strictEqual(await text(pc, '#proStatus'), 'In the client');
+    const proRanks = () => pc.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint')].map((x) => x.textContent).join('|')));
+    assert.deepStrictEqual(await proRanks(), ['Solo/Duo|Gold II|45 LP · 31W 25L · 55%', 'Flex|Unranked|']);
+    assert.strictEqual(await pc.textContent('#h-proform'), 'Last 20 games');
+    assert.match(await pc.textContent('#proForm'), /^Record\s*13W 7L · 65%\s*KDA\s*5\.0 \/ 3\.0 \/ 7\.0 · 4\.0\s*CS a minute\s*5\.3\s*Main role\s*Middle, 13 of 20$/);
+    assert.deepStrictEqual(await pc.$$eval('#proChamps .champ', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' '))), ['Ahri 8 games · 75% won · 4.0 KDA', 'Lux 5 games · 60% won · 4.0 KDA', 'Garen 4 games · 25% won · 4.0 KDA']);
+    assert.deepStrictEqual(await pc.$$eval('#proMastery .sub', (l) => l.map((e) => e.textContent)), ['Level 7 · 120k points', 'Level 6 · 50k points', 'Level 5 · 40k points', 'Level 4 · 20k points']);
+    assert.strictEqual(await pc.locator('#proGames > li').count(), 10);
+    assert.strictEqual(await pc.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 4);
+    await pc.click('#proGames > li:first-child summary');
+    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'a game’s report on your profile');
+    assert(await pc.locator('#profileBtn').isVisible() && await pc.locator('#proBack').isHidden() && await pc.locator('#proNote').isHidden(), 'Share, and nothing about it being old');
+    const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-profile')));
+    assert(kept.n === 'Rayan#EUW' && kept.plat === 'euw1' && kept.games.length === 20 && kept.icon === 4568 && kept.rk.RANKED_SOLO_5x5.tier === 'GOLD', 'kept for when League is closed');
+    // someone on your server, through League's client
+    await pc.fill('#proId', 'Sniper#EUW');
+    await pc.click('#proGo');
+    await wait(pc, () => document.getElementById('proName').textContent === 'Sniper' && document.querySelectorAll('#proGames > li').length === 10, null, 'Sniper’s profile');
+    assert.strictEqual(await text(pc, '#proSub'), 'EUW · Level 30');
+    assert(await pc.locator('#proStatus').isHidden() && await pc.locator('#profileBtn').isHidden(), 'no status or Share for someone else');
+    await pc.click('#proBack');
+    await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'back to you');
+    console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up');
     await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /Find a match and this page fills in/);
     // Clash: the other team in your next match, with their ranks and best champions
@@ -586,11 +706,13 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'in-game');
     await shot(phone, 'phone-in-game');
     console.log(`in game: all ten scouted (one found by Riot ID), timers and gold: ${await pc.evaluate(() => lpcClient.lastOverlay.game)}`);
+    await pc.click('.nav[data-view="profile"]');
+    await wait(pc, () => /^In game as Ahri · 1\d min$/.test(document.getElementById('proStatus').textContent), null, 'in game on your profile');
 
     // ---- clips: the key saves what was recorded, a multikill saves a clip by itself; both play
     await wait(pc, () => lpc.clips().on && lpc.clips().parts >= 9, null, 'ten seconds of recording', 20000);
     await pc.evaluate(() => lpcClient.emit('key', 'clip'));
-    await wait(pc, () => lpc.clips().saved.length === 1, null, 'the clip from the key');
+    await wait(pc, () => lpc.clips().saved.length === 1, null, 'the clip from the key', 30000); // slow on a busy 4-CPU container
     const full = await pc.evaluate(async () => {
       const v = document.createElement('video');
       v.muted = true;
@@ -687,7 +809,11 @@ const leagueData = (over = {}) => ({
     assert((await pc.locator('#times tbody tr').count()) >= 2, 'wins by time of day and day of the week');
     await pc.click('#recapBtn');
     await wait(pc, () => !document.getElementById('recapSave').hidden && document.getElementById('recapSave').href.startsWith('data:image/png'), null, 'the season recap');
-    // the profile link: your rank, record and top champions on a page anyone can open, all of it in the link
+    // your profile with today's LP; and the profile link: your rank, record and top champions on a page anyone can
+    // open, all of it in the link
+    await pc.click('.nav[data-view="profile"]');
+    await wait(pc, () => /\+18 LP/.test(document.getElementById('proRanks').textContent), null, 'today’s LP on your profile');
+    assert.deepStrictEqual((await proRanks())[0], 'Solo/Duo|Gold II|63 LP · 31W 25L · 55% · today 1W 0L, +18 LP');
     await pc.click('#profileBtn');
     await wait(pc, () => !document.getElementById('profileOut').hidden && /^http:\/\/127\.0\.0\.1:8081\/profile\.html#[\w-]+$/.test(document.getElementById('profileLink').value), null, 'the profile link');
     const plink = await pc.inputValue('#profileLink');
@@ -706,6 +832,8 @@ const leagueData = (over = {}) => ({
     await wait(viewer, () => !document.getElementById('bad').hidden, null, 'a cut-off link said so');
     await vctx.close();
     console.log(`profile link: ${plink.length} characters, opened on a phone`);
+    await shot(pc, 'profile');
+    await pc.click('.nav[data-view="stats"]');
     await shot(pc, 'stats-you');
     // the Champions tab: your champions, nemeses and allies, the collection, patch changes, and a champion's page
     await pc.click('.tab[data-tab="champs"]');
@@ -789,6 +917,7 @@ const leagueData = (over = {}) => ({
     await fr.goto(URL_);
     await wait(fr, () => window.lpc, null, 'the friend’s page');
     await fr.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
+    await fr.click('.nav[data-view="room"]');
     await fr.fill('#code', room);
     await fr.click('#joinBtn');
     await pc.click('.nav[data-view="room"]');
@@ -876,7 +1005,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.7.0 (1.8.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Room page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Room page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.7.0 (1.8.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
@@ -911,6 +1040,21 @@ const leagueData = (over = {}) => ({
     await Promise.all([pc.waitForEvent('load'), pc.setInputFiles('#restoreFile', { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })]);
     await wait(pc, () => window.lpc && document.getElementById('range').value === '2000', null, 'the backup loaded');
     console.log(`backup and restore: ${Object.keys(backup.data).length} things kept`);
+
+    // League closed: the app shows your profile as it was last time
+    const saved = await pc.evaluate(() => localStorage.getItem('lpc-profile'));
+    const [sctx, sp] = await context(browser, { version: '1.7.0' });
+    await sctx.exposeFunction('fakeLcu', () => ({ status: 0, data: null }));
+    await sctx.addInitScript((s) => localStorage.setItem('lpc-profile', s), saved);
+    await sp.goto(URL_);
+    await wait(sp, () => window.lpc, null, 'the page');
+    await sp.evaluate(() => lpcClient.emit('league', { inGame: false, phase: '' }));
+    await wait(sp, () => document.getElementById('proName').textContent === 'Rayan' && document.getElementById('proStatus').textContent === 'League isn’t running', null, 'your saved profile with League closed');
+    assert.match(await text(sp, '#proNote'), /^As of .+\. Start League to update it\.$/);
+    assert.strictEqual(await sp.locator('#proGames > li').count(), 10);
+    assert(await sp.locator('#profileBtn').isHidden() && await sp.locator('#proFindBox').isHidden(), 'no Share or lookups without League');
+    await sctx.close();
+    console.log('Profile with League closed: as it was last time');
 
     assert.deepStrictEqual(lcu.refused, [], 'every call is one the desktop app lets through');
     console.log(`all ${lcu.calls.length} calls to League's client are on the desktop app's list`);
