@@ -1064,6 +1064,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="clipList" class="cliplist" hidden></ul>
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
       </section>
+      <details id="clipSet" class="voiceset">
+        <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
+        <div class="settings">
+          <section class="panel">
+            <h2 class="ph">Recording <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
+            <label class="check"><input id="optClips" type="checkbox"> Keep the last part of each game, for the clip key</label>
+            <div class="toolbar">
+              <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
+              <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
+            </div>
+            <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Saving a clip <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
+            <div class="keyrow"><span>Clip key</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
+            <p id="clipKeyNote" class="hint"></p>
+            <label class="check"><input id="optClipMulti" type="checkbox"> Save a clip by itself when I get a double kill or better</label>
+            <label class="check"><input id="optClipBig" type="checkbox"> And for my team's steals and Aces, and my pentakills</label>
+          </section>
+          <section class="panel">
+            <h2 class="ph">By voice <button class="tip" type="button" popovertarget="t-voiceclip" aria-label="About clips by voice">?</button></h2>
+            <label class="check"><input id="optClipVoice" type="checkbox"> Save a clip when I say “Premade, clip that”</label>
+            <label class="field">Or my own phrase <input id="optClipPhrase" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Record it, or type it"></label>
+            <div class="toolbar"><button id="phraseRec" class="btn small" type="button">Record my phrase</button><button id="voiceTest" class="btn small" type="button">Test</button></div>
+            <p id="voiceNote" class="hint" role="status"></p>
+          </section>
+        </div>
+      </details>
     </section>
 
     <section class="view" data-view="settings" aria-label="Settings" hidden>
@@ -1072,7 +1100,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <section class="panel client-only">
           <h2 class="ph">Keyboard shortcuts <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
           <div class="keyrow client-only"><span>Show or hide this window</span><kbd id="kShow"></kbd><button class="btn small" type="button" data-key="show">Change</button><span></span></div>
-          <div class="keyrow lcu-only"><span>Save a clip</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
           <div class="keyrow client-only"><span>Everyone’s rank in a game, or hide the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
           <p id="keysNote" class="hint"></p>
         </section>
@@ -1112,17 +1139,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <label class="check"><input id="optSpawnSounds" type="checkbox"> A sound 30 seconds before Dragon and Baron</label>
           <label class="check"><input id="optRecord" type="checkbox"> Save test recordings of my games <button class="tip" type="button" popovertarget="t-record" aria-label="About test recordings">?</button></label>
           <div class="toolbar"><button id="recordingsBtn" class="btn small" type="button">Open the recordings folder</button></div>
-        </section>
-        <section class="panel lcu-only">
-          <h2 class="ph">Clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
-          <label class="check"><input id="optClips" type="checkbox"> Keep the last part of each game, for the clip key</label>
-          <div class="toolbar">
-            <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
-            <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
-          </div>
-          <label class="check"><input id="optClipMulti" type="checkbox"> Save a clip by itself when I get a double kill or better</label>
-          <label class="check"><input id="optClipBig" type="checkbox"> And for my team's steals and Aces, and my pentakills</label>
-          <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
         </section>
         <section class="panel">
           <h2 class="ph">Look</h2>
@@ -1258,6 +1274,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't.</div>
 <div id="t-out" class="tipbox" popover>Where everyone's voices come out. Using Wave Link? Pick its Voice Chat channel here, the same way you would in Discord.</div>
+<div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
@@ -1277,7 +1294,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
-<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key (Settings, Keyboard shortcuts), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
+<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-backup" class="tipbox" popover>Back up saves your settings, matchup notes, LP history, game history, reports and clip favorites in one file. Restore loads such a file, on this PC or another, and replaces what's here.</div>
@@ -1315,7 +1332,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, customBg: '', customFg: '',
+    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
@@ -1948,7 +1965,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return true;
     }
   });`;
-  let raw = null, ac = null, gateNode = null, micSrc = null, hurtDry = null, hurtWet = null, hurtDepth = null, hurtLevel = 0;
+  // clips by voice: hands your raw mic to the speech recognition in blocks of 4096 samples, only while you make a sound
+  // and 1.5 s after (with the 0.5 s before it), so it has nothing to do while you're quiet
+  const TAP = `registerProcessor('tap', class extends AudioWorkletProcessor {
+    constructor() { super(); this.b = new Float32Array(4096); this.n = 0; this.pre = []; this.hold = 0; }
+    process([inp]) {
+      const x = inp[0];
+      if (!x) return true;
+      let e = 0;
+      for (const v of x) e += v * v;
+      this.hold = Math.sqrt(e / x.length) * 5 >= 0.02 ? sampleRate * 1.5 : Math.max(0, this.hold - x.length);
+      this.b.set(x, this.n);
+      this.n += x.length;
+      if (this.n < this.b.length) return true;
+      if (this.hold > 0) { for (const b of this.pre.splice(0)) this.port.postMessage(b); this.port.postMessage(this.b); }
+      else if (this.pre.push(this.b) > 6) this.pre.shift();
+      this.b = new Float32Array(4096);
+      this.n = 0;
+      return true;
+    }
+  });`;
+  let raw = null, ac = null, gateNode = null, micSrc = null, micTap = null, hurtDry = null, hurtWet = null, hurtDepth = null, hurtLevel = 0;
   const HEAT = 32; // talk map cells across the minimap
   let myTalk = 0;
   const myHeat = new Float32Array(HEAT * HEAT);
@@ -2054,6 +2091,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     micSrc.disconnect();
     micSrc.connect(node || gateNode);
     if (node) node.connect(gateNode);
+    if (micTap) micSrc.connect(micTap);
   }
   // Hurt voice: nothing above 35% health, all of it at 5% (League's own data, so the Windows client only)
   function applyHurt() {
@@ -2099,7 +2137,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return true;
     }
   });`;
-  const WORKLETS = URL.createObjectURL(new Blob([GATE, FXW], { type: 'text/javascript' }));
+  const WORKLETS = URL.createObjectURL(new Blob([GATE, FXW, TAP], { type: 'text/javascript' }));
   const FX = {
     ocean: { name: 'Ocean soul', lp: 2800, mod: [0.008, 0.004, 1.5, 0.3, 0.4, 0.8] },        // watery
     mountain: { name: 'Mountain soul', pitch: 0.9, lo: 10, ring: [35, 0.25] },              // rumbling
@@ -4369,9 +4407,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     } catch { return null; }
   }
   const CLIP_WHY = { multi: ' of your multikill', penta: ' of your pentakill', steal: ' of the steal', ace: ' of the Ace' };
-  async function saveClip(why, secs = opts.clipLen) {
+  async function saveClip(why, secs = opts.clipLen, said = '') {
     const r = recorder;
-    if (!r || !r.mr || !r.head || r.saving) return void (why === 'key' && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Settings, Clips.', true));
+    if (!r || !r.mr || !r.head || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Clip settings, on the Clips page.', true));
     r.saving = true;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
@@ -4380,7 +4418,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
       if (!name) throw new Error('nothing to save');
       clipNames.unshift(name);
-      notify(`Clip saved${CLIP_WHY[why] || ''}: ${name}`, true);
+      notify(`Clip saved${said ? ` when you said “${said}”` : CLIP_WHY[why] || ''}: ${name}`, true);
       await cleanClips();
       loadClips();
     } catch (err) { console.warn('clip:', err); notify('Couldn’t save that clip.', true); }
@@ -4400,6 +4438,138 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     clearTimeout(clipTimer);
     clipTimer = setTimeout(() => saveClip(e.e === 'multi' ? (e.n >= 5 ? 'penta' : 'multi') : e.e === 'ace' ? 'ace' : 'steal'), e.e === 'multi' ? 5000 : 3000);
   }
+  // ---- clips by voice (desktop app): with it on, during a game the app listens to your mic for “Premade, clip that”
+  // and your own phrase, and saves a clip as the clip key does. Vosk (vendor/vosk: Kaldi's speech recognition in
+  // WebAssembly, in a worker, with its small US English model) runs on this computer. The model (41 MB) downloads the
+  // first time and stays in this app's storage (IndexedDB); it takes about 200 MB of memory, so it's loaded only while
+  // it's wanted: in a game, or while Record my phrase or Test listens. It listens for the phrases alone (a grammar,
+  // with [unk] for every other word), which finds them in the middle of a sentence too.
+  const SAY = 'Premade, clip that';
+  let vosk = null, ear = null, fired = false, testing = null, recording = false, voiceErr = '', voiceBusy = null;
+  const ears = new Set();
+  const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
+  const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
+  const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
+  const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
+  const voiceWant = () => !!testing || recording || (opts.clipVoice && !voiceErr && !!recorder && !recorder.failed);
+  const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
+  const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
+  async function voiceStart() {
+    voiceErr = '';
+    try { if (!raw) await getMic(); } catch (err) {
+      console.warn('voice clips:', err);
+      voiceErr = 'Couldn’t open your microphone. Check it in Voice settings, then try again.';
+      return false;
+    }
+    if (!vosk) {
+      $('voiceNote').textContent = 'Getting voice recognition ready. The first time it downloads its speech model, about 40 MB…';
+      vosk = import(vendor('vosk.wasm.js')).then(({ VoskClient }) => new Promise((res, rej) => {
+        const v = new VoskClient({ modelUrl: vendor('vosk-model-small-en-us-0.15.tar.gz'), workerUrl: vendor('vosk.worker.js'), wasmUrl: vendor('vosk.wasm'), logLevel: -2 });
+        v.on('load', (m) => (m.result ? res(v) : rej(new Error('the model didn’t load'))));
+        v.on('error', (m) => rej(new Error(m.error)));
+      }));
+    }
+    let v;
+    try { v = await vosk; } catch (err) {
+      console.warn('voice clips:', err);
+      vosk = null;
+      voiceErr = 'Couldn’t start voice recognition on this computer.';
+      return false;
+    }
+    if (!micTap) {
+      micTap = new AudioWorkletNode(ac, 'tap', { numberOfOutputs: 0 });
+      micTap.port.onmessage = ({ data }) => { for (const e of ears) e.acceptWaveformFloat(data, ac.sampleRate); };
+      micSrc.connect(micTap);
+    }
+    if (!ear) listen(v);
+    return true;
+  }
+  function listen(v) {
+    if (ear) { ears.delete(ear); ear.remove(); }
+    ear = new v.KaldiRecognizer(ac.sampleRate, JSON.stringify([...phrases().map(words), '[unk]']));
+    ear.on('partialresult', (m) => voiceHeard(m.result.partial));
+    ear.on('result', (m) => { voiceHeard(m.result.text); fired = false; });
+    ears.add(ear);
+  }
+  function voiceHeard(text) {
+    const p = !fired && saidIn(text);
+    if (!p) return;
+    fired = true; // once a sentence
+    if (testing) testing(p);
+    else if (!recording) saveClip('voice', opts.clipLen, p);
+  }
+  function voiceOff() {
+    for (const e of ears) e.remove();
+    ears.clear();
+    ear = null;
+    if (micTap) { micTap.port.onmessage = null; try { micSrc.disconnect(micTap); } catch {} }
+    micTap = null;
+    if (vosk) vosk.then((v) => v.terminate(), () => {});
+    vosk = null;
+  }
+  async function voiceCheck() {
+    if (voiceBusy) return;
+    if (voiceWant() && !ear) {
+      const ok = await voiceOn();
+      if (!testing && !recording) renderVoice();
+      if (!ok) $('voiceNote').textContent = voiceErr;
+    } else if (!voiceWant() && vosk) voiceOff();
+  }
+  function renderVoice() {
+    const short = opts.clipPhrase && words(opts.clipPhrase).split(' ').length < 2;
+    $('voiceNote').textContent = voiceErr || (short ? 'Your own phrase needs two words or more, so it isn’t said by accident.'
+      : !opts.clipVoice ? '' : !opts.clips ? 'Turn on “Keep the last part of each game” too: that’s what a clip is saved from.'
+      : `${ear ? 'Listening' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
+  }
+  $('voiceTest').addEventListener('click', async () => {
+    if (testing || recording) return;
+    let got;
+    const said = new Promise((res) => { got = res; });
+    testing = got;
+    fired = false;
+    if (!(await voiceOn())) { testing = null; return void ($('voiceNote').textContent = voiceErr); }
+    $('voiceNote').textContent = `Say ${quoted(phrases(), ' or ')}…`;
+    const p = await Promise.race([said, sleep(10000)]);
+    testing = null;
+    $('voiceNote').textContent = !p ? 'Didn’t hear it. Say it a little louder, or record your own phrase.'
+      : `Heard “${p}”.${opts.clipVoice ? ' In a game, that saves a clip.' : ' Turn on the box above to save clips with it.'}`;
+    voiceCheck();
+  });
+  // Record my phrase: writes down the first thing you say with two words or more (Vosk without the grammar)
+  $('phraseRec').addEventListener('click', async () => {
+    if (testing || recording) return;
+    recording = true;
+    if (!(await voiceOn())) { recording = false; return void ($('voiceNote').textContent = voiceErr); }
+    const v = await vosk, r = new v.KaldiRecognizer(ac.sampleRate);
+    ears.add(r);
+    $('voiceNote').textContent = 'Say your phrase now…';
+    const text = await new Promise((res) => {
+      let part = '';
+      r.on('partialresult', (m) => { part = m.result.partial || part; });
+      r.on('result', (m) => { part = m.result.text || part; if (words(m.result.text).split(' ').length >= 2) res(m.result.text); });
+      setTimeout(() => res(part), 8000);
+    });
+    ears.delete(r);
+    r.remove();
+    recording = false;
+    const ok = words(text).split(' ').length >= 2;
+    if (ok) {
+      opts.clipPhrase = $('optClipPhrase').value = words(text);
+      saveOpts();
+      if (ear) listen(v);
+    }
+    $('voiceNote').textContent = !text ? 'Didn’t hear anything. Check your mic in Voice settings and try again.'
+      : !ok ? `Heard “${text}”. Use two words or more, so it isn’t said by accident.` : `Your phrase is “${opts.clipPhrase}”. Press Test to try it.`;
+    voiceCheck();
+  });
+  $('optClipPhrase').value = opts.clipPhrase;
+  $('optClipPhrase').addEventListener('change', (e) => {
+    opts.clipPhrase = e.target.value.trim();
+    saveOpts();
+    if (ear) vosk.then(listen);
+    renderVoice();
+  });
+  renderVoice();
   // A WebM of the last secs seconds of the recording: its header (from head, its first chunk) with a Duration, then the
   // clusters from the last one that starts on a video key frame at least secs before the end, their timecodes moved to
   // start at 0. (Chrome starts a cluster about every second, and a key frame comes every 2 s.) With range [from, to]
@@ -4491,7 +4661,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('clipList').hidden = g;
     if (g) $('clipGrid').replaceChildren(...gallery.map(clipCard));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
-    $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip shortcut'}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Settings, Clips).',
+    $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
   }
   function clipCard(c) {
@@ -6938,7 +7108,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     $('pttOff').hidden = !keys.ptt;
     const busy = (ks) => ks.filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]), taken = (b) => `Another app already uses ${b.join(' and ')}, so pick something else.`;
-    $('keysNote').textContent = busy(['show', 'clip', 'overlay']).length ? taken(busy(['show', 'clip', 'overlay'])) : '';
+    $('keysNote').textContent = busy(['show', 'overlay']).length ? taken(busy(['show', 'overlay'])) : '';
+    $('clipKeyNote').textContent = busy(['clip']).length ? taken(busy(['clip'])) : '';
     $('talkNote').textContent = !client ? 'In a browser these work while this page is in front.'
       : busy(['mute']).length ? taken(busy(['mute']))
       : keys.ptt && !keysOk.ptt ? 'Push to talk only works while this window is in front on this computer.' : '';
@@ -7055,11 +7226,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (peer) send({ t: 'hi', name: myName });
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record) }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
-    ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'],
+    ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'],
     ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto']]) {
     $(id).checked = opts[k];
@@ -7171,6 +7342,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [18, 'October 20: clips by voice', [
+      'Say “Premade, clip that” in a game and Premade saves a clip, or record a phrase of your own. Turn it on in Clip settings, under your clips on the Clips page, where all the clip settings are now.',
+      'The speech recognition runs on your computer, so nothing you say is sent anywhere. The first time, it downloads its English speech model, about 40 MB.',
+    ]],
     [17, 'October 19: a Custom theme, App size and a new logo', [
       'Settings > Look has a Custom theme: pick your own background and text colours, with your main colour, and Premade keeps every text readable whatever you pick.',
       'Settings > Look has App size too: make the whole app bigger or smaller, from 70% to 200%.',
@@ -7337,7 +7512,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -7410,6 +7585,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
       age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),
     saveClip,
+    voice: () => ({ on: !!ear, loaded: !!vosk, ears: ears.size, err: voiceErr, phrases: phrases() }), saidIn,
     gate: (v) => { gateNode.parameters.get('threshold').value = v; },
     heard: async (id) => { // loudest sample coming out of the speakers from this player over 1.5 s
       const p = peers.get(id), a = ac.createAnalyser(), d = new Float32Array(a.fftSize);

@@ -12,7 +12,7 @@
 // scouted (one found by Riot ID), objective timers, kills, towers and the gold difference on the page, the overlay (what it
 // shows, see-through, everyone's rank then hidden by its key) and the phone, your lane and CS a
 // minute, the sound before Dragon; clips from the clip key and a multikill, cut to the last seconds and playable, and the
-// gallery (keep, rename, drag, play, cut, bin); after the game: the LP, the game report with MVP and ACE, how you played
+// gallery (keep, rename, drag, play, cut, bin); a clip by voice, with your own phrase recorded from the mic; after the game: the LP, the game report with MVP and ACE, how you played
 // on the Game page (against your usual, high elo and your lane opponent, what stood out, the map of your fights, your
 // deaths and the objectives), Stats' LP
 // tracker and chart, match history with its reports and the spreadsheet export, the voice game history with the
@@ -45,7 +45,7 @@ PeerServer({ host: '127.0.0.1', port: 9001, path: '/' });
 http.createServer((req, res) => {
   const file = path.join(SITE, new URL(req.url, 'http://x').pathname);
   if (!file.startsWith(SITE + path.sep) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { 'Content-Type': file.endsWith('.js') ? 'text/javascript' : file.endsWith('.png') ? 'image/png' : 'text/html' });
+  res.writeHead(200, { 'Content-Type': { '.js': 'text/javascript', '.png': 'image/png', '.wasm': 'application/wasm', '.gz': 'application/gzip' }[path.extname(file)] || 'text/html' });
   fs.createReadStream(file).pipe(res);
 }).listen(8081, '127.0.0.1');
 
@@ -425,7 +425,8 @@ const leagueData = (over = {}) => ({
 });
 
 (async () => {
-  const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required',
+    `--use-file-for-fake-audio-capture=${path.join(__dirname, 'fixtures/that-was-sick.wav')}`] }); // the mic says “That was sick.” every 5 s, for clips by voice
   try {
     // ---- in a browser there's no Game page; an old app has it, with a note to restart for the update
     {
@@ -774,7 +775,6 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'pregame');
     console.log('tier list: Middle (Vi, Ahri, Lux, Zed), then Top (Garen, Lee Sin, Darius)');
     await pc.click('.nav[data-view="settings"]');
-    assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
     // its boxes stack with no holes: each is at the top or 16px under the one above it in its column
     const holes = await pc.$$eval('.view[data-view="settings"] .settings > *', (l) => {
       const r = l.filter((p) => p.offsetParent).map((p) => p.getBoundingClientRect()), top = Math.min(...r.map((b) => b.top));
@@ -1190,6 +1190,20 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => lpcClient.calls.includes('clips-folder')));
     await shot(pc, 'clips');
     console.log(`clip gallery: pictures, kept, renamed, dragged out, a ${cutLen.toFixed(1)} s cut from the trimmer, binned`);
+    // Clip settings, under the gallery; clips by voice: Record my phrase writes down what the mic says, and then saying it
+    // saves a clip. (Vosk, in a worker, slow on a busy container.)
+    await pc.click('#clipSet > summary');
+    assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
+    await pc.click('#phraseRec');
+    await wait(pc, () => document.getElementById('voiceNote').textContent === 'Your phrase is “that was sick”. Press Test to try it.', null, 'your phrase recorded', 90000);
+    assert.strictEqual(await pc.inputValue('#optClipPhrase'), 'that was sick');
+    await pc.check('#optClipVoice');
+    await wait(pc, () => lpc.toasts().includes('Clip saved when you said “that was sick”: Clip 5.webm'), null, 'the clip by voice', 60000);
+    assert.strictEqual(await text(pc, '#voiceNote'), 'Listening for “Premade, clip that” and “that was sick”.');
+    await shot(pc, 'clip-settings');
+    await pc.uncheck('#optClipVoice');
+    await wait(pc, () => !lpc.voice().loaded && !lpc.voice().ears, null, 'the speech recognition let go');
+    console.log('clips by voice: your phrase recorded from the mic (“that was sick”), and saying it saved a clip');
 
     // ---- after the game: LP, the report, and Stats
     await league(leagueData({ t: 1700, result: 'Win' }));
@@ -1468,7 +1482,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
