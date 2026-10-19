@@ -449,7 +449,7 @@ const leagueData = (over = {}) => ({
     {
       const [ctx, page] = await context(browser);
       const cors = { 'access-control-allow-origin': '*' }, riotCalls = [];
-      const PU = (n) => n.padEnd(78, '0'), ANA = PU('ana-'), BOB = PU('bob-');
+      const PU = (n) => n.padEnd(78, '0'), ANA = PU('ana-'), BOB = PU('bob-'), KIM = PU('kim-');
       const POSN = ['MIDDLE', 'TOP', 'JUNGLE', 'BOTTOM', 'UTILITY'];
       const match5 = (id, champ, win) => ({ metadata: { matchId: `EUW1_${id}` }, info: { gameId: id, gameCreation: Date.now() - (id % 10) * 3600e3, gameDuration: 1500, gameEndTimestamp: Date.now(), queueId: 420, gameMode: 'CLASSIC',
         participants: Array.from({ length: 10 }, (_, i) => ({ puuid: i ? PU(`p${i}-`) : ANA, riotIdGameName: i ? `P${i}` : 'Ana B', riotIdTagline: 'EUW', championId: i ? CHAMPS[i][1] : champ, teamId: i < 5 ? 100 : 200,
@@ -461,8 +461,12 @@ const leagueData = (over = {}) => ({
       const RIOT = {
         '/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW': { puuid: ANA, gameName: 'Ana B', tagLine: 'EUW' },
         '/europe/riot/account/v1/accounts/by-riot-id/Bob/EUW': { puuid: BOB, gameName: 'Bob', tagLine: 'EUW' },
+        '/europe/riot/account/v1/accounts/by-riot-id/Kim/EUW': { puuid: KIM, gameName: 'Kim', tagLine: 'EUW' },
+        [`/europe/riot/account/v1/region/by-game/lol/by-puuid/${ANA}`]: { puuid: ANA, game: 'lol', region: 'euw1' }, // the server each plays League on (Bob's isn't known)
+        [`/europe/riot/account/v1/region/by-game/lol/by-puuid/${KIM}`]: { puuid: KIM, game: 'lol', region: 'kr' },
         [`/euw1/lol/summoner/v4/summoners/by-puuid/${ANA}`]: { profileIconId: 29, summonerLevel: 87 },
         [`/euw1/lol/summoner/v4/summoners/by-puuid/${BOB}`]: { profileIconId: 1, summonerLevel: 31 },
+        [`/kr/lol/summoner/v4/summoners/by-puuid/${KIM}`]: { profileIconId: 7, summonerLevel: 120 },
         [`/euw1/lol/league/v4/entries/by-puuid/${ANA}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'EMERALD', rank: 'III', leaguePoints: 12, wins: 40, losses: 35, hotStreak: true, veteran: true }, { queueType: 'CHERRY', tier: 'GOLD' }],
         [`/euw1/lol/league/v4/entries/by-puuid/${BOB}`]: [],
         [`/euw1/lol/champion-mastery/v4/champion-masteries/by-puuid/${ANA}/top?count=5`]: [{ championId: 103, championLevel: 12, championPoints: 251000 }, { championId: 99, championLevel: 40, championPoints: 1200000 }],
@@ -497,17 +501,16 @@ const leagueData = (over = {}) => ({
       });
       await page.goto(URL_);
       await wait(page, () => window.lpc && lpc.riotOn() && !document.getElementById('proFindBox').hidden, null, 'the Riot ID form');
-      assert.match(await text(page, '#proNote'), /^Type your Riot ID and server below/);
-      assert.strictEqual(await page.textContent('#h-profind'), 'Your Riot ID');
+      assert.match(await text(page, '#proNote'), /^Type your Riot ID above/);
+      assert.strictEqual(await page.getAttribute('#proId', 'placeholder'), 'Your Riot ID: Name#TAG');
       assert.strictEqual(await text(page, '#proGo'), 'Show my profile');
       await page.fill('#proId', 'Nobody#EUW');
       await page.click('#proGo');
-      await wait(page, () => document.getElementById('proFindNote').textContent === 'Nobody called Nobody#EUW on EUW.', null, 'nobody by that name');
+      await wait(page, () => document.getElementById('proFindNote').textContent === 'No League player is called Nobody#EUW.', null, 'nobody by that name');
       await page.fill('#proId', 'Busy#EUW');
       await page.click('#proGo');
       await wait(page, () => document.getElementById('proFindNote').textContent === 'Too many lookups right now. Try again in a minute.', null, 'our server busy');
       await page.fill('#proId', 'Ana B#EUW');
-      await page.selectOption('#proRegion', 'euw1');
       await page.click('#proGo');
       await wait(page, () => document.getElementById('proName').textContent === 'Ana B' && document.querySelectorAll('#proGames > li').length === 3 && /Ahri/.test(document.getElementById('proStatus').textContent), null, 'Ana’s profile from Riot');
       assert.strictEqual(await text(page, '#proTag'), '#EUW');
@@ -531,13 +534,13 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await page.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 2, 'items, not the trinket');
       assert.match(await text(page, '#proMastery'), /Ahri\s*Level 12 · 251k points/);
       assert(await page.locator('#proMastery .champ').first().isDisabled(), 'champion pages need League’s client');
-      assert.strictEqual(await page.textContent('#h-profind'), 'Look up a player');
+      assert.strictEqual(await page.getAttribute('#proId', 'placeholder'), 'Look up a player: Name#TAG');
       // a game's report, from Riot's copy of the game
       await page.click('#proGames > li:first-child summary');
       await wait(page, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'the report from Riot');
       assert(await page.locator('#proGames > li:first-child .report tr[data-me]').count() === 1, 'Ana marked in it');
       assert(!riotCalls.some((c) => c.includes('oops')), 'only real match ids asked for');
-      assert.strictEqual(riotCalls.length, 14, `Nobody, Busy (asked again after a second), Ana in 9 calls, Bob's rank in her game and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
+      assert.strictEqual(riotCalls.length, 15, `Nobody, Busy (asked again after a second), Ana in 10 calls (her server from Riot), Bob's rank in her game and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
       // her game right now: her team first, everyone's rank, the name hidden for streamer mode
       const liveRows = () => page.$$eval('#proLiveRows tr', (trs) => trs.map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ').trim()]));
       await wait(page, () => /Unranked/.test(document.getElementById('proLiveRows').textContent), null, 'Bob’s rank in her game');
@@ -551,15 +554,15 @@ const leagueData = (over = {}) => ({
       assert(await page.$eval('#proGames > li:first-child details', (d) => d.open), 'the report still open');
       await page.click('#proMore');
       await wait(page, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
-      assert.strictEqual(riotCalls.length, 35, `a page of 20 with 19 new games, then an empty page: ${riotCalls.slice(14).join(' ')}`);
+      assert.strictEqual(riotCalls.length, 36, `a page of 20 with 19 new games, then an empty page: ${riotCalls.slice(15).join(' ')}`);
       // the queues: Solo/Duo loads its own games (one more), ARAM has five and Riot no more, TFT needs League's client
       await page.click('#proQueues [data-q="solo"]');
       await wait(page, () => document.getElementById('h-proform').textContent === 'Last 18 Solo/Duo games' && document.querySelectorAll('#proGames > li').length === 18, null, 'her Solo/Duo games');
-      assert.strictEqual(riotCalls.slice(35).join(' '), `/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=0&count=20&queue=420 /europe/lol/match/v5/matches/EUW1_7000000050`);
+      assert.strictEqual(riotCalls.slice(36).join(' '), `/europe/lol/match/v5/matches/by-puuid/${ANA}/ids?start=0&count=20&queue=420 /europe/lol/match/v5/matches/EUW1_7000000050`);
       await page.click('#proQueues [data-q="aram"]');
       await wait(page, () => document.getElementById('h-proform').textContent === 'Last 5 ARAM games' && document.getElementById('proMoreNote').textContent === 'No older games.', null, 'her ARAM games');
       assert.match(await page.textContent('#proForm'), /^Record\s*1W 4L · 20%/);
-      assert.strictEqual(riotCalls.length, 38, 'Riot asked for her ARAM games once');
+      assert.strictEqual(riotCalls.length, 39, 'Riot asked for her ARAM games once');
       await page.click('#proQueues [data-q="tft"]');
       assert.strictEqual(await text(page, '#proGames'), 'TFT games come from League’s client: open Profile in Premade’s desktop app while League is running.');
       assert(await page.locator('#proRanks').isHidden(), 'no TFT ranks from Riot');
@@ -575,6 +578,18 @@ const leagueData = (over = {}) => ({
       assert(await page.locator('#proPast').isHidden() && await page.locator('#proTagsBox').isHidden() && await page.locator('#proRolesBox').isHidden(), 'no past ranks, tags or roles');
       await page.click('#proBack');
       await wait(page, () => document.getElementById('proName').textContent === 'Ana B', null, 'back to Ana');
+      // anyone by Riot ID alone: Riot says which server they play on (Kim on KR, whatever her tag says); until our
+      // server passes that call, their tag says (Bob#EUW)
+      await page.fill('#proId', 'Kim#EUW');
+      await page.click('#proGo');
+      await wait(page, () => document.getElementById('proName').textContent === 'Kim', null, 'Kim’s profile');
+      assert.strictEqual(await text(page, '#proSub'), 'KR · Level 120');
+      await page.fill('#proId', 'Bob#EUW');
+      await page.click('#proGo');
+      await wait(page, () => document.getElementById('proName').textContent === 'Bob', null, 'Bob by his tag');
+      assert.strictEqual(await text(page, '#proSub'), 'EUW · Level 31');
+      await page.click('#proBack');
+      await wait(page, () => document.getElementById('proName').textContent === 'Ana B', null, 'back to Ana again');
       // the next visit: Ana as she was, then fresh from Riot; and Not you? forgets her
       assert(await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('lpc-profile')); return p.n === 'Ana B#EUW' && p.plat === 'euw1' && !('live' in p); }), 'Ana kept, without whether she’s in a game');
       const before = riotCalls.length;
@@ -587,7 +602,7 @@ const leagueData = (over = {}) => ({
       await page.click('#proForget');
       await wait(page, () => document.getElementById('proName').textContent === 'Your League profile' && document.getElementById('proGo').textContent === 'Show my profile', null, 'forgotten');
       await ctx.close();
-      console.log(`Profile in a browser: Ana B by Riot ID (in game with her game's ranks, Emerald III, 3 games and a report, 19 older ones, Solo/Duo and ARAM tabs), Bob opened from her game, kept and refreshed; ${riotCalls.length} calls to Riot`);
+      console.log(`Profile in a browser: Ana B by Riot ID (in game with her game's ranks, Emerald III, 3 games and a report, 19 older ones, Solo/Duo and ARAM tabs), Bob opened from her game, Kim on KR and Bob by Riot ID alone, kept and refreshed; ${riotCalls.length} calls to Riot`);
     }
 
     const [ctx, pc] = await context(browser, { version: '1.11.0' });
