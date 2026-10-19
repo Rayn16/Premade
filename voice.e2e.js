@@ -678,12 +678,12 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await shot(ana, 'ana-compact');
     await ana.click('#compactBtn');
     assert(await ana.isVisible('main'), 'full view again');
-    await ana.context().route('**/riot/summary', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
+    await ana.context().route('**/riot/summary', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
     await ana.click('.nav[data-view="settings"]');
     await ana.waitForSelector('#serverBox', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverToday'), 'Today: 3 players in 2 rooms. Busiest day of the last two weeks: 7 players.');
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
-    assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20. They give the most popular runes, builds, skill orders and matchups.');
+    assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20, going back to October 20, 2025. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).');
     assert.deepStrictEqual(await ana.$$eval('#serverChart g', (g) => [g.length, g.filter((x) => x.querySelector('.bar')).length, g[11].querySelector('title').textContent.endsWith(': 7 players in 3 rooms')]), [14, 2, true], 'a bar for each day with players');
     await ana.check('input[name="theme"][value="light"]');
     assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light');

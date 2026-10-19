@@ -69,17 +69,20 @@ const TIPS = { Ahri: [['Use Charm to set up your combos.', 'Spirit Rush gets you
 const champFull = (id, v) => ({ data: { [id]: { id, allytips: (TIPS[id] || [[]])[0], enemytips: (TIPS[id] || [[], []])[1], stats: { hp: id === 'Ahri' && v === '1.1' ? 600 : 590, armor: 21 }, passive: { name: 'Passive', description: 'Same.' },
   spells: ['Q', 'W', 'E', 'R'].map((k, i) => ({ name: id === 'Ahri' ? ['Orb of Deception', 'Fox-Fire', 'Charm', 'Spirit Rush'][i] : k, cooldownBurn: id === 'Ahri' && !i && v === '1.1' ? '6' : '7', costBurn: '50', rangeBurn: '900', tooltip: '', description: '' })) } } });
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+// Riot's rank emblems (Data Dragon's TFT ranked regalia), and which of them a page shows
+const REGALIA = { type: 'tft-regalia', data: { RANKED_TFT: Object.fromEntries(['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Emerald', 'Diamond', 'Master', 'Grandmaster', 'Challenger'].map((t) => [t, { id: t, image: { full: `TFT_Regalia_${t}.png` } }])) } };
+const embs = (page, sel) => page.$$eval(sel, (l) => l.map((e) => e.src.replace(/^.*\//, '')));
 
 // our server's high elo games (server/worker.js /riot/champ) of Ahri: 40 in the middle on patch 15.20, 22 won: the
 // most popular runes in 30 (19 won), Luden's, Rabadon's then Zhonya's in 30, Black Cleaver in 14, start Q, E, W and
-// max Q, E, W; against Zed (4 of 10 won), Lux (10 of 15) and Garen (8 of 15). And 3 at the top.
+// max Q, E, W; against Zed (4 of 10 won, and 8 of 20 more in the last year: y), Lux (10 of 15) and Garen (8 of 15). And 3 at the top.
 function highElo(role) {
   const SEQ = [1, 3, 2, 1, 1, 4, 1, 3, 1, 3, 4, 3, 3, 2, 2, 4, 2, 2];
   const games = role === 'TOP' ? [0, 1, 2].map((i) => ({ p: '15.20', t: 1000 + i, w: i % 2, o: 86, g: 0, s: [4, 12], rn: null, b: [], k: SEQ, x: [1, 1, 1, 100], l: null }))
     : Array.from({ length: 40 }, (_, i) => ({ p: '15.20', t: 2000 + i, w: +(i < 4 || (i >= 10 && i < 20) || (i >= 25 && i < 33)), o: i < 10 ? 238 : i < 25 ? 99 : 86, g: i < 10 ? -200 : i < 25 ? 150 : 50, s: [14, 4],
       rn: i < 30 ? [8100, 8200, 8112, 8139, 8138, 8135, 8226, 8237, 5008, 5008, 5011] : [8100, 8200, 8112, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5002],
       b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, i < 30 ? 3089 : 3157], [1500, i < 30 ? 3157 : 3089], ...(i % 3 ? [] : [[1800, 3071]])], k: SEQ, x: [6, 3, 8, 210], l: [5, 100] }));
-  return { patch: '15.20', role, roles: { MIDDLE: [40, 22], TOP: [3, 1] }, games };
+  return { patch: '15.20', role, roles: { MIDDLE: [40, 22], TOP: [3, 1] }, games, ...(role !== 'TOP' && { y: { n: 20, w: 8, vs: { 238: [20, 8] } } }) };
 }
 
 // and Zed in the middle: 10 games against Ahri (won 6) and 6 against Lux (won 1)
@@ -343,6 +346,7 @@ async function context(browser, { version = '', phone = false } = {}) {
     if ((m = /\/cdn\/([\d.]+)\/data\/en_US\/champion\/(\w+)\.json$/.exec(u))) return r.fulfill({ json: champFull(m[2], m[1]), headers: cors });
     if (u.endsWith('item.json')) return r.fulfill({ json: ITEMS, headers: cors });
     if (u.endsWith('runesReforged.json')) return r.fulfill({ json: RUNE_TREES, headers: cors });
+    if (u.endsWith('/cdn/1.1/data/en_US/tft-regalia.json')) return r.fulfill({ json: REGALIA, headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
   if (phone) await ctx.addInitScript(() => { window.buzzes = []; navigator.vibrate = (p) => { buzzes.push(p); return true; }; }); // the phone's buzz
@@ -372,7 +376,7 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
 const text = (page, sel) => page.locator(sel).innerText();
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.join(process.env.SHOTS, name + '.png'), fullPage: true }); // SHOTS=folder saves screenshots
 // the tips for Ahri against Zed in the middle (site/index.html tipsFor), after your note when you have one
-const TIPS_AHRI_ZED = ['High elo: Ahri won 4 of 10 games against Zed, −200 gold and +5 CS at 10 minutes. A hard matchup for Ahri.',
+const TIPS_AHRI_ZED = ['High elo: Ahri won 12 of 30 games against Zed, −200 gold and +5 CS at 10 minutes. A hard matchup for Ahri.',
   'You: 9 of 13 games won against Zed in your lane, 6 of 8 on Ahri.',
   'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
   'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
@@ -473,6 +477,7 @@ const leagueData = (over = {}) => ({
       assert.match(await text(page, '#proStatus'), /^In game as Ahri · Ranked Solo\/Duo · [56] min$/);
       const rk = await page.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint')].map((x) => x.textContent).join('|')));
       assert.deepStrictEqual(rk, ['Solo/Duo|Emerald III|12 LP · 40W 35L · 53%', 'Flex|Unranked|']);
+      assert.deepStrictEqual(await embs(page, '#proRanks img.crest'), ['TFT_Regalia_Emerald.png'], 'Riot’s emblem for her rank');
       assert.strictEqual(await page.textContent('#h-proform'), 'Last 3 games');
       assert.match(await page.textContent('#proForm'), /^Record\s*2W 1L · 67%\s*KDA\s*8\.0 \/ 2\.0 \/ 5\.0 · 6\.5\s*CS a minute\s*7\.6\s*Main role\s*Middle, 3 of 3$/);
       assert.strictEqual(await page.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 2, 'items, not the trinket');
@@ -740,6 +745,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(rows.length, 5);
     assert.match(rows[0], /Friend#EUW .*Top.*hovering Garen.*Gold II · 45 LP.*Flex: Silver I · 10 LP.*Last 20: 6W 14L.*Garen: 8 games, 75% won.*6 wins in a row.*Comfort pick.*Seen before: 20 with you \(13W 7L\)/);
     assert.match(rows[4], /Hooks#EUW .*Off-role: rarely plays support \(0 of 20\)/);
+    assert.deepStrictEqual(await embs(pc, '#csRows .emb'), Array(3).fill('TFT_Regalia_Gold.png'), 'an emblem by each rank');
     assert.doesNotMatch(rows.join(), /Premade|smurf/);
     assert.match(rows[1], /Name hidden by Riot/);
     assert.match(rows[3], /Name hidden by Riot/);
@@ -801,7 +807,7 @@ const leagueData = (over = {}) => ({
       ['Your start', '1056,2003'], ['Your first items, in order', '6655,3157,3089'], ['Your boots', '3020']]);
     assert.deepStrictEqual([lpcSet.uid, lpcSet.associatedChampions, lpcSet.associatedMaps, set.accountId], ['lpc-103', [103], [11], 77]);
     assert.strictEqual(await text(pc, '#skillNote'), 'Your skill order on Ahri (from 8 games): start Q, W, E, then max Q, then W, then E. In high elo: start Q, E, W, then max Q, then E, then W.');
-    assert.strictEqual(await text(pc, '#topNote'), 'In high elo, Ahri middle won 55% of 40 games. Against their picks: Zed, 40% won in 10 games (−200 gold at 10).');
+    assert.strictEqual(await text(pc, '#topNote'), 'In high elo, Ahri middle won 55% of 40 games. Against their picks: Zed, 40% won in 30 games (−200 gold at 10).');
     assert.strictEqual(await text(pc, '#runesOther'), 'Use my own usual runes instead');
     // the tips for your lane: how Ahri does against Zed in high elo and in your games, the two champions, what high elo
     // players take in the matchup, and Riot's own tips
@@ -827,10 +833,10 @@ const leagueData = (over = {}) => ({
     await league({ inGame: false, phase: 'InProgress' });
     await wait(pc, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && [...b.us, ...b.them].every((p) => /LP|Unranked/.test(p.rank)) && !!b.tips && b.tips.lines.length === 9; }, null, 'everyone’s rank on the loading screen');
     const board = await pc.evaluate(() => lpcClient.lastOverlay.board);
-    const cardOf = (p) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic) });
-    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55',
+    const cardOf = (p) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
+    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
       rec: 'Zed: not in the last 20', tags: [['bad', 'First time on this champion'], ['', 'One-trick: Ahri'], ['', 'Seen before']] });
-    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55',
+    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
       rec: 'Garen: 8 of the last 20, 75% won · mastery 3', tags: [['good', '6 wins in a row'], ['good', 'Comfort pick'], ['', 'Seen before']] });
     assert.deepStrictEqual([board.us.map((p) => p.me), board.them.map((p) => p.lane)], [[false, false, true, false, false], [false, false, true, false, false]], 'you, and who’s in your lane');
     assert.deepStrictEqual([...board.us, ...board.them].map((p) => p.tags.map(([, t]) => t).filter((t) => /Premade|smurf|Off-role/.test(t)).join()),
@@ -1011,6 +1017,7 @@ const leagueData = (over = {}) => ({
     await pc.click('.nav[data-view="game"]');
     await pc.click('.nav[data-view="stats"]');
     await wait(pc, () => /Gold II · 63 LP/.test(document.getElementById('rankNow').textContent), null, 'the rank');
+    assert.deepStrictEqual(await embs(pc, '#rankNow .emb'), ['TFT_Regalia_Gold.png']);
     assert.strictEqual(await text(pc, '#lpToday'), 'Today: 1W 0L, +18 LP.');
     assert(await pc.locator('#lpChart polyline').isVisible(), 'the LP chart');
     assert.match((await pc.$$eval('#lpList li', (l) => l.map((x) => x.textContent)))[0], /Win · \+18 LP · Gold II · 63 LP/);
@@ -1035,6 +1042,8 @@ const leagueData = (over = {}) => ({
     const pt = (sel) => viewer.$$eval(sel, (l) => l.map((e) => e.textContent));
     assert.strictEqual(await viewer.title(), 'Rayan#EUW · League profile');
     assert.deepStrictEqual(await pt('#ranks .tile'), ['Solo/DuoGold II63 LP · 55% of 56', 'FlexUnranked']);
+    await wait(viewer, () => document.querySelectorAll('#ranks img').length === 1, null, 'Riot’s emblem for the rank');
+    assert.strictEqual(await viewer.getAttribute('#ranks img', 'src'), 'https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png');
     assert.match((await pt('#champs li'))[0], /^Ahri8 games · [\d.]+ \/ [\d.]+ \/ [\d.]+75%$/);
     assert.match(await viewer.getAttribute('#champs li img', 'src'), /^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/1\.1\/img\/champion\/Ahri\.png$/);
     assert.match((await pt('#nums .tile'))[0], /^Record\d+W \d+L\d+% won$/);
@@ -1066,7 +1075,7 @@ const leagueData = (over = {}) => ({
       /Your build \(from 8 games\) Start Doran’s Ring Health Potion First items, in order Luden’s Companion Zhonya’s Hourglass Rabadon’s Deathcap Boots Sorcerer’s Shoes/i,
       /Skill order Your skill order on Ahri \(from 8 games\): start Q, W, E, then max Q, then W, then E\./i, /Against your lane opponents Zed: 6W 2L/i,
       /Your matchup notes Against Zed: Respect his level 6\. Ward the side bushes\. Delete/i, /Patch 1\.1 Health 590 → 600 Q \(Orb of Deception\) cooldown 7 → 6$/i,
-      /In high elo Role\s.*Ahri middle won 55% of 40 Challenger and Grandmaster games on patch 25\.20\. Runes: Electrocute, Taste of Blood, Eyeball Collection, Treasure Hunter, Manaflow Band, Scorch \(Domination with Sorcery\): 63% won in 30 games\. Spells: Flash and Ignite\. Start Doran’s Ring Health Potion First items, in order Luden’s Companion Rabadon’s Deathcap Zhonya’s Hourglass Boots Sorcerer’s Shoes Also Black Cleaver Skill order: start Q, E, W, then max Q, then E, then W\. Best against: Lux, 67% won in 15 games \(\+150 gold at 10\); Garen, 53% won in 15 games \(\+50 gold at 10\)\. Worst against: Zed, 40% won in 10 games \(−200 gold at 10\)\. Your runes/i]) assert.match(champPage, re);
+      /In high elo Role\s.*Ahri middle won 55% of 40 Challenger and Grandmaster games on patch 25\.20\. Runes: Electrocute, Taste of Blood, Eyeball Collection, Treasure Hunter, Manaflow Band, Scorch \(Domination with Sorcery\): 63% won in 30 games\. Spells: Flash and Ignite\. Start Doran’s Ring Health Potion First items, in order Luden’s Companion Rabadon’s Deathcap Zhonya’s Hourglass Boots Sorcerer’s Shoes Also Black Cleaver Skill order: start Q, E, W, then max Q, then E, then W\. Best against: Lux, 67% won in 15 games \(\+150 gold at 10\); Garen, 53% won in 15 games \(\+50 gold at 10\)\. Worst against: Zed, 40% won in 30 games \(−200 gold at 10\)\. Your runes/i]) assert.match(champPage, re);
     assert.deepStrictEqual(await pc.$$eval('#champDlgBody select option', (o) => o.map((x) => [x.value, x.textContent])), [['MIDDLE', 'Middle (40 games)'], ['TOP', 'Top (3 games)']]);
     await pc.selectOption('#champDlgBody select', 'TOP');
     await wait(pc, () => /Not enough Challenger and Grandmaster games with Ahri top counted yet/.test(document.getElementById('champDlgBody').textContent), null, 'too few games at the top');
@@ -1124,6 +1133,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpc.toasts().includes('Sniper: +16 LP, now Gold II · 61 LP'), null, 'the LP popup');
     assert.match((await text(pc, '#watchList li:first-child')).replace(/\s+/g, ' '), /^Sniper#EUW Gold II · 61 LP · 55% of 55 · \+16 LP today Unfollow$/);
     assert(await pc.locator('#watchList li:first-child polyline').count(), 'a line of their LP');
+    assert.deepStrictEqual(await embs(pc, '#watchList li:first-child .emb'), ['TFT_Regalia_Gold.png']);
     await shot(pc, 'stats-players');
     console.log('players: Sniper looked up (a smurf?) and followed with Axe, +16 LP noticed');
     // a friend in the room: their rank and your record together on their card, and Watch while they play
@@ -1141,6 +1151,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Platinum IV · 12 LP · With you: 13W 7L'), null, 'the friend’s rank and your record together');
     await wait(fr, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Gold II · 63 LP, +18 today'), null, 'your rank on the friend’s card for you');
     assert(await pc.locator('#players .watch').isHidden(), 'no Watch while the friend isn’t playing');
+    assert((await embs(pc, '#players .plol .emb')).includes('TFT_Regalia_Platinum.png'), 'the emblem on the friend’s card');
     await fr.evaluate((d) => lpcClient.emit('league', d), leagueData({ me: { champ: 'Garen', champName: 'Garen', team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 } }));
     await wait(pc, () => { const b = document.querySelector('#players .watch'); return b && !b.hidden; }, null, 'Watch on the friend’s card');
     await pc.click('#players .watch');
@@ -1151,6 +1162,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#teamsBtn');
     await wait(pc, () => { const t = document.getElementById('teamsBox').textContent; return /Rayan \(you\): Gold II · 63 LP/.test(t) && /Fren: Platinum IV · 12 LP/.test(t) && /about Gold II/.test(t) && /about Platinum IV/.test(t); }, null, 'the teams with ranks');
     await wait(fr, () => /Rayan: Gold II · 63 LP/.test(document.getElementById('teamsBox').textContent), null, 'the teams on the friend’s page');
+    assert.deepStrictEqual((await embs(pc, '#teamsBox .emb')).sort(), ['TFT_Regalia_Gold.png', 'TFT_Regalia_Platinum.png']);
     lcu.lobby = { localMember: { isLeader: true }, gameConfig: { isCustom: false, queueId: 400, showPositionSelector: true }, members: [{}, {}] };
     lcu.phase = 'Lobby';
     await league({ inGame: false, phase: 'Lobby' });

@@ -35,6 +35,7 @@ body.board { display: block; padding: 0; font-size: calc(1.25vh * var(--k, 1)); 
 .card.me { border-color: #f0e6d2; box-shadow: 0 0 0.5em rgb(200 170 110 / 0.7); }
 .card .pic { width: 2.4em; height: 2.4em; margin-top: 0.1em; font-size: 1em; }
 .card > div { flex: 1; min-width: 0; }
+.card .emb { flex: none; width: 2.6em; height: 2.6em; align-self: center; object-fit: contain; } /* Riot's emblem for their rank */
 .who { display: flex; align-items: baseline; gap: 0.4em; white-space: nowrap; }
 .who b { overflow: hidden; text-overflow: ellipsis; }
 .sub { overflow: hidden; text-overflow: ellipsis; color: #a09b8c; font-size: 0.9em; }
@@ -72,7 +73,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     return p;
   }
   // a player on the board: champion picture, name, champion and role, rank (in its tier's color), their record on
-  // the champion, and tags (good ones green, bad ones red)
+  // the champion, tags (good ones green, bad ones red) and Riot's emblem for their rank
   function card(p) {
     const c = el('card' + (p.ally ? '' : ' enemy') + (p.me ? ' me' : '')), face = document.createElement('span'), text = el(''), who = el('who'), n = document.createElement('b');
     face.className = 'pic';
@@ -87,6 +88,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     for (const [k, t] of Array.isArray(p.tags) ? p.tags : []) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
     text.append(who, rk, ...(p.rec ? [el('ch', String(p.rec))] : []), chips);
     c.append(face, text);
+    if (p.emb) c.append(Object.assign(new Image(), { src: String(p.emb), alt: '', className: 'emb' }));
     return c;
   }
   function board(b, out) {

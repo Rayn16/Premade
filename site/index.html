@@ -236,6 +236,7 @@ dialog.wizard::backdrop { background: rgb(1 10 19 / 0.78); }
 /* the Pregame page (the ready check, champ select, the tier list) and the Game page; and Stats' LP chart, reports and clips */
 .scout td { vertical-align: top; white-space: normal; }
 .scout td:first-child { min-width: 200px; }
+.scout td:nth-child(2) { min-width: 240px; } /* the rank with its emblem, on one line */
 .scout tr[data-team="ally"] td:first-child { box-shadow: inset 3px 0 #4aa8ff; }
 .scout tr[data-team="enemy"] td:first-child { box-shadow: inset 3px 0 #ff5c5c; }
 tr[data-me] td { background: rgb(200 170 110 / 0.09); }
@@ -243,6 +244,8 @@ tr[data-me] td { background: rgb(200 170 110 / 0.09); }
 .who > span:last-child { display: grid; min-width: 0; }
 .pic0 { width: 34px; height: 34px; flex: none; display: inline-block; border-radius: 50%; border: 2px solid var(--gold-line); background: var(--raised); object-fit: cover; }
 .sub { display: block; color: var(--muted); font-size: 13px; font-weight: 400; }
+.emb { width: 22px; height: 22px; margin-right: 6px; object-fit: contain; vertical-align: middle; } /* Riot's emblem for a rank */
+.who > .emb { width: 34px; height: 34px; flex: none; margin: 0; }
 .tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .tag { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .tag[data-k="good"] { border-color: var(--good); color: var(--good); }
@@ -384,7 +387,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .pstat { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 18px; }
 .rank { grid-template-columns: 64px minmax(0, 1fr); gap: 2px 14px; align-items: center; }
-.crest { grid-row: span 3; width: 64px; height: 64px; }
+.crest { grid-row: span 3; width: 64px; height: 64px; object-fit: contain; }
 .crest path { fill: var(--tc); fill-opacity: 0.16; stroke: var(--tc); stroke-width: 3; stroke-linejoin: round; }
 .crest text { fill: var(--tc); font: 700 20px var(--display); text-anchor: middle; }
 .rtier { font: 600 20px/1.2 var(--body); }
@@ -1276,11 +1279,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let dd = null, ddVersion = '', ddAt = -Infinity; // dd: Promise of { version, byName: lower-case name or id -> id }
   let ddVersions = []; // this patch's version and the last one's, for Stats' patch changes
   const ddChamp = {}; // a champion's Data Dragon entry by its number (League's client) and its id
+  const emblems = {}; // Riot's rank emblems by tier, from Data Dragon's TFT ranked regalia (the same crests as League's ranks)
+  const emblem = (tier) => { const src = emblems[String(tier || '').toUpperCase()]; return src ? Object.assign(new Image(), { src, alt: '', className: 'emb' }) : ''; };
+  const withEmblem = (tier, ...text) => { const s = document.createElement('span'); s.className = 'who'; s.append(emblem(tier), ...text); return s; };
   function ddragon() {
     ddAt = performance.now();
     dd = dd || (async () => {
       const versions = await (await fetch(`${DD}/api/versions.json`)).json(), version = versions[0];
-      const data = (await (await fetch(`${DD}/cdn/${version}/data/en_US/champion.json`)).json()).data;
+      const [data, regalia] = await Promise.all([fetch(`${DD}/cdn/${version}/data/en_US/champion.json`).then((r) => r.json()).then((j) => j.data),
+        fetch(`${DD}/cdn/${version}/data/en_US/tft-regalia.json`).then((r) => r.json()).catch(() => null)]); // without emblems, ranks are only text
+      for (const [k, v] of Object.entries((regalia && regalia.data && regalia.data.RANKED_TFT) || {})) if (v && v.image && v.image.full) emblems[k.toUpperCase()] = `${DD}/cdn/${version}/img/tft-regalia/${v.image.full}`;
       const byName = {};
       for (const c of Object.values(data)) { byName[c.name.toLowerCase()] = c.id; byName[c.id.toLowerCase()] = c.id; ddChamp[c.key] = ddChamp[c.id] = c; }
       $('champs').replaceChildren(...Object.values(data).map((c) => new Option(c.name)));
@@ -1334,7 +1342,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     kick.hidden = hostSlot() !== slot;
     kick.setAttribute('aria-label', 'Remove ' + name + ' from the room');
     r.querySelector('.pvol input').setAttribute('aria-label', 'Volume for ' + name);
-    r.querySelector('.plol').textContent = lolText(p);
+    const pl = r.querySelector('.plol'), lt = lolText(p), tier = p.lol && p.lol.rk ? p.lol.rk[0] : '', pk = (emblems[tier] || '') + lt;
+    if (pl.dataset.key !== pk) { pl.dataset.key = pk; pl.textContent = lt; if (lt) pl.prepend(emblem(tier)); }
     r.querySelector('.watch').hidden = !canWatch(p);
     r.querySelector('.watch').setAttribute('aria-label', `Watch ${name}’s game`);
     r.querySelector('.pstate').textContent = stateText(p) + (teamOf(p) !== 'enemy' && p.fx.length ? ` · ${[...new Set(p.fx.map((n) => FX[n].name))].join(' + ')} voice` : '');
@@ -2721,7 +2730,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const on = s && s.games ? s.games.filter((x) => x.champ === p.champ) : [], m = s && s.mastery.find((x) => x.championId === p.champ);
       return {
         name: p.name.split('#')[0] || 'A player', sub: [c ? c.name : '', POS[p.pos] || ''].filter(Boolean).join(' · '), pic: champImg(p.champ), me: !!p.me, ally: !!p.ally, lane: !p.ally && !!lane && lane.foe === p.champ,
-        rank: !s ? (p.puuid ? 'Looking up…' : '') : rk ? (rk === s.ranked.RANKED_SOLO_5x5 ? '' : 'Flex: ') + rankText(rk) : 'Unranked', tc: rk ? TIER_C[TIERS.indexOf(rk.tier)] : '',
+        rank: !s ? (p.puuid ? 'Looking up…' : '') : rk ? (rk === s.ranked.RANKED_SOLO_5x5 ? '' : 'Flex: ') + rankText(rk) : 'Unranked', tc: rk ? TIER_C[TIERS.indexOf(rk.tier)] : '', emb: rk ? emblems[rk.tier] || '' : '',
         rec: !s || !c ? '' : !s.games ? 'Match history hidden' : `${c.name}: ${on.length ? `${on.length} of the last ${s.games.length}, ${pct(on.filter((x) => x.win).length / on.length)} won` : `not in the last ${s.games.length}`}${m ? ` · mastery ${m.championLevel}` : ''}`,
         tags: s && s.games ? tagsOf(s, p.champ, p).map(([k, t]) => [k, t.replace(/ \(.*$/, '').replace(/^(Off-role|Maybe a smurf|Seen before):.*$/, '$1')]) : [],
       };
@@ -2981,6 +2990,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     scouting.add(puuid);
     scoutFetch(puuid).then((d) => { scoutData.set(puuid, d); renderGame(); });
   }
+  function rankCell(td, solo, flex) {
+    const t = document.createElement('span');
+    t.append(rankText(solo));
+    if (flex && TIERS.includes(flex.tier)) t.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: 'Flex: ' + rankText(flex) }));
+    td.replaceChildren(withEmblem(solo && solo.tier, t));
+  }
   function rankText(q) {
     if (!q || !TIERS.includes(q.tier)) return 'Unranked';
     const n = (q.wins | 0) + (q.losses | 0);
@@ -3022,9 +3037,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     who.querySelector('.sub').textContent = [POS[p.pos] || '', c ? (p.champ ? c.name : `hovering ${c.name}`) : '', p.score || '', p.best && s && s.level ? `Level ${s.level}` : ''].filter(Boolean).join(' · ');
     if (p.hidden) return tr;
     if (!s) { rank.textContent = p.puuid && opts.scout ? 'Looking up…' : ''; return tr; }
-    rank.textContent = rankText(s.ranked.RANKED_SOLO_5x5);
-    const flex = s.ranked.RANKED_FLEX_SR;
-    if (flex && TIERS.includes(flex.tier)) rank.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: 'Flex: ' + rankText(flex) }));
+    rankCell(rank, s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR);
     if (!s.games) recent.textContent = 'Match history hidden';
     else {
       const g = s.games, w = g.filter((x) => x.win).length, on = g.filter((x) => x.champ === k), m = s.mastery.find((x) => x.championId === k);
@@ -4100,7 +4113,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!lcuOn()) return;
     await myRank();
     const q = $('lpQueue').value, list = lpLog.filter((e) => e.q === q), today = list.filter((e) => new Date(e.at).toDateString() === new Date().toDateString());
-    $('rankNow').replaceChildren(...[['Solo/Duo', 'RANKED_SOLO_5x5'], ['Flex', 'RANKED_FLEX_SR']].map(([n, k]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, rankNow ? rankText(rankNow[k]) : lcu ? '…' : 'Start League to see it'); return s; }));
+    $('rankNow').replaceChildren(...[['Solo/Duo', 'RANKED_SOLO_5x5'], ['Flex', 'RANKED_FLEX_SR']].map(([n, k]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, withEmblem(rankNow && rankNow[k] && rankNow[k].tier, rankNow ? rankText(rankNow[k]) : lcu ? '…' : 'Start League to see it')); return s; }));
     const lp = today.reduce((n, e) => n + e.delta, 0), w = today.filter((e) => e.win).length;
     $('lpToday').textContent = today.length ? `Today: ${w}W ${today.length - w}L, ${lp >= 0 ? '+' : ''}${lp} LP.` : list.length ? 'No ranked games today yet.' : 'Your LP shows up here after each ranked game you play with the app open.';
     const pts = list.slice(-40).map(ladder).filter((v) => v != null), svg = $('lpChart');
@@ -4867,7 +4880,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     let sum = null; // and the high elo games it counted from Riot, for popular runes, builds and matchups
     try { const r = await fetch(`${serverUrl}/riot/summary`); if (r.ok) sum = await r.json(); } catch {}
     $('serverRiot').hidden = !(sum && Number.isFinite(sum.total));
-    if (!$('serverRiot').hidden) $('serverRiot').textContent = `High elo games counted from Riot: ${(sum.total | 0).toLocaleString('en-US')}, ${n(sum.today | 0, 'game')} today${/^\d+\.\d+$/.test(sum.p) ? `, patch ${patchName(sum.p)}` : ''}. They give the most popular runes, builds, skill orders and matchups.`;
+    if (!$('serverRiot').hidden) $('serverRiot').textContent = `High elo games counted from Riot: ${(sum.total | 0).toLocaleString('en-US')}, ${n(sum.today | 0, 'game')} today${/^\d+\.\d+$/.test(sum.p) ? `, patch ${patchName(sum.p)}` : ''}${sum.from > 0
+      ? `, going back to ${new Date(sum.from * 1000).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).`
+      : '. They give the most popular runes, builds, skill orders and matchups.'}`;
   }
   $('profileCopy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('profileLink').value); notify('Profile link copied', true); } catch { $('profileLink').select(); }
@@ -4912,6 +4927,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     s.innerHTML = '<svg class="crest" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 56 14v19c0 13-9.5 22-24 27C17.5 55 8 46 8 33V14z"/><text x="32" y="40"></text></svg><h2 class="ph"></h2><p class="rtier"></p><p class="hint"></p>';
     s.style.setProperty('--tc', i < 0 ? 'var(--line)' : TIER_C[i]);
     s.querySelector('text').textContent = i < 0 ? '' : i === 8 ? 'GM' : q.tier[0];
+    if (i >= 0 && emblems[q.tier]) s.querySelector('.crest').replaceWith(Object.assign(emblem(q.tier), { className: 'crest' }));
     s.querySelector('h2').textContent = label;
     s.querySelector('.rtier').textContent = q === undefined ? '…' : i < 0 ? 'Unranked' : `${cap(q.tier)}${i < 7 && q.division && q.division !== 'NA' ? ' ' + q.division : ''}`;
     s.querySelector('.hint').textContent = i < 0 ? '' : [`${q.leaguePoints | 0} LP`, n ? `${q.wins | 0}W ${q.losses | 0}L · ${Math.round((100 * q.wins) / n)}%` : '', more].filter(Boolean).join(' · ');
@@ -5082,8 +5098,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         name.append(b);
       } else name.textContent = x.bot ? 'Bot' : x.n || 'Name hidden (streamer mode)';
       tr.querySelector('.sub').textContent = champName(x.c);
-      tr.lastChild.textContent = x.bot || !x.u ? '' : rk === undefined ? 'Looking up…' : rk === null ? '—' : rankText(solo);
-      if (flex && TIERS.includes(flex.tier)) tr.lastChild.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: 'Flex: ' + rankText(flex) }));
+      if (rk && !x.bot && x.u) rankCell(tr.lastChild, solo, flex);
+      else tr.lastChild.textContent = x.bot || !x.u ? '' : rk === undefined ? 'Looking up…' : '—';
       return tr;
     }));
   }
@@ -5138,7 +5154,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const rn = most(games.filter((g) => ok(g.rn, 11)).map((g) => [g.rn.join(','), g.w])), sp = most(games.filter((g) => ok(g.s, 2)).map((g) => [g.s.slice().sort((a, b) => a - b).join(','), g.w]));
     const vs = new Map();
     for (const g of games) if (Number.isInteger(g.o)) { const v = vs.get(g.o) || { c: g.o, n: 0, w: 0, gold: [] }; v.n++; v.w += g.w; if (Number.isFinite(g.g)) v.gold.push(g.g); vs.set(g.o, v); }
-    return { role: POS[j.role] ? j.role : '', roles: j.roles && typeof j.roles === 'object' ? j.roles : {}, patch: now.length >= 30 ? String(j.patch) : '', n: games.length, w: games.filter((g) => g.w).length, all,
+    for (const [o, x] of Object.entries((j.y && j.y.vs) || {})) if (+o > 0 && Array.isArray(x)) { const v = vs.get(+o) || { c: +o, n: 0, w: 0, gold: [] }; v.n += x[0] | 0; v.w += x[1] | 0; vs.set(+o, v); } // and the last year's games (y), without gold at 10
+    return { role: POS[j.role] ? j.role : '', roles: j.roles && typeof j.roles === 'object' ? j.roles : {}, patch: now.length >= 30 ? String(j.patch) : '', n: games.length, w: games.filter((g) => g.w).length, all, yvs: (j.y && j.y.vs) || {},
       runes: rn ? { perks: rn[0].split(',').map(Number), n: rn[1][0], w: rn[1][1] } : null, spells: sp ? sp[0].split(',').map(Number) : null,
       buys: games.map((g) => (Array.isArray(g.b) ? g.b.filter((x) => ok(x, 2)) : [])).filter((b) => b.length), skills: games.map((g) => g.k).filter((k) => Array.isArray(k) && k.length >= 9 && k.every((x) => x >= 1 && x <= 4)),
       vs: [...vs.values()].map((v) => ({ c: v.c, n: v.n, w: v.w, gold: v.gold.length ? Math.round(v.gold.reduce((a, b) => a + b, 0) / v.gold.length) : null })).sort((a, b) => b.n - a.n) };
@@ -5232,11 +5249,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (tipsMemo.key === key && tipsMemo.top === top && tipsMemo.them === them && tipsMemo.ta === ta && tipsMemo.tb === tb) return tipsMemo.out;
     const A = a.name, B = b.name, lines = [], note = notes[noteKey(mine, foe)];
     if (note) lines.push(`Your note: ${note}`);
-    const vs = ((top && top.all) || []).filter((g) => g.o === foe);
-    if (vs.length >= 5) {
-      const w = vs.filter((g) => g.w).length, k = adj(w, vs.length, 10), avg = (f) => { const v = vs.map(f).filter(Number.isFinite); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
+    const vs = ((top && top.all) || []).filter((g) => g.o === foe), y = (top && top.yvs && top.yvs[foe]) || [], n = vs.length + (y[0] | 0); // and the last year's games, without gold or CS
+    if (n >= 5) {
+      const w = vs.filter((g) => g.w).length + (y[1] | 0), k = adj(w, n, 10), avg = (f) => { const v = vs.map(f).filter(Number.isFinite); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
       const gold = avg((g) => g.g), cs = avg((g) => (Array.isArray(g.l) ? g.l[0] : NaN));
-      lines.push(`High elo: ${A} won ${w} of ${vs.length} games against ${B}${gold == null ? '' : `, ${sgn(gold)} gold${cs == null ? '' : ` and ${sgn(cs)} CS`} at 10 minutes`}. ${k < 0.46 ? `A hard matchup for ${A}.` : k > 0.54 ? `A good matchup for ${A}.` : 'An even matchup.'}`);
+      lines.push(`High elo: ${A} won ${w} of ${n} games against ${B}${gold == null ? '' : `, ${sgn(gold)} gold${cs == null ? '' : ` and ${sgn(cs)} CS`} at 10 minutes`}. ${k < 0.46 ? `A hard matchup for ${A}.` : k > 0.54 ? `A good matchup for ${A}.` : 'An even matchup.'}`);
     }
     const mg = myGames().filter((g) => g.mode === 'CLASSIC').map((g) => { const m = g.ps[g.me], o = m.l ? g.ps.find((p) => p.t !== m.t && p.l === m.l) : null; return o && o.c === foe ? m : null; }).filter(Boolean);
     const on = mg.filter((m) => m.c === mine);
@@ -5621,6 +5638,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       li.innerHTML = '<span><b></b><span class="sub"></span></span><svg class="spark" viewBox="0 0 140 32" aria-hidden="true"></svg><button class="btn small" type="button">Unfollow</button>';
       li.querySelector('b').textContent = w.n;
       li.querySelector('.sub').textContent = `${w.rank || 'Not looked up yet'}${d ? ` · ${d > 0 ? '+' : '−'}${Math.abs(d)} LP today` : ''}`;
+      li.querySelector('.sub').prepend(emblem(String(w.rank).split(' ')[0]));
       const pts = w.log.slice(-20).map((e) => e.v);
       if (pts.length > 1) { const lo = Math.min(...pts), sp = Math.max(...pts) - lo || 1; li.querySelector('svg').innerHTML = `<polyline class="gold" points="${pts.map((v, i) => `${(2 + (i / (pts.length - 1)) * 136).toFixed(1)},${(30 - ((v - lo) / sp) * 28).toFixed(1)}`).join(' ')}"/>`; }
       li.querySelector('button').setAttribute('aria-label', `Unfollow ${w.n}`);
@@ -5940,7 +5958,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       h.className = 'ph';
       h.textContent = `Team ${i + 1}${rs.length ? ` · about ${ratingText(rs.reduce((a, b) => a + b, 0) / rs.length)}` : ''}`;
       ul.className = 'plain';
-      ul.append(...l.map((s) => { const rk = rkOf(s); return Object.assign(document.createElement('li'), { textContent: `${slotName(s)}: ${rk ? rankText({ tier: rk[0], division: rk[1], leaguePoints: rk[2] }) : 'rank not known'}` }); }));
+      ul.append(...l.map((s) => { const rk = rkOf(s), li = document.createElement('li'); li.append(emblem(rk && rk[0]), `${slotName(s)}: ${rk ? rankText({ tier: rk[0], division: rk[1], leaguePoints: rk[2] }) : 'rank not known'}`); return li; }));
       div.append(h, ul);
       return div;
     }));

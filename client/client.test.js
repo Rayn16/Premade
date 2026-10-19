@@ -263,7 +263,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     console.log(`overlay moved and resized: ${JSON.stringify(ov.getBounds())}`);
     // everyone's rank (board, app 1.10): over the whole screen, still click-through, then back where it was
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: {
-      us: [{ name: 'Rayan', sub: 'Ahri · Middle', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', rec: 'Ahri: 8 of the last 20, 75% won', tags: [['good', '3 wins in a row']] }],
+      us: [{ name: 'Rayan', sub: 'Ahri · Middle', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', emb: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png', rec: 'Ahri: 8 of the last 20, 75% won', tags: [['good', '3 wins in a row']] }],
       them: [{ name: 'Shadow', sub: 'Zed · Middle', lane: true, rank: 'Unranked', tc: 'red;x', tags: [['bad', 'First time on this champion'], ['', 'Seen before']] }],
       tips: { title: 'Ahri against Zed', lines: ['High elo: Ahri won 4 of 10 games against Zed.'] } } })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x && o.y === d.y && o.width === d.width && o.height === d.height && !ov.isFocusable(); }, 'the overlay over the whole screen');
@@ -271,6 +271,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     for (const t of ['Overlay back on.', 'Your team', 'Rayan', 'Gold II · 45 LP', 'Ahri: 8 of the last 20, 75% won', '3 wins in a row', 'Their team', 'Shadow', 'Your lane', 'First time on this champion', 'Tips: Ahri against Zed', 'High elo: Ahri won 4 of 10'])
       assert(boardText.toLowerCase().includes(t.toLowerCase()), `the board shows ${JSON.stringify(t)}: ${JSON.stringify(boardText)}`);
     assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".rk")].map((e) => e.style.color)'), ['rgb(217, 173, 85)', ''], 'the tier’s color, and nothing that isn’t a color');
+    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".card .emb")].map((e) => e.src)'), ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png'], 'the rank’s emblem');
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.width === 300 && o.height === 360; }, 'the overlay back in its box');
     console.log(`everyone's rank over the whole screen: ${JSON.stringify(boardText.slice(0, 120))}`);

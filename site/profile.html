@@ -33,6 +33,8 @@ a { color: var(--gold); }
 .tile b { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
 .tile span { font-size: 18px; font-weight: 600; }
 .tile small { color: var(--muted); font-size: 13px; }
+.tile.rk { grid-template-columns: 56px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.tile.rk img { grid-row: span 3; width: 56px; height: 56px; object-fit: contain; }
 .champs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .champs li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
 .champs img, .champs .noimg { width: 44px; height: 44px; border-radius: 6px; background: var(--raised); }
@@ -121,6 +123,12 @@ function rank(r) { // [tier, division, LP, wins, losses] -> [rank, LP and win ra
   const rk = Array.isArray(p.rk) ? p.rk : [];
   $('ranks').replaceChildren(...[['Solo/Duo', rank(rk[0])], ['Flex', rank(rk[1])]].map(([q, r]) => tile(q, r ? r[0] : 'Unranked', r ? r[1] : '')));
   $('top').hidden = false;
+  // Riot's rank emblems, from Data Dragon's TFT ranked regalia (the same crests as League's ranks)
+  if (dd) fetch(`https://ddragon.leagueoflegends.com/cdn/${dd}/data/en_US/tft-regalia.json`).then((r) => r.json()).then((j) => {
+    const by = {};
+    for (const [k, v] of Object.entries((j && j.data && j.data.RANKED_TFT) || {})) if (v && v.image && v.image.full) by[k.toUpperCase()] = `https://ddragon.leagueoflegends.com/cdn/${dd}/img/tft-regalia/${v.image.full}`;
+    [...$('ranks').children].forEach((t, i) => { const src = rank(rk[i]) && by[rk[i][0]]; if (src) { t.classList.add('rk'); t.prepend(Object.assign(new Image(), { src, alt: '' })); } });
+  }).catch(() => {});
 
   const g = Array.isArray(p.g) ? p.g : [], n = num(g[0], 1000), w = num(g[1], n), k = Array.isArray(p.kda) ? p.kda : [];
   if (n) {
