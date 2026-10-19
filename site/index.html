@@ -13,6 +13,7 @@
 <script>
   if (window.lpcClient) document.documentElement.classList.add('in-client'); // the Windows client (client/preload.js)
   if (window.lpcClient && window.lpcClient.lcu) document.documentElement.classList.add('has-lcu'); // version 1.6+: League's own client
+  try { document.documentElement.style.setProperty('--zoom', Math.min(2, Math.max(0.7, +JSON.parse(localStorage.getItem('lpc-opts')).zoom || 1))); } catch {} // App size (Settings > Look)
 </script>
 <style>
 /* The themes (Settings > Look), red and black unless you pick another: the page, its panels and raised parts, text,
@@ -68,7 +69,11 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--
 h1, h2, h3, p { margin: 0; }
 a { color: var(--link); }
 
-.app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100vh; height: 100dvh; }
+/* App size (Settings > Look) zooms the whole page. Viewport units grow with the zoom, so the app fills the window by
+   percent rather than 100vh and the few left are divided by --zoom; the layout's breakpoints are container queries on
+   .app, whose width shrinks as the page zooms in */
+:root { zoom: var(--zoom, 1); }
+.app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100%; container: app / inline-size; }
 .rail { grid-area: rail; display: flex; flex-direction: column; gap: 4px; width: 196px; padding: 14px 10px; background: var(--panel); border-right: 1px solid var(--gold-line); overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 18px; font: 700 14px/1.15 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 .brand img { width: 34px; height: 34px; border-radius: 6px; flex: none; }
@@ -81,7 +86,7 @@ main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32p
 .view { display: grid; gap: 18px; align-content: start; }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
-@media (max-width: 760px) {
+@container app (max-width: 760px) {
   .rail { width: auto; padding-inline: 6px; }
   .brand span, .nav span { display: none; }
   .brand { padding-inline: 4px; }
@@ -116,13 +121,13 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 
 /* help tips: a "?" button opens a short note next to it */
 .tip { width: 20px; height: 20px; padding: 0; flex: none; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid var(--gold-line); background: none; color: var(--gold); font: 700 12px/1 var(--body); cursor: help; }
-.tipbox { max-width: min(330px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 400 14px/1.5 var(--body); box-shadow: 0 12px 32px rgb(0 0 0 / 0.45); }
+.tipbox { max-width: min(330px, calc(100% - 32px)); padding: 12px 14px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 400 14px/1.5 var(--body); box-shadow: 0 12px 32px rgb(0 0 0 / 0.45); }
 @supports (anchor-name: --a) {
   .tipbox { position-anchor: --tip; inset: auto; top: anchor(bottom); left: anchor(left); margin: 8px 0 0; position-try-fallbacks: flip-block, flip-inline; }
 }
 
 /* the big join screen */
-.join { min-height: 72vh; display: grid; place-items: center; }
+.join { min-height: calc(72vh / var(--zoom, 1)); display: grid; place-items: center; }
 .joincard { width: min(460px, 100%); display: grid; gap: 18px; padding: 34px 28px; text-align: center; background: var(--panel); border: 1px solid var(--gold-line); border-radius: 10px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.3); }
 .joincard img { width: 64px; height: 64px; margin: 0 auto; border-radius: 12px; }
 .huge { font-size: 20px; padding: 18px 24px; letter-spacing: 0.04em; }
@@ -144,7 +149,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .voiceset[open] > summary { margin-bottom: 16px; }
 .voiceset[open] > summary::before { transform: rotate(45deg); }
 .dash { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 350px); gap: 18px; align-items: start; }
-@media (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }
 .mapbox { display: grid; gap: 12px; justify-items: center; }
 .mapbox > * { width: min(100%, 640px); }
 #map { aspect-ratio: 1; display: block; border-radius: 8px; border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 6%, transparent); }
@@ -254,7 +259,7 @@ body.compact .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12p
 .chips:empty::before { content: attr(data-empty); color: var(--muted); font-size: 13px; }
 
 /* popups */
-.toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100% - 32px)); pointer-events: none; }
 .toast { white-space: pre-line; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--fg); box-shadow: 0 10px 28px rgb(0 0 0 / 0.4); font-size: 14px; animation: toast-in 0.2s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } .pic { transition: none; } }
@@ -336,7 +341,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .dchamp[aria-disabled="true"] .dsc { opacity: 0.55; }
 .dchamp[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--gold); }
 .dchamp[data-fav]::after { content: "★"; position: absolute; right: -7px; bottom: -9px; color: var(--best); font-size: 16px; line-height: 1; text-shadow: 0 0 3px #000; }
-@media (max-width: 560px) { .draft { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 560px) { .draft { grid-template-columns: minmax(0, 1fr); } }
 .mixbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
 #mixAd { background: #e8833a; }
 #mixAp { background: #4aa8ff; }
@@ -373,7 +378,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
-#clipVideo { width: 100%; max-height: 62vh; background: #000; border-radius: 6px; }
+#clipVideo { width: 100%; max-height: calc(62vh / var(--zoom, 1)); background: #000; border-radius: 6px; }
 .trim { display: grid; grid-template-columns: auto minmax(0, 1fr) 4.5em; gap: 8px 12px; align-items: center; font-size: 14px; }
 .trim output { font: 500 13px/1 var(--mono); color: var(--muted); text-align: right; }
 .helplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 14px; }
@@ -477,7 +482,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .crest text { fill: var(--tc); font: 700 20px var(--display); text-anchor: middle; }
 .rtier { font: 600 20px/1.2 var(--body); }
 .prodash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 1000px) { .prodash { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 1000px) { .prodash { grid-template-columns: minmax(0, 1fr); } }
 .mixbar .w { background: var(--good); }
 .mixbar .l { background: var(--bad); flex: 1; }
 .games summary .pic0 { width: 30px; height: 30px; }
@@ -1100,6 +1105,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </section>
         <section class="panel">
           <h2 class="ph">Look</h2>
+          <div class="range"><span>App size</span><span></span><input id="optZoom" type="range" min="0.7" max="2" step="0.05" aria-label="App size"><output id="zoomOut"></output></div>
           <fieldset class="themes"><legend class="hint">Theme</legend>
             <label class="theme"><input type="radio" name="theme" value="red"><span class="sw" data-theme="red"></span>Red and black</label>
             <label class="theme"><input type="radio" name="theme" value="league"><span class="sw" data-theme="league"></span>League blue and gold</label>
@@ -1282,7 +1288,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // Settings kept in this browser. keys: shortcuts as "Ctrl+Shift+M", push to talk as a KeyboardEvent code ("KeyV") or "Mouse4".
   const opts = {
-    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true,
+    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
@@ -1607,7 +1613,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let myPic = null; // your champion's picture for your own marker
   function drawMap() {
     if (!mapEl.offsetParent) return; // its section isn't showing
-    const S = Math.round(mapEl.clientWidth * devicePixelRatio);
+    const S = Math.round(mapEl.clientWidth * devicePixelRatio * (mapEl.currentCSSZoom || 1)); // sharp at any App size
     if (!S) return;
     if (mapEl.width !== S) mapEl.width = mapEl.height = S;
     const g = mapG, k = S / 420;
@@ -2927,6 +2933,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('optOpacity').value = opts.overlayOpacity;
   showOpacity();
   $('optOpacity').addEventListener('input', (e) => { opts.overlayOpacity = +e.target.value; saveOpts(); showOpacity(); pushOverlay(); });
+  // App size (Settings > Look): the page zooms when you let go of the slider, as it would move under you while you drag
+  const showZoom = () => { $('zoomOut').textContent = pct($('optZoom').value); };
+  $('optZoom').value = opts.zoom;
+  showZoom();
+  $('optZoom').addEventListener('input', showZoom);
+  $('optZoom').addEventListener('change', (e) => { opts.zoom = +e.target.value; saveOpts(); document.documentElement.style.setProperty('--zoom', opts.zoom); });
   if (client) client.on('overlay-moved', (m) => {
     if (m && m.done) return moveOverlay(false);
     if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -2965,7 +2977,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     document.body.classList.toggle('compact', on);
     $('compactBtn').setAttribute('aria-pressed', String(on));
     $('compactBtn').lastChild.textContent = on ? 'Full view' : 'Compact';
-    if (client) client.compact(on ? document.querySelector('.app').offsetHeight : 0); // the strip's height, or 0 for full size
+    if (client) client.compact(on ? document.querySelector('.app').getBoundingClientRect().height : 0); // the strip's height (zoomed, as on screen), or 0 for full size
     render();
   }
   $('compactBtn').addEventListener('click', () => setCompact(!document.body.classList.contains('compact')));

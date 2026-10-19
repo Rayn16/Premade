@@ -904,6 +904,28 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await gus.evaluate(() => document.getElementById('newsDlg').open)), 'not again');
     await gus.context().close();
     console.log('What’s new: once after an update, not on a first launch');
+
+    // App size (Settings > Look): the whole app at 150%, still the window's size, and kept after a restart; at 200% the
+    // rail is down to its icons, as the layout's breakpoints see the zoomed width
+    const hal = await player(browser, 'Hal', [1280, 720]);
+    await hal.goto(URL_);
+    const navH = () => hal.$eval('.nav', (n) => n.getBoundingClientRect().height);
+    const fills = () => hal.evaluate(() => document.querySelector('.app').getBoundingClientRect().height === innerHeight && document.documentElement.scrollHeight === innerHeight);
+    await hal.click('.nav[data-view="settings"]');
+    const h100 = await navH();
+    await hal.fill('#optZoom', '1.5');
+    assert.strictEqual(await hal.textContent('#zoomOut'), '150%');
+    assert(Math.abs(await navH() / h100 - 1.5) < 0.05 && await fills(), 'everything at 150%, and the app still the window’s size');
+    await hal.reload();
+    await hal.waitForFunction(() => window.lpc);
+    assert(Math.abs(await navH() / h100 - 1.5) < 0.05 && await fills() && await hal.inputValue('#optZoom') === '1.5', 'still 150% after a restart');
+    await hal.click('.nav[data-view="settings"]');
+    await hal.fill('#optZoom', '2');
+    assert(await hal.isHidden('.nav span') && await fills(), 'the rail down to its icons at 200%');
+    await hal.fill('#optZoom', '1');
+    assert(await hal.isVisible('.nav span') && await navH() === h100, 'back to 100%');
+    await hal.context().close();
+    console.log('App size: 150% and 200%, kept after a restart');
     console.log('League data: overlay, compact view and client shortcuts');
     console.log('ok');
   } finally {
