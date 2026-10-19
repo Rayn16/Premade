@@ -2,10 +2,10 @@
 // stand-in for the desktop app 1.7 (window.lpcClient with lcu, clips and the gallery) and a fake League client behind it.
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node league.e2e.js
-// Checks: the Game page only in the desktop app, with a note to restart an old one; the ready check (Accept here, on the
+// Checks: the Pregame and Game pages only in the desktop app, with a note to restart an old one; the ready check (Accept here, on the
 // phone, and accepted for you, with the phone's buzz); the queue (a Practice Tool game in one click, Find match, Stop
 // from the phone); champ select: your turn's alarm, trades here and on the phone, your team's ranks, recent games and tags, nobody whose name Riot hides
-// looked up, banning and picking, your champions for your role, the damage mix, Riot's recommended runes as a new page
+// looked up, bans and the best picks for you (high elo, against their laner, your games), the tier list, the damage mix, Riot's recommended runes as a new page
 // and then over it, summoner spells with Flash on the right key; the phone remote (QR code, accept, hover, lock in,
 // auto-accept); in game: all ten players scouted (one found by Riot ID), objective timers, kills, towers and the gold
 // difference on the page, the overlay (what it shows, see-through, hidden by its key) and the phone, your lane and CS a
@@ -75,6 +75,9 @@ function highElo(role) {
       b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, i < 30 ? 3089 : 3157], [1500, i < 30 ? 3157 : 3089], ...(i % 3 ? [] : [[1800, 3071]])], k: SEQ, x: [6, 3, 8, 210], l: [5, 100] }));
   return { patch: '15.20', role, roles: { MIDDLE: [40, 22], TOP: [3, 1] }, games };
 }
+
+// and Zed in the middle: 10 games against Ahri (won 6) and 6 against Lux (won 1)
+const zedMid = () => ({ patch: '15.20', role: 'MIDDLE', roles: { MIDDLE: [16, 7] }, games: Array.from({ length: 16 }, (_, i) => ({ p: '15.20', t: 3000 + i, w: +(i < 6 || i === 10), o: i < 10 ? 103 : 99, g: 0, s: [4, 14], rn: null, b: [], k: null, x: null, l: null })) });
 
 // ---- the fake League client
 const ME = 'me-puuid', GAME = 5550001;
@@ -362,16 +365,18 @@ const leagueData = (over = {}) => ({
     {
       const [ctx, page] = await context(browser);
       await page.goto(URL_);
-      assert(!(await page.locator('.nav[data-view="game"]').isVisible()), 'no Game page in a browser');
+      assert(!(await page.locator('.nav[data-view="game"]').isVisible()) && !(await page.locator('.nav[data-view="pregame"]').isVisible()), 'no Pregame or Game page in a browser');
       await ctx.close();
       const [ctx2, old] = await context(browser, { version: '1.5.0' });
       await old.goto(URL_);
+      await old.click('.nav[data-view="pregame"]');
+      assert.match(await text(old, '#preNote'), /Restart the app to finish its update/);
       await old.click('.nav[data-view="game"]');
       assert.match(await text(old, '#lcuNote'), /Restart the app to finish its update/);
       await old.click('.nav[data-view="stats"]');
       assert(!(await old.locator('#lpQueue').isVisible()) && !(await old.locator('#clipsFolder').isVisible()), 'an old app has no Ranked, Match history or Clips');
       await ctx2.close();
-      console.log('Game page: only in the desktop app; an old app is told to restart for its update');
+      console.log('Pregame and Game pages: only in the desktop app; an old app is told to restart for its update');
     }
 
     // ---- Profile in a browser: from Riot, through our server, by Riot ID; the first one given is you
@@ -467,13 +472,16 @@ const leagueData = (over = {}) => ({
 
     const [ctx, pc] = await context(browser, { version: '1.7.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
-    const highAsked = []; // our server's Riot data: the high elo games it counted
+    const highAsked = []; // our server's Riot data: the high elo games it counted, 50 this patch (each champion's games
+    // and wins in each role), and each champion's games
+    const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
+      86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ)/, (r) => {
       const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
-      if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
+      if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: SUM, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
       const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
       highAsked.push(`${c}/${u.searchParams.get('r')}`);
-      r.fulfill({ json: c === 103 ? highElo(role) : { patch: '15.20', role, roles: {}, games: [] }, headers: cors });
+      r.fulfill({ json: c === 103 ? highElo(role) : c === 238 && role === 'MIDDLE' ? zedMid() : { patch: '15.20', role, roles: {}, games: [] }, headers: cors });
     });
     await ctx.addInitScript(() => { // four games in voice last week: the two where the room talked a lot were won
       if (localStorage.getItem('lpc-games')) return;
@@ -488,6 +496,7 @@ const leagueData = (over = {}) => ({
       return name;
     });
     const league = (d) => pc.evaluate((d) => lpcClient.emit('league', d), d);
+    const preSettings = async () => { await pc.click('.nav[data-view="pregame"]'); if (!(await pc.$eval('#preSet', (d) => d.open))) await pc.click('#preSet summary'); }; // Pregame settings, opened
     await pc.goto(URL_);
     await wait(pc, () => window.lpc, null, 'the page');
     lcu.phase = 'None';
@@ -530,9 +539,11 @@ const leagueData = (over = {}) => ({
     await pc.click('#proBack');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'back to you');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Game', 'Stats', 'Clips', 'Settings'], 'the menu in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Stats', 'Clips', 'Settings'], 'the menu in the app');
     await pc.click('.nav[data-view="game"]');
-    assert.match(await text(pc, '#lcuNote'), /Find a match and this page fills in/);
+    assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
+    await pc.click('.nav[data-view="pregame"]');
+    assert.match(await text(pc, '#preNote'), /Find a match and this page fills in/);
     // Clash: the other team in your next match, with their ranks and best champions
     await wait(pc, () => !document.getElementById('clashBox').hidden && document.querySelectorAll('#clashRows tr').length === 2 && [...document.querySelectorAll('#clashRows tr')].every((tr) => /LP[\s\S]*Garen/.test(tr.textContent)), null, 'Clash scouting');
     assert.strictEqual(await text(pc, '#clashNote'), 'Your next Clash match is against Night Owls.');
@@ -540,15 +551,28 @@ const leagueData = (over = {}) => ({
     assert.match(clashRows[0], /^Owl#NA1 Top · Level 200 Gold II · 45 LP · 55% of 55 Last 20: 10W 10L .*Plays most: Garen 20 \(50%\) · Mastery: Garen 5k/);
     assert.match(clashRows[1], /^Hoot#NA1 Middle · Level 200/);
     console.log('Clash: Night Owls scouted');
+    // the tier list from our server's high elo games: Middle, the role you play most, then Top
+    const tierRows = () => pc.$$eval('#tierRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim()));
+    const tierTab = () => pc.$eval('#tierRoles [aria-selected="true"]', (b) => b.textContent);
+    await wait(pc, () => !document.getElementById('tierBox').hidden && document.querySelectorAll('#tierRows tr').length === 4, null, 'the tier list');
+    assert.strictEqual(await tierTab(), 'Middle');
+    assert.strictEqual(await text(pc, '#tierNote'), 'Middle in 50 Challenger and Grandmaster games our server counted from Riot, patch 25.20.');
+    assert.deepStrictEqual(await tierRows(), ['Vi S 72% 18 · 36% picked', 'Ahri S 55% 40 · 80% picked', 'Lux S 58% 12 · 24% picked', 'Zed A 53% 30 · 60% picked']);
+    await pc.click('#tierRoles [data-role="TOP"]');
+    await wait(pc, () => document.querySelectorAll('#tierRows tr').length === 3, null, 'the tier list for top');
+    assert.deepStrictEqual(await tierRows(), ['Garen S 57% 30 · 60% picked', 'Lee Sin C 49% 47 · 94% picked', 'Darius D 45% 20 · 40% picked']);
+    await shot(pc, 'pregame');
+    console.log('tier list: Middle (Vi, Ahri, Lux, Zed), then Top (Garen, Lee Sin, Darius)');
     await pc.click('.nav[data-view="settings"]');
     assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
+    await preSettings();
     await pc.check('#optRemote');
     await pc.click('.nav[data-view="voice"]');
     await pc.click('#createBtn'); // a room, for the mic: clips mix it in
     await wait(pc, () => lpc.slot() >= 0, null, 'a room');
 
-    // ---- the phone remote: a QR code and a link, and the phone connects
-    await pc.click('.nav[data-view="game"]');
+    // ---- the phone remote on Pregame: a QR code and a link, and the phone connects
+    await pc.click('.nav[data-view="pregame"]');
     await wait(pc, () => !document.getElementById('remoteBox').hidden && /remote\.html/.test(document.getElementById('remoteLink').href), null, 'the phone remote panel');
     const dark = await pc.evaluate(() => { const d = document.getElementById('qr').getContext('2d').getImageData(0, 0, 232, 232).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 50) n++; return n; });
     assert(dark > 3000, `the QR code is drawn (${dark} dark pixels)`);
@@ -587,7 +611,7 @@ const leagueData = (over = {}) => ({
     const readyCheck = async () => { lcu.rc = { state: 'InProgress', playerResponse: 'None', timer: 2 }; lcu.phase = 'ReadyCheck'; await league({ inGame: false, phase: 'ReadyCheck' }); };
     const backToQueue = async () => { lcu.rc = null; lcu.phase = 'Matchmaking'; await league({ inGame: false, phase: 'Matchmaking' }); };
     await readyCheck();
-    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('rcBox').hidden, null, 'the Game page with the ready check');
+    await wait(pc, () => !document.querySelector('.view[data-view="pregame"]').hidden && !document.getElementById('rcBox').hidden, null, 'Pregame with the ready check');
     assert.match(await text(pc, '#rcState'), /\d+ s left/);
     await pc.click('#acceptBtn');
     await wait(pc, () => /You accepted/.test(document.getElementById('rcState').textContent), null, 'accepted');
@@ -635,21 +659,27 @@ const leagueData = (over = {}) => ({
     await until(() => callsTo(/position-swaps\/6\/accept$/, 'POST').length === 1, 'the position trade taken from the phone');
     assert.strictEqual(await text(pc, '#pickLock'), 'Ban');
     assert(await pc.locator('#picks').isHidden(), 'no picks while banning');
-    // the champions you lose to most, to ban: hover Darius by name, then ban him from his button
-    assert.strictEqual(await pc.locator('#bansHead').textContent(), 'Champions you lose to most');
-    assert.deepStrictEqual(await pc.$$eval('#bans button', (bs) => bs.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Darius You lost 3 of 4 against it']);
+    // bans for you: the champion you lose to most, then the strongest middles in high elo (not Ahri or Lux: you play
+    // them); hover Darius by name, then ban him from his button
+    assert.strictEqual(await pc.locator('#bansHead').textContent(), 'Bans for you');
+    assert.deepStrictEqual(await pc.$$eval('#bans button', (bs) => bs.map((b) => b.innerText.replace(/\s+/g, ' ').trim())), ['Darius You lost 3 of 4 against it', 'Vi High elo: 72% of 18 games, middle', 'Zed High elo: 53% of 30 games, middle']);
     await pc.fill('#anyChamp', 'Darius');
     await pc.click('#hoverBtn');
     await wait(pc, () => /hovering Darius/.test(document.getElementById('csTurn').textContent), null, 'the ban hovered');
     await pc.click('#bans button:has-text("Darius")');
     await wait(pc, () => /Your turn to pick/.test(document.getElementById('csTurn').textContent), null, 'my pick');
     assert.deepStrictEqual(flatActions().find((a) => a.id === 3), { id: 3, actorCellId: 2, type: 'ban', completed: true, isInProgress: false, championId: 122 });
-    await wait(pc, () => document.querySelectorAll('#picks button').length === 2, null, 'my champions for middle');
-    const picks = await pc.$$eval('#picks button', (bs) => bs.map((b) => b.innerText.replace(/\s+/g, ' ')));
-    assert.match(picks[0], /^Ahri 8 games, 75% · KDA 4\.0$/);
-    assert.match(picks[1], /^Lux 5 games, 60%/); // Garen and Sona aren't middle, Zed is taken by them
-    assert.match(await text(pc, '#csTheirs'), /Their picks: Zed\. Banned: a champion, Darius\./);
-    assert.match(await text(pc, '#mixNote'), /Your team so far: 1 physical, 1 magic damage\./); // Garen and Thresh hovered
+    // the best picks for you, with why: Lux beat Zed (their middle now) in high elo, Ahri's your best, Vi's strong in
+    // high elo but new to you. Garen and Sona aren't middle, Zed is taken
+    await wait(pc, () => /Beat Zed in 5 of 6/.test(document.getElementById('picks').textContent), null, 'the best picks against Zed');
+    const picks = await pc.$$eval('#picks button', (bs) => bs.map((b) => b.innerText.replace(/\s+/g, ' ').trim()));
+    assert.deepStrictEqual(picks, ['Lux High elo: 58% of 12 games · Beat Zed in 5 of 6 · You: 5 games, 60% won', 'Ahri High elo: 55% of 40 games · Beat Zed in 4 of 10 · You: 8 games, 75% won', 'Vi High elo: 72% of 18 games']);
+    assert(highAsked.includes('238/MIDDLE'), 'Zed’s high elo games in the middle asked for');
+    assert.match(await text(pc, '#csTheirs'), /Their picks: Zed \(likely in your lane\)\. Banned: a champion, Darius\./);
+    assert.match(await text(pc, '#mixNote'), /^Your team so far: 1 physical, 1 magic damage\. Theirs: 1 physical, 0 magic\.$/); // Garen and Thresh hovered
+    assert.strictEqual(await tierTab(), 'Middle', 'the tier list on your role');
+    await pc.evaluate(() => { document.querySelector('main').scrollTop = 0; });
+    await shot(pc, 'pregame-picks');
     // hover from the phone, lock in here
     await wait(phone, () => [...document.querySelectorAll('#picks button')].some((b) => b.textContent === 'Ahri'), null, 'the picks on the phone');
     await phone.click('#picks button:has-text("Ahri")');
@@ -689,7 +719,7 @@ const leagueData = (over = {}) => ({
     lcu.cs = null;
     lcu.phase = 'InProgress';
     await league(leagueData());
-    await wait(pc, () => !document.getElementById('liveBox').hidden && document.querySelectorAll('#liveRows tr').length === 10, null, 'the game page');
+    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('liveBox').hidden && document.querySelectorAll('#liveRows tr').length === 10, null, 'the Game page, opened by itself');
     await wait(pc, () => lpc.lcu().scouted.includes('enemy5') && [...document.querySelectorAll('#liveRows tr')].every((tr) => /LP|Unranked/.test(tr.textContent)), null, 'all ten scouted');
     assert.strictEqual(callsTo(/alias\/lookup\?gameName=Singer&tagLine=EUW/).length, 1, 'the player League gave no puuid is found by Riot ID');
     const live = await pc.$$eval('#liveRows tr', (trs) => trs.map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ')]));
@@ -989,7 +1019,7 @@ const leagueData = (over = {}) => ({
     console.log('a friend in the room: Platinum IV, 13W 7L together, and Watch opens their game');
 
     // ---- another champ select: over the app's own rune page, Flash on F
-    await pc.click('.nav[data-view="settings"]');
+    await preSettings();
     await pc.selectOption('#optFlash', 'F');
     lcu.lpNote = null;
     champSelect(778, { championId: 99 });
@@ -1009,7 +1039,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#runesOther'), 'Use Riot’s recommended runes instead');
     console.log('second champ select: the app’s rune page reused for Lux, Flash on F, then your own usual page');
     // auto hover: your first pick that's free and fits your role, and your first free ban, once each
-    await pc.click('.nav[data-view="settings"]');
+    await preSettings();
     await pc.fill('#optHoverPicks', 'Zed, Ahri, Ahrii');
     await pc.press('#optHoverPicks', 'Tab');
     assert.strictEqual(await text(pc, '#hoverNote'), 'Not a champion: Ahrii.');
@@ -1043,7 +1073,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.7.0 (1.8.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.7.0 (1.8.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');

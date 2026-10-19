@@ -233,7 +233,7 @@ dialog.wizard::backdrop { background: rgb(1 10 19 / 0.78); }
 .wcheck { display: flex; gap: 14px; align-items: center; }
 #wMini { width: 120px; height: 120px; border-radius: 6px; background: #000; flex: none; }
 
-/* the Game page: the ready check, champ select, the game; and Stats' LP chart, reports and clips */
+/* the Pregame page (the ready check, champ select, the tier list) and the Game page; and Stats' LP chart, reports and clips */
 .scout td { vertical-align: top; white-space: normal; }
 .scout td:first-child { min-width: 200px; }
 .scout tr[data-team="ally"] td:first-child { box-shadow: inset 3px 0 #4aa8ff; }
@@ -247,13 +247,18 @@ tr[data-me] td { background: rgb(200 170 110 / 0.09); }
 .tag { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .tag[data-k="good"] { border-color: var(--good); color: var(--good); }
 .tag[data-k="bad"] { border-color: var(--bad); color: var(--bad); }
-.picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; color: var(--muted); font-size: 14px; }
+.picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; color: var(--muted); font-size: 14px; }
 .champ { display: grid; grid-template: "pic name" auto "pic sub" auto / 40px minmax(0, 1fr); gap: 0 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 600 14px/1.25 var(--body); text-align: left; cursor: pointer; }
 .champ img { grid-area: pic; width: 40px; height: 40px; border-radius: 4px; }
 .champ .sub { grid-area: sub; font-size: 12px; }
 .champ:hover:enabled { border-color: var(--gold-line); }
 .champ:disabled { cursor: default; }
 .champ[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.tl { display: inline-block; min-width: 2em; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; font: 700 13px/1.2 var(--mono); text-align: center; }
+.tl[data-t="S"] { border-color: var(--gold); color: var(--gold); }
+.tl[data-t="A"] { border-color: var(--good); color: var(--good); }
+.tl[data-t="D"] { border-color: var(--bad); color: var(--bad); }
+.tier td { vertical-align: middle; }
 .mixbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
 #mixAd { background: #e8833a; }
 #mixAp { background: #4aa8ff; }
@@ -396,6 +401,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <div class="brand"><img src="icon-192.png" alt=""><span>Premade</span></div>
     <button class="nav" type="button" data-view="profile" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
     <button class="nav" type="button" data-view="voice"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Voice</span></button>
+    <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
     <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
     <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
     <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
@@ -640,9 +646,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </details>
     </section>
 
-    <section class="view" data-view="game" aria-label="Game" hidden>
-      <h1 class="title">Game</h1>
-      <p id="lcuNote" class="phase" role="status"></p>
+    <section class="view" data-view="pregame" aria-label="Pregame" hidden>
+      <h1 class="title">Pregame</h1>
+      <p id="preNote" class="phase" role="status"></p>
       <section id="queueBox" class="panel" aria-labelledby="h-queue" hidden>
         <h2 id="h-queue" class="ph">Queue</h2>
         <p id="queueState" role="status"></p>
@@ -656,17 +662,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section id="csBox" class="panel" aria-labelledby="h-cs" hidden>
         <h2 id="h-cs" class="ph">Champ select <button class="tip" type="button" popovertarget="t-cs" aria-label="About champ select">?</button></h2>
         <p id="csTurn" class="phase" data-game="1" role="status"></p>
-        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Your team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th><th>Trade</th></tr></thead><tbody id="csRows"></tbody></table></div>
-        <p id="csTheirs" class="hint"></p>
-        <h3 id="bansHead" class="ph" hidden>Champions you lose to most</h3>
+        <h3 id="bansHead" class="ph" hidden>Bans for you</h3>
         <div id="bans" class="picks" hidden></div>
-        <h3 id="picksHead" class="ph">Your champions for this role</h3>
+        <h3 id="picksHead" class="ph">Best picks for you</h3>
         <div id="picks" class="picks"></div>
         <form id="champForm" class="pick">
           <label>Any champion <input id="anyChamp" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
           <button id="hoverBtn" class="btn" type="submit">Hover</button>
           <button id="pickLock" class="btn primary" type="button">Lock in</button>
         </form>
+        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Your team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th><th>Trade</th></tr></thead><tbody id="csRows"></tbody></table></div>
+        <p id="csTheirs" class="hint"></p>
         <div id="mixBox" class="mic" hidden><div class="mixbar" aria-hidden="true"><span id="mixAd"></span><span id="mixAp"></span></div><p id="mixNote" class="hint"></p></div>
         <p id="runesNote" class="hint" role="status"></p>
         <div class="toolbar"><button id="runesOther" class="btn small" type="button" hidden></button></div>
@@ -675,17 +681,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="topNote" class="hint"></p>
         <div id="csNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
-      <section id="liveBox" class="panel" aria-labelledby="h-live" hidden>
-        <h2 id="h-live" class="ph">In game <button class="tip" type="button" popovertarget="t-live" aria-label="About the game">?</button></h2>
-        <div id="timers" class="timers"></div>
-        <p id="laneStats" class="phase" role="status" hidden></p>
-        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
-        <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
-      </section>
       <section id="clashBox" class="panel" aria-labelledby="h-clash" hidden>
         <h2 id="h-clash" class="ph">Clash</h2>
         <p id="clashNote" role="status"></p>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Their team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="clashRows"></tbody></table></div>
+      </section>
+      <section id="tierBox" class="panel" aria-labelledby="h-tier" hidden>
+        <h2 id="h-tier" class="ph">Tier list <button class="tip" type="button" popovertarget="t-tier" aria-label="About the tier list">?</button></h2>
+        <div id="tierRoles" class="tabs" role="tablist" aria-label="Role"><button class="tab" type="button" role="tab" data-role="TOP">Top</button><button class="tab" type="button" role="tab" data-role="JUNGLE">Jungle</button><button class="tab" type="button" role="tab" data-role="MIDDLE">Middle</button><button class="tab" type="button" role="tab" data-role="BOTTOM">Bottom</button><button class="tab" type="button" role="tab" data-role="UTILITY">Support</button></div>
+        <p id="tierNote" class="hint" role="status"></p>
+        <div class="tablewrap"><table class="ready tier"><thead><tr><th>Champion</th><th>Tier</th><th>Win rate</th><th>Games</th></tr></thead><tbody id="tierRows"></tbody></table></div>
       </section>
       <section id="remoteBox" class="panel" aria-labelledby="h-remote" hidden>
         <h2 id="h-remote" class="ph">Phone remote <button class="tip" type="button" popovertarget="t-remote" aria-label="About the phone remote">?</button></h2>
@@ -698,6 +703,43 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <button id="remoteNew" class="btn small" type="button">New code</button>
           </div>
         </div>
+      </section>
+      <details id="preSet" class="voiceset lcu-only">
+        <summary><span class="ph">Pregame settings</span><span class="hint">Accepting, hovering, runes, items and the phone remote</span></summary>
+        <div class="settings">
+          <section class="panel">
+            <h2 class="ph">Match found and champ select <button class="tip" type="button" popovertarget="t-league" aria-label="About League's client">?</button></h2>
+            <label class="check"><input id="optGameView" type="checkbox"> Open Pregame when a match is found, and Game when it loads</label>
+            <label class="check"><input id="optAutoAccept" type="checkbox"> Accept matches for me</label>
+            <label class="check"><input id="optTurnAlarm" type="checkbox"> Ring when it's my turn to pick or ban</label>
+            <label class="field">Hover for me: champions, first choice first <input id="optHoverPicks" autocomplete="off" spellcheck="false" placeholder="Ahri, Lux, Syndra"></label>
+            <label class="field">And bans <input id="optHoverBans" autocomplete="off" spellcheck="false" placeholder="Yasuo, Zed"></label>
+            <p id="hoverNote" class="hint" role="status"></p>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Runes and items</h2>
+            <label class="check"><input id="optRunes" type="checkbox"> Runes and summoner spells when I lock in</label>
+            <div class="toolbar"><label class="field">Runes <select id="optRuneSrc"><option value="riot">The most popular in high elo, or Riot's recommended</option><option value="mine">My own usual page (from my games)</option></select></label></div>
+            <div class="toolbar"><label class="field">Flash on <select id="optFlash"><option value="keep">The key it's on now (else F)</option><option value="D">D</option><option value="F">F</option></select></label></div>
+            <label class="check"><input id="optItemSet" type="checkbox"> Put the high elo build and my usual one for my champion in League's shop</label>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Phone remote <button class="tip" type="button" popovertarget="t-remote" aria-label="About the phone remote">?</button></h2>
+            <label class="check"><input id="optRemote" type="checkbox"> Phone remote: accept matches, queue and pick champions from my phone</label>
+          </section>
+        </div>
+      </details>
+    </section>
+
+    <section class="view" data-view="game" aria-label="Game" hidden>
+      <h1 class="title">Game</h1>
+      <p id="lcuNote" class="phase" role="status"></p>
+      <section id="liveBox" class="panel" aria-labelledby="h-live" hidden>
+        <h2 id="h-live" class="ph">In game <button class="tip" type="button" popovertarget="t-live" aria-label="About the game">?</button></h2>
+        <div id="timers" class="timers"></div>
+        <p id="laneStats" class="phase" role="status" hidden></p>
+        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
+        <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
     </section>
 
@@ -850,19 +892,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </section>
         <section class="panel lcu-only">
           <h2 class="ph">League <button class="tip" type="button" popovertarget="t-league" aria-label="About League's client">?</button></h2>
-          <label class="check"><input id="optGameView" type="checkbox"> Open the Game page when a match is found</label>
-          <label class="check"><input id="optAutoAccept" type="checkbox"> Accept matches for me</label>
           <label class="check"><input id="optScout" type="checkbox"> Look up players' ranks and recent games</label>
-          <label class="check"><input id="optRunes" type="checkbox"> Runes and summoner spells when I lock in</label>
-          <div class="toolbar"><label class="field">Runes <select id="optRuneSrc"><option value="riot">The most popular in high elo, or Riot's recommended</option><option value="mine">My own usual page (from my games)</option></select></label></div>
-          <label class="check"><input id="optItemSet" type="checkbox"> Put the high elo build and my usual one for my champion in League's shop</label>
-          <label class="field">Hover for me: champions, first choice first <input id="optHoverPicks" autocomplete="off" spellcheck="false" placeholder="Ahri, Lux, Syndra"></label>
-          <label class="field">And bans <input id="optHoverBans" autocomplete="off" spellcheck="false" placeholder="Yasuo, Zed"></label>
-          <p id="hoverNote" class="hint" role="status"></p>
           <label class="check"><input id="optShareLol" type="checkbox"> Show my rank to my room, and let friends see our record together and watch my games</label>
-          <div class="toolbar"><label class="field">Flash on <select id="optFlash"><option value="keep">The key it's on now (else F)</option><option value="D">D</option><option value="F">F</option></select></label></div>
-          <label class="check"><input id="optRemote" type="checkbox"> Phone remote: accept matches, queue and pick champions from my phone <button class="tip" type="button" popovertarget="t-remote" aria-label="About the phone remote">?</button></label>
-          <label class="check"><input id="optTurnAlarm" type="checkbox"> Ring when it's my turn to pick or ban</label>
           <label class="check"><input id="optSpawnSounds" type="checkbox"> A sound 30 seconds before Dragon and Baron</label>
           <label class="check"><input id="optRecord" type="checkbox"> Save test recordings of my games <button class="tip" type="button" popovertarget="t-record" aria-label="About test recordings">?</button></label>
           <div class="toolbar"><button id="recordingsBtn" class="btn small" type="button">Open the recordings folder</button></div>
@@ -1011,7 +1042,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
 
-<div id="t-cs" class="tipbox" popover>Your team's ranks and last 20 games, from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Your champions for this role come from your last 100 games and your mastery: click one to hover it, and again on your turn to lock it in. On your ban turn, the champions you lose to most come first. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Settings, League), sets the summoner spells and puts the high elo build and your usual build in League's shop. High elo is Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-cs" class="tipbox" popover>Best picks for you weighs each champion you may pick for your role: how it does there in high elo, how it does in high elo against their champion in your lane (their pick that plays there most), your own games and mastery on it, and what your team still lacks (magic or physical damage, a tank). Click one to hover it, and again on your turn to lock it in. On your ban turn, Bans for you lists the champions you lose to most, then the strongest in your role in high elo, leaving out the ones you play. Your team's ranks and last 20 games come from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Pregame settings), sets the summoner spells and puts the high elo build and your usual build in League's shop. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: Korea's Challenger and Grandmaster ranked games our server counts from Riot, this patch (with the last one added while this one is new). The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions and answer trades from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
@@ -2819,7 +2851,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'settings') { loadScreens(); serverStats(); }
     main.scrollTop = 0;
     render();
-    if (name === 'game') renderGame();
+    if (name === 'game' || name === 'pregame') renderGame();
   }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
   for (const b of document.querySelectorAll('.nav')) b.addEventListener('click', () => view(b.dataset.view));
@@ -2853,6 +2885,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let myPlat = '';       // your League server (PLATS), from your match history
   let rc = null;         // the ready check, while there is one
   let cs = null, csAt = 0, pickable = null, bannable = null; // the champ select session, and who you may pick or ban
+  let riotSum = null;    // our server's /riot/summary: each champion's high elo games and wins in each role, this patch (c) and the last (old)
+  let tierMemo = null, tierRole = ''; // the tier list's counts (tiers), and the role picked for it ('': yours)
   let gfs = null;        // League's gameflow session in champ select and in a game: the queue, the map and the teams
   let curGame = null;    // the game being played: { id, queue, ranked, result }
   let phaseWas = '', lcuBusy = false, accepting = false, runesFor = '', runesNote = '';
@@ -2937,7 +2971,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return tr;
   }
 
-  // ---- the ready check: Accept and Decline here and on the phone remote, or accepted for you (Settings > League)
+  // ---- the ready check: Accept and Decline here and on the phone remote, or accepted for you (Pregame settings)
   async function readyTick() {
     rc = await lcuGet('/lol-matchmaking/v1/ready-check');
     if (!rc || rc.state !== 'InProgress' || rc.playerResponse !== 'None' || !opts.autoAccept || accepting) return;
@@ -2974,7 +3008,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const p of cs.myTeam) for (const t of tradesWith(p.cellId)) {
       if (t.state !== 'RECEIVED' || tradeSeen.has(t.path + t.id)) continue;
       tradeSeen.add(t.path + t.id);
-      notify(`${hidden(p) ? (p.championId ? 'Your ' + champName(p.championId) : 'A teammate') : p.gameName || 'A teammate'} wants to swap ${t.what} with you. Answer on the Game page${remoteConns.size ? ' or your phone' : ''}.`, true);
+      notify(`${hidden(p) ? (p.championId ? 'Your ' + champName(p.championId) : 'A teammate') : p.gameName || 'A teammate'} wants to swap ${t.what} with you. Answer on the Pregame page${remoteConns.size ? ' or your phone' : ''}.`, true);
     }
     const me = myCell();
     if (me && me.championId && !csActions().some((a) => a.actorCellId === cs.localPlayerCellId && a.type === 'pick' && !a.completed)) { setRunes(me.championId, myPos()); setItems(me.championId, myPos()); }
@@ -3059,27 +3093,66 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!statsView.hidden) renderStats();
     if (!profView.hidden) renderProfile();
   }
+  // Best picks for you, like a draft helper: the champions you may pick for your role, each scored on its high elo
+  // record there (our server's count, pulled toward 50% while games are few), its high elo record against their
+  // champion in your lane, your own games and mastery on it (one new to you counts against it), and what your team
+  // lacks so far: magic or physical damage, a tank. Only champions with one of those going for them; the best 8, with why.
   function suggestions() {
     if (!cs) return [];
     const pos = myPos(), can = new Set(Array.isArray(pickable) ? pickable : []), taken = new Set([...cs.myTeam, ...(cs.theirTeam || [])].map((p) => p.championId).filter(Boolean));
     for (const a of csActions()) if (a.type === 'ban' && a.completed) taken.add(a.championId);
     const st = new Map();
-    for (const g of myHist || []) { const s = st.get(g.champ) || { n: 0, w: 0, k: 0, d: 0, a: 0 }; s.n++; s.w += g.win; s.k += g.k; s.d += g.d; s.a += g.a; st.set(g.champ, s); }
-    const ids = new Set([...st.keys(), ...myMastery.filter((m) => m.championLevel >= 4).map((m) => m.championId)]);
-    return [...ids].filter((id) => champOf(id) && !taken.has(id) && (!can.size || can.has(id)) && (!pos || !champPos || !champPos[id] || (champPos[id].recommendedPositions || []).includes(pos)))
-      .map((id) => { const s = st.get(id), m = myMastery.find((x) => x.championId === id); return { id, s, m, score: (s ? 3 * s.n + (5 * s.w) / s.n : 0) + (m ? Math.log10(1 + m.championPoints) : 0) }; })
-      .sort((a, b) => b.score - a.score).slice(0, 8);
+    for (const g of myHist || []) { const s = st.get(g.champ) || { n: 0, w: 0, here: 0 }; s.n++; s.w += g.win; s.here += !!pos && g.lane === pos; st.set(g.champ, s); }
+    const foe = laneFoe(pos), fv = foe ? topNow(foe, pos, renderGame) : null; // their pick's high elo games in your lane, with who it met
+    const vs = new Map(((fv && fv.vs) || []).map((v) => [v.c, v])), roles = (pos && (tiers() || { by: {} }).by[pos]) || new Map();
+    const mates = cs.myTeam.filter((p) => p.cellId !== cs.localPlayerCellId).map((p) => champOf(p.championId || p.championPickIntent)).filter(Boolean);
+    const magic = (c) => !!c.info && c.info.magic > c.info.attack, tank = (c) => (c.tags || []).includes('Tank'), ap = mates.filter(magic).length;
+    const needAp = mates.length >= 3 && !ap, needAd = mates.length >= 3 && ap === mates.length, needTank = mates.length >= 3 && !mates.some(tank);
+    const out = [];
+    for (const id of new Set([...st.keys(), ...myMastery.map((m) => m.championId), ...roles.keys(), ...vs.keys()])) {
+      const c = champOf(id), s = st.get(id), m = myMastery.find((x) => x.championId === id), [n, w] = roles.get(id) || [0, 0], v = vs.get(id);
+      if (!c || taken.has(id) || (can.size && !can.has(id))) continue;
+      if (pos && !(s && s.here >= 2) && n < 5 && champPos && champPos[id] && !(champPos[id].recommendedPositions || []).includes(pos)) continue; // not one for this role
+      const why = [];
+      let score = 0;
+      if (n >= 10) { score += 100 * (adj(w, n) - 0.5); why.push(`High elo: ${pct(w / n)} of ${n} games`); }
+      if (v && v.n >= 3) { score += 100 * (adj(v.n - v.w, v.n, 10) - 0.5); why.push(`Beat ${champName(foe)} in ${v.n - v.w} of ${v.n}`); }
+      if (s) { score += Math.min(6, 1 + s.n / 2) + (s.n >= 5 ? 10 * (s.w / s.n - 0.5) : 0); why.push(`You: ${s.n} game${s.n === 1 ? '' : 's'}, ${pct(s.w / s.n)} won`); }
+      else if (m && m.championLevel >= 4) { score += m.championPoints >= 20000 ? 2 : 1; why.push(`Mastery ${m.championLevel}`); }
+      else score -= 5; // new to you
+      if (!why.length) continue;
+      if (needAp && magic(c)) { score += 2; why.push('Adds magic damage'); }
+      if (needAd && !magic(c)) { score += 2; why.push('Adds physical damage'); }
+      if (needTank && tank(c)) { score += 1.5; why.push('Adds a tank'); }
+      out.push({ id, score, why });
+    }
+    return out.sort((a, b) => b.score - a.score).slice(0, 8);
   }
-  // physical against magic damage on your team so far, from Data Dragon's ratings of each champion
+  // their champion in your lane: the one League says plays your position, else their pick played there most in high elo
+  // (or, without those counts, the one League recommends there), when that's at least half its games
+  function laneFoe(pos) {
+    const them = (cs && Array.isArray(cs.theirTeam) ? cs.theirTeam : []).filter((p) => p && p.championId > 0);
+    if (!pos || !them.length) return 0;
+    const said = them.find((p) => String(p.assignedPosition || '').toUpperCase() === pos);
+    if (said) return said.championId;
+    const share = (c) => {
+      const all = Object.keys(POS).reduce((n, r) => n + recIn(c, r)[0], 0), rp = champPos && champPos[c] ? champPos[c].recommendedPositions || [] : [];
+      return all >= 5 ? recIn(c, pos)[0] / all : rp.includes(pos) ? 1 / rp.length : 0;
+    };
+    const [c, sh] = them.map((p) => [p.championId, share(p.championId)]).sort((a, b) => b[1] - a[1])[0];
+    return sh >= 0.5 ? c : 0;
+  }
+  // physical against magic damage on your team so far (and on theirs), from Data Dragon's ratings of each champion
   function teamMix() {
-    const champs = (cs ? cs.myTeam : []).map((p) => champOf(p.championId || p.championPickIntent)).filter(Boolean);
-    const ap = champs.filter((c) => c.info && c.info.magic > c.info.attack).length, ad = champs.length - ap, tank = champs.some((c) => (c.tags || []).includes('Tank'));
+    const champs = (cs ? cs.myTeam : []).map((p) => champOf(p.championId || p.championPickIntent)).filter(Boolean), magic = (c) => !!c.info && c.info.magic > c.info.attack;
+    const ap = champs.filter(magic).length, ad = champs.length - ap, tank = champs.some((c) => (c.tags || []).includes('Tank'));
+    const theirs = (cs ? cs.theirTeam || [] : []).map((p) => champOf(p.championId)).filter(Boolean), tap = theirs.filter(magic).length;
     const note = champs.length < 3 ? '' : !ap ? ' All physical so far: a magic damage pick makes you harder to build armor against.' : !ad ? ' All magic so far: a physical damage pick makes you harder to build magic resist against.' : '';
-    return { ad, ap, text: champs.length ? `Your team so far: ${ad} physical, ${ap} magic damage.${note}${champs.length >= 4 && !tank ? ' No tank yet.' : ''}` : '' };
+    return { ad, ap, text: `${champs.length ? `Your team so far: ${ad} physical, ${ap} magic damage.${note}${champs.length >= 4 && !tank ? ' No tank yet.' : ''}` : ''}${theirs.length ? ` Theirs: ${theirs.length - tap} physical, ${tap} magic.` : ''}`.trim() };
   }
   // A rune page and summoner spells for your champion and position in a page of this app's own ("LPC ..."), with
   // Flash on the key you want: the most popular page in high elo (our server's count, on Summoner's Rift), else Riot's
-  // recommended page as the League client offers it; or your own usual page from your games (Settings, League). Your
+  // recommended page as the League client offers it; or your own usual page from your games (Pregame settings). Your
   // own page keeps the other page's stat shards, which match history leaves out. Spells: high elo's, else Riot's.
   // runesAlt: the other kind, when there's both, for the button that switches; runesPick: the one you switched to.
   let runesAlt = '', runesPick = '';
@@ -3316,16 +3389,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return fig;
   }
 
-  // ---- the Game section
-  const gameViewEl = main.querySelector('.view[data-view="game"]');
+  // ---- the Pregame section (the queue, the ready check, champ select, the tier list, Clash and the phone remote) and
+  // the Game section (the game itself)
+  const gameViewEl = main.querySelector('.view[data-view="game"]'), preViewEl = main.querySelector('.view[data-view="pregame"]');
   function renderGame() {
     pushRemote();
-    if (gameViewEl.hidden || document.hidden) return;
-    const ph = lcu || '';
+    if ((gameViewEl.hidden && preViewEl.hidden) || document.hidden) return;
+    const ph = lcu || '', inGame = playing(PHASES[ph]) || !!league;
     renderQueue(ph);
-    $('lcuNote').textContent = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.'
-      : lcu === null ? 'Looking for League…' : !ph ? 'Start League. This page fills in when you find a match: the ready check, champ select with everyone’s rank, runes and builds, then the loading screen with timers and gold.'
-      : ph === 'ReadyCheck' ? 'Match found!' : ph === 'ChampSelect' ? 'Champ select' : playing(PHASES[ph]) || league ? 'In game' : STATUS[PHASES[ph] || 'client'][1] + '. Find a match and this page fills in.';
+    const old = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.' : lcu === null ? 'Looking for League…' : '';
+    $('preNote').textContent = old || (!ph ? 'Start League. This page fills in when you find a match: accept it here, then in champ select the best picks for you, bans, everyone’s rank, runes and builds.'
+      : ph === 'ReadyCheck' ? 'Match found!' : ph === 'ChampSelect' ? 'Champ select' : inGame ? 'In game: timers, gold and everyone’s rank are on the Game page.' : STATUS[PHASES[ph] || 'client'][1] + '. Find a match and this page fills in.');
+    $('lcuNote').textContent = old || (inGame && ph !== 'ChampSelect' ? 'In game' : 'This page fills in when your game loads: everyone’s rank, objective timers and the gold difference. Before that, see Pregame.');
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
     $('csBox').hidden = !(ph === 'ChampSelect' && cs);
@@ -3345,6 +3420,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         .map(([n, v]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, v); return s; }));
     }
     renderClash(ph);
+    renderTier();
   }
   function renderChamps() {
     const a = myAction(), me = myCell(), left = cs.timer ? Math.max(0, Math.round((cs.timer.adjustedTimeLeftInPhase - (performance.now() - csAt)) / 1000)) : 0;
@@ -3359,17 +3435,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       tr.append(td);
       return tr;
     }));
-    const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => champName(x.championId));
-    $('csTheirs').textContent = [theirs.length ? `Their picks: ${theirs.map(champName).join(', ')}.` : '', bans.length ? `Banned: ${bans.join(', ')}.` : ''].filter(Boolean).join(' ');
+    const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => champName(x.championId)), foe = laneFoe(myPos());
+    $('csTheirs').textContent = [theirs.length ? `Their picks: ${theirs.map((c) => champName(c) + (c === foe ? ' (likely in your lane)' : '')).join(', ')}.` : '', bans.length ? `Banned: ${bans.join(', ')}.` : ''].filter(Boolean).join(' ');
     const ban = a && a.type === 'ban', ideas = ban ? banIdeas() : [];
     $('picksHead').hidden = $('picks').hidden = !a || ban;
     $('bansHead').hidden = $('bans').hidden = !ideas.length;
-    $('bans').replaceChildren(...ideas.map((s) => champBtn(s.c, `You lost ${s.l} of ${s.n} against it`, a)));
+    $('bans').replaceChildren(...ideas.map((x) => champBtn(x.c, x.why, a)));
     $('champForm').hidden = !a; // nothing left to pick or ban
     $('pickLock').textContent = ban ? 'Ban' : 'Lock in';
     $('hoverBtn').textContent = ban ? 'Hover ban' : 'Hover';
-    if (!ban) $('picks').replaceChildren(...suggestions().map(({ id, s, m }) => champBtn(id, s ? `${s.n} games, ${Math.round((100 * s.w) / s.n)}% · KDA ${kda(s.k, s.d, s.a)}` : `Mastery ${m.championLevel}`, a)));
-    if (a && !ban && !$('picks').children.length) $('picks').textContent = myHist ? 'No champions of yours fit this role yet: search for one below.' : 'Loading your recent games…';
+    if (!ban) $('picks').replaceChildren(...suggestions().map(({ id, why }) => champBtn(id, why.join(' · '), a)));
+    if (a && !ban && !$('picks').children.length) $('picks').textContent = myHist ? 'Nothing to go by for this role yet: search for a champion below.' : 'Loading your recent games…';
     const mix = teamMix();
     $('mixAd').style.flexGrow = mix.ad;
     $('mixAp').style.flexGrow = mix.ap;
@@ -3489,10 +3565,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ph !== phaseWas) {
         const was = phaseWas;
         phaseWas = ph;
-        if ((ph === 'ReadyCheck' || ph === 'ChampSelect') && was !== 'ReadyCheck' && was !== 'ChampSelect' && opts.gameView && !document.body.classList.contains('compact')) view('game');
+        if ((ph === 'ReadyCheck' || ph === 'ChampSelect') && was !== 'ReadyCheck' && was !== 'ChampSelect' && opts.gameView && !document.body.classList.contains('compact')) view('pregame');
+        if (/^(GameStart|InProgress|Reconnect)$/.test(ph) && !preViewEl.hidden && opts.gameView) view('game'); // from champ select to the game
         if (ph === 'ChampSelect') {
           cs = null; pickable = null; runesFor = ''; runesNote = ''; scouting.clear(); scoutData.clear(); tradeSeen.clear();
-          autoDone.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; runesSoon(); itemsSoon();
+          autoDone.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
         if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; }
@@ -3502,7 +3579,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       [lobby, search] = await Promise.all([ph === 'Lobby' ? lcuGet('/lol-lobby/v2/lobby') : null, ph === 'Matchmaking' ? lcuGet('/lol-matchmaking/v1/search') : null]);
       if (ph) await patchTick();
       if (ph) { rankTick(); crawl(); watchTick(); } // one League call at most each, in the background
-      if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !gameViewEl.hidden) clashTick();
+      if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !preViewEl.hidden) clashTick();
       if (league) { if (curGame && league.result) curGame.result = league.result; await aliasTick(); }
       if (ph && !me0) loadMine();
       if ((ph === 'ChampSelect' || league || (clash && clash.players.length)) && !ddVersion) ddSoon();
@@ -4186,7 +4263,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- champ select: auto hover, ban ideas and matchup notes
-  // Auto hover (Settings, League): your pick as soon as champ select starts and your ban on your turn: the first on
+  // Auto hover (Pregame settings): your pick as soon as champ select starts and your ban on your turn: the first on
   // your list you may pick (or ban) that nobody banned, picked or hovered, and, for picks, that Riot recommends for
   // your role. Only when you haven't hovered one yourself, once per pick or ban.
   const autoDone = new Set();
@@ -4232,10 +4309,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return [...st.values()].filter((s) => s.n >= 3 && s.w > s.n / 2).sort((a, b) => b.w / b.n - a.w / a.n || b.n - a.n);
   }
-  function banIdeas() { // your nemeses that you may ban now and nobody on your team wants
+  // bans you may make now that nobody on your team wants: your nemeses, then the strongest in your role in high elo,
+  // leaving out champions you play yourself (3 of your last 100 games or more)
+  function banIdeas() {
     const banned = new Set(csActions().filter((a) => a.type === 'ban' && a.completed).map((a) => a.championId));
-    const team = new Set(cs.myTeam.flatMap((p) => [p.championId, p.championPickIntent]).filter(Boolean));
-    return nemeses().filter((s) => champOf(s.c) && !banned.has(s.c) && !team.has(s.c) && (!Array.isArray(bannable) || bannable.includes(s.c))).slice(0, 6);
+    const team = new Set(cs.myTeam.flatMap((p) => [p.championId, p.championPickIntent]).filter(Boolean)), mine = new Map();
+    for (const g of myHist || []) mine.set(g.champ, (mine.get(g.champ) || 0) + 1);
+    const ok = (c) => !!champOf(c) && !banned.has(c) && !team.has(c) && !((mine.get(c) || 0) >= 3) && (!Array.isArray(bannable) || bannable.includes(c));
+    const nem = nemeses().filter((x) => ok(x.c)).slice(0, 3).map((x) => ({ c: x.c, why: `You lost ${x.l} of ${x.n} against it` })), pos = myPos();
+    const strong = [...((pos && (tiers() || { by: {} }).by[pos]) || [])].filter(([c, [n]]) => n >= 10 && ok(c) && !nem.some((x) => x.c === c))
+      .sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0])).map(([c, [n, w]]) => ({ c, why: `High elo: ${pct(w / n)} of ${n} games, ${POS[pos].toLowerCase()}` }));
+    return [...nem, ...strong].slice(0, 6);
   }
   // Matchup notes: what you wrote about playing one champion against another (lpc-notes, "yours|theirs" by number),
   // shown in champ select and the game for the champions you meet
@@ -4429,7 +4513,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (!['you', 'champs', 'games', 'players'].includes(statsTab)) statsTab = 'you';
   function renderStats() {
     if (!lcuOn()) statsTab = 'games'; // the rest needs League's client
-    for (const b of document.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.dataset.tab === statsTab));
+    for (const b of document.querySelectorAll('.tab[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === statsTab));
     for (const s of statsView.querySelectorAll('.panel[data-tab]')) s.hidden = s.dataset.tab !== statsTab;
     if (statsTab === 'you') { renderRanked(); renderTrends(); renderFame(); renderTimes(); }
     if (statsTab === 'champs' || statsTab === 'games') renderMatches();
@@ -4437,7 +4521,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (statsTab === 'games') { drawStats(); renderGames(); }
     if (statsTab === 'players') renderWatch();
   }
-  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { statsTab = b.dataset.tab; store.set('lpc-stats-tab', statsTab); renderStats(); });
+  for (const b of document.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { statsTab = b.dataset.tab; store.set('lpc-stats-tab', statsTab); renderStats(); });
   const dayText = (t) => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
 
   // trends: your CS a minute, vision score and deaths in your last 20 Summoner's Rift games, oldest on the left, with
@@ -4749,8 +4833,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (performance.now() - riotAt < 60000) return;
     riotAt = performance.now();
     let on = false;
-    try { const r = await fetch(`${serverUrl}/riot/summary`); on = r.ok && Number.isFinite((await r.json()).total); } catch {}
+    try { const r = await fetch(`${serverUrl}/riot/summary`), j = r.ok ? await r.json() : null; on = !!j && Number.isFinite(j.total); if (on) riotSum = j; } catch {}
     if (on !== riotOn) { riotOn = on; if (!profView.hidden) renderProfile(); }
+    if (on) renderGame(); // the tier list and the picks go by its counts
   }
   async function riotGet(host, path) { // one of Riot's API calls through our server; null when Riot has nothing there
     const r = await fetch(`${serverUrl}/riot/api/${host}${path}`);
@@ -4824,6 +4909,55 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       vs: [...vs.values()].map((v) => ({ c: v.c, n: v.n, w: v.w, gold: v.gold.length ? Math.round(v.gold.reduce((a, b) => a + b, 0) / v.gold.length) : null })).sort((a, b) => b.n - a.n) };
   }
   const topOk = (t) => !!t && t.n >= 10; // enough games to go by
+  // high elo by role, from /riot/summary: each champion's games and wins in each role this patch, with the last patch
+  // added while this one has under 500 games. adj: a win rate pulled toward 50% while games are few.
+  function tiers() {
+    const s = riotSum;
+    if (!s || !s.c || typeof s.c !== 'object') return null;
+    if (tierMemo && tierMemo.s === s) return tierMemo;
+    const games = (c) => Object.values(c).reduce((n, r) => n + ((r && Array.isArray(r.TOP) ? r.TOP[0] : 0) | 0), 0) / 2; // two of each role a game
+    const both = games(s.c) < 500 && !!s.old && !!s.old.c && typeof s.old.c === 'object', by = {};
+    for (const src of both ? [s.c, s.old.c] : [s.c]) for (const [c, rs] of Object.entries(src)) for (const [role, v] of Object.entries(rs || {})) {
+      if (!POS[role] || !Array.isArray(v) || !(+c > 0)) continue;
+      const m = (by[role] ||= new Map()), x = m.get(+c) || [0, 0];
+      m.set(+c, [x[0] + (v[0] | 0), x[1] + (v[1] | 0)]);
+    }
+    return (tierMemo = { s, by, n: Math.round(games(s.c) + (both ? games(s.old.c) : 0)), patches: (both ? [s.p, s.old.p] : [s.p]).filter((v) => /^\d+\.\d+$/.test(v)) });
+  }
+  const adj = (w, n, k = 20) => (w + k / 2) / (n + k);
+  const recIn = (c, role) => { const t = tiers(); return (t && t.by[role] && t.by[role].get(c)) || [0, 0]; }; // [games, wins]
+  const TIERS_AT = [['S', 0.53], ['A', 0.515], ['B', 0.495], ['C', 0.48], ['D', 0]];
+  // the tier list (Pregame): champions with 10 high elo games or more in a role, best first, with a tier from their
+  // pulled-in win rate, their win rate and how often they're picked. Your role in champ select, else the one picked
+  // above it, else the one you play most.
+  function renderTier() {
+    riotCheck();
+    const t = tiers();
+    $('tierBox').hidden = !t || !t.n;
+    if ($('tierBox').hidden) return;
+    if (!ddVersion) ddSoon();
+    const lanes = {};
+    for (const g of myHist || []) if (g.lane) lanes[g.lane] = (lanes[g.lane] || 0) + 1;
+    const role = tierRole || myPos() || Object.keys(lanes).sort((a, b) => lanes[b] - lanes[a])[0] || 'MIDDLE';
+    for (const b of $('tierRoles').children) b.setAttribute('aria-selected', String(b.dataset.role === role));
+    const rows = [...(t.by[role] || [])].filter(([c, [n]]) => n >= 10 && champOf(c)).sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0]));
+    const key = `${role} ${t.n} ${rows.join(';')} ${ddVersion}`;
+    if ($('tierBox').dataset.key === key) return;
+    $('tierBox').dataset.key = key;
+    $('tierNote').textContent = `${POS[role]} in ${t.n.toLocaleString('en-US')} Challenger and Grandmaster games our server counted from Riot${t.patches.length ? `, patch ${t.patches.map(patchName).join(' and ')}` : ''}.`
+      + (rows.length ? '' : ' No champion has 10 games here yet: more come in every few minutes.');
+    $('tierRows').replaceChildren(...rows.map(([c, [n, w]]) => {
+      const tr = document.createElement('tr'), k = TIERS_AT.find(([, min]) => adj(w, n) >= min)[0];
+      tr.innerHTML = '<td><div class="who"><img class="pic0" alt=""><b></b></div></td><td><span class="tl"></span></td><td></td><td></td>';
+      tr.querySelector('img').src = champImg(c);
+      tr.querySelector('b').textContent = champName(c);
+      tr.querySelector('.tl').textContent = tr.querySelector('.tl').dataset.t = k;
+      tr.children[2].textContent = pct(w / n);
+      tr.children[3].textContent = `${n} · ${pct(n / Math.max(1, t.n))} picked`;
+      return tr;
+    }));
+  }
+  for (const b of $('tierRoles').children) b.addEventListener('click', () => { tierRole = b.dataset.role; renderGame(); });
   const vsText = (v) => `${champName(v.c)}, ${pct(v.w / v.n)} won in ${v.n} games${v.gold == null ? '' : ` (${v.gold >= 0 ? '+' : '−'}${Math.abs(v.gold)} gold at 10)`}`;
   $('proFind').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -5769,6 +5903,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [11, 'October 19: Pregame', [
+      'Pregame is a new page in the app with everything before a game: the queue, accepting matches, champ select, Clash and the phone remote, with their settings at the bottom. It opens by itself when a match is found, and Game opens when the game loads.',
+      'Best picks for you in champ select now weigh how each champion does in your role in high elo and against their champion in your lane, your own games on it and what your team lacks, and say why. Bans for you adds the strongest champions in your role.',
+      'A tier list for each role, from the high elo games our server counts.',
+    ]],
     [10, 'October 19: voice in one place', [
       'Room, Players and Map are now one Voice page: your room, the live map, everyone’s cards, chat, room games and sharing your screen.',
       'Your mic, push to talk, voice sounds and popups moved there too, under Voice settings at the bottom of the page. Settings keeps the rest of the app.',
@@ -5798,7 +5937,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Room awards after each game with friends in voice: Chatterbox, Silent carry, Playmaker, Survivor and Farmer.',
     ]],
     [4, 'October 19: League stats', [
-      'Champ select: your own runes and build from your games (the build goes in League’s shop as an item set), your skill order, bans for the champions you lose to most, auto hover (Settings, League) and your matchup notes.',
+      'Champ select: your own runes and build from your games (the build goes in League’s shop as an item set), your skill order, bans for the champions you lose to most, auto hover (Pregame settings) and your matchup notes.',
       'Scouting tags: players you’ve met before, premades, teammates off their usual role and possible smurfs. Clash: the other team’s ranks and best champions.',
       'Stats has tabs now. You: trends, hall of fame, your best time to play and a season recap picture. Champions: a page for each champion, nemeses and best allies, your collection and what the patch changed. Players: look anyone up, and follow friends’ ranks.',
       'Game reports: watch the replay, see when everyone bought each item, and your laning at 10 and 15 minutes.',
@@ -5812,7 +5951,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Voice connection (Voice settings, Microphone): Faster for less delay, or Less data for slow internet.',
       'A note when you talk while muted.',
       'Overlay: pick what it shows, make it see-through, and hide it with Ctrl+Shift+O.',
-      'Game page: Find match and Stop, a Practice Tool game in one click, trades with teammates, a ring when it’s your turn, a sound 30 seconds before Dragon and Baron, and your CS and lane against your opponent.',
+      'Pregame page: Find match and Stop, a Practice Tool game in one click, trades with teammates and a ring when it’s your turn. Game page: a sound 30 seconds before Dragon and Baron, and your CS and lane against your opponent.',
       'Phone remote: add it to your home screen, it buzzes and rings when a match is found, and it can queue and trade.',
       'Invite links can open the desktop app, and the app opens where you left it.',
       'Help on a friend’s card shows what’s wrong with their setup. The status bar shows your version, and you hear when a friend’s app is old.',

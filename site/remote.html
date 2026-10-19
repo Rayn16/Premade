@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#010a13">
 <style>
 /* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone
-   (index.html's Game page shows the QR code that opens it). It can live on the home screen (remote-manifest.json).
+   (index.html's Pregame page shows the QR code that opens it). It can live on the home screen (remote-manifest.json).
    The same navy and gold as the app. */
 :root {
   --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
@@ -64,7 +64,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
   <header><img src="icon-192.png" alt=""><h1>Phone remote</h1><span class="state"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></span></header>
   <p id="phase" class="phase" role="status">Connecting to the app on your PC…</p>
   <form id="linkForm" class="panel" hidden>
-    <p>Scan the QR code in the app on your PC (Game page, Phone remote), or paste its link here:</p>
+    <p>Scan the QR code in the app on your PC (Pregame page, Phone remote), or paste its link here:</p>
     <input id="link" type="url" autocomplete="off" spellcheck="false" placeholder="https://…/remote.html#…" aria-label="Phone remote link">
     <button class="btn primary">Connect</button>
   </form>
@@ -84,7 +84,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     <div id="team" class="team" aria-label="Your team"></div>
     <div id="trades"></div>
     <p id="theirs" class="hint"></p>
-    <p id="picksHead" class="hint">Your champions for this role: tap to hover, tap again on your turn to lock in.</p>
+    <p id="picksHead" class="hint">Best picks for you: tap to hover, tap again on your turn to lock in.</p>
     <div id="picks" class="grid"></div>
     <form id="find" class="row">
       <input id="q" type="search" list="names" autocomplete="off" spellcheck="false" placeholder="Any champion" aria-label="Champion name">
@@ -199,7 +199,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     p.on('open', dial);
     p.on('error', (err) => {
       if (err.type === 'unavailable-id' && n < 9) { p.destroy(); claim(n + 1); }
-      else if (err.type === 'peer-unavailable') { down('Can’t reach the app on your PC. Open it with the phone remote on (Settings, League), or scan its QR code again if you made a new code.'); later(); }
+      else if (err.type === 'peer-unavailable') { down('Can’t reach the app on your PC. Open it with the phone remote on (Pregame settings), or scan its QR code again if you made a new code.'); later(); }
       else if (err.type === 'unavailable-id') down('Too many phones are connected to this PC.');
       else { console.warn('remote:', err.type); later(); }
     });
