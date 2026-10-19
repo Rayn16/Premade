@@ -1,6 +1,7 @@
 // Checks the Riot object (/riot/...) under `wrangler dev` against a fake Riot API: it counts each high-elo game once
 // (only full ranked solo games on Summoner's Rift), keeps what each champion bought, levelled and took, with their
 // lane opponent and gold at 10, and passes only the lookup calls on its list through, with our key and its limits.
+// Then, restarted with the sweep going 8 days back, it counts the older games a day at a time, newer days first.
 // WRANGLER=<path to wrangler> node riot.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
@@ -9,13 +10,19 @@ const PORT = 8788, RIOT = 8899, BASE = `http://127.0.0.1:${PORT}`, KEY = 'test-k
 const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-riot-'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const P = (n) => `${n}`.repeat(78).slice(0, 78); // a puuid
+const DAY = 86400, today = Math.floor(Date.now() / 864e5);
 const TEAM = [[266, 'TOP'], [64, 'JUNGLE'], [103, 'MIDDLE'], [222, 'BOTTOM'], [412, 'UTILITY'], [86, 'TOP'], [254, 'JUNGLE'], [238, 'MIDDLE'], [145, 'BOTTOM'], [117, 'UTILITY']];
-// the games: KR_1001 is the patch before; KR_1004 is ARAM and KR_1005 a remake, which don't count
-const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1700], KR_1003: ['16.20.3.4', 420, 2000], KR_1004: ['16.20.3.4', 450, 1200], KR_1005: ['16.20.3.4', 420, 300], KR_1006: ['16.20.5.1', 420, 1500] };
-const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR_1004', 'KR_1005'], [P(3)]: ['KR_1006'] };
+// the games: KR_1001 is the patch before; KR_1004 is ARAM and KR_1005 a remake, which don't count. The sweep's older
+// games: KR_2002 is the patch before and KR_2003 the one before that; KR_2004 is ARAM and KR_2005 a remake
+const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1700], KR_1003: ['16.20.3.4', 420, 2000], KR_1004: ['16.20.3.4', 450, 1200], KR_1005: ['16.20.3.4', 420, 300], KR_1006: ['16.20.5.1', 420, 1500],
+  KR_2001: ['16.20.1.1', 420, 1900], KR_2002: ['16.19.2.1', 420, 1600], KR_2003: ['16.18.1.1', 420, 1750], KR_2004: ['16.20.1.1', 450, 1200], KR_2005: ['16.20.1.1', 420, 250], KR_2006: ['16.20.1.1', 420, 1800] };
+const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR_1004', 'KR_1005'], [P(3)]: ['KR_1006'] }; // the last 3 days'
+// the games played that many days ago, which every ladder player was in; KR_1001 (the crawl's) too, for the sweep
+const DAYS = { 4: ['KR_1001', 'KR_2004'], 5: ['KR_2002'], 6: ['KR_2001'], 7: ['KR_2003'], 8: ['KR_2005'], 9: ['KR_2006'] };
 const match = (id) => {
-  const [v, q, len] = GAMES[id], blueWins = id !== 'KR_1003';
-  return { metadata: { matchId: id }, info: { gameVersion: v, queueId: q, mapId: q === 450 ? 12 : 11, gameDuration: len, gameCreation: 1760000000000 + +id.slice(3) * 1000,
+  const [v, q, len] = GAMES[id], blueWins = id !== 'KR_1003', ago = Object.keys(DAYS).find((k) => DAYS[k].includes(id));
+  return { metadata: { matchId: id }, info: { gameVersion: v, queueId: q, mapId: q === 450 ? 12 : 11, gameDuration: len,
+    gameCreation: id.startsWith('KR_1') ? 1760000000000 + +id.slice(3) * 1000 : (today - ago) * 864e5 + 3600e3,
     participants: TEAM.map(([c, r], i) => ({ participantId: i + 1, championId: c, teamPosition: r, teamId: i < 5 ? 100 : 200, win: i < 5 === blueWins, summoner1Id: 4, summoner2Id: i % 5 === 1 ? 11 : 14,
       kills: i, deaths: 2, assists: 7, totalMinionsKilled: 150 + i, neutralMinionsKilled: 4, riotIdGameName: 'Secret' + i, puuid: P(9),
       perks: { statPerks: { defense: 5011, flex: 5008, offense: 5005 }, styles: [{ description: 'primaryStyle', style: 8100, selections: [8112, 8139, 8138, 8135].map((perk) => ({ perk })) }, { description: 'subStyle', style: 8300, selections: [8306, 8347].map((perk) => ({ perk })) }] } })) } };
@@ -47,7 +54,10 @@ const riot = http.createServer((req, res) => {
   let m;
   if (host === 'kr' && p === '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5') return send(200, { tier: 'CHALLENGER', entries: [{ puuid: P(1), leaguePoints: 1500 }, { puuid: P(2), leaguePoints: 1400 }] });
   if (host === 'kr' && p === '/lol/league/v4/grandmasterleagues/by-queue/RANKED_SOLO_5x5') return send(200, { tier: 'GRANDMASTER', entries: [{ puuid: P(3), leaguePoints: 700 }] });
-  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/))) return send(200, IDS[m[1]] || []);
+  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/))) {
+    const end = u.searchParams.get('endTime'); // the sweep asks for one day
+    return send(200, end ? DAYS[today - Math.floor(end / DAY)] || [] : IDS[m[1]] || []);
+  }
   if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/(KR_\d+)(\/timeline)?$/)) && GAMES[m[1]]) return send(200, m[2] ? timeline() : match(m[1]));
   // lookups
   if (host === 'europe' && p === '/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW') return send(200, { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
@@ -61,33 +71,40 @@ const riot = http.createServer((req, res) => {
 }).listen(RIOT, '127.0.0.1');
 
 const env = { ...process.env, NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost' };
-const wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist,
-  '--var', `RIOT_KEY:${KEY}`, '--var', `RIOT_BASE:http://127.0.0.1:${RIOT}/{host}`, '--var', 'CRAWL_EVERY:150'], { cwd: __dirname, detached: true, stdio: 'ignore', env });
-const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...headers } });
-
-(async () => {
+let wr;
+const up = async (...vars) => { // wrangler dev with our key, the fake Riot API and these variables
+  wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist,
+    ...[`RIOT_KEY:${KEY}`, `RIOT_BASE:http://127.0.0.1:${RIOT}/{host}`, 'CRAWL_EVERY:150', ...vars].flatMap((v) => ['--var', v])], { cwd: __dirname, detached: true, stdio: 'ignore', env });
   for (let i = 0; ; i++) {
-    try { if ((await fetch(BASE + '/')).ok) break; } catch {}
+    try { if ((await fetch(BASE + '/')).ok) return; } catch {}
     assert(i < 120, 'wrangler dev did not start');
     await sleep(500);
   }
-  // the counting starts by itself once the Riot object wakes up
-  let sum;
+};
+const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...headers } });
+const counted = async (n) => { // the summary once n games are counted and nothing more comes
   for (let i = 0; ; i++) {
-    sum = await (await get('/riot/summary')).json();
-    if (sum.total >= 4) break;
+    const sum = await (await get('/riot/summary')).json();
+    if (sum.total >= n) break;
     assert(i < 120, `only ${sum.total} games counted: ${JSON.stringify(calls.map((c) => c.p))}`);
     await sleep(500);
   }
-  await sleep(1500); // nothing more to count
-  sum = await (await get('/riot/summary')).json();
+  await sleep(1500);
+  return (await get('/riot/summary')).json();
+};
+
+(async () => {
+  await up('SWEEP_DAYS:3'); // the sweep waits for now: it has no day older than 3 days to count
+  // the counting starts by itself once the Riot object wakes up
+  let sum = await counted(4);
   assert.equal(sum.total, 4, 'KR_1004 (ARAM) and KR_1005 (a remake) are not counted');
   assert.equal(sum.today, 4);
   assert.equal(sum.p, '16.20');
+  assert.equal(sum.from, undefined, 'no older days counted');
   assert.deepEqual(sum.c['103'], { MIDDLE: [3, 2] }, 'Ahri: three games this patch, won two');
   assert.deepEqual(sum.old, { p: '16.19', c: Object.fromEntries(TEAM.map(([c, r], i) => [c, { [r]: [1, i < 5 ? 1 : 0] }])) }, 'the patch before');
   const crawl = calls.filter((c) => c.host === 'kr' || c.host === 'asia');
-  for (const id of Object.keys(GAMES)) assert.equal(crawl.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, 1, `${id} asked for once`);
+  for (const id of Object.keys(GAMES).filter((x) => x.startsWith('KR_1'))) assert.equal(crawl.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, 1, `${id} asked for once`);
   assert.deepEqual(crawl.filter((c) => c.p.endsWith('/timeline')).map((c) => c.p.split('/')[5]).sort(), ['KR_1001', 'KR_1002', 'KR_1003', 'KR_1006'], 'timelines only for games that count');
   for (const c of crawl.filter((x) => x.p.endsWith('/ids'))) assert.match(c.q, /^\?queue=420&type=ranked&count=20&startTime=\d+$/);
   assert(calls.every((c) => c.key === KEY), 'our key on every call');
@@ -99,6 +116,7 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
   assert.equal(ahri.patch, '16.20');
   assert.equal(ahri.role, 'MIDDLE');
   assert.deepEqual(ahri.roles, { MIDDLE: [3, 2] });
+  assert.deepEqual(ahri.y, { n: 0, w: 0, vs: {} }, 'no older games yet');
   assert.equal(ahri.games.length, 4);
   assert.deepEqual(ahri.games.map((g) => g.p), ['16.20', '16.20', '16.20', '16.19'], 'newest first');
   const g = ahri.games.find((x) => x.t === 1760000000000 / 1000 + 1002);
@@ -156,5 +174,34 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
     const x = await get(p), text = await x.text();
     assert(!text.includes(KEY) && ![...x.headers.values()].some((v) => v.includes(KEY)), p);
   }
+
+  // the sweep: restarted as if it had left off 6 days back (so the newer days come first), with a month of lane
+  // matchups older than it keeps
+  try { process.kill(-wr.pid); } catch {}
+  for (let i = 0; ; i++) {
+    try { await fetch(BASE + '/'); } catch { if (wr.exitCode !== null || wr.signalCode !== null) break; }
+    assert(i < 100, 'wrangler dev did not stop');
+    await sleep(200);
+  }
+  const { DatabaseSync } = require('node:sqlite'), dir = path.join(persist, 'v3', 'do', 'league-proxchat-Riot');
+  const db = new DatabaseSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith('.sqlite'))));
+  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('sweep', JSON.stringify({ lo: today - 6, hi: today - 6, li: 0 }));
+  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('y:2020-01', JSON.stringify({ 103: { MIDDLE: { 238: [50, 0] } } }));
+  db.close();
+  const mark = calls.length;
+  await up('SWEEP_DAYS:8', 'SWEEP_ROOM:100'); // room for the sweep beside this test's busy crawl
+  sum = await counted(7);
+  assert.equal(sum.total, 7, 'KR_2001, KR_2002 and KR_2003 count; not the ARAM, the remake, KR_1001 again or KR_2006, 9 days old');
+  assert.equal(sum.from, (today - 8) * DAY, 'counted back to 8 days ago');
+  assert.deepEqual(sum.c['103'], { MIDDLE: [4, 3] }, 'KR_2001 joins this patch');
+  assert.deepEqual(sum.old.c['103'], { MIDDLE: [2, 2] }, 'KR_2002 the patch before, and KR_2003 neither');
+  const swept = calls.slice(mark).filter((c) => c.p.endsWith('/ids') && c.q.includes('endTime')).map((c) => c.q.match(/^\?queue=420&type=ranked&startTime=(\d+)&endTime=(\d+)&count=100$/));
+  assert(swept.every((x) => x && x[1] % DAY === 0 && x[2] - x[1] === DAY - 1), 'a whole UTC day each');
+  assert.deepEqual(swept.map((x) => today - x[1] / DAY), [6, 6, 6, 5, 5, 5, 4, 4, 4, 7, 7, 7, 8, 8, 8], 'each ladder player, newer days first, then back in time');
+  for (const id of Object.keys(GAMES)) assert.equal(calls.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, id === 'KR_2006' ? 0 : 1, `${id} asked for ${id === 'KR_2006' ? 'never' : 'once'}`);
+  assert(!calls.some((c) => /KR_2\d+\/timeline$/.test(c.p)), 'no timelines for older games');
+  const old = await (await get('/riot/champ?c=103&r=MIDDLE')).json();
+  assert.deepEqual(old.y, { n: 3, w: 3, vs: { 238: [3, 3] } }, "Ahri's older games against Zed, without 2020's month");
+  assert.equal(old.games.length, 4, 'its games with builds are still the last 3 days');
   console.log('riot ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} riot.close(); fs.rmSync(persist, { recursive: true, force: true }); });
