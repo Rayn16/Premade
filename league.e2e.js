@@ -374,6 +374,9 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
   throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; lcu ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.lcu()).catch(() => null))}; last calls ${JSON.stringify(lcu.calls.slice(-6))}; toasts ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.toasts().slice(-5)).catch(() => null))}; clips ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.clips && lpc.clips()).catch(() => null))}; page ${JSON.stringify(await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => ''))}`);
 });
 const text = (page, sel) => page.locator(sel).innerText();
+// the text of everything a selector finds, read in one go: champ select and the game redraw their rows every second, and
+// a row read after a redraw replaced it has no layout, so its text runs together
+const texts = (page, sel) => page.evaluate((sel) => [...document.querySelectorAll(sel)].map((e) => e.innerText.replace(/\s+/g, ' ').trim()), sel);
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.join(process.env.SHOTS, name + '.png'), fullPage: true }); // SHOTS=folder saves screenshots
 // the tips for Ahri against Zed in the middle (site/index.html tipsFor), after your note when you have one
 const TIPS_AHRI_ZED = ['High elo: Ahri won 12 of 30 games against Zed, −200 gold and +5 CS at 10 minutes. A hard matchup for Ahri.',
@@ -548,10 +551,13 @@ const leagueData = (over = {}) => ({
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     const riotAsked = []; // Riot through our server: nothing there
-    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api)/, (r) => {
+    // and how champions did with (a) and against (e) each other: Lux won 15 of 20 with Garen, Zed 4 of 12 against Lee Sin
+    const PAIRS = { 86: { '99a': [20, 15] }, 238: { '64e': [12, 4] } };
+    await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|pairs)/, (r) => {
       const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' };
       if (u.pathname.startsWith('/riot/api/')) return riotAsked.push(u.pathname.slice(9) + u.search), r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { p: '15.20', c: SUM, old: null, today: 12, total: 3456, at: 0 }, headers: cors });
+      if (u.pathname.endsWith('/pairs')) { const p = PAIRS[u.searchParams.get('c')]; return r.fulfill(p ? { json: { c: +u.searchParams.get('c'), p }, headers: cors } : { status: 404, json: {}, headers: cors }); }
       const c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE';
       highAsked.push(`${c}/${u.searchParams.get('r')}`);
       r.fulfill({ json: c === 103 ? highElo(role) : c === 238 && role === 'MIDDLE' ? zedMid() : { patch: '15.20', role, roles: {}, games: [] }, headers: cors });
@@ -741,7 +747,7 @@ const leagueData = (over = {}) => ({
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
     await wait(pc, () => !document.getElementById('csBox').hidden && /Friend#EUW\s+Top/.test(document.querySelector('#csRows tr').innerText) && [...document.querySelectorAll('#csRows tr')].filter((tr) => /Gold II · 45 LP · 55% of 55/.test(tr.textContent)).length === 3 && /hovering Garen/.test(document.getElementById('csRows').textContent), null, 'champ select with ranks');
-    const rows = await pc.$$eval('#csRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ')));
+    const rows = await texts(pc, '#csRows tr');
     assert.strictEqual(rows.length, 5);
     assert.match(rows[0], /Friend#EUW .*Top.*hovering Garen.*Gold II · 45 LP.*Flex: Silver I · 10 LP.*Last 20: 6W 14L.*Garen: 8 games, 75% won.*6 wins in a row.*Comfort pick.*Seen before: 20 with you \(13W 7L\)/);
     assert.match(rows[4], /Hooks#EUW .*Off-role: rarely plays support \(0 of 20\)/);
@@ -766,7 +772,7 @@ const leagueData = (over = {}) => ({
     // bans for you: the champion you lose to most, then the strongest middles in high elo (not Ahri or Lux: you play
     // them); hover Darius by name, then ban him from his button
     assert.strictEqual(await pc.locator('#bansHead').textContent(), 'Bans for you');
-    assert.deepStrictEqual(await pc.$$eval('#bans button', (bs) => bs.map((b) => b.innerText.replace(/\s+/g, ' ').trim())), ['Darius You lost 3 of 4 against it', 'Vi High elo: 72% of 18 games, middle', 'Zed High elo: 53% of 30 games, middle']);
+    assert.deepStrictEqual(await texts(pc, '#bans button'), ['Darius You lost 3 of 4 against it', 'Vi High elo: 72% of 18 games, middle', 'Zed High elo: 53% of 30 games, middle']);
     await pc.fill('#anyChamp', 'Darius');
     await pc.click('#hoverBtn');
     await wait(pc, () => /hovering Darius/.test(document.getElementById('csTurn').textContent), null, 'the ban hovered');
@@ -776,11 +782,53 @@ const leagueData = (over = {}) => ({
     // the best picks for you, with why: Lux beat Zed (their middle now) in high elo, Ahri's your best, Vi's strong in
     // high elo but new to you. Garen and Sona aren't middle, Zed is taken
     await wait(pc, () => /Beat Zed in 5 of 6/.test(document.getElementById('picks').textContent), null, 'the best picks against Zed');
-    const picks = await pc.$$eval('#picks button', (bs) => bs.map((b) => b.innerText.replace(/\s+/g, ' ').trim()));
+    const picks = await texts(pc, '#picks button');
     assert.deepStrictEqual(picks, ['Lux High elo: 58% of 12 games · Beat Zed in 5 of 6 · You: 5 games, 60% won', 'Ahri High elo: 55% of 40 games · Beat Zed in 4 of 10 · You: 8 games, 75% won', 'Vi High elo: 72% of 18 games']);
     assert(highAsked.includes('238/MIDDLE'), 'Zed’s high elo games in the middle asked for');
+    // the draft: both teams by role with their scores, and every champion ranked for your role, middle: Lux beat Zed in
+    // high elo and won with Garen, Vi's strong in high elo, Zed's taken and Ahri lost to Zed
+    const dGrid = () => pc.$$eval('#dGrid .dchamp', (l) => l.map((b) => `${b.querySelector('img').alt} ${b.querySelector('.dsc').textContent}${b.getAttribute('aria-disabled') === 'true' ? ' (off)' : ''}${b.hasAttribute('data-fav') ? ' (favorite)' : ''}`));
+    const slots = (id) => pc.$$eval(`#${id} .dslot`, (l) => l.map((s) => (s.querySelector('img') ? `${s.querySelector('img').alt} ${s.querySelector('.dsc').textContent}` : '?') + (s.hasAttribute('data-hover') ? ' (hovering)' : '') + (s.hasAttribute('data-me') ? ' (you)' : '')));
+    const dRole = () => pc.textContent('#dRoles [aria-selected="true"]');
+    await wait(pc, () => /With Garen/.test((document.querySelector('#dGrid .dchamp') || {}).title), null, 'the draft, with the pairs');
+    assert.deepStrictEqual(await dGrid(), ['Lux +24.1', 'Vi +10.5', 'Zed +2.0 (off)', 'Ahri −2.3']);
+    assert.strictEqual(await pc.getAttribute('#dGrid .dchamp', 'title'), 'Lux\nHigh elo middle: 58% won in 12 games\nAgainst Zed in lane: won 5 of 6 (+12.1)\nWith Garen: won 15 of 20 (+8.9)');
+    assert.strictEqual(await dRole(), 'Middle');
+    assert.deepStrictEqual(await slots('dUs'), ['Garen +4.0 (hovering)', '?', '? (you)', '?', 'Thresh +0.0 (hovering)']);
+    assert.deepStrictEqual(await slots('dThem'), ['?', '?', 'Zed +2.0', '?', '?'], 'Zed guessed in the middle');
+    assert.deepStrictEqual([await text(pc, '#dUsScore'), await text(pc, '#dThemScore')], ['+4.0', '+2.0']);
+    assert.match(await text(pc, '#csTurn'), /^Your turn to pick: \d+ s left\.$/);
+    // another role: top, where Lee Sin did well against Zed; by high elo win rate alone Garen's first
+    await pc.click('#dRoles [data-role="TOP"]');
+    await wait(pc, () => /Lee Sin/.test(document.getElementById('dGrid').textContent + [...document.querySelectorAll('#dGrid img')].map((i) => i.alt).join()), null, 'the draft for top');
+    assert.strictEqual(await dRole(), 'Top');
+    assert.deepStrictEqual(await dGrid(), ['Lee Sin +6.5', 'Garen +4.0', 'Darius −2.5 (off)']);
+    assert.match(await pc.getAttribute('#dGrid .dchamp', 'title'), /\nAgainst Zed: won 8 of 12 \(\+7\.3\)$/);
+    await pc.click('#dModes [data-mode="meta"]');
+    await wait(pc, () => document.querySelector('#dGrid img').alt === 'Garen', null, 'meta');
+    assert.deepStrictEqual(await dGrid(), ['Garen +4.0', 'Lee Sin −0.7', 'Darius −2.5 (off)']);
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-draft'))), { mode: 'meta' });
+    await pc.click('#dModes [data-mode="balanced"]');
+    await pc.click('#dRoles [data-role="MIDDLE"]');
+    await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 4, null, 'middle again');
+    // type anywhere to find a champion, and Enter hovers it; right-click makes a favorite, first in the list
+    await pc.evaluate(() => document.activeElement.blur());
+    await pc.keyboard.type('lu');
+    await wait(pc, () => document.getElementById('dFind').value === 'lu' && document.querySelectorAll('#dGrid .dchamp').length === 1, null, 'the search');
+    await pc.keyboard.press('Enter');
+    await wait(pc, () => /hovering Lux/.test(document.getElementById('csTurn').textContent), null, 'Lux hovered from the search');
+    await pc.keyboard.press('Escape');
+    await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 4, null, 'the search cleared');
+    assert.deepStrictEqual(await slots('dUs'), ['Garen +4.0 (hovering)', '?', 'Lux +24.1 (hovering) (you)', '?', 'Thresh +0.0 (hovering)']);
+    assert.strictEqual(await text(pc, '#dUsScore'), '+28.1');
+    await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])', { button: 'right' });
+    await wait(pc, () => document.querySelector('#dGrid .dchamp').hasAttribute('data-fav'), null, 'a favorite');
+    assert.deepStrictEqual(await dGrid(), ['Ahri −2.3 (favorite)', 'Lux +24.1', 'Vi +10.5', 'Zed +2.0 (off)']);
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-favs'))), [103]);
+    await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])', { button: 'right' });
+    await wait(pc, () => !document.querySelector('#dGrid [data-fav]'), null, 'no favorite');
     assert.match(await text(pc, '#csTheirs'), /Their picks: Zed \(likely in your lane\)\. Banned: a champion, Darius\./);
-    assert.match(await text(pc, '#mixNote'), /^Your team so far: 1 physical, 1 magic damage\. Theirs: 1 physical, 0 magic\.$/); // Garen and Thresh hovered
+    assert.match(await text(pc, '#mixNote'), /^Your team so far: 1 physical, 2 magic damage\. Theirs: 1 physical, 0 magic\.$/); // Garen, Thresh and your Lux hovered
     assert.strictEqual(await tierTab(), 'Middle', 'the tier list on your role');
     await pc.evaluate(() => { document.querySelector('main').scrollTop = 0; });
     await shot(pc, 'pregame-picks');
@@ -863,7 +911,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('liveBox').hidden && document.querySelectorAll('#liveRows tr').length === 10 && /Dragon/i.test(document.getElementById('timers').textContent), null, 'the Game page in game');
     await wait(pc, () => lpc.lcu().scouted.includes('enemy5') && [...document.querySelectorAll('#liveRows tr')].every((tr) => /LP|Unranked/.test(tr.textContent)), null, 'all ten scouted');
     assert.strictEqual(callsTo(/alias\/lookup\?gameName=Singer&tagLine=EUW/).length, 1, 'the player League gave no puuid is found by Riot ID');
-    const live = await pc.$$eval('#liveRows tr', (trs) => trs.map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ')]));
+    const live = await pc.evaluate(() => [...document.querySelectorAll('#liveRows tr')].map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ')]));
     assert.deepStrictEqual(live.map(([t]) => t), [...Array(5).fill('ally'), ...Array(5).fill('enemy')]);
     assert(live[0][1] && /Rayan#EUW/.test(live[0][2]), 'you are marked');
     const row = (n) => live.find(([, , t]) => t.startsWith(`${n}#`))[2];
