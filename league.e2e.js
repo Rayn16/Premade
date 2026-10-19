@@ -12,7 +12,9 @@
 // scouted (one found by Riot ID), objective timers, kills, towers and the gold difference on the page, the overlay (what it
 // shows, see-through, everyone's rank then hidden by its key) and the phone, your lane and CS a
 // minute, the sound before Dragon; clips from the clip key and a multikill, cut to the last seconds and playable, and the
-// gallery (keep, rename, drag, play, cut, bin); after the game: the LP, the game report with MVP and ACE, Stats' LP
+// gallery (keep, rename, drag, play, cut, bin); after the game: the LP, the game report with MVP and ACE, how you played
+// on the Game page (against your usual, high elo and your lane opponent, what stood out, the map of your fights, your
+// deaths and the objectives), Stats' LP
 // tracker and chart, match history with its reports and the spreadsheet export, the voice game history with the
 // report; the patch check, the performance meter, test recordings, your version and What's new, an app link into a
 // room, the phone remote from its home screen icon, backup and restore; and that every call to League's client is
@@ -139,12 +141,24 @@ function report(id) {
       const star = i === 0 ? 3 : i === 7 ? 2 : 1, [lane, role] = i === 0 && mine && mine.timeline ? [mine.timeline.lane, mine.timeline.role] : LANE[pos];
       return { participantId: i + 1, teamId, championId: i === 0 && mine ? mine.championId : champ, ...(id !== 9001 && { timeline: { lane, role } }),
         stats: { win, kills: 2 * star, deaths: win ? 2 : 5, assists: 3 * star, totalDamageDealtToChampions: 9000 * star, goldEarned: 8000 + 2000 * star,
-          visionScore: 20, totalMinionsKilled: 120 * star, neutralMinionsKilled: 0, totalDamageTaken: 15000, damageSelfMitigated: 5000 } };
+          visionScore: 20, totalMinionsKilled: 120 * star, neutralMinionsKilled: 0, totalDamageTaken: 15000, damageSelfMitigated: 5000,
+          physicalDamageDealtToChampions: 1000 * star, magicDamageDealtToChampions: 7000 * star, trueDamageDealtToChampions: 1000 * star,
+          wardsPlaced: 8 + star, wardsKilled: star, visionWardsBoughtInGame: 2, damageDealtToTurrets: 1500 * star, timeCCingOthers: 12 * star } };
     }),
   };
 }
 // a game's timeline, a frame a minute: everyone in their lane's part of the map (you ahead of Zed in CS and gold, behind
-// in XP), your buys and the order you levelled Q, W, E and R
+// in XP), your buys, the order you levelled Q, W, E and R, and the fights and objectives: you kill Zed in the middle
+// lane with Lee Sin, Zed and Vi kill you twice in the river, and you help Jinx kill Caitlyn; your team takes two
+// dragons, Baron and three towers (and an inhibitor), theirs the Rift Herald and a tower. Riot's positions are game
+// units from the blue base, bottom left; a tower's teamId is whose tower fell.
+const FIGHTS = [[390, 'CHAMPION_KILL', 1, { victimId: 8, assistingParticipantIds: [3], position: { x: 7400, y: 7400 } }],
+  [490, 'CHAMPION_KILL', 8, { victimId: 1, assistingParticipantIds: [7], position: { x: 5500, y: 9000 } }], [540, 'ELITE_MONSTER_KILL', 3, { monsterType: 'DRAGON', monsterSubType: 'FIRE_DRAGON' }],
+  [760, 'CHAMPION_KILL', 8, { victimId: 1, assistingParticipantIds: [7], position: { x: 10000, y: 4500 } }], [840, 'ELITE_MONSTER_KILL', 7, { monsterType: 'RIFT_HERALD' }],
+  [900, 'BUILDING_KILL', 1, { teamId: 200, buildingType: 'TOWER_BUILDING' }], [1000, 'BUILDING_KILL', 8, { teamId: 100, buildingType: 'TOWER_BUILDING' }],
+  [1100, 'CHAMPION_KILL', 4, { victimId: 9, assistingParticipantIds: [1, 5], position: { x: 12000, y: 2500 } }], [1260, 'ELITE_MONSTER_KILL', 3, { monsterType: 'DRAGON', monsterSubType: 'WATER_DRAGON' }],
+  [1500, 'ELITE_MONSTER_KILL', 3, { monsterType: 'BARON_NASHOR' }], [1560, 'BUILDING_KILL', 2, { teamId: 200, buildingType: 'TOWER_BUILDING' }],
+  [1600, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'TOWER_BUILDING' }], [1620, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'INHIBITOR_BUILDING' }]];
 const SPOT = { TOP: [2000, 12000], JUNGLE: [5000, 7000], MIDDLE: [7400, 7400], BOTTOM: [12500, 2500], UTILITY: [12000, 2300] };
 const SKILLS = [1, 2, 3, 1, 1, 4, 1, 2, 1, 2, 4, 2, 2, 3, 3, 4, 3, 3];
 function timeline(id) {
@@ -156,6 +170,7 @@ function timeline(id) {
       minionsKilled: (i === 0 ? 8 : pos === 'UTILITY' ? 1 : pos === 'JUNGLE' ? 0 : 7) * m, jungleMinionsKilled: pos === 'JUNGLE' ? 4 * m : 0, totalGold: (i === 0 ? 400 : 350) * m, currentGold: 0, xp: (i === 0 ? 500 : 520) * m }])) }));
   for (const [t, itemId] of buys) frames[Math.ceil(t / 60)].events.push({ type: 'ITEM_PURCHASED', timestamp: t * 1000, participantId: 1, itemId });
   SKILLS.forEach((skillSlot, k) => frames[1 + k].events.push({ type: 'SKILL_LEVEL_UP', timestamp: (1 + k) * 60000, participantId: 1, skillSlot, levelUpType: 'NORMAL' }));
+  for (const [t, type, killerId, e] of FIGHTS) frames[Math.ceil(t / 60)].events.push({ type, timestamp: t * 1000, killerId, ...e });
   return { frames };
 }
 // Clash: your team's next match is against Night Owls, two of whom League names
@@ -1082,7 +1097,7 @@ const leagueData = (over = {}) => ({
     lcu.lpNote = { gameId: GAME, queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', division: 'II', leaguePoints: 63, leaguePointsDelta: 18 };
     await league({ inGame: false, phase: 'EndOfGame' });
     await wait(pc, () => lpc.toasts().some((t) => /^\+18 LP: Gold II · 63 LP$/.test(t)), null, 'the LP toast');
-    await wait(pc, () => lpc.toasts().some((t) => /^Game report ready: you scored \d+ \(MVP\)\. It’s in Stats\.$/.test(t)), null, 'the report toast');
+    await wait(pc, () => lpc.toasts().some((t) => /^Game report ready: you scored \d+ \(MVP\)\. See how you played on the Game page\.$/.test(t)), null, 'the report toast');
     const r = await pc.evaluate((id) => lpc.reports()[id], GAME);
     const badges = r.players.filter((p) => p.badge).map((p) => `${p.name} ${p.badge}`);
     assert.deepStrictEqual(badges, ['Rayan#EUW MVP', 'Shadow#EUW ACE']);
@@ -1090,6 +1105,27 @@ const leagueData = (over = {}) => ({
     assert(r.gold && r.gold.length >= 1, 'the gold over the game was kept');
     assert.deepStrictEqual(await pc.evaluate(() => lpc.lpLog().map((e) => [e.id, e.delta, e.win])), [[1, -15, false], [GAME, 18, true]]);
     await pc.click('.nav[data-view="game"]');
+    await wait(pc, () => document.querySelector('#postBox .analysis .duo'), null, 'how you played, on the Game page');
+    // how you played, against your usual Ahri games, high elo Ahri players and Zed: what stood out, the table (▲ better
+    // and ▼ worse than your usual, else high elo, else Zed), your damage and wards, your gold and CS against Zed, the
+    // map with your kill (a green dot) and deaths (red crosses), your deaths and the objectives
+    assert.match(await text(pc, '#postHead'), /^Victory · Ahri · 6\/2\/9 · 28 min · Ranked Solo\/Duo · \+18 LP · score 100 \(MVP\) · /);
+    const post = (sel) => pc.$$eval(`#postBox ${sel}`, (l) => l.map((e) => e.textContent));
+    assert.deepStrictEqual(await post('.analysis > .takeaways li'), ['Your best: CS a minute, 12.7 against your usual 5.3.', 'High elo Ahri players won 40% of 30 games against Zed: a hard matchup.',
+      'You died twice before 14 minutes, both in the river.', 'Your first item, Luden’s Companion, was done at 12:00: 2:00 later than high elo Ahri players (10:00).']);
+    assert.deepStrictEqual(await pc.$$eval('#postBox .bench tr', (trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent + ({ good: ' ▲', bad: ' ▼' }[c.dataset.k] || '')).join(' | '))), [
+      ' | This gameAhri, 28 min | Your usual7 games on Ahri | High eloAhri middle, 40 games | Zedtheir middle', 'KDA | 7.5 ▲ | 4.0 | 4.7 | 2.0', 'Deaths | 2 | 3 | 3 | 5',
+      'Kill participation | 100% ▲ | — | — | 83%', 'Damage a minute | 953 ▲ | 667 | — | 635', 'Share of team damage | 43% ▲ | — | — | 33%', 'CS a minute | 12.7 ▲ | 5.3 | — | 8.5',
+      'Gold a minute | 494 ▲ | — | — | 424', 'Vision score a minute | 0.71 ▲ | 0.60 | — | 0.71', 'Gold at 10 minutes against Zed | +500 | +500 | +25 | —',
+      'CS at 10 minutes against Zed | +10 | +10 | +5 | —', 'XP at 10 minutes against Zed | −200 | −200 | +100 | —', 'First item done | 12:00 | 12:00 | 10:00 | —']);
+    assert.deepStrictEqual(await post('.analysis .timers span'), ['Your damage11% physical · 78% magic · 11% true', 'Wards11 placed · 3 destroyed · 2 control bought', 'Damage to towers4,500', 'Crowd control36 s']);
+    assert.deepStrictEqual((await post('.analysis .trends figcaption')), ['Your gold against Zed, ahead above the line: up to 1.5k ahead, never behind.', 'Your CS against Zed: up to 30 CS ahead, never behind.']);
+    assert.deepStrictEqual(await pc.$eval('#postBox .fightmap', (cv) => [cv.getAttribute('aria-label'), ...[[7400, 7400], [5500, 9000], [10000, 4500]].map(([x, y]) => [...cv.getContext('2d').getImageData(Math.round(x / 14870 * 480), Math.round((1 - y / 14870) * 480), 1, 1).data].join())]),
+      ['Where on Summoner’s Rift you got kills (1), assists (1) and died (2)', '60,207,142,255', '255,107,107,255', '255,107,107,255']);
+    assert.deepStrictEqual(await post('.duo ol li'), ['8:10: Zed with Vi, in the river', '12:40: Zed with Vi, in the river']);
+    assert.strictEqual(await text(pc, '#postBox .duo .stack .hint'), 'Objectives: your team took 2 dragons, 1 Baron, 3 towers; theirs 1 Rift Herald, 1 tower.');
+    assert(await pc.evaluate(() => document.querySelector('#postBody .report').firstElementChild.matches('.rmore')), 'how you played first, then everyone’s scores');
+    await shot(pc, 'post-game');
     await pc.click('.nav[data-view="stats"]');
     await wait(pc, () => /Gold II · 63 LP/.test(document.getElementById('rankNow').textContent), null, 'the rank');
     assert.deepStrictEqual(await embs(pc, '#rankNow .emb'), ['TFT_Regalia_Gold.png']);
@@ -1191,7 +1227,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.querySelector('#games li .report'), null, 'the report in the voice game history');
     assert.match(await pc.locator('#games li').first().innerText(), /\+18 LP/);
     assert.strictEqual(await text(pc, '#talkWin'), 'Talk and win: when the room talked more than usual, you won 2 of 2 games (100%). When it was quieter, 0 of 2 (0%).');
-    console.log(`after the game: +18 LP, the report (${badges.join(', ')}), Stats with the LP chart, trends, hall of fame, the recap, champion pages, match history and reports with the replay, laning and buys`);
+    console.log(`after the game: +18 LP, the report (${badges.join(', ')}), how you played on the Game page, Stats with the LP chart, trends, hall of fame, the recap, champion pages, match history and reports with the replay, laning and buys`);
     // the Players tab: look anyone up, and follow their rank
     await pc.click('.tab[data-tab="players"]');
     await pc.fill('#lookupId', 'Sniper#EUW');
