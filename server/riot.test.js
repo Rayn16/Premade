@@ -122,7 +122,8 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.equal(ahri.games.length, 4);
   assert.deepEqual(ahri.games.map((g) => g.p), ['16.20', '16.20', '16.20', '16.19'], 'newest first');
   const g = ahri.games.find((x) => x.t === 1760000000000 / 1000 + 1002);
-  assert.deepEqual({ ...g, b: undefined }, { p: '16.20', t: 1760001002, w: 1, o: 238, g: -500, s: [4, 14], rn: [8100, 8300, 8112, 8139, 8138, 8135, 8306, 8347, 5005, 5008, 5011], k: [1, 2, 3], x: [2, 2, 7, 156], l: [-5, -50], b: undefined });
+  assert.deepEqual({ ...g, b: undefined }, { p: '16.20', t: 1760001002, w: 1, o: 238, g: -500, s: [4, 14], rn: [8100, 8300, 8112, 8139, 8138, 8135, 8306, 8347, 5005, 5008, 5011], k: [1, 2, 3], x: [2, 2, 7, 156], l: [-5, -50], b: undefined,
+    a: [266, 64, 222, 412], e: [86, 254, 238, 145, 117] }, 'with who was on each team');
   assert.deepEqual(g.b, [[2, 1055], [3, 2003], [402, 3020]], 'the boots Ahri undid are left out');
   assert.equal(ahri.games.filter((x) => x.w).length, 3);
   assert.equal((await (await get('/riot/champ?c=103')).json()).role, 'MIDDLE', 'its most played role when none is asked for');

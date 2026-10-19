@@ -302,8 +302,8 @@ export class Riot extends DurableObject {
       s: [x.summoner1Id, x.summoner2Id], rn: runesOf(x.perks), x: [x.kills, x.deaths, x.assists, x.totalMinionsKilled + x.neutralMinionsKilled] })) };
     this.put('crawl', st);
   }
-  // what each player bought (undone buys taken out) and levelled, and their gold, CS and XP at 10 minutes against
-  // their lane opponent's
+  // what each player bought (undone buys taken out) and levelled, their gold, CS and XP at 10 minutes against their
+  // lane opponent's, and the champions with (a) and against (e) them, for the draft's scores
   async timeline(r, st) {
     const g = st.cur;
     st.cur = null;
@@ -322,7 +322,8 @@ export class Riot extends DurableObject {
     const slot = hash(g.id) % KEEP;
     for (const x of g.ps) {
       const o = g.ps.find((y) => y.t !== x.t && y.r === x.r), [gx, cx, xx] = at10(x.id), [go, co, xo] = at10(o.id);
-      const d = JSON.stringify({ s: x.s, rn: x.rn, b: (buys[x.id] || []).slice(0, 60), k: (skills[x.id] || []).slice(0, 18), x: x.x, l: f10 ? [cx - co, xx - xo] : null });
+      const d = JSON.stringify({ s: x.s, rn: x.rn, b: (buys[x.id] || []).slice(0, 60), k: (skills[x.id] || []).slice(0, 18), x: x.x, l: f10 ? [cx - co, xx - xo] : null,
+        a: g.ps.filter((y) => y.t === x.t && y !== x).map((y) => y.c), e: g.ps.filter((y) => y.t !== x.t).map((y) => y.c) });
       this.sql.exec('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (champ, role, slot) DO UPDATE SET patch = excluded.patch, at = excluded.at, win = excluded.win, opp = excluded.opp, gd = excluded.gd, d = excluded.d',
         x.c, x.r, slot, g.patch, g.at, x.w, o.c, f10 ? gx - go : null, d);
       this.count(g.patch, x.c, x.r, x.w);
