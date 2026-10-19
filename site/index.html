@@ -7102,7 +7102,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('kClip').textContent = keys.clip || 'Off';
     $('kOverlay').textContent = keys.overlay || 'Off';
     $('kPtt').textContent = keys.ptt ? keyName(keys.ptt) : 'Off (open mic)';
-    for (const b of document.querySelectorAll('[data-key]')) {
+    for (const b of document.querySelectorAll('.keyrow [data-key]')) { // only these buttons: other boxes keep what they drew in data-key
       b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
     }
     $('pttOff').hidden = !keys.ptt;
@@ -7125,7 +7125,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const c = comboOf(e);
     if (c.includes('+') || /^F\d/.test(c)) { keys[capture] = c; capture = ''; applyKeys(); }
   }
-  for (const b of document.querySelectorAll('[data-key]')) b.addEventListener('click', () => { capture = b.dataset.key; renderKeys(); });
+  for (const b of document.querySelectorAll('.keyrow [data-key]')) b.addEventListener('click', () => { capture = b.dataset.key; renderKeys(); });
   $('pttOff').addEventListener('click', () => { keys.ptt = ''; applyKeys(); });
   const typing = (e) => e.target instanceof Element && !!e.target.closest('input, select, textarea');
   const pushTalk = (down) => { if (pttDown !== down) { pttDown = down; applyMic(); } };
