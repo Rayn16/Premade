@@ -341,7 +341,7 @@ async function context(browser, { version = '', phone = false } = {}) {
 }
 const clips = process.env.CLIPS || fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-clips-')); // CLIPS=folder keeps them
 const savedClips = [];
-const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout }).catch(async (err) => {
+const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout, polling: 100 }).catch(async (err) => { // not on animation frames: a busy container holds those back
   throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; lcu ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.lcu()).catch(() => null))}; last calls ${JSON.stringify(lcu.calls.slice(-6))}; toasts ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.toasts().slice(-5)).catch(() => null))}; clips ${JSON.stringify(await page.evaluate(() => window.lpc && lpc.clips && lpc.clips()).catch(() => null))}; page ${JSON.stringify(await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => ''))}`);
 });
 const text = (page, sel) => page.locator(sel).innerText();
@@ -530,6 +530,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proBack');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'back to you');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Game', 'Stats', 'Clips', 'Settings'], 'the menu in the app');
     await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /Find a match and this page fills in/);
     // Clash: the other team in your next match, with their ranks and best champions
@@ -542,7 +543,7 @@ const leagueData = (over = {}) => ({
     await pc.click('.nav[data-view="settings"]');
     assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
     await pc.check('#optRemote');
-    await pc.click('.nav[data-view="room"]');
+    await pc.click('.nav[data-view="voice"]');
     await pc.click('#createBtn'); // a room, for the mic: clips mix it in
     await wait(pc, () => lpc.slot() >= 0, null, 'a room');
 
@@ -582,7 +583,7 @@ const leagueData = (over = {}) => ({
     console.log('queue: a Practice Tool game in one click, Find match here, Stop from the phone');
 
     // ---- ready checks: accepted here, on the phone, then for you
-    await pc.click('.nav[data-view="room"]');
+    await pc.click('.nav[data-view="voice"]');
     const readyCheck = async () => { lcu.rc = { state: 'InProgress', playerResponse: 'None', timer: 2 }; lcu.phase = 'ReadyCheck'; await league({ inGame: false, phase: 'ReadyCheck' }); };
     const backToQueue = async () => { lcu.rc = null; lcu.phase = 'Matchmaking'; await league({ inGame: false, phase: 'Matchmaking' }); };
     await readyCheck();
@@ -612,7 +613,7 @@ const leagueData = (over = {}) => ({
     lcu.rc = null;
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
-    await wait(pc, () => !document.getElementById('csBox').hidden && [...document.querySelectorAll('#csRows tr')].filter((tr) => /Gold II · 45 LP · 55% of 55/.test(tr.textContent)).length === 3 && /hovering Garen/.test(document.getElementById('csRows').textContent), null, 'champ select with ranks');
+    await wait(pc, () => !document.getElementById('csBox').hidden && /Friend#EUW\s+Top/.test(document.querySelector('#csRows tr').innerText) && [...document.querySelectorAll('#csRows tr')].filter((tr) => /Gold II · 45 LP · 55% of 55/.test(tr.textContent)).length === 3 && /hovering Garen/.test(document.getElementById('csRows').textContent), null, 'champ select with ranks');
     const rows = await pc.$$eval('#csRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ')));
     assert.strictEqual(rows.length, 5);
     assert.match(rows[0], /Friend#EUW .*Top.*hovering Garen.*Gold II · 45 LP.*Flex: Silver I · 10 LP.*Last 20: 6W 14L.*Garen: 8 games, 75% won.*6 wins in a row.*Comfort pick.*Seen before: 20 with you \(13W 7L\)/);
@@ -704,7 +705,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(live.filter(([, , t]) => /Premade|smurf/.test(t)).length, 3, 'nobody else premade or a smurf');
     assert.strictEqual(await pc.evaluate(() => document.querySelector('#liveNotes .notelist').textContent), 'Ahri against Zed: Respect his level 6. Ward the side bushes.');
     const timers = await text(pc, '#timers');
-    assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[34]\d BARON (10:00|9:[45]\d) THEIR MID INHIBITOR 4:[01]\d KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i);
+    assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[0-4]\d BARON (10:00|9:[1-5]\d) THEIR MID INHIBITOR (4:[01]\d|3:[3-5]\d) KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i); // counting down since the game data came: up to 50 s on a busy container
     await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k$/.test(lpcClient.lastOverlay.game), null, 'the overlay line');
     await wait(phone, () => /Dragon1:\d\dBaron.*Gold\+15\.5k/.test(document.getElementById('timers').textContent), null, 'the timers on the phone');
     // your lane and CS a minute: on the Game page and the overlay, against your usual on Ahri
@@ -734,7 +735,7 @@ const leagueData = (over = {}) => ({
 
     // ---- clips: the key saves what was recorded, a multikill saves a clip by itself; both play
     await wait(pc, () => lpc.clips().on && lpc.clips().parts >= 9, null, 'ten seconds of recording', 20000);
-    await pc.evaluate(() => lpcClient.emit('key', 'clip'));
+    const keyAge = await pc.evaluate(() => { lpcClient.emit('key', 'clip'); return lpc.clips().age; });
     await wait(pc, () => lpc.clips().saved.length === 1, null, 'the clip from the key', 30000); // slow on a busy 4-CPU container
     const full = await pc.evaluate(async () => {
       const v = document.createElement('video');
@@ -746,7 +747,16 @@ const leagueData = (over = {}) => ({
       await new Promise((res) => { v.onseeked = res; });
       return { d, start: v.seekable.length ? v.seekable.start(0) : -1, w: v.videoWidth };
     });
-    assert(full.d >= 9 && full.d < 15 && full.w === 1280, `the clip holds the whole recording so far: ${JSON.stringify(full)}`);
+    assert(full.d >= 9 && full.d <= keyAge + 3 && full.w === 1280, `the clip holds the whole recording so far: ${JSON.stringify({ ...full, keyAge })}`);
+    // a busy PC can hand the WebM header over in pieces (once its first byte alone): the head waits for the first Cluster
+    const split = await pc.evaluate(async () => {
+      const whole = window.lastClip, r = { pre: [], parts: [] };
+      const c = whole.findIndex((x, i) => x === 0x1f && whole[i + 1] === 0x43 && whole[i + 2] === 0xb6 && whole[i + 3] === 0x75);
+      for (const [a, b] of [[0, 1], [1, c + 100], [c + 100, whole.length]]) lpc.headChunk(r, new Blob([whole.subarray(a, b)]));
+      await new Promise((res) => setTimeout(res, 500));
+      return { c, head: r.head ? r.head.size : 0, rest: r.parts.reduce((n, p) => n + p.blob.size, 0), all: whole.length, left: r.pre.length };
+    });
+    assert(split.head >= split.c + 100 && split.head + split.rest === split.all, `the whole header kept, nothing lost: ${JSON.stringify(split)}`);
     // the last 4 s only, through the same cut as the 30 s one
     await pc.evaluate(() => lpc.saveClip('key', 4));
     await wait(pc, () => lpc.clips().saved.length === 2, null, 'the short clip');
@@ -756,7 +766,7 @@ const leagueData = (over = {}) => ({
       v.src = URL.createObjectURL(new Blob([window.lastClip], { type: 'video/webm' }));
       await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error('video error')); });
       await v.play().catch(() => {});
-      await new Promise((r) => setTimeout(r, 600));
+      for (const t0 = performance.now(); v.currentTime <= 0.2 && performance.now() - t0 < 5000;) await new Promise((r) => setTimeout(r, 100)); // slow to start on a busy container
       return { d: v.duration, played: v.currentTime, start: v.seekable.length ? v.seekable.start(0) : -1 };
     });
     assert(short.d >= 4 && short.d < 7.5 && short.start === 0 && short.played > 0.2, `a 4 s cut starts at 0 and plays: ${JSON.stringify(short)}`);
@@ -945,10 +955,10 @@ const leagueData = (over = {}) => ({
     await fr.goto(URL_);
     await wait(fr, () => window.lpc, null, 'the friend’s page');
     await fr.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
-    await fr.click('.nav[data-view="room"]');
+    await fr.click('.nav[data-view="voice"]');
     await fr.fill('#code', room);
     await fr.click('#joinBtn');
-    await pc.click('.nav[data-view="room"]');
+    await pc.click('.nav[data-view="voice"]');
     await wait(pc, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Platinum IV · 12 LP · With you: 13W 7L'), null, 'the friend’s rank and your record together');
     await wait(fr, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Gold II · 63 LP, +18 today'), null, 'your rank on the friend’s card for you');
     assert(await pc.locator('#players .watch').isHidden(), 'no Watch while the friend isn’t playing');
@@ -1033,14 +1043,14 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.7.0 (1.8.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Room page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.7.0 (1.8.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
     // an app link: lolprox://join/<room> brings the app into that room, after asking to leave the one you're in
     pc.once('dialog', (d) => d.accept());
     await pc.evaluate(() => lpcClient.emit('join', 'wxyz'));
-    await wait(pc, () => lpc.room() === 'wxyz' && lpc.slot() >= 0 && !document.querySelector('.view[data-view="room"]').hidden, null, 'the room from the app link');
+    await wait(pc, () => lpc.room() === 'wxyz' && lpc.slot() >= 0 && !document.querySelector('.view[data-view="voice"]').hidden, null, 'the room from the app link');
     console.log('app link: joined room WXYZ');
     // the phone remote from its home screen icon: remote.html with no code connects with the one it kept
     const [p2ctx, phone2] = await context(browser, { phone: true });

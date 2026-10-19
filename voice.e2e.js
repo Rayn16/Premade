@@ -129,9 +129,10 @@ async function join(page, room) {
 }
 
 const others = (page) => page.evaluate(() => lpc.peers());
-const waitFor = (page, fn, arg, what, timeout = 15000) =>
-  page.waitForFunction(fn, arg, { timeout }).catch(async () => {
-    throw new Error(`timed out waiting for ${what}; peers: ${JSON.stringify(await others(page))}; me: ${JSON.stringify(await page.evaluate(() => lpc.me()))}`);
+const waitFor = (page, fn, arg, what, timeout = 30000) =>
+  page.waitForFunction(fn, arg, { timeout, polling: 100 }).catch(async () => { // not on animation frames: a busy container holds those back
+    const view = await page.evaluate(() => ({ view: [...document.querySelectorAll('main > .view')].filter((v) => !v.hidden).map((v) => v.dataset.view), map: [!!document.getElementById('map').offsetParent, document.getElementById('map').clientWidth], hidden: document.hidden, marks: lpc.map() }));
+    throw new Error(`timed out waiting for ${what}; page ${JSON.stringify(view)}; peers: ${JSON.stringify(await others(page))}; me: ${JSON.stringify(await page.evaluate(() => lpc.me()))}`);
   });
 // Waits until this page hears exactly `names`, each with live audio and a volume close to vol.
 const hears = (page, names, vol, what) => waitFor(page, ([names, vol]) => {
@@ -177,7 +178,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await ana.click('#wNext');
     await ana.click('#wNext');
     assert(!(await ana.evaluate(() => document.getElementById('setup').open)) && await ana.evaluate(() => localStorage.getItem('lpc-setup') === '1' && localStorage.getItem('lpc-name') === 'Ana'), 'wizard done and remembered');
-    assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id) === 'micHome', 'mic settings back in Settings');
+    assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id === 'micHome' && el.closest('main > .view').dataset.view === 'voice'), 'mic settings back in Voice settings');
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
     await ana.evaluate(() => document.getElementById('shareBtn').click()); // stop for now: no minimap is the lobby, where everyone hears everyone
 
@@ -208,6 +209,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
 
     // the first page is your League profile; in a browser, with no League and no Riot data, it says where it comes from
     assert(await ana.isVisible('.view[data-view="profile"]') && await ana.isHidden('#createBtn'), 'Profile first');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Stats', 'Settings'], 'the menu in a browser: all of voice on one page');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
     await ana.click('#proRoom');
@@ -290,8 +292,8 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await ana.click('#shareBtn');
     await ben.evaluate(() => setBox(0.4, 0.6));
     await ben.click('#shareBtn');
-    await waitFor(ana, () => lpc.me().fresh, null, 'Ana tracked');
-    await waitFor(ben, () => lpc.me().fresh, null, 'Ben tracked');
+    await waitFor(ana, () => lpc.me().fresh, null, 'Ana tracked', 40000); // the first frames are slow on a busy container
+    await waitFor(ben, () => lpc.me().fresh, null, 'Ben tracked', 40000);
     const me = await ana.evaluate(() => lpc.me());
     console.log(`Ana's real minimap through screen share: ${me.minimap.s}px, following Ana's ${me.by} at ${(me.x * 100).toFixed(1)}% across, ${(me.y * 100).toFixed(1)}% down; champion icons ${JSON.stringify(me.icons)}`);
     // Ana's screen never moves, so the page can't tell which icon is Ana's yet: camera box, moved down to the champion
@@ -300,6 +302,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
 
     await hears(ana, ['Ben'], 1, 'Ben close by: full volume');
     await hears(ben, ['Ana'], 1, 'Ana close by: full volume');
+    await waitFor(ana, () => lpc.map().some((m) => m.name === 'You') && lpc.map().some((m) => m.name === 'Ben'), null, 'Ana and Ben on the live map'); // it's drawn once a second
     const marks = await ana.evaluate(() => lpc.map());
     assert(marks.some((m) => m.name === 'You' && Math.abs(m.x - me.x) < 0.01) && marks.some((m) => m.name === 'Ben'), `live map shows Ana and Ben: ${JSON.stringify(marks)}`);
     console.log('live map: Ana and Ben on it');
@@ -395,7 +398,9 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await ben.keyboard.press('Control+Shift+M');
     assert(await ben.evaluate(() => lpc.micOn()), 'and unmutes');
     assert.deepStrictEqual((await ben.evaluate(() => lpc.played())).slice(-2), ['mute', 'unmute'], 'a beep down for mute, up for unmute');
-    await ben.click('.nav[data-view="settings"]');
+    await ben.click('.nav[data-view="voice"]');
+    await ben.click('#voiceSet > summary'); // Voice settings, under the room
+    assert.strictEqual(await ben.textContent('#talkNote'), 'In a browser these work while this page is in front.');
     await ben.click('[data-key="ptt"]');
     await ben.keyboard.press('KeyV');
     assert.strictEqual(await ben.textContent('#kPtt'), 'V', 'push-to-talk key set');
@@ -406,7 +411,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     assert(!(await ben.evaluate(() => lpc.micOn())), 'push to talk: off when let go');
     await ben.click('#pttOff');
     assert(await ben.evaluate(() => lpc.micOn()), 'open mic again');
-    await ben.click('.nav[data-view="room"]');
+    await ben.click('#voiceSet > summary');
     console.log('shortcuts: mute toggle and push to talk');
 
     // Ben stops sharing: Ana is in a game (her minimap is tracked), so Ben, whose spot isn't known now, is silent both ways
@@ -450,7 +455,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await ana.waitForFunction(() => lpc.talk().peers.length === 2 && lpc.talk().peers.every((s) => s > 0) && lpc.talk().me > 0, null, { timeout: 15000 });
     await ana.click('.nav[data-view="stats"]');
     assert.strictEqual(await ana.$$eval('#talk li', (l) => l.length), 3, 'talk time for all three');
-    await ana.click('.nav[data-view="room"]');
+    await ana.click('.nav[data-view="voice"]');
     assert((await ana.textContent('#phase')).startsWith('In game'), 'Ana is in game: proximity on');
     assert((await cat.textContent('#phase')).startsWith('Lobby'), 'Cat has no minimap: lobby');
     console.log(`talk time on Ana's page: ${JSON.stringify(await ana.evaluate(() => lpc.talk()))}`);
@@ -682,18 +687,17 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     assert.deepStrictEqual(await ana.$$eval('#serverChart g', (g) => [g.length, g.filter((x) => x.querySelector('.bar')).length, g[11].querySelector('title').textContent.endsWith(': 7 players in 3 rooms')]), [14, 2, true], 'a bar for each day with players');
     await ana.check('input[name="theme"][value="light"]');
     assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light');
+    await shot(ana, 'ana-settings-light');
+    await ana.click('.nav[data-view="voice"]');
+    await ana.click('#voiceSet > summary');
     await ana.click('.tip[popovertarget="t-gate"]');
     assert(await ana.evaluate(() => document.getElementById('t-gate').matches(':popover-open')), 'help tip opens');
-    await shot(ana, 'ana-settings-light');
     await ana.keyboard.press('Escape');
-    await ana.click('.nav[data-view="room"]');
-    await shot(ana, 'ana-room-light');
+    await shot(ana, 'ana-voice-light');
+    await ana.click('#voiceSet > summary');
     await ana.click('.nav[data-view="settings"]');
     await ana.check('input[name="theme"][value="dark"]');
-    await ana.click('.nav[data-view="players"]');
-    await shot(ana, 'ana-players');
-    await ana.click('.nav[data-view="map"]');
-    await shot(ana, 'ana-map');
+    await ana.click('.nav[data-view="voice"]');
     console.log('compact view, light theme and help tips');
 
     // game history: the game Ana has been in since her minimap was tracked
@@ -728,7 +732,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await dee.goto(URL_);
     await eve.goto(URL_ + '&discord=123456789012345678');
     await dee.evaluate(() => setBox(0.4, 0.6));
-    await dee.click('.nav[data-view="map"]');
+    await dee.click('.nav[data-view="voice"]');
     await dee.evaluate(() => document.getElementById('shareBtn').click());
     // League status before the game: where Eve is in League's client
     await eve.evaluate(() => lpc.league({ inGame: false, phase: 'ChampSelect' }));
@@ -870,7 +874,7 @@ const shot = (page, name, sel) => process.env.SHOTS && (sel ? page.locator(sel) 
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: high elo runes and builds'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 19: voice in one place'], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);

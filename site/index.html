@@ -110,16 +110,18 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .code { font: 600 clamp(28px, 4vw, 40px)/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-hi); overflow-wrap: anywhere; }
 .phase { padding: 10px 14px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--panel); font-size: 14px; }
 .phase[data-game="1"] { border-left-color: var(--good); }
+.voiceset { margin-top: 20px; }
+.voiceset > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; list-style: none; }
+.voiceset > summary::before { content: ''; width: 7px; height: 7px; border: solid var(--gold); border-width: 0 2px 2px 0; transform: rotate(-45deg); }
+.voiceset[open] > summary { margin-bottom: 16px; }
+.voiceset[open] > summary::before { transform: rotate(45deg); }
 .dash { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 350px); gap: 18px; align-items: start; }
 @media (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }
 .mapbox { display: grid; gap: 12px; justify-items: center; }
 .mapbox > * { width: min(100%, 640px); }
 #map { aspect-ratio: 1; display: block; border-radius: 8px; border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px rgb(200 170 110 / 0.06); }
-[data-view="map"] .mapbox > * { width: min(100%, calc(100dvh - 210px), 920px); }
 .cardbox { display: grid; gap: 10px; }
-#playersSlot .ph { display: none; }
 .players { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-[data-view="players"] .players { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 .player { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-areas: "pic main mute" "vol vol vol"; gap: 10px 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; background: var(--panel); }
 .player[data-team="ally"] { border-left-color: #4aa8ff; }
 .player[data-team="enemy"] { border-left-color: #ff5c5c; }
@@ -393,10 +395,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   <nav class="rail" aria-label="Sections">
     <div class="brand"><img src="icon-192.png" alt=""><span>Premade</span></div>
     <button class="nav" type="button" data-view="profile" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
-    <button class="nav" type="button" data-view="room"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Room</span></button>
+    <button class="nav" type="button" data-view="voice"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Voice</span></button>
     <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
-    <button class="nav" type="button" data-view="players"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.5.2 4.3 1.9 5 5.4"/></svg><span>Players</span></button>
-    <button class="nav" type="button" data-view="map"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>Map</span></button>
     <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
     <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
@@ -455,7 +455,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </div>
     </section>
 
-    <section class="view" data-view="room" aria-label="Room" hidden>
+    <section class="view" data-view="voice" aria-label="Voice" hidden>
       <div id="joinView" class="join">
         <div class="joincard">
           <img src="icon-192.png" alt="">
@@ -590,6 +590,54 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
         </div>
       </div>
+      <details id="voiceSet" class="voiceset">
+        <summary><span class="ph">Voice settings</span><span class="hint">Mic, push to talk and sounds</span></summary>
+        <div class="settings">
+          <section class="panel">
+            <h2 class="ph">You</h2>
+            <label class="field">Your name <input id="name" maxlength="24" autocomplete="nickname" placeholder="Shown to the others"></label>
+            <label id="discordRow" class="check client-only" hidden><input id="optDiscord" type="checkbox"> Show that I'm in voice chat on my Discord profile</label>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Microphone</h2>
+            <div id="micHome">
+              <div id="micBox" class="mic">
+                <div class="toolbar">
+                  <button id="micTest" class="btn" type="button">Test mic</button>
+                  <select id="micSel" aria-label="Microphone" hidden></select>
+                </div>
+                <div id="outRow" class="range" hidden><span>Voices play through</span><button class="tip" type="button" popovertarget="t-out" aria-label="About where voices play">?</button><select id="outSel" aria-label="Where voices play"></select><span></span></div>
+                <label class="range"><span>Your mic</span><span></span><meter id="micLevel" min="0" max="1" value="0"></meter><output id="gateState">Not tested</output></label>
+                <div class="range"><span>Noise gate</span><button class="tip" type="button" popovertarget="t-gate" aria-label="About the noise gate">?</button><input id="gate" type="range" min="0" max="0.5" step="0.01" aria-label="Noise gate"><output id="gateOut"></output></div>
+                <label class="check"><input id="optDenoise" type="checkbox"> Smart noise removal <button class="tip" type="button" popovertarget="t-denoise" aria-label="About smart noise removal">?</button></label>
+                <label class="check"><input id="optStudio" type="checkbox"> Studio voice <button class="tip" type="button" popovertarget="t-studio" aria-label="About studio voice">?</button></label>
+                <div class="toolbar"><label class="field">Voice connection <select id="optVoice"><option value="normal">Normal</option><option value="fast">Faster: less delay, for good internet</option><option value="low">Less data: for slow internet</option></select></label><button class="tip" type="button" popovertarget="t-voice" aria-label="About the voice connection">?</button></div>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Talking <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
+            <div class="keyrow"><span>Mute or unmute</span><kbd id="kMute"></kbd><button class="btn small" type="button" data-key="mute">Change</button><span></span></div>
+            <div class="keyrow"><span>Push to talk <button class="tip" type="button" popovertarget="t-ptt" aria-label="About push to talk">?</button></span><kbd id="kPtt"></kbd><button class="btn small" type="button" data-key="ptt">Set key</button><button id="pttOff" class="btn small" type="button">Turn off</button></div>
+            <p id="talkNote" class="hint"></p>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Popups and sounds</h2>
+            <label class="check"><input id="optNotify" type="checkbox"> Pop up when a friend joins, leaves or writes in the chat, or tracking stops</label>
+            <label class="check"><input id="optChimes" type="checkbox"> Chime when someone joins or leaves</label>
+            <label class="check"><input id="optBeeps" type="checkbox"> Beep when I mute or unmute</label>
+            <label class="check"><input id="optEcho" type="checkbox"> Far-away voices lose their bass</label>
+            <label class="check"><input id="optSurround" type="checkbox"> 3D sound: voices from their direction, in front and behind too (headphones)</label>
+            <label class="check"><input id="optMutedWarn" type="checkbox"> Tell me when I talk while muted</label>
+            <div class="browser-only"><button id="notifyAllow" class="btn small" type="button" hidden>Also when this tab is in the background</button></div>
+          </section>
+          <section class="panel client-only">
+            <h2 class="ph">In a game</h2>
+            <label class="check"><input id="optAutoRoom" type="checkbox"> Join my game's room by itself <button class="tip" type="button" popovertarget="t-auto" aria-label="About joining your game's room">?</button></label>
+            <label class="check"><input id="optHurt" type="checkbox"> Shaky, rough voice when my champion is low on health</label>
+          </section>
+        </div>
+      </details>
     </section>
 
     <section class="view" data-view="game" aria-label="Game" hidden>
@@ -651,16 +699,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </div>
         </div>
       </section>
-    </section>
-
-    <section class="view" data-view="players" aria-label="Players" hidden>
-      <h1 class="title">Players</h1>
-      <div id="playersSlot"></div>
-    </section>
-
-    <section class="view" data-view="map" aria-label="Map" hidden>
-      <h1 class="title">Map</h1>
-      <div id="mapSlot"></div>
     </section>
 
     <section class="view" data-view="stats" aria-label="Stats" hidden>
@@ -775,32 +813,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <section class="view" data-view="settings" aria-label="Settings" hidden>
       <h1 class="title">Settings</h1>
       <div class="settings">
-        <section class="panel">
-          <h2 class="ph">You</h2>
-          <label class="field">Your name <input id="name" maxlength="24" autocomplete="nickname" placeholder="Shown to the others"></label>
-          <label id="discordRow" class="check client-only" hidden><input id="optDiscord" type="checkbox"> Show that I'm in voice chat on my Discord profile</label>
-        </section>
-        <section class="panel">
-          <h2 class="ph">Microphone</h2>
-          <div id="micHome">
-            <div id="micBox" class="mic">
-              <div class="toolbar">
-                <button id="micTest" class="btn" type="button">Test mic</button>
-                <select id="micSel" aria-label="Microphone" hidden></select>
-              </div>
-              <div id="outRow" class="range" hidden><span>Voices play through</span><button class="tip" type="button" popovertarget="t-out" aria-label="About where voices play">?</button><select id="outSel" aria-label="Where voices play"></select><span></span></div>
-              <label class="range"><span>Your mic</span><span></span><meter id="micLevel" min="0" max="1" value="0"></meter><output id="gateState">Not tested</output></label>
-              <div class="range"><span>Noise gate</span><button class="tip" type="button" popovertarget="t-gate" aria-label="About the noise gate">?</button><input id="gate" type="range" min="0" max="0.5" step="0.01" aria-label="Noise gate"><output id="gateOut"></output></div>
-              <label class="check"><input id="optDenoise" type="checkbox"> Smart noise removal <button class="tip" type="button" popovertarget="t-denoise" aria-label="About smart noise removal">?</button></label>
-              <label class="check"><input id="optStudio" type="checkbox"> Studio voice <button class="tip" type="button" popovertarget="t-studio" aria-label="About studio voice">?</button></label>
-              <div class="toolbar"><label class="field">Voice connection <select id="optVoice"><option value="normal">Normal</option><option value="fast">Faster: less delay, for good internet</option><option value="low">Less data: for slow internet</option></select></label><button class="tip" type="button" popovertarget="t-voice" aria-label="About the voice connection">?</button></div>
-            </div>
-          </div>
-        </section>
-        <section class="panel">
+        <section class="panel client-only">
           <h2 class="ph">Keyboard shortcuts <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
-          <div class="keyrow"><span>Mute or unmute</span><kbd id="kMute"></kbd><button class="btn small" type="button" data-key="mute">Change</button><span></span></div>
-          <div class="keyrow"><span>Push to talk <button class="tip" type="button" popovertarget="t-ptt" aria-label="About push to talk">?</button></span><kbd id="kPtt"></kbd><button class="btn small" type="button" data-key="ptt">Set key</button><button id="pttOff" class="btn small" type="button">Turn off</button></div>
           <div class="keyrow client-only"><span>Show or hide this window</span><kbd id="kShow"></kbd><button class="btn small" type="button" data-key="show">Change</button><span></span></div>
           <div class="keyrow lcu-only"><span>Save a clip</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
           <div class="keyrow client-only"><span>Hide or show the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
@@ -833,8 +847,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <section class="panel client-only">
           <h2 class="ph">During a game</h2>
           <label class="check"><input id="optCompact" type="checkbox"> Shrink this window to a strip <button class="tip" type="button" popovertarget="t-compact" aria-label="About the compact view">?</button></label>
-          <label class="check"><input id="optAutoRoom" type="checkbox"> Join my game's room by itself <button class="tip" type="button" popovertarget="t-auto" aria-label="About joining your game's room">?</button></label>
-          <label class="check"><input id="optHurt" type="checkbox"> Shaky, rough voice when my champion is low on health</label>
         </section>
         <section class="panel lcu-only">
           <h2 class="ph">League <button class="tip" type="button" popovertarget="t-league" aria-label="About League's client">?</button></h2>
@@ -865,16 +877,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <label class="check"><input id="optClipMulti" type="checkbox"> Save a clip by itself when I get a double kill or better</label>
           <label class="check"><input id="optClipBig" type="checkbox"> And for my team's steals and Aces, and my pentakills</label>
           <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
-        </section>
-        <section class="panel">
-          <h2 class="ph">Popups and sounds</h2>
-          <label class="check"><input id="optNotify" type="checkbox"> Pop up when a friend joins, leaves or writes in the chat, or tracking stops</label>
-          <label class="check"><input id="optChimes" type="checkbox"> Chime when someone joins or leaves</label>
-          <label class="check"><input id="optBeeps" type="checkbox"> Beep when I mute or unmute</label>
-          <label class="check"><input id="optEcho" type="checkbox"> Far-away voices lose their bass</label>
-          <label class="check"><input id="optSurround" type="checkbox"> 3D sound: voices from their direction, in front and behind too (headphones)</label>
-          <label class="check"><input id="optMutedWarn" type="checkbox"> Tell me when I talk while muted</label>
-          <div class="browser-only"><button id="notifyAllow" class="btn small" type="button" hidden>Also when this tab is in the background</button></div>
         </section>
         <section class="panel">
           <h2 class="ph">Look</h2>
@@ -947,7 +949,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <section class="step" data-step="4" hidden>
       <span class="eyebrow">Step 4 of 4</span>
       <h2 class="title">You're all set</h2>
-      <p>Create a room and send your friends its code, or join theirs. You can change all of this later in Settings.</p>
+      <p>Create a room on the Voice page and send your friends its code, or join theirs. You can change your name and mic later in Voice settings, at the bottom of that page.</p>
     </section>
     <footer><button id="wSkip" class="btn ghost" type="button">Skip setup</button><button id="wBack" class="btn" type="button" hidden>Back</button><button id="wNext" class="btn primary" type="button">Next</button></footer>
   </div>
@@ -2102,7 +2104,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     peer.on('open', () => { say(''); render(); });
     for (let s = 0; s < SLOTS; s++) dial(s);
     say('');
-    if (!auto) view('room');
+    if (!auto) view('voice');
     render();
   }
   function leaveRoom() {
@@ -2404,14 +2406,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const live = !!p.audio.srcObject && p.audio.srcObject.getAudioTracks().some((t) => t.readyState === 'live');
     const ms = p.rtt != null ? `${Math.round(p.rtt * 1000)} ms delay` : 'some delay';
     if (!p.call || !live) add('bad', 'No voice connection with you yet. It can take 15 seconds; if it stays like this, one of you should leave the room and join again.');
-    else if (p.health === 'bad' || p.health === 'ok') add(p.health, `${p.health === 'bad' ? 'Bad' : 'Shaky'} connection between you: ${ms}${p.loss ? `, ${Math.round(p.loss * 100)}% of the sound lost` : ''}. Wi-Fi or a busy connection on either side does this; Less data (Settings, Microphone) helps.`);
+    else if (p.health === 'bad' || p.health === 'ok') add(p.health, `${p.health === 'bad' ? 'Bad' : 'Shaky'} connection between you: ${ms}${p.loss ? `, ${Math.round(p.loss * 100)}% of the sound lost` : ''}. Wi-Fi or a busy connection on either side does this; Less data (Voice settings, Microphone) helps.`);
     else add('good', `Voice connection is good${p.rtt != null ? ` (${ms})` : ''}.`);
     if (!r) { add('', 'Their app hasn’t said how it’s set up yet. Press Check again.'); return out; }
-    const mic = { off: ['bad', 'Their mic is off: they need to allow the microphone, or press Test mic in Settings.'], muted: ['bad', 'They’re muted.'],
-      quiet: ['ok', 'Their mic hasn’t picked up any sound for 30 seconds: they should check the right mic is picked (Settings, Microphone) and that the noise gate isn’t too high.'], ok: ['good', 'Their mic picks up sound.'] }[r.mic];
+    const mic = { off: ['bad', 'Their mic is off: they need to allow the microphone, or press Test mic in Voice settings.'], muted: ['bad', 'They’re muted.'],
+      quiet: ['ok', 'Their mic hasn’t picked up any sound for 30 seconds: they should check the right mic is picked (Voice settings, Microphone) and that the noise gate isn’t too high.'], ok: ['good', 'Their mic picks up sound.'] }[r.mic];
     if (mic) add(...mic);
     if (r.ptt) add('', 'They use push to talk, so they’re heard only while they hold their key.');
-    if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen on the Room page.');
+    if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen on the Voice page.');
     else if (!r.map) add('ok', 'Their minimap isn’t found: they should share the screen League is on, set League to Borderless, and be in a game, not the client.');
     else add('good', 'Their minimap is found.');
     if (playsNow(p) && !fresh(p.pos)) add('bad', 'This game their champion isn’t tracked, so you can’t hear them.');
@@ -2811,8 +2813,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
-    (name === 'map' ? $('mapSlot') : $('roomMap')).append($('mapBox'));
-    (name === 'players' ? $('playersSlot') : $('roomCards')).append($('cardBox'));
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
     if (name === 'clips') loadClips();
@@ -2823,7 +2823,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
   for (const b of document.querySelectorAll('.nav')) b.addEventListener('click', () => view(b.dataset.view));
-  $('sbTrack').addEventListener('click', () => view(peer ? 'room' : 'map'));
+  $('sbTrack').addEventListener('click', () => view('voice'));
 
   // ---- League's own client (desktop app 1.6+): the ready check, champ select with everyone's rank and recent games,
   // your best champions for your role, Riot's recommended runes and spells, the loading screen's players, objective
@@ -3602,7 +3602,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (!want && recorder) stopRec();
   }
   async function startRec() {
-    const r = (recorder = { parts: [], at: performance.now() }), hd = opts.clipQ !== '720';
+    const r = (recorder = { parts: [], pre: [], at: performance.now() }), hd = opts.clipQ !== '720';
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30, width: { max: hd ? 1920 : 1280 }, height: { max: hd ? 1080 : 720 } }, audio: true }); } catch (err) {
       console.warn('clips:', err);
@@ -3620,12 +3620,24 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: hd ? 6e6 : 3.5e6, audioBitsPerSecond: 128000, videoKeyFrameIntervalDuration: 2000 });
     r.mr.ondataavailable = (e) => {
       if (e.data.size) {
-        if (!r.head) r.head = e.data; else r.parts.push({ at: performance.now(), blob: e.data });
+        if (r.head) r.parts.push({ at: performance.now(), blob: e.data });
+        else headChunk(r, e.data);
         while (r.parts.length && performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000) { r.parts.shift(); r.trimmed = true; }
       }
       if (r.flushed) { r.flushed(); r.flushed = null; }
     };
     r.mr.start(1000);
+  }
+  // the head is the recording's first chunks up to its first Cluster: on a busy PC Chrome can hand the WebM header over
+  // in pieces (even its first byte alone), and every clip needs all of it
+  function headChunk(r, blob) {
+    const n = r.pre.push(blob), b = new Blob(r.pre);
+    b.arrayBuffer().then((a) => {
+      const u = new Uint8Array(a), cluster = u.some((x, i) => x === 0x1f && u[i + 1] === 0x43 && u[i + 2] === 0xb6 && u[i + 3] === 0x75);
+      if (r.head || (!cluster && n < 10)) return; // ten chunks without one: not a recording cutClip can read anyway
+      r.head = b;
+      for (const later of r.pre.splice(n)) r.parts.push({ at: performance.now(), blob: later }); // what came while reading
+    });
   }
   function stopRec() {
     const r = recorder;
@@ -4835,7 +4847,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('proBack').addEventListener('click', () => { proOther = null; renderProfile(); });
   $('proRefresh').addEventListener('click', () => riotMine(true));
   $('proForget').addEventListener('click', () => { proMine = null; proSaved = ''; store.set('lpc-profile', 'null'); renderProfile(); });
-  $('proRoom').addEventListener('click', () => view('room'));
+  $('proRoom').addEventListener('click', () => view('voice'));
 
   // ---- your champions: nemeses and best allies, the collection, a page for each champion, and patch changes
   function champTile(c, sub, open = true) { // open: a click opens its page (your games on it)
@@ -5151,7 +5163,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return quiet.length ? `Talk and win: when the room talked more than usual, you won ${won(loud)} of ${loud.length} games (${pc(loud)}%). When it was quieter, ${won(quiet)} of ${quiet.length} (${pc(quiet)}%).` : '';
   }
 
-  // ---- room games (Room page), started by the host: Balance teams (two even custom-game teams from everyone's Solo/Duo
+  // ---- room games (Voice page), started by the host: Balance teams (two even custom-game teams from everyone's Solo/Duo
   // rank), Role roulette, a Queue quiz and a Mock draft; and Room awards after each game. The host's 'me' message
   // carries the teams (tm) and roles (ro), numbered (n) so the newest wins and newcomers get them. The quiz and the
   // draft run on the host's page: {t:'quiz'} a question, {t:'quizA'} an answer for the host, {t:'quizR'} the right
@@ -5548,9 +5560,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
     }
     $('pttOff').hidden = !keys.ptt;
-    const busy = ['mute', 'show', 'clip', 'overlay'].filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]);
-    $('keysNote').textContent = !client ? 'In a browser these work while this page is in front.'
-      : busy.length ? `Another app already uses ${busy.join(' and ')}, so pick something else.`
+    const busy = (ks) => ks.filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]), taken = (b) => `Another app already uses ${b.join(' and ')}, so pick something else.`;
+    $('keysNote').textContent = busy(['show', 'clip', 'overlay']).length ? taken(busy(['show', 'clip', 'overlay'])) : '';
+    $('talkNote').textContent = !client ? 'In a browser these work while this page is in front.'
+      : busy(['mute']).length ? taken(busy(['mute']))
       : keys.ptt && !keysOk.ptt ? 'Push to talk only works while this window is in front on this computer.' : '';
   }
   function onCapture(e) {
@@ -5631,7 +5644,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('wShare').hidden = !!share;
     $('wMini').hidden = !found;
     if (found) $('wMini').getContext('2d').drawImage(mini, 0, 0, 160, 160);
-    $('wScreen').textContent = !share ? 'Not checked yet. You can also do this later on the Room page.'
+    $('wScreen').textContent = !share ? 'Not checked yet. You can also do this later on the Voice page.'
       : !found ? share.hint || 'Looking for your minimap…'
       : fresh(me) ? 'Found your minimap and your champion. Tracking works.'
       : 'Found your minimap. Now it looks for your champion: hold Space for a moment while you walk.';
@@ -5756,6 +5769,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [10, 'October 19: voice in one place', [
+      'Room, Players and Map are now one Voice page: your room, the live map, everyone’s cards, chat, room games and sharing your screen.',
+      'Your mic, push to talk, voice sounds and popups moved there too, under Voice settings at the bottom of the page. Settings keeps the rest of the app.',
+      'Clips also save when your PC is busy: the clip key could say “Couldn’t save that clip” before.',
+    ]],
     [9, 'October 19: high elo runes and builds', [
       'In champ select you now get the most popular runes, summoner spells, build and skill order for your champion and role in high elo (Korean Challenger and Grandmaster games our server counts from Riot), with how often they win. Your own usual runes are one click away, and League’s shop gets the high elo build next to yours.',
       'Champion pages have an In high elo section for each role: runes, build, skill order, and the champions it does best and worst against.',
@@ -5774,7 +5792,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Our server in Settings: how many players and rooms used our connection server each day.',
     ]],
     [5, 'October 19: room games', [
-      'Room games on the Room page, started by the host: Balance teams makes two even teams for a custom game from everyone’s rank, and Role roulette hands out roles (in the desktop app, one click sets yours in League’s lobby).',
+      'Room games on the Voice page, started by the host: Balance teams makes two even teams for a custom game from everyone’s rank, and Role roulette hands out roles (in the desktop app, one click sets yours in League’s lobby).',
       'Queue quiz: ten quick League questions for the room while you wait in queue.',
       'Mock draft: practice a Clash-style draft with friends, bans and picks.',
       'Room awards after each game with friends in voice: Chatterbox, Silent carry, Playmaker, Survivor and Farmer.',
@@ -5791,7 +5809,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Clips page: every clip with a picture. Star the ones to keep, play them, cut the start and end, rename or bin them, or drag one into Discord.',
       'Clips: pick the length and quality, clips by themselves for your team’s steals and Aces and your pentakills, and a size limit for the clips folder.',
       '3D sound with headphones: voices come from in front and behind too.',
-      'Voice connection (Settings, Microphone): Faster for less delay, or Less data for slow internet.',
+      'Voice connection (Voice settings, Microphone): Faster for less delay, or Less data for slow internet.',
       'A note when you talk while muted.',
       'Overlay: pick what it shows, make it see-through, and hide it with Ctrl+Shift+O.',
       'Game page: Find match and Stop, a Practice Tool game in one click, trades with teammates, a ring when it’s your turn, a sound 30 seconds before Dragon and Baron, and your CS and lane against your opponent.',
@@ -5858,7 +5876,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     client.on('join', async (code) => {
       const [r = '', k = ''] = String(code || '').split('.'), to = cleanRoom(r);
       if (!to) return;
-      view('room');
+      view('voice');
       if (room === to || joining) return;
       if (peer && !confirm(`Leave room ${room.toUpperCase()} and join ${to.toUpperCase()}?`)) return;
       leaveRoom();
@@ -5871,7 +5889,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   applyKeys();
   renderPatch();
   checkWindow();
-  view(cleanRoom(hashRoom || '') ? 'room' : 'profile'); // an invite link opens on its room
+  view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
   setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
@@ -5943,6 +5961,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
     quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
+    headChunk,
     clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
       age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),
     saveClip,
