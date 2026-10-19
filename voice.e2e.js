@@ -688,10 +688,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20, going back to October 20, 2025. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).');
     assert.deepStrictEqual(await ana.$$eval('#serverChart g', (g) => [g.length, g.filter((x) => x.querySelector('.bar')).length, g[11].querySelector('title').textContent.endsWith(': 7 players in 3 rooms')]), [14, 2, true], 'a bar for each day with players');
-    // themes: red and black by default, Light, your own main colour, Light with the computer's light mode
+    // themes: red and black by default, Light, your own main colour, Custom, Light with the computer's light mode
     const look = (...ks) => ana.evaluate((ks) => { const c = getComputedStyle(document.documentElement); return ks.map((k) => c.getPropertyValue('--' + k).trim()); }, ks);
     assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'accent')], ['red', '#0b0809', '#d9202d'], 'red and black at first');
-    assert.strictEqual(await ana.$$eval('.sw', (l) => l.map((e) => getComputedStyle(e).backgroundColor).join(' ')), 'rgb(11, 8, 9) rgb(1, 10, 19) rgb(242, 238, 228) rgb(12, 9, 19) rgb(7, 16, 13) rgb(0, 0, 0)', 'each theme’s card in its own colours');
+    assert.strictEqual(await ana.$$eval('.sw', (l) => l.map((e) => getComputedStyle(e).backgroundColor).join(' ')), 'rgb(11, 8, 9) rgb(1, 10, 19) rgb(242, 238, 228) rgb(12, 9, 19) rgb(7, 16, 13) rgb(0, 0, 0) rgb(11, 8, 9)', 'each theme’s card in its own colours');
     await shot(ana, 'ana-settings-red');
     await ana.$eval('#optMain', (el) => { el.value = '#0000ff'; el.dispatchEvent(new Event('input')); });
     const [accent, accentFg, gold, link, ...backs] = await look('accent', 'accent-fg', 'gold', 'link', 'bg', 'panel', 'raised');
@@ -701,6 +701,20 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ana.isVisible('#mainReset'));
     await ana.click('#mainReset');
     assert.deepStrictEqual([...await look('accent', 'gold'), await ana.inputValue('#optMain'), await ana.isHidden('#mainReset')], ['#d9202d', '#ff4f5a', '#d9202d', true], 'the theme’s own colour again');
+    // Custom: your own page and text colours, starting from red and black, made readable if they aren't
+    await ana.check('input[name="theme"][value="custom"]');
+    assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'fg'), await ana.isVisible('#customRow'), await ana.inputValue('#optCustomBg')], ['custom', '#0b0809', '#f4eeee', true, '#0b0809'], 'Custom starts from red and black, with its colour pickers');
+    const pick = async (bg, fg) => { for (const [id, v] of [['#optCustomBg', bg], ['#optCustomFg', fg]]) await ana.$eval(id, (el, v) => { el.value = v; el.dispatchEvent(new Event('input')); }, v); };
+    await pick('#123456', '#ffcc00');
+    assert.deepStrictEqual([...await look('bg', 'fg'), await ana.$eval('#customSw', (e) => getComputedStyle(e).backgroundColor)], ['#123456', '#ffcc00', 'rgb(18, 52, 86)'], 'a navy page with yellow text as picked (it reads), on the Custom card too');
+    await shot(ana, 'ana-settings-custom');
+    for (const [bg, scheme] of [['#ffffff', 'light'], ['#707070', 'dark']]) {
+      await pick(bg, '#ffffff');
+      const [b, p, r, ...texts] = await look('bg', 'panel', 'raised', 'fg', 'muted', 'gold', 'best', 'good', 'warn', 'bad');
+      assert(texts.every((t) => [b, p, r].every((x) => contrast(t, x) >= 4.5)) && await ana.evaluate(() => getComputedStyle(document.documentElement).colorScheme) === scheme, `white text on ${bg} made readable: ${[b, p, r, ...texts]}`);
+    }
+    await ana.check('input[name="theme"][value="red"]');
+    assert.deepStrictEqual([...await look('bg', 'panel', 'fg'), await ana.isHidden('#customRow')], ['#0b0809', '#151012', '#f4eeee', true], 'red and black again, nothing of Custom left');
     await ana.check('#optThemeAuto'); // Playwright's pages are in light mode unless told otherwise
     assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light', 'Light while the computer is in light mode');
     await ana.emulateMedia({ colorScheme: 'dark' });

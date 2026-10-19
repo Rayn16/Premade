@@ -18,14 +18,15 @@
 /* The themes (Settings > Look), red and black unless you pick another: the page, its panels and raised parts, text,
    trim in the theme's colour (--gold, from when League's gold was the only look), buttons and the focus ring in its
    accent, links, the glow on whoever is talking, gold for the best (an S tier, a first place), and green, amber and
-   red. data-theme on <html> picks one; on a preview in Settings it gives that preview its theme's colours.
+   red. data-theme on <html> picks one; on a preview in Settings it gives that preview its theme's colours. Custom
+   starts from red and black, and lpcLook puts your own colours over it.
    A dashboard: sections down the left like Discord, the chosen one in the middle, a status bar along the bottom. */
 :root {
   --display: "Cinzel", Georgia, serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
-:root, [data-theme="red"] {
+:root, [data-theme="red"], [data-theme="custom"] {
   --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a;
   --gold: #ff4f5a; --gold-hi: #ffffff; --gold-line: #7a1f28; --accent: #d9202d; --accent-fg: #ffffff; --link: #ff5c66; --talk: #ffffff;
   --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
@@ -497,28 +498,44 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
   // blue and gold back when it was the default, counts as the default), Light while your computer is in light mode if
   // you ticked that, and your own main colour. That colour fills buttons, with black or white text, whichever reads
-  // better; the trim, links and lines in it are mixed toward the theme's text until they read well (4.5:1) on all of
-  // its backgrounds. Settings calls this again after a change.
-  function lpcLook() {
-    const root = document.documentElement;
-    let t = '', o = {};
-    try { t = localStorage.getItem('lpc-theme') || ''; o = JSON.parse(localStorage.getItem('lpc-opts')) || {}; } catch {}
-    if (o.themeAuto && matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
-    root.dataset.theme = ['league', 'light', 'purple', 'green', 'mono'].includes(t) ? t : 'red';
-    const own = { accent: '', 'accent-fg': '', gold: '', 'gold-line': '', link: '' }; // '' takes off your colour
-    if (/^#[0-9a-f]{6}$/i.test(o.main || '')) {
-      const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
-      const lin = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4), lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
-      const mix = (a, b, w) => a.map((v, i) => Math.round(v * w + b[i] * (1 - w)));
-      const css = getComputedStyle(root), [fg, ...backs] = ['fg', 'bg', 'panel', 'raised'].map((k) => rgb(css.getPropertyValue('--' + k).trim()));
-      const reads = (c) => backs.every((b) => (Math.max(lum(c), lum(b)) + 0.05) / (Math.min(lum(c), lum(b)) + 0.05) >= 4.5);
-      const m = rgb(o.main);
-      let w = 20;
-      while (w && !reads(mix(m, fg, w / 20))) w--;
-      const text = hex(mix(m, fg, w / 20));
-      Object.assign(own, { accent: hex(m), 'accent-fg': lum(m) > 0.179 ? '#000000' : '#ffffff', gold: text, link: text, 'gold-line': hex(mix(m, backs[1], 0.5)) });
+  // better; the trim, links and lines in it are mixed toward white or black, whichever reads on the page, until they
+  // read well (4.5:1) on all of its backgrounds. Custom is your own background and text over red and black: panels a
+  // step toward that white or black, the page moved the other way until it reads on its panels too, then your text
+  // and the gold, green, amber and red text mixed toward it until they read, and dim text between yours and the page.
+  // Settings calls this again after a change, and for the Custom card's preview (el).
+  function lpcLook(el = document.documentElement, t) {
+    let o = {};
+    try { t ??= localStorage.getItem('lpc-theme') || ''; o = JSON.parse(localStorage.getItem('lpc-opts')) || {}; } catch {}
+    if (el === document.documentElement && o.themeAuto && matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
+    el.dataset.theme = ['league', 'light', 'purple', 'green', 'mono', 'custom'].includes(t) ? t : 'red';
+    for (const k of ['bg', 'panel', 'raised', 'fg', 'muted', 'line', 'gold', 'gold-hi', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'best', 'good', 'warn', 'bad']) el.style.removeProperty('--' + k);
+    el.style.removeProperty('color-scheme'); // the theme's own colours, then yours over them
+    const ok = (h) => /^#[0-9a-f]{6}$/i.test(h || ''), custom = el.dataset.theme === 'custom';
+    if (!custom && !ok(o.main)) return;
+    const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+    const lin = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4), lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+    const mix = (a, b, w) => a.map((v, i) => Math.round(v * w + b[i] * (1 - w)));
+    const css = getComputedStyle(el), get = (k) => rgb(css.getPropertyValue('--' + k).trim());
+    let [fg, ...backs] = ['fg', 'bg', 'panel', 'raised'].map(get);
+    const reads = (c) => backs.every((b) => (Math.max(lum(c), lum(b)) + 0.05) / (Math.min(lum(c), lum(b)) + 0.05) >= 4.5);
+    const readable = (c, to) => { let w = 20; while (w && !reads(mix(c, to, w / 20))) w--; return mix(c, to, w / 20); };
+    const want = custom && ok(o.customBg) ? rgb(o.customBg) : backs[0], light = lum(want) > 0.179, pole = light ? [0, 0, 0] : [255, 255, 255];
+    const own = {};
+    if (custom) {
+      for (let w = 20; w >= 0; w--) {
+        const b = mix(want, pole.map((v) => 255 - v), w / 20);
+        backs = [b, mix(pole, b, 0.05), mix(pole, b, 0.09)];
+        if (reads(pole)) break;
+      }
+      fg = readable(ok(o.customFg) ? rgb(o.customFg) : fg, pole);
+      const [bg, panel, raised] = backs, text = hex(fg);
+      Object.assign(own, { bg: hex(bg), panel: hex(panel), raised: hex(raised), fg: text, 'gold-hi': text, talk: text, muted: hex(readable(mix(fg, bg, 0.6), fg)), line: hex(mix(pole, bg, 0.16)) });
+      for (const k of ['best', 'good', 'warn', 'bad']) own[k] = hex(readable(get(k), pole));
+      el.style.colorScheme = light ? 'light' : 'dark';
     }
-    for (const k in own) root.style.setProperty('--' + k, own[k]);
+    const m = ok(o.main) ? rgb(o.main) : get('accent'), text = hex(readable(m, pole)); // Custom without a main colour: red and black's
+    Object.assign(own, { accent: hex(m), 'accent-fg': lum(m) > 0.179 ? '#000000' : '#ffffff', gold: text, link: text, 'gold-line': hex(mix(m, backs[1], 0.5)) });
+    for (const k in own) el.style.setProperty('--' + k, own[k]);
   }
   lpcLook();
 </script>
@@ -1107,7 +1124,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="theme"><input type="radio" name="theme" value="purple"><span class="sw" data-theme="purple"></span>Purple</label>
             <label class="theme"><input type="radio" name="theme" value="green"><span class="sw" data-theme="green"></span>Green</label>
             <label class="theme"><input type="radio" name="theme" value="mono"><span class="sw" data-theme="mono"></span>Black and white</label>
+            <label class="theme"><input type="radio" name="theme" value="custom"><span id="customSw" class="sw" data-theme="custom"></span>Custom</label>
           </fieldset>
+          <div id="customRow" class="toolbar" hidden><label class="check">Background <input id="optCustomBg" type="color"></label><label class="check">Text <input id="optCustomFg" type="color"></label></div>
           <div class="toolbar"><label class="check">Main colour <input id="optMain" type="color"></label><button id="mainReset" class="btn small" type="button">Use the theme’s colour</button></div>
           <label class="check"><input id="optThemeAuto" type="checkbox"> Light when my computer is in light mode</label>
         </section>
@@ -1286,7 +1305,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false,
+    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
@@ -6967,11 +6986,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
   }
   $('recordingsBtn').addEventListener('click', () => client && client.recordingsFolder && client.recordingsFolder());
-  // Look: the theme, your own main colour and Light with your computer's light mode (lpcLook, at the top, puts them on
-  // the page), then everything drawn in its colours again
+  // Look: the theme, Custom's background and text, your own main colour and Light with your computer's light mode
+  // (lpcLook, at the top, puts them on the page and on the Custom card), then everything drawn in its colours again
   const themeRadios = [...document.querySelectorAll('input[name="theme"]')];
   (themeRadios.find((r) => r.value === store.get('lpc-theme')) || themeRadios[0]).checked = true; // the old 'dark' is red and black now
-  const lookUi = () => { $('optMain').value = opts.main || look.accent; $('mainReset').hidden = !opts.main; };
+  const lookUi = () => {
+    lpcLook($('customSw'), 'custom');
+    $('customRow').hidden = store.get('lpc-theme') !== 'custom';
+    $('optCustomBg').value = opts.customBg || look.bg;
+    $('optCustomFg').value = opts.customFg || look.fg;
+    $('optMain').value = opts.main || look.accent;
+    $('mainReset').hidden = !opts.main;
+  };
   function relook() {
     lpcLook();
     look = lookNow();
@@ -6981,7 +7007,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   lookUi();
   for (const r of themeRadios) r.addEventListener('change', () => { store.set('lpc-theme', r.value); relook(); });
-  $('optMain').addEventListener('input', (e) => { opts.main = e.target.value; saveOpts(); relook(); });
+  for (const [id, k] of [['optCustomBg', 'customBg'], ['optCustomFg', 'customFg'], ['optMain', 'main']]) $(id).addEventListener('input', (e) => { opts[k] = e.target.value; saveOpts(); relook(); });
   $('mainReset').addEventListener('click', () => { opts.main = ''; saveOpts(); relook(); });
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (opts.themeAuto) relook(); });
   if (!client && window.Notification) {
