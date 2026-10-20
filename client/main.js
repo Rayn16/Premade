@@ -19,7 +19,8 @@ function appDir(where) {
   return dir;
 }
 
-const SITE = process.env.LPC_SITE || 'https://league-proxchat.netlify.app/'; // LPC_SITE: a local copy, for client.test.js
+const SITE = process.env.LPC_SITE || 'https://rayn16.github.io/Premade/'; // LPC_SITE: a local copy, for client.test.js
+const OLD_SITE = process.env.LPC_OLD_SITE || 'https://league-proxchat.netlify.app/'; // where the site was before 1.16
 const LEAGUE = process.env.LPC_LEAGUE || 'https://127.0.0.1:2999'; // League's Live Client Data API, up during a game
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -779,7 +780,7 @@ ipcMain.handle('keys', (e, k) => {
   return ok;
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.setDisplayMediaRequestHandler(async (req, done) => {
     const s = chosen(await screens(false));
@@ -796,6 +797,7 @@ app.whenReady().then(() => {
   for (const ev of ['resize', 'move']) win.on(ev, saveBounds);
   if (app.isPackaged) app.setAsDefaultProtocolClient('lolprox');
   win.removeMenu();
+  await moveSaved(ses); // once, from 1.16 (win first: closing the only window would quit)
   if (fs.existsSync(testFile())) base = SITE + 'test/';
   win.loadURL(base);
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -818,4 +820,27 @@ app.whenReady().then(() => {
 });
 app.on('will-quit', () => { globalShortcut.unregisterAll(); saveTake(); });
 
-module.exports = { summary, vk, lcuOk, linkRoom, hider }; // for client.test.js
+// ---- the move to GitHub (app 1.16): what the page saves (settings, LP and game history, notes, the avoid list...)
+// belongs to the address it was saved at, so the first start copies it from OLD_SITE to SITE. Both pages are made up
+// here while it copies, so it works with the old site gone. Keys SITE already has stay as they are.
+async function moveSaved(ses = session.defaultSession) {
+  const done = path.join(app.getPath('userData'), 'moved-to-github');
+  if (OLD_SITE === SITE || fs.existsSync(done)) return;
+  const from = OLD_SITE + 'premade-move', to = SITE + 'premade-move', schemes = [...new Set([from, to].map((u) => new URL(u).protocol.slice(0, -1)))];
+  for (const s of schemes) ses.protocol.handle(s, (req) => (req.url === from || req.url === to ? new Response('<!doctype html><title>Premade</title>', { headers: { 'content-type': 'text/html' } })
+    : require('electron').net.fetch(req, { bypassCustomProtocolHandlers: true })));
+  const w = new BrowserWindow({ show: false });
+  const copy = (async () => {
+    await w.loadURL(from);
+    const saved = await w.webContents.executeJavaScript('JSON.stringify(Object.entries(localStorage))');
+    await w.loadURL(to);
+    const n = await w.webContents.executeJavaScript(`(() => { let n = 0; for (const [k, v] of ${saved}) if (localStorage.getItem(k) === null) { localStorage.setItem(k, v); n++; } return n; })()`);
+    fs.writeFileSync(done, `${n} of ${JSON.parse(saved).length} copied from ${OLD_SITE} ${new Date().toISOString()}\n`);
+  })();
+  copy.catch(() => {});
+  try { await Promise.race([copy, new Promise((res, rej) => setTimeout(rej, 15000, new Error('took over 15 s')))]); }
+  catch (err) { console.error('moving the saved data:', err.message); } // again next time
+  finally { w.destroy(); for (const s of schemes) ses.protocol.unhandle(s); }
+}
+
+module.exports = { summary, vk, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js

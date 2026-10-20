@@ -9,8 +9,8 @@
 // around in once the game is over), the compact strip, the overlay window (the game's
 // objective timers and kills from the page, moved and resized, with chat, who hears you, your voice effects and voice
 // swap's countdown, and everyone's rank over the whole screen), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
-// pipe), the performance meter, app links, the window kept where you left it, test recordings with names hidden, and the
-// test version of the page (Settings > App).
+// pipe), the performance meter, app links, the window kept where you left it, test recordings with names hidden, the
+// test version of the page (Settings > App) and the move of the page's saved data to its new address (1.16).
 // Prints ok.
 const http = require('http'), https = require('https'), net = require('net'), fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
 const { execFileSync } = require('child_process');
@@ -76,11 +76,12 @@ const discord = net.createServer((sock) => {
 }).listen(path.join(tmp, 'discord-ipc-0'));
 
 process.env.LPC_SITE = 'http://127.0.0.1:8083/';
+process.env.LPC_OLD_SITE = 'http://localhost:8083/'; // where the page was before 1.16 (another address of this server)
 process.env.LPC_LEAGUE = 'https://127.0.0.1:8084';
 process.env.LPC_LEAGUE_DIR = tmp; // League's folder, for the window mode in Config/
 fs.mkdirSync(path.join(tmp, 'Config'));
 const { app, BrowserWindow, globalShortcut, screen, shell } = require('electron');
-const { summary, vk, lcuOk, linkRoom, hider } = require('./main.js');
+const { summary, vk, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
 assert(app.getPath('userData').endsWith(path.sep + 'League Proximity Chat'), 'settings stay in the folder from before the rename to Premade');
 app.setPath('videos', path.join(tmp, 'Videos')); // where clips go
 app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings go
@@ -398,6 +399,22 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await at('', 'the normal page again');
     assert.deepStrictEqual(went, ['200 /test/', '200 /', '404 /test/', '200 /'], 'the test version, back, and a missing test copy');
     console.log(`test version: ${went.join(', ')}`);
+
+    // The move to GitHub (1.16): the first start copied what the page saved at its old address (nothing, on a new
+    // profile). Run again with something saved there: it comes over, but not over what the new address already has.
+    const moved = path.join(tmp, 'profile', 'moved-to-github');
+    assert(fs.readFileSync(moved, 'utf8').startsWith('0 of 0 copied from http://localhost:8083/'), 'moved at the first start');
+    fs.rmSync(moved);
+    const was = new BrowserWindow({ show: false });
+    await was.loadURL('http://localhost:8083/terms.html');
+    await was.webContents.executeJavaScript('localStorage.setItem("lpc-test-a", "old"); localStorage.setItem("lpc-test-b", "old")');
+    was.destroy();
+    await js('localStorage.setItem("lpc-test-b", "new")');
+    await moveSaved();
+    assert.deepStrictEqual(await js('["lpc-test-a", "lpc-test-b"].map((k) => localStorage.getItem(k))'), ['old', 'new'], 'the old address’s data, without overwriting');
+    assert(fs.readFileSync(moved, 'utf8').startsWith('1 of 2 copied'), fs.readFileSync(moved, 'utf8'));
+    assert.strictEqual(await js('location.href'), process.env.LPC_SITE, 'the page stays put');
+    console.log(`saved data moved: ${fs.readFileSync(moved, 'utf8').trim()}`);
     console.log('ok');
   } catch (err) { console.error(err); process.exitCode = 1; }
   web.close();

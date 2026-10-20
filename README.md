@@ -4,7 +4,7 @@ Proximity voice chat and game tools for League of Legends. Friends in the same g
 
 It was called League Proximity Chat before version 1.8.0.
 
-**Get it:** [Windows app](https://league-proxchat.netlify.app/Premade-Setup.exe) or [in your browser](https://league-proxchat.netlify.app).
+**Get it:** [Windows app](https://rayn16.github.io/Premade/Premade-Setup.exe) or [in your browser](https://rayn16.github.io/Premade/).
 
 ## How it works
 

@@ -1,10 +1,10 @@
 {
-  "id": "/remote.html",
+  "id": "remote.html",
   "name": "Premade phone remote",
   "short_name": "Remote",
   "description": "Queue, accept matches and go through champ select in League from your phone (picks, bans, trades, runes, spells and skins), through Premade on your PC.",
-  "start_url": "/remote.html",
-  "scope": "/remote.html",
+  "start_url": "remote.html",
+  "scope": "remote.html",
   "display": "standalone",
   "background_color": "#010a13",
   "theme_color": "#010a13",

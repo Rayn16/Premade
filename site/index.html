@@ -13,7 +13,7 @@
 <script>
   if (window.lpcClient) document.documentElement.classList.add('in-client'); // the Windows client (client/preload.js)
   if (window.lpcClient && window.lpcClient.lcu) document.documentElement.classList.add('has-lcu'); // version 1.6+: League's own client
-  if (location.pathname.startsWith('/test/')) document.documentElement.classList.add('test-version'); // Test version first (Settings > App)
+  if (/\/test\/[^/]*$/.test(location.pathname)) document.documentElement.classList.add('test-version'); // Test version first (Settings > App)
   try { document.documentElement.style.setProperty('--zoom', Math.min(2, Math.max(0.7, +JSON.parse(localStorage.getItem('lpc-opts')).zoom || 1))); } catch {} // App size (Settings > Look)
 </script>
 <style>
@@ -711,7 +711,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="toolbar"><button id="profileCopy" class="btn small" type="button">Copy</button><a id="profileOpen" class="btn small" href="#" target="_blank" rel="noopener">Open it</a></div>
       </section>
       <p id="proNote" class="phase" role="status" hidden></p>
-      <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="/Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
+      <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
       <div id="proRanks" class="ranks"></div>
       <section id="proCmpBox" class="panel" aria-labelledby="h-procmp" hidden>
         <h2 id="h-procmp" class="ph">Side by side</h2>
@@ -777,7 +777,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </form>
           <a id="appLink" class="btn browser-only" hidden>Open this room in the desktop app</a>
           <p id="autoNote" class="hint client-only">Or just start a game: you join your game's room by itself.</p>
-          <p class="hint browser-only">On Windows? <a href="/Premade-Setup.exe" download>Get the desktop app</a> for the in-game overlay, push to talk and League's own game data.</p>
+          <p class="hint browser-only">On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a> for the in-game overlay, push to talk and League's own game data.</p>
         </div>
       </div>
 
@@ -1585,7 +1585,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <section class="panel">
           <h2 class="ph">App</h2>
           <div class="toolbar"><button id="setupAgain" class="btn" type="button">Run setup again</button><button id="installBtn" class="btn browser-only" type="button" hidden>Install as an app</button></div>
-          <p class="hint browser-only"><a href="/Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
+          <p class="hint browser-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
           <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade see I have it: my League accounts, voice name and app version</label>
@@ -1593,7 +1593,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
           <p class="hint">Premade isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
-          <p class="hint"><a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
+          <p class="hint"><a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
         </section>
         <section id="serverBox" class="panel" aria-labelledby="h-server" hidden>
           <h2 id="h-server" class="ph">Our server</h2>
@@ -1610,7 +1610,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <section class="view" data-view="features" aria-label="Features" hidden>
       <h1 class="title">Features</h1>
       <p class="hint">Everything Premade can do, where it is and how to set it up. Show me takes you straight there.</p>
-      <p class="hint browser-only">Features marked Desktop app need the Windows app. <a href="/Premade-Setup.exe" download>Get the desktop app</a></p>
+      <p class="hint browser-only">Features marked Desktop app need the Windows app. <a href="Premade-Setup.exe" download>Get the desktop app</a></p>
       <label class="field featfind">Find a feature <input id="featFind" type="search" autocomplete="off" spellcheck="false" placeholder="Runes, clips, push to talk…"></label>
       <nav id="featJump" class="toolbar" aria-label="Feature groups"></nav>
       <section id="setupBox" class="panel fgroup" aria-labelledby="h-setup">
@@ -1632,8 +1632,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button id="sbTrack" class="sb" type="button" title="Your tracking"><span class="muted">Tracking:</span><span id="sbTrackText"></span></button>
     <span id="sbLeague" class="sb client-only"></span>
     <button id="sbVersion" class="sb" type="button" title="What's new"></button>
-    <a id="sbTest" class="sb new test-only" href="/">Test version: back to normal</a>
-    <a id="getNew" class="sb new" href="/Premade-Setup.exe" download hidden>New app version: get the installer</a>
+    <a id="sbTest" class="sb new test-only" href="../">Test version: back to normal</a>
+    <a id="getNew" class="sb new" href="Premade-Setup.exe" download hidden>New app version: get the installer</a>
     <button id="restartBtn" class="sb new" type="button" hidden>Update ready: restart</button>
     <span class="grow"></span>
     <button id="compactBtn" class="sb" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg><span>Compact</span></button>
@@ -1788,6 +1788,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const client = window.lpcClient || null; // what the Windows client adds (client/preload.js); null in a browser
+  // the site's top, also from the test version (test/): on GitHub Pages it's under /Premade/, so paths are relative to it
+  const TEST = /\/test\/[^/]*$/.test(location.pathname), ROOT = location.href.replace(/[?#].*$/, '').replace(/(\/test)?\/[^/]*$/, '/');
+  if (TEST) for (const a of document.querySelectorAll('a[href="Premade-Setup.exe"]')) a.href = ROOT + 'Premade-Setup.exe'; // the installer is only at the top
   const MAP = 14870;   // width of Summoner's Rift in game units; positions are 0..1 of the minimap
   const SLOTS = 10;    // players in one game
   const STALE = 3000;  // ms until a position counts as unknown; outside a game, anyone without a position is heard at full volume
@@ -2735,8 +2738,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     rn = rn || (async () => {
       const simd = WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]));
       const [wasmBinary] = await Promise.all([
-        fetch(`/vendor/rnnoise/rnnoise${simd ? '_simd' : ''}.wasm`).then((r) => { if (!r.ok) throw new Error(`rnnoise.wasm: ${r.status}`); return r.arrayBuffer(); }),
-        ac.audioWorklet.addModule('/vendor/rnnoise/workletProcessor.js'),
+        fetch(`vendor/rnnoise/rnnoise${simd ? '_simd' : ''}.wasm`).then((r) => { if (!r.ok) throw new Error(`rnnoise.wasm: ${r.status}`); return r.arrayBuffer(); }),
+        ac.audioWorklet.addModule('vendor/rnnoise/workletProcessor.js'),
       ]);
       await WebAssembly.compile(wasmBinary); // a bad download fails here, not as a silent mic inside the worklet
       return new AudioWorkletNode(ac, '@sapphi-red/web-noise-suppressor/rnnoise', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1], processorOptions: { maxChannels: 1, wasmBinary } });
@@ -3565,7 +3568,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Someone in the room with an older one gets a popup once, and the ready check shows it.
   const newer = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
   const oldApp = (v) => v === 'old' || (!!latest && /^\d+\.\d+\.\d+$/.test(v) && newer(latest, v));
-  fetch('/latest.yml', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { latest = (/^version:\s*([\d.]+)\s*$/m.exec(t) || [])[1] || ''; render(); }).catch(() => {});
+  fetch(ROOT + 'latest.yml', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { latest = (/^version:\s*([\d.]+)\s*$/m.exec(t) || [])[1] || ''; render(); }).catch(() => {});
   const warnedOld = new Set();
   function checkVersion(p) {
     const v = p.ready && p.ready.app;
@@ -6272,7 +6275,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('remoteState').textContent = !remote ? '' : remoteConns.size ? 'Your phone is connected.' : remote.open ? 'Waiting for your phone.' : 'Connecting…';
   }
   async function drawQr() {
-    qrLib = qrLib || new Promise((res, rej) => { const s = document.createElement('script'); s.src = '/vendor/qrcode/qrcode.js'; s.onload = () => res(window.qrcode); s.onerror = rej; document.head.append(s); });
+    qrLib = qrLib || new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'vendor/qrcode/qrcode.js'; s.onload = () => res(window.qrcode); s.onerror = rej; document.head.append(s); });
     let q;
     try { q = (await qrLib)(0, 'M'); } catch { qrLib = null; return; }
     q.addData(remoteUrl());
@@ -6570,7 +6573,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
   const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
   const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && opts.clips && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
-  const vendor = (f) => new URL('/vendor/vosk/' + f, location.href).href;
+  const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
   async function voiceStart() {
     voiceErr = '';
@@ -8166,7 +8169,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       f: [(fame.pentas || []).length, (fame.quadras || []).length, Math.max(streak, (fame.streak && fame.streak.n) || 0)],
       best: [id(best.champ), champName(best.champ), best.k, best.d, best.a, best.win ? 1 : 0, best.at],
     };
-    const link = new URL(`/profile.html#${await packLink(p)}`, location.href).href; // the normal page, also from the test version
+    const link = new URL(`profile.html#${await packLink(p)}`, ROOT).href; // the normal page, also from the test version
     $('profileLink').value = $('profileOpen').href = link;
     $('profileOut').hidden = false;
   }
@@ -9409,7 +9412,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return out;
   }
   function augLoad() { // Tesseract and its English model, from our own site, once a game
-    const V = new URL('/vendor/tesseract-5.1.1/', location.href).href;
+    const V = new URL('vendor/tesseract-5.1.1/', location.href).href;
     const lib = window.Tesseract ? Promise.resolve() : new Promise((res, rej) => document.head.append(Object.assign(document.createElement('script'), { src: V + 'tesseract.min.js', onload: res, onerror: rej })));
     return lib.then(() => window.Tesseract.createWorker('eng', 1, { workerPath: V + 'worker.min.js', corePath: V + 'tesseract-core-simd-lstm.wasm.js', langPath: V, workerBlobURL: false }))
       .then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.'! " }); return w; }); // one line
@@ -11174,8 +11177,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   // Test version first: the site's test/ folder gets page changes before everyone else. The page's address is the
   // switch, and the app (1.13 and later) opens the same copy next time.
-  $('optTest').checked = location.pathname.startsWith('/test/');
-  $('optTest').addEventListener('change', (e) => location.assign((e.target.checked ? '/test/' : '/') + location.hash));
+  $('optTest').checked = TEST;
+  $('optTest').addEventListener('change', (e) => location.assign((e.target.checked ? ROOT + 'test/' : ROOT) + location.hash));
   $('optFlash').value = opts.flash;
   $('optFlash').addEventListener('change', (e) => { opts.flash = e.target.value; saveOpts(); });
   $('optRuneSrc').value = opts.runeSrc;
@@ -11308,6 +11311,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [42, 'October 20: Premade moves to GitHub', [
+      'Premade’s site is now at rayn16.github.io/Premade, on GitHub’s free hosting, because the old site used up its free updates for the month.',
+      'App 1.16 moves there by itself and brings what Premade saved with it: your settings, LP and game history, notes and the rest. Pair the phone remote again from the new address.',
+    ]],
     [41, 'October 20: ratings on TFT’s augment cards', [
       'When you pick an augment in a TFT game, the overlay puts on each card your average place with it in your last 20 games. Tick “How I placed with each augment” on the Overlay page: the desktop app reads the cards off your screen, and what it reads stays on your PC.',
     ]],
@@ -11792,7 +11799,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const goBtn = (at) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Show me' }); b.dataset.go = at; return b; };
   const SETUP = [
     ['Get the desktop app', 'The Windows app shares your screen without asking, shows the overlay over League and reads League’s own data: your champion, champ select, ranks and timers. If Windows warns about it, press More info, then Run anyway.',
-      () => (client ? appCell(readyNow().app) : ['', 'You’re on the website']), () => !client && Object.assign(document.createElement('a'), { className: 'btn small primary', href: '/Premade-Setup.exe', download: '', textContent: 'Get the desktop app' })],
+      () => (client ? appCell(readyNow().app) : ['', 'You’re on the website']), () => !client && Object.assign(document.createElement('a'), { className: 'btn small primary', href: ROOT + 'Premade-Setup.exe', download: '', textContent: 'Get the desktop app' })],
     ['Your name', 'What friends see on your card and in the chat.', () => (myName ? ['good', myName] : ['bad', 'Not set yet']), () => goBtn('#name')],
     ['Your mic', 'Press Test mic and talk: the bar moves. Then press Set the gate for me, so typing and fans stay out. Headphones keep friends from hearing themselves.',
       () => { const m = readyNow().mic; return m === 'off' ? ['bad', 'Not tested yet'] : CELLS.mic[m]; }, () => goBtn('#micTest')],
@@ -11889,7 +11896,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   for (const p of document.querySelectorAll('.settings > *')) brick.observe(p);
 
   // ---- the room's own buttons
-  const inviteLink = () => location.origin + location.pathname.replace(/^\/test\//, '/') + '#' + room + (roomKey ? '.' + roomKey : ''); // the normal page, also from the test version
+  const inviteLink = () => ROOT + '#' + room + (roomKey ? '.' + roomKey : ''); // the normal page, also from the test version
   async function copyInvite() {
     try { await navigator.clipboard.writeText(inviteLink()); notify('Invite link copied', true); } catch { say('Copy this link: ' + inviteLink()); }
   }
