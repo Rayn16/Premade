@@ -33,7 +33,7 @@ const match = (id) => {
     teams: [{ teamId: 100, bans: [{ championId: 157, pickTurn: 1 }, { championId: -1, pickTurn: 2 }] }, { teamId: 200, bans: [{ championId: 157, pickTurn: 6 }, { championId: 555, pickTurn: 7 }] }],
     participants: TEAM.map(([c, r], i) => ({ participantId: i + 1, championId: c + eu, teamPosition: r, teamId: i < 5 ? 100 : 200, win: i < 5 === blueWins, summoner1Id: 4, summoner2Id: i % 5 === 1 ? 11 : 14,
       kills: i, deaths: 2, assists: 7, totalMinionsKilled: 150 + i, neutralMinionsKilled: 4, riotIdGameName: 'Secret' + i, puuid: P(9),
-      goldEarned: 10000 + 100 * i, visionScore: 20 + i, totalDamageDealtToChampions: 15000 + 1000 * i, totalDamageTaken: 20000, damageSelfMitigated: 5000 + i,
+      goldEarned: 10000 + 100 * i, visionScore: 20 + i, totalDamageDealtToChampions: 15000 + 1000 * i,
       perks: { statPerks: { defense: 5011, flex: 5008, offense: 5005 }, styles: [{ description: 'primaryStyle', style: 8100, selections: [8112, 8139, 8138, 8135].map((perk) => ({ perk })) }, { description: 'subStyle', style: 8300, selections: [8306, 8347].map((perk) => ({ perk })) }] } })) } };
 };
 const timeline = () => {
@@ -142,7 +142,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.deepEqual(ahri.games.map((g) => g.p), ['16.20', '16.20', '16.20', '16.19'], 'newest first');
   const g = ahri.games.find((x) => x.t === 1760000000000 / 1000 + 1002);
   assert.deepEqual({ ...g, b: undefined }, { p: '16.20', t: 1760001002, w: 1, o: 238, g: -500, s: [4, 14], rn: [8100, 8300, 8112, 8139, 8138, 8135, 8306, 8347, 5005, 5008, 5011], k: [1, 2, 3], x: [2, 2, 7, 156], l: [-5, -50], b: undefined,
-    a: [266, 64, 222, 412], e: [86, 254, 238, 145, 117], m: [1700, 10200, 22, 17000, 25002, 10, 85000] }, "with who was on each team, the game's length and Ahri's gold, vision, damage, damage taken, and her team's kills and damage");
+    a: [266, 64, 222, 412], e: [86, 254, 238, 145, 117], m: [1700, 10200, 22, 17000, 10, 85000] }, "with who was on each team, the game's length and Ahri's gold, vision and damage, and her team's kills and damage");
   assert.deepEqual(g.b, [[2, 1055], [3, 2003], [402, 3020]], 'the boots Ahri undid are left out');
   assert.equal(ahri.games.filter((x) => x.w).length, 3);
   assert.equal((await (await get('/riot/champ?c=103')).json()).role, 'MIDDLE', 'its most played role when none is asked for');
@@ -151,7 +151,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.deepEqual(jungle.games[0].s, [4, 11]);
   assert.deepEqual(await (await get('/riot/champ?c=nope')).json(), { games: [] });
   const eu = await (await get('/riot/champ?c=1103')).json();
-  assert.deepEqual(eu.games.map((x) => [x.t, x.m, x.e]), [[1760003001, [1900, 10200, 22, 17000, 25002, 10, 85000], [1086, 1254, 1238, 1145, 1117]]], "Europe West's game");
+  assert.deepEqual(eu.games.map((x) => [x.t, x.m, x.e]), [[1760003001, [1900, 10200, 22, 17000, 10, 85000], [1086, 1254, 1238, 1145, 1117]]], "Europe West's game");
   assert.equal((await get('/riot/champ?c=103', { origin: 'https://evil.example' })).headers.get('access-control-allow-origin'), null, 'other sites are not let in');
 
   // lookups: only the calls on the list, with their own query parameters, as Riot answers them (the counting goes on

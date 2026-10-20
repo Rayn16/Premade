@@ -1,13 +1,12 @@
 // The proximity chat's own connection server: a Cloudflare Worker that speaks the PeerJS server protocol, so the
 // voice page's PeerJS client works with it unchanged. It only introduces players (WebRTC offers, answers and
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
-// Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only with its password
-// (as the PeerJS key). /stats counts rooms and players each day for the voice page (Settings > Our server).
-// /riot/... is Riot data (the Riot object, at the end).
+// Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only those with its
+// password. /stats counts rooms and players each day for the voice page (Settings > Our server). /riot/... is Riot
+// data (the Riot object, at the end).
 import { DurableObject } from 'cloudflare:workers';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
-const KEY = /^([0-9a-f]{64}|peerjs)$/; // a room's password as the voice page sends it (a SHA-256 of it), or PeerJS's default: none
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
 const CORS = { 'access-control-allow-origin': '*' };
 const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: one counter for every room, fine for friend groups
@@ -31,6 +30,14 @@ export default {
   },
 };
 
+// A locked room: each page sends {type: 'LOCK', payload: {key}} whenever its socket opens, key being a hash of the
+// password it knows ('' for none). In a locked room a newcomer is let in (its messages passed on, and others' to it)
+// only once its key matches; else it gets INVALID-KEY and is closed. Only the host, the lowest slot that's in, can
+// lock the room or change its password, and out names a player it removed, whose socket closes. The lock is kept on
+// the sockets themselves, so it's forgotten once everyone has left, like the page does.
+const KEY = /^[0-9a-f]{64}$/;
+const slotOf = (ws) => +ws.deserializeAttachment().id.split('-').pop();
+
 export class Room extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -38,23 +45,17 @@ export class Room extends DurableObject {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"type":"HEARTBEAT"}', '{"type":"HEARTBEAT"}'));
   }
   open(id) {
-    return this.ctx.getWebSockets(id).filter((ws) => ws.readyState === WebSocket.OPEN);
+    return (id === undefined ? this.ctx.getWebSockets() : this.ctx.getWebSockets(id)).filter((ws) => ws.readyState === WebSocket.OPEN);
   }
-  // A room's lock is the key its players came in with: the first one in sets it ('peerjs' leaves the room open), and
-  // it lasts while anyone is in. The host changes it with a LOCK message (lock()).
   async fetch(req) {
-    const url = new URL(req.url), id = url.searchParams.get('id'), token = url.searchParams.get('token'), key = url.searchParams.get('key') || 'peerjs';
+    const url = new URL(req.url), id = url.searchParams.get('id'), token = url.searchParams.get('token');
     const [client, server] = Object.values(new WebSocketPair());
-    const old = this.open(id), [other] = this.open().filter((ws) => ws.deserializeAttachment().id !== id);
-    const lock = other ? other.deserializeAttachment().key || 'peerjs' : key;
+    const old = this.open(id), [any] = this.open(), lock = (any && any.deserializeAttachment().lock) || '';
     this.ctx.acceptWebSocket(server, [id]);
-    server.serializeAttachment({ id, token, key: lock });
+    server.serializeAttachment({ id, token, lock, in: !lock });
     if (old.some((ws) => ws.deserializeAttachment().token !== token)) {
       server.send(JSON.stringify({ type: 'ID-TAKEN', payload: { msg: 'ID is taken' } })); // the voice page then tries the next slot
       server.close(1000, 'ID is taken');
-    } else if (!KEY.test(key) || (lock !== 'peerjs' && key !== lock)) {
-      server.send(JSON.stringify({ type: 'INVALID-KEY', payload: { msg: 'This room is locked' } })); // PeerJS gives the page an 'invalid-key' error
-      server.close(1000, 'Locked');
     } else {
       for (const ws of old) ws.close(1000, 'Reconnected'); // the same player coming back
       server.send(JSON.stringify({ type: 'OPEN' }));
@@ -66,21 +67,26 @@ export class Room extends DurableObject {
   webSocketMessage(ws, data) {
     let m;
     try { m = JSON.parse(data); } catch { return; }
-    if (m && m.type === 'LOCK') return this.lock(ws, m.payload || {});
-    if (!m || !RELAYED.has(m.type) || typeof m.dst !== 'string') return;
-    const src = ws.deserializeAttachment().id, [to] = this.open(m.dst);
-    if (to) to.send(JSON.stringify({ type: m.type, src, dst: m.dst, payload: m.payload }));
-    else if (m.type === 'OFFER') ws.send(JSON.stringify({ type: 'EXPIRE', src: m.dst, dst: src })); // nobody in that slot
+    const a = ws.deserializeAttachment();
+    if (m && m.type === 'LOCK') return this.lock(ws, a, m.payload || {});
+    if (!m || !a.in || !RELAYED.has(m.type) || typeof m.dst !== 'string') return;
+    const [to] = this.open(m.dst).filter((w) => w.deserializeAttachment().in);
+    if (to) to.send(JSON.stringify({ type: m.type, src: a.id, dst: m.dst, payload: m.payload }));
+    else if (m.type === 'OFFER') ws.send(JSON.stringify({ type: 'EXPIRE', src: m.dst, dst: a.id })); // nobody in that slot
   }
-  // from the host (the lowest slot in): the room's new key, or 'peerjs' to open it, for everyone in; drop, a player it
-  // removed, is sent off as if the room were locked to them
-  lock(ws, { key, drop }) {
-    const all = this.open(), slot = (s) => +s.deserializeAttachment().id.split('-').pop();
-    if (typeof key !== 'string' || !KEY.test(key) || slot(ws) !== Math.min(...all.map(slot))) return;
-    for (const s of all) {
-      const a = s.deserializeAttachment();
-      if (a.id !== drop) s.serializeAttachment({ ...a, key });
-      else { s.send(JSON.stringify({ type: 'INVALID-KEY', payload: { msg: 'You were removed from this room' } })); s.close(1000, 'Removed'); }
+  lock(ws, a, { key, out }) {
+    key = KEY.test(key) ? key : '';
+    if (!a.in) {
+      if (key === a.lock) return ws.serializeAttachment({ ...a, in: true });
+      ws.send(JSON.stringify({ type: 'INVALID-KEY', payload: { msg: 'This room is locked' } }));
+      return ws.close(1000, 'Locked');
+    }
+    const ins = this.open().filter((w) => w.deserializeAttachment().in);
+    if (!key || key === a.lock || slotOf(ws) !== Math.min(...ins.map(slotOf))) return;
+    for (const w of this.open()) {
+      const b = w.deserializeAttachment();
+      if (b.id === out) w.close(1000, 'Removed');
+      else w.serializeAttachment({ ...b, lock: key });
     }
   }
   webSocketClose(ws, code) {
@@ -365,13 +371,13 @@ export class Riot extends DurableObject {
     if (!g) return;
     st.cur = { id, patch: g.patch, at: g.at, len: g.len, b: g.bans, ps: g.ps.map((x) => ({ id: x.participantId, c: x.championId, r: x.teamPosition, t: x.teamId, w: x.win ? 1 : 0,
       s: [x.summoner1Id, x.summoner2Id], rn: runesOf(x.perks), x: [x.kills, x.deaths, x.assists, x.totalMinionsKilled + x.neutralMinionsKilled],
-      m: [x.goldEarned, x.visionScore, x.totalDamageDealtToChampions, x.totalDamageTaken + x.damageSelfMitigated].map((v) => v | 0) })) };
+      m: [x.goldEarned, x.visionScore, x.totalDamageDealtToChampions].map((v) => v | 0) })) };
     this.put('crawl', this.st);
   }
   // what each player bought (undone buys taken out) and levelled, their gold, CS and XP at 10 minutes against their
   // lane opponent's, the champions with (a) and against (e) them, for the draft's scores, and m, for the game
-  // reports: the game's length (s), their gold, vision score, damage to champions and damage taken or mitigated, and
-  // their team's kills and damage to champions
+  // reports: the game's length (s), their gold, vision score and damage to champions, and their team's kills and
+  // damage to champions
   async timeline(r, p, st) {
     const g = st.cur;
     st.cur = null;
