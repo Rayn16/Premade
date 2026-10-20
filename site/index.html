@@ -1497,7 +1497,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
             <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
             <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"> TFT item recipes in TFT games</label>
-            <label class="check lcu-only"><input id="optTftAugs" type="checkbox"> How I placed with each augment, on TFT’s augment cards (reads my screen)</label>
+            <label class="check lcu-only"><input id="optTftAugs" type="checkbox"> Each augment’s tier on TFT’s augment cards (reads my screen)</label>
+            <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"> How often players take each augment on my champion, on ARAM: Mayhem’s augment cards (reads my screen)</label>
             <label class="check lcu-only"><input id="optDeadTips" type="checkbox"> Tips for my lane while I’m dead</label>
             <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"> What to buy next, while I’m dead or in my base</label>
             <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"> My team’s chance to win</label>
@@ -1813,7 +1814,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
+    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
@@ -5685,6 +5686,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const m = await lcuGet(`/lol-match-history/v1/games/${g.id}`), r = m && makeReport(m, gold);
       if (r) {
         keepDeep(g.id, m);
+        mayhemSend(m); // its augments, for the ratings on ARAM: Mayhem's cards
         reports = Object.fromEntries([...Object.entries(reports), [g.id, r]].slice(-40));
         store.set('lpc-reports', JSON.stringify(reports));
         const mePl = r.players[r.me];
@@ -9187,7 +9189,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!me0 || performance.now() - tftGamesAt <= 60000) return;
     tftGamesAt = performance.now();
     const h = await lcuGet(`/lol-match-history/v1/products/tft/${me0.puuid}/matches?begin=0&count=20`);
-    if (h && Array.isArray(h.games)) tftGames = tftOf(h.games, me0.puuid);
+    if (h && Array.isArray(h.games)) { tftGames = tftOf(h.games, me0.puuid); tftSend(h.games); }
   }
   function placed(box, rows, list) { // a table of what's in two or more of [id, place], most games first: games, average place, top 4s
     const by = {};
@@ -9330,15 +9332,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // another set's cards, or another UI scale, need measuring again (the project's results/tft-helpers/screens/README.md)
   const AUG_X = [366, 640, 913]; // the cards' middles at 1280x720
   let augs = null, augsAt = -Infinity, augOcr = null; // reading the cards: { stop, track, g (the screen at 1280x720), box, cards: [{ px (its banner when read), name } or null] }; Tesseract
-  function augTick() { // every second: in a TFT game with it on, the app shares the screen Settings picks, by itself
-    const want = !!client && !!opts.tftAugs && tftPlaying() && boardOk();
+  function augTick() { // every second: in a TFT or ARAM: Mayhem game with it on, the app shares the screen Settings picks, by itself
+    const want = !!client && boardOk() && ((!!opts.tftAugs && tftPlaying()) || (!!opts.mayhemAugs && mayhem()));
     if (augs && !want) augStop();
     else if (!augs && want && performance.now() - augsAt > 30000) augStart();
-    if (augs) { if (!ddVersion) ddSoon(); tftItemsSoon(); } // the augments' names, once Data Dragon says the patch
+    if (augs) { if (!ddVersion) ddSoon(); if (augs.may) mayNamesSoon(); else tftItemsSoon(); } // the augments' names, once Data Dragon says the patch
   }
   async function augStart() {
     augsAt = performance.now();
-    const a = (augs = { cards: [null, null, null], busy: false });
+    const a = (augs = { cards: [null, null, null], busy: false, may: mayhem() });
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false }); } catch (err) {
       console.warn('augment cards:', err);
@@ -9380,6 +9382,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function augFrame(a, src, w, h) { // once a second: the cards, read again where a banner changed (a reroll, or still flying in)
     if (augs !== a) return;
+    if (a.may) return mayFrame(a, src, w, h);
     const bw = Math.min(w, (h * 16) / 9), bh = (bw * 9) / 16, x0 = (w - bw) / 2, y0 = (h - bh) / 2;
     a.g.drawImage(src, x0, y0, bw, bh, 0, 0, 1280, 720);
     a.box = [x0 / w, y0 / h, bw / w, bh / h];
@@ -9398,7 +9401,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const augDiff = (p, q) => { let d = 0; for (let i = 0; i < p.length; i += 4) d += Math.abs(p[i] - q[i]); return (d * 4) / p.length; }; // the red's average change
   const augCv = [196, 588].map((w) => Object.assign(document.createElement('canvas'), { width: w, height: (w * 34) / 196 }));
   async function augRead(list) { // the banners' text: their red, three times the size, dark on light and levelled 20% to 75%
-    augOcr = augOcr || augLoad();
+    augOcr = augOcr || augLoad('7');
     const w = await augOcr, g = augCv[1].getContext('2d', { willReadFrequently: true }), out = [];
     for (const img of list) {
       augCv[0].getContext('2d').putImageData(img, 0, 0);
@@ -9411,11 +9414,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return out;
   }
-  function augLoad() { // Tesseract and its English model, from our own site, once a game
+  function augLoad(psm) { // Tesseract and its English model, from our own site, once a game (psm: Tesseract's page mode, 7 one line, 11 lines anywhere)
     const V = new URL('vendor/tesseract-5.1.1/', location.href).href;
     const lib = window.Tesseract ? Promise.resolve() : new Promise((res, rej) => document.head.append(Object.assign(document.createElement('script'), { src: V + 'tesseract.min.js', onload: res, onerror: rej })));
     return lib.then(() => window.Tesseract.createWorker('eng', 1, { workerPath: V + 'worker.min.js', corePath: V + 'tesseract-core-simd-lstm.wasm.js', langPath: V, workerBlobURL: false }))
-      .then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.'! " }); return w; }); // one line
+      .then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.'! " }); return w; });
   }
   const augKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9+]/g, '');
   function lev(a, b) { // the edits from a to b
@@ -9445,10 +9448,101 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const avg = l.reduce((t, g) => t + g.place, 0) / l.length;
     return { t: `Your average: ${avg.toFixed(1)} in ${l.length} game${l.length === 1 ? '' : 's'}`, k: l.length < 2 ? '' : avg <= 4 ? 'good' : 'bad' };
   }
-  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot, as shares of the screen; t: what to say; k: good, bad or '' }]
+  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot (Mayhem: above its name), as shares of the screen; t: what to say; k: good, bad or '' }]
+    if (augs && augs.may) return augs.cards.some(Boolean) ? augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) })) : null;
     if (!augs || !augs.box || !augs.cards.some((c) => c && c.name)) return null;
     const [x0, y0, bw, bh] = augs.box;
-    return augs.cards.map((c, i) => c && c.name && { x: +(x0 + (AUG_X[i] / 1280) * bw).toFixed(4), y: +(y0 + 0.73 * bh).toFixed(4), ...augYou(c.name) }).filter(Boolean);
+    return augs.cards.map((c, i) => c && c.name && { x: +(x0 + (AUG_X[i] / 1280) * bw).toFixed(4), y: +(y0 + 0.73 * bh).toFixed(4), ...(tftTierOf(c.name) || augYou(c.name)) }).filter(Boolean);
+  }
+
+  // ---- the numbers on the cards come from Premade players' own games: League's client has every player's augments in
+  // a game it played (Riot's API hides ARAM: Mayhem games, and TFT's needs a key of its own), so each app sends its games'
+  // augments to our server once, and the server adds them up: /riot/mayhem, how many of a champion's games took each
+  // augment; /riot/tftaug, each augment's games and places in this set's ranked and normal games
+  let augSent = load('lpc-aug-sent', []);
+  function augSend(kind, g, body) {
+    if (!g || augSent.includes(g)) return;
+    augSent = [...augSent, g].slice(-300);
+    store.set('lpc-aug-sent', JSON.stringify(augSent));
+    fetch(`${serverUrl}/riot/${kind}`, { method: 'POST', body: JSON.stringify({ g, ...body }) }).catch(() => {}); // plain text: no preflight
+  }
+  function mayhemSend(m) { // a game from League's client: each player's champion, win and augments
+    if (!m || m.queueId !== 2400 || !Array.isArray(m.participants)) return;
+    augSend('mayhem', `${m.platformId}_${m.gameId}`, { ps: m.participants.map((p) => { const s = p.stats || {}; return { c: p.championId | 0, w: s.win ? 1 : 0, a: Object.keys(s).filter((k) => /^playerAugment\d$/.test(k) && s[k] > 0).map((k) => s[k] | 0) }; }) });
+  }
+  function tftSend(list) { // TFT games from League's client: each player's place and augments, in ranked and normal games
+    for (const g of list || []) {
+      const j = g && (typeof g.json === 'string' ? jsonOr(g.json) : g.json), i = j && (j.info || j), id = String(((g && g.metadata) || {}).match_id || '');
+      if (i && [1090, 1100].includes(+(i.queue_id ?? i.queueId)) && Array.isArray(i.participants) && i.participants.length === 8)
+        augSend('tftaug', id, { s: +i.tft_set_number || 0, ps: i.participants.map((p) => ({ p: (p && p.placement) | 0, a: (p && Array.isArray(p.augments) ? p.augments : []).map(String) })) });
+    }
+  }
+  const augRates = {}; // 'mayhem?c=<champion number>' or 'tftaug' -> { at, d: our server's answer }, asked at most every 10 minutes
+  function augRatesOf(q) {
+    const r = (augRates[q] ||= { at: -Infinity, d: null });
+    if (performance.now() - r.at > 600000) {
+      r.at = performance.now();
+      fetch(`${serverUrl}/riot/${q}`).then((x) => (x.ok ? x.json() : null)).then((j) => { if (j) { r.d = j; pushOverlay(); } }).catch(() => {});
+    }
+    return r.d;
+  }
+  // a TFT augment's tier by its average place (every id with its name: the set's DA_ and old TFT_ ids, and Data Dragon's), from 20 games
+  // ponytail: fixed cut-offs on the average place, tiers by share of augments if they bunch up
+  const TFT_TIERS = [[3.9, 'S', 'good'], [4.2, 'A', 'good'], [4.5, 'B', ''], [4.8, 'C', 'bad'], [9, 'D', 'bad']];
+  function tftTierOf(name) {
+    const d = augRatesOf('tftaug'), k = augKey(name), ids = new Set(((tftItems && tftItems.a) || []).filter(([, n]) => augKey(n) === k).map(([id]) => id));
+    let n = 0, p = 0;
+    for (const [id, v] of Object.entries((d && d.a) || {})) if ((ids.has(id) || augKey(tftName(id)) === k) && Array.isArray(v)) { n += v[0] | 0; p += v[1] | 0; }
+    if (n < 20) return null;
+    const avg = p / n, [, t, k2] = TFT_TIERS.find(([c]) => avg <= c);
+    return { t: `Tier ${t} · ${avg.toFixed(2)} average place · ${n} games`, k: k2 };
+  }
+
+  // ---- ARAM: Mayhem's augment cards: three cards in the middle of the screen at the start and after levels 7, 11 and
+  // 15 (augNow's times). Their size goes with the UI scale, so Tesseract reads the whole middle of the screen (light text
+  // made dark) every 2 seconds then, and each line that's an augment's name (CommunityDragon's list of Arena and Mayhem
+  // augments, 0.85 alike or better) gets how many of your champion's games took it. Nothing read leaves your PC.
+  let mayNames = null, mayNamesAt = -Infinity; // [[id, name]]
+  function mayNamesSoon() {
+    if (mayNames || performance.now() - mayNamesAt < 60000) return;
+    mayNamesAt = performance.now();
+    fetch('https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/cherry-augments.json').then((r) => r.json())
+      .then((j) => { mayNames = (Array.isArray(j) ? j : []).filter((x) => x && Number.isInteger(x.id) && x.nameTRA).map((x) => [x.id, String(x.nameTRA)]); }).catch(() => {});
+  }
+  const mayCv = document.createElement('canvas');
+  function mayFrame(a, src, w, h) {
+    if (a.busy || a.failed || !mayNames || performance.now() - (a.at || 0) < 2000) return;
+    if (!augNow()) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
+    a.at = performance.now();
+    const sx = w * 0.1, sy = h * 0.1, sw = w * 0.8, sh = h * 0.65, k = 1280 / sw; // the middle of the screen, 1280 wide
+    mayCv.width = 1280;
+    mayCv.height = Math.round(sh * k);
+    const g = mayCv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, sx, sy, sw, sh, 0, 0, mayCv.width, mayCv.height);
+    const p = g.getImageData(0, 0, mayCv.width, mayCv.height), d = p.data;
+    for (let i = 0; i < d.length; i += 4) d[i] = d[i + 1] = d[i + 2] = 255 - Math.max(d[i], d[i + 1], d[i + 2]);
+    g.putImageData(p, 0, 0);
+    a.busy = true;
+    (augOcr = augOcr || augLoad('11')).then((ocr) => ocr.recognize(mayCv, {}, { blocks: true })).then((r) => {
+      if (augs !== a) return;
+      const lines = ((r && r.data && r.data.blocks) || []).flatMap((b) => b.paragraphs || []).flatMap((q) => q.lines || []);
+      a.cards = lines.map((l) => { const name = mayMatch(l.text), b = l.bbox; return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + (b.y0 - 1.6 * (b.y1 - b.y0)) / k) / h).toFixed(4) }; }).filter(Boolean).slice(0, 4);
+      pushOverlay();
+    }).catch((e) => { a.failed = true; console.warn('augment cards:', e); }).finally(() => { a.busy = false; });
+  }
+  function mayMatch(text) { // the Mayhem or Arena augment whose name is closest to a line read, if it's close
+    const k = augKey(String(text).trim());
+    if (k.length < 4) return null;
+    let best = null, top = 0.84;
+    for (const [, name] of mayNames || []) { const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1); if (s > top) { top = s; best = name; } }
+    return best;
+  }
+  function mayRate(name) { // how many of your champion's games counted took this augment (any id with its name)
+    const c = champOf(league && league.me && league.me.champ), d = c && augRatesOf(`mayhem?c=${c.key}`);
+    if (!c) return { t: name, k: '' };
+    if (!d || !(d.n >= 5)) return { t: `Few ${c.name} games counted yet${d ? ` (${d.n | 0})` : ''}`, k: '' };
+    const ids = new Set((mayNames || []).filter(([, n]) => n === name).map(([id]) => String(id))), n = Object.entries(d.a || {}).reduce((t, [id, v]) => t + (ids.has(id) ? v | 0 : 0), 0);
+    return { t: `Picked in ${pct(n / d.n)} of ${c.name} games (${d.n})`, k: '' };
   }
 
   function renderTft() {
@@ -11156,7 +11250,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
-    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
+    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
@@ -11164,7 +11258,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -11311,6 +11405,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [43, 'October 20: augment ratings for TFT and ARAM: Mayhem', [
+      'TFT’s augment cards now show each augment’s tier, S to D, from its average place in the games Premade players played this set. Until an augment has 20 games counted, the card shows your own average with it, as before.',
+      'ARAM: Mayhem’s augment cards show how often players took each augment on your champion. Tick “How often players take each augment” on the Overlay page: the desktop app reads the cards off your screen, and what it reads stays on your PC.',
+      'The numbers come from Premade players’ own games: after each Mayhem game and when your TFT games load, Premade sends our server each player’s champion or place and augments, with no names. The more games, the better the numbers.',
+    ]],
     [42, 'October 20: Premade moves to GitHub', [
       'Premade’s site is now at rayn16.github.io/Premade, on GitHub’s free hosting, because the old site used up its free updates for the month.',
       'App 1.16 moves there by itself and brings what Premade saved with it: your settings, LP and game history, notes and the rest. Pair the phone remote again from the new address.',
@@ -11678,6 +11777,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Lobby rank', 'Each team’s average rank and which team is favored, in your game from the loading screen on and in any live game you look up.', 'Nothing to set up: on Game, on the loading screen overlay and in Live game on Profile.', '#liveAvg', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
+      ['Pick rates on Mayhem augment cards', 'When you pick an augment in ARAM: Mayhem, each card shows how often Premade players took it on your champion.',
+        'Tick “How often players take each augment” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text), with League in Borderless mode.', '#optMayhemAugs', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
@@ -11719,8 +11820,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Roll calculator', 'Your chance to hit a champion’s 2 or 3 star with the gold you have, at your level, counting the copies already taken.', 'On TFT: pick the champion, your level and gold, and how many copies you and the others have.', '#tftRollBox'],
       ['Item recipes', 'What every pair of components makes, with the items you put on your comp’s champions ringed in gold. The desktop app can show them over your TFT games too.',
         'Nothing to set up on TFT. For TFT games, tick TFT item recipes on the Overlay page.', '#tftItemsBox,#optOverlayTft'],
-      ['Ratings on augment cards', 'When you pick an augment in a TFT game, each card shows your average place with it in your last 20 games.',
-        'Tick “How I placed with each augment” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text on a 16:9 screen), with League in Borderless mode.', '#optTftAugs', 'app'],
+      ['Ratings on augment cards', 'When you pick an augment in a TFT game, each card shows its tier from Premade players’ games this set, or your own average place with it until it has 20 games.',
+        'Tick “Each augment’s tier” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text on a 16:9 screen), with League in Borderless mode.', '#optTftAugs', 'app'],
     ]],
     ['Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
       ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade.',
@@ -12007,7 +12108,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), // the in-game helpers
-    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, // what's read off TFT's augment cards
+    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, mayhemSend, // what's read off TFT's augment cards; a Mayhem game's augments sent
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now

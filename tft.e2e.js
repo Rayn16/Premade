@@ -9,7 +9,10 @@
 // team code (champions matched by name when match history and the Team Planner name them differently), none for an
 // older set's board, gold rings on the items you put on your comp's champions, the recipes on the overlay in a TFT
 // game, the ratings on the augment cards (a pick drawn on the screen the app shares by itself, read by the vendored
-// Tesseract, and overlay.html putting them on the cards), and only calls the desktop app lets through (client/main.js LCU_OK).
+// Tesseract, and overlay.html putting them on the cards): tiers from our server's counts, else your own average, and
+// each ranked game's places and augments sent to it; ARAM: Mayhem's cards (read anywhere in the middle of the screen)
+// with how often Premade players took each on your champion, and a Mayhem game's augments sent; and only calls the
+// desktop app lets through (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node tft.e2e.js        (SHOTS=folder saves screenshots)
 const fs = require('fs');
@@ -87,13 +90,19 @@ const RANKS = { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'I', leaguePoints: 10
 const tftGame = (k, set, place, traits, units, augments = []) => ({ metadata: { match_id: `EUW1_${7000 + k}`, timestamp: Date.now() - k * 36e5 },
   json: JSON.stringify({ game_datetime: Date.now() - k * 36e5, game_length: 1900, queue_id: 1100, tft_set_number: set, participants: [{ puuid: 'me-puuid', placement: place, level: 8,
     traits: traits.map(([name, num_units, style]) => ({ name, num_units, style })), units: units.map(([character_id, tier, itemNames = []]) => ({ character_id, tier, itemNames })), augments },
-  { puuid: 'other', placement: 8, level: 5, traits: [], units: [], augments: [] }] }) });
+  ...[1, 2, 3, 4, 5, 6, 7, 8].filter((p) => p !== place).map((p, i) => ({ puuid: 'other' + i, placement: p, level: 5, traits: [], units: [], augments: [] }))] }) });
 const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1], ['DA_18_Mage', 1, 0]], [['DA_18_Xayah', 2, ['DA_InfinityEdge', 'DA_BlueBuff']], ['DA_18_Rakan', 2], ['DA_18_Ahri', 1], ['DA_18_Summon', 1]],
     ['TFT18_Augment_Rich', 'TFT18_Augment_Cluster']),
   tftGame(2, 18, 5, [['DA_18_Solar', 2, 1]], [['DA_18_Xayah', 1, ['DA_InfinityEdge']], ['DA_18_Rakan', 1]], ['TFT18_Augment_Cluster']),
   tftGame(3, 18, 1, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1]], [['DA_18_Rakan', 3], ['DA_18_Ahri', 2]], ['TFT18_Augment_Rich']),
   tftGame(4, 17, 6, [['TFT17_Arcana', 2, 1]], [['TFT17_Ahri', 2]])];
 const L = { calls: [], refused: [] };
+// our server's augment ratings (/riot/tftaug, /riot/mayhem), and what the app sent it: Rich Get Richer's two ids have 30
+// games of Set 18 at 3.33 on average, Cluster too few; Ahri (103) has 40 Mayhem games, 16 with Symphony of War's two ids
+// (Arena's and Mayhem's) and 2 with Mystic Punch. And CommunityDragon's Arena and Mayhem augments
+const RATES = { tftaug: { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } }, 'mayhem?c=103': { n: 40, a: { 79: 10, 1079: 6, 1058: 2 } } };
+const SENT = [];
+const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(method, p) {
   L.calls.push(`${method} ${p}`);
@@ -126,12 +135,16 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
   await ctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', ...cors } }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await ctx.route('**/latest.yml', (r) => r.fulfill({ status: 404, body: '' }));
-  await ctx.route(/127\.0\.0\.1:9004\/(riot|stats)/, (r) => r.fulfill({ status: 404, json: {}, headers: cors }));
+  await ctx.route(/127\.0\.0\.1:9004\/(riot|stats)/, (r) => {
+    const q = r.request().url().split('/riot/')[1];
+    if (r.request().method() === 'POST') { SENT.push([q, JSON.parse(r.request().postData())]); return r.fulfill({ body: 'ok', headers: cors }); }
+    r.fulfill(q && RATES[q] ? { json: RATES[q], headers: cors } : { status: 404, json: {}, headers: cors });
+  });
   await ctx.route(/ddragon\.leagueoflegends\.com/, (r) => {
     const u = r.request().url();
     let m;
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.1', '1.0'], headers: cors });
-    if (u.endsWith('/champion.json')) return r.fulfill({ json: { data: {} }, headers: cors });
+    if (u.endsWith('/champion.json')) return r.fulfill({ json: { data: { Ahri: { id: 'Ahri', key: '103', name: 'Ahri', tags: ['Mage', 'Assassin'], info: { attack: 3, magic: 8 } } } }, headers: cors });
     if ((m = /\/tft-(champion|trait|item|augments)\.json$/.exec(u))) return r.fulfill({ json: { data: DD_TFT[m[1]] }, headers: cors });
     if (u.endsWith('/tft-shop-drop-rates-data.json')) return r.fulfill({ json: { type: 'tft-shop-drop-rates', version: '1.1', data: { Shop: ODDS } }, headers: cors });
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
@@ -141,6 +154,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     const u = r.request().url();
     if (u.endsWith('/plugins/rcp-be-lol-game-data/global/default/v1/tftchampions-teamplanner.json')) return r.fulfill({ json: PLAN, headers: cors });
     if (u.endsWith('/latest/cdragon/tft/en_us.json')) { cdragonLoads++; return r.fulfill({ json: CDRAGON, headers: cors }); }
+    if (u.endsWith('/v1/cherry-augments.json')) return r.fulfill({ json: CHERRY, headers: cors });
     r.fulfill({ status: /\/assets\/characters\/tft18_[a-z_]+\/hud\/tft18_[a-z_]+_square\.tft_set18\.png$/.test(u) ? 200 : 404, body: PNG, contentType: 'image/png', headers: cors });
   });
   await ctx.addInitScript((n) => {
@@ -166,6 +180,16 @@ function drawPick(names) { // a Set 18 augment pick on screenPic, at 1280x720: t
     g.fillStyle = '#f0c040'; g.fillRect(x - 40, 245, 80, 72);
     g.fillStyle = '#1e4628'; g.fillRect(x - 110, 344, 220, 34);
     Object.assign(g, { fillStyle: '#f0e6c8', font: 'bold 20px serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 361);
+  });
+}
+function drawMayhem(names) { // an ARAM: Mayhem pick on screenPic: three dark cards with light names and lines of text under them
+  const g = window.screenPic.getContext('2d');
+  g.fillStyle = '#1a2a3a';
+  g.fillRect(0, 0, 1280, 720);
+  [290, 640, 990].forEach((x, i) => {
+    g.fillStyle = '#05101a'; g.fillRect(x - 140, 60, 280, 440);
+    Object.assign(g, { fillStyle: '#f4ecd8', font: '22px sans-serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 300);
+    Object.assign(g, { font: '13px sans-serif' }).fillText('Gain the Lethal Tempo rune.', x, 360);
   });
 }
 const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout, polling: 100 }).catch(async (err) => {
@@ -364,20 +388,42 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.evaluate(drawPick, ['Rich Get Richer', 'Cluster', 'Gold Destiny']);
     await wait(pc, () => (lpc.augCards() || { names: [] }).names.every(Boolean) && window.lastOverlay.cards, null, 'the three cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => lpc.augCards().names), ['Rich Get Richer', 'Cluster', 'Gold Destiny'], 'Cluster, not Cluster+, and the gold Gold Destiny');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards), [{ x: 0.2859, y: 0.73, t: 'Your average: 1.5 in 2 games', k: 'good' },
-      { x: 0.5, y: 0.73, t: 'Your average: 3.5 in 2 games', k: 'good' }, { x: 0.7133, y: 0.73, t: 'Not in your last 4 games', k: '' }], 'how you placed with each, at the foot of its card');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards), [{ x: 0.2859, y: 0.73, t: 'Tier S · 3.33 average place · 30 games', k: 'good' },
+      { x: 0.5, y: 0.73, t: 'Your average: 3.5 in 2 games', k: 'good' }, { x: 0.7133, y: 0.73, t: 'Not in your last 4 games', k: '' }], 'its tier from Premade players’ games, else how you placed with it, at the foot of its card');
+    assert.deepStrictEqual(SENT.map(([q, b]) => [q, b.g, b.s, b.ps.map((p) => p.p).join(''), b.ps[0].a]), // you first, then the others
+      [['tftaug', 'EUW1_7001', 18, '21345678', ['TFT18_Augment_Rich', 'TFT18_Augment_Cluster']], ['tftaug', 'EUW1_7002', 18, '51234678', ['TFT18_Augment_Cluster']], ['tftaug', 'EUW1_7003', 18, '12345678', ['TFT18_Augment_Rich']],
+        ['tftaug', 'EUW1_7004', 17, '61234578', []]], 'each ranked game’s places and augments sent to our server once');
     assert.strictEqual(await pc.evaluate(() => window.lastOverlay.board), true, 'over the whole screen');
     await pc.evaluate(drawPick, null);
     await wait(pc, () => !window.lastOverlay.cards, null, 'none once the pick is gone');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await wait(pc, () => !window.lastOverlay.tft && !lpc.augCards(), null, 'gone after the game, and the screen no longer read');
+    // ARAM: Mayhem's cards: with its box ticked the app shares the screen in a Mayhem game, Tesseract reads the names
+    // anywhere in the middle while a pick may be up (the start, levels 7, 11 and 15, while dead), and each card says how
+    // many of Ahri's games took it, above its name; none between picks
+    const mayhemAt = (t, dead = false) => pc.evaluate(([t, dead]) => lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'KIWI', t, room: 'g0123456789b', result: '', events: [],
+      me: { champ: 'Ahri', champName: 'Ahri', team: 'ORDER', dead, respawn: 0, hp: 1, speed: 330 }, players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl: 3, k: 0, d: 0, a: 0, cs: 0, items: [] }] }), [t, dead]);
+    await pc.check('#optMayhemAugs');
+    await mayhemAt(20);
+    await wait(pc, () => window.shares === 2, null, 'the screen shared in the Mayhem game (30 s after the last share at most)', 45000);
+    await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
+    await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y * 720 > 240 && c.y * 720 < 290])), // the name's middle is at y 300
+      [['Picked in 40% of Ahri games (40)', true, true], ['Picked in 5% of Ahri games (40)', true, true], ['Picked in 0% of Ahri games (40)', true, true]], 'Symphony of War’s two ids, above each name');
+    await shot(pc, 'mayhem-augment-cards');
+    await mayhemAt(300);
+    await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
+    await pc.evaluate(() => lpc.mayhemSend({ gameId: 9001, platformId: 'EUW1', queueId: 2400, participants: Array.from({ length: 10 }, (_, i) => ({ championId: i ? i : 103, stats: { win: i < 5, playerAugment1: i ? 58 : 1079, playerAugment2: i ? 0 : 1205, playerAugment3: 0 } })) }));
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepStrictEqual(SENT.slice(-1)[0], ['mayhem', { g: 'EUW1_9001', ps: Array.from({ length: 10 }, (_, i) => ({ c: i ? i : 103, w: i < 5 ? 1 : 0, a: i ? [58] : [1079, 1205] })) }], 'a Mayhem game’s champions, wins and augments');
+    await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     // the same boards on Profile's TFT tab
     await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');
     await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await pctx.close();
-    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games, ratings on the augment cards');
+    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games, ratings on TFT’s and ARAM: Mayhem’s augment cards, games sent for them');
 
     // ---- overlay.html puts each card's words at the foot of the card, as shares of the screen
     const ovp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
