@@ -7,7 +7,7 @@ const assert = require('assert');
 
 const ctx = vm.createContext({});
 vm.runInContext(fs.readFileSync(__dirname + '/site/camera-box.js', 'utf8'), ctx);
-const { Tracker, Follower, RING, findIcons, findMinimap } = ctx.CameraBox;
+const { Tracker, Follower, RING, findIcons, findMinimap, iconLike, picLook } = ctx.CameraBox;
 
 let seed = 7;
 const rand = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
@@ -310,10 +310,10 @@ lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, vid
 // of Rayan's icon and six teammates wearing other HUD art, Follower.pick must choose Rayan's.
 {
   const px = new Uint8ClampedArray(bare), spots = [[60, 60], [200, 60], [60, 220], [200, 200], [150, 110], [230, 140]];
-  const put = (sp, x, y) => {
+  const put = (sp, x, y, to = px) => {
     for (let Y = Math.floor(y - 14); Y <= y + 14; Y++) for (let X = Math.floor(x - 14); X <= x + 14; X++) {
       const a = Math.max(0, Math.min(1, 13 - Math.hypot(X - x, Y - y)));
-      if (a) for (let c = 0; c < 3; c++) px[(Y * S + X) * 4 + c] = px[(Y * S + X) * 4 + c] * (1 - a) + sp(X - x, Y - y, c) * a;
+      if (a) for (let c = 0; c < 3; c++) to[(Y * S + X) * 4 + c] = to[(Y * S + X) * 4 + c] * (1 - a) + sp(X - x, Y - y, c) * a;
     }
   };
   put(player, ...ME);
@@ -325,6 +325,26 @@ lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, vid
   const res = f.update(px, S, 100);
   assert(res.by === 'icon' && res.learned && Math.hypot(res.x * S - ME[0], res.y * S - ME[1]) < 2, 'and follows it');
   console.log('pick by name: found Rayan\'s icon among 7');
+
+  // Their jungler (index.html seeJungler): the other team's icons wear a red ring, the red of the towers on Rayan's
+  // minimap. Yasuo in red, among three red and three blue icons with other art, is found by the same picture in red
+  // only, also on a 1080p screen in video colours; the bare minimap's red towers and inhibitors are no icons.
+  const red = (sp) => (u, v, c) => {
+    const [r, g, b] = [0, 1, 2].map((k) => sp(u, v, k));
+    return Math.hypot(u, v) > 10.3 && b > 140 && b - r > 50 && g > 80 && g < b ? [b * 0.91, r * 0.6, r * 0.55][c] : sp(u, v, c);
+  };
+  const foes = new Uint8ClampedArray(bare), look = picLook(yasuo, 128), at = [110, 170];
+  put(red(player), ...at, foes);
+  [0, 1, 2].forEach((k, i) => put(red(mate[k]), ...spots[i], foes));
+  [3, 4, 6].forEach((k, i) => put(mate[k], ...spots[i + 3], foes));
+  assert.strictEqual(findIcons(bare, S, true).length, 0, 'a red icon on the bare minimap');
+  assert.strictEqual(findIcons(foes, S, true).length, 4, 'all four red icons, and no blue one');
+  const jg = iconLike(foes, S, look, true);
+  assert(jg && Math.hypot(jg.x - at[0], jg.y - at[1]) < 2, `found red Yasuo: ${JSON.stringify(jg)}`);
+  assert.strictEqual(iconLike(foes, S, look), null, 'no blue Yasuo');
+  const t = Math.round(S * 0.75), small = videoColours(shrink(foes, 0.75), t, 1), jg2 = iconLike(small, t, look, true);
+  assert(jg2 && Math.hypot(jg2.x - at[0] * 0.75, jg2.y - at[1] * 0.75) < 2, `found red Yasuo at 1080p in video colours: ${JSON.stringify(jg2)}`);
+  console.log('their jungler: found red Yasuo among 7, at both sizes');
 }
 
 console.log('ok');

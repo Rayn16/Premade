@@ -1237,6 +1237,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"> CS counter</label>
             <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
             <label class="check"><input id="optOverlayToasts" type="checkbox"> Popups</label>
+            <label class="check"><input id="optMapNudge" type="checkbox"> Remind me to check the minimap <button class="tip" type="button" popovertarget="t-nudge" aria-label="About the minimap reminder">?</button></label>
+            <label class="check"><input id="optJgCall" type="checkbox"> Call out their jungler <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></label>
           </fieldset>
           <label class="field">Where <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
           <div class="range"><span>Size</span><span></span><input id="optScale" type="range" min="0.7" max="2" step="0.1" aria-label="Overlay size"><output id="scaleOut"></output></div>
@@ -1408,6 +1410,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
 <div id="t-overlay" class="tipbox" popover>A small see-through bubble on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. Press Move it to drag it anywhere on the League screen. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keyboard shortcuts) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS.</div>
+<div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
+<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, no sound. It reads only your minimap from your screen share, so it never knows more than you can see. Summoner's Rift only.</div>
 <div id="t-compact" class="tipbox" popover>While a game is on, this window shrinks to a strip with your mic and who's talking, and grows back when the game ends.</div>
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
@@ -3300,6 +3304,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const res = s.last = s.follower.update(s.px, s.sq.s, performance.now(), allyCam);
         if (res.found) { me = { x: res.x, y: res.y, t: performance.now(), by: res.by, learned: res.learned }; send(posMsg()); }
         if (!document.hidden) preview(src, s.sq, res);
+        seeJungler(s);
       }
       volumes();
     });
@@ -3352,10 +3357,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- your champion by name: Riot's Data Dragon has every champion's picture, and camera-box.js finds the
   // minimap icon that looks most like it. You type it (Find me), or the Windows client knows it from League.
-  async function pickChampion(name, quiet) {
-    const { version, byName } = await ddragon();
-    const id = byName[name.toLowerCase()];
-    if (!id) { if (!quiet) say(`No champion called “${name}”. Pick one from the list.`); return null; }
+  async function picPixels(id, version = ddVersion) { // a champion's Data Dragon picture as 128x128 RGBA
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.src = `${DD}/cdn/${version}/img/champion/${id}.png`;
@@ -3363,9 +3365,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const c = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
     c.canvas.width = c.canvas.height = 128;
     c.drawImage(img, 0, 0, 128, 128);
-    const s = share;
+    return c.getImageData(0, 0, 128, 128).data;
+  }
+  async function pickChampion(name, quiet) {
+    const { version, byName } = await ddragon();
+    const id = byName[name.toLowerCase()];
+    if (!id) { if (!quiet) say(`No champion called “${name}”. Pick one from the list.`); return null; }
+    const pic = await picPixels(id, version), s = share;
     if (!s || !s.px) return null;
-    const got = s.follower.pick(s.px, s.sq.s, c.getImageData(0, 0, 128, 128).data, 128, performance.now());
+    const got = s.follower.pick(s.px, s.sq.s, pic, 128, performance.now());
     if (got && !quiet) { pickedChamp = id; refreshMine(); }
     if (!quiet) say(got ? '' : `Couldn’t see ${name} on your minimap. Make sure your champion is alive and on the map, then try again.`);
     return got;
@@ -3448,8 +3456,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const board = boardNow(), visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!board;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
-    const s = !visible ? { visible: false } : {
-      visible, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, board, theme: look.dark ? look : null,
+    const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
+    const s = !visible && call === null ? { visible: false } : {
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, board: board || (call === null ? null : true), call: call || '', theme: look.dark ? look : null,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -3509,6 +3518,56 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pushOverlay();
   }
   $('moveBtn').addEventListener('click', () => moveOverlay(!overlayEdit));
+  // The minimap reminder (Settings > Overlay), for new players: "Check your minimap" at the top of the screen for 2 s,
+  // every 10 s in your first game with it and a second longer apart each game after, from 1:00 on Summoner's Rift; off
+  // by itself after 20 games. It goes by League's clock alone, never by what happens in the game, so it's no help
+  // Riot's rules bar. Needs app 1.10 for the whole screen. opts.mapNudge: false, or { n: games, room: the last one }.
+  const NUDGE_GAMES = 20;
+  function nudgeNow() { // null without the reminder this game, else whether it shows now
+    const m = opts.mapNudge;
+    if (!m || !league || !/^(CLASSIC|SWIFTPLAY)$/.test(league.mode) || !boardOk()) return null;
+    if (m.room !== league.room) { // a new game: count it, or the last one is done
+      if (m.n >= NUDGE_GAMES) {
+        opts.mapNudge = $('optMapNudge').checked = false;
+        setTimeout(() => notify(`That was ${NUDGE_GAMES} games with the minimap reminder, so it’s off now. Settings > Overlay turns it back on.`, true)); // not inside pushOverlay
+      } else opts.mapNudge = { n: m.n + 1, room: league.room };
+      saveOpts();
+      return nudgeNow();
+    }
+    const t = gameNow();
+    return t >= 60 && t % (9 + m.n) < 2;
+  }
+  $('optMapNudge').checked = !!opts.mapNudge;
+  $('optMapNudge').addEventListener('change', (e) => { opts.mapNudge = e.target.checked && { n: 0, room: '' }; saveOpts(); pushOverlay(); });
+  // Their jungler on your minimap (Settings > Overlay), for new players learning to watch for them: when the other
+  // team's jungler shows up there after 10 s out of sight, the top of the screen says where for 3 s. Text only, and
+  // only from your minimap as your screen shows it: their icon, found by their champion's Data Dragon picture.
+  // share.jg: { id: their Data Dragon id, look (CameraBox.picLook), run: frames in a row seen, seen, call: { text, at } }.
+  function theirJungler() { // by League's positions, else by the jungle pet they carry
+    // ponytail: jungle pets are items 1101 to 1103 (since 2024); if Riot renumbers them, only games with positions find them
+    const pet = (league.players || []).find((p) => p.team !== mine.team && (p.items || []).some(([i]) => i >= 1101 && i <= 1103));
+    const c = champOf((liveList().find((p) => !p.ally && p.pos === 'JUNGLE') || {}).champ) || champOf(pet && pet.champ);
+    return c ? c.id : '';
+  }
+  function seeJungler(s) { // each minimap frame
+    const id = opts.jgCall && league && mine.team && /^(CLASSIC|SWIFTPLAY)$/.test(league.mode) && boardOk() ? theirJungler() : '';
+    if (!s.jg || s.jg.id !== id) {
+      const j = s.jg = { id, look: null, run: 0, seen: -Infinity, call: null };
+      if (id) picPixels(id).then((p) => { j.look = CameraBox.picLook(p, 128); }).catch(() => {});
+    }
+    const j = s.jg, got = j.look && CameraBox.iconLike(s.px, s.sq.s, j.look, true), now = performance.now();
+    if (!got) return void (j.run = 0);
+    if (++j.run < 2) return; // twice in a row, so a passing likeness doesn't count
+    const d = (got.x + got.y) / s.sq.s - 1; // the mid lane runs corner to corner, the blue base bottom left
+    if (now - j.seen > 10000) j.call = { text: Math.abs(d) < 0.06 ? 'Jungler in mid' : d < 0 ? 'Jungler on topside' : 'Jungler on botside', at: now };
+    j.seen = now;
+  }
+  function callNow() { // the line at the top of the screen: null with neither the reminder nor the callout this game, else it or ''
+    const n = nudgeNow(), j = share && share.jg && share.jg.id ? share.jg : null;
+    return n === null && !j ? null : j && j.call && performance.now() - j.call.at < 3000 ? j.call.text : n ? 'Check your minimap' : '';
+  }
+  $('optJgCall').checked = !!opts.jgCall;
+  $('optJgCall').addEventListener('change', (e) => { opts.jgCall = e.target.checked; saveOpts(); });
   const showScale = () => { $('scaleOut').textContent = pct(opts.overlayScale); };
   $('optScale').value = opts.overlayScale;
   showScale();
@@ -5999,7 +6058,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     timelineOf(r.id).then(async (tl) => {
       for (let i = 0; i < 10 && !ddItems; i++) await sleep(300);
       const ok = goodTl(tl), how = await analysisEl(r, ok ? tl : null).catch((e) => { console.error('analysis:', e); return null; });
-      tlBox.replaceChildren(...[how, ...(ok ? [laningEl(r, tl), buysEl(r, tl)] : ['Riot has no timeline for this game.'])].filter(Boolean));
+      tlBox.replaceChildren(...[how, ...(ok ? [laningEl(r, tl), junglerEl(r, tl), buysEl(r, tl)] : ['Riot has no timeline for this game.'])].filter(Boolean));
     });
   }
 
@@ -6100,6 +6159,65 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       t.tBodies[0].append(tr);
     }
     box.querySelector('.tablewrap').append(t);
+    return box;
+  }
+  // Their jungler in the first 14 minutes, to learn what to watch for on the minimap: where they were each minute
+  // (Riot's timeline has everyone's spot once a minute), the deaths of yours they were in on, and where they were
+  // before each. After the game only, like all of How you played.
+  function junglerEl(r, tl) {
+    if (!r.players[r.me] || r.mode !== 'CLASSIC') return null;
+    const ps = r.players.map((p, i) => ({ id: p.pid || i + 1, t: p.team, l: p.l || '', c: p.champ }));
+    fillLanes(ps, tl);
+    const me = ps[r.me], jg = ps.find((p) => p.t !== me.t && p.l === 'JUNGLE'), at = (f) => ((f.participantFrames || {})[jg.id] || {}).position;
+    const path = jg ? tl.frames.filter((f) => f.timestamp >= 60000 && f.timestamp <= 840000 && at(f)) : [];
+    if (path.length < 2) return null;
+    const name = champName(jg.c), side = (pos) => (pos.y > pos.x ? 'the top side' : 'the bottom side'); // Riot's y grows up from the blue base, bottom left
+    const died = tlEvents(tl, 'CHAMPION_KILL').filter((e) => e.victimId === me.id && e.timestamp < 840000 && e.position);
+    const ganks = died.filter((e) => e.killerId === jg.id || (e.assistingParticipantIds || []).includes(jg.id)), start = at(path[0]);
+    const says = [`At ${mmss(path[0].timestamp / 1000)}, ${name} was in ${placeOf(start, me.t)} on ${side(start)}.`];
+    if (died.length) says.push(!ganks.length ? `${name} wasn’t in on ${died.length > 1 ? `any of your ${died.length} deaths` : 'your death'} before 14 minutes.`
+      : `${name} was in on ${ganks.length === died.length ? (died.length > 1 ? `all ${died.length} of your deaths` : 'your death') : `${ganks.length} of your ${died.length} deaths`} before 14 minutes.`);
+    for (const e of ganks) {
+      const f = tl.frames.filter((x) => x.timestamp <= e.timestamp - 30000 && at(x)).pop(); // their last spot at least 30 s before
+      says.push(`${mmss(e.timestamp / 1000)}: ${name} ${e.killerId === jg.id ? 'killed' : 'helped kill'} you in ${placeOf(e.position, me.t)}.${f ? ` At ${mmss(f.timestamp / 1000)} they were in ${placeOf(at(f), me.t)} on ${side(at(f))}.` : ''}`);
+    }
+    if (ganks.length) says.push(`Next game, glance at your minimap every few seconds, and play safe when their jungler shows up near your lane until you see them again.${opts.mapNudge || opts.jgCall ? '' : ' Settings > Overlay can remind you, or call out their jungler when they show up.'}`);
+    // their spot each minute (gold, numbered) and where you died (crosses)
+    const cv = document.createElement('canvas'), g = cv.getContext('2d'), W = 480, xy = (pos) => [(pos.x / MAP) * W, (1 - pos.y / MAP) * W];
+    cv.width = cv.height = W;
+    cv.className = 'fightmap';
+    g.drawImage(rift, 0, 0, W, W);
+    g.strokeStyle = '#f2b630'; // gold, as on the tracker: the Rift behind it is dark in every theme, and red crosses stand out
+    g.lineWidth = 3;
+    g.beginPath();
+    path.forEach((f, i) => g[i ? 'lineTo' : 'moveTo'](...xy(at(f))));
+    g.stroke();
+    g.font = 'bold 12px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (const f of path) {
+      const [x, y] = xy(at(f));
+      g.fillStyle = '#f2b630';
+      g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill();
+      g.fillStyle = '#000';
+      g.fillText(String(Math.round(f.timestamp / 60000)), x, y + 1);
+    }
+    g.strokeStyle = look.bad;
+    g.lineWidth = 4;
+    for (const e of died) { const [x, y] = xy(e.position); g.beginPath(); g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke(); }
+    cv.setAttribute('role', 'img');
+    cv.setAttribute('aria-label', `Where ${name} was each minute for the first 14 minutes, and where you died`);
+    const box = document.createElement('div'), fig = document.createElement('figure'), side2 = document.createElement('div'), ul = document.createElement('ul');
+    box.className = 'analysis';
+    fig.className = 'goldfig';
+    fig.append(cv, Object.assign(document.createElement('figcaption'), { className: 'hint', textContent: `Where ${name} was at each minute (numbers) and where you died (crosses), in the first 14 minutes.` }));
+    ul.className = 'takeaways';
+    ul.append(...says.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
+    side2.append(Object.assign(document.createElement('h3'), { className: 'ph', textContent: `Their jungler, ${name}` }), ul);
+    const duo = document.createElement('div');
+    duo.className = 'duo';
+    duo.append(fig, side2);
+    box.append(duo);
     return box;
   }
   function buysEl(r, tl) {
@@ -8644,7 +8762,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || pushOverlay)(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ['optOverlayBoard', boardOk()]]) {
+  for (const [id, ok] of [['optFront', client && client.front], ['optOverlayBoard', boardOk()], ['optMapNudge', boardOk()], ['optJgCall', boardOk()]]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -8753,6 +8871,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [27, 'October 20: minimap reminders and their jungler', [
+      'New to League? Settings > Overlay can remind you to check your minimap, and call out when the other team’s jungler shows up on it. Both are off until you turn them on.',
+      'Game reports show where their jungler was in the first 14 minutes, and which of your team’s deaths they were in on.',
+    ]],
     [26, 'October 20: voice fixes', [
       'Unplug or switch your headset mid-game and Premade picks up the new mic by itself, so your friends keep hearing you.',
       'Voice that drops after a Wi-Fi blip reconnects as soon as the connection breaks, instead of at a check up to 15 seconds later.',
@@ -8995,6 +9117,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (params.has('debug')) window.lpc = {
     slot: () => slot,
     room: () => room,
+    jungler: (r, tl) => junglerEl(r, tl),
     me: () => ({ ...me, fresh: fresh(me), minimap: share && share.sq, icons: share && share.last ? share.last.icons : [], mine }),
     talk: () => ({ me: myTalk, heat: myHeat.reduce((a, b) => a + b, 0), peers: [...peers.values()].map((p) => p.talk || 0) }),
     peers: () => [...peers].map(([id, p]) => ({

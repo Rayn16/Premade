@@ -7,9 +7,10 @@
 /* League's gold and dark blue, or the app's theme when index.html sends it (theme) */
 :root { --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --gold: #c8aa6e; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --link: #0ac8b9; --talk: #0ac8b9; --good: #3ccf8e; --bad: #ff6b6b; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-body { box-sizing: border-box; padding: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font: 600 14px/1.2 'Segoe UI', system-ui, sans-serif; color: var(--fg); text-shadow: 0 1px 2px #000; user-select: none; }
-body[data-pos="ml"], body[data-pos="mr"] { justify-content: center; }
-body[data-pos="mr"] { align-items: flex-end; }
+body { font: 600 14px/1.2 'Segoe UI', system-ui, sans-serif; color: var(--fg); text-shadow: 0 1px 2px #000; user-select: none; }
+#main { box-sizing: border-box; height: 100%; padding: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+[data-pos="ml"] #main, [data-pos="mr"] #main { justify-content: center; }
+[data-pos="mr"] #main { align-items: flex-end; }
 .pill { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 3px 14px 3px 3px; border: 1px solid var(--gold-line); border-radius: 999px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
 .pic { flex: none; width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--raised); border: 2px solid var(--talk); box-shadow: 0 0 10px var(--talk); color: var(--gold); font: 700 13px/1 Georgia, serif; }
 .pic img { width: 100%; height: 100%; object-fit: cover; }
@@ -28,7 +29,8 @@ body.edit { outline: 2px dashed var(--gold); outline-offset: -2px; background: c
 /* Everyone's rank (board): the whole screen, over League's loading screen. Your team on the left in the top half and
    theirs in the bottom half, the tips for your lane on the right, the middle left to League. Sized by the screen's
    height, like League's own screens; a half cuts off what doesn't fit rather than run into the other. */
-body.board { display: block; padding: 0; font-size: calc(1.25vh * var(--k, 1)); }
+body.board { font-size: calc(1.25vh * var(--k, 1)); }
+.board #main { display: block; padding: 0; }
 .board .stack { position: absolute; top: 1vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; }
 .side { position: absolute; top: 1.2vh; bottom: 1.2vh; left: 0.6vw; width: calc(36vh * var(--k, 1)); display: flex; flex-direction: column; gap: 1.2vh; }
 .half { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.35em; }
@@ -51,10 +53,21 @@ body.board { display: block; padding: 0; font-size: calc(1.25vh * var(--k, 1)); 
 .tipcol { position: absolute; top: 1.2vh; right: 0.6vw; width: calc(36vh * var(--k, 1)); max-height: 97.6vh; overflow: hidden; }
 .tipcol ul { margin: 0.35em 0 0; padding: 0.5em 0.7em 0.5em 1.7em; border: 1px solid var(--gold-line); border-radius: 0.45em; background: color-mix(in srgb, var(--bg) 88%, transparent); font-weight: 500; }
 .tipcol li { margin: 0.3em 0; }
+/* The whole screen for the line at the top alone (full): the rest sits where the small window would be (place) */
+.full #main { position: absolute; width: 300px; height: 360px; overflow: hidden; transform-origin: 0 0; }
+/* The line at the top (the minimap reminder, the jungler callout): in the middle, fading in and out (on); first in the
+   rest over everyone's rank */
+.nudge { padding: 6px 16px 6px 12px; border-color: var(--gold); font-size: 15px; }
+.nudge svg { width: 18px; height: 18px; stroke-linejoin: round; }
+#call { position: absolute; top: 2.5vh; left: 50%; transform: translateX(-50%) scale(var(--k, 1)); transform-origin: 50% 0; opacity: 0; transition: opacity 0.4s; }
+#call.on { opacity: 1; }
+body:not(.full) #call { display: none; }
 button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; border: 1px solid var(--gold); border-radius: 4px; background: var(--accent); color: var(--accent-fg); font: 600 13px/1.2 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
 </style>
 </head>
 <body data-pos="tl">
+<div id="main"></div>
+<div id="call" class="pill nudge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span></span></div>
 <script>
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what Settings picks: the objective timers, kills and gold difference
@@ -63,8 +76,11 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
   // you move it (edit), it shows a frame and a sample. With board (app 1.10) it covers the screen with everyone's rank,
   // their record on their champion and tags, and the tips for your lane, and the rest goes at the top in the middle.
+  // board: true covers the screen for the line at the top alone (call: what it says now, else ''; the minimap reminder
+  // or the jungler callout), which fades in and out in the middle while the rest stays where the small window would be.
   // It takes the app's theme colours (theme: Settings > Look, any but Light), else League's own.
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
+  const main = document.getElementById('main'), call = document.getElementById('call');
   const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
   function pill(name, pic, team) {
     const p = el('pill' + (team === 'enemy' ? ' enemy' : '')), face = document.createElement('span'), n = document.createElement('span');
@@ -108,18 +124,31 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     stack.append(...out);
     return [stack, ...parts];
   }
+  // where the small window would be (client/main.js): 16 px in from the left or right, at the top or in the middle, or
+  // where it was dragged (box: fractions of the screen), on the screen
+  function place(s, k) {
+    const W = innerWidth, H = innerHeight, w = 300 * k, h = 360 * k, b = s.pos === 'custom' && s.box && Number.isFinite(s.box.x) && Number.isFinite(s.box.y) ? s.box : null;
+    const x = b ? b.x * W : s.pos === 'mr' ? W - w - 16 : 16, y = b ? b.y * H : s.pos === 'ml' || s.pos === 'mr' ? (H - h) / 2 : 16;
+    return `left: ${Math.round(Math.min(Math.max(x, 0), W - w))}px; top: ${Math.round(Math.min(Math.max(y, 0), H - h))}px; transform: scale(${k})`;
+  }
   const THEME = ['bg', 'panel', 'raised', 'fg', 'muted', 'gold', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'good', 'bad'];
   window.lpcClient.on('overlay', (s) => {
-    if (!s.visible) return document.body.replaceChildren();
+    if (!s.visible) { call.classList.remove('on'); return main.replaceChildren(); }
     const t = s.theme || {}; // a colour for each, or League's (an empty value takes the page's own back)
     for (const k of THEME) document.documentElement.style.setProperty('--' + k, typeof t[k] === 'string' && CSS.supports('color', t[k]) ? t[k] : '');
+    const full = s.board === true, players = !!s.board && !full, k = Math.min(players ? 1.2 : 2, Math.max(0.7, +s.scale || 1)); // the board fills the screen at 1.2
     document.body.dataset.pos = s.pos === 'mr' || s.pos === 'ml' ? s.pos : 'tl';
-    document.body.classList.toggle('board', !!s.board);
+    document.body.classList.toggle('board', players);
+    document.body.classList.toggle('full', full);
     document.body.style.zoom = s.board ? 1 : s.scale || 1;
-    document.body.style.setProperty('--k', Math.min(s.board ? 1.2 : 2, Math.max(0.7, +s.scale || 1))); // the board fills the screen at 1.2
+    document.body.style.setProperty('--k', k);
     document.body.style.opacity = s.edit ? 1 : Math.min(1, Math.max(0.2, +s.opacity || 1));
     document.body.classList.toggle('edit', !!s.edit);
+    main.style.cssText = full ? place(s, k) : '';
+    if (s.call) call.lastChild.textContent = s.call; // kept while it fades out
+    call.classList.toggle('on', full && !!s.call);
     const out = [];
+    if (s.call && !full) { const n = call.cloneNode(true); n.removeAttribute('id'); out.push(n); }
     if (s.edit) {
       const hint = el('toast', 'Drag this where you want it');
       const done = document.createElement('button');
@@ -153,7 +182,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       out.push(m);
     }
     for (const t of s.toasts || []) out.push(el('toast', String(t)));
-    document.body.replaceChildren(...(s.board ? board(s.board, out) : out));
+    main.replaceChildren(...(players ? board(s.board, out) : out));
   });
 </script>
 </body>
