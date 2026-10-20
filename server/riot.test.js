@@ -195,6 +195,8 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   const eu = await (await get('/riot/champ?c=1103')).json();
   assert.deepEqual(eu.games.map((x) => [x.t, x.m, x.e]), [[1760003001, [1900, 10200, 22, 17000, 10, 85000], [1086, 1254, 1238, 1145, 1117]]], "Europe West's game");
   assert.equal((await get('/riot/champ?c=103', { origin: 'https://evil.example' })).headers.get('access-control-allow-origin'), null, 'other sites are not let in');
+  for (const o of ['https://rayn16.github.io', 'https://league-proxchat.netlify.app']) assert.equal((await get('/riot/champ?c=103', { origin: o })).headers.get('access-control-allow-origin'), o, 'the site on GitHub Pages and on Netlify');
+  assert.equal((await get('/riot/champ?c=103', { origin: 'https://someone.github.io' })).headers.get('access-control-allow-origin'), null, 'not every GitHub Pages site');
 
   // lookups: only the calls on the list, with their own query parameters, as Riot answers them (the counting goes on
   // meanwhile: Korea's on kr and asia, the others' ladders, game lists and EUW1_3001)

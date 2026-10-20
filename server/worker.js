@@ -188,7 +188,7 @@ const riot = (env) => env.RIOT.get(env.RIOT.idFromName('riot'));
 const ROLES = new Set(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']);
 const REGION = { kr: 'asia', jp1: 'asia', euw1: 'europe', eun1: 'europe', tr1: 'europe', ru: 'europe', me1: 'europe', na1: 'americas', br1: 'americas', la1: 'americas', la2: 'americas', oc1: 'sea', sg2: 'sea', tw2: 'sea', vn2: 'sea' };
 const REGIONS = new Set(Object.values(REGION));
-const ORIGIN = /^(https:\/\/([a-z0-9]+--)?league-proxchat\.netlify\.app|http:\/\/(127\.0\.0\.1|localhost)(:\d+)?)$/;
+const ORIGIN = /^(https:\/\/([a-z0-9]+--)?league-proxchat\.netlify\.app|https:\/\/rayn16\.github\.io|http:\/\/(127\.0\.0\.1|localhost)(:\d+)?)$/; // the site on Netlify (older apps) and on GitHub Pages
 const PUUID = '[A-Za-z0-9_-]{60,100}';
 const LOOKUPS = [ // [path, on a region (else a platform), the query parameters it may have]
   [/^\/riot\/account\/v1\/accounts\/by-riot-id\/[^/]{1,200}\/[^/]{1,40}$/, true, []],
