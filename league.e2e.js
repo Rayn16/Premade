@@ -862,7 +862,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Stats', 'TFT', 'Clips', 'Settings', 'Features'], 'the menu in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips', 'Settings', 'Features'], 'the menu in the app');
     await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
     await pc.click('.nav[data-view="pregame"]');
@@ -1208,7 +1208,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.textContent('#gameTips h3'), 'Tips: Ahri against Zed');
     assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
     await shot(pc, 'loading-screen');
-    await pc.click('.nav[data-view="settings"]');
+    await pc.click('.nav[data-view="overlay"]');
     await pc.uncheck('#optOverlayBoard');
     await wait(pc, () => !lpcClient.lastOverlay.board, null, 'no ranks on the loading screen when Settings says so');
     await pc.check('#optOverlayBoard');
@@ -1217,7 +1217,7 @@ const leagueData = (over = {}) => ({
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => !!lpcClient.lastOverlay.board && lpc.toasts().includes('Overlay back on.'), null, 'and back');
     await pc.click('.nav[data-view="game"]');
-    console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane, also on the Game page; off in Settings, hidden by the key');
+    console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane, also on the Game page; off on the Overlay page, hidden by the key');
 
     // ---- in game: everyone scouted, timers, gold, the overlay and the phone
     await league(leagueData());
@@ -1244,8 +1244,9 @@ const leagueData = (over = {}) => ({
     // your lane and CS a minute: on the Game page and the overlay, against your usual on Ahri
     await wait(pc, () => /^Your lane against Zed: level 11 vs 10 · CS 100 vs 90 · kills 3 vs 2\. CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(document.getElementById('laneStats').textContent) && !document.getElementById('laneStats').hidden, null, 'lane stats');
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
+    await wait(pc, () => lpcClient.lastOverlay.lane === 'vs Zed: CS +10 · gold +3.1k', null, 'your lane on the overlay: CS and item gold against Zed');
     // the overlay picker, see-through slider and key
-    await pc.click('.nav[data-view="settings"]');
+    await pc.click('.nav[data-view="overlay"]');
     await pc.uncheck('#optOverlayCs');
     await wait(pc, () => lpcClient.lastOverlay.cs === '' && !!lpcClient.lastOverlay.game, null, 'the CS counter off the overlay');
     await pc.check('#optOverlayCs');
@@ -1384,6 +1385,9 @@ const leagueData = (over = {}) => ({
     await league({ inGame: false, phase: 'EndOfGame' });
     await wait(pc, () => lpc.toasts().some((t) => /^\+18 LP: Gold II · 63 LP$/.test(t)), null, 'the LP toast');
     await wait(pc, () => lpc.toasts().some((t) => /^Game report ready: you scored \d+ \(MVP\)\. See how you played on the Game page\.$/.test(t)), null, 'the report toast');
+    await wait(pc, () => { const a = lpcClient.lastOverlay.after; return !!a && a.title === 'Victory · Ahri' && a.win === true && a.lines[0] === '+18 LP: Gold II · 63 LP' && /^Score \d+ · MVP$/.test(a.lines[1]); }, null, 'the card over League’s end screen');
+    const endCard = await pc.evaluate(() => lpcClient.lastOverlay);
+    assert(endCard.board === true && endCard.parts.after.ay === 't' && /^\d+ clips? saved$/.test(endCard.after.lines[2]), `the whole screen, with the clips saved in the game: ${JSON.stringify(endCard.after)}`);
     const r = await pc.evaluate((id) => lpc.reports()[id], GAME);
     const badges = r.players.filter((p) => p.badge).map((p) => `${p.name} ${p.badge}`);
     assert.deepStrictEqual(badges, ['Rayan#EUW MVP', 'Shadow#EUW ACE']);
@@ -1685,7 +1689,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: a TFT page\s+TFT has a page of its own[\s\S]*October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? Settings > Overlay can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: the Overlay page\s+The overlay has a page of its own[\s\S]*October 20: a TFT page\s+TFT has a page of its own[\s\S]*October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? The Overlay page can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');

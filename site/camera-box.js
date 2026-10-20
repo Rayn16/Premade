@@ -327,5 +327,5 @@ globalThis.CameraBox = (() => {
     return () => { on = false; };
   }
 
-  return { Tracker, Follower, RING, findIcons, iconLook, picLook, lookDiff, iconDiff, iconLike, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, watch };
+  return { Tracker, Follower, RING, PICK_LOOK, findIcons, iconLook, picLook, lookDiff, iconDiff, iconLike, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, watch };
 })();
