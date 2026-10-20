@@ -174,6 +174,7 @@ const LCU_OK = [
   ['POST', /^\/lol-champ-select\/v1\/session\/actions\/\d+\/complete$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/(champion-swaps|position-swaps|pick-order-swaps)\/\d+\/(request|accept|decline|cancel)$/], // trades
   ['POST', /^\/lol-champ-select\/v1\/session\/(bench\/swap\/\d+|my-selection\/reroll)$/], // ARAM's bench and rerolls
+  ['POST', /^\/lol-lobby-team-builder\/champ-select\/v1\/session\/quit$/], // Dodge: leaves champ select, which League counts as a dodge
   ['GET', /^\/lol-matchmaking\/v1\/(ready-check|search)$/],
   ['POST', /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/],
   ['GET', /^\/lol-lobby\/v2\/lobby$/],
