@@ -241,6 +241,15 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const hi = ana.context().hellos;
     assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [] }, { v: 'web', name: 'Ana', riot: [] }], 'a hello when Premade opens, and one with her name');
     assert(/^[0-9a-f-]{36}$/.test(hi[0].id) && hi.every((h) => h.id === hi[0].id) && hi[0].id === await ana.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
+    // turned off in Settings > App, a new name sends nothing; turned on again, a hello at once
+    const rename = (n) => ana.evaluate((n) => { const el = document.getElementById('name'); el.value = n; el.dispatchEvent(new Event('change')); }, n);
+    await ana.evaluate(() => document.getElementById('optHello').click());
+    await rename('Ana B');
+    await rename('Ana');
+    await ana.evaluate(() => document.getElementById('optHello').click());
+    for (let i = 0; i < 50 && hi.length < 3; i++) await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300)); // and nothing more after it
+    assert.deepStrictEqual(hi.map((h) => h.name), ['', 'Ana', 'Ana'], 'no hello while it was off, one when it came back on');
     await ana.evaluate(() => document.getElementById('shareBtn').click()); // stop for now: no minimap is the lobby, where everyone hears everyone
 
     // smart noise removal: the RNNoise files on the site take out a fan-like hiss (pink noise) and keep a voiced

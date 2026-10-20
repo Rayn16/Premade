@@ -1407,6 +1407,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <p class="hint browser-only"><a href="/Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
           <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
+          <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade see I have it: my League accounts, voice name and app version</label>
           <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
@@ -1617,7 +1618,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
-    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
+    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -7140,10 +7141,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   lpAdopt(proMine && acctOf(proMine.n));
   // Who has Premade: when it opens, has another League account or voice name, and on each day it's used, it tells our
   // server (server/worker.js /hello) this device's own random id (lpc-device), the app version ('web' on the website),
-  // your voice name and your accounts' Riot IDs, so whoever runs Premade can see who has it (who.html, with their key)
+  // your voice name and your accounts' Riot IDs, so whoever runs Premade can see who has it (who.html, with their key).
+  // Settings > App can turn it off (opts.hello)
   let myDevice = store.get('lpc-device'), checkedIn = '';
   if (!myDevice) store.set('lpc-device', (myDevice = crypto.randomUUID()));
   function checkIn() {
+    if (!opts.hello) return void (checkedIn = ''); // turned off in Settings > App: nothing goes, and turned on again it says hello at once
     const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: Object.values(accounts).map((a) => a && a.n) });
     const k = body + new Date().toISOString().slice(0, 10); // and again on a new day
     if (k === checkedIn) return;
@@ -9310,12 +9313,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
-    surround: volumes, record: () => client && client.record && client.record(opts.record) }; // what else to redo; pushOverlay for the rest
+    surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn() }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
-    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
+    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
@@ -9432,7 +9435,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [31, 'October 20: who has Premade', [
-      'Our server now keeps a list of who has Premade, for whoever runs it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there. The Privacy Policy in Settings > App has the details.',
+      'Our server now keeps a list of who has Premade, for whoever runs it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there. Settings > App can turn it off, and its Privacy Policy has the details.',
     ]],
     [30, 'October 20: the Overlay page', [
       'The overlay has a page of its own, Overlay in the menu, with everything it can show and a Layout: drag each part anywhere on a picture of your screen and size it, and the rest stays together.',
@@ -9791,7 +9794,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
-      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'Nothing to set up. The Privacy Policy says what’s kept.', '#serverBox'],
+      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'On unless you turn it off: Settings, App, Let whoever runs Premade see I have it. The Privacy Policy says what’s kept.', '#optHello'],
     ]],
   ];
   // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and
