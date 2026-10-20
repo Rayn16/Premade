@@ -166,11 +166,14 @@ export class Stats extends DurableObject {
 // ---- Riot data. Our Riot API key (the secret RIOT_KEY) only lives here, in the Riot object (one for everything).
 // It counts high-elo ranked games for the voice page's popular builds, runes, skill orders, matchups and bans
 // (/riot/champ, /riot/summary): the last 3 days' in full, one Riot call every 15 s on Korea's, Europe West's and
-// North America's ladders in turn, and Korea's last year more lightly (the sweep, a few calls every 15 s). It passes
-// a few read-only calls through for player lookups and server status (/riot/api/<region>/<path>), keeping under our
-// key's limits: 20 calls a second and 100 every 2 minutes, per region. What it keeps of a game is each champion, its
-// role and what it did, with no player in it. The ranks lookups get are kept for each season (/riot/past), since
-// Riot only gives the season being played. /riot/summary also says how much of Cloudflare's free plan it used.
+// North America's ladders in turn, Europe West's and North America's Emerald and Diamond games apart (t=ed), and
+// Korea's last year more lightly (the sweep, a few calls every 15 s). It passes a few read-only calls through for
+// player lookups and server status (/riot/api/<region>/<path>), keeping under our key's limits: 20 calls a second and
+// 100 every 2 minutes, per region. What it keeps of a game is each champion, its role and what it did, with a code
+// for each player that can't be turned back into their account (to find one-tricks), and the name and team of the
+// pro players Leaguepedia lists. The ranks lookups get are kept for each season (/riot/past), since Riot only gives
+// the season being played. /riot/alike says which champions the same high elo players play. /riot/summary also says
+// how much of Cloudflare's free plan it used.
 const riot = (env) => env.RIOT.get(env.RIOT.idFromName('riot'));
 const ROLES = new Set(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']);
 const REGION = { kr: 'asia', jp1: 'asia', euw1: 'europe', eun1: 'europe', tr1: 'europe', ru: 'europe', me1: 'europe', na1: 'americas', br1: 'americas', la1: 'americas', la2: 'americas', oc1: 'sea', sg2: 'sea', tw2: 'sea', vn2: 'sea' };
@@ -198,7 +201,12 @@ const rkVal = ([t, d, lp]) => { const i = TIERS.indexOf(t); return i * 1e5 + (i 
 const DAY = 86400; // seconds
 // what the ladder places count: Master and up by LP, then Diamond I down to Iron IV
 const PLACES = [...['CHALLENGER', 'GRANDMASTER', 'MASTER'].map((t) => `${t} I`), ...TIERS.slice(0, 7).reverse().flatMap((t) => ['I', 'II', 'III', 'IV'].map((d) => `${t} ${d}`))];
+const POOLS = ['kr', 'euw1', 'na1']; // the ladders /riot/alike asks about
 const hash = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+// the Riot IDs (Name#TAG) in a player's soloqueue ids on Leaguepedia, wiki text: bold server names, links, notes in
+// brackets, line breaks
+const riotIds = (s) => [...new Set(String(s || '').replace(/<[^>]*>|'''|\[\[[^\]|]*\||\[\[|\]\]|\([^)]*\)/g, ',').split(/[,;\n•|]|\b[A-Z]{2,4}\d?:/)
+  .map((x) => x.trim().replace(/\s*#\s*/, '#')).filter((x) => /^[^#]{3,16}#[\p{L}\p{N}]{2,5}$/u.test(x)))].slice(0, 5);
 const newer = (a, b) => { const [x, y] = a.split('.').map(Number), [u, v] = (b || '0.0').split('.').map(Number); return x > u || (x === u && y > v); };
 const runesOf = (pk) => { // [primary tree, secondary tree, its six runes, the offense, flex and defense shards]
   const [a, b] = (pk && pk.styles) || [], s = (pk && pk.statPerks) || {};
@@ -226,6 +234,9 @@ export class Riot extends DurableObject {
     // the sweep's lane matchups, for champions by id % 16 (b) and month ('YYYY-MM'): champion -> role -> lane opponent -> [games, wins]
     this.sql.exec('CREATE TABLE IF NOT EXISTS matchups (b INTEGER, m TEXT, v TEXT, PRIMARY KEY (b, m)) WITHOUT ROWID');
     this.sql.exec('CREATE TABLE IF NOT EXISTS ranks (u TEXT, s INTEGER, q TEXT, peak TEXT, last TEXT, at INTEGER, PRIMARY KEY (u, s, q)) WITHOUT ROWID');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS pros (u TEXT PRIMARY KEY, n TEXT, tm TEXT, p TEXT, at INTEGER) WITHOUT ROWID'); // pro players' accounts (pro())
+    this.sql.exec('CREATE TABLE IF NOT EXISTS proids (id TEXT PRIMARY KEY, n TEXT, tm TEXT) WITHOUT ROWID'); // and the Riot IDs still to look up
+    this.sql.exec('CREATE TABLE IF NOT EXISTS pools (u TEXT PRIMARY KEY, c TEXT, at INTEGER) WITHOUT ROWID'); // ladder players' top champions (pool())
     this.calls = {}; // routing value -> times of our calls in the last 2 minutes
     this.until = {}; // routing value -> when Riot lets us call again
     this.ips = new Map(); // lookups each address made in the last 2 minutes
@@ -247,6 +258,14 @@ export class Riot extends DurableObject {
     return r;
   }
   async json(host, path) { const r = await this.riot(host, path); return r.ok ? r.json() : null; }
+  async code(u) { // a player's code: 8 hex digits from their account id and this server's own secret, so it can't be turned back
+    if (typeof u !== 'string') return undefined;
+    let salt = this.salt || this.get('salt');
+    if (!salt) this.put('salt', (salt = crypto.randomUUID()));
+    this.salt = salt;
+    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + u)));
+    return Array.from(h.slice(0, 4), (b) => b.toString(16).padStart(2, '0')).join('');
+  }
   // what this object used of the free plan today (UTC), kept after each turn (an alarm or a call): its request, the
   // rows its SQL read and wrote, w more written (an alarm's next alarm), this write, and how long it ran; with the
   // day before as prev. Every turn has to keep it: the object leaves memory 10 s after its last one.
@@ -267,12 +286,18 @@ export class Riot extends DurableObject {
     if (url.pathname === '/riot/summary') {
       // b and bn: the games each champion was banned in, of the bn games whose bans were counted (old has them too);
       // by: the games counted from each server; from: the oldest day the sweep counted (seconds); on: the day it's on,
-      // [day, players asked, games found, games left]; use: what this object used of the free plan (lim) today
-      const { p, c, b, bn, old, today, total, by, at } = this.sumOf(), sw = this.swOf(), w = sw.w;
+      // [day, players asked, games found, games left]; use: what this object used of the free plan (lim) today; ed:
+      // the same counts for Emerald and Diamond. With more (Settings > Our server): pros, the pro players' accounts
+      // known, from Leaguepedia, last read at lp ({at, ok}); pools, the high elo players /riot/alike goes by (counting
+      // them reads every row, so not for the page's checks every minute)
+      const { p, c, b, bn, old, today, total, by, at } = this.sumOf(), sw = this.swOf(), w = sw.w, e = this.sumOf('ed'), n = (t) => this.sql.exec(`SELECT COUNT(*) AS n FROM ${t}`).one().n;
       return new Response(JSON.stringify({ p, c, b, bn, old, today, total, by: by || { kr: total }, at, from: sw.lo < sw.hi ? sw.lo * DAY : undefined,
-        on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined, use: { ...this.get('use', {}), lim: FREE } }), { headers: json });
+        on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined, use: { ...this.get('use', {}), lim: FREE },
+        ed: { p: e.p, c: e.c, b: e.b, bn: e.bn, old: e.old, today: e.today, total: e.total, by: e.by || {}, at: e.at },
+        ...(url.searchParams.has('more') && { pros: n('pros'), lp: this.get('lp', {}), pools: n('pools') }) }), { headers: json });
     }
-    if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r')), { headers: json });
+    if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r'), url.searchParams.get('t')), { headers: json });
+    if (url.pathname === '/riot/alike') return new Response(this.alike(+url.searchParams.get('c')), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); // it reads every pools row
     if (url.pathname === '/riot/past') return new Response(this.past(url.searchParams.get('u') || ''), { headers: json });
     if (url.pathname === '/riot/places') { const p = url.searchParams.get('p') || ''; return new Response(JSON.stringify(Object.hasOwn(REGION, p) ? this.get(`places:${p}`, {}) : {}), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); }
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
@@ -314,51 +339,70 @@ export class Riot extends DurableObject {
   }
 
   // games and wins for each champion and role (c), and bans (b, bn), this patch and the one before (old); and how
-  // many games were counted, from each server (by)
-  sumOf() { return (this.sum ||= this.get('sum', { p: '', c: {}, old: null, day: '', today: 0, total: 0, at: 0 })); }
-  pt(patch) { // a patch's counts: this patch's (the summary itself), the one before's (old), else null
-    const s = this.sumOf();
+  // many games were counted, from each server (by). t: '' for high elo, 'ed' for Emerald and Diamond
+  sumOf(t = '') { return ((this.sums ||= {})[t] ||= this.get(t ? `sum:${t}` : 'sum', { p: '', c: {}, old: null, day: '', today: 0, total: 0, at: 0 })); }
+  pt(patch, t) { // a patch's counts: this patch's (the summary itself), the one before's (old), else null
+    const s = this.sumOf(t);
     if (newer(patch, s.p)) { s.old = s.p ? { p: s.p, c: s.c, b: s.b, bn: s.bn } : null; Object.assign(s, { p: patch, c: {}, b: {}, bn: 0 }); }
     if (!s.old && newer(s.p, patch)) s.old = { p: patch, c: {}, b: {}, bn: 0 }; // the sweep, which goes back in time, meets the patch before first
     return patch === s.p ? s : s.old && patch === s.old.p ? s.old : null;
   }
-  count(patch, c, role, w) {
-    const t = this.pt(patch), v = t && ((t.c[c] ||= {})[role] ||= [0, 0]);
+  count(patch, c, role, w, t) {
+    const x = this.pt(patch, t), v = x && ((x.c[c] ||= {})[role] ||= [0, 0]);
     if (v) { v[0]++; v[1] += w; }
   }
-  ban(patch, bans) { // a game's bans, each champion once; a game kept from before bans were kept has none
-    const t = Array.isArray(bans) && this.pt(patch);
-    if (!t) return;
-    t.b ||= {};
-    for (const c of bans) t.b[c] = (t.b[c] | 0) + 1;
-    t.bn = (t.bn | 0) + 1;
+  ban(patch, bans, t) { // a game's bans, each champion once; a game kept from before bans were kept has none
+    const x = Array.isArray(bans) && this.pt(patch, t);
+    if (!x) return;
+    x.b ||= {};
+    for (const c of bans) x.b[c] = (x.b[c] | 0) + 1;
+    x.bn = (x.bn | 0) + 1;
   }
-  counted(n, p = 'kr') { // n more games counted, from server p
-    const s = this.sumOf(), by = (s.by ||= { kr: s.total });
+  counted(n, p = 'kr', t = '') { // n more games counted, from server p
+    const s = this.sumOf(t), by = (s.by ||= t ? {} : { kr: s.total });
     if (s.day !== day()) { s.day = day(); s.today = 0; }
     by[p] = (by[p] | 0) + n;
     s.today += n;
     s.total += n;
-    this.put('sum', s);
+    this.put(t ? `sum:${t}` : 'sum', s);
   }
   // a champion's games in a role (its most played role when none is asked for), newest patch first, from every server
-  // the crawl is on, for the page to count builds, runes, skill orders and matchups from; and y, the sweep's games of
-  // Korea's last year (none of them among those games): its games and wins there, and against each lane opponent
-  // (champion id -> [games, wins])
-  champ(c, role) {
+  // the crawl is on, for the page to count builds, runes, skill orders and matchups from (with each player's code, u,
+  // and pro players' [name, team], pro); and y, the sweep's games of Korea's last year (none of them among those
+  // games): its games and wins there, and against each lane opponent (champion id -> [games, wins]). t=ed: Emerald and
+  // Diamond's games instead, without a year
+  champ(c, role, t) {
     if (!Number.isInteger(c) || c <= 0 || c > 1e5) return '{"games":[]}';
-    const s = this.sumOf(), mine = s.c[c] || (s.old && s.old.c[c]) || {}, y = { n: 0, w: 0, vs: {} };
+    t = t === 'ed' ? t : '';
+    const s = this.sumOf(t), mine = s.c[c] || (s.old && s.old.c[c]) || {}, y = { n: 0, w: 0, vs: {} };
     if (!ROLES.has(role)) role = Object.keys(mine).sort((a, b) => mine[b][0] - mine[a][0])[0] || 'MIDDLE';
-    for (const { v } of this.sql.exec('SELECT v FROM matchups WHERE b = ?', c % 16)) for (const [o, [n, w]] of Object.entries((JSON.parse(v)[c] || {})[role] || {})) { const x = (y.vs[o] ||= [0, 0]); x[0] += n; x[1] += w; y.n += n; y.w += w; }
-    const rows = this.sql.exec('SELECT patch, at, win, opp, gd, d FROM games WHERE champ = ? AND role = ? ORDER BY at DESC', c, role).toArray();
-    return `{"patch":${JSON.stringify(s.p)},"role":"${role}","roles":${JSON.stringify(s.c[c] || {})},"y":${JSON.stringify(y)},"games":[${rows.map((x) => `{"p":${JSON.stringify(x.patch)},"t":${x.at},"w":${x.win},"o":${x.opp},"g":${x.gd ?? 'null'},${x.d.slice(1)}`).join(',')}]}`;
+    if (!t) for (const { v } of this.sql.exec('SELECT v FROM matchups WHERE b = ?', c % 16)) for (const [o, [n, w]] of Object.entries((JSON.parse(v)[c] || {})[role] || {})) { const x = (y.vs[o] ||= [0, 0]); x[0] += n; x[1] += w; y.n += n; y.w += w; }
+    const rows = this.sql.exec('SELECT patch, at, win, opp, gd, d FROM games WHERE champ = ? AND role = ? AND slot >= ? AND slot < ? ORDER BY at DESC', c, role, t ? KEEP : 0, t ? 2 * KEEP : KEEP).toArray();
+    return `{"t":"${t}","patch":${JSON.stringify(s.p)},"role":"${role}","roles":${JSON.stringify(s.c[c] || {})},"y":${JSON.stringify(y)},"games":[${rows.map((x) => `{"p":${JSON.stringify(x.patch)},"t":${x.at},"w":${x.win},"o":${x.opp},"g":${x.gd ?? 'null'},${x.d.slice(1)}`).join(',')}]}`;
+  }
+  // the champions the same high elo players play (pool()): of the n players (of all those asked) with c among their 8
+  // champions with the most mastery points, how many have each other one, 3 or more, the closest first (the most of
+  // them for how many players have it at all: cosine similarity)
+  // ponytail: reads every pools row (about 3,000) per ask, fine for friends; count each champion's list once a day if
+  // the free plan's reads ever run short
+  alike(c) {
+    const n = new Map(), both = new Map();
+    let of = 0;
+    if (Number.isInteger(c) && c > 0) for (const { c: s } of this.sql.exec('SELECT c FROM pools')) {
+      const cs = s.split(',').map(Number), has = cs.includes(c);
+      of++;
+      for (const x of cs) { n.set(x, (n.get(x) | 0) + 1); if (has && x !== c) both.set(x, (both.get(x) | 0) + 1); }
+    }
+    const list = [...both].filter(([, k]) => k >= 3).sort((a, b) => b[1] / Math.sqrt(n.get(b[0])) - a[1] / Math.sqrt(n.get(a[0]))).slice(0, 10);
+    return JSON.stringify({ n: n.get(c) | 0, of, list });
   }
   // the days the sweep has done: lo up to (not with) hi, in days since 1970; li, the next ladder player it asks; w, the
   // day it's on
   swOf() { const d = Math.floor(Date.now() / 864e5) - 3; return (this.sw ||= this.get('sweep', { lo: d, hi: d, li: 0 })); }
 
-  // Every 15 s: a step of the crawl, then a turn of the sweep and of the ladder places unless the crawl just read a
-  // timeline. A turn only has 10 ms of CPU time on the free plan, and a timeline is a big answer to read.
+  // Every 15 s: a step of the crawl, then, unless the crawl just read a big answer (a timeline or eight ladder lists), a
+  // turn of the sweep, the ladder places, the champion pools and the pro players. A turn only has 10 ms of CPU time on
+  // the free plan.
   async alarm() {
     if (!this.env.RIOT_KEY) return;
     const t = Date.now();
@@ -368,26 +412,29 @@ export class Riot extends DurableObject {
       try { big = await this.crawl(); } catch (e) { console.log('crawl:', e && e.message); }
       if (!big) try { await this.sweep(); } catch (e) { console.log('sweep:', e && e.message); }
       if (!big) try { await this.places(); } catch (e) { console.log('places:', e && e.message); }
+      if (!big) try { await this.pool(); await this.pro(); } catch (e) { console.log('pools and pros:', e && e.message); }
     } finally { this.use(t, 1); }
   }
   // the crawl's state: the day's steps, whose turn it is (n) and each server's (p): the next ladder player, when its
   // ladder was asked for, the games to look at and the game it's on (Korea's, from before the others, was on its own)
   crawlOf() { const s = this.get('crawl', {}); return s.p ? s : { day: s.day, steps: s.steps | 0, n: 0, p: s.q ? { kr: { li: s.li, lat: s.lat, q: s.q, cur: s.cur } } : {} }; }
   ladder(p) { return ((this.lads ||= {})[p] ||= this.get(LADDER(p), [])); } // a server's Challenger and Grandmaster players
-  // One step each time, mostly one Riot call, on the servers in CRAWL in turn (Korea, Europe West and North America):
-  // its Challenger and Grandmaster ladders every 6 hours, then a ladder player's ranked solo games of the last 3 days,
-  // a game nobody counted yet, or that game's timeline. Only full Summoner's Rift games count (15 minutes or more,
-  // every role filled once a team).
+  // One step each time, mostly one Riot call, on the servers in CRAWL in turn (Korea, Europe West and North America,
+  // then Europe West's and North America's Emerald and Diamond, :ed): its ladder every 6 hours (Challenger and
+  // Grandmaster with the pro players Leaguepedia lists there, or the first 205 players of each Emerald and Diamond
+  // division), then a ladder player's ranked solo games of the last 3 days, a game nobody counted yet, or that game's
+  // timeline. Only full Summoner's Rift games count (15 minutes or more, every role filled once a team).
   // ponytail: 4,000 steps a day at most (all servers), so the free plan's daily writes stay mostly free for the voice
   // rooms; the meter (use) shows how much is used
   async crawl() {
-    const all = (this.st ||= this.crawlOf()), ps = (this.env.CRAWL || 'kr,euw1,na1').split(','), p = ps[all.n++ % ps.length], r = REGION[p];
+    // ponytail: the high elo ladders twice a round, so they keep 3/4 of the day's steps and Emerald and Diamond's 1/4
+    const all = (this.st ||= this.crawlOf()), ps = (this.env.CRAWL || 'kr,euw1,na1,kr,euw1,na1,euw1:ed,na1:ed').split(','), p = ps[all.n++ % ps.length], [pl, t = ''] = p.split(':'), r = REGION[pl];
     if (all.day !== day()) { all.day = day(); all.steps = 0; }
-    if (all.steps >= 4000 || !this.room(p, 50) || !this.room(r, 50)) return;
+    if (all.steps >= 4000 || !this.room(pl, 50) || !this.room(r, 50)) return;
     all.steps++;
     const st = (all.p[p] ||= { li: 0, lat: 0, q: [], cur: null }), lad = this.ladder(p);
     this.seen ||= new Set(this.get('seen', []));
-    if (st.cur) { await this.timeline(r, p, st); return true; }
+    if (st.cur) { await this.timeline(r, pl, st); return true; }
     while (st.q.length) {
       const id = st.q.shift();
       if (this.seen.has(id)) continue;
@@ -395,32 +442,37 @@ export class Riot extends DurableObject {
       for (const x of this.seen) { if (this.seen.size <= 6000) break; this.seen.delete(x); }
       this.put('seen', [...this.seen]);
       this.put('crawl', all);
-      return this.match(r, id, st);
+      return this.match(r, id, st, t);
     }
     if (!lad.length || Date.now() - st.lat > 6 * 3600e3) {
-      const lads = await Promise.all(['challenger', 'grandmaster'].map((t) => this.json(p, `/lol/league/v4/${t}leagues/by-queue/RANKED_SOLO_5x5`)));
-      const ids = lads.flatMap((l) => (l && Array.isArray(l.entries) ? l.entries : []).map((e) => e && e.puuid).filter((x) => typeof x === 'string'));
+      const lists = t ? ['EMERALD', 'DIAMOND'].flatMap((x) => ['I', 'II', 'III', 'IV'].map((d) => `/lol/league/v4/entries/RANKED_SOLO_5x5/${x}/${d}`))
+        : ['challenger', 'grandmaster'].map((x) => `/lol/league/v4/${x}leagues/by-queue/RANKED_SOLO_5x5`);
+      const lads = await Promise.all(lists.map((x) => this.json(pl, x)));
+      const ids = lads.flatMap((l) => (Array.isArray(l) ? l : l && Array.isArray(l.entries) ? l.entries : []).map((e) => e && e.puuid).filter((x) => typeof x === 'string'));
       st.lat = Date.now();
-      if (ids.length) this.put(LADDER(p), (this.lads[p] = ids));
-      return this.put('crawl', all);
+      if (ids.length) this.put(LADDER(p), (this.lads[p] = t ? ids : [...new Set([...ids, ...this.sql.exec('SELECT u FROM pros WHERE p = ?', pl).toArray().map((x) => x.u)])]));
+      this.put('crawl', all);
+      return !!t; // eight lists are a big answer to read
     }
     const who = lad[st.li++ % lad.length];
     const ids = await this.json(r, `/lol/match/v5/matches/by-puuid/${who}/ids?queue=420&type=ranked&count=20&startTime=${Math.floor(Date.now() / 1000) - 3 * 86400}`);
     if (Array.isArray(ids)) st.q = [...st.q, ...ids.filter((id) => typeof id === 'string' && !this.seen.has(id) && !st.q.includes(id))].slice(-300);
     this.put('crawl', all);
   }
-  async match(r, id, st) {
+  async match(r, id, st, t) { // t: the ladder's, 'ed' for Emerald and Diamond
     const g = gameOf(await this.json(r, `/lol/match/v5/matches/${id}`));
     if (!g) return;
-    st.cur = { id, patch: g.patch, at: g.at, len: g.len, b: g.bans, ps: g.ps.map((x) => ({ id: x.participantId, c: x.championId, r: x.teamPosition, t: x.teamId, w: x.win ? 1 : 0,
+    const us = await Promise.all(g.ps.map((x) => this.code(x.puuid))), pros = {};
+    for (const x of this.sql.exec(`SELECT u, n, tm FROM pros WHERE u IN (${g.ps.map(() => '?')})`, ...g.ps.map((x) => String(x.puuid)))) pros[x.u] = [x.n, x.tm];
+    st.cur = { id, t, patch: g.patch, at: g.at, len: g.len, b: g.bans, ps: g.ps.map((x, i) => ({ id: x.participantId, c: x.championId, r: x.teamPosition, t: x.teamId, w: x.win ? 1 : 0,
       s: [x.summoner1Id, x.summoner2Id], rn: runesOf(x.perks), x: [x.kills, x.deaths, x.assists, x.totalMinionsKilled + x.neutralMinionsKilled],
-      m: [x.goldEarned, x.visionScore, x.totalDamageDealtToChampions].map((v) => v | 0) })) };
+      m: [x.goldEarned, x.visionScore, x.totalDamageDealtToChampions].map((v) => v | 0), u: us[i], pro: pros[x.puuid] })) };
     this.put('crawl', this.st);
   }
   // what each player bought (undone buys taken out) and levelled, their gold, CS and XP at 10 minutes against their
-  // lane opponent's, the champions with (a) and against (e) them, for the draft's scores, and m, for the game
-  // reports: the game's length (s), their gold, vision score and damage to champions, and their team's kills and
-  // damage to champions
+  // lane opponent's, the champions with (a) and against (e) them, for the draft's scores, m, for the game reports: the
+  // game's length (s), their gold, vision score and damage to champions, and their team's kills and damage to
+  // champions; and their code (u) and, for a pro player, [name, team] (pro)
   async timeline(r, p, st) {
     const g = st.cur;
     st.cur = null;
@@ -436,19 +488,19 @@ export class Riot extends DurableObject {
     }
     const f10 = frames.find((f) => Math.abs(f.timestamp - 600000) <= 45000);
     const at10 = (id) => { const q = (f10 && f10.participantFrames && f10.participantFrames[id]) || {}; return [q.totalGold | 0, (q.minionsKilled | 0) + (q.jungleMinionsKilled | 0), q.xp | 0]; };
-    const slot = hash(g.id) % KEEP;
+    const slot = (g.t ? KEEP : 0) + (hash(g.id) % KEEP); // Emerald and Diamond's games take the places from KEEP up
     for (const x of g.ps) {
       const o = g.ps.find((y) => y.t !== x.t && y.r === x.r), [gx, cx, xx] = at10(x.id), [go, co, xo] = at10(o.id);
       const mates = g.ps.filter((y) => y.t === x.t), team = (f) => mates.reduce((n, y) => n + f(y), 0); // a game from before m was kept has none
       const d = JSON.stringify({ s: x.s, rn: x.rn, b: (buys[x.id] || []).slice(0, 60), k: (skills[x.id] || []).slice(0, 18), x: x.x, l: f10 ? [cx - co, xx - xo] : null,
-        a: mates.filter((y) => y !== x).map((y) => y.c), e: g.ps.filter((y) => y.t !== x.t).map((y) => y.c), m: g.len && x.m ? [g.len, ...x.m, team((y) => y.x[0] | 0), team((y) => y.m[2])] : undefined });
+        a: mates.filter((y) => y !== x).map((y) => y.c), e: g.ps.filter((y) => y.t !== x.t).map((y) => y.c), m: g.len && x.m ? [g.len, ...x.m, team((y) => y.x[0] | 0), team((y) => y.m[2])] : undefined, u: x.u, pro: x.pro });
       this.sql.exec('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (champ, role, slot) DO UPDATE SET patch = excluded.patch, at = excluded.at, win = excluded.win, opp = excluded.opp, gd = excluded.gd, d = excluded.d',
         x.c, x.r, slot, g.patch, g.at, x.w, o.c, f10 ? gx - go : null, d);
-      this.count(g.patch, x.c, x.r, x.w);
+      this.count(g.patch, x.c, x.r, x.w, g.t);
     }
-    this.ban(g.patch, g.b);
-    this.sumOf().at = g.at;
-    this.counted(1, p);
+    this.ban(g.patch, g.b, g.t);
+    this.sumOf(g.t).at = g.at;
+    this.counted(1, p, g.t);
   }
 
   // The sweep: Korea's ladder's ranked solo games of the last year (SWEEP_DAYS), where the crawl only asks for the
@@ -516,7 +568,8 @@ export class Riot extends DurableObject {
     const pl = (this.pl ||= this.get('placing', { at: {}, cur: null })), now = Date.now();
     if (now < (pl.wait || 0)) return;
     if (!pl.cur) {
-      const p = (this.env.CRAWL || 'kr,euw1,na1').split(',').filter((x) => !(now - (pl.at[x] || 0) < 864e5)).sort((a, b) => (pl.at[a] || 0) - (pl.at[b] || 0))[0];
+      const p = [...new Set((this.env.CRAWL || 'kr,euw1,na1').split(',').map((x) => x.split(':')[0]))] // a server once, whichever of its ladders the crawl takes
+        .filter((x) => !(now - (pl.at[x] || 0) < 864e5)).sort((a, b) => (pl.at[a] || 0) - (pl.at[b] || 0))[0];
       if (!p) return;
       pl.cur = { p, i: 0, lo: 0, hi: 0, n: 0, size: 0, d: {}, lp: [] }; // lo: the last page with players so far (n of them), hi: the first without
     }
@@ -541,5 +594,53 @@ export class Riot extends DurableObject {
       pl.cur = null;
     }
     if (asked) this.put('placing', pl);
+  }
+
+  // Champions to try (/riot/alike): the 8 champions with the most mastery points of each Challenger and Grandmaster
+  // player, under their code, 500 players a day in turn (everyone in about a week); a player not asked about for 30
+  // days is left out
+  async pool() {
+    const s = this.get('pool', { day: '', n: 0, i: 0 }), now = Math.round(Date.now() / 1000), p = POOLS[s.i % POOLS.length], lad = this.ladder(p), who = lad[Math.floor(s.i / POOLS.length) % lad.length];
+    if (s.day !== day()) { Object.assign(s, { day: day(), n: 0 }); this.sql.exec('DELETE FROM pools WHERE at < ?', now - 30 * DAY); }
+    if (s.n >= 500 || !this.room(p, 40)) return;
+    s.i++;
+    if (who) s.n++;
+    this.put('pool', s);
+    const m = who && (await this.json(p, `/lol/champion-mastery/v4/champion-masteries/by-puuid/${who}/top?count=8`));
+    const cs = Array.isArray(m) ? m.map((x) => x && x.championId).filter((x) => Number.isInteger(x) && x > 0) : [];
+    if (cs.length) this.sql.exec('INSERT INTO pools VALUES (?, ?, ?) ON CONFLICT (u) DO UPDATE SET c = excluded.c, at = excluded.at', await this.code(who), cs.join(), now);
+  }
+  // Pro players: the Riot IDs (Name#TAG) Leaguepedia's player list (lol.fandom.com, CC BY-SA) has for players on a
+  // team, read once a week, 100 players a step (more is too much to store in a turn's 10 ms of CPU time) and 2,000 at
+  // most; then one Riot ID a step becomes their account id and the server they play League on, so the crawl takes their
+  // games with the ladder's and keeps their name and team on their part of a game. An account Leaguepedia stops
+  // listing is let go two weeks later.
+  async pro() {
+    const now = Date.now(), [q] = this.sql.exec('SELECT id, n, tm FROM proids LIMIT 1').toArray();
+    if (q) {
+      const h = ['americas', 'europe', 'asia'].find((x) => this.room(x, 30)); // accounts are on every region
+      if (!h) return;
+      this.sql.exec('DELETE FROM proids WHERE id = ?', q.id);
+      const [name, tag] = q.id.split('#'), a = await this.json(h, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`), u = a && typeof a.puuid === 'string' ? a.puuid : '';
+      const g = u && (await this.json(h, `/riot/account/v1/region/by-game/lol/by-puuid/${u}`)), p = String((g && g.region) || '').toLowerCase();
+      if (p in REGION) this.sql.exec('INSERT INTO pros VALUES (?, ?, ?, ?, ?) ON CONFLICT (u) DO UPDATE SET n = excluded.n, tm = excluded.tm, p = excluded.p, at = excluded.at', u, q.n, q.tm, p, Math.round(now / 1000));
+      return;
+    }
+    const s = this.get('lp', { at: 0, off: 0 });
+    if (!s.off && now - s.at < 7 * 864e5) return;
+    if (!s.off) s.from = now;
+    const qs = new URLSearchParams({ action: 'cargoquery', format: 'json', tables: 'Players', fields: 'Player,Team,SoloqueueIds', limit: '100', offset: String(s.off),
+      where: s.plain ? 'Team != ""' : 'SoloqueueIds LIKE "%#%" AND Team != ""' }); // plain: in case Leaguepedia refuses the #
+    const j = await fetch(`${this.env.LEAGUEPEDIA || 'https://lol.fandom.com/api.php'}?${qs}`, { headers: { 'user-agent': 'Premade/1.0 (https://github.com/Rayn16/Premade)' } })
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const rows = j && Array.isArray(j.cargoquery) ? j.cargoquery.map((x) => x && x.title).filter((x) => x && typeof x.Player === 'string') : null;
+    for (const x of rows || []) for (const id of riotIds(x.SoloqueueIds)) this.sql.exec('INSERT OR IGNORE INTO proids VALUES (?, ?, ?)', id, x.Player.slice(0, 40), String(x.Team || '').slice(0, 40));
+    if (rows && rows.length >= 100 && s.off < 1900) s.off += 100;
+    else if (!rows && j && j.error && !s.plain) s.plain = true; // asked again without it on the next step
+    else {
+      if (rows) this.sql.exec('DELETE FROM pros WHERE at < ?', Math.round(s.from / 1000) - 14 * DAY);
+      Object.assign(s, { at: rows ? now : now - 6 * 864e5, off: 0, ok: !!rows }); // not answering: again tomorrow
+    }
+    this.put('lp', s);
   }
 }
