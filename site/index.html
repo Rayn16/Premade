@@ -159,7 +159,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 #map { aspect-ratio: 1; display: block; border-radius: 8px; border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 6%, transparent); }
 .cardbox { display: grid; gap: 10px; }
 .players { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.player { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-areas: "pic main mute" "vol vol vol"; gap: 10px 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; background: var(--panel); }
+.player { display: grid; grid-template-columns: 48px minmax(8em, 1fr) auto; grid-template-areas: "pic main mute" "vol vol vol"; gap: 10px 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; background: var(--panel); }
 .player[data-team="ally"] { border-left-color: #4aa8ff; }
 .player[data-team="enemy"] { border-left-color: #ff5c5c; }
 .pic { grid-area: pic; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--raised); border: 2px solid var(--gold-line); font: 700 18px/1 var(--display); color: var(--gold); transition: box-shadow 0.15s, border-color 0.15s; }
@@ -168,8 +168,10 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .player[data-dead] .pic { filter: grayscale(1) brightness(0.7); }
 .pmain { grid-area: main; display: grid; gap: 2px; min-width: 0; }
 .pname { display: flex; align-items: center; gap: 8px; font-weight: 600; overflow-wrap: anywhere; }
+.crown { display: inline-flex; color: var(--best); }
+.crown svg { width: 16px; height: 12px; fill: currentColor; }
 .pstate { color: var(--muted); font-size: 13px; }
-.acts { grid-area: mute; display: flex; gap: 6px; }
+.acts { grid-area: mute; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; } /* the host's extra buttons wrap rather than squeeze the name */
 .pvol { grid-area: vol; display: grid; grid-template-columns: auto minmax(0, 1fr) 3.4em; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
 .pvol output { font: 500 12px/1 var(--mono); text-align: right; }
 .me { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
@@ -453,6 +455,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
 .quizq { font: 600 18px/1.35 var(--body); color: var(--gold-hi); }
 .quizimg { width: 96px; height: 96px; border-radius: 8px; border: 2px solid var(--gold-line); }
+.quizimg.close { width: 160px; height: 160px; object-fit: cover; }
 .quizopts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 8px; }
 .quizopts .btn { line-height: 1.3; text-align: left; }
 .quizopts .btn[data-s="picked"] { border-color: var(--gold); opacity: 1; }
@@ -714,7 +717,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </header>
           <p id="phase" class="phase" role="status"></p>
           <div id="modeRow" class="moderow">
-            <label class="field">Game mode <select id="modeSel"><option value="classic">Classic</option><option value="legends">Legends</option><option value="immersive">Immersive</option><option value="gibberish">Gibberish</option><option value="swap">Voice swap</option><option value="chaos">Chaos</option></select></label>
+            <label class="field">Game mode <select id="modeSel"><option value="classic">Classic</option><option value="legends">Legends</option><option value="immersive">Immersive</option><option value="gibberish">Gibberish</option><option value="swap">Voice swap</option><option value="showdown">Showdown</option><option value="chaos">Chaos</option></select></label>
             <button class="tip" type="button" popovertarget="t-mode" aria-label="About game modes">?</button>
             <span id="swapOpts" class="moderow" hidden>
               <label class="field">Swap with <select id="swapWith"><option value="any">Anyone</option><option value="team">Own team only</option><option value="other">Other team only</option></select></label>
@@ -723,6 +726,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <label class="check"><input id="swapPitch" type="checkbox"> Disguise voices</label>
             </span>
             <p id="modeNote" class="hint"></p>
+          </div>
+          <div id="guessBox" class="stack" hidden>
+            <p class="hint">Guess the voice: who’s really talking from each spot? Each right guess is a point at the reveal.</p>
+            <div id="guessRows" class="moderow"></div>
           </div>
           <section id="readyBox" class="panel" aria-labelledby="h-ready" hidden>
             <h2 id="h-ready" class="ph">Ready check</h2>
@@ -762,6 +769,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <button id="rolesBtn" class="btn" type="button">Role roulette</button>
               <button id="quizBtn" class="btn" type="button">Queue quiz</button>
               <button id="draftBtn" class="btn" type="button">Mock draft</button>
+              <button id="mvpBtn" class="btn" type="button">MVP vote</button>
             </div>
             <p id="gamesNote" class="hint"></p>
             <div id="teamsBox" class="duo" hidden></div>
@@ -773,7 +781,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <div id="quizBox" class="stack" hidden>
               <p id="quizHead" class="hint"></p>
               <p id="quizQ" class="quizq"></p>
-              <img id="quizImg" class="quizimg" alt="The champion to name" hidden>
+              <img id="quizImg" class="quizimg" alt="The picture this question is about" hidden>
               <div id="quizOpts" class="quizopts"></div>
               <ol id="quizScores" class="plain"></ol>
               <div class="toolbar"><button id="quizStop" class="btn small" type="button" hidden>End the quiz</button><button id="quizClose" class="btn small" type="button" hidden>Close</button></div>
@@ -786,6 +794,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <div id="draftGrid" class="champgrid"></div>
               </div>
               <div class="toolbar"><button id="draftAgain" class="btn small" type="button" hidden>Draft again</button><button id="draftStop" class="btn small" type="button">Close</button></div>
+            </div>
+            <div id="mvpBox" class="stack" hidden>
+              <p id="mvpHead" class="phase"></p>
+              <div id="mvpOpts" class="quizopts"></div>
+              <div><button id="mvpClose" class="btn small" type="button" hidden>Close</button></div>
             </div>
             <div id="awardsBox" class="stack" hidden>
               <h3 class="ph">Last game’s awards</h3>
@@ -1378,8 +1391,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Players are at full volume up to two thirds of it, then fade to silent at the edge. It only changes what you hear.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
-<div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back.</div>
-<div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app.</div>
+<div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
+<div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of about 32, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't.</div>
@@ -1403,7 +1416,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions, answer trades and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found” on the phone and it gets a notification even with its screen off or the page closed (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
-<div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
+<div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists (titles, pictures, abilities, splash art close-ups, stories with the name blanked out, items and their costs), where fast right answers score most; it ends when the host's League finds a match. <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
@@ -1475,6 +1488,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const peers = new Map();               // peer id -> { slot, name, conns, call, audio, pos, muted, user, vol, row, chip, ... }
   let muted = false, pttDown = false, mySpokeAt = -Infinity;
   let allyCam = false; // F2 to F5 held: League's camera is on a teammate (Windows app 1.13+)
+  let hm = { n: 0, s: [] }, hmBy = -1; // the mics the host muted for everyone (slots), numbered like rm, and whose list it is
+  let mv = { n: 0, s: -1, name: '' }, mvBy = -1; // the last game's MVP (slot and name), who wears the crown, from the host
   let league = null;  // League's own data on the game going on, from the Windows client (client/main.js summary): { mode, me, room, result }
   let mine = { champ: '', team: '', dead: false, respawn: 0 }; // what the others are told about us
   let pickedChamp = ''; // the champion you named with Find me
@@ -1490,7 +1505,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const dist = (pos) => Math.hypot(me.x - pos.x, me.y - pos.y) * MAP; // game units from you
   const nameOf = (p) => p.name || `Player ${p.slot + 1}`;
   const teamOf = (p) => (!mine.team || !p.team ? '' : p.team === mine.team ? 'ally' : 'enemy');
-  const micOn = () => !!mic && !muted && (!keys.ptt || pttDown);
+  const hostMuted = (s) => hm.s.includes(s);
+  const nextN = (n) => Math.max(n + 1, Date.now()); // numbers the host's updates, so the newest wins even after its page reloads
+  const micOn = () => !!mic && !muted && !hostMuted(slot) && (!keys.ptt || pttDown);
   const myTalking = () => micOn() && performance.now() - mySpokeAt < 400;
   // Where you are in League, for everyone's status window and for hearing: in a game when League's game data says so or
   // your minimap is tracked; loading when League's client says the game started but there's no game data yet.
@@ -1515,20 +1532,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (fresh(me) && fresh(at)) return clamp((range - dist(at)) / (range / 3));
     return inGameNow() || playsNow(p) ? 0 : 1;
   }
+  // Showdown: you and one enemy alone together, nobody else alive within 800 units of either of you, so everyone else
+  // fades and you hear only each other. It needs the teams, so League's data on both sides.
+  const DUEL = 800;
+  let duelWith = null, duelAt = -Infinity;
+  function showdownFoe() {
+    if (!peers.size || !has('showdown') || !fresh(me) || mine.dead || !mine.team) return null;
+    const live = [...peers.values()].filter((p) => fresh(p.pos) && !p.dead && p.team), near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) * MAP < DUEL;
+    const close = live.filter((p) => near(me, p.pos)), [foe] = close;
+    return close.length === 1 && teamOf(foe) === 'enemy' && !live.some((p) => p !== foe && near(foe.pos, p.pos)) ? foe : null;
+  }
   function volumes() {
+    const foe = showdownFoe();
+    if (foe && foe !== duelWith && performance.now() - duelAt > 20000) { duelAt = performance.now(); notify(`Showdown: just you and ${nameOf(foe)}.`, true); }
+    duelWith = foe;
     for (const p of peers.values()) {
       const at = heardAt(p), known = fresh(me) && fresh(at);
       p.vol = volumeFor(p, at);
+      p.faded = !!foe && p !== foe;
       p.muffle = known ? Terrain.muffle(me, at) : 0;
       p.bush = known && Terrain.bushed(me, at);
       p.pan = known ? Math.max(-0.8, Math.min(0.8, ((at.x - me.x) * MAP) / range)) : 0;
       p.far = known && opts.echo ? clamp(dist(at) / range) : 0; // 0 next to you, 1 at the edge of your range
-      p.out = p.muted ? 0 : p.vol * (1 - 0.5 * p.muffle) * p.user;
+      p.out = p.muted || hostMuted(p.slot) || p.faded ? 0 : p.vol * (1 - 0.5 * p.muffle) * p.user;
       p.scrambled = has('gibberish') && teamOf(p) === 'enemy';
       const now = ac.currentTime;
       p.clear.gain.setTargetAtTime(p.scrambled ? 0 : 1, now, 0.05);
       p.scr.out.gain.setTargetAtTime(p.scrambled ? 2.5 : 0, now, 0.05);
-      p.gain.gain.setTargetAtTime(p.out, now, 0.05);
+      p.gain.gain.setTargetAtTime(p.out, now, p.faded ? 0.4 : 0.05); // a showdown fades the others out slowly
       p.lp.frequency.setTargetAtTime(20000 * Math.pow(600 / 20000, p.muffle), now, 0.05); // 20 kHz clear, 600 Hz fully muffled
       p.hp.frequency.setTargetAtTime(20 * Math.pow(15, p.far), now, 0.1); // the bass goes: 20 Hz close by, 300 Hz at the edge
       // where the voice comes from: with 3D sound its direction on the minimap; else left or right as far as pan says
@@ -1567,13 +1598,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const li = document.createElement('li');
     li.className = 'player';
     li.dataset.slot = p.slot;
-    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="200" step="5" value="100"><output>100%</output></label>';
+    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="200" step="5" value="100"><output>100%</output></label>';
     li.querySelector('.mute').addEventListener('click', (e) => {
       p.muted = !p.muted;
       e.currentTarget.setAttribute('aria-pressed', String(p.muted));
       volumes();
     });
     li.querySelector('.kick').addEventListener('click', () => removePlayer(id));
+    li.querySelector('.hmute').addEventListener('click', () => hostMute(p));
     li.querySelector('.help').addEventListener('click', () => openHelp(id));
     li.querySelector('.watch').addEventListener('click', () => watchFriend(p));
     li.querySelector('.pvol input').addEventListener('input', (e) => {
@@ -1604,6 +1636,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     p.gain.disconnect();
     p.row.remove();
     p.chip.remove();
+    // the host's mute goes with them once they're gone for good, so whoever takes their slot next isn't muted
+    if (isHost() && hostMuted(p.slot)) setTimeout(() => { if (isHost() && hostMuted(p.slot) && !slotted(p.slot)) { takeHostMute({ n: nextN(hm.n), s: hm.s.filter((s) => s !== p.slot) }, slot); send(meMsg()); } }, left ? 0 : 30000);
     if (left && p.hello) gone(nameOf(p));
     else if (!quiet && p.hello) leftLater(nameOf(p));
     render();
@@ -1653,6 +1687,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function stateText(p) {
     if (!p.call || !p.audio.srcObject) return 'Connecting voice…';
     if (p.health === 'bad') return 'Bad connection: their voice may cut out';
+    if (hostMuted(p.slot)) return 'Muted for everyone by the host';
+    if (p.faded) return 'Faded out: you’re in a showdown';
     if (p.muted) return 'Muted by you';
     const dead = p.dead ? `Dead${p.respawn ? `, back in ${p.respawn} s` : ''}. ` : '';
     // the other team: no distance or direction (the map hides them too), only what you'd hear anyway
@@ -1669,6 +1705,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function renderPlayer(p) {
     const name = nameOf(p), r = p.row, dot = r.querySelector('.dot'), kick = r.querySelector('.kick');
     r.querySelector('.nm').textContent = name + (p.slot === hostSlot() ? ' (host)' : '');
+    r.querySelector('.crown').hidden = !crowned(p);
     dot.dataset.h = p.health;
     dot.title = HEALTH[p.health] || 'Connecting';
     dot.setAttribute('aria-label', dot.title);
@@ -1676,6 +1713,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     r.querySelector('.help').setAttribute('aria-label', `What's wrong with ${name}'s setup`);
     kick.hidden = hostSlot() !== slot;
     kick.setAttribute('aria-label', 'Remove ' + name + ' from the room');
+    const hmb = r.querySelector('.hmute');
+    hmb.hidden = hostSlot() !== slot;
+    hmb.textContent = hostMuted(p.slot) ? 'Unmute for all' : 'Mute for all';
+    hmb.setAttribute('aria-pressed', String(hostMuted(p.slot)));
+    hmb.setAttribute('aria-label', `${hostMuted(p.slot) ? 'Unmute' : 'Mute'} ${name}’s mic for everyone`);
     r.querySelector('.pvol input').setAttribute('aria-label', 'Volume for ' + name);
     const pl = r.querySelector('.plol'), lt = lolText(p), tier = p.lol && p.lol.rk ? p.lol.rk[0] : '', pk = (emblems[tier] || '') + lt;
     if (pl.dataset.key !== pk) { pl.dataset.key = pk; pl.textContent = lt; if (lt) pl.prepend(emblem(tier)); }
@@ -1736,9 +1778,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- status bar
   function renderStatus() {
     const mb = $('muteBtn');
-    mb.dataset.state = muted ? 'muted' : !keys.ptt ? 'on' : pttDown ? 'talk' : 'ptt';
+    mb.dataset.state = muted || hostMuted(slot) ? 'muted' : !keys.ptt ? 'on' : pttDown ? 'talk' : 'ptt';
     mb.setAttribute('aria-pressed', String(muted));
-    mb.lastChild.textContent = muted ? 'Muted' : !keys.ptt ? 'Mic on' : pttDown ? 'Talking' : `Push to talk: ${keyName(keys.ptt)}`;
+    mb.lastChild.textContent = hostMuted(slot) ? 'Muted by the host' : muted ? 'Muted' : !keys.ptt ? 'Mic on' : pttDown ? 'Talking' : `Push to talk: ${keyName(keys.ptt)}`;
     $('sbRoom').hidden = !peer;
     $('sbCode').textContent = room;
     const [h, text] = !peer ? ['', 'Not in a room'] : peer.disconnected ? ['bad', 'Reconnecting to the server…'] : peer.open ? ['good', 'Connected'] : ['ok', 'Connecting…'];
@@ -1853,19 +1895,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }, 100);
 
   // ---- messages between players: {t:'hi', name, key} on connecting (key: proof of the room's password, see below),
-  // when the name changes and every 5 s; then {t:'me', champ, team, dead, respawn, fx, range, ready, rm, sw} on being
+  // when the name changes and every 5 s; then {t:'me', champ, team, dead, respawn, fx, range, ready, rm} on being
   // let in, when it changes and every 5 s (fx: the effects on your voice; range: your hearing range; ready: your setup
-  // for the ready check; rm and sw: the room's game mode and voice swap, passed on by everyone so newcomers get them),
+  // for the ready check; rm: the room's game mode as you have it, which counts only from the host, see takeMode),
   // vq: your voice connection setting, Normal, Faster or Less data (see callPeer),
   // {t:'face', img} when it changes, {t:'pos', x, y} on every tracked frame, {t:'talk', s, g} every 5 s,
-  // {t:'chat', text}, {t:'ready?'} for a ready check, and {t:'bye'} when leaving. The host sends {t:'lock', key,
-  // remove} and {t:'removed'}, and its 'me' adds the room games' teams (tm) and roles (ro); the quiz and the mock
-  // draft have messages of their own (room games, below).
+  // {t:'chat', text}, {t:'ready?'} for a ready check, {t:'guess'} to the host for Guess the voice, and {t:'bye'} when
+  // leaving. The host sends {t:'lock', key, remove} and {t:'removed'}, and its 'me' adds the voice swap (sw), the room
+  // games' teams (tm) and roles (ro), the mics it muted for everyone (hm) and the last game's MVP (mv); the quiz, the
+  // mock draft and the MVP vote have messages of their own (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
   const meMsg = () => ({
     t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(),
-    ...(sw.n && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
+    ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
+    ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }),
   });
   let faceSent = '';
   let teams = { n: 0, a: [], b: [] }, roles = { n: 0, map: {} }; // room games: the host's balanced teams and roles
@@ -1886,7 +1930,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return;
     }
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
-    if (/^(quiz|quizA|quizR|quizEnd|draft|draftA|draftEnd)$/.test(m.t)) return gameMsg(p.slot, m);
+    if (m.t === 'guess') return takeGuess(p.slot, m);
+    if (/^(quiz|quizA|quizR|quizEnd|draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
       if (!roomKey) notify(`${nameOf(p)} locked the room`);
@@ -1911,9 +1956,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.st = Object.hasOwn(STATUS, m.st) ? m.st : '';
       p.min = Number.isFinite(m.min) ? Math.max(0, Math.min(300, Math.floor(m.min))) : 0;
       p.lol = lolOf(m.lol);
-      takeMode(m.rm);
-      takeSwap(m.sw);
-      if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); }
+      takeMode(m.rm, p.slot);
+      takeSwap(m.sw, p.slot);
+      if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeMvp(m.mv, p.slot); }
       if (p.champ) ddSoon();
     }
     if (m.t === 'face' && typeof m.img === 'string' && m.img.startsWith('data:image/jpeg;base64,') && m.img.length < 12000) p.face = m.img;
@@ -1935,9 +1980,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const pending = new Map(); // peer id -> { conns, early: what they sent before their hi checked out, call }
   const hostSlot = () => Math.min(slot, ...[...peers.values()].map((p) => p.slot)); // the host: lowest slot, normally whoever made the room
   const hex = (b) => Array.from(new Uint8Array(b), (v) => v.toString(16).padStart(2, '0')).join('');
-  // ponytail: the proof is a hash of the password and both ids, so it's no use to anyone else, but a stranger could
-  // still try every 6-letter password against one offline; fine among friends, a longer password if that ever matters
+  // ponytail: the proof is a hash of the password and both ids, so it's no use to anyone else, but whoever gets one could
+  // try every 6-letter password against it offline. Our server passes nothing to anyone without the password (serverKey,
+  // below), so a stranger can't get one; fine among friends, a longer password if that ever matters
   const proof = async (from, to) => (roomKey ? hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${roomKey}|${from}|${to}`))) : '');
+  // Our server checks it too (server/worker.js): each time your connection to it opens you send a hash of the password
+  // you know ('' for none). In a locked room it passes nothing between you and the others until that matches, and
+  // turns you away if it doesn't (error 'invalid-key'). The host sends it when locking, with out: whom it removed.
+  const serverKey = async () => (roomKey ? hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`premade|${room}|${roomKey}`))) : '');
+  const keyTo = (p, key, out) => { if (p && p.open) p.socket.send({ type: 'LOCK', payload: out ? { key, out } : { key } }); };
+  async function toServer(out) { const p = peer, key = await serverKey(); if (p === peer) keyTo(p, key, out); }
   const welcome = (c) => { c.send(meMsg()); if (faceSent) c.send({ t: 'face', img: faceSent }); if (fresh(me)) c.send(posMsg()); };
   // The voice call's own settings, for your side of it. Either of you on Less data: 60 ms packets (fewer packets, so
   // much less overhead) at 16 kbps, and nothing sent while silent (DTX), both ways. You on Faster: your friends send you
@@ -2016,6 +2068,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!peer || roomKey || hostSlot() !== slot) return;
     roomKey = newCode(6);
     send({ t: 'lock', key: roomKey });
+    toServer();
     notify('Room locked. Friends who join now need the invite link or the password.', true);
     keyChanged();
   });
@@ -2025,11 +2078,30 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!p || hostSlot() !== slot || !confirm(`Remove ${nameOf(p)} from the room? The room gets a new password, so they can't come back.`)) return;
     roomKey = newCode(6);
     for (const [qid, q] of peers) for (const c of q.conns) c.send(qid === id ? { t: 'removed' } : { t: 'lock', key: roomKey, remove: id });
+    toServer(id);
     const cs = [...p.conns];
     drop(id, true);
     setTimeout(() => cs.forEach((c) => c.close()), 1000); // once the message is out
     notify(`You removed ${nameOf(p)}. The room has a new password.`, true);
     keyChanged();
+  }
+  // The host mutes a noisy mic for everyone (a fan, a TV, loud keys): everyone's page silences that player, and the
+  // player's own page switches their mic off and says why. hm rides in the host's 'me' message.
+  function takeHostMute(h, from) {
+    if (!h || typeof h !== 'object' || !Number.isInteger(h.n) || h.n < 1 || (h.n <= hm.n && from === hmBy) || !slotsOk(h.s)) return;
+    const was = hostMuted(slot);
+    hmBy = from;
+    hm = { n: h.n, s: [...new Set(h.s)] };
+    if (hostMuted(slot) !== was) notify(hostMuted(slot) ? 'The host muted your mic for everyone: something in the background, like a fan, a TV or loud keys, was coming through. You still hear everyone, and the host can unmute you.' : 'The host unmuted your mic.', true);
+    applyMic();
+    volumes();
+    render();
+  }
+  function hostMute(p) {
+    if (!isHost()) return;
+    takeHostMute({ n: nextN(hm.n), s: hostMuted(p.slot) ? hm.s.filter((s) => s !== p.slot) : [...hm.s, p.slot] }, slot);
+    send(meMsg());
+    notify(hostMuted(p.slot) ? `You muted ${nameOf(p)}’s mic for everyone. They see why.` : `You unmuted ${nameOf(p)}’s mic.`, true);
   }
   // A new call replaces the old one, which is how a player who rejoined gets voice again.
   function useCall(call) {
@@ -2271,10 +2343,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => ['spree' + n, { name: 'Killing spree', pitch: 1 - 0.025 * n, lo: 1.6 * n, gain: 1 + 0.04 * n, echo: [0.08, 0.05 * n, 0.05 * n] }])), // bigger each kill
     baron: { name: 'Baron', pitch: 0.8, lo: 8, echo: [0.09, 0.3, 0.3], gain: 1.1 },           // deep and booming
     elder: { name: 'Elder', crackle: 0.6, drive: 0.5, hi: 3, echo: [0.06, 0.15, 0.15] },     // fiery, crackling
+    herald: { name: 'Herald', pitch: 0.88, lo: 6, ring: [55, 0.2], echo: [0.12, 0.25, 0.3] }, // a big metal shell
+    grubs: { name: 'Voidgrubs', hi: 2, ring: [70, 0.3], mod: [0.004, 0.0015, 7, 0.2, 0.8, 0.5] }, // buzzing, a bit alien
     steal: { name: 'Steal', echo: [0.14, 0.3, 0.45] },                                      // a cocky echo
     river: { name: 'River', lp: 3800, mod: [0.007, 0.0025, 1.2, 0.2, 0.6, 0.5] },           // a bit watery
     ghost: { name: 'Ghost', pitch: 1.04, hp: 400, mod: [0.012, 0.0008, 0.25, 0.7, 0.3, 0.8], echo: [0.35, 0.45, 0.4] }, // hollow, spooky
     speed: { name: 'Speed', mod: [0.003, 0.0026, 0.5, 0.75, 0.7, 0.7] },                    // a whoosh (flanger)
+    inhib: { name: 'Inhibitor', pitch: 0.9, drive: 0.3, ring: [60, 0.35] },                 // a super minion
+    tower: { name: 'Tower', crackle: 0.25, lo: 6, echo: [0.15, 0.3, 0.35] },                // crumbling stone
     multi: { name: 'Multikill', pitch: 0.75, lo: 12, gain: 1.25, echo: [0.18, 0.5, 0.5] },  // a boom
     ace: { name: 'Ace', hp: 150, echo: [0.3, 0.55, 0.55] },                                 // a stadium
     win: { name: 'Victory', hi: 4, gain: 1.05, echo: [0.25, 0.45, 0.45] },                  // a cheering echo
@@ -2337,6 +2413,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const buff = (what, s) => !mine.dead && ev.some((e) => e.e === what && e.team === team && e.alive && e.t > died && t - e.t < s);
         if (buff('baron', 180)) out.push('baron');
         if (buff('elder', 150)) out.push('elder');
+        if (buff('herald', 90)) out.push('herald');
+        if (buff('grubs', 90)) out.push('grubs');
+        // an enemy tower or inhibitor your team took (of: whose it was), for everyone on the team
+        const took = (what, s) => ev.some((e) => e.e === what && e.of && e.of !== team && t - e.t < s);
+        if (took('inhib', 20)) out.push('inhib');
+        if (took('tower', 10)) out.push('tower');
         const drakes = ev.filter((e) => e.e === 'dragon' && e.team === team);
         if (drakes.length >= 4) out.push(SOULS[drakes[3].type]); // the fourth dragon brings the soul
         const kills = ev.filter((e) => e.e === 'kill' && e.me && !e.on && e.t > died).length;
@@ -2505,10 +2587,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     room = code;
     roomKey = cleanKey(key);
     prefix = `lolprox-${room}-`;
+    let key0 = '';
     try {
       say('Waiting for your microphone…');
       if (!raw) await getMic();
       say('Joining the room…');
+      key0 = await serverKey();
       [peer, slot] = await claimSlot();
     } catch (err) {
       peer = null;
@@ -2524,6 +2608,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     joinedAt = performance.now();
     $('key').hidden = true;
     setHash();
+    keyTo(peer, key0); // before dialling anyone, so a locked room lets you in right away
     peer.on('connection', adopt);
     peer.on('call', (call) => {
       if (!inRoom(call.peer)) return call.close();
@@ -2533,8 +2618,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (pd.call) pd.call.close();
       pd.call = call; // answered once they're let in
     });
-    peer.on('error', (err) => { if (err.type !== 'peer-unavailable') console.warn('PeerJS:', err.type, err.message); });
-    peer.on('open', () => { say(''); render(); });
+    peer.on('error', (err) => {
+      if (err.type === 'invalid-key') return lockedOut(); // our server turned your password away
+      if (err.type !== 'peer-unavailable') console.warn('PeerJS:', err.type, err.message);
+    });
+    peer.on('open', () => { say(''); toServer(); render(); }); // back after a dropped connection
     for (let s = 0; s < SLOTS; s++) dial(s);
     say('');
     if (!auto) view('voice');
@@ -2549,6 +2637,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     room = prefix = roomKey = '';
     rm = { ...MODE0 };
     sw = { ...SW0 };
+    rmBy = swBy = hmBy = -1;
+    guessed = new Map();
+    guessTot = {};
+    myGuess = { n: 0, g: {} };
+    hm = { n: 0, s: [] };
     resetGames();
     $('readyBox').hidden = true;
     slot = -1;
@@ -2566,6 +2659,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     old.disconnect(); // frees your slot on the room server now
     setTimeout(() => old.destroy(), 300); // lets the goodbye go out
     history.replaceState(null, '', location.pathname + location.search);
+    applyMic(); // a mic the host muted is yours again
     render();
   }
   $('createBtn').addEventListener('click', () => joinRoom(newCode()));
@@ -2661,34 +2755,40 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   });
   // ---- game modes: the host picks one for the room. Legends and Immersive change your own voice for everyone (from
   // League's data and your minimap), Gibberish scrambles the other team for you, Voice swap moves every voice to
-  // someone else's spot, and Chaos is Legends, Immersive and Gibberish at once. rm is numbered (n) so everyone keeps
-  // the newest; everyone passes it on, so newcomers get it.
-  // ponytail: any player could send a newer rm, not only the host; fine among friends
-  const MODES_ON = { legends: ['legends'], immersive: ['immersive'], gibberish: ['gibberish'], swap: ['swap'], chaos: ['legends', 'immersive', 'gibberish'] };
+  // someone else's spot, Showdown fades everyone else when you and one enemy are alone together, and Chaos is
+  // Legends, Immersive and Gibberish at once. Only the host's rm counts: it's numbered (n) so the newest wins, and a
+  // new host's counts whatever its number. A host who just came in (the old one back, say) takes the room's mode from
+  // whoever's there, so it doesn't reset to Classic.
+  const MODES_ON = { legends: ['legends'], immersive: ['immersive'], gibberish: ['gibberish'], swap: ['swap'], showdown: ['showdown'], chaos: ['legends', 'immersive', 'gibberish'] };
   const MODE_TEXT = {
     classic: 'Proximity chat, nothing else.',
-    legends: 'Voices change with the game: Baron, Elder, dragon soul, killing sprees, steals, Aces and the result. Needs the desktop app.',
+    legends: 'Voices change with the game: Baron, Elder, dragon soul, Herald, Voidgrubs, towers, inhibitors, killing sprees, steals, Aces and the result. Needs the desktop app.',
     immersive: 'Hollow and spooky while dead, watery in the river, a whoosh when really fast. Dead and fast need the desktop app.',
     gibberish: 'The other team comes out as scrambled nonsense. Needs the desktop app, to know the teams.',
     swap: 'Every voice comes from someone else’s spot on the map.',
+    showdown: 'When you and one enemy are alone near each other, everyone else fades, so you hear only each other. Needs the desktop app, to know the teams.',
     chaos: 'Legends, Immersive and Gibberish at once. Needs the desktop app.',
   };
   const MODE0 = { n: 0, mode: 'classic', with: 'any', every: 3, deaths: true, pitch: true };
-  let rm = { ...MODE0 };
+  let rm = { ...MODE0 }, rmBy = -1; // the room's mode, and whose it is (a slot)
   const has = (part) => (MODES_ON[rm.mode] || []).includes(part);
-  function takeMode(r) {
-    if (!r || typeof r !== 'object' || !Number.isInteger(r.n) || r.n <= rm.n || !Object.hasOwn(MODE_TEXT, r.mode)) return;
+  // from: the slot it came from
+  function takeMode(r, from) {
+    if (!r || typeof r !== 'object' || !Number.isInteger(r.n) || r.n < 1 || !Object.hasOwn(MODE_TEXT, r.mode)) return;
+    const back = !rm.n && hostSlot() === slot && performance.now() - joinedAt < 10000; // a host who just came in
+    if (!back && (from !== hostSlot() || (r.n <= rm.n && from === rmBy))) return;
     const was = rm.mode;
+    rmBy = from;
     rm = { n: r.n, mode: r.mode, with: ['any', 'team', 'other'].includes(r.with) ? r.with : 'any', every: Math.max(1, Math.min(5, Math.round(r.every) || 3)), deaths: r.deaths !== false, pitch: r.pitch !== false };
     if (rm.mode === was) return volumes();
-    if (rm.mode === 'swap') sw = { ...sw, map: {}, pitch: {}, next: 0 }; // the host shuffles afresh
+    if (rm.mode === 'swap') { sw = { ...sw, map: {}, pitch: {}, next: 0 }; guessed = new Map(); guessTot = {}; } // the host shuffles afresh, and the guessing starts over
     notify(`Game mode: ${$('modeSel').querySelector(`[value="${rm.mode}"]`).textContent}`, true);
     applyFx();
     volumes();
   }
   function setMode(patch) {
     if (!peer || hostSlot() !== slot) return render();
-    takeMode({ ...rm, ...patch, n: rm.n + 1 });
+    takeMode({ ...rm, ...patch, n: nextN(rm.n) }, slot);
     send(meMsg());
   }
   $('modeSel').addEventListener('change', (e) => setMode({ mode: e.target.value }));
@@ -2706,6 +2806,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const el of $('modeRow').querySelectorAll('select, input')) el.disabled = !host;
     $('swapOpts').hidden = rm.mode !== 'swap';
     $('modeNote').textContent = MODE_TEXT[rm.mode] + (left ? ` Next reshuffle in ${mmss(left)}.` : '') + (host ? '' : ' The host picks the mode.');
+    renderGuess();
   }
 
   // ---- voice swap: every voice comes from someone else's spot (heardAt). The host reshuffles every few minutes, when
@@ -2713,28 +2814,78 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // reshuffle, and each reshuffle reveals who was behind each spot. Disguise: everyone pitches their own voice up or
   // down a little, as the shuffle says (applyFx). sw.map: slot -> the slot whose spot their voice comes from;
   // sw.next: when it reshuffles, on this page's clock.
-  const SW0 = { n: 0, map: {}, pitch: {}, at: 0, next: 0, warned: true };
-  let sw = { ...SW0 };
+  const SW0 = { n: 0, map: {}, pitch: {}, sc: {}, at: 0, next: 0, warned: true };
+  let sw = { ...SW0 }, swBy = -1; // the shuffle, and whose it is (only the host's counts, as with rm)
   const swapOn = () => has('swap') && sw.n > 0;
   const slotted = (s) => [...peers.values()].find((q) => q.slot === s);
   const spotOf = (p) => (swapOn() && Number.isInteger(sw.map[p.slot]) ? sw.map[p.slot] : p.slot);
   const heardAt = (p) => { const s = spotOf(p); return s === slot ? me : (slotted(s) || p).pos; }; // a spot whose player left: their own
   // the talking glow goes on the spot a voice comes from, not on who's talking, until the reveal
   const shownTalking = (q) => (swapOn() ? [...peers.values()].some((p) => p.talking && spotOf(p) === q.slot) : q.talking);
-  function takeSwap(m) {
-    if (!m || typeof m !== 'object' || !Number.isInteger(m.n) || m.n <= sw.n || !m.map || typeof m.map !== 'object') return;
-    const map = {}, pitch = {}, old = sw, now = performance.now();
+  function takeSwap(m, from) {
+    if (!m || typeof m !== 'object' || !Number.isInteger(m.n) || m.n < 1 || from !== hostSlot() || (m.n <= sw.n && from === swBy) || !m.map || typeof m.map !== 'object') return;
+    if (m.n === sw.n) { swBy = from; return; } // the same shuffle, from a new host: nothing to reveal yet
+    const map = {}, pitch = {}, sc = {}, old = sw, now = performance.now();
     for (const [k, v] of Object.entries(m.map)) if (/^\d$/.test(k) && Number.isInteger(v) && v >= 0 && v < SLOTS) map[k] = v;
     for (const [k, v] of Object.entries(m.pitch || {})) if (/^\d$/.test(k) && Number.isFinite(v)) pitch[k] = Math.min(1.3, Math.max(0.75, v));
-    sw = { n: m.n, map, pitch, at: now, next: now + Math.min(600000, Math.max(0, +m.left || 0)), warned: false };
-    if (has('swap') && now - old.at > 8000) reveal(old.map);
+    for (const [k, v] of Object.entries(m.sc || {})) if (/^\d$/.test(k) && Array.isArray(v) && v.length === 2 && v.every((x) => Number.isInteger(x) && x >= 0)) sc[k] = v;
+    swBy = from;
+    sw = { n: m.n, map, pitch, sc, at: now, next: now + Math.min(600000, Math.max(0, +m.left || 0)), warned: false };
+    if (has('swap') && now - old.at > 8000) reveal(old.map, sc);
     applyFx();
     volumes();
   }
-  function reveal(map) {
+  // sc: Guess the voice's scores for that round, slot -> [right guesses, right in all]
+  function reveal(map, sc) {
     const spot = (s) => (s === slot ? 'Your spot' : slotted(s) ? `${nameOf(slotted(s))}’s spot` : '');
     const lines = [...peers.values()].filter((p) => Number.isInteger(map[p.slot]) && map[p.slot] !== p.slot && spot(map[p.slot])).map((p) => `${spot(map[p.slot])} was ${nameOf(p)}`);
+    const pts = Object.entries(sc).map(([s, v]) => [+s, ...v]).filter(([s]) => s === slot || slotted(s)).sort((a, b) => b[1] - a[1] || b[2] - a[2]);
+    const who = (s) => (s === slot ? 'you' : nameOf(slotted(s))), [lead] = [...pts].sort((a, b) => b[2] - a[2]);
+    if (pts.length) lines.push(`Guess the voice, right this round: ${pts.map(([s, r]) => `${who(s)} ${r}`).join(', ')}.${lead[2] ? ` ${lead[0] === slot ? 'You lead' : `${who(lead[0])} leads`} with ${lead[2]} in all.` : ''}`);
     if (lines.length) notify(`Voice swap reveal:\n${lines.join('\n')}`, true);
+  }
+  // Guess the voice: while voices are swapped, everyone can guess who's really behind each spot's voice. Guesses go to
+  // the host, which counts them at each reshuffle (a point for each right one; the spot with your own voice doesn't
+  // count) and sends the scores with the next shuffle (sc), so everyone's reveal shows them.
+  let guessed = new Map(), guessTot = {}, myGuess = { n: 0, g: {} }; // the host's: slot -> { n, g: spot -> slot } and points in all; your guesses
+  function takeGuess(from, m) {
+    if (!isHost() || !swapOn() || m.n !== sw.n || !m.g || typeof m.g !== 'object') return;
+    const g = {};
+    for (const [k, v] of Object.entries(m.g)) if (/^\d$/.test(k) && Number.isInteger(v) && v >= 0 && v < SLOTS) g[k] = v;
+    guessed.set(from, { n: m.n, g });
+  }
+  function scoreGuesses() {
+    const behind = Object.fromEntries(Object.entries(sw.map).map(([s, spot]) => [spot, +s])), sc = {};
+    for (const [from, { n, g }] of guessed) {
+      if (n !== sw.n) continue;
+      const right = Object.entries(g).filter(([spot, s]) => behind[spot] !== from && behind[spot] === s).length;
+      guessTot[from] = (guessTot[from] || 0) + right;
+      sc[from] = [right, guessTot[from]];
+    }
+    guessed = new Map();
+    return sc;
+  }
+  function guess(spot, s) {
+    if (myGuess.n !== sw.n) myGuess = { n: sw.n, g: {} };
+    if (Number.isInteger(s)) myGuess.g[spot] = s; else delete myGuess.g[spot];
+    const m = { t: 'guess', n: sw.n, g: myGuess.g }, h = slotted(hostSlot()), [c] = h ? h.conns : [];
+    if (isHost()) takeGuess(slot, m); else if (c) c.send(m);
+  }
+  function renderGuess() {
+    const box = $('guessRows'), here = roomSlots(), key = `${sw.n}|${here.join()}`;
+    $('guessBox').hidden = !swapOn() || here.length < 3;
+    if ($('guessBox').hidden || box.dataset.key === key) return;
+    box.dataset.key = key;
+    const name = (s) => (s === slot ? 'You' : nameOf(slotted(s)));
+    box.replaceChildren(...here.map((spot) => {
+      const label = document.createElement('label'), sel = document.createElement('select');
+      label.className = 'field';
+      label.append(spot === slot ? 'Your spot' : `${name(spot)}’s spot`, sel);
+      sel.append(new Option('Who is it?', ''), ...here.filter((s) => s !== spot && s !== slot).map((s) => new Option(name(s), s)));
+      sel.value = myGuess.n === sw.n && Number.isInteger(myGuess.g[spot]) ? String(myGuess.g[spot]) : '';
+      sel.addEventListener('change', () => guess(spot, sel.value === '' ? null : +sel.value));
+      return label;
+    }));
   }
   let swapSet = '', swapSetAt = 0, deadWas = new Set();
   function swapTick() {
@@ -2752,7 +2903,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function shuffle(all) {
     const team = (s) => (s === slot ? mine.team : slotted(s).team), pitch = {};
     for (const s of all) { const f = 1.07 + Math.random() * 0.09; pitch[s] = +(Math.random() < 0.5 ? f : 1 / f).toFixed(3); }
-    takeSwap({ n: sw.n + 1, map: shuffleSpots(all, team, rm.with), pitch, left: rm.every * 60000 });
+    takeSwap({ n: nextN(sw.n), map: shuffleSpots(all, team, rm.with), pitch, left: rm.every * 60000, sc: scoreGuesses() }, slot);
     send(meMsg());
   }
   // A reshuffle where nobody keeps their own spot (with 2 or more players); own team / other team: as many spots as
@@ -3261,7 +3412,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       }
     } else if (game) {
       idleAt = idleAt || performance.now();
-      if (performance.now() - idleAt > 60000) endGame(idleAt);
+      if (performance.now() - idleAt > 60000) { const g = game; endGame(idleAt); voteAfter(g, idleAt); }
     }
   }
   function endGame(endAt = performance.now(), shortest = 60000) {
@@ -3286,6 +3437,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderGames();
     if (games[0].awards.length) notify(`Room awards: ${games[0].awards.map(([t, n]) => `${t} ${n}`).join(', ')}.`);
     renderRoomGames();
+  }
+  // the host's page starts an MVP vote after a game of 5 minutes or more with friends in voice, among those who played
+  function voteAfter(g, endAt) {
+    if (g && endAt - g.t0 >= 300000) startVote([slot, ...[...peers.values()].filter((p) => p.hello && g.players.has(nameOf(p))).map((p) => p.slot)].sort((a, b) => a - b));
   }
   const MODES = { CLASSIC: "Summoner's Rift", ARAM: 'ARAM', KIWI: 'ARAM: Mayhem', PRACTICETOOL: 'Practice Tool', URF: 'URF', CHERRY: 'Arena' };
   function renderGames() {
@@ -7637,11 +7792,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- room games (Voice page), started by the host: Balance teams (two even custom-game teams from everyone's Solo/Duo
-  // rank), Role roulette, a Queue quiz and a Mock draft; and Room awards after each game. The host's 'me' message
-  // carries the teams (tm) and roles (ro), numbered (n) so the newest wins and newcomers get them. The quiz and the
-  // draft run on the host's page: {t:'quiz'} a question, {t:'quizA'} an answer for the host, {t:'quizR'} the right
-  // answer and the scores, {t:'quizEnd'}; {t:'draft'} the draft so far, {t:'draftA'} a ban or pick for the host,
-  // {t:'draftEnd'}. The host's page takes its own messages too (hostSay), so the host plays like everyone else.
+  // rank), Role roulette, a Queue quiz, a Mock draft and an MVP vote; and Room awards after each game. The host's 'me'
+  // message carries the teams (tm), roles (ro) and the MVP's crown (mv), numbered (n) so the newest wins and newcomers
+  // get them. The quiz, the draft and the vote run on the host's page: {t:'quiz'} a question, {t:'quizA'} an answer for
+  // the host, {t:'quizR'} the right answer and the scores, {t:'quizEnd'}; {t:'draft'} the draft so far, {t:'draftA'} a
+  // ban or pick for the host, {t:'draftEnd'}; {t:'mvp'} a vote, {t:'mvpV'} a vote for the host, {t:'mvpR'} the result.
+  // The host's page takes its own messages too (hostSay), so the host plays like everyone else.
   const isHost = () => !!peer && hostSlot() === slot;
   const roomSlots = () => [slot, ...[...peers.values()].filter((p) => p.hello).map((p) => p.slot)].sort((a, b) => a - b);
   const slotName = (s) => (s === slot ? `${myName || 'You'} (you)` : nameOf(slotted(s) || { slot: s }));
@@ -7652,7 +7808,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function gameMsg(from, m) { // from: the sender's slot
     const host = from === hostSlot(), now = performance.now();
     if (m.t === 'quiz' && host && Number.isFinite(m.n) && Number.isInteger(m.i) && Array.isArray(m.opts) && m.opts.length === 4 && m.opts.every((o) => typeof o === 'string')) {
-      qv = { n: m.n, i: m.i, of: m.of | 0, q: String(m.q).slice(0, 200), img: typeof m.img === 'string' && m.img.startsWith(`${DD}/`) ? m.img : '', opts: m.opts.map((o) => o.slice(0, 60)),
+      qv = { n: m.n, i: m.i, of: m.of | 0, q: String(m.q).slice(0, 400), img: typeof m.img === 'string' && m.img.startsWith(`${DD}/`) ? m.img : '', opts: m.opts.map((o) => o.slice(0, 60)),
+        zoom: Array.isArray(m.zoom) && m.zoom.length === 2 && m.zoom.every((v) => Number.isFinite(v) && v >= 0 && v <= 1) ? m.zoom : null,
         ends: now + Math.min(QUIZ_MS, +m.left || 0), mine: -1, right: -1, got: [], scores: qv && qv.n === m.n ? qv.scores : {}, over: false, why: '' };
     } else if (m.t === 'quizR' && host && qv && qv.n === m.n && qv.i === m.i) {
       qv.right = Math.max(0, Math.min(3, m.right | 0));
@@ -7673,7 +7830,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       dv = { n: m.n, blue: m.blue, red: m.red, step: m.step, acts: m.acts, ends: now + Math.min(DRAFT_MS, +m.left || 0), over: false };
     } else if (m.t === 'draftA' && isHost() && draft && m.n === draft.n) draftAct(from, m.step, typeof m.c === 'string' ? m.c : '');
     else if (m.t === 'draftEnd' && host && dv && dv.n === m.n) dv.over = true;
-    else return;
+    else if (m.t === 'mvp' && host && Number.isFinite(m.n) && slotsOk(m.c) && m.c.length >= 2) {
+      vv = { n: m.n, c: m.c, ends: now + Math.min(MVP_MS, +m.left || 0), mine: -1, over: false, w: -1, counts: {} };
+      notify('Vote for the MVP of the last game, on the Voice page.', true);
+    } else if (m.t === 'mvpV' && isHost() && vote && m.n === vote.n && vote.c.includes(m.v) && m.v !== from && roomSlots().includes(from)) {
+      vote.votes.set(from, m.v);
+      voteCheck();
+    } else if (m.t === 'mvpR' && host && vv && vv.n === m.n && !vv.over) {
+      Object.assign(vv, { over: true, w: Number.isInteger(m.w) && vv.c.includes(m.w) ? m.w : -1, counts: scoresOk(m.counts) });
+      if (vv.w >= 0) notify(vv.w === slot ? 'You’re the MVP of the last game! You wear the crown next game.' : `${slotName(vv.w)} is the MVP of the last game and wears the crown next game.`, true);
+    } else return;
     renderRoomGames();
   }
 
@@ -7737,14 +7903,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     notify(okStatus(res) ? `League: ${POS[r]} first, Fill second.` : 'League didn’t take the role. It only works in a lobby where you pick roles.', true);
   }
 
-  // Queue quiz: ten questions from Riot's champion and item lists, 15 seconds each; a right answer scores 100, plus up
-  // to 50 for speed (timed on the host's page). It ends early once the host's League finds a match.
+  // Queue quiz: ten questions from Riot's Data Dragon (champions' titles, pictures, classes, ranges, abilities, splash
+  // art close-ups and stories with the name blanked out; items' pictures and costs), 15 seconds each; a right answer
+  // scores 100, plus up to 50 for speed (timed on the host's page). It ends early once the host's League finds a match.
   const QUIZ_MS = 15000, QUIZ_SHOW = 4000;
   let quiz = null, qv = null; // the host's quiz, with the right answers; and the quiz as this page shows it
   const scoresOk = (o) => Object.fromEntries(Object.entries(o && typeof o === 'object' ? o : {}).filter(([k, v]) => /^\d$/.test(k) && Number.isFinite(v)).map(([k, v]) => [k, Math.max(0, Math.round(v))]));
-  function quizQuestions(n) {
+  // spells: a few champions' abilities, [{ c, spells: [{ name, img }] }] (champSpells)
+  function quizQuestions(n, spells = []) {
     const cs = allChamps().filter((c) => c.name), pick = (l, k) => shuffled(l).slice(0, k), out = [];
-    const items = ddItems ? Object.values(ddItems).filter((it) => it.done && it.rift && it.name && it.gold) : [], gold = (g) => `${g.toLocaleString('en-US')} gold`;
+    const items = ddItems ? Object.entries(ddItems).filter(([, it]) => it.done && it.rift && it.name && it.gold).map(([id, it]) => ({ id, ...it })) : [], gold = (g) => `${g.toLocaleString('en-US')} gold`;
+    const others = (c) => pick(cs.filter((x) => x.id !== c.id), 3).map((x) => x.name);
     const make = {
       title: () => { const [c, ...o] = pick(cs.filter((x) => x.title), 4); return o.length === 3 && { q: `Which champion is “${c.title}”?`, a: c.name, o: o.map((x) => x.name) }; },
       face: () => { const [c, ...o] = pick(cs, 4); return o.length === 3 && !!ddVersion && { q: 'Who is this?', img: champPic(c.id), a: c.name, o: o.map((x) => x.name) }; },
@@ -7763,18 +7932,50 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const [it] = pick(items, 1), o = it ? pick([...new Set(items.map((x) => x.gold))].filter((g) => g !== it.gold), 3) : [];
         return o.length === 3 && { q: `How much does ${it.name} cost?`, a: gold(it.gold), o: o.map(gold) };
       },
+      item: () => {
+        const [it, ...o] = pick([...new Map(items.map((x) => [x.name, x])).values()], 4);
+        return o.length === 3 && !!ddVersion && { q: 'Which item is this?', img: `${DD}/cdn/${ddVersion}/img/item/${it.id}.png`, a: it.name, o: o.map((x) => x.name) };
+      },
+      ability: () => {
+        const [x] = pick(spells, 1), [sp] = x ? pick(x.spells, 1) : [];
+        return !!sp && { q: 'Whose ability is this?', img: sp.img, a: x.c.name, o: others(x.c) };
+      },
+      // a close-up of the default splash art: a square about a quarter of its width, somewhere around the middle
+      splash: () => {
+        const [c] = pick(cs, 1), x = 0.25 + Math.random() * 0.5, y = 0.3 + Math.random() * 0.4;
+        return !!c && { q: 'Whose splash art is this close-up from?', img: `${DD}/cdn/img/champion/splash/${c.id}_0.jpg`, zoom: [+x.toFixed(3), +y.toFixed(3)], a: c.name, o: others(c) };
+      },
+      lore: () => {
+        const [c] = pick(cs.filter((x) => x.blurb && x.blurb.length > 80), 1);
+        if (!c) return null;
+        const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), names = [c.name, c.id, ...c.name.split(/[\s.]+/).filter((w) => w.length > 3)];
+        let text = c.blurb.replace(/<[^>]+>/g, ' ').replace(new RegExp(`\\b(${names.map(esc).join('|')})\\b`, 'gi'), '____').replace(/\s+/g, ' ').trim();
+        if (text.length > 300) text = text.slice(0, (text.lastIndexOf('. ', 300) + 1) || 300).trim() + (text.lastIndexOf('. ', 300) > 0 ? '' : '…');
+        return { q: `Whose story is this? “${text}”`, a: c.name, o: others(c) };
+      },
     };
     for (let i = 0; out.length < n && i < n * 5; i++) {
       const q = make[shuffled(Object.keys(make))[0]]();
-      if (q && !out.some((x) => x.q === q.q && x.a === q.a)) { const opts = shuffled([q.a, ...q.o]); out.push({ q: q.q, img: q.img || '', opts, right: opts.indexOf(q.a) }); }
+      if (q && !out.some((x) => x.q === q.q && x.a === q.a)) { const opts = shuffled([q.a, ...q.o]); out.push({ q: q.q, img: q.img || '', zoom: q.zoom || null, opts, right: opts.indexOf(q.a) }); }
     }
+    return out;
+  }
+  // a few champions' abilities (their own Data Dragon files), for the quiz's ability pictures
+  async function champSpells(n) {
+    const out = [];
+    await Promise.all(shuffled(allChamps()).slice(0, n).map(async (c) => {
+      try {
+        const d = (await (await fetch(`${DD}/cdn/${ddVersion}/data/en_US/champion/${c.id}.json`)).json()).data[c.id], img = (kind, x) => `${DD}/cdn/${ddVersion}/img/${kind}/${x.image.full}`;
+        out.push({ c, spells: [...(d.spells || []).map((x) => ({ name: x.name, img: img('spell', x) })), ...(d.passive ? [{ name: d.passive.name, img: img('passive', d.passive) }] : [])] });
+      } catch {}
+    }));
     return out;
   }
   async function startQuiz() {
     if (!isHost()) return;
     await ddragon().catch(() => null);
     itemsSoon();
-    const qs = quizQuestions(10);
+    const qs = quizQuestions(10, ddVersion ? await champSpells(4) : []);
     if (qs.length < 3) return notify('The quiz needs Riot’s champion list, which didn’t load. Try again in a minute.', true);
     quiz = { n: Date.now(), qs, i: -1, scores: {}, answers: new Map(), ends: 0, shown: 0 };
     nextQuestion();
@@ -7785,7 +7986,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     quiz.answers = new Map();
     quiz.ends = performance.now() + QUIZ_MS;
     quiz.shown = 0;
-    hostSay({ t: 'quiz', n: quiz.n, i: quiz.i, of: quiz.qs.length, q: q.q, img: q.img, opts: q.opts, left: QUIZ_MS });
+    hostSay({ t: 'quiz', n: quiz.n, i: quiz.i, of: quiz.qs.length, q: q.q, img: q.img, ...(q.zoom && { zoom: q.zoom }), opts: q.opts, left: QUIZ_MS });
   }
   function quizCheck() { // the host: the answer once everyone answered or time's up, and the next question 4 s later
     if (!quiz || quiz.i < 0) return;
@@ -7873,16 +8074,74 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function awardEl([title, name, why]) { const li = document.createElement('li'), b = document.createElement('b'); b.textContent = title; li.append(b, ` ${name}: ${why}`); return li; }
 
+  // MVP vote: after a game with friends in voice (5 minutes or more, on the host's page) or when the host asks, everyone
+  // votes for the MVP, not themselves, for a minute or until all have voted. Most votes wins (a tie is drawn by lot),
+  // and the winner wears a crown on their card until the next vote.
+  const MVP_MS = 60000;
+  let vote = null, vv = null; // the host's vote, with everyone's; and the vote as this page shows it
+  function startVote(c) {
+    if (!isHost() || vote || c.length < 2) return;
+    vote = { n: Date.now(), c, voters: roomSlots(), votes: new Map(), ends: performance.now() + MVP_MS };
+    hostSay({ t: 'mvp', n: vote.n, c, left: MVP_MS });
+  }
+  function voteCheck() { // the host: the result once everyone voted or time's up
+    if (!vote || (performance.now() < vote.ends && !vote.voters.filter((s) => roomSlots().includes(s)).every((s) => vote.votes.has(s)))) return;
+    const counts = {};
+    for (const v of vote.votes.values()) counts[v] = (counts[v] || 0) + 1;
+    const top = Math.max(0, ...Object.values(counts)), [w = -1] = shuffled(Object.keys(counts).filter((k) => counts[k] === top).map(Number));
+    const n = vote.n;
+    vote = null;
+    if (w >= 0) { mv = { n: nextN(mv.n), s: w, name: w === slot ? myName || `Player ${slot + 1}` : nameOf(slotted(w) || { slot: w }) }; mvBy = slot; }
+    hostSay({ t: 'mvpR', n, w, counts });
+    send(meMsg());
+    render();
+  }
+  function takeMvp(v, from) {
+    if (!v || typeof v !== 'object' || !Number.isInteger(v.n) || v.n < 1 || (v.n <= mv.n && from === mvBy) || !Number.isInteger(v.s) || typeof v.name !== 'string') return;
+    mvBy = from;
+    mv = { n: v.n, s: v.s, name: v.name.slice(0, 24) };
+    render();
+  }
+  const crowned = (p) => mv.n > 0 && mv.s === p.slot && mv.name === nameOf(p);
+  function mvpVote(s) {
+    if (!vv || vv.over || vv.mine >= 0 || s === slot) return;
+    vv.mine = s;
+    const m = { t: 'mvpV', n: vv.n, v: s };
+    if (isHost()) gameMsg(slot, m); else sendOnce(m);
+    renderMvp();
+  }
+  function renderMvp() {
+    $('mvpBox').hidden = !vv;
+    if (!vv) return;
+    const left = Math.max(0, Math.ceil((vv.ends - performance.now()) / 1000)), box = $('mvpOpts'), votes = (s) => vv.counts[s] || 0, you = (s) => (s === slot ? 'You' : slotName(s));
+    $('mvpHead').textContent = vv.over === 'left' ? 'The host left, so the vote ended.'
+      : vv.over ? (vv.w < 0 ? 'Nobody voted, so there’s no MVP this time.' : `MVP of the last game: ${you(vv.w)}, with ${votes(vv.w)} vote${votes(vv.w) === 1 ? '' : 's'}. ${vv.w === slot ? 'You wear' : `${slotName(vv.w)} wears`} the crown next game.`)
+      : `Vote for the MVP of the last game: ${left} s left.${vv.mine >= 0 ? ` You voted for ${slotName(vv.mine)}.` : ''}`;
+    if (box.dataset.n !== String(vv.n)) {
+      box.dataset.n = vv.n;
+      box.replaceChildren(...vv.c.filter((s) => s !== slot).map((s) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn' }); b.dataset.slot = s; b.addEventListener('click', () => mvpVote(s)); return b; }));
+    }
+    for (const b of box.children) {
+      const s = +b.dataset.slot;
+      b.textContent = slotName(s) + (vv.over && votes(s) ? ` · ${votes(s)} vote${votes(s) === 1 ? '' : 's'}` : '');
+      b.disabled = !!vv.over || vv.mine >= 0;
+      b.dataset.s = vv.over ? (s === vv.w ? 'right' : '') : vv.mine === s ? 'picked' : '';
+    }
+    box.hidden = vv.over === 'left';
+    $('mvpClose').hidden = !vv.over;
+  }
+
   function renderRoomGames() {
     if (!peer || document.hidden) return;
     const host = isHost(), n = roomSlots().length;
     for (const id of ['rolesBtn', 'quizBtn', 'draftBtn']) $(id).disabled = !host;
-    $('teamsBtn').disabled = !host || n < 2;
+    $('teamsBtn').disabled = $('mvpBtn').disabled = !host || n < 2 || !!vote;
     $('gamesNote').textContent = !host ? 'The host starts these.' : n < 2 ? 'Room games are for friends in the room: invite some first.' : '';
     renderTeams();
     renderRoles();
     renderQuiz();
     renderDraft();
+    renderMvp();
     const g = games[0], on = !!g && g.room === room && Array.isArray(g.awards) && g.awards.length > 0 && Date.now() - g.at - g.ms < 3600e3;
     $('awardsBox').hidden = !on;
     if (on && $('awardsList').dataset.at !== String(g.at)) { $('awardsList').dataset.at = g.at; $('awardsList').replaceChildren(...g.awards.map(awardEl)); }
@@ -7918,6 +8177,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('quizQ').hidden = qv.over;
     $('quizImg').hidden = qv.over || !qv.img;
     if (qv.img && $('quizImg').getAttribute('src') !== qv.img) $('quizImg').src = qv.img;
+    // a splash art close-up shows a square around zoom (fractions of the picture), a quarter of its width
+    const z = qv.zoom, pc = (v) => `${(100 * v).toFixed(1)}%`;
+    $('quizImg').classList.toggle('close', !!z);
+    $('quizImg').style.setProperty('object-view-box', z ? `inset(${pc(z[1] - 0.21)} ${pc(1 - z[0] - 0.125)} ${pc(1 - z[1] - 0.21)} ${pc(z[0] - 0.125)})` : '');
     if (box.dataset.q !== `${qv.n}/${qv.i}`) {
       box.dataset.q = `${qv.n}/${qv.i}`;
       box.replaceChildren(...qv.opts.map((o, i) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: o }); b.addEventListener('click', () => quizAnswer(i)); return b; }));
@@ -7995,15 +8258,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderDraft();
   });
   $('draftFind').addEventListener('input', renderDraft);
+  $('mvpBtn').addEventListener('click', () => startVote(roomSlots()));
+  $('mvpClose').addEventListener('click', () => { vv = null; renderMvp(); });
   function gamesTick() {
     const now = performance.now();
-    if (isHost()) { quizCheck(); if (draft && draft.ends && now >= draft.ends) draftTimeout(); }
+    if (isHost()) { quizCheck(); voteCheck(); if (draft && draft.ends && now >= draft.ends) draftTimeout(); }
     // nothing came from the host on time: the host left, so it ends here
     if (qv && !qv.over && !quiz && now > qv.ends + QUIZ_SHOW + 5000) Object.assign(qv, { over: true, why: 'The host left, so it ends here.' });
     if (dv && !dv.over && !draft && dv.step < DRAFT.length && now > dv.ends + 5000) dv.over = 'left';
+    if (vv && !vv.over && !vote && now > vv.ends + 5000) vv.over = 'left';
     renderRoomGames();
   }
-  function resetGames() { teams = { n: 0, a: [], b: [] }; roles = { n: 0, map: {} }; quiz = draft = qv = dv = null; }
+  function resetGames() { teams = { n: 0, a: [], b: [] }; roles = { n: 0, map: {} }; quiz = draft = qv = dv = vote = vv = null; mv = { n: 0, s: -1, name: '' }; mvBy = -1; }
 
   // ---- keyboard shortcuts. The Windows client registers them system-wide (keysOk says which took); otherwise
   // they work while this page has focus.
@@ -8272,6 +8538,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [25, 'October 20: room passwords, host mutes and new modes', [
+      'Locked rooms are safer: only the host changes the game mode, and our server checks the room’s password too (as soon as it’s updated), so nobody without it gets through to anyone in the room.',
+      'The host can mute a noisy mic for the whole room with Mute for all on that player’s card: a fan, a TV or loud keys. That player sees why.',
+      'Legends has more moments: Herald, Voidgrubs, and the towers and inhibitors your team takes change your voice too.',
+      'Showdown, a new game mode: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. It needs the desktop app.',
+      'Voice swap: guess who’s really behind each voice. Right guesses score at each reveal.',
+      'MVP vote: after a game with friends in voice, everyone votes for the MVP, who wears a crown on their card next game.',
+      'The queue quiz has new questions: ability icons, splash art close-ups, item pictures, and champion stories with the name blanked out.',
+    ]],
     [24, 'October 20: Profile and Stats', [
       'Pick a rank goal in Stats > You, under Ranked: it says how many wins it takes at the LP you usually win. Your rank cards on Profile show it too.',
       'Rank cards also show what League’s client warns about: placement games left, days until decay from Diamond up, and when one loss can drop you a division.',
@@ -8500,7 +8775,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     peers: () => [...peers].map(([id, p]) => ({
       id, slot: p.slot, name: p.name, health: p.health, conns: p.conns.size, call: !!p.call, vol: p.vol, volume: p.out, muffle: p.muffle, pan: p.pan,
       far: p.far, bush: p.bush, talking: p.talking, user: p.user, champ: p.champ, team: p.team, dead: p.dead, face: !!p.face,
-      fx: p.fx, range: p.range, ready: p.ready, scrambled: p.scrambled, spot: spotOf(p), shown: shownTalking(p),
+      fx: p.fx, range: p.range, ready: p.ready, scrambled: p.scrambled, spot: spotOf(p), shown: shownTalking(p), faded: !!p.faded,
       live: !!p.audio.srcObject && p.audio.srcObject.getAudioTracks().some((t) => t.readyState === 'live'),
     })),
     pending: () => pending.size,
@@ -8532,6 +8807,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return { max: (s.getParameters().encodings[0] || {}).maxBitrate || 0, target, mic: raw.getAudioTracks()[0].getSettings() };
     },
     key: () => roomKey,
+    news: () => NEWS[0][1], // the newest What's new entry
     played: () => [...played],
     hurt: () => hurtLevel,
     denoise: async () => !!rn && !!(await rn.catch(() => null)),
@@ -8554,6 +8830,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
     quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
+    quizQuestions, champSpells,
+    send, // a message to everyone, as a changed page could send it
     headChunk,
     clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
       age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),
