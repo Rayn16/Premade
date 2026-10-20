@@ -2,8 +2,10 @@
 // voice page's PeerJS client works with it unchanged. It only introduces players (WebRTC offers, answers and
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
 // Only ids the voice page uses are let in: lolprox-<room>-<slot>. /stats counts rooms and players each day for the
-// voice page (Settings > Our server). /riot/... is Riot data (the Riot object, at the end).
+// voice page (Settings > Our server). /push/... is the phone remote's notifications (push.js). /riot/... is Riot
+// data (the Riot object, at the end).
 import { DurableObject } from 'cloudflare:workers';
+import { push } from './push.js';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
@@ -20,6 +22,8 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    const code = /^\/push\/([a-z0-9]{12})(\/ring)?$/.exec(url.pathname); // the phone remote's notifications (push.js)
+    if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
     if (url.pathname.startsWith('/riot/')) return riot(env).fetch(req);
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });
     return new Response('Not found', { status: 404 });
@@ -40,6 +44,7 @@ export class Room extends DurableObject {
   }
   async fetch(req) {
     const url = new URL(req.url), id = url.searchParams.get('id'), token = url.searchParams.get('token');
+    if (url.pathname.startsWith('/push/')) return push(req, this.ctx.storage, this.env);
     const [client, server] = Object.values(new WebSocketPair());
     const old = this.open(id);
     this.ctx.acceptWebSocket(server, [id]);
