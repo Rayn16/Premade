@@ -4,7 +4,7 @@
 // their gold, vision and damage, passes only the lookup calls on its list through, with our key and its limits,
 // keeping the ranks they get for each season, and says how much of the free plan it used. Then, restarted with the
 // sweep going 8 days back, it carries on with the day it was on and counts the older games a day at a time, newer
-// days first.
+// days first, and finishes counting each server's ladder for the ladder places.
 // WRANGLER=<path to wrangler> node riot.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
@@ -23,6 +23,10 @@ const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1
   KR_2001: ['16.20.1.1', 420, 1900], KR_2002: ['16.19.2.1', 420, 1600], KR_2003: ['16.18.1.1', 420, 1750], KR_2004: ['16.20.1.1', 450, 1200], KR_2005: ['16.20.1.1', 420, 250], KR_2006: ['16.20.1.1', 420, 1800] };
 // each server's Challenger and Grandmaster players; North America's one has no games
 const LADDERS = { kr: [[P(1), P(2)], [P(3)]], euw1: [[P(4)], []], na1: [[P(5)], []] };
+// each server's Solo/Duo ladder for the ladder places, by division, as each player's LP, 3 a page: Korea's Gold II has
+// 3 pages, Europe West's Silver I 2 full ones, North America's is empty
+const LAD = { kr: { 'CHALLENGER/I': [1500, 1210], 'GRANDMASTER/I': [900], 'MASTER/I': [450, 300, 305, 12], 'DIAMOND/I': [0, 10, 20, 30], 'GOLD/II': [1, 2, 3, 4, 5, 6, 7] },
+  euw1: { 'MASTER/I': [100], 'SILVER/I': [1, 2, 3, 4, 5, 6] }, na1: {} };
 const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR_1004', 'KR_1005'], [P(3)]: ['KR_1006'], [P(4)]: ['EUW1_3001'] }; // the last 3 days'
 // the games played that many days ago, which every ladder player was in; KR_1001 (the crawl's) too, for the sweep
 const DAYS = { 4: ['KR_1001', 'KR_2004'], 5: ['KR_2002'], 6: ['KR_2001'], 7: ['KR_2003'], 8: ['KR_2005'], 9: ['KR_2006'] };
@@ -62,6 +66,10 @@ const riot = http.createServer((req, res) => {
   if (req.headers['x-riot-token'] !== KEY) return send(401, { status: { message: 'Unauthorized' } });
   let m;
   if (LADDERS[host] && (m = p.match(/^\/lol\/league\/v4\/(challenger|grandmaster)leagues\/by-queue\/RANKED_SOLO_5x5$/))) return send(200, { entries: LADDERS[host][m[1] === 'challenger' ? 0 : 1].map((puuid) => ({ puuid, leaguePoints: 1000 })) });
+  if (LAD[host] && (m = p.match(/^\/lol\/league-exp\/v4\/entries\/RANKED_SOLO_5x5\/([A-Z]+)\/([IV]+)$/))) {
+    const pg = +u.searchParams.get('page');
+    return send(200, (LAD[host][m[1] + '/' + m[2]] || []).slice(pg * 3 - 3, pg * 3).map((lp) => ({ puuid: P(8), queueType: 'RANKED_SOLO_5x5', tier: m[1], rank: m[2], leaguePoints: lp })));
+  }
   if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/))) {
     const end = u.searchParams.get('endTime'); // the sweep asks for one day
     return send(200, end ? DAYS[today - Math.floor(end / DAY)] || [] : IDS[m[1]] || []);
@@ -156,7 +164,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
 
   // lookups: only the calls on the list, with their own query parameters, as Riot answers them (the counting goes on
   // meanwhile: Korea's on kr and asia, the others' ladders, game lists and EUW1_3001)
-  const before = calls.length, looked = () => calls.slice(before).filter((c) => c.host !== 'kr' && c.host !== 'asia' && !c.q.includes('startTime') && !/leagues\/by-queue|EUW1_3001/.test(c.p));
+  const before = calls.length, looked = () => calls.slice(before).filter((c) => c.host !== 'kr' && c.host !== 'asia' && !c.q.includes('startTime') && !/leagues\/by-queue|EUW1_3001|league-exp/.test(c.p));
   r = await get('/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW');
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('access-control-allow-origin'), SITE);
@@ -235,7 +243,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   db.prepare('INSERT INTO matchups VALUES (?, ?, ?)').run(103 % 16, '2020-01', JSON.stringify({ 103: { MIDDLE: { 238: [50, 0] } } }));
   db.close();
   const mark = calls.length;
-  await up('SWEEP_DAYS:8', 'SWEEP_ROOM:100'); // room for the sweep beside this test's busy crawl
+  await up('SWEEP_DAYS:8', 'SWEEP_ROOM:100', 'PLACES_ROOM:1000'); // room for the sweep beside this test's busy crawl, and for the ladder places
   sum = await counted(9);
   assert.equal(sum.total, 9, 'KR_2001, KR_2002, KR_2003 and the game it had count; not the ARAM, the remake, KR_1001 again or KR_2006, 9 days old');
   assert.deepEqual(sum.by, { kr: 8, euw1: 1 });
@@ -254,5 +262,25 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   const old = await (await get('/riot/champ?c=103&r=MIDDLE')).json();
   assert.deepEqual(old.y, { n: 4, w: 4, vs: { 238: [4, 4] } }, "Ahri's older games against Zed, without 2020's month");
   assert.equal(old.games.length, 4, 'its games with builds are still the last 3 days');
+
+  // the ladder places: each server's divisions counted from their last page, and Master and up by 10 LP
+  for (let i = 0; !(await (await get('/riot/places?p=na1')).json()).d; i++) { assert(i < 120, 'the ladders were not counted'); await sleep(500); }
+  const zero = Object.fromEntries(['DIAMOND', 'EMERALD', 'PLATINUM', 'GOLD', 'SILVER', 'BRONZE', 'IRON'].flatMap((t) => ['I', 'II', 'III', 'IV'].map((d) => [`${t} ${d}`, 0])));
+  r = await get('/riot/places?p=kr');
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.match(r.headers.get('cache-control'), /public, max-age=3600/);
+  const kr = await r.json(), lp = (o) => Array.from(Object.entries(o).reduce((a, [b, n]) => { a[b] = n; return a; }, []), (x) => x | 0);
+  assert(Math.abs(kr.at - Date.now()) < 120000, 'with when');
+  assert.deepEqual(kr.d, { ...zero, 'DIAMOND I': 4, 'GOLD II': 7 }, "Korea's divisions");
+  assert.deepEqual(kr.lp, lp({ 1: 1, 30: 2, 45: 1, 90: 1, 121: 1, 150: 1 }), "Korea's Master, Grandmaster and Challenger players by 10 LP");
+  const euw = await (await get('/riot/places?p=euw1')).json();
+  assert.deepEqual({ ...euw, at: 0 }, { at: 0, d: { ...zero, 'SILVER I': 6 }, lp: lp({ 10: 1 }) }, "Europe West's, its last page full");
+  assert.deepEqual((await (await get('/riot/places?p=na1')).json()).lp, [], 'nobody on North America’s');
+  assert.deepEqual(await (await get('/riot/places?p=eun1')).json(), {}, 'a server it doesn’t count');
+  assert.deepEqual(await (await get('/riot/places?p=toString')).json(), {});
+  const asked = (h) => calls.filter((c) => c.host === h && c.p.includes('league-exp'));
+  assert.deepEqual(asked('euw1').filter((c) => c.p.endsWith('/SILVER/I')).map((c) => c.q), ['?page=1', '?page=2', '?page=4', '?page=3'], 'doubling, then halving');
+  assert.equal(asked('kr').filter((c) => c.p.endsWith('/GOLD/I')).length, 1, 'an empty division once');
+  assert(['kr', 'euw1', 'na1'].every((h) => asked(h).length < 45), 'a few calls a server');
   console.log('riot ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} riot.close(); fs.rmSync(persist, { recursive: true, force: true }); });

@@ -196,6 +196,8 @@ const KEEP = 500; // games kept for each champion and role: a new one takes a ra
 const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
 const rkVal = ([t, d, lp]) => { const i = TIERS.indexOf(t); return i * 1e5 + (i < 7 ? Math.max(0, ['IV', 'III', 'II', 'I'].indexOf(d)) * 1e4 : 0) + lp; }; // the higher rank is bigger
 const DAY = 86400; // seconds
+// what the ladder places count: Master and up by LP, then Diamond I down to Iron IV
+const PLACES = [...['CHALLENGER', 'GRANDMASTER', 'MASTER'].map((t) => `${t} I`), ...TIERS.slice(0, 7).reverse().flatMap((t) => ['I', 'II', 'III', 'IV'].map((d) => `${t} ${d}`))];
 const hash = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 const newer = (a, b) => { const [x, y] = a.split('.').map(Number), [u, v] = (b || '0.0').split('.').map(Number); return x > u || (x === u && y > v); };
 const runesOf = (pk) => { // [primary tree, secondary tree, its six runes, the offense, flex and defense shards]
@@ -237,11 +239,11 @@ export class Riot extends DurableObject {
     this.calls[host] = t;
     return now >= (this.until[host] || 0) && t.length < most && t.filter((x) => now - x < 1000).length < 15;
   }
-  async riot(host, path) { // Riot's answer; a 429, or Riot refusing our key, holds that host off
+  async riot(host, path, hold = true) { // Riot's answer; a 429, or Riot refusing our key (unless hold is false), holds that host off
     (this.calls[host] ||= []).push(Date.now());
     const r = await fetch((this.env.RIOT_BASE || 'https://{host}.api.riotgames.com').replace('{host}', host) + path, { headers: { 'X-Riot-Token': this.env.RIOT_KEY } });
     if (r.status === 429) this.until[host] = Date.now() + 1000 * Math.min(600, +r.headers.get('retry-after') || 10);
-    if (r.status === 401 || r.status === 403) this.until[host] = Date.now() + 600000;
+    if (hold && (r.status === 401 || r.status === 403)) this.until[host] = Date.now() + 600000;
     return r;
   }
   async json(host, path) { const r = await this.riot(host, path); return r.ok ? r.json() : null; }
@@ -272,6 +274,7 @@ export class Riot extends DurableObject {
     }
     if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r')), { headers: json });
     if (url.pathname === '/riot/past') return new Response(this.past(url.searchParams.get('u') || ''), { headers: json });
+    if (url.pathname === '/riot/places') { const p = url.searchParams.get('p') || ''; return new Response(JSON.stringify(Object.hasOwn(REGION, p) ? this.get(`places:${p}`, {}) : {}), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); }
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
     if (m && this.env.RIOT_KEY) return this.lookup(m[1], m[2], url.searchParams, req.headers.get('cf-connecting-ip') || '', cors);
     return new Response('Not found', { status: 404, headers: cors });
@@ -354,8 +357,8 @@ export class Riot extends DurableObject {
   // day it's on
   swOf() { const d = Math.floor(Date.now() / 864e5) - 3; return (this.sw ||= this.get('sweep', { lo: d, hi: d, li: 0 })); }
 
-  // Every 15 s: a step of the crawl, then a turn of the sweep unless the crawl just read a timeline. A turn only has
-  // 10 ms of CPU time on the free plan, and a timeline is a big answer to read.
+  // Every 15 s: a step of the crawl, then a turn of the sweep and of the ladder places unless the crawl just read a
+  // timeline. A turn only has 10 ms of CPU time on the free plan, and a timeline is a big answer to read.
   async alarm() {
     if (!this.env.RIOT_KEY) return;
     const t = Date.now();
@@ -364,6 +367,7 @@ export class Riot extends DurableObject {
       let big = false;
       try { big = await this.crawl(); } catch (e) { console.log('crawl:', e && e.message); }
       if (!big) try { await this.sweep(); } catch (e) { console.log('sweep:', e && e.message); }
+      if (!big) try { await this.places(); } catch (e) { console.log('places:', e && e.message); }
     } finally { this.use(t, 1); }
   }
   // the crawl's state: the day's steps, whose turn it is (n) and each server's (p): the next ladder player, when its
@@ -500,5 +504,42 @@ export class Riot extends DurableObject {
     sw.lo = Math.max(sw.lo, Date.parse(keep + '-01') / 864e5);
     sw.w = null;
     this.counted(w.g.length);
+  }
+
+  // The ladder places (the Profile's "Top 14% of EUW"): once a day on each server in CRAWL, how many players each
+  // Solo/Duo division has, Diamond I down to Iron IV (d), and from Master up how many have each 10 LP (lp), kept
+  // without names or ids (places:<server>). A division's size comes from its last page, found by doubling and then
+  // halving the page asked for (about 20 calls for a big one); Master and up are read page by page for their LP. Up to
+  // 3 calls a turn, while our calls on that server stay under 20 in 2 minutes (PLACES_ROOM), so lookups keep their
+  // room. When Riot doesn't answer it tries again in 10 minutes, without holding off that server's lookups.
+  async places() {
+    const pl = (this.pl ||= this.get('placing', { at: {}, cur: null })), now = Date.now();
+    if (now < (pl.wait || 0)) return;
+    if (!pl.cur) {
+      const p = (this.env.CRAWL || 'kr,euw1,na1').split(',').filter((x) => !(now - (pl.at[x] || 0) < 864e5)).sort((a, b) => (pl.at[a] || 0) - (pl.at[b] || 0))[0];
+      if (!p) return;
+      pl.cur = { p, i: 0, lo: 0, hi: 0, n: 0, size: 0, d: {}, lp: [] }; // lo: the last page with players so far (n of them), hi: the first without
+    }
+    const c = pl.cur;
+    let asked = 0;
+    for (; asked < 3 && pl.cur && this.room(c.p, +this.env.PLACES_ROOM || 20); asked++) {
+      const apex = c.i < 3, page = apex ? c.lo + 1 : c.hi ? (c.lo + c.hi) >> 1 : c.lo ? c.lo * 2 : 1;
+      const r = await this.riot(c.p, `/lol/league-exp/v4/entries/RANKED_SOLO_5x5/${PLACES[c.i].replace(' ', '/')}?page=${page}`, false), l = r.ok ? await r.json().catch(() => null) : null;
+      if (!Array.isArray(l)) { pl.wait = now + 600000; asked++; break; }
+      if (l.length) {
+        c.lo = page;
+        c.n = l.length;
+        if (page === 1) c.size = l.length;
+        if (apex) for (const e of l) { const b = Math.min(500, Math.floor((e && e.leaguePoints) / 10) | 0); c.lp[b] = (c.lp[b] | 0) + 1; }
+      } else c.hi = page;
+      if (!c.hi || c.hi - c.lo > 1) continue;
+      if (!apex) c.d[PLACES[c.i]] = c.lo ? (c.lo - 1) * c.size + c.n : 0; // every page before the last is full
+      Object.assign(c, { i: c.i + 1, lo: 0, hi: 0, n: 0 });
+      if (c.i < PLACES.length) continue;
+      this.put(`places:${c.p}`, { at: now, d: c.d, lp: Array.from(c.lp, (x) => x | 0) });
+      pl.at[c.p] = now;
+      pl.cur = null;
+    }
+    if (asked) this.put('placing', pl);
   }
 }
