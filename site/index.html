@@ -110,6 +110,10 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .btn.primary:hover { filter: brightness(1.1); }
 .btn.small { padding: 7px 12px; font-size: 13px; }
 .btn[aria-pressed="true"] { border-color: var(--bad); color: var(--bad); }
+.btn.bad { border-color: var(--bad); color: var(--bad); } /* Dodge, once clicked */
+.btn.avoid { padding: 3px 8px; font-size: 12px; } /* Avoid, beside a player */
+.who > .avoid { margin-left: auto; }
+.tags + .avoid { margin-top: 6px; }
 .btn:disabled { opacity: 0.6; cursor: default; }
 .field { display: grid; gap: 6px; font-weight: 500; }
 .field input, .codeform input, .chatform input, select { font: 15px/1.2 var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; }
@@ -450,6 +454,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .watchlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .watchlist li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 140px) auto; gap: 12px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
 .watchlist li > span { display: grid; min-width: 0; }
+.watchlist.avoids li { grid-template-columns: minmax(0, 1fr) auto; }
 .spark { width: 100%; height: 32px; }
 .spark .gold { fill: none; stroke: var(--gold); stroke-width: 2; }
 .lookup { display: grid; gap: 10px; justify-items: start; }
@@ -521,6 +526,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .rank .warn { grid-column: 2; font-size: 13px; color: var(--warn); }
 .rank .warn[data-k="bad"] { color: var(--bad); }
 .rank .goal { grid-column: 2; font-size: 13px; color: var(--fg); }
+.rank .ladder, .rank .mmr { grid-column: 2; font-size: 13px; }
 .cmp td[data-best] { color: var(--good); font-weight: 600; }
 .pick select { font-size: 14px; padding: 8px 10px; }
 #proAcct { padding: 8px 10px; font-size: 14px; }
@@ -705,6 +711,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section id="proLiveBox" class="panel" aria-labelledby="h-prolive" hidden>
         <h2 id="h-prolive" class="ph">Live game</h2>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th></tr></thead><tbody id="proLiveRows"></tbody></table></div>
+        <p id="proLiveAvg" class="hint" hidden></p>
       </section>
       <div class="prodash">
         <section id="proGamesBox" class="panel" aria-labelledby="h-proform">
@@ -999,7 +1006,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="fsLine" class="phase" hidden></p>
         <h3 id="benchHead" class="ph" hidden>Bench picks for you</h3>
         <div id="bench" class="picks" hidden></div>
-        <div class="toolbar"><button id="rerollBtn" class="btn small" type="button" hidden>Reroll</button></div>
+        <div class="toolbar"><button id="rerollBtn" class="btn small" type="button" hidden>Reroll</button><button id="dodgeBtn" class="btn small" type="button" title="Leave champ select without closing League. League counts it as a dodge: you lose LP and wait before you can queue again.">Dodge</button></div>
         <div id="draft" class="draft" hidden>
           <div class="dside"><span class="ph">Your team</span><b id="dUsScore" class="dsc"></b></div>
           <div id="dUs" class="dslots"></div>
@@ -1069,7 +1076,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </div>
       </section>
       <details id="preSet" class="voiceset lcu-only">
-        <summary><span class="ph">Pregame settings</span><span class="hint">Accepting, hovering, runes, items and the phone remote</span></summary>
+        <summary><span class="ph">Pregame settings</span><span class="hint">Accepting, hovering, the avoid list, runes, items and the phone remote</span></summary>
         <div class="settings">
           <section class="panel">
             <h2 class="ph">Match found and champ select <button class="tip" type="button" popovertarget="t-league" aria-label="About League's client">?</button></h2>
@@ -1077,9 +1084,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optFront" type="checkbox"> Bring Premade to the front when a match is found</label>
             <label class="check"><input id="optAutoAccept" type="checkbox"> Accept matches for me</label>
             <label class="check"><input id="optTurnAlarm" type="checkbox"> Ring when it's my turn to pick or ban</label>
+            <label class="check"><input id="optAutoLock" type="checkbox"> Lock in my hovered champion when time is almost up</label>
             <label class="field">Hover for me: champions, first choice first <input id="optHoverPicks" autocomplete="off" spellcheck="false" placeholder="Ahri, Lux, Syndra"></label>
             <label class="field">And bans <input id="optHoverBans" autocomplete="off" spellcheck="false" placeholder="Yasuo, Zed"></label>
             <p id="hoverNote" class="hint" role="status"></p>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Avoid list</h2>
+            <p class="hint">Players you never want to play with again. Premade flags them in champ select when League shows their name, on the loading screen and in a game. Add them with Avoid beside their name in champ select, on Game or in a game report, or by Riot ID here.</p>
+            <form id="avoidForm" class="pick"><label>Riot ID <input id="avoidId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn small" type="submit">Avoid</button></form>
+            <p id="avoidNote" class="hint" role="status"></p>
+            <ul id="avoidList" class="watchlist avoids"></ul>
           </section>
           <section class="panel">
             <h2 class="ph">Runes and items</h2>
@@ -1105,6 +1120,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="laneStats" class="phase" role="status" hidden></p>
         <p id="augTips" class="phase" hidden></p>
         <div id="gameTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
+        <p id="liveAvg" class="hint" hidden></p>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
@@ -1685,7 +1701,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
-    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
+    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -3743,10 +3759,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         name: p.name.split('#')[0] || 'A player', sub: [c ? c.name : '', POS[p.pos] || ''].filter(Boolean).join(' · '), pic: champImg(p.champ), me: !!p.me, ally: !!p.ally, lane: !p.ally && !!lane && (lane.foe === p.champ || lane.duo === p.champ),
         rank: !s ? (p.puuid ? 'Looking up…' : '') : rk ? (rk === s.ranked.RANKED_SOLO_5x5 ? '' : 'Flex: ') + rankText(rk) : 'Unranked', tc: rk ? TIER_C[TIERS.indexOf(rk.tier)] : '', emb: rk ? emblems[rk.tier] || '' : '',
         rec: !s || !c ? '' : !s.games ? 'Match history hidden' : `${c.name}: ${on.length ? `${on.length} of the last ${s.games.length}, ${pct(on.filter((x) => x.win).length / on.length)} won` : `not in the last ${s.games.length}`}${m ? ` · mastery ${m.championLevel}` : ''}`,
-        tags: s && s.games ? tagsOf(s, p.champ, p).map(([k, t]) => [k, t.replace(/ \(.*$/, '').replace(/^(Off-role|Maybe a smurf|Seen before):.*$/, '$1')]) : [],
+        tags: [...(avoidOf(p) ? [['bad', 'Avoid list']] : []), ...(s && s.games ? tagsOf(s, p.champ, p).map(([k, t]) => [k, t.replace(/ \(.*$/, '').replace(/^(Off-role|Maybe a smurf|Seen before):.*$/, '$1')]) : [])],
       };
     };
+    const lb = lobbyNow(rows); // each half's heading: its average rank, and which is favored
     return { us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
+      heads: lb ? [`Your team · ${lb.us}${lb.fav > 0 ? ' · favored' : ''}`, `Their team · ${lb.them}${lb.fav < 0 ? ' · favored' : ''}`] : null,
       tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null };
   }
   function moveOverlay(on) {
@@ -4327,6 +4345,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     who.querySelector('b').textContent = p.hidden ? 'Name hidden by Riot' : p.name || '—';
     who.querySelector('.sub').textContent = [POS[p.pos] || '', c ? (p.champ ? c.name : `hovering ${c.name}`) : '', p.score || '', p.best && s && s.level ? `Level ${s.level}` : ''].filter(Boolean).join(' · ');
     if (p.hidden) return tr;
+    if (avoidOf(p)) tags.firstChild.append(tag('bad', 'On your avoid list'));
+    if (!p.me && p.name && !p.best) tags.append(avoidBtn(p)); // in champ select and a game, not a lookup or Clash (best)
     if (!s) { rank.textContent = p.puuid && opts.scout ? 'Looking up…' : ''; return tr; }
     rankCell(rank, s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR);
     if (!s.games) recent.textContent = 'Match history hidden';
@@ -4334,7 +4354,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const g = s.games, w = g.filter((x) => x.win).length, on = g.filter((x) => x.champ === k), m = s.mastery.find((x) => x.championId === k);
       recent.textContent = g.length ? `Last ${g.length}: ${w}W ${g.length - w}L · KDA ${kda(...['k', 'd', 'a'].map((k) => g.reduce((t, x) => t + x[k], 0)))}` : 'No recent games';
       if (c) recent.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: `${c.name}: ${on.length ? `${on.length} games, ${Math.round((100 * on.filter((x) => x.win).length) / on.length)}% won` : 'not in the last 20'}${m ? ` · mastery ${m.championLevel}, ${Math.round(m.championPoints / 1000)}k` : ''}` }));
-      tags.firstChild.replaceChildren(...tagsOf(s, k, p).map(([how, t]) => tag(how, t)));
+      tags.firstChild.append(...tagsOf(s, k, p).map(([how, t]) => tag(how, t)));
       if (p.best && bestText(s)) recent.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: bestText(s) }));
     }
     return tr;
@@ -4372,6 +4392,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (Number.isInteger(cs.localPlayerCellId)) checked('select', !!myCell());
     for (const p of cs.myTeam) if (p.puuid && p.nameVisibilityType !== 'HIDDEN') scoutOf(p.puuid);
     await autoHover();
+    await autoLock();
+    for (const p of cs.myTeam) if (!hidden(p)) avoidSay({ name: p.gameName ? `${p.gameName}#${p.tagLine}` : '', puuid: p.puuid, me: p.cellId === cs.localPlayerCellId }, 'on your team');
     const a = myAction();
     if (a && a.isInProgress && a.id !== turnRung) { turnRung = a.id; if (opts.turnAlarm) { chime('turn'); notify(`Your turn to ${a.type}!`, true); } }
     for (const p of cs.myTeam) for (const t of tradesWith(p.cellId)) {
@@ -4383,6 +4405,58 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (me && me.championId && !csActions().some((a) => a.actorCellId === cs.localPlayerCellId && a.type === 'pick' && !a.completed)) { setRunes(me.championId, myPos()); setItems(me.championId, myPos()); }
   }
   const hidden = (p) => !p.puuid || p.nameVisibilityType === 'HIDDEN';
+  // The avoid list (Pregame settings, lpc-avoid): players you never want to play with again, each { n: Riot ID, u: League's
+  // id for them, at: when added }, kept on this computer. Flagged in champ select (names Riot shows), on the loading
+  // screen and in a game, with a popup the first time each one shows up in a game.
+  let avoid = load('lpc-avoid', []);
+  if (!Array.isArray(avoid)) avoid = [];
+  const sameId = (a, b) => { const [x, y] = [a, b].map((t) => t.toLowerCase()); return x.includes('#') && y.includes('#') ? x === y : x.split('#')[0] === y.split('#')[0]; }; // the tag too, when both have one
+  const avoidOf = (p) => (p.me || p.hidden ? null : avoid.find((e) => (!!p.puuid && e.u === p.puuid) || (!!p.name && sameId(e.n, p.name))) || null);
+  function setAvoid(p, on) {
+    avoid = avoid.filter((e) => e !== avoidOf(p));
+    if (on) { const e = { n: p.name, u: p.puuid || '', at: Date.now() }; avoid.push(e); avoidSaid.add(e); } // no popup for someone you just added
+    store.set('lpc-avoid', JSON.stringify(avoid));
+    renderAvoid();
+    renderGame();
+    pushOverlay();
+  }
+  function avoidBtn(p) { // Avoid, or Avoided: puts a player on the avoid list or takes them off it
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small avoid' }), who = p.name.split('#')[0];
+    const show = () => { const on = !!avoidOf(p); b.textContent = on ? 'Avoided' : 'Avoid'; b.setAttribute('aria-pressed', String(on)); b.title = on ? `Take ${who} off your avoid list` : `Put ${who} on your avoid list`; };
+    b.addEventListener('click', () => { setAvoid(p, !avoidOf(p)); show(); });
+    show();
+    return b;
+  }
+  const avoidSaid = new Set(); // the entries a popup named this game
+  function avoidSay(p, where) {
+    const e = avoidOf(p), picking = lcu === 'ChampSelect';
+    if (!e || avoidSaid.has(e)) return;
+    avoidSaid.add(e);
+    if (picking) chime('turn');
+    notify(`${e.n.split('#')[0]} is on your avoid list, ${where}.${picking && cs && !cs.isCustomGame ? ' Dodge is on Pregame.' : ''}`, true);
+  }
+  function renderAvoid() {
+    $('avoidList').replaceChildren(...avoid.map((e) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span><b></b><span class="sub"></span></span><button class="btn small" type="button">Take off</button>';
+      li.querySelector('b').textContent = e.n;
+      li.querySelector('.sub').textContent = `Added ${whenText(e.at)}`;
+      li.querySelector('button').setAttribute('aria-label', `Take ${e.n} off your avoid list`);
+      li.querySelector('button').addEventListener('click', () => { avoid = avoid.filter((x) => x !== e); store.set('lpc-avoid', JSON.stringify(avoid)); renderAvoid(); renderGame(); pushOverlay(); });
+      return li;
+    }));
+    if (!avoid.length) $('avoidNote').textContent ||= 'Nobody yet.';
+  }
+  $('avoidForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = $('avoidId').value.trim();
+    if (!riotId(v)) return void ($('avoidNote').textContent = 'Type a Riot ID with its tag, like Name#EUW.');
+    const f = lcuOn() && lcu ? await findPlayer(v) : null; // with League open, League's id for them too
+    if (lcuOn() && lcu && !f) return void ($('avoidNote').textContent = `League found nobody called ${v} in your region.`);
+    $('avoidId').value = '';
+    $('avoidNote').textContent = '';
+    setAvoid({ name: f ? f.name : v, puuid: f ? f.puuid : '' }, true);
+  });
   let turnRung = -1; // the pick or ban the turn alarm last rang for
   // Trades: the champion, position and pick order swaps League offers with each teammate, and what's asked of you
   const TRADES = [['trades', 'champion-swaps', 'champions'], ['positionSwaps', 'position-swaps', 'positions'], ['pickOrderSwaps', 'pick-order-swaps', 'pick order']];
@@ -4429,6 +4503,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     await champTick();
     renderGame();
   }
+  // Dodge (app 1.14): leaves champ select without closing League, the way League's own client does. League counts it
+  // as a dodge, with its LP loss and wait before the next queue, so it takes a second click within 4 s.
+  let dodgeAt = -Infinity;
+  const dodgeArmed = () => performance.now() - dodgeAt < 4000;
+  $('dodgeBtn').addEventListener('click', async () => {
+    if (!dodgeArmed()) { dodgeAt = performance.now(); renderGame(); setTimeout(renderGame, 4100); return; }
+    dodgeAt = -Infinity;
+    const r = await lcuAsk('POST', '/lol-lobby-team-builder/champ-select/v1/session/quit');
+    if (!okStatus(r)) notify(r.status ? 'League didn’t let you leave champ select.' : 'Dodge comes with the app update: restart Premade to get it.', true);
+    leagueTick();
+  });
   // your champions for your role: from your last 100 games and your mastery, the ones you may pick now that Riot
   // recommends for that position
   let myHist = null, myHistAt = -Infinity, myMastery = [], champPos = null;
@@ -4826,6 +4911,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!me0) loadMine(true);
   }
   const sameName = (a, b) => !!a && !!b && a.toLowerCase().split('#')[0] === b.toLowerCase().split('#')[0];
+  // Lobby rank: each team's average rank in the queue being played (Flex in Flex, else Solo/Duo), from the players
+  // whose rank is known, and the team favored when they're half a division or more apart. us, them: their ranks
+  // ({ tier, division, leaguePoints }, null unranked); who: whose team us is, when it isn't yours
+  function lobbyOf(us, them, who) {
+    const mean = (l) => { const v = l.map(rkRating).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const a = mean(us), b = mean(them);
+    if (a == null || b == null) return null;
+    const d = Math.abs(a - b), n = Math.max(1, Math.round(d / 100)), fav = d < 50 ? 0 : a > b ? 1 : -1, A = who ? `${who}’s team` : 'your team', B = who ? 'the other team' : 'theirs';
+    const by = a >= 2800 && b >= 2800 ? `${Math.round(d)} LP` : `${n} division${n === 1 ? '' : 's'}`, up = (t) => t[0].toUpperCase() + t.slice(1);
+    return { us: ratingText(a), them: ratingText(b), fav,
+      text: `Average rank: ${A} ${ratingText(a)}, ${B} ${ratingText(b)}. ${!fav ? 'Even teams.' : `${up(fav > 0 ? A : who ? B : 'their team')} is favored, by about ${by}.`}` };
+  }
+  const rkRating = (q) => (q && TIERS.includes(q.tier) ? rating([q.tier, q.division || '', q.leaguePoints | 0]) : null);
+  function lobbyNow(rows) { // the game you're in, from scouting
+    const k = curGame && curGame.queue === 440 ? 'RANKED_FLEX_SR' : 'RANKED_SOLO_5x5', q = (p) => { const s = p.puuid && scoutData.get(p.puuid); return s ? s.ranked[k] || null : null; };
+    return lobbyOf(rows.filter((p) => p.ally).map(q), rows.filter((p) => !p.ally).map(q));
+  }
   function liveList() {
     const team = mine.team || (me0 && (livePlayers.find((p) => p.puuid === me0.puuid) || {}).team) || 'ORDER';
     const rows = league && Array.isArray(league.players) && league.players.length
@@ -5217,6 +5319,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (copy) tr.append(copyCell(r, p));
         tr.querySelector('img').src = champImg(p.champ);
         tr.querySelector('b').textContent = p.name.split('#')[0] || champName(p.champ);
+        if (r.players.indexOf(p) !== r.me && p.name) tr.querySelector('.who').append(avoidBtn({ name: p.name, puuid: p.puuid }));
         if (p.badge) tr.querySelector('.who').append(tag(p.badge === 'MVP' ? 'good' : '', p.badge));
         [`${p.k}/${p.d}/${p.a}`, p.dmg.toLocaleString('en-US'), p.gold.toLocaleString('en-US'), p.vision, p.cs, p.score].forEach((v, i) => { tr.children[i + 1].textContent = v; });
         t.tBodies[0].append(tr);
@@ -5289,6 +5392,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       renderTips($('gameTips'), ln && (ln.foe || ln.duo) ? tipsFor(ln.me.champ, ln.foe, ln.me.pos, ln.duo) : null);
       premade = findPremades(rows);
       $('liveRows').replaceChildren(...rows.map(scoutRow));
+      const lb = lobbyNow(rows);
+      $('liveAvg').hidden = !lb;
+      $('liveAvg').textContent = lb ? lb.text : '';
       renderNotes($('liveNotes'), myChampNow(), rows.filter((p) => !p.ally).map((p) => p.champ).filter(Boolean));
       const g = teamGold(), tm = timers();
       $('timers').replaceChildren(...[...tm.map(([n, s]) => [n, clock(s)]), ...(g ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`], ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])] : [])]
@@ -5315,6 +5421,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return b;
     }));
     $('rerollBtn').hidden = !(cs.benchEnabled && cs.allowRerolling && cs.rerollsRemaining > 0);
+    $('dodgeBtn').hidden = !!cs.isCustomGame; // a custom game has no dodge
+    $('dodgeBtn').textContent = dodgeArmed() ? 'Click again to dodge' : 'Dodge';
+    $('dodgeBtn').classList.toggle('bad', dodgeArmed());
     $('rerollBtn').textContent = `Reroll (${cs.rerollsRemaining} left)`;
     const team = cs.myTeam.map((p) => ({ puuid: hidden(p) ? '' : p.puuid, hidden: hidden(p) && p.cellId !== cs.localPlayerCellId, name: p.gameName ? `${p.gameName}#${p.tagLine}` : '', champ: p.championId, hover: p.championPickIntent,
       pos: String(p.assignedPosition || '').toUpperCase(), ally: true, me: p.cellId === cs.localPlayerCellId, team: 'ORDER', cell: p.cellId }));
@@ -5561,7 +5670,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (/^(GameStart|InProgress|Reconnect)$/.test(ph) && !preViewEl.hidden && opts.gameView) view('game'); // from champ select to the game
         if (ph === 'ChampSelect') {
           cs = null; pickable = null; runesFor = ''; runesNote = ''; scouting.clear(); scoutData.clear(); tradeSeen.clear();
-          autoDone.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
+          autoDone.clear(); avoidSaid.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
         if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = false; }
@@ -5574,6 +5683,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ph) { rankTick(); crawl(); watchTick(); } // one League call at most each, in the background
       if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !preViewEl.hidden) clashTick();
       if (league) { if (curGame && league.result) curGame.result = league.result; if (curGame && league.me) curGame.champ = league.me.champ; await aliasTick(); } else if (PHASES[ph] === 'loading') await aliasTick();
+      if (league || PHASES[ph] === 'loading') for (const p of liveList()) avoidSay(p, p.ally ? 'on your team' : 'on their team');
       if (ph && !me0) loadMine();
       if ((ph === 'ChampSelect' || league || (clash && clash.players.length)) && !ddVersion) ddSoon();
     } finally { lcuBusy = false; }
@@ -6295,11 +6405,67 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         return true;
       }
       const t = has17() && myHist.filter((g) => g.mode === 'CLASSIC').find((g) => deep[g.id] && !(deep[g.id].tl && 'g15' in deep[g.id].tl) && !crawlSkip.has('t' + g.id)); // read before g15 too
-      if (!t) return false;
+      if (!t) return lobbyStep();
       const tl = await lcuGet(`/lol-match-history/v1/game-timelines/${t.id}`), d = deep[t.id];
       if (goodTl(tl) && d.me >= 0) { d.tl = deepTl(d, tl); saveDeep(); } else crawlSkip.add('t' + t.id);
       return true;
     } finally { crawling = false; }
+  }
+  // Your hidden MMR, roughly: the average Solo/Duo rank of the other nine players in each of your last 20 Solo/Duo games
+  // (lb, kept with the game), from their ranks now, asked of League's client one player a turn
+  const rkNow = new Map(); // puuid -> their Solo/Duo rank as a number (rating), null unranked
+  async function lobbyStep() {
+    const g = myHist.filter((x) => x.queue === 420).slice(0, 20).find((x) => deep[x.id] && deep[x.id].me >= 0 && !('lb' in deep[x.id]) && !crawlSkip.has('r' + x.id));
+    if (!g) return false;
+    const d = deep[g.id], them = d.ps.filter((p, i) => i !== d.me && p.u), u = them.map((p) => p.u).find((x) => !rkNow.has(x));
+    if (u) {
+      const s = scoutData.get(u), r = s ? { queueMap: s.ranked } : await lcuGet(`/lol-ranked/v1/ranked-stats/${u}`);
+      if (r) rkNow.set(u, rkRating((r.queueMap || {}).RANKED_SOLO_5x5));
+      else crawlSkip.add('r' + g.id); // League didn't say: that game waits for the next start
+      return true;
+    }
+    const v = them.map((p) => rkNow.get(p.u)).filter((x) => x != null);
+    d.lb = v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+    saveDeep();
+    return true;
+  }
+  // under your Solo/Duo rank on Profile: the average rank in those games against yours, and the LP you win against the
+  // LP you lose (League gives more for a win than it takes for a loss when your hidden MMR is above your rank)
+  function mmrLine(q) {
+    if (!q || !TIERS.includes(q.tier)) return '';
+    const lbs = (myHist || []).filter((x) => x.queue === 420).slice(0, 20).map((x) => deep[x.id] && deep[x.id].lb).filter((x) => x != null);
+    const lp = lpOf(myAcct()).filter((e) => e.q === 'RANKED_SOLO_5x5').slice(-20), w = lp.filter((e) => e.delta > 0), l = lp.filter((e) => e.delta < 0), mean = (a) => a.reduce((t, x) => t + x, 0) / a.length;
+    const out = [];
+    if (lbs.length >= 3) {
+      const m = mean(lbs), d = m - rkRating(q);
+      out.push(d >= 100 ? `Your games are around ${ratingText(m)} while you’re ${rkName(q)}, so you should climb fast.` : d <= -100 ? `Your games are around ${ratingText(m)} while you’re ${rkName(q)}, so climbing takes more wins for now.`
+        : `Your games are around ${ratingText(m)}, about your rank.`);
+    }
+    if (w.length >= 3 && l.length >= 3) {
+      const gain = Math.round(mean(w.map((e) => e.delta))), loss = Math.round(-mean(l.map((e) => e.delta)));
+      out.push(`You win about ${gain} LP and lose about ${loss}${gain - loss >= 4 ? ', so your hidden MMR is above your rank' : loss - gain >= 4 ? ', so your hidden MMR is below your rank' : ''}.`);
+    }
+    return out.join(' ');
+  }
+  // Your place on the ladder (Profile): from our server's daily count of each Solo/Duo division on a server
+  // (/riot/places), the players above a rank: everyone in the divisions above and a share of yours by LP; from Master up,
+  // those with more LP. Asked once an hour at most for each server.
+  // ponytail: takes LP as spread evenly through a division; LP counts for each division if "about" isn't close enough
+  const places = {}; // server -> { asked, at, d: { 'GOLD II': players }, lp: [Master and up: players with 0-9 LP, 10-19...] }
+  const PLACE_DIVS = TIERS.slice(0, 7).reverse().flatMap((t) => ['I', 'II', 'III', 'IV'].map((d) => `${t} ${d}`)); // Diamond I down to Iron IV
+  function placeLine(plat, q) {
+    if (!PLATS[plat] || !q || !TIERS.includes(q.tier)) return '';
+    const L = (places[plat] ||= {}), sum = (a) => a.reduce((t, x) => t + (x | 0), 0);
+    if (!(performance.now() - L.asked < 3600e3)) {
+      L.asked = performance.now();
+      fetch(`${serverUrl}/riot/places?p=${plat}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.d && Array.isArray(j.lp)) { Object.assign(L, j); if (!profView.hidden) renderProfile(); } }).catch(() => {});
+    }
+    if (!L.d) return '';
+    const apex = sum(L.lp), all = apex + sum(PLACE_DIVS.map((k) => L.d[k])), i = TIERS.indexOf(q.tier), lp = q.leaguePoints | 0, b = Math.floor(lp / 10), at = PLACE_DIVS.indexOf(`${q.tier} ${q.division}`);
+    if (!all || (i < 7 && at < 0)) return '';
+    const above = i >= 7 ? sum(L.lp.slice(b + 1)) + (L.lp[b] | 0) * (1 - ((lp % 10) + 0.5) / 10) : apex + sum(PLACE_DIVS.slice(0, at).map((k) => L.d[k])) + (L.d[PLACE_DIVS[at]] | 0) * (1 - Math.min(99, lp) / 100);
+    const place = Math.min(all, Math.round(above) + 1), top = (100 * place) / all;
+    return `Top ${top < 10 ? Math.max(0.1, top).toFixed(1) : Math.round(top)}% of ${PLATS[plat][0]} · about #${place.toLocaleString('en-US')}`;
   }
   async function keepDeep(id, m) { // a game just played: its players now, its timeline once Riot has it
     const d = deepOf(m);
@@ -6483,6 +6649,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const c = list.find((id) => !banned.has(id) && !taken.has(id) && (!Array.isArray(can) || can.includes(id)) && (a.type === 'ban' || fits(id)));
       if (c) await lcuAsk('PATCH', `/lol-champ-select/v1/session/actions/${a.id}`, { championId: c });
     }
+  }
+  // Lock in before time runs out (Pregame settings): with 3 s left on your pick, the champion you hover is locked in
+  // for you, since a pick timer that runs out is a dodge. Once a pick.
+  let lockTried = -1;
+  async function autoLock() {
+    const a = myAction(), left = cs.timer ? cs.timer.adjustedTimeLeftInPhase : Infinity;
+    if (!opts.autoLock || !a || !a.isInProgress || a.type !== 'pick' || !a.championId || a.id === lockTried || left > 3000) return;
+    lockTried = a.id;
+    if (okStatus(await lcuAsk('POST', `/lol-champ-select/v1/session/actions/${a.id}/complete`))) notify(`Time was almost up, so Premade locked in ${champName(a.championId)} for you.`, true);
+    else notify('Time is almost up: lock in a champion now!', true);
   }
   function renderHoverNote() {
     const bad = [opts.hoverPicks, opts.hoverBans].flatMap((s) => String(s || '').split(',').map((x) => x.trim()).filter((x) => x && !champByName(x)));
@@ -7651,7 +7827,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (q !== 'all' && all.length < 20 && !proMore.busy && !proMore.auto[q] && moreFrom(p)) { proMore.auto[q] = true; return void moreGames(p); } // the tab's own games, once
     $('proRanks').hidden = tft && p.src !== 'league'; // TFT ranks come from League's client only
     $('proRanks').replaceChildren(...(tft ? [['TFT', 'RANKED_TFT'], ['Double Up', 'RANKED_TFT_DOUBLE_UP'], ['Hyper Roll', 'RANKED_TFT_TURBO']].map(([n, k]) => tftCard(n, p.rk && p.rk[k]))
-      : QS.map((k) => rankCard(QN[k], p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k, p) : '', peakNow(p, k), [...rankWarns(p, k, mine), ...(mine ? [['goal', '', goalShort(p, k)]] : [])]))));
+      : QS.map((k) => rankCard(QN[k], p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k, p) : '', peakNow(p, k), [...rankWarns(p, k, mine), ...(mine ? [['goal', '', goalShort(p, k)]] : []),
+        ...(k === 'RANKED_SOLO_5x5' && p.rk ? [['hint ladder', '', placeLine(p.plat, p.rk[k])], ['hint mmr', '', live ? mmrLine(p.rk[k]) : '']] : [])]))));
     const g = all.slice(0, 20), n = g.length, w = g.filter((x) => (tft ? x.place <= 4 : x.win)).length, [k, d, a] = ['k', 'd', 'a'].map((s) => g.reduce((t, x) => t + (x[s] | 0), 0));
     const rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), lanes = {}, by = new Map(), traits = {};
     for (const x of g) { if (x.lane) { const v = (lanes[x.lane] ||= [0, 0]); v[0]++; v[1] += x.win; } if (x.champ) by.set(x.champ, [...(by.get(x.champ) || []), x]); if (tft && x.traits[0]) traits[x.traits[0][0]] = (traits[x.traits[0][0]] || 0) + 1; }
@@ -7773,6 +7950,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const key = JSON.stringify([p.n, ddVersion, rows.map((x) => [x.u, x.c, rkFor(x)])]);
     if (box.dataset.key === key) return;
     box.dataset.key = key;
+    const qk = live.q === 440 ? 'RANKED_FLEX_SR' : 'RANKED_SOLO_5x5', side = (ours) => rows.filter((x) => !x.bot && x.u && (x.team === live.team) === ours).map((x) => (rkFor(x) || {})[qk] || null);
+    const lb = lobbyOf(side(true), side(false), proOther ? p.n.split('#')[0] : '');
+    $('proLiveAvg').hidden = !lb;
+    $('proLiveAvg').textContent = lb ? lb.text : '';
     $('proLiveRows').replaceChildren(...rows.map((x) => {
       const tr = document.createElement('tr'), rk = rkFor(x), solo = rk && rk.RANKED_SOLO_5x5, flex = rk && rk.RANKED_FLEX_SR;
       tr.dataset.team = x.team === live.team ? 'ally' : 'enemy';
@@ -9774,7 +9955,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
-    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
+    ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower']]) {
     $(id).checked = opts[k];
@@ -9891,6 +10072,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [34, 'October 20: dodge, an avoid list and ladder places', [
+      'Dodge leaves champ select in one click without closing League. It still counts as a dodge, so it asks twice.',
+      'An avoid list for players you never want to play with again: Avoid beside their name in champ select, on Game or in a game report. They’re flagged in champ select when League shows their name, on the loading screen and in a game.',
+      'Lock in before time runs out: when your pick timer is almost up, Premade locks in the champion you’re hovering, so you never dodge by accident. Turn it on in Pregame settings.',
+      'Each team’s average rank and which team is favored, on Game, on the loading screen and in any live game you look up.',
+      'Profile shows your place on the ladder at every rank, like “Top 14% of EUW · about #420,000”, and a rough idea of your hidden MMR from the ranks in your games and the LP you win and lose.',
+    ]],
     [33, 'October 20: timers, a coach and customs', [
       'Enemy timers: say “Premade, mid flash”, “Premade, top ultimate” or “Premade, their red” in a game, or tap them on your phone remote, and everyone in your room sees the countdown with the objective timers.',
       'Power spikes like “Zed is level 6” and “Jinx finished Infinity Edge”, a coach with a tip now and then (with an I’m new setting that says why), and a jungle clock like “Lee Sin likely topside around 3:15”. All on the Overlay page, Timers and coach, and off until you turn them on.',
@@ -10110,6 +10298,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
       ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
         'Type Name#TAG in the box beside your name. In a live game, click a name to open that player.', '#proId'],
+      ['Ladder place', 'Where a Solo/Duo rank stands on its server’s ladder at every rank, not just Master and up, like “Top 14% of EUW · about #420,000”, for you and anyone you look up.',
+        'Under the Solo/Duo rank on Profile, for EUW, NA and KR. Our server counts the ladder once a day.', '#proRanks'],
+      ['Hidden MMR', 'A rough idea of your hidden MMR: the average rank in your last 20 Solo/Duo games against yours, and the LP you win against the LP you lose, like “Your games are around Gold I while you’re Silver II, so you should climb fast”.',
+        'Under your Solo/Duo rank on Profile, once Premade has read a few of your Solo/Duo games.', '#proRanks', 'app'],
       ['Queues and older games', 'A tab for each queue (All, Solo/Duo, Flex, Normal, ARAM and TFT), each with its own record. Show more games goes back months, 20 games at a time.',
         'Pick a tab above Recent games. TFT comes from League’s client, so it needs the desktop app.', '#proQueues'],
       ['Rank cards', 'Each rank with Riot’s emblem, this season’s peak and your past seasons, and League’s warnings: placement games left, days until decay from Diamond up, and when one loss can drop you a division.',
@@ -10170,6 +10362,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
       ['Auto hover', 'Hovers your first free champion that fits your role as soon as champ select starts, and your ban on your ban turn. You still lock in yourself.',
         'Pregame settings: type your champions, first choice first, then your bans.', '#optHoverPicks', 'app'],
+      ['Lock in before time runs out', 'When your pick is about to run out of time with a champion hovered, Premade locks it in for you, so you never dodge by accident.',
+        'Pregame settings, Match found and champ select. Off until you tick it.', '#optAutoLock', 'app'],
       ['Runes, spells and builds', 'When you lock in: a rune page (the most popular in high elo, Riot’s, or your own usual one), your summoner spells with Flash on your key, and the high elo build and yours in League’s shop. Another button puts on the page high elo players take against your laner.',
         'On unless you turn it off: Pregame settings, Runes and items.', '#optRunes', 'app'],
       ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, off-role, a possible smurf), and everyone’s from the loading screen on. Names Riot hides in Solo/Duo champ select stay hidden.',
@@ -10177,6 +10371,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too.',
         'In champ select and on the loading screen, once both champions are known. Riot’s rules keep tips out of the game itself.', '#csTips', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
+      ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, at the top of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
+      ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
+        'Avoid beside a player in champ select, on Game or in a game report, or type their Riot ID in Pregame settings.', '#avoidForm', 'app'],
       ['ARAM bench', 'In ARAM and ARAM: Mayhem, which bench champion suits you best, with Reroll.', 'In ARAM champ select: click one to take it.', '#bench', 'app'],
       ['Tier list', 'The strongest champions in each role in high elo this patch, with arrows for the ones rising or falling and how often each is banned. Click a champion for its page.', 'Tier list, on Pregame.', '#tierBox', 'app'],
       ['Matchup explorer', 'Pick any two champions to see how that matchup goes in high elo: the record, gold and CS at 10 minutes, runes, spells and items. It hides during a game.', 'Matchup explorer, on Pregame.', '#mxA', 'app'],
@@ -10186,6 +10383,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Game', 'What’s going on in your game, and how you played once it’s over.', [
       ['In game', 'From the loading screen on: everyone’s rank and last 20 games, when the next Dragon, Elder and Baron come, inhibitors coming back, the gold difference, and your CS and lane against your opponent.',
         'Nothing to set up: Game opens by itself when a game loads (Pregame settings).', '#liveBox', 'app'],
+      ['Lobby rank', 'Each team’s average rank and which team is favored, in your game from the loading screen on and in any live game you look up.', 'Nothing to set up: on Game, on the loading screen overlay and in Live game on Profile.', '#liveAvg', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
@@ -10422,6 +10620,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   applyKeys();
   renderPatch();
   checkWindow();
+  renderAvoid();
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();

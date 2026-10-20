@@ -124,6 +124,8 @@ assert.deepStrictEqual(summary(OBJ).events.map(({ e, t, of, name, team }) => [e,
 assert(lcuOk('GET', '/lol-ranked/v1/ranked-stats/abc-123') && lcuOk('POST', '/lol-champ-select/v1/session/actions/7/complete') && lcuOk('PUT', '/lol-perks/v1/pages/42'));
 assert(lcuOk('GET', '/lol-match-history/v1/products/tft/abc-123/matches?begin=20&count=20') && lcuOk('POST', '/lol-champ-select/v1/session/bench/swap/86')
   && lcuOk('POST', '/lol-champ-select/v1/session/my-selection/reroll') && !lcuOk('POST', '/lol-champ-select/v1/session/bench/swap/86/x'), 'TFT games, ARAM’s bench and rerolls');
+assert(lcuOk('POST', '/lol-lobby-team-builder/champ-select/v1/session/quit') && !lcuOk('GET', '/lol-lobby-team-builder/champ-select/v1/session/quit')
+  && !lcuOk('POST', '/lol-lobby-team-builder/champ-select/v1/session/quit/x'), 'Dodge, and only that');
 assert(lcuOk('GET', '/lol-game-queues/v1/queues') && lcuOk('GET', '/lol-chat/v1/friends') && lcuOk('POST', '/lol-lobby/v2/lobby/invitations') && lcuOk('DELETE', '/lol-lobby/v2/lobby')
   && !lcuOk('DELETE', '/lol-lobby/v2/lobby/members/abc') && !lcuOk('POST', '/lol-chat/v1/friends'), 'the lobby: games, friends, invites and leaving');
 assert(lcuOk('GET', '/lol-game-settings/v1/game-settings') && lcuOk('PATCH', '/lol-game-settings/v1/game-settings') && lcuOk('POST', '/lol-game-settings/v1/save')

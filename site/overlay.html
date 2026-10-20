@@ -141,7 +141,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   function board(b, out) {
     const half = (head, list) => { const h = el('half'); h.append(el('team', head), ...(Array.isArray(list) ? list : []).map(card)); return h; };
     const side = el('side'), parts = [side];
-    side.append(half('Your team', b.us), half('Their team', b.them));
+    const heads = Array.isArray(b.heads) ? b.heads : ['Your team', 'Their team']; // with each team's average rank, and which is favored
+    side.append(half(String(heads[0]), b.us), half(String(heads[1]), b.them));
     if (b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length) {
       const col = el('tipcol'), ul = document.createElement('ul');
       ul.append(...b.tips.lines.map((t) => Object.assign(document.createElement('li'), { textContent: String(t) })));
