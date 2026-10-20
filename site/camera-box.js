@@ -98,17 +98,18 @@ globalThis.CameraBox = (() => {
   const HOLD = 3000;      // ms your last spot is kept while your icon is hidden, e.g. under a teammate's icon
   const PACE = 0.1;       // fastest a champion crosses the minimap, in minimap widths a second, dashes and Flash included
 
-  // Finds champion icons with your team's blue ring (yours included). Returns centres in minimap pixels, best first.
-  function findIcons(rgba, s) {
+  // Finds champion icons with your team's blue ring (yours included), or with foe the other team's red one. Returns
+  // centres in minimap pixels, best first.
+  function findIcons(rgba, s, foe) {
     const R = RING * s, N = 32;
-    const blue = new Uint8Array(s * s), ring = new Uint8Array(s * s);
+    const tint = new Uint8Array(s * s), ring = new Uint8Array(s * s);
     for (let i = 0, p = 0; i < s * s; i++, p += 4) {
       const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
-      if (b > 140 && b - r > 50 && g > 80 && g < b) blue[i] = 1; // loose enough for screen-share video colours
+      if (foe ? r > 90 && r > 1.5 * g && r > 1.3 * b : b > 140 && b - r > 50 && g > 80 && g < b) tint[i] = 1; // loose enough for screen-share video colours
     }
     for (let y = 1; y < s - 1; y++) for (let x = 1; x < s - 1; x++) { // grown by 1px, so a ring a pixel off the radius counts
       const i = y * s + x;
-      ring[i] = blue[i - s - 1] | blue[i - s] | blue[i - s + 1] | blue[i - 1] | blue[i] | blue[i + 1] | blue[i + s - 1] | blue[i + s] | blue[i + s + 1];
+      ring[i] = tint[i - s - 1] | tint[i - s] | tint[i - s + 1] | tint[i - 1] | tint[i] | tint[i + 1] | tint[i + s - 1] | tint[i + s] | tint[i + s + 1];
     }
     const offs = [];
     for (let k = 0; k < N; k++) offs.push(Math.round(R * Math.sin((2 * Math.PI * k) / N)) * s + Math.round(R * Math.cos((2 * Math.PI * k) / N)));
@@ -184,6 +185,8 @@ globalThis.CameraBox = (() => {
     for (const it of items) { const d = diff(it); if (d < bd) { bd = d; best = it; } }
     return best;
   }
+  // The icon (blue ring, or red with foe) that looks most like a champion's picture (look: picLook), or null.
+  const iconLike = (rgba, s, look, foe) => closest(findIcons(rgba, s, foe), (i) => lookDiff(iconLook(rgba, s, i.x, i.y), look), PICK_LOOK);
 
   // Follows your champion icon, so your camera can look elsewhere. Your icon has the same blue ring as your
   // teammates', so it learns which one is yours from the camera: each time the camera box carries one lone icon
@@ -215,7 +218,7 @@ globalThis.CameraBox = (() => {
     // You picked your champion by name: the blue-ringed icon that looks most like its picture becomes you, with
     // its look on your screen, as if the camera had taught it. Returns that icon, or null when none looks like it.
     pick(rgba, s, pic, w, now) {
-      const look = picLook(pic, w), best = closest(findIcons(rgba, s), (i) => lookDiff(iconLook(rgba, s, i.x, i.y), look), PICK_LOOK);
+      const best = iconLike(rgba, s, picLook(pic, w));
       if (!best) return null;
       this.looks = [{ look: iconLook(rgba, s, best.x, best.y), n: 5 }];
       this.seen = now;
@@ -314,5 +317,5 @@ globalThis.CameraBox = (() => {
     return () => { on = false; };
   }
 
-  return { Tracker, Follower, RING, findIcons, iconLook, picLook, lookDiff, iconDiff, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, watch };
+  return { Tracker, Follower, RING, findIcons, iconLook, picLook, lookDiff, iconDiff, iconLike, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, watch };
 })();
