@@ -84,10 +84,12 @@ a { color: var(--link); }
 .nav:hover { color: var(--fg); background: var(--raised); }
 .nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 18%, transparent), transparent); }
 main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32px; }
-.view, #msg { max-width: 1320px; margin-inline: auto; }
+.view, #msg, #lolNote { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
+#lolNote { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--warn); color: var(--warn); font-size: 14px; }
+#lolNote:empty { display: none; }
 @container app (max-width: 760px) {
   .rail { width: auto; padding-inline: 6px; }
   .brand span, .nav span { display: none; }
@@ -566,6 +568,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   <main>
     <p id="msg" role="alert"></p>
+    <p id="lolNote" role="status"></p>
 
     <section class="view" data-view="profile" aria-label="Profile">
       <header class="panel prohead">
@@ -1176,6 +1179,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div><svg id="serverChart" class="chart" viewBox="0 0 600 114" role="img"></svg><div class="chartx"><span id="serverFrom"></span><span>Today</span></div></div>
           <p class="hint">Players each day for the last two weeks, counted by our connection server (days in UTC). It keeps no names or internet addresses.</p>
           <p id="serverRiot" hidden></p>
+          <p id="serverUse" class="hint" hidden></p>
         </section>
       </div>
     </section>
@@ -5726,9 +5730,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     let sum = null; // and the high elo games it counted from Riot, for popular runes, builds and matchups
     try { const r = await fetch(`${serverUrl}/riot/summary`); if (r.ok) sum = await r.json(); } catch {}
     $('serverRiot').hidden = !(sum && Number.isFinite(sum.total));
-    if (!$('serverRiot').hidden) $('serverRiot').textContent = `High elo games counted from Riot: ${(sum.total | 0).toLocaleString('en-US')}, ${n(sum.today | 0, 'game')} today${/^\d+\.\d+$/.test(sum.p) ? `, patch ${patchName(sum.p)}` : ''}${sum.from > 0
+    const servers = Object.entries((sum && sum.by) || {}).filter(([p, v]) => PLATS[p] && v > 0); // the games from each server
+    if (!$('serverRiot').hidden) $('serverRiot').textContent = `High elo games counted from Riot: ${(sum.total | 0).toLocaleString('en-US')}${servers.length > 1 ? ` (${servers.map(([p, v]) => `${PLATS[p][0]} ${v.toLocaleString('en-US')}`).join(', ')})` : ''}, ${n(sum.today | 0, 'game')} today${/^\d+\.\d+$/.test(sum.p) ? `, patch ${patchName(sum.p)}` : ''}${sum.from > 0
       ? `, going back to ${new Date(sum.from * 1000).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).`
       : '. They give the most popular runes, builds, skill orders and matchups.'}`;
+    // how much of Cloudflare's free plan the Riot data used today (server/worker.js use, with the plan's limits in lim)
+    const u = sum && sum.use, lim = (u && u.lim) || {}, pc = (k) => `${Math.min(999, Math.round((100 * (+u[k] || 0)) / lim[k]))}%`;
+    $('serverUse').hidden = !(u && u.day && ['write', 'req', 'read', 'ms'].every((k) => lim[k] > 0));
+    if (!$('serverUse').hidden) $('serverUse').textContent = `Cloudflare's free plan today (UTC): the Riot data used ${pc('write')} of its writes, ${pc('req')} of its requests, ${pc('read')} of its reads and ${pc('ms')} of its running time. Past 100% our server stops until the next day; voice rooms use a little more.`;
   }
   $('profileCopy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('profileLink').value); notify('Profile link copied', true); } catch { $('profileLink').select(); }
@@ -6052,8 +6061,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     let on = false;
     try { const r = await fetch(`${serverUrl}/riot/summary`), j = r.ok ? await r.json() : null; on = !!j && Number.isFinite(j.total); if (on) riotSum = j; } catch {}
     if (on !== riotOn) { riotOn = on; if (!profView.hidden) renderProfile(); }
-    if (on) renderGame(); // the tier list and the picks go by its counts
+    if (on) { renderGame(); lolStatus(); } // the tier list and the picks go by its counts
   }
+  // Riot's notices for your League server (server/worker.js passes /lol/status/v4/platform-data on): maintenance going
+  // on or coming and problems, as a line at the top of every page. Asked every 5 minutes at most.
+  let lolAt = -Infinity;
+  async function lolStatus() {
+    const plat = myPlat || (proMine && proMine.plat);
+    if (!riotOn || !PLATS[plat] || performance.now() - lolAt < 300000) return;
+    lolAt = performance.now();
+    let s = null;
+    try { s = await riotGet(plat, '/lol/status/v4/platform-data'); } catch { return; }
+    const en = (t) => (((t || []).find((x) => x && x.locale === 'en_US') || (t || [])[0] || {}).content || '').trim();
+    const list = [...((s && s.maintenances) || []).filter((x) => x && x.maintenance_status !== 'complete'), ...((s && s.incidents) || [])].map((x) => x && en(x.titles)).filter(Boolean);
+    $('lolNote').textContent = list.length ? `Riot on ${PLATS[plat][0]}: ${[...new Set(list)].slice(0, 2).join(' · ')}` : '';
+  }
+  setInterval(lolStatus, 300000);
   async function riotGet(host, path, again) { // one of Riot's API calls through our server; null when Riot has nothing there
     await sleep((riotSlot = Math.max(Date.now(), riotSlot + 100)) - Date.now()); // 10 a second at most: our server lets 15 a second through for everyone
     const r = await fetch(`${serverUrl}/riot/api/${host}${path}`, again ? { cache: 'reload' } : {});
