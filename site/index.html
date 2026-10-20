@@ -461,6 +461,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .quizopts .btn[data-s="picked"] { border-color: var(--gold); opacity: 1; }
 .quizopts .btn[data-s="right"] { border-color: var(--good); color: var(--good); opacity: 1; }
 .quizopts .btn[data-s="wrong"] { border-color: var(--bad); color: var(--bad); opacity: 1; }
+/* Your group: your pick'em guess in gold, a match's winner in green; and the goal board's bars */
+.pickem .btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.pickem .btn[data-s="won"] { border-color: var(--good); color: var(--good); opacity: 1; }
+.goals li { display: grid; gap: 4px; }
+.goals progress { width: 100%; height: 8px; accent-color: var(--gold); }
 .draftrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .draftrow > .hint { grid-column: 1 / -1; font-size: 13px; }
 .draftcell { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 64px; padding: 4px 2px; border: 1px dashed var(--line); border-radius: 6px; font-size: 11px; line-height: 1.2; color: var(--muted); text-align: center; }
@@ -821,6 +826,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <h2 id="h-status" class="ph">League status <button class="tip" type="button" popovertarget="t-status" aria-label="About League status">?</button></h2>
             <div class="tablewrap"><table class="ready"><tbody id="statusRows"></tbody></table></div>
           </section>
+          <section id="goalBox" class="panel" aria-labelledby="h-goals" hidden>
+            <h2 id="h-goals" class="ph">Goal board <button class="tip" type="button" popovertarget="t-goals" aria-label="About the goal board">?</button></h2>
+            <ul id="goalRows" class="plain goals"></ul>
+            <p id="goalNote" class="hint"></p>
+          </section>
           <section class="panel" aria-labelledby="h-chat">
             <h2 id="h-chat" class="ph">Chat</h2>
             <ol id="chatLog" class="chatlog" data-empty="No messages yet. Links open in your browser."></ol>
@@ -831,6 +841,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <div class="toolbar">
               <button id="teamsBtn" class="btn" type="button">Balance teams</button>
               <button id="rolesBtn" class="btn" type="button">Role roulette</button>
+              <button id="bestBtn" class="btn" type="button">Best roles</button>
               <button id="quizBtn" class="btn" type="button">Queue quiz</button>
               <button id="draftBtn" class="btn" type="button">Mock draft</button>
               <button id="mvpBtn" class="btn" type="button">MVP vote</button>
@@ -890,6 +901,29 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
         </div>
       </div>
+      <section id="groupBox" class="panel" aria-labelledby="h-group">
+        <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
+        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="squad">Squad</button><button class="tab" type="button" role="tab" data-gt="pickem">Pick’em</button></div>
+        <div class="stack" data-gt="squad">
+          <p id="sqNote" class="hint" role="status"></p>
+          <ul id="sqList" class="plain"></ul>
+          <div id="sqCallBox" class="stack" hidden>
+            <p id="sqCall" class="phase" data-game="1"></p>
+            <div class="toolbar"><button id="sqJoin" class="btn primary small" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
+          </div>
+          <div class="toolbar"><button id="sqCallBtn" class="btn primary" type="button" hidden>Call the squad</button><button id="sqMake" class="btn" type="button">Make a squad</button><span id="sqJoins" class="toolbar"></span><button id="sqLeave" class="btn small" type="button" hidden>Leave the squad</button></div>
+          <div id="sqPings" class="stack" hidden>
+            <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
+            <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
+          </div>
+        </div>
+        <div class="stack" data-gt="pickem" hidden>
+          <div class="toolbar"><label class="field">League <select id="peLeague"></select></label></div>
+          <p id="peNote" class="hint" role="status"></p>
+          <p id="peBoard" class="phase" hidden></p>
+          <div class="tablewrap"><table class="ready pickem"><tbody id="peRows"></tbody></table></div>
+        </div>
+      </section>
       <details id="voiceSet" class="voiceset">
         <summary><span class="ph">Voice settings</span><span class="hint">Mic, push to talk and sounds</span></summary>
         <div class="settings">
@@ -1030,6 +1064,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="mxNote" class="hint" role="status"></p>
         <div id="mxTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div id="mxBuild"></div>
+      </section>
+      <section id="lolChatBox" class="panel" aria-labelledby="h-lolchat" hidden>
+        <h2 id="h-lolchat" class="ph">League chat <button class="tip" type="button" popovertarget="t-lolchat" aria-label="About League chat">?</button></h2>
+        <p id="lolChatNote" class="hint" hidden>Update the app (1.14) to read and answer League chat here.</p>
+        <div id="lolChatMain" class="stack">
+          <ul id="lolInv" class="plain"></ul>
+          <div class="toolbar"><div id="lolConvs" class="toolbar"></div><label class="field">Message a friend <select id="lolFriend"></select></label></div>
+          <div id="lolOpen" class="stack" hidden>
+            <h3 id="lolWho" class="ph"></h3>
+            <ol id="lolLog" class="chatlog" data-empty="No messages yet."></ol>
+            <form id="lolForm" class="chatform"><input id="lolText" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message"><button class="btn">Send</button></form>
+          </div>
+          <label class="check"><input id="optLolStatus" type="checkbox"> Show my Premade room in my League status, so friends can join</label>
+        </div>
       </section>
       <section id="remoteBox" class="panel" aria-labelledby="h-remote" hidden>
         <h2 id="h-remote" class="ph">Phone remote <button class="tip" type="button" popovertarget="t-remote" aria-label="About the phone remote">?</button></h2>
@@ -1415,6 +1463,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <label class="check"><input id="optRecord" type="checkbox"> Save test recordings of my games <button class="tip" type="button" popovertarget="t-record" aria-label="About test recordings">?</button></label>
           <div class="toolbar"><button id="recordingsBtn" class="btn small" type="button">Open the recordings folder</button></div>
         </section>
+        <section class="panel lcu-only">
+          <h2 class="ph">Your Discord server <button class="tip" type="button" popovertarget="t-hook" aria-label="About posting to Discord">?</button></h2>
+          <label class="field">Webhook link <input id="optHook" type="url" autocomplete="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…"></label>
+          <label class="check"><input id="optHookGames" type="checkbox"> Post my game results and rank-ups</label>
+          <label class="check"><input id="optHookClips" type="checkbox"> Post my clips (under 10 MB)</label>
+          <div class="toolbar"><button id="hookTest" class="btn small" type="button">Send a test post</button><span id="hookNote" class="hint" role="status"></span></div>
+        </section>
         <section class="panel">
           <h2 class="ph">Look</h2>
           <div class="range"><span>App size</span><span></span><input id="optZoom" type="range" min="0.7" max="2" step="0.05" aria-label="App size"><output id="zoomOut"></output></div>
@@ -1600,16 +1655,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
-<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions, answer trades and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found” on the phone and it gets a notification even with its screen off or the page closed (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
+<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions, answer trades and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found or my squad calls” on the phone and it gets a notification even with its screen off or the page closed, also for your squad’s calls and pings (Your group, on the Voice page) (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
-<div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists (titles, pictures, abilities, splash art close-ups, stories with the name blanked out, items and their costs), where fast right answers score most; it ends when the host's League finds a match. <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
+<div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists (titles, pictures, abilities, splash art close-ups, stories with the name blanked out, items and their costs), where fast right answers score most; it ends when the host's League finds a match. <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
+<div id="t-group" class="tipbox" popover>A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
+<div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
+<div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
+<div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
 <div id="t-backup" class="tipbox" popover>Back up saves your settings, matchup notes, LP history, game history, reports and clip favorites in one file. Restore loads such a file, on this PC or another, and replaces what's here.</div>
 <div id="t-lp" class="tipbox" popover>Your LP after each ranked game you play with the app open, kept on this computer: today's wins, losses and LP, and a chart of your rank. Pick a goal to see how many wins it takes at the LP you usually win and lose, and how many games at your win rate. Each League account you log in with keeps its own LP and profile; switch between them in Account, here or on Profile.</div>
 <div id="t-pool" class="tipbox" popover>From your last 100 games on Summoner's Rift, each champion in the role you play it most. Keep: you win with it. Practice: strong in that role in high elo (S or A tier), but you lose more than you win with it or haven't played it much. Drop: you lose more than you win with it, and it isn't strong in high elo either. Win rates are pulled toward 50% while games are few, so one lucky game doesn't count for much. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
@@ -1649,6 +1708,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
+    sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -1951,6 +2011,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderMode();
     if (!$('readyBox').hidden) renderReady();
     renderLeagueStatus();
+    renderGoalBoard();
     const hear = peer && fresh(me) ? hearMe() : null;
     $('hearMe').textContent = !hear ? '' : hear.length ? `Can hear you now: ${hear.join(', ')}.` : league ? 'No teammate can hear you right now.' : 'Nobody can hear you right now.';
     $('empty').hidden = peers.size > 0;
@@ -2103,7 +2164,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // when the name changes and every 5 s; then {t:'me', champ, team, dead, respawn, fx, range, ready, rm} on being
   // let in, when it changes and every 5 s (fx: the effects on your voice; range: your hearing range; ready: your setup
   // for the ready check; rm: the room's game mode as you have it, which counts only from the host, see takeMode),
-  // vq: your voice connection setting, Normal, Faster or Less data (see callPeer),
+  // vq: your voice connection setting, Normal, Faster or Less data (see callPeer), sq: the squad you're in (Your group),
   // {t:'face', img} when it changes, {t:'pos', x, y} on every tracked frame, {t:'talk', s, g} every 5 s,
   // {t:'chat', text}, {t:'ready?'} for a ready check, {t:'guess'} to the host for Guess the voice, {t:'echo'} when your
   // speakers send their voice back (echo check), and {t:'bye'} when leaving. The host sends {t:'lock', key, remove} and
@@ -2112,7 +2173,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
   const meMsg = () => ({
-    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(),
+    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), sq: squad ? squad.code : '',
     ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
     ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }),
@@ -2163,6 +2224,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.st = Object.hasOwn(STATUS, m.st) ? m.st : '';
       p.min = Number.isFinite(m.min) ? Math.max(0, Math.min(300, Math.floor(m.min))) : 0;
       p.lol = lolOf(m.lol);
+      p.sq = typeof m.sq === 'string' && /^[a-z0-9]{12}$/.test(m.sq) ? m.sq : '';
       takeMode(m.rm, p.slot);
       takeSwap(m.sw, p.slot);
       if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeMvp(m.mv, p.slot); }
@@ -3090,12 +3152,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Little sounds only you hear: two quick notes, rising for unmute and joins, falling for mute and leaves; four
   // rising ones before voice swap reshuffles; a ring when it's your turn in champ select; three for an objective
   // coming up. The alarms ring even outside a room (a context of their own, on the same speakers as the voices).
-  const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659] };
+  const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659], call: [659, 784, 988, 784, 988] };
   const played = []; // for the test hooks
   let bell = null;
   function chime(name) {
     if (played.push(name) > 20) played.shift();
-    if (!ac && (name === 'turn' || name === 'spawn') && window.AudioContext) {
+    if (!ac && (name === 'turn' || name === 'spawn' || name === 'call') && window.AudioContext) {
       if (!bell) { bell = new AudioContext(); if (outId && bell.setSinkId) bell.setSinkId(outId).catch(() => {}); }
       bell.resume().catch(() => {});
     }
@@ -4767,6 +4829,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       .filter(([p]) => p && typeof p === 'object').map(([p, team]) => ({ puuid: typeof p.puuid === 'string' ? p.puuid : '', name: nameOf_(p), champ: +p.championId || 0, team, pos: String(p.selectedPosition || '').toUpperCase() }));
     for (const p of livePlayers) scoutOf(p.puuid);
     if (!me0) loadMine(true);
+    const c = me0 && (livePlayers.find((p) => p.puuid === me0.puuid) || {}).champ;
+    if (curGame && curGame.queue > 0) sqPing({ k: 'game', q: QUEUES[curGame.queue] || 'A game', c: champOf(c) ? champName(c) : '' }); // your squad's phones (Your group)
   }
   const sameName = (a, b) => !!a && !!b && a.toLowerCase().split('#')[0] === b.toLowerCase().split('#')[0];
   function liveList() {
@@ -4959,10 +5023,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     afterCard = { id: g.id, at: Date.now(), result: g.result, champ: g.champ || '', clips: g.clips || 0 };
     postWait = g.id;
     const gold = goldLog.pts.length > 1 ? goldLog.pts : null;
+    let lp = null, up = ''; // the LP entry, and the rank you went up to
     if (g.ranked) for (let i = 0; i < 20; i++) {
       const n = await lcuGet('/lol-ranked/v1/current-lp-change-notification');
       if (n && n.gameId === g.id) {
-        lpLog = [...lpLog, { id: g.id, at: Date.now(), q: n.queueType, tier: n.tier, div: n.division, lp: n.leaguePoints | 0, delta: n.leaguePointsDelta | 0, win: g.result ? g.result === 'Win' : n.leaguePointsDelta > 0, a: myAcct() }].slice(-300);
+        const prev = lpOf(myAcct()).filter((e) => e.q === n.queueType).pop(), was = prev ? { tier: prev.tier, division: prev.div } : rankNow && rankNow[n.queueType];
+        if (was && TIERS.includes(was.tier) && rkVal({ tier: n.tier, division: n.division }) > rkVal(was)) {
+          up = `${rkName({ tier: n.tier, division: n.division })} in ${QN[n.queueType] || 'ranked'}`;
+          sqPing({ k: 'rank', r: up });
+        }
+        lp = { id: g.id, at: Date.now(), q: n.queueType, tier: n.tier, div: n.division, lp: n.leaguePoints | 0, delta: n.leaguePointsDelta | 0, win: g.result ? g.result === 'Win' : n.leaguePointsDelta > 0, a: myAcct() };
+        lpLog = [...lpLog, lp].slice(-300);
         store.set('lpc-lp', JSON.stringify(lpLog));
         notify(`${n.leaguePointsDelta >= 0 ? '+' : ''}${n.leaguePointsDelta | 0} LP: ${rankText({ ...n, wins: 0, losses: 0 })}`, true);
         rankAt = -Infinity; // your rank changed
@@ -4985,6 +5056,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       await sleep(20000);
     }
     if (postWait === g.id) postWait = 0;
+    hookGame(g, lp, up);
     loadMine(true);
   }
   // A score out of 100 for each player, against the other nine: KDA (up to 10), kill participation, damage dealt or
@@ -5083,6 +5155,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if ((gameViewEl.hidden && preViewEl.hidden) || document.hidden) return;
     const ph = lcu || '', inGame = playing(PHASES[ph]) || !!league;
     renderQueue(ph);
+    renderChat();
     const old = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.' : lcu === null ? 'Looking for League…' : '';
     $('winFix').hidden = !winFixable();
     $('preNote').textContent = old || (!ph ? 'Start League. This page fills in when you find a match: accept it here, then in champ select the best picks for you, bans, everyone’s rank, runes and builds.'
@@ -5240,11 +5313,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const q = await lcuGet('/lol-game-queues/v1/queues');
       if (Array.isArray(q)) queueList = q.filter((x) => x && Number.isInteger(x.id) && x.queueAvailability === 'Available' && x.isVisible !== false && !x.isCustom && (x.category === 'PvP' || x.category === 'VersusAi'));
     }
-    if (ph === 'Lobby' && mayInvite() && performance.now() - friendsAt > 5000) {
-      friendsAt = performance.now();
-      const f = await lcuGet('/lol-chat/v1/friends');
-      if (Array.isArray(f)) friends = f.filter((x) => x && x.product === 'league_of_legends' && typeof x.puuid === 'string' && x.puuid && !['offline', 'mobile'].includes(x.availability));
-    }
+    if (ph === 'Lobby' && mayInvite()) await friendsTick(5000);
+  }
+  async function friendsTick(every) { // your League friends online in League, asked again after `every` ms
+    if (performance.now() - friendsAt < every) return;
+    friendsAt = performance.now();
+    const f = await lcuGet('/lol-chat/v1/friends');
+    if (Array.isArray(f)) friends = f.filter((x) => x && x.product === 'league_of_legends' && typeof x.puuid === 'string' && x.puuid && !['offline', 'mobile'].includes(x.availability));
   }
   function renderLobby(ph) {
     const ok = lobbyOk() && lcuOn(), here = ph === 'Lobby' && !!lobby, cfg = (here && lobby.gameConfig) || {}, me = (here && lobby.localMember) || {};
@@ -5317,6 +5392,120 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   });
   $('lobbyLeave').addEventListener('click', async () => { if (!okStatus(await lcuAsk('DELETE', '/lol-lobby/v2/lobby'))) notify('Couldn’t leave the lobby.', true); leagueTick(); });
 
+  // ---- League chat (app 1.14): your League friends' messages and party invites, read and answered here and on the
+  // phone remote, through League's own client: your conversations with friends and your invites every 5 seconds (every
+  // 2 while Pregame or the phone remote shows them), with the open conversation's messages; a new message or invite pops
+  // up. With Show my Premade room on, your League status says your room's code while you're in a room (not a game's own
+  // room), and the status you had comes back after (lpc-lol-status keeps it until then).
+  const chatOk = () => !!client && !!client.version && !newer('1.14.0', client.version);
+  const CONV = /^\w[\w.@-]{0,150}$/; // League's id for a conversation (nothing that could walk out of the path it goes in)
+  const convName = (c) => (c.gameName ? `${c.gameName}${c.gameTag ? '#' + c.gameTag : ''}` : String(c.name || '') || 'A friend');
+  let lolChat = { convs: [], inv: [], open: '', msgs: [], ok: false }, chatAt = -Infinity, chatMe = null; // ok: loaded once, so what's new pops up
+  const chatMine = (m) => !!chatMe && ((!!chatMe.pid && m.fromPid === chatMe.pid) || (!!chatMe.id && m.fromId === chatMe.id));
+  const chatName = () => { const c = lolChat.convs.find((x) => x.id === lolChat.open), f = friends.find((x) => (x.pid || x.id) === lolChat.open); return c ? c.name : f ? convName(f) : 'A friend'; };
+  async function chatTick(ph) {
+    const quick = !preViewEl.hidden || [...remoteConns].some((c) => c.seen);
+    if (!chatOk() || !ph || performance.now() - chatAt < (quick ? 2000 : 5000)) return;
+    chatAt = performance.now();
+    if (!chatMe) chatMe = await lcuGet('/lol-chat/v1/me');
+    await friendsTick(15000);
+    const open = lolChat.open, [cv, inv, ms] = await Promise.all([lcuGet('/lol-chat/v1/conversations'), lcuGet('/lol-lobby/v2/received-invitations'), open ? lcuGet(`/lol-chat/v1/conversations/${open}/messages`) : null]);
+    const was = lolChat, from = (i) => i.fromSummonerName || convName(friends.find((f) => f.summonerId === i.fromSummonerId) || {});
+    lolChat = {
+      convs: !Array.isArray(cv) ? was.convs : cv.filter((c) => c && c.type === 'chat' && typeof c.id === 'string' && CONV.test(c.id))
+        .map((c) => ({ id: c.id, name: convName(c), unread: c.unreadMessageCount | 0, last: String((c.lastMessage && c.lastMessage.body) || '').slice(0, 200), at: Date.parse((c.lastMessage || {}).timestamp) || 0 }))
+        .sort((a, b) => b.at - a.at),
+      inv: !Array.isArray(inv) ? was.inv : inv.filter((i) => i && i.state === 'Pending' && typeof i.invitationId === 'string' && /^[\w-]{1,100}$/.test(i.invitationId))
+        .map((i) => ({ id: i.invitationId, from: from(i), q: QUEUES[(i.gameConfig || {}).queueId] || 'a game' })),
+      open: lolChat.open,
+      msgs: lolChat.open !== open ? [] : Array.isArray(ms) ? ms.filter((m) => m && m.type === 'chat').slice(-30).map((m) => ({ me: chatMine(m), text: String(m.body || '').slice(0, 500), at: Date.parse(m.timestamp) || 0 })) : open === was.open && was.ok ? was.msgs : [],
+      ok: true,
+    };
+    if (was.ok) {
+      for (const c of lolChat.convs) if (c.unread > ((was.convs.find((x) => x.id === c.id) || {}).unread | 0)) notify(`${c.name}: ${c.last.slice(0, 100)}`);
+      for (const i of lolChat.inv) if (!was.inv.some((x) => x.id === i.id)) notify(`${i.from} invited you to ${i.q}. Accept or decline on Pregame or your phone.`, true);
+    }
+    await statusRoom();
+    renderChat();
+    pushRemote();
+  }
+  function chatOpen(id) {
+    if (typeof id !== 'string' || !CONV.test(id) || id === lolChat.open) return;
+    lolChat = { ...lolChat, open: id, msgs: [] };
+    chatAt = -Infinity; // its messages on the next tick
+    renderChat();
+    pushRemote();
+  }
+  async function chatSay(text) {
+    text = String(text || '').trim().slice(0, 500);
+    if (!text || !lolChat.open) return false;
+    const ok = okStatus(await lcuAsk('POST', `/lol-chat/v1/conversations/${lolChat.open}/messages`, { body: text, type: 'chat' }));
+    if (!ok) notify('League didn’t send that message.', true);
+    chatAt = -Infinity;
+    return ok;
+  }
+  async function chatInvite(id, yes) {
+    if (!lolChat.inv.some((i) => i.id === id)) return;
+    if (!okStatus(await lcuAsk('POST', `/lol-lobby/v2/received-invitations/${id}/${yes ? 'accept' : 'decline'}`))) notify(`League couldn’t ${yes ? 'accept' : 'decline'} that invite.`, true);
+    chatAt = -Infinity;
+    leagueTick();
+  }
+  async function statusRoom() { // your room's code in your League status, or the status you had back
+    const want = opts.lolStatus && peer && room && !GAME_ROOM.test(room) ? `Premade room ${room.toUpperCase()}` : null, had = load('lpc-lol-status', null);
+    if (want && (!chatMe || chatMe.statusMessage !== want)) {
+      if (had === null) { const m = await lcuGet('/lol-chat/v1/me'); if (!m) return; store.set('lpc-lol-status', JSON.stringify(String(m.statusMessage || ''))); }
+      if (okStatus(await lcuAsk('PUT', '/lol-chat/v1/me', { statusMessage: want }))) chatMe = { ...chatMe, statusMessage: want };
+    } else if (!want && typeof had === 'string' && okStatus(await lcuAsk('PUT', '/lol-chat/v1/me', { statusMessage: had }))) {
+      store.set('lpc-lol-status', 'null');
+      chatMe = { ...chatMe, statusMessage: had };
+    }
+  }
+  function renderChat() {
+    $('lolChatBox').hidden = !lcuOn() || !lcu;
+    if ($('lolChatBox').hidden) return;
+    $('lolChatNote').hidden = chatOk();
+    $('lolChatMain').hidden = !chatOk();
+    const btn = (text, cls, fn) => Object.assign(document.createElement('button'), { type: 'button', className: cls, textContent: text, onclick: fn });
+    const ik = JSON.stringify(lolChat.inv);
+    if ($('lolInv').dataset.key !== ik) {
+      $('lolInv').dataset.key = ik;
+      $('lolInv').replaceChildren(...lolChat.inv.map((i) => {
+        const li = document.createElement('li');
+        li.append(`${i.from} invited you to ${i.q}. `, btn('Accept', 'btn small primary', () => chatInvite(i.id, true)), ' ', btn('Decline', 'btn small', () => chatInvite(i.id, false)));
+        return li;
+      }));
+    }
+    const ck = JSON.stringify([lolChat.convs.map((c) => [c.id, c.name, c.unread]), lolChat.open]);
+    if ($('lolConvs').dataset.key !== ck) {
+      $('lolConvs').dataset.key = ck;
+      $('lolConvs').replaceChildren(...lolChat.convs.slice(0, 12).map((c) => btn(`${c.name}${c.unread ? ` (${c.unread})` : ''}`, `btn small${c.id === lolChat.open ? ' primary' : ''}`, () => chatOpen(c.id))));
+    }
+    const fk = JSON.stringify(friends.map((f) => [f.pid || f.id, convName(f)]));
+    if ($('lolFriend').dataset.key !== fk) {
+      $('lolFriend').dataset.key = fk;
+      $('lolFriend').replaceChildren(new Option(friends.length ? 'Pick a friend' : 'No friends online', ''), ...friends.filter((f) => CONV.test(f.pid || f.id || '')).map((f) => new Option(convName(f), f.pid || f.id)));
+    }
+    $('lolOpen').hidden = !lolChat.open;
+    if (!lolChat.open) return;
+    $('lolWho').textContent = chatName();
+    const mk = JSON.stringify(lolChat.msgs);
+    if ($('lolLog').dataset.key === mk) return;
+    $('lolLog').dataset.key = mk;
+    $('lolLog').replaceChildren(...lolChat.msgs.map((m) => {
+      const li = document.createElement('li'), t = document.createElement('time'), b = document.createElement('b');
+      t.textContent = new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      b.textContent = m.me ? 'You' : chatName();
+      li.append(t, b, m.text);
+      return li;
+    }));
+    $('lolLog').scrollTop = $('lolLog').scrollHeight;
+  }
+  $('lolFriend').addEventListener('change', (e) => { chatOpen(e.target.value); e.target.value = ''; });
+  $('lolForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (await chatSay($('lolText').value)) $('lolText').value = '';
+  });
+
   // ---- patch check: after League updates (its version from League's client), the first games show whether this app
   // still reads League right: its game data, champ select, match history, and the minimap and your champion on it.
   // What stopped working gets a popup; Settings, App lists them all. Once one worked on a patch, it counts as working.
@@ -5385,6 +5574,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ph === 'ChampSelect') await champTick();
       [lobby, search] = await Promise.all([ph === 'Lobby' ? lcuGet('/lol-lobby/v2/lobby') : null, ph === 'Matchmaking' ? lcuGet('/lol-matchmaking/v1/search') : null]);
       await lobbyTick(ph);
+      await chatTick(ph);
       if (ph) await patchTick();
       if (ph) { rankTick(); crawl(); watchTick(); } // one League call at most each, in the background
       if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !preViewEl.hidden) clashTick();
@@ -5397,11 +5587,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- phone remote: your phone opens remote.html#<code> (the QR code) and joins this page's own room on the
   // connection server as lolprox-r<code>-<1 to 9>; this page is lolprox-r<code>-0. The phone gets League's state and
-  // sends accept, decline, hover, lock in and the auto-accept setting. Anyone with the code can use it, so New code
-  // makes another.
+  // sends accept, decline, hover, lock in and the auto-accept setting, and answers League chat (lolopen, lolsay and
+  // lolinv). Anyone with the code can use it, so New code makes another.
   let remote = null, remoteWas = '', qrLib = null;
   const remoteConns = new Set();
-  const newRemote = () => { const c = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); store.set('lpc-remote', c); return c; };
+  const id12 = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); // a code or id our server takes
+  const newRemote = () => { const c = id12(); store.set('lpc-remote', c); return c; };
   const remoteCode = () => (/^[a-z0-9]{12}$/.test(store.get('lpc-remote') || '') ? store.get('lpc-remote') : newRemote());
   const remoteUrl = () => new URL(`remote.html${location.search}#${remoteCode()}`, location.href).href;
   function remoteCheck() {
@@ -5455,6 +5646,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       } : null,
       game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold() } : null,
       chat: peer ? chatLines : null, // in a voice room
+      lol: chatOk() && lcu ? { inv: lolChat.inv, convs: lolChat.convs.slice(0, 12).map(({ id, name, unread, last }) => ({ id, name, unread, last: last.slice(0, 80) })),
+        open: lolChat.open ? { id: lolChat.open, name: chatName(), msgs: lolChat.msgs.slice(-15) } : null } : null, // League chat (app 1.14)
     };
   }
   function pushRemote() {
@@ -5473,6 +5666,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (m.t === 'queue' && typeof m.on === 'boolean') (m.on ? (lcu === 'Lobby' && lead() ? startQueue() : null) : lcu === 'Matchmaking' ? stopQueue() : null);
     else if (m.t === 'trade' && typeof m.path === 'string' && typeof m.act === 'string') trade(m.path, m.id, m.act);
     else if (m.t === 'chat' && typeof m.text === 'string') sendChat(m.text);
+    else if (m.t === 'lolopen') chatOpen(m.id);
+    else if (m.t === 'lolsay') chatSay(m.text);
+    else if (m.t === 'lolinv' && typeof m.id === 'string') chatInvite(m.id, m.yes === true);
     remoteWas = '';
   }
   $('remoteNew').addEventListener('click', () => {
@@ -5563,6 +5759,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       clipNames.unshift(name);
       if (curGame) curGame.clips = (curGame.clips || 0) + 1; // for the card after the game
       notify(`Clip saved${said ? ` when you said “${said}”` : CLIP_WHY[why] || ''}: ${name}`, true);
+      if (opts.hookClips && out.length < 10e6) hookPost(`**${myName || 'Player'}**’s clip${(CLIP_WHY[why] || '').replace(' your ', ' a ')}`, [out, name]); // your Discord server
       await cleanClips();
       loadClips();
     } catch (err) { console.warn('clip:', err); notify('Couldn’t save that clip.', true); }
@@ -8567,6 +8764,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : `${name} is ${o.togo} LP away: about ${plural(o.wins, 'win')} at ${o.guess ? 'a usual' : 'your usual'} +${Math.round(o.up)} LP a win${o.games ? `, or about ${plural(o.games, 'game')} at your ${pct(o.wr)} win rate this season`
         : o.wr != null ? `, but at your ${pct(o.wr)} win rate this season you lose about as much LP as you win, or more` : ''}.${o.guess ? ' That’s a usual LP gain: yours shows once you’ve played a few ranked games with the app open.' : ''}`;
   }
+  // your goal on the goal board in your room (lolShare): the first queue with one, in ladder points: where you are, the
+  // goal, and where you were when you picked it (lpc-goal-from: 'account queue' -> [goal, ladder points])
+  let goalFrom = load('lpc-goal-from', {});
+  if (!goalFrom || typeof goalFrom !== 'object' || Array.isArray(goalFrom)) goalFrom = {};
+  function goalShare() {
+    for (const q of QS) {
+      const k = `${myAcct()} ${q}`, g = goals[k], r = rankNow && rankNow[q], to = g && goalRk(g);
+      if (!g || !r || !TIERS.includes(r.tier)) continue;
+      const at = ladder({ tier: r.tier, div: r.division, lp: r.leaguePoints });
+      if (!goalFrom[k] || goalFrom[k][0] !== g) { goalFrom[k] = [g, at]; store.set('lpc-goal-from', JSON.stringify(goalFrom)); }
+      return { q, g, at, to: ladder({ tier: to.tier, div: to.division, lp: 0 }), from: Math.min(goalFrom[k][1], at) };
+    }
+    return null;
+  }
   $('lpGoal').addEventListener('change', (e) => {
     const p = shownMine(), k = p && `${acctOf(p.n)} ${$('lpQueue').value}`;
     if (!k) return;
@@ -8809,15 +9020,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const r = await lcuGet('/lol-ranked/v1/current-ranked-stats');
     if (r && r.queueMap) rankNow = r.queueMap;
   }
+  // also your rank goal for the goal board (g, goalShare) and your games and wins in each role for Best roles (rl:
+  // [games, wins] for each of ROLES, from your recent Summoner's Rift games)
   function lolShare() {
     if (!opts.shareLol || !me0 || !me0.puuid) return undefined;
     const q = rankNow && rankNow.RANKED_SOLO_5x5, today = lpOf(myAcct()).filter((e) => e.q === 'RANKED_SOLO_5x5' && new Date(e.at).toDateString() === new Date().toDateString());
-    return { id: me0.puuid, n: me0.gameName ? `${me0.gameName}#${me0.tagLine || ''}` : '', rk: q && TIERS.includes(q.tier) ? [q.tier, q.division || '', q.leaguePoints | 0] : null, d: today.length ? today.reduce((n, e) => n + e.delta, 0) : null };
+    const rl = myHist && ROLES.map((r) => { const l = myHist.filter((g) => g.mode === 'CLASSIC' && g.lane === r); return [l.length, l.filter((g) => g.win).length]; });
+    return { id: me0.puuid, n: me0.gameName ? `${me0.gameName}#${me0.tagLine || ''}` : '', rk: q && TIERS.includes(q.tier) ? [q.tier, q.division || '', q.leaguePoints | 0] : null, d: today.length ? today.reduce((n, e) => n + e.delta, 0) : null,
+      g: goalShare(), rl };
   }
   function lolOf(v) {
     if (!v || typeof v !== 'object' || typeof v.id !== 'string' || !/^[\w-]{1,100}$/.test(v.id)) return null;
     const rk = Array.isArray(v.rk) && TIERS.includes(v.rk[0]) ? [v.rk[0], /^(I|II|III|IV)$/.test(v.rk[1]) ? v.rk[1] : '', Math.max(0, Math.min(5000, v.rk[2] | 0))] : null;
-    return { id: v.id, n: typeof v.n === 'string' ? v.n.slice(0, 40) : '', rk, d: Number.isFinite(v.d) ? Math.max(-999, Math.min(999, Math.round(v.d))) : null };
+    const g = v.g && typeof v.g === 'object' && QS.includes(v.g.q) && GOALS.includes(v.g.g) && [v.g.at, v.g.to, v.g.from].every((x) => Number.isInteger(x) && x >= 0 && x <= 9999) ? { q: v.g.q, g: v.g.g, at: v.g.at, to: v.g.to, from: v.g.from } : null;
+    const rl = Array.isArray(v.rl) && v.rl.length === 5 && v.rl.every((x) => Array.isArray(x) && Number.isInteger(x[0]) && Number.isInteger(x[1]) && x[1] >= 0 && x[1] <= x[0] && x[0] <= 999) ? v.rl.map((x) => [x[0], x[1]]) : null;
+    return { id: v.id, n: typeof v.n === 'string' ? v.n.slice(0, 40) : '', rk, d: Number.isFinite(v.d) ? Math.max(-999, Math.min(999, Math.round(v.d))) : null, g, rl };
   }
   function lolText(p) {
     if (!p.lol) return '';
@@ -8929,23 +9146,39 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // Role roulette: a random role each, different within each team (the balanced teams, or groups of five); in the
-  // desktop app, one click puts yours first in League's lobby, with Fill second
+  // desktop app, one click puts yours first in League's lobby, with Fill second. Best roles (b) does the same with the
+  // roles that fit each team best: each player's win rate in each role from their recent games (lolShare's rl), pulled
+  // toward 50% and counting for less below 10 games, summed over the team, the best of every way to hand them out
   const ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
   function takeRoles(r) {
     if (!r || typeof r !== 'object' || !Number.isInteger(r.n) || r.n <= roles.n || !r.map || typeof r.map !== 'object') return;
     const map = {};
     for (const [k, v] of Object.entries(r.map)) if (/^\d$/.test(k) && ROLES.includes(v)) map[k] = v;
-    roles = { n: r.n, map };
-    if (map[slot]) notify(`Role roulette: you’re ${POS[map[slot]]}.`, true);
+    roles = { n: r.n, map, b: r.b === true };
+    if (map[slot]) notify(`${roles.b ? 'Best roles' : 'Role roulette'}: you’re ${POS[map[slot]]}.`, true);
     renderRoomGames();
   }
+  const roleGroups = () => { const here = roomSlots(), t = teamsHere(); return t ? [t.a, t.b] : here.filter((_, i) => i % 5 === 0).map((_, i) => here.slice(i * 5, i * 5 + 5)); };
   function spinRoles() {
     if (!isHost()) return;
-    const here = roomSlots(), t = teamsHere(), groups = t ? [t.a, t.b] : here.filter((_, i) => i % 5 === 0).map((_, i) => here.slice(i * 5, i * 5 + 5)), map = {};
-    for (const g of groups) { const r = shuffled(ROLES); g.forEach((s, i) => { map[s] = r[i % 5]; }); }
+    const map = {};
+    for (const g of roleGroups()) { const r = shuffled(ROLES); g.forEach((s, i) => { map[s] = r[i % 5]; }); }
     takeRoles({ n: roles.n + 1, map });
     send(meMsg());
   }
+  const rlOf = (s) => (s === slot ? (lolShare() || {}).rl : ((slotted(s) || {}).lol || {}).rl) || null; // [games, wins] in each role
+  const perms = (a) => (a.length < 2 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map((p) => [x, ...p])));
+  function bestRoles() {
+    if (!isHost()) return;
+    const fit = (s, i) => { const [n, w] = (rlOf(s) || [])[i] || [0, 0]; return ((w + 1) / (n + 2)) * (Math.min(n, 10) / 10); }, map = {};
+    for (const g of roleGroups()) { // shuffled first, so equally good ways (no games known) come out at random
+      const [, best] = shuffled(perms([0, 1, 2, 3, 4])).reduce((b, p) => { const v = g.reduce((t, s, i) => t + fit(s, p[i]), 0); return v > b[0] ? [v, p] : b; }, [-1, null]);
+      g.forEach((s, i) => { map[s] = ROLES[best[i]]; });
+    }
+    takeRoles({ n: roles.n + 1, map, b: true });
+    send(meMsg());
+  }
+  const roleRecord = (s, r) => { const [n, w] = (rlOf(s) || [])[ROLES.indexOf(r)] || [0, 0]; return n ? `${plural(n, 'recent game')}, ${pct(w / n)} won` : 'no recent games there'; };
   const canSetRole = () => !!roles.map[slot] && lcuOn() && lcu === 'Lobby' && !!(lobby && lobby.gameConfig && lobby.gameConfig.showPositionSelector);
   async function setRole() {
     const r = roles.map[slot];
@@ -9185,7 +9418,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function renderRoomGames() {
     if (!peer || document.hidden) return;
     const host = isHost(), n = roomSlots().length;
-    for (const id of ['rolesBtn', 'quizBtn', 'draftBtn']) $(id).disabled = !host;
+    for (const id of ['rolesBtn', 'bestBtn', 'quizBtn', 'draftBtn']) $(id).disabled = !host;
     $('teamsBtn').disabled = $('mvpBtn').disabled = !host || n < 2 || !!vote;
     $('gamesNote').textContent = !host ? 'The host starts these.' : n < 2 ? 'Room games are for friends in the room: invite some first.' : '';
     renderTeams();
@@ -9215,8 +9448,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const here = roomSlots().filter((s) => roles.map[s]), r = roles.map[slot];
     $('rolesBox').hidden = !here.length;
     if (!here.length) return;
-    $('rolesMine').textContent = r ? `Your role: ${POS[r]}.` : 'You joined after the roles were handed out.';
-    $('rolesList').replaceChildren(...here.map((s) => Object.assign(document.createElement('li'), { textContent: `${slotName(s)}: ${POS[roles.map[s]]}` })));
+    $('rolesMine').textContent = r ? `Your role: ${POS[r]}.${roles.b ? ' Best roles: from everyone’s wins in each role lately.' : ''}` : 'You joined after the roles were handed out.';
+    $('rolesList').replaceChildren(...here.map((s) => Object.assign(document.createElement('li'), { textContent: `${slotName(s)}: ${POS[roles.map[s]]}${roles.b ? ` (${roleRecord(s, roles.map[s])})` : ''}` })));
     $('rolesSet').hidden = !canSetRole();
   }
   function renderQuiz() {
@@ -9297,6 +9530,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('teamsBtn').addEventListener('click', balance);
   $('rolesBtn').addEventListener('click', spinRoles);
+  $('bestBtn').addEventListener('click', bestRoles);
   $('rolesSet').addEventListener('click', setRole);
   $('quizBtn').addEventListener('click', startQuiz);
   $('quizStop').addEventListener('click', () => endQuiz('The host ended it.'));
@@ -9321,6 +9555,217 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderRoomGames();
   }
   function resetGames() { teams = { n: 0, a: [], b: [] }; roles = { n: 0, map: {} }; quiz = draft = qv = dv = vote = vv = null; mv = { n: 0, s: -1, name: '' }; mvBy = -1; }
+
+  // ---- the goal board in your room: everyone with a rank goal (lolShare's g), the closest first, with a bar from where
+  // they were when they picked it
+  function renderGoalBoard() {
+    const all = [[`${myName || 'You'} (you)`, lolShare()], ...[...peers.values()].map((p) => [nameOf(p), p.lol])];
+    $('goalBox').hidden = !all.some(([, l]) => l); // nobody here has the desktop app with League
+    if ($('goalBox').hidden) return;
+    const rows = all.filter(([, l]) => l && l.g).map(([n, l]) => ({ n, ...l.g, togo: Math.max(0, l.g.to - l.g.at) })).sort((a, b) => a.togo - b.togo);
+    $('goalNote').textContent = rows.length ? '' : 'Nobody here has a rank goal yet. Pick yours in Stats, You: Goal.';
+    const key = JSON.stringify(rows);
+    if ($('goalRows').dataset.key === key) return;
+    $('goalRows').dataset.key = key;
+    $('goalRows').replaceChildren(...rows.map((r) => {
+      const li = document.createElement('li'), bar = document.createElement('progress');
+      bar.max = Math.max(1, r.to - r.from);
+      bar.value = Math.min(bar.max, r.at - r.from);
+      bar.setAttribute('aria-label', `${r.n}: how close`);
+      li.append(`${r.n}: ${rkName(goalRk(r.g))} in ${QN[r.q]}, ${r.togo ? `${r.togo} LP to go` : 'reached!'}`, bar);
+      return li;
+    }));
+  }
+
+  // ---- Your group (Voice page). A squad: friends who call each other to play, kept by our server (server/squad.js, up
+  // to 12) under a code only its members' apps know. Call the squad puts "<name> wants to play" with your room's code in
+  // the others' Premade, which asks our server every minute (every 10 s for 10 minutes after a call), and on their
+  // phones through the phone remote's notifications (remote-sw.js, with In 10 and Not tonight on Android). Members
+  // also ping the phones of those who want it when they start a game or rank up. Friends in your voice room see your
+  // squad on your 'me' message (sq) and join it from there. lpc-squad: { code, id (you in it), seen (the last call shown) }.
+  let squad = load('lpc-squad', null), sq = null, sqAt = -Infinity, sqSent = '', sqBusy = false; // sq: our server's { m: members, call, picks }
+  if (!squad || typeof squad !== 'object' || !/^[a-z0-9]{12}$/.test(squad.code) || !/^[a-z0-9]{12}$/.test(squad.id)) squad = null;
+  const saveSquad = () => store.set('lpc-squad', JSON.stringify(squad));
+  const sqPost = (act, b) => fetch(`${serverUrl}/squad/${squad.code}${act ? '/' + act : ''}`, { method: 'POST', body: JSON.stringify({ id: squad.id, ...b }) })
+    .then((r) => r.json()).catch(() => ({ error: 'Our server didn’t answer' }));
+  const sqName = (id) => (squad && id === squad.id ? 'You' : ((sq && sq.m.find((x) => x.id === id)) || {}).n || 'Someone');
+  const sqPing = (b) => squad && sqPost('ping', b);
+  async function sqHello() { // joins, or tells our server your new name, phone or pings: only when one of them changed
+    const b = { n: myName || 'Player', c: opts.remote ? remoteCode() : '', g: opts.sqGame, r: opts.sqRank }, j = JSON.stringify([squad.code, b]);
+    if (j === sqSent) return;
+    sqSent = j; // again once something changes, or sqLoad finds you aren't in the squad
+    const r = await sqPost('', b);
+    if (r.error === 'This squad is full') { notify('That squad is full: 12 friends at most.', true); leaveSquad(); }
+  }
+  async function sqLoad() {
+    sqAt = performance.now();
+    const code = squad.code, s = await fetch(`${serverUrl}/squad/${code}`).then((r) => r.json()).catch(() => null);
+    if (!squad || squad.code !== code || !s || !Array.isArray(s.m)) return;
+    const was = sq, c = s.call;
+    sq = s;
+    if (!s.m.some((x) => x.id === squad.id)) sqSent = ''; // our server lost you, or hasn't got you yet: again on the next tick
+    if (c && c.from !== squad.id && c.n > (squad.seen | 0)) { // a call you haven't seen yet
+      squad.seen = c.n;
+      saveSquad();
+      if (Date.now() - c.at < 1800000) { notify(`${sqName(c.from)} wants to play: room ${String(c.room).toUpperCase()}. Join from Your group, on the Voice page.`, true); if (opts.chimes) chime('call'); }
+    }
+    if (c && c.from === squad.id && was && was.call && was.call.n === c.n) for (const [id, a] of Object.entries(c.ans)) if (!was.call.ans[id]) notify(`${sqName(id)}: ${a === 'in10' ? 'in 10' : 'not tonight'}.`, true);
+    renderGroup();
+  }
+  function joinSquad(code) {
+    squad = { code, id: id12(), seen: 0 };
+    saveSquad();
+    sq = null;
+    sqSent = '';
+    sqAt = -Infinity;
+    renderGroup();
+    send(meMsg());
+  }
+  function leaveSquad() {
+    if (!squad) return;
+    sqPost('', { leave: true });
+    squad = sq = null;
+    sqSent = '';
+    saveSquad();
+    renderGroup();
+    send(meMsg());
+  }
+  async function callSquad() {
+    $('sqCallBtn').disabled = true;
+    try {
+      if (!peer) await joinRoom(newCode());
+      if (!peer || !squad) return;
+      const r = await sqPost('call', { room });
+      notify(r.error ? `Couldn’t call your squad: ${r.error.toLowerCase()}.` : `Called your squad to room ${room.toUpperCase()}: ${r.sent ? `${plural(r.sent, 'phone')} got it` : 'no phone has notifications on, so they see it in Premade'}.`, true);
+      sqAt = -Infinity; // shows the call
+    } finally { $('sqCallBtn').disabled = false; }
+  }
+  async function sqAnswer(a) {
+    if (!sq || !sq.call) return;
+    const r = await sqPost('answer', { call: sq.call.n, a });
+    if (r.error) notify(`Couldn’t answer: ${r.error.toLowerCase()}.`, true);
+    sqAt = -Infinity;
+  }
+  let gTab = store.get('lpc-group-tab') === 'pickem' ? 'pickem' : 'squad';
+  function renderGroup() {
+    if (document.hidden) return;
+    for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.setAttribute('aria-selected', String(b.dataset.gt === gTab));
+    for (const d of $('groupBox').querySelectorAll('div[data-gt]')) d.hidden = d.dataset.gt !== gTab;
+    if (gTab === 'squad') renderSquad(); else renderPickem();
+  }
+  function renderSquad() {
+    const c = squad && sq && sq.call, theirs = !!c && c.from !== squad.id, others = new Map(); // the squads friends in your room are in: code -> their names
+    if (!squad) for (const p of peers.values()) if (p.sq) others.set(p.sq, [...(others.get(p.sq) || []), nameOf(p)]);
+    $('sqMake').hidden = !!squad;
+    $('sqCallBtn').hidden = $('sqLeave').hidden = $('sqPings').hidden = !squad;
+    const jk = JSON.stringify([...others]);
+    if ($('sqJoins').dataset.key !== jk) {
+      $('sqJoins').dataset.key = jk;
+      $('sqJoins').replaceChildren(...[...others].map(([code, names]) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: `Join ${names.join(' and ')}’s squad`, onclick: () => joinSquad(code) })));
+    }
+    $('sqNote').textContent = !squad ? (others.size ? 'Friends in your room have a squad: join theirs, or make your own.'
+      : 'A squad is your group of friends. Call the squad tells all of them you want to play, in Premade and on their phone, and they answer In 10 or Not tonight. Make one, then friends in your voice room join it here.')
+      : !sq ? 'Loading your squad…' : sq.m.length < 2 ? 'Just you so far: friends in your voice room join your squad here.' : '';
+    const rows = squad && sq ? sq.m.map((x) => { const a = c && c.ans[x.id]; return `${x.n}${x.id === squad.id ? ' (you)' : ''}${x.phone ? ' · phone remote on' : ''}${c && x.id === c.from ? ' · called' : a ? ` · ${a === 'in10' ? 'in 10' : 'not tonight'}` : ''}`; }) : [];
+    if ($('sqList').dataset.key !== rows.join('\n')) { $('sqList').dataset.key = rows.join('\n'); $('sqList').replaceChildren(...rows.map((t) => Object.assign(document.createElement('li'), { textContent: t }))); }
+    $('sqCallBox').hidden = !c;
+    if (!c) return;
+    $('sqCall').textContent = `${theirs ? `${sqName(c.from)} wants to play` : 'You called the squad'} (${new Date(c.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}): room ${String(c.room).toUpperCase()}.`;
+    $('sqJoin').hidden = !theirs || (!!peer && room === c.room);
+    $('sqIn10').hidden = $('sqNo').hidden = !theirs;
+  }
+  $('sqMake').addEventListener('click', () => joinSquad(id12()));
+  $('sqLeave').addEventListener('click', () => { if (confirm('Leave your squad? Its calls and pings stop, and your pick’em guesses go.')) leaveSquad(); });
+  $('sqCallBtn').addEventListener('click', callSquad);
+  $('sqIn10').addEventListener('click', () => sqAnswer('in10'));
+  $('sqNo').addEventListener('click', () => sqAnswer('no'));
+  $('sqJoin').addEventListener('click', () => { const c = sq && sq.call; if (!c) return; if (peer && room !== c.room) leaveRoom(); joinRoom(c.room); });
+  for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.addEventListener('click', () => { gTab = b.dataset.gt; store.set('lpc-group-tab', gTab); renderGroup(); });
+
+  // Pick'em: Worlds' and the big leagues' matches from LoL Esports, through our server (server/esports.js; asked every
+  // minute while it shows): live ones with their games won, the next ones with a guess on either team until they start,
+  // and the last results. Each right guess is a point for that squad member (server/squad.js keeps the guesses).
+  let ev = null, evAt = -Infinity; // ev: null until our server first answers
+  async function evLoad() {
+    evAt = performance.now();
+    const j = await fetch(`${serverUrl}/esports`).then((r) => r.json()).catch(() => null);
+    ev = j && Array.isArray(j.ev) ? j.ev.slice().sort((a, b) => a.at - b.at) : ev || [];
+    renderGroup();
+  }
+  async function pickTeam(match, team) {
+    const r = await sqPost('pick', { match, team });
+    if (r.error) notify(`Pick’em: ${r.error}.`, true);
+    sqAt = -Infinity;
+  }
+  function renderPickem() {
+    const sel = $('peLeague'), now = Date.now(), picks = (squad && sq && sq.picks) || {}, all = ev || [], lgs = [...new Set(all.map((e) => e.lg))].sort();
+    if (sel.dataset.key !== lgs.join('|')) { const v = sel.value; sel.dataset.key = lgs.join('|'); sel.replaceChildren(new Option('All of them', ''), ...lgs.map((n) => new Option(n, n))); sel.value = lgs.includes(v) ? v : ''; }
+    const live = (e) => e.st === 'inProgress' || (e.st === 'unstarted' && e.at <= now), l = all.filter((e) => !sel.value || e.lg === sel.value);
+    const shown = [...l.filter(live), ...l.filter((e) => e.st === 'unstarted' && e.at > now).slice(0, 15), ...l.filter((e) => e.st === 'completed').reverse().slice(0, 10)];
+    const pts = {};
+    for (const x of Object.values(picks)) if (x.w) for (const [id, t] of Object.entries(x.p)) pts[id] = (pts[id] || 0) + (t === x.w ? 1 : 0);
+    $('peBoard').hidden = !squad || !sq || !Object.keys(pts).length;
+    if (!$('peBoard').hidden) $('peBoard').textContent = `Points: ${sq.m.map((m) => [m, pts[m.id] || 0]).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m.id === squad.id ? 'you' : m.n} ${n}`).join(' · ')}`;
+    $('peNote').textContent = !ev ? 'Loading the matches…' : !ev.length ? 'No matches from Worlds or the big leagues these two weeks, or LoL Esports didn’t answer.'
+      : !squad ? 'Make or join a squad (the Squad tab) to guess the winners with your friends.' : 'Pick the winner of each match before it starts: a point for every right one.';
+    const key = JSON.stringify([shown, picks, squad && squad.id, Math.floor(now / 60000)]);
+    if ($('peRows').dataset.key === key) return;
+    $('peRows').dataset.key = key;
+    $('peRows').replaceChildren(...shown.map((e) => {
+      const tr = document.createElement('tr'), x = picks[e.id], mine = squad && x && x.p[squad.id], open = !!squad && e.st === 'unstarted' && e.at > now && !e.t.some((t) => t.c === 'TBD');
+      const [a, b] = e.t.map((t) => {
+        const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: t.c, title: t.n, disabled: !open, onclick: () => pickTeam(e.id, t.c) });
+        btn.setAttribute('aria-pressed', String(mine === t.c));
+        if (e.st === 'completed' && t.o === 'win') btn.dataset.s = 'won';
+        return btn;
+      });
+      for (let i = 0; i < 4; i++) tr.append(document.createElement('td'));
+      tr.children[0].textContent = live(e) ? 'Live' : whenText(e.at);
+      tr.children[1].textContent = [e.lg, e.bl].filter(Boolean).join(' · ');
+      tr.children[2].append(a, ` ${live(e) || e.st === 'completed' ? `${e.t[0].w}–${e.t[1].w}` : `Bo${e.bo}`} `, b);
+      tr.children[3].textContent = x ? Object.entries(x.p).map(([id, t]) => `${sqName(id)} ${t}${x.w ? (t === x.w ? ' ✓' : ' ✗') : ''}`).join(' · ') : '';
+      return tr;
+    }));
+  }
+  $('peLeague').addEventListener('change', renderPickem);
+  async function groupTick() { // once a second
+    const shown = !!$('groupBox').offsetParent;
+    if (shown && gTab === 'pickem' && performance.now() - evAt > 60000) evLoad();
+    if (shown) renderGroup();
+    if (!squad || sqBusy) return;
+    sqBusy = true;
+    try {
+      await sqHello();
+      if (squad && performance.now() - sqAt > (sq && sq.call && Date.now() - sq.call.at < 600000 ? 10000 : 60000)) await sqLoad();
+    } finally { sqBusy = false; }
+  }
+
+  // ---- your Discord server (Settings): with a webhook link (Discord's own way for an app to post in a channel), your
+  // game results with any rank-up, and clips under 10 MB, post themselves there, straight from this PC
+  const HOOK = /^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+  async function hookPost(content, file) { // file: [bytes, name]
+    if (!HOOK.test(opts.hook)) return false;
+    const f = new FormData();
+    f.append('payload_json', JSON.stringify({ content, username: 'Premade', allowed_mentions: { parse: [] } }));
+    if (file) f.append('files[0]', new Blob([file[0]], { type: 'video/webm' }), file[1]);
+    try { return (await fetch(opts.hook, { method: 'POST', body: f })).ok; } catch { return false; }
+  }
+  function hookGame(g, lp, up) { // after a game: who won, as what, the score and LP
+    const r = reports[g.id], p = r && r.players[r.me];
+    if (!opts.hookGames || !(g.queue > 0) || (!p && !g.result)) return;
+    hookPost([`**${myName || 'Player'}** ${(p ? p.win : g.result === 'Win') ? 'won' : 'lost'} ${QUEUES[g.queue] || 'a game'}${p ? ` as ${champName(p.champ)} · ${p.k}/${p.d}/${p.a} · score ${p.score}${p.badge ? ` (${p.badge})` : ''}` : ''}`,
+      lp ? `${lp.delta < 0 ? '−' : '+'}${Math.abs(lp.delta)} LP: ${rankText({ tier: lp.tier, division: lp.div, leaguePoints: lp.lp })}` : '', up ? `Ranked up to ${up}!` : ''].filter(Boolean).join('\n'));
+  }
+  $('optHook').value = opts.hook;
+  $('optHook').addEventListener('change', (e) => {
+    const v = e.target.value.trim(), ok = !v || HOOK.test(v);
+    $('hookNote').textContent = ok ? '' : 'That isn’t a Discord webhook link: those start with https://discord.com/api/webhooks/.';
+    if (ok) { opts.hook = v; saveOpts(); }
+  });
+  $('hookTest').addEventListener('click', async () => {
+    $('hookNote').textContent = !HOOK.test(opts.hook) ? 'Paste your webhook link first.' : 'Sending…';
+    if (HOOK.test(opts.hook)) $('hookNote').textContent = (await hookPost(`${myName || 'Premade'}’s games and clips will post here.`)) ? 'Sent: have a look in your Discord channel.' : 'Discord didn’t take it. Check the link.';
+  });
 
   // ---- keyboard shortcuts. The Windows client registers them system-wide (keysOk says which took); otherwise
   // they work while this page has focus.
@@ -9477,7 +9922,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
-    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls']]) {
+    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -9592,6 +10038,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [33, 'October 20: your group, League chat and Discord', [
+      'Your group, on the Voice page: make a squad with your friends, and Call the squad tells all of them you want to play, with your room’s code, in Premade and on their phone. They answer In 10 or Not tonight, and phones can ping when one of you starts a game or ranks up.',
+      'Pick’em: guess the winners of Worlds’ and the big leagues’ matches with your squad, a point for every right guess.',
+      'In your room: a goal board with everyone’s rank goal and how close they are, and Best roles in Room games, which hands out roles by what each of you wins most in.',
+      'League chat on Pregame and the phone remote: read and answer your League friends’ messages and party invites, and show your Premade room in your League status. It comes with app 1.14, which installs itself.',
+      'Your Discord server: paste a webhook link in Settings, and your game results, rank-ups and clips under 10 MB post themselves.',
+    ]],
     [32, 'October 20: TFT helpers', [
       'A roll calculator on TFT: your chance to hit a 2 or 3 star with the gold you have, at your level, counting the copies already taken.',
       'Item recipes on TFT: what every pair of components makes, with the items you put on your comp’s champions ringed in gold. Tick TFT item recipes on the Overlay page to see them over your TFT games too.',
@@ -9838,8 +10291,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Game mode, at the top of your room. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],
       ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
       ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'In your room. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
-      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, a Queue quiz, a Mock draft and an MVP vote. Room awards come after each game with friends in voice.',
+      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles, a Queue quiz, a Mock draft and an MVP vote. Room awards come after each game with friends in voice.',
         'Room games, in your room.', '#h-games, #createBtn'],
+      ['Best roles', 'For a 5-stack or Clash: who should play which role, from the roles each of you wins most in lately, instead of Role roulette’s random pick.', 'Room games, in your room: the host presses Best roles.', '#bestBtn, #createBtn', 'app'],
+      ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in your room.', '#h-goals, #createBtn', 'app'],
+      ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
+        'Your group, on the Voice page: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
+      ['Pick’em', 'Guess the winners of Worlds’ and the big leagues’ matches with your squad: a point for every right guess, with live scores and the last results.', 'Your group, on the Voice page: Pick’em. It needs a squad.', '#groupBox'],
       ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
         'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling or Bluetooth mic.',
@@ -9854,6 +10312,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ]],
     ['Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online, Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox', 'app'],
+      ['League chat', 'Your League friends’ messages and party invites: read and answer them here or on the phone remote, accept or decline an invite, and message any friend who’s online.', 'League chat, on Pregame, while League is open.', '#lolChatBox', 'app'],
+      ['Your room in your League status', 'While you’re in a room, your League status says “Premade room KAYN”, so friends know where to join. Your old status comes back when you leave.', 'Off until you turn it on: League chat on Pregame, Show my Premade room.', '#optLolStatus', 'app'],
       ['Match found', 'Accept or decline right here, or let Premade accept every match for you. It can also come to the front and open Pregame when a match is found, and ring on your pick or ban turn.',
         'Pregame settings, Match found and champ select. Accept matches for me is off until you tick it.', '#optAutoAccept', 'app'],
       ['Best picks and bans', 'In champ select, the champions that suit you in your role: how they do in high elo and against their laner, your own games and what your team lacks. Bans for you starts with the champions you lose to most.',
@@ -9944,9 +10404,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Spoken callouts', 'The callouts read out loud in your computer’s own voice, as well as shown.', 'Off until you turn it on: the Overlay page, Callouts, Read callouts out loud.', '#optSpeakCalls', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
-      ['Phone remote', 'Start the queue, accept matches, pick or ban champions, answer trades and use room chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
+      ['Phone remote', 'Start the queue, accept matches, pick or ban champions, answer trades, and use room chat and League chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
         'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
-      ['Match found on a locked phone', 'A notification when a match is found, even with your phone’s screen off or the remote closed.', 'On the phone remote, tick “Tell me when a match is found”. On an iPhone, open the remote from its home screen icon first.', '#remoteBox, #optRemote', 'app'],
+      ['Match found on a locked phone', 'A notification when a match is found, or your squad calls or pings, even with your phone’s screen off or the remote closed.', 'On the phone remote, tick “Tell me when a match is found or my squad calls”. On an iPhone, open the remote from its home screen icon first.', '#remoteBox, #optRemote', 'app'],
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
       ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Ctrl+Shift+O). They work while League is in front.',
@@ -9954,6 +10414,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
       ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
+      ['Your Discord server', 'Your game results with your LP and rank-ups, and your clips under 10 MB, post themselves in a channel of your Discord server.', 'Settings, Your Discord server: paste a webhook link from Discord (Server Settings, Integrations, Webhooks).', '#optHook', 'app'],
       ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
       ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
       ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
@@ -10110,7 +10571,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -10182,6 +10643,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     patchNow: () => { patchAt = -Infinity; return patchTick(); }, extras: () => extras, // League's version asked now, not in a minute
     watchNow: async () => { for (const w of watchList) await watchOne(w); renderWatch(); },
     teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
+    groupNow: () => { sqAt = evAt = -Infinity; }, // your squad and pick'em's matches asked for now, not in a minute
     quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
     quizQuestions, champSpells,

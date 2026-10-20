@@ -165,8 +165,9 @@ async function clientPhase() {
 // The calls the page may make to League's client, for scouting players (Clash opponents too), Riot's recommended runes
 // and spells, your item sets, hovering, banning and locking in champions, trades, the ready check, starting and
 // stopping the queue, your role, a Practice Tool game, ranked LP, match history with timelines and replays, spectating,
-// the patch and League's window mode (Borderless in one click: the overlay only shows over it). Nothing else goes
-// through, so the page can't do anything else with your account (deleting all your rune pages, buying, chatting).
+// the patch, League's window mode (Borderless in one click: the overlay only shows over it), and League chat: your
+// conversations and their messages, sending one, your status message and party invites you got. Nothing else goes
+// through, so the page can't do anything else with your account (deleting all your rune pages, buying, friends).
 const LCU_OK = [
   ['GET', /^\/lol-gameflow\/v1\/(gameflow-phase|session)$/],
   ['GET', /^\/lol-champ-select\/v1\/(session|pickable-champion-ids|bannable-champion-ids)$/],
@@ -181,7 +182,13 @@ const LCU_OK = [
   ['DELETE', /^\/lol-lobby\/v2\/lobby$/], // Leave lobby
   ['POST', /^\/lol-lobby\/v2\/lobby\/invitations$/], // inviting a friend
   ['GET', /^\/lol-game-queues\/v1\/queues$/],
-  ['GET', /^\/lol-chat\/v1\/friends$/], // your friends, to invite
+  ['GET', /^\/lol-chat\/v1\/friends$/], // your friends, to invite and to message
+  ['GET', /^\/lol-chat\/v1\/(me|conversations)$/], // League chat: you (your status message) and your conversations
+  ['PUT', /^\/lol-chat\/v1\/me$/], // your status message, with your Premade room in it
+  ['GET', /^\/lol-chat\/v1\/conversations\/\w[\w.@-]*\/messages$/], // a conversation's messages (its id can't start with a dot)
+  ['POST', /^\/lol-chat\/v1\/conversations\/\w[\w.@-]*\/messages$/], // sending one
+  ['GET', /^\/lol-lobby\/v2\/received-invitations$/], // party invites you got
+  ['POST', /^\/lol-lobby\/v2\/received-invitations\/[\w-]+\/(accept|decline)$/],
   ['POST', /^\/lol-lobby\/v1\/lobby\/custom\/start-champ-select$/],
   ['POST', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
   ['DELETE', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
