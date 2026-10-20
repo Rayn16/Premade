@@ -3659,7 +3659,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 10, displaySurface: 'monitor' }, audio: false });
     } catch { return; } // picker cancelled
-    const s = share = { track: stream.getVideoTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '' };
+    const s = share = { track: stream.getVideoTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0 };
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
     s.stop = CameraBox.watch(stream, 200, (src, w, h) => {
       if (share !== s) return;
@@ -3673,6 +3673,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (!document.hidden) preview(src, s.sq, res);
         seeFoes(s);
       }
+      // League's surrender vote box (votePop): on after 2 frames with it, off after 2 without
+      if (league && SR.test(league.mode) && opts.overlayWin) { s.vote = CameraBox.seeVote(cctx, src, w, h) ? Math.min(3, s.vote + 1) : Math.max(0, s.vote - 1); s.wide = w / h; }
       volumes();
     });
     trackedAt = 0;
@@ -3828,14 +3830,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
-    const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips();
+    const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
     const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
     // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
-    // teammate's screen while you're dead, and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || (visible && Object.keys(opts.overlayParts).length > 0));
+    // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
+    // and parts with places of their own
+    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || (visible && Object.keys(opts.overlayParts).length > 0));
+    const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     const s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
-      parts: boardOk() ? ovSpots() : null, missing, after, tips, buy, screen,
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -4121,6 +4125,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return 1 / (1 + Math.exp(-z));
   }
   const winText = () => { const w = opts.overlayWin ? winChance() : null; return w == null ? '' : `Win chance ${pct(Math.min(0.99, Math.max(0.01, w)))}`; };
+  // It also pops up beside League's surrender vote box while a vote is on, with what it comes from. Your screen share
+  // sees the box (CameraBox.seeVote, share.vote), so it needs your League screen shared; not for a remake (before 2:30).
+  const votePop = () => {
+    const t = share && share.vote >= 2 && boardOk() && gameNow() >= 150 ? winText() : '', g = t && teamGold();
+    return g ? { title: t, win: winChance() >= 0.5, lines: [`Gold ${goldText(g.gold)} · Kills ${g.kills[0]}–${g.kills[1]} · Towers ${g.towers[0]}–${g.towers[1]}`] } : null;
+  };
   // A teammate's screen while you're dead: a friend in your room who lets teammates watch (Voice settings, In a game:
   // lendScreen, said in their 'me' as lend while they share their screen) sends you theirs while you wait to respawn,
   // straight from their PC like voice, and the overlay shows it in a corner: the first one alive on your team in this
@@ -11160,6 +11170,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [40, 'October 20: your chance to win in a surrender vote', [
+      'When a surrender vote starts, your team’s chance to win pops up beside League’s vote box, with the gold, kills and towers it comes from, so you know what you’re voting on.',
+      'Premade sees the vote box on your League screen, so the pop-up needs your screen shared, as for proximity voice (Share League screen on Voice) or the callouts.',
+    ]],
     [39, 'October 20: champ select on your phone', [
       'After you accept a match, the phone remote shows champ select as League does: both teams with their champions and whose turn it is, the bans and the seconds left. Names show only where League shows them.',
       'Pick or ban from your phone: the best picks or bans for you, or any champion you may, found by name or role. Lock in, answer trades or dodge, and in ARAM take a champion from the bench or reroll.',
@@ -11580,8 +11594,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'On unless you turn it off: the Overlay page, What it shows. Drag it anywhere in Layout.', '#optDeadTips', 'app'],
       ['What to buy next', 'While you’re dead or in your base, the next item for this game, from what players at your rank build on your champion and the other team’s damage, healing, armor and magic resist, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
         'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayBuy', 'app'],
-      ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time.',
-        'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayWin', 'app'],
+      ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',
+        'On unless you turn it off: the Overlay page, What it shows. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
         'On unless you turn it off: the Overlay page, What it shows. Each friend turns on Voice settings, In a game, Let teammates in my room watch my screen.', '#optWatchMates', 'app'],
       ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'The Overlay page, Layout: drag the rest, or Move it and drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],

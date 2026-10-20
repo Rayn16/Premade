@@ -1,7 +1,8 @@
 // Test of the in-game helpers in site/index.html and site/overlay.html, in headless Chromium with a stand-in for the
 // desktop app 1.13 (window.lpcClient) and League's client: the tips for your lane while you're dead (on the overlay and
 // the Game page), what to buy next against the other team, your team's chance to win at the end of the timers line,
-// the overlay drawing them in their places, and a teammate's screen while you're dead, with three players in a room on
+// the overlay drawing them in their places, the chance to win popping up beside League's surrender vote box when it
+// shows on the shared screen, and a teammate's screen while you're dead, with three players in a room on
 // a local PeerServer: Ana lends theirs once they turn it on, Ben on Ana's team watches it while dead, and Cat on the
 // other team never gets it, even by asking.
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
@@ -74,6 +75,18 @@ function fakeApp([lcu, colour]) {
   let n = 0;
   setInterval(() => { g.fillStyle = n++ % 2 ? colour : '#000'; g.fillRect(0, 0, 1, 1); }, 100);
   navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(10);
+  window.voteBox = (on) => { // League's surrender vote box where League puts it on this 720p screen: a yes, 4 to come, half the time left
+    const s = 720 / 1200;
+    g.setTransform(s, 0, 0, s, 1280 - 243 * s, 602 * s);
+    g.fillStyle = on ? '#161c1e' : colour;
+    g.fillRect(0, 0, 223, 113);
+    if (on) {
+      g.fillStyle = '#000'; g.fillRect(13, 42, 197, 16); g.fillRect(13, 61, 197, 9);
+      ['#008e25', '#323232', '#323232', '#323232', '#323232'].forEach((c, i) => { g.fillStyle = c; g.fillRect(15 + i * 38.8, 44, 36.8, 12); });
+      g.fillStyle = '#00a09e'; g.fillRect(13, 62, 98, 5);
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  };
 }
 async function context(browser, name, { opts = {}, lcu = false, colour = '#333', notes = null } = {}) {
   const c = await browser.newContext({ viewport: { width: 1280, height: 860 } });
@@ -136,20 +149,21 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
       await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
       const red = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 64; c.height = 36; const g = c.getContext('2d'); g.fillStyle = '#c33'; g.fillRect(0, 0, 64, 36); return c.toDataURL('image/jpeg'); });
-      const spots = { buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' } };
+      const spots = { buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' }, vote: { x: 0.881, y: 0.5017, ax: 'r', ay: 't' } };
       await p.evaluate(([red, parts]) => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, parts, game: 'Dragon 1:23 · Baron 12:00 · Kills 5–3 · Gold +1.2k · Win chance 62%',
         buy: { name: 'Zhonya’s Hourglass', pic: red, why: 'armor against Zed and Talon' }, tips: { title: 'Ahri against Zed', lines: ['Your note: stay away at 6', 'Zhonya’s Hourglass stops Death Mark.'] },
-        screen: { name: 'Ana', img: red } }), [red, spots]);
-      const box = (k) => p.evaluate((k) => { const e = document.querySelector(`#parts [data-part="${k}"]`); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, text: e.innerText.replace(/\s+/g, ' ').trim(), imgs: [...e.querySelectorAll('img')].map((i) => i.naturalWidth) }; }, k);
+        screen: { name: 'Ana', img: red }, vote: { title: 'Win chance 6%', win: false, lines: ['Gold −4.5k · Kills 0–8 · Towers 0–0'] } }), [red, spots]);
+      const box = (k) => p.evaluate((k) => { const e = document.querySelector(`#parts [data-part="${k}"]`); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, text: e.innerText.replace(/\s+/g, ' ').trim(), imgs: [...e.querySelectorAll('img')].map((i) => i.naturalWidth), loss: !!e.querySelector('.after.loss') }; }, k);
       await p.waitForFunction(() => [...document.querySelectorAll('#parts img')].every((i) => i.complete && i.naturalWidth));
-      const [tips, buy, screen] = [await box('tips'), await box('buy'), await box('screen')];
+      const [tips, buy, screen, vote] = [await box('tips'), await box('buy'), await box('screen'), await box('vote')];
+      assert(vote && vote.text === 'WIN CHANCE 6% Gold −4.5k · Kills 0–8 · Towers 0–0' && vote.loss && Math.abs(vote.r - 1127.7) < 2 && Math.abs(vote.t - 361.2) < 2, `the chance to win left of League’s vote box: ${JSON.stringify(vote)}`);
       assert(tips && tips.text === 'TIPS: AHRI AGAINST ZED Your note: stay away at 6 Zhonya’s Hourglass stops Death Mark.' && Math.abs(tips.l - 12.8) < 2 && Math.abs(tips.t - 360) < 2, `the tips on the left: ${JSON.stringify(tips)}`);
       assert(buy && buy.text === 'Next: Zhonya’s Hourglass · armor against Zed and Talon' && buy.imgs.length === 1 && Math.abs(buy.r - 1267.2) < 2 && Math.abs(buy.t - 43.2) < 2, `what to buy at the top right: ${JSON.stringify(buy)}`);
       assert(screen && screen.text === 'ANA’S SCREEN' && screen.imgs[0] === 64 && Math.abs(screen.r - 1267.2) < 2 && Math.abs(screen.t - 216) < 2, `Ana’s screen on the right: ${JSON.stringify(screen)}`);
       assert.match(await p.innerText('#main'), /Gold \+1\.2k · Win chance 62%/);
       await shot(p, 'ingame-overlay');
       await p.close();
-      console.log('overlay: the tips on the left, what to buy at the top right, a teammate’s screen on the right, the chance to win after the timers');
+      console.log('overlay: the tips on the left, what to buy at the top right, a teammate’s screen on the right, the chance to win after the timers and beside League’s vote box');
     }
 
     // ---- while you're dead: your lane's tips, and what to buy next against their team
@@ -200,6 +214,31 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(page, () => !/Win chance/.test(lpcClient.lastOverlay.game || ''), null, 'off when turned off');
       await c.close();
       console.log('chance to win: 50% even, 75% 2,000 gold up at 10:00, 95% 8,000 up at 20:00, 77% with your Elder; at the end of the timers line');
+    }
+
+    // ---- a surrender vote: League's vote box on the shared screen (a callout has the app share it by itself) pops the
+    // chance to win up left of it, with the gold, kills and towers; not for a remake (before 2:30), gone with the box
+    {
+      const [c, page] = await context(browser, 'Rayan', { lcu: true, opts: { missList: true } });
+      const lol = (t) => page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST, undefined, { t }));
+      await lol(600);
+      await wait(page, () => lpc.winChance() != null, null, 'the items, for the gold');
+      await page.waitForTimeout(1500);
+      assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.vote || null), null, 'nothing without a vote');
+      await page.evaluate(() => voteBox(true));
+      await wait(page, () => !!lpcClient.lastOverlay.vote, null, 'the chance to win beside the vote box');
+      const o = await page.evaluate(() => lpcClient.lastOverlay);
+      assert.deepStrictEqual(o.vote, { title: 'Win chance 6%', win: false, lines: ['Gold −4.5k · Kills 0–8 · Towers 0–0'] });
+      assert(o.board === true && Math.abs(o.parts.vote.x - 0.881) < 0.001 && Math.abs(o.parts.vote.y - 0.5017) < 0.001 && o.parts.vote.ax === 'r' && o.parts.vote.ay === 't', `left of League’s box, the same top: ${JSON.stringify(o.parts.vote)}`);
+      await lol(100); // a remake
+      await wait(page, () => !lpcClient.lastOverlay.vote, null, 'no pop-up for a remake');
+      await lol(600);
+      await wait(page, () => !!lpcClient.lastOverlay.vote, null, 'the pop-up again');
+      await shot(page, 'ingame-vote');
+      await page.evaluate(() => voteBox(false));
+      await wait(page, () => !lpcClient.lastOverlay.vote, null, 'gone with League’s box');
+      await c.close();
+      console.log('surrender vote: the chance to win pops up left of League’s vote box, 6% with the gold, kills and towers; not for a remake, gone with the box');
     }
 
     // ---- a teammate's screen while you're dead: Ana (ORDER, alive) lends theirs once they turn it on, Ben (ORDER,

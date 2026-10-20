@@ -7,7 +7,7 @@ const assert = require('assert');
 
 const ctx = vm.createContext({});
 vm.runInContext(fs.readFileSync(__dirname + '/site/camera-box.js', 'utf8'), ctx);
-const { Tracker, Follower, RING, findIcons, findMinimap, iconLike, picLook } = ctx.CameraBox;
+const { Tracker, Follower, RING, VOTE, findIcons, findMinimap, findVote, iconLike, picLook } = ctx.CameraBox;
 
 let seed = 7;
 const rand = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
@@ -106,9 +106,9 @@ assert(Math.abs(large.res.cx - small.res.cx) < 0.01 && Math.abs(large.res.cy - s
 
 // Screen-share video can keep colour at half resolution (4:2:0): each 2x2 block shares one colour and
 // only brightness stays per pixel. Rebuild the corner that way, with blocks that straddle the 1px gold line.
-function videoColours(src, w, off) {
+function videoColours(src, w, off, h = w) {
   const out = new Uint8ClampedArray(src);
-  for (let y = off; y < w - 1; y += 2) for (let x = off; x < w - 1; x += 2) {
+  for (let y = off; y < h - 1; y += 2) for (let x = off; x < w - 1; x += 2) {
     const ids = [y * w + x, y * w + x + 1, (y + 1) * w + x, (y + 1) * w + x + 1];
     const lum = ids.map((i) => 0.299 * src[i * 4] + 0.587 * src[i * 4 + 1] + 0.114 * src[i * 4 + 2]);
     const u = ids.reduce((a, i, k) => a + (src[i * 4 + 2] - lum[k]) * 0.564, 0) / 4;
@@ -345,6 +345,60 @@ lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, vid
   const t = Math.round(S * 0.75), small = videoColours(shrink(foes, 0.75), t, 1), jg2 = iconLike(small, t, look, true);
   assert(jg2 && Math.hypot(jg2.x - at[0] * 0.75, jg2.y - at[1] * 0.75) < 2, `found red Yasuo at 1080p in video colours: ${JSON.stringify(jg2)}`);
   console.log('their jungler: found red Yasuo among 7, at both sizes');
+}
+
+// ---- League's surrender vote box (findVote), drawn from League's own layout with the colours of a real 1080p capture
+// (the League wiki's): the panel, the votes' boxes (green yes, red no, grey not yet, black between) and the teal timer.
+// It's put on a screen 720 to 2160 px high and read back as seeVote does, also in video colours: found with 4 or 5
+// votes, any time left and the panel after disruptive behavior. Never found without a yes, nor anywhere on Rayan's screen.
+{
+  const VW = VOTE.w, VH = VOTE.h;
+  function voteBox(votes, left, panel = [22, 28, 30]) { // votes: y, n or - each; left: the share of time left
+    const px = new Uint8ClampedArray(VW * VH * 4);
+    const fill = (x0, y0, x1, y1, c) => { for (let y = y0; y < y1; y++) for (let x = Math.round(x0); x < Math.round(x1); x++) px.set([...c, 255], (y * VW + x) * 4); };
+    fill(0, 0, VW, VH, [90, 81, 57]); // the gold frame
+    fill(2, 2, VW - 2, VH - 2, panel);
+    fill(60, 12, 163, 24, [90, 210, 170]); // the title
+    fill(13, 42, 210, 58, [0, 0, 0]); fill(13, 61, 210, 70, [0, 0, 0]); // the slots for the votes and the timer
+    const w = 194 / votes.length;
+    [...votes].forEach((v, i) => fill(14 + i * w + 1, 44, 14 + (i + 1) * w - 1, 56, { y: [0, 142, 37], n: [116, 22, 22], '-': [50, 50, 50] }[v]));
+    for (let x = 13; x < 13 + 196 * left; x++) fill(x, 62, x + 1, 67, [0, 98 + (117 * (x - 13)) / 196, 96 + (118 * (x - 13)) / 196]);
+    fill(13, 78, 103, 101, [28, 48, 46]); fill(119, 78, 209, 101, [28, 48, 46]); // Yes and No
+    return px;
+  }
+  // the (x, y, bw, bh) part of a w x h picture at ow x oh, each pixel the average of what it covers, as a canvas draws it
+  function resize(img, w, h, x0, y0, bw, bh, ow, oh) {
+    const out = new Uint8ClampedArray(ow * oh * 4), fx = bw / ow, fy = bh / oh;
+    for (let v = 0; v < oh; v++) for (let u = 0; u < ow; u++) {
+      const ax = x0 + u * fx, bx = ax + fx, ay = y0 + v * fy, by = ay + fy, acc = [0, 0, 0];
+      let n = 0;
+      for (let yy = Math.floor(ay); yy < Math.min(h, Math.ceil(by)); yy++) for (let xx = Math.floor(ax); xx < Math.min(w, Math.ceil(bx)); xx++) {
+        const a = (Math.min(bx, xx + 1) - Math.max(ax, xx)) * (Math.min(by, yy + 1) - Math.max(ay, yy));
+        for (let c = 0; c < 3; c++) acc[c] += img[(yy * w + xx) * 4 + c] * a;
+        n += a;
+      }
+      out.set([acc[0] / n, acc[1] / n, acc[2] / n, 255], (v * ow + u) * 4);
+    }
+    return out;
+  }
+  const seen = (box, k, video) => { // on a screen k * 1200 px high
+    const bw = Math.round(VW * k), bh = Math.round(VH * k);
+    let on = resize(box, VW, VH, 0, 0, VW, VH, bw, bh);
+    if (video) on = videoColours(on, bw, 1, bh);
+    return findVote(resize(on, bw, bh, 0, 0, bw, bh, VW, VH));
+  };
+  for (const [votes, left, panel] of [['y----', 1], ['yn---', 0.6], ['yyynn', 0], ['y---', 0.3], ['y----', 0.8, [40, 23, 24]]]) {
+    for (const k of [0.6, 0.9, 1.2, 1.8]) for (const video of [false, true]) assert(seen(voteBox(votes, left, panel), k, video), `vote box ${votes} at ${k}${video ? ', video colours' : ''}`);
+  }
+  assert(!seen(voteBox('-----', 1), 0.9) && !seen(voteBox('nnnnn', 1), 0.9), 'a vote always has a yes');
+  assert(!seen(voteBox('y----', 1, [150, 150, 150]), 0.9), 'only on League’s dark panel');
+  let hits = 0;
+  for (const k of [1.2, 0.9, 0.6]) {
+    const bw = VW * k, bh = VH * k;
+    for (let y = 0; y + bh <= R; y += 29) for (let x = 0; x + bw <= R; x += 29) if (findVote(resize(corner, R, R, x, y, bw, bh, VW, VH))) hits++;
+  }
+  assert.strictEqual(hits, 0, 'a vote box on Rayan’s screen');
+  console.log('surrender vote box: found on screens 720 to 2160 px high, in video colours too; never without a yes or on Rayan’s screen');
 }
 
 console.log('ok');
