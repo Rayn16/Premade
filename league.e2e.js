@@ -17,8 +17,10 @@
 // deaths and the objectives), Stats' LP
 // tracker and chart, match history with its reports and the spreadsheet export, the voice game history with the
 // report; the patch check, the performance meter, test recordings, your version and What's new, an app link into a
-// room, the phone remote from its home screen icon, backup and restore; and that every call to League's client is
-// one the desktop app lets through (client/main.js LCU_OK).
+// room, the phone remote from its home screen icon, backup and restore; the champ select helpers in app 1.13 (the tier
+// list's arrows, bans and champion pages, the matchup explorer and hidden in a game, safe blind picks, the matchup's own
+// rune page, tips against both bot laners, Borderless in one click from the ready check); and that every call to
+// League's client is one the desktop app lets through (client/main.js LCU_OK).
 // League stats: your games read in detail (one lane guessed from the timeline), Clash scouting, tags for players seen
 // before, premades, off-role and smurfs, ban ideas, matchup notes, your build as an item set and your skill order,
 // your own rune page, auto hover; the report's replay, laning and item timeline; Stats' tabs (trends, hall of fame,
@@ -92,6 +94,26 @@ const zedMid = () => ({ patch: '15.20', role: 'MIDDLE', roles: { MIDDLE: [16, 7]
   e: i < 4 || (i >= 6 && i < 10) || (i >= 11 && i < 15) ? [64] : [] })) });
 // and Garen at the top: 20 games with Lux, 15 won
 const garenTop = () => ({ patch: '15.20', role: 'TOP', roles: { TOP: [20, 15] }, games: Array.from({ length: 20 }, (_, i) => ({ p: '15.20', t: 4000 + i, w: +(i < 15), o: null, g: 0, s: [4, 12], rn: null, b: [], k: null, x: null, l: null, a: [99] })) });
+
+// for the champ select helpers (app 1.13): our server's high elo games this patch and the last, with bans; Ahri's in the
+// middle: 20 against Zed on Arcane Comet with Teleport (6 won), 20 against Lux and 20 against Garen on Electrocute (10
+// and 12 won); Zed's: 20 against Ahri (14 won) and 20 against Lux (8 won); Lux's: 20 against Ahri (10 won); Jinx's at
+// the bottom, with each game's teams: 10 against Caitlyn and Sona (4 won), 10 against another with Sona (5 won) and 10
+// against Caitlyn and Thresh (6 won)
+const HSUM = { p: '15.20', c: { 103: { MIDDLE: [80, 52] }, 238: { MIDDLE: [60, 24] }, 99: { MIDDLE: [40, 21] }, 254: { MIDDLE: [20, 14] }, 86: { TOP: [100, 50] }, 122: { TOP: [100, 50] },
+  222: { BOTTOM: [50, 25] }, 51: { BOTTOM: [50, 25] }, 37: { UTILITY: [40, 20] }, 412: { UTILITY: [40, 20] } }, b: { 238: 30, 103: 6 }, bn: 120,
+  old: { p: '15.19', c: { 103: { MIDDLE: [80, 36] }, 238: { MIDDLE: [60, 36] }, 99: { MIDDLE: [40, 20] }, 254: { MIDDLE: [20, 10] }, 86: { TOP: [100, 50] }, 122: { TOP: [100, 50] } }, b: { 238: 10 }, bn: 80 },
+  today: 5, total: 999, at: 0 };
+const COMET = [8200, 8100, 8229, 8226, 8210, 8237, 8139, 8135, 5008, 5008, 5011], ELEC = [8100, 8200, 8112, 8139, 8138, 8135, 8226, 8210, 5008, 5008, 5002];
+const hGame = (t, w, o, x = {}) => ({ p: '15.20', t, w, o, g: null, s: [4, 14], rn: ELEC, b: [], k: null, x: null, l: null, ...x });
+const H_CHAMP = {
+  '103/MIDDLE': Array.from({ length: 60 }, (_, i) => (i < 20 ? hGame(5000 + i, +(i < 6), 238, { rn: COMET, s: [4, 12], b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, 3157]] })
+    : hGame(5000 + i, +(i < 30 || (i >= 40 && i < 52)), i < 40 ? 99 : 86))),
+  '238/MIDDLE': Array.from({ length: 40 }, (_, i) => hGame(5100 + i, +(i < 14 || (i >= 20 && i < 28)), i < 20 ? 103 : 99, { rn: null, s: null })),
+  '99/MIDDLE': Array.from({ length: 20 }, (_, i) => hGame(5200 + i, +(i < 10), 103, { rn: null, s: null })),
+  '222/BOTTOM': Array.from({ length: 30 }, (_, i) => hGame(5300 + i, +(i < 4 || (i >= 10 && i < 15) || (i >= 20 && i < 26)), i < 10 || i >= 20 ? 51 : 21,
+    { rn: null, s: null, e: [86, 64, 103, i < 10 || i >= 20 ? 51 : 21, i < 20 ? 37 : 412] })),
+};
 
 // ---- the fake League client
 const ME = 'me-puuid', GAME = 5550001;
@@ -178,7 +200,7 @@ function timeline(id) {
 }
 // Clash: your team's next match is against Night Owls, two of whom League names
 const CLASH_SUMS = { 501: { puuid: 'clash1', gameName: 'Owl', tagLine: 'NA1' }, 502: { puuid: 'clash2', gameName: 'Hoot', tagLine: 'NA1' } };
-const lcu = { phase: '', rc: null, cs: null, pages: [{ id: 1, name: 'My page', isEditable: true }], lpNote: null, lobby: null, search: null, calls: [], refused: [],
+const lcu = { phase: '', rc: null, cs: null, pages: [{ id: 1, name: 'My page', isEditable: true }], lpNote: null, lobby: null, search: null, calls: [], refused: [], general: { WindowMode: 0, Width: 1920, Height: 1080 }, saved: null,
   clash: true, lp: {}, replay: {}, itemSets: { accountId: 77, timestamp: 1, itemSets: [{ uid: 'mine-1', title: 'My set', blocks: [] }] } };
 const flatActions = () => lcu.cs.actions.flat();
 function champSelect(gameId, me = {}) {
@@ -271,6 +293,8 @@ function fakeLcu(method, p, body) {
   if ((m = /^\/lol-perks\/v1\/pages\/(\d+)$/.exec(p))) { Object.assign(lcu.pages.find((x) => x.id === +m[1]), body); return { status: 201, data: null }; }
   if (p === '/lol-perks/v1/currentpage') return { status: 204, data: null };
   if (p === '/lol-patch/v1/game-version') return ok('14.20.612.1234');
+  if (p === '/lol-game-settings/v1/game-settings') { if (method === 'PATCH') Object.assign(lcu.general, body.General); return ok({ General: { ...lcu.general }, HUD: { MinimapScale: 1 } }); } // League in Fullscreen (0) at first
+  if (p === '/lol-game-settings/v1/save') { lcu.saved = { ...lcu.general }; return ok(true); }
   if (p === '/lol-lobby/v2/lobby' && method === 'GET') return lcu.lobby ? ok(lcu.lobby) : { status: 404, data: null };
   if (p === '/lol-lobby/v2/lobby' && method === 'DELETE') { lcu.lobby = null; return { status: 204, data: null }; }
   if (p === '/lol-lobby/v2/lobby') return ok({ ...body, localMember: { isLeader: true } });
@@ -1554,7 +1578,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
@@ -1639,11 +1663,116 @@ const leagueData = (over = {}) => ({
     assert(await sp.locator('#profileBtn').isHidden() && await sp.locator('#proFindBox').isHidden(), 'no Share or lookups without League');
     await sctx.close();
     console.log('Profile with League closed: as it was last time');
+    await ctx.close();
+
+    // ---- champ select helpers, in app 1.13: the tier list's arrows, bans and champion pages, the matchup explorer,
+    // safe blind picks, the matchup's own rune page, tips against both bot laners and Borderless in one click
+    {
+      const [hctx, hp] = await context(browser, { version: '1.13.0' });
+      await hctx.exposeFunction('fakeLcu', fakeLcu);
+      await hctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past)/, (r) => {
+        const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' }, role = u.searchParams.get('r') || 'MIDDLE';
+        if (u.pathname.endsWith('/summary')) return r.fulfill({ json: HSUM, headers: cors });
+        if (!u.pathname.endsWith('/champ')) return r.fulfill({ status: 404, json: {}, headers: cors });
+        const c = +u.searchParams.get('c'), games = H_CHAMP[`${c}/${role}`] || [];
+        r.fulfill({ json: { patch: '15.20', role, roles: games.length ? { [role]: [games.length, games.filter((g) => g.w).length] } : {}, games }, headers: cors });
+      });
+      const hl = (d) => hp.evaluate((d) => lpcClient.emit('league', d), d);
+      lcu.cs = null;
+      lcu.phase = 'None';
+      await hp.goto(URL_);
+      await wait(hp, () => window.lpc, null, 'the page');
+      await hl({ inGame: false, phase: 'None' });
+      await wait(hp, () => lpc.lcu().me0 && lpc.lcu().hist === 20, null, 'your account and match history');
+      await hp.click('.nav[data-view="pregame"]');
+      await wait(hp, () => !document.getElementById('winFix').hidden, null, 'League in Fullscreen, on Pregame');
+      // the tier list: arrows for Ahri, rising since last patch, and Zed, falling; how often each was banned; a row
+      // opens that champion's page in the role
+      await wait(hp, () => !document.getElementById('tierBox').hidden && document.querySelectorAll('#tierRows tr').length === 4, null, 'the tier list');
+      assert.strictEqual(await text(hp, '#tierNote'), 'Middle in 200 Challenger and Grandmaster games our server counted from Riot, patch 25.20 and 25.19.');
+      assert.deepStrictEqual(await hp.$$eval('#tierRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim())),
+        ['Vi S 60% 40 · 20% picked 0%', 'Ahri S 55%▲ 160 · 80% picked 3%', 'Lux B 51% 80 · 40% picked 0%', 'Zed B 50%▼ 120 · 60% picked 20%']);
+      assert.deepStrictEqual(await hp.$$eval('#tierRows .trend', (l) => l.map((e) => e.title)), ['Rising: 65% won in 80 games this patch, 45% in 80 last patch', 'Falling: 40% won in 60 games this patch, 60% in 60 last patch']);
+      assert(await hp.isVisible('#tierBan'), 'the Banned column');
+      await hp.click('#tierRows tr:nth-child(2) td:nth-child(3)');
+      await wait(hp, () => document.getElementById('champDlg').open && /Ahri middle won 47% of 60 Challenger and Grandmaster games on patch 25\.20/.test(document.getElementById('champDlgBody').textContent), null, 'Ahri’s page from the tier list');
+      await hp.click('#champDlgClose');
+      console.log('tier list 2.0: Ahri rising, Zed falling, ban rates, and a row opens the champion’s page');
+      // the matchup explorer: Ahri against Zed in the middle, Ahri's most played role
+      await hp.fill('#mxA', 'Ahri');
+      await hp.fill('#mxB', 'Zed');
+      await wait(hp, () => document.getElementById('mxNote').textContent === 'Ahri middle against Zed:' && document.querySelectorAll('#mxBuild > *').length === 4 && /Arcane Comet/.test(document.getElementById('mxBuild').textContent)
+        && /Riot’s tip for Ahri/.test(document.getElementById('mxTips').textContent), null, 'the matchup explorer');
+      assert.strictEqual(await hp.textContent('#mxTips h3'), 'Tips: Ahri against Zed');
+      assert.deepStrictEqual((await tipsIn(hp, '#mxTips')).filter((t) => !t.startsWith('You:')), ['High elo: Ahri won 6 of 20 games against Zed. A hard matchup for Ahri.',
+        'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
+        'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
+        'Against Zed, high elo Ahri players take Arcane Comet (20 of 20 games; usually Electrocute) and Flash + Teleport (20 of 20 games; usually Flash + Ignite).', 'Riot’s tip for Ahri: Use Charm to set up your combos.']);
+      assert.deepStrictEqual(await texts(hp, '#mxBuild > *'), ['Runes in this matchup: Arcane Comet, Manaflow Band, Transcendence, Scorch, Taste of Blood, Treasure Hunter (Sorcery with Domination), in 20 of 20 games, 6 won. Spells: Flash and Teleport.',
+        'Start Doran’s Ring Health Potion', 'First items, in order Luden’s Companion Zhonya’s Hourglass', 'Boots Sorcerer’s Shoes']);
+      console.log('matchup explorer: Ahri against Zed, with its tips, rune page, spells and build');
+      // champ select, middle, before their laner is known: Ahri, whom Zed beats in high elo, ranks below the safe picks
+      champSelect(6660001);
+      lcu.phase = 'ChampSelect';
+      await hl({ inGame: false, phase: 'ChampSelect' });
+      const hGrid = () => hp.$$eval('#dGrid .dchamp', (l) => l.map((b) => `${b.querySelector('img').alt} ${b.querySelector('.dsc').textContent}`));
+      await wait(hp, () => /Blind pick, their counters/.test((document.querySelector('#dGrid .dchamp:has(img[alt="Ahri"])') || {}).title), null, 'the draft with safe blind picks');
+      assert.deepStrictEqual(await hGrid(), ['Vi +6.7', 'Lux +1.0', 'Zed +0.0', 'Ahri −5.3']);
+      assert.strictEqual(await hp.getAttribute('#dGrid .dchamp:has(img[alt="Ahri"])', 'title'), 'Ahri\nHigh elo middle: 55% won in 160 games\nBlind pick, their counters: won 6 of 20 games against Zed (−9.8)');
+      assert.match(await text(hp, '#dNote'), /Their laner isn’t picked yet, so champions they can counter rank lower\./);
+      // their Zed in, you lock in Ahri: the most popular page first, then one click for the page against Zed
+      Object.assign(flatActions().find((a) => a.id === 3), { completed: true, isInProgress: false });
+      Object.assign(flatActions().find((a) => a.id === 8), { completed: true, isInProgress: false, championId: 103 });
+      lcu.cs.myTeam[2].championId = 103;
+      lcu.cs.theirTeam[2].championId = 238;
+      await wait(hp, () => /^Runes: the most popular page for Ahri, middle, in high elo \(Electrocute: 55% won in 40 games\)\./.test(document.getElementById('runesNote').textContent) && !document.getElementById('runesVs').hidden, null, 'the matchup runes button');
+      assert.strictEqual(await text(hp, '#runesVs'), 'Use what high elo players take against Zed: Arcane Comet (20 of 20 games)');
+      assert.deepStrictEqual(await hGrid(), ['Lux +7.0', 'Vi +6.7', 'Zed +0.0', 'Ahri −11.9'], 'Zed known: the lane matchup counts instead of the blind pick');
+      const since = lcu.calls.length;
+      await hp.click('#runesVs');
+      await wait(hp, () => document.getElementById('runesNote').textContent === 'Runes: the page high elo players take on Ahri against Zed (Arcane Comet in 20 of 20 games, 6 won). Spells: Flash on D, Teleport on F.', null, 'the page against Zed');
+      const pg = callsTo(/^\/lol-perks\/v1\/pages(\/\d+)?$/, null, since).filter(([m]) => m !== 'GET').pop();
+      assert(pg && pg[2].primaryStyleId === 8200 && pg[2].subStyleId === 8100 && JSON.stringify(pg[2].selectedPerkIds) === JSON.stringify(COMET.slice(2)), `the page against Zed: ${JSON.stringify(pg)}`);
+      assert.deepStrictEqual([lcu.cs.myTeam[2].spell1Id, lcu.cs.myTeam[2].spell2Id], [4, 12]);
+      assert(await hp.locator('#runesVs').isHidden() && (await text(hp, '#runesOther')) === 'Use the most popular runes instead', 'and back to the usual page');
+      console.log('safe blind picks: Ahri, beaten by Zed, lower until Zed is picked; matchup runes: Arcane Comet and Teleport against Zed in one click');
+      // at the bottom on Jinx: tips against their Caitlyn and their Sona
+      Object.assign(lcu.cs.myTeam[2], { assignedPosition: 'bottom', championId: 222 });
+      flatActions().find((a) => a.id === 8).championId = 222;
+      lcu.cs.theirTeam[3] = { cellId: 8, championId: 51, assignedPosition: 'bottom' };
+      lcu.cs.theirTeam[4] = { cellId: 9, championId: 37, assignedPosition: 'utility' };
+      await wait(hp, () => !document.getElementById('csTips').hidden && document.querySelector('#csTips h3').textContent === 'Tips: Jinx against Caitlyn and Sona' && /Sona on the other team/.test(document.getElementById('csTips').textContent), null, 'tips against both bot laners');
+      assert.deepStrictEqual((await tipsIn(hp, '#csTips')).filter((t) => !t.startsWith('You:')), ['High elo: Jinx won 10 of 20 games against Caitlyn. An even matchup.',
+        'Caitlyn is a ranged marksman with mostly physical damage, so armor helps against them. Caitlyn outranges you: 650 against 525.',
+        'High elo: Jinx won 9 of 20 games with Sona on the other team, 4 of 10 against Caitlyn and Sona together.', 'Sona is a ranged support with mostly magic damage, so magic resist helps against them.']);
+      console.log('bot lane: Jinx’s tips against Caitlyn and Sona');
+      // champ select over, League still in Fullscreen: the ready check switches it to Borderless through League's own settings
+      lcu.cs = null;
+      lcu.phase = 'None';
+      await hl({ inGame: false, phase: 'None' });
+      assert(await hp.isVisible('#winFix'), 'the Fullscreen fix on Pregame');
+      await hp.click('.nav[data-view="voice"]');
+      await hp.click('#createBtn');
+      await wait(hp, () => lpc.slot() >= 0, null, 'a room');
+      await hp.click('#readyBtn');
+      await wait(hp, () => (document.querySelector('#readyRows tr td:last-child') || {}).textContent === 'Fullscreen: no overlay Switch to Borderless', null, 'Fullscreen in the ready check, with its button');
+      await hp.click('#readyRows tr td:last-child button');
+      await wait(hp, () => document.querySelector('#readyRows tr td:last-child').textContent === 'Borderless', null, 'Borderless now');
+      assert.deepStrictEqual([lcu.general, lcu.saved], [{ WindowMode: 2, Width: 1920, Height: 1080 }, { WindowMode: 2, Width: 1920, Height: 1080 }], 'League’s own settings, saved');
+      await hp.click('.nav[data-view="pregame"]');
+      await wait(hp, () => document.getElementById('winFix').hidden, null, 'no Fullscreen fix any more');
+      console.log('Fullscreen fix: Borderless in one click from the ready check, through League’s own settings');
+      // in a game the explorer hides, like all advice
+      await hl(leagueData());
+      await wait(hp, () => document.getElementById('mxBox').hidden, null, 'no matchup explorer in a game');
+      await hl({ inGame: false, phase: 'None' });
+      await hctx.close();
+      console.log('matchup explorer: hidden in a game');
+    }
 
     assert.deepStrictEqual(lcu.refused, [], 'every call is one the desktop app lets through');
     console.log(`all ${lcu.calls.length} calls to League's client are on the desktop app's list`);
-    await phoneBrowser.close();
-    await ctx.close();
+    await phoneBrowser.close(); // and the phone's context with it (ctx is closed after the matchup explorer)
     console.log('ok');
   } catch (err) {
     console.error(err);

@@ -126,6 +126,8 @@ assert(lcuOk('GET', '/lol-match-history/v1/products/tft/abc-123/matches?begin=20
   && lcuOk('POST', '/lol-champ-select/v1/session/my-selection/reroll') && !lcuOk('POST', '/lol-champ-select/v1/session/bench/swap/86/x'), 'TFT games, ARAM’s bench and rerolls');
 assert(lcuOk('GET', '/lol-game-queues/v1/queues') && lcuOk('GET', '/lol-chat/v1/friends') && lcuOk('POST', '/lol-lobby/v2/lobby/invitations') && lcuOk('DELETE', '/lol-lobby/v2/lobby')
   && !lcuOk('DELETE', '/lol-lobby/v2/lobby/members/abc') && !lcuOk('POST', '/lol-chat/v1/friends'), 'the lobby: games, friends, invites and leaving');
+assert(lcuOk('GET', '/lol-game-settings/v1/game-settings') && lcuOk('PATCH', '/lol-game-settings/v1/game-settings') && lcuOk('POST', '/lol-game-settings/v1/save')
+  && !lcuOk('PUT', '/lol-game-settings/v1/game-settings') && !lcuOk('PATCH', '/lol-game-settings/v1/input-settings'), 'League’s window mode, and nothing else in its settings');
 assert(!lcuOk('DELETE', '/lol-perks/v1/pages') && !lcuOk('get', '/lol-gameflow/v1/session') && !lcuOk('GET', '/lol-chat/v1/me') && !lcuOk('POST', '/lol-store/v1/purchase')
   && !lcuOk('GET', '/lol-ranked/v1/ranked-stats/../../lol-chat/v1/me') && !lcuOk('GET', '/lol-summoner/v1/current-summoner?x=1') && !lcuOk('GET', null), 'nothing else');
 assert.deepStrictEqual(summary(null), { inGame: false });

@@ -164,9 +164,9 @@ async function clientPhase() {
 }
 // The calls the page may make to League's client, for scouting players (Clash opponents too), Riot's recommended runes
 // and spells, your item sets, hovering, banning and locking in champions, trades, the ready check, starting and
-// stopping the queue, your role, a Practice Tool game, ranked LP, match history with timelines and replays, spectating
-// and the patch. Nothing else goes through, so the page can't do anything else with your account (deleting all your
-// rune pages, buying, chatting).
+// stopping the queue, your role, a Practice Tool game, ranked LP, match history with timelines and replays, spectating,
+// the patch and League's window mode (Borderless in one click: the overlay only shows over it). Nothing else goes
+// through, so the page can't do anything else with your account (deleting all your rune pages, buying, chatting).
 const LCU_OK = [
   ['GET', /^\/lol-gameflow\/v1\/(gameflow-phase|session)$/],
   ['GET', /^\/lol-champ-select\/v1\/(session|pickable-champion-ids|bannable-champion-ids)$/],
@@ -202,6 +202,9 @@ const LCU_OK = [
   ['POST', /^\/lol-spectator\/v3\/buddy\/spectate$/],
   ['GET', /^\/lol-patch\/v1\/game-version$/],
   ['GET', /^\/lol-clash\/v1\/(tournament-summary|bracket\/\d+|roster\/[\w-]+)$/],
+  ['GET', /^\/lol-game-settings\/v1\/game-settings$/],
+  ['PATCH', /^\/lol-game-settings\/v1\/game-settings$/],
+  ['POST', /^\/lol-game-settings\/v1\/save$/],
 ];
 const lcuOk = (method, p) => typeof method === 'string' && typeof p === 'string' && LCU_OK.some(([m, re]) => m === method && re.test(p));
 ipcMain.handle('lcu', async (e, method, p, body) => {
