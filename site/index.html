@@ -8118,10 +8118,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // If a pair still has two (an old item left in the game's data), the one Data Dragon has this patch wins. Gold rings:
   // the items you put most on your comp's champions in your last games (tftWants).
   const TFT_PARTS = ['BFSword', 'RecurveBow', 'NeedlesslyLargeRod', 'TearOfTheGoddess', 'ChainVest', 'NegatronCloak', 'GiantsBelt', 'SparringGloves', 'Spatula', 'FryingPan']; // the game's order
-  let tftItems = load('lpc-tft-items', null), tftItemsAt = -Infinity; // { v: Data Dragon's version, c: components [[id, name, icon]], r: { 'id id': [[id, name, icon]] } }
+  // CommunityDragon's file is big (every set's data), so it's fetched at most once a patch each time Premade starts, even if it fails
+  let tftItems = load('lpc-tft-items', null), tftItemsFor = ''; // { v: Data Dragon's version, c: components [[id, name, icon]], r: { 'id id': [[id, name, icon]] } }
   function tftItemsSoon() {
-    if (!ddVersion || (tftItems && tftItems.v === ddVersion) || performance.now() - tftItemsAt < 60000) return;
-    tftItemsAt = performance.now();
+    if (!ddVersion || (tftItems && tftItems.v === ddVersion) || tftItemsFor === ddVersion) return;
+    tftItemsFor = ddVersion;
     fetch('https://raw.communitydragon.org/latest/cdragon/tft/en_us.json').then((r) => r.json()).then((j) => {
       const all = (Array.isArray(j && j.items) ? j.items : []).filter((x) => x && typeof x.apiName === 'string' && x.name), byId = new Map(all.map((x) => [x.apiName, x]));
       const set = Math.max(0, ...Object.keys((j && j.sets) || {}).map(Number).filter(Number.isFinite)), ours = (id) => { const m = /^(?:TFT|DA_)(\d+)_/i.exec(id); return !m || +m[1] === set; };
