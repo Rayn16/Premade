@@ -7841,6 +7841,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [23, 'October 20: app 1.13 and the test version', [
+      'Settings > App has “Use the test version”: new changes reach you there first, before everyone gets them. The status bar shows when you’re on it, with a link back to the normal version. App 1.13, which installs itself, remembers your choice when it restarts.',
+      'Premade has Terms of Use and a Privacy Policy, linked from Settings > App.',
+    ]],
     [22, 'October 20: more in your game reports and trends', [
       'Game reports have Riot’s extra numbers for everyone: skillshots hit and dodged, allies saved, turret plates, time spent dead and vision against their lane opponent. How you played and Stats > Trends have them too.',
       'How you played compares your damage, gold, CS and vision a minute with high elo players, and each report ranks every player’s game against high elo games on the same champion in the same role. These fill in as our server counts new games.',
@@ -7976,7 +7980,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       s.append(h, ul);
       return s;
     }));
-    store.set('lpc-news', String(NEWS[0][0]));
+    store.set('lpc-news', String(Math.max(seen, NEWS[0][0]))); // the test version shares this, so never lower it
     if (!$('newsDlg').open) $('newsDlg').showModal();
   }
   $('newsBtn').addEventListener('click', () => openNews(true));
