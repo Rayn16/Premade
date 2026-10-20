@@ -8,7 +8,8 @@
 // behind it: your TFT ranks, your last games with your average place, top 4s, traits and augments, each Set 18 board's
 // team code (champions matched by name when match history and the Team Planner name them differently), none for an
 // older set's board, gold rings on the items you put on your comp's champions, the recipes on the overlay in a TFT
-// game, and only calls the desktop app lets through (client/main.js LCU_OK).
+// game, the ratings on the augment cards (a pick drawn on the screen the app shares by itself, read by the vendored
+// Tesseract, and overlay.html putting them on the cards), and only calls the desktop app lets through (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node tft.e2e.js        (SHOTS=folder saves screenshots)
 const fs = require('fs');
@@ -56,8 +57,11 @@ const DD_TFT = {
 // old engine's items (TFT_Item_...) beside the new ones (DA_...), which only combine among themselves. The new ones:
 // four components; Deathblade, Spear of Shojin, Infinity Edge and Blue Buff, with Seraph's Embrace (an old item with Blue Buff's recipe,
 // which Data Dragon doesn't have), this set's Fae Emblem, last set's Arcana Emblem from the same pair (only in Set 17's
-// list), a radiant item and an augment, which aren't recipes
+// list), a radiant item and an augment, which aren't recipes. And Set 18's augments (setData's augments), their tier in
+// their icon's name: gold ones (-ii, -t2, 2.tex) and a silver one
 const cd = (apiName, name, composition = []) => ({ apiName, name, composition, desc: '', effects: {}, tags: [], icon: `ASSETS/Maps/TFT/Icons/Items/Hexcore/${apiName}.TFT_Set13.tex` });
+const aug = (apiName, name, icon) => ({ ...cd(apiName, name), icon: `ASSETS/Maps/TFT/Icons/Augments/Hexcore/${icon}.tex` });
+const CD_AUGS = [aug('DA_18_Cluster', 'Cluster', 'missing-t2'), aug('DA_18_ClusterPlus', 'Cluster+', 'cluster-ii'), aug('DA_18_GoldDestiny', 'Gold Destiny', 'golddestiny2'), aug('DA_18_GoldDestinyI', 'Gold Destiny I', 'golddestiny-i')];
 const CD_ITEMS = [cd('TFT_Item_BFSword', 'B.F. Sword'), cd('TFT_Item_SparringGloves', 'Sparring Gloves'), cd('TFT_Item_Deathblade', 'Deathblade', ['TFT_Item_BFSword', 'TFT_Item_BFSword']),
   cd('TFT_Item_InfinityEdge', 'Infinity Edge', ['TFT_Item_SparringGloves', 'TFT_Item_BFSword']),
   cd('DA_Component_Spatula', 'Spatula'), cd('DA_Component_SparringGloves', 'Sparring Gloves'), cd('DA_Component_BFSword', 'B.F. Sword'), cd('DA_Component_TearOfTheGoddess', 'Tear of the Goddess'),
@@ -65,9 +69,9 @@ const CD_ITEMS = [cd('TFT_Item_BFSword', 'B.F. Sword'), cd('TFT_Item_SparringGlo
   cd('DA_InfinityEdge', 'Infinity Edge', ['DA_Component_SparringGloves', 'DA_Component_BFSword']),
   cd('DA_SeraphsEmbrace', 'Seraph’s Embrace', ['DA_Component_TearOfTheGoddess', 'DA_Component_TearOfTheGoddess']), cd('DA_BlueBuff', 'Blue Buff', ['DA_Component_TearOfTheGoddess', 'DA_Component_TearOfTheGoddess']),
   cd('TFT17_Item_ArcanaEmblemItem', 'Arcana Emblem', ['DA_Component_Spatula', 'DA_Component_BFSword']), cd('DA_18_EmblemFae', 'Fae Emblem', ['DA_Component_BFSword', 'DA_Component_Spatula']),
-  cd('DA_InfinityEdgeRadiant', 'Radiant Infinity Edge', ['DA_InfinityEdge']), cd('DA_18_Augment_Rich', 'Rich Get Richer'), { apiName: 'DA_EmptyBag', name: null, composition: [] }];
-const CDRAGON = { sets: { 17: { champions: [] }, 18: { champions: [] } }, items: CD_ITEMS, setData: [{ mutator: 'TFTSet17', items: ['TFT17_Item_ArcanaEmblemItem', 'DA_Component_Spatula', 'DA_Component_BFSword'] },
-  { mutator: 'TFTSet18', items: CD_ITEMS.map((x) => x.apiName).filter((id) => !id.startsWith('TFT17_')) }] };
+  cd('DA_InfinityEdgeRadiant', 'Radiant Infinity Edge', ['DA_InfinityEdge']), aug('DA_18_Augment_Rich', 'Rich Get Richer', 'rich-get-richer-ii'), { apiName: 'DA_EmptyBag', name: null, composition: [] }];
+const CDRAGON = { sets: { 17: { champions: [] }, 18: { champions: [] } }, items: [...CD_ITEMS, ...CD_AUGS], setData: [{ mutator: 'TFTSet17', items: ['TFT17_Item_ArcanaEmblemItem', 'DA_Component_Spatula', 'DA_Component_BFSword'] },
+  { mutator: 'TFTSet18', items: CD_ITEMS.map((x) => x.apiName).filter((id) => !id.startsWith('TFT17_')), augments: ['DA_18_Augment_Rich', ...CD_AUGS.map((x) => x.apiName)] }] };
 const ODDS = [[1, 100, 0, 0, 0, 0], [2, 100, 0, 0, 0, 0], [3, 75, 25, 0, 0, 0], [4, 55, 30, 15, 0, 0], [5, 45, 33, 20, 2, 0], [6, 30, 40, 25, 5, 0], [7, 19, 30, 40, 10, 1], [8, 15, 20, 32, 30, 3],
   [9, 10, 17, 25, 33, 15], [10, 5, 10, 20, 40, 25], [11, 1, 2, 12, 50, 35]].map(([level, ...r]) => ({ level, dropRatesByTier: r.map((rate, i) => ({ cost: i + 1, rate })) }));
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
@@ -103,6 +107,14 @@ function fakeLcu(method, p) {
 }
 function fakeApp() { // the desktop app 1.13 (client/preload.js), with League's client answering through fakeLcu
   const on = {};
+  window.shares = 0;
+  navigator.mediaDevices.getDisplayMedia = async () => { // the screen Settings picks, shared without asking: what the test draws on screenPic
+    const c = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 }), g = c.getContext('2d');
+    window.screenPic = window.screenPic || Object.assign(document.createElement('canvas'), { width: 1280, height: 720 });
+    setInterval(() => g.drawImage(window.screenPic, 0, 0), 200);
+    window.shares++;
+    return c.captureStream(5);
+  };
   window.lpcClient = { version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {}, overlay(s) { window.lastOverlay = s; }, front() {},
     on(name, fn) { (on[name] = on[name] || []).push(fn); }, emit(name, v) { for (const fn of on[name] || []) fn(v); }, lcu: (m, p, b) => window.fakeLcu(m, p, b === undefined ? null : b) };
 }
@@ -144,6 +156,17 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
   await page.goto(URL_);
   await wait(page, () => window.lpc, null, 'the page');
   return [ctx, page];
+}
+function drawPick(names) { // a Set 18 augment pick on screenPic, at 1280x720: three cards with gold icons over green name banners (no names: no pick)
+  const g = window.screenPic.getContext('2d');
+  g.fillStyle = '#0b1a24';
+  g.fillRect(0, 0, 1280, 720);
+  if (names) [366, 640, 913].forEach((x, i) => {
+    g.fillStyle = '#0f2a1a'; g.fillRect(x - 116, 185, 232, 347);
+    g.fillStyle = '#f0c040'; g.fillRect(x - 40, 245, 80, 72);
+    g.fillStyle = '#1e4628'; g.fillRect(x - 110, 344, 220, 34);
+    Object.assign(g, { fillStyle: '#f0e6c8', font: 'bold 20px serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 361);
+  });
 }
 const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout, polling: 100 }).catch(async (err) => {
   throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; page ${JSON.stringify(await page.evaluate(() => document.querySelector('main > .view:not([hidden])').innerText.slice(0, 600)).catch(() => ''))}`);
@@ -333,15 +356,39 @@ async function join(page) { // a voice room by its invite link, which the page r
     const ov = await pc.evaluate(() => window.lastOverlay.tft);
     assert.deepStrictEqual([ov.c.map(([n]) => n), ...ov.g.map((r) => r.map((x) => (x ? x[0] + (x[2] ? '*' : '') : '-')).join(','))], [['B.F. Sword', 'Tear of the Goddess', 'Sparring Gloves', 'Spatula'],
       'Deathblade,Spear of Shojin,Infinity Edge*,Fae Emblem', 'Spear of Shojin,Blue Buff*,-,-', 'Infinity Edge*,-,-,-', 'Fae Emblem,-,-,-']);
+    // the ratings on the augment cards, when the Overlay page says so: the app shares the screen by itself in the TFT
+    // game, reads the pick's three names and puts on each card how you placed with it; none once the pick is gone
+    assert.strictEqual(await pc.evaluate(() => window.shares), 0, 'no screen shared without it');
+    await pc.check('#optTftAugs');
+    await wait(pc, () => window.shares === 1, null, 'the screen shared in the TFT game');
+    await pc.evaluate(drawPick, ['Rich Get Richer', 'Cluster', 'Gold Destiny']);
+    await wait(pc, () => (lpc.augCards() || { names: [] }).names.every(Boolean) && window.lastOverlay.cards, null, 'the three cards read', 60000);
+    assert.deepStrictEqual(await pc.evaluate(() => lpc.augCards().names), ['Rich Get Richer', 'Cluster', 'Gold Destiny'], 'Cluster, not Cluster+, and the gold Gold Destiny');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards), [{ x: 0.2859, y: 0.73, t: 'Your average: 1.5 in 2 games', k: 'good' },
+      { x: 0.5, y: 0.73, t: 'Your average: 3.5 in 2 games', k: 'good' }, { x: 0.7133, y: 0.73, t: 'Not in your last 4 games', k: '' }], 'how you placed with each, at the foot of its card');
+    assert.strictEqual(await pc.evaluate(() => window.lastOverlay.board), true, 'over the whole screen');
+    await pc.evaluate(drawPick, null);
+    await wait(pc, () => !window.lastOverlay.cards, null, 'none once the pick is gone');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
-    await wait(pc, () => !window.lastOverlay.tft, null, 'gone after the game');
+    await wait(pc, () => !window.lastOverlay.tft && !lpc.augCards(), null, 'gone after the game, and the screen no longer read');
     // the same boards on Profile's TFT tab
     await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');
     await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await pctx.close();
-    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games');
+    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games, ratings on the augment cards');
+
+    // ---- overlay.html puts each card's words at the foot of the card, as shares of the screen
+    const ovp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await ovp.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
+    await ovp.goto('http://127.0.0.1:8084/overlay.html');
+    await ovp.evaluate(() => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, cards: [{ x: 0.2859, y: 0.73, t: 'Your average: 1.5 in 2 games', k: 'good' }, { x: 0.7133, y: 0.73, t: 'Not in your last 4 games', k: '' }] }));
+    assert.deepStrictEqual(await ovp.$$eval('.augc', (l) => l.map((e) => { const r = e.getBoundingClientRect(); return [e.textContent, Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2), e.classList.contains('good')]; })),
+      [['Your average: 1.5 in 2 games', 366, 526, true], ['Not in your last 4 games', 913, 526, false]]);
+    await shot(ovp, 'tft-augment-cards');
+    await ovp.close();
+    console.log('overlay: the ratings at the foot of the augment cards');
   } finally {
     await browser.close();
   }

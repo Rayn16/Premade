@@ -1497,6 +1497,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
             <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
             <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"> TFT item recipes in TFT games</label>
+            <label class="check lcu-only"><input id="optTftAugs" type="checkbox"> How I placed with each augment, on TFT’s augment cards (reads my screen)</label>
             <label class="check lcu-only"><input id="optDeadTips" type="checkbox"> Tips for my lane while I’m dead</label>
             <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"> What to buy next, while I’m dead or in my base</label>
             <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"> My team’s chance to win</label>
@@ -1809,7 +1810,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    overlayLane: true, overlayAfter: true, overlayTft: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
+    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
@@ -3831,15 +3832,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
     const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
+    const cards = overlayEdit || overlayHide ? null : augCards(); // on TFT's augment cards
     const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
     // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
     // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
-    // and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || (visible && Object.keys(opts.overlayParts).length > 0));
+    // the ratings on TFT's augment cards, and parts with places of their own
+    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     const s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
-      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote,
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -9168,11 +9170,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!why) await myRank();
     const rk = rankNow || (proMine && proMine.src === 'league' && proMine.rk) || null;
     $('tftRanks').replaceChildren(...(rk ? [['TFT', 'RANKED_TFT'], ['Double Up', 'RANKED_TFT_DOUBLE_UP'], ['Hyper Roll', 'RANKED_TFT_TURBO']].map(([n, k]) => tftCard(n, rk[k])) : []));
-    if (!why && me0 && performance.now() - tftGamesAt > 60000) {
-      tftGamesAt = performance.now();
-      const h = await lcuGet(`/lol-match-history/v1/products/tft/${me0.puuid}/matches?begin=0&count=20`);
-      if (h && Array.isArray(h.games)) tftGames = tftOf(h.games, me0.puuid);
-    }
+    if (!why) await tftGamesLoad();
     const g = tftGames || [], n = g.length, top4 = g.filter((x) => x.place <= 4).length;
     $('tftGamesBox').hidden = !n;
     $('h-tftgames').textContent = `Your last ${n} TFT game${n === 1 ? '' : 's'}`;
@@ -9181,6 +9179,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     placed('tftAugBox', 'tftAugRows', g.flatMap((x) => x.augs.map((a) => [a, x.place]))); // and the augments you took
     $('tftGames').replaceChildren(...g.map(tftLi));
     renderTftItems(); // the gold rings: items from these games
+  }
+  async function tftGamesLoad() { // your last 20 TFT games, from League's client at most once a minute
+    if (!me0 || performance.now() - tftGamesAt <= 60000) return;
+    tftGamesAt = performance.now();
+    const h = await lcuGet(`/lol-match-history/v1/products/tft/${me0.puuid}/matches?begin=0&count=20`);
+    if (h && Array.isArray(h.games)) tftGames = tftOf(h.games, me0.puuid);
   }
   function placed(box, rows, list) { // a table of what's in two or more of [id, place], most games first: games, average place, top 4s
     const by = {};
@@ -9236,15 +9240,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // each other, so the biggest family of components wins. If a pair still has two, the one Data Dragon has wins. Gold
   // rings: the items you put most on your comp's champions in your last games (tftWants).
   const TFT_PARTS = ['BFSword', 'RecurveBow', 'NeedlesslyLargeRod', 'TearOfTheGoddess', 'ChainVest', 'NegatronCloak', 'GiantsBelt', 'SparringGloves', 'Spatula', 'FryingPan']; // the game's order
-  // CommunityDragon's file is big (every set's data), so it's fetched at most once a patch each time Premade starts, even if it fails
-  let tftItems = load('lpc-tft-recipes', null), tftItemsFor = ''; // { v: Data Dragon's version, c: components [[id, name, icon]], r: { 'id id': [[id, name, icon]] } } (lpc-tft-items held the first version's mixed list)
+  // CommunityDragon's file is big (every set's data), so it's fetched at most once a patch each time Premade starts, even
+  // if it fails. It also has the set's augments, for the ratings on the augment cards: their tier comes from their icon's
+  // name (grab-bag-ii.tex, missing-t2.tex: 1 silver, 2 gold, 3 prismatic; 0 if it doesn't say)
+  let tftItems = load('lpc-tft-recipes', null), tftItemsFor = ''; // { v: Data Dragon's version, c: components [[id, name, icon]], r: { 'id id': [[id, name, icon]] }, a: augments [[id, name, tier]] } (lpc-tft-items held the first version's mixed list)
+  const augTierOf = (icon) => { const i = String(icon || '').toLowerCase(), m = /-t(\d)\.tex$/.exec(i) || /[_-](i{1,3})(?:_[a-z]+)?\.tex$/.exec(i) || /(\d)\.tex$/.exec(i); return m ? (m[1][0] === 'i' ? m[1].length : Math.min(3, +m[1])) : 0; };
   function tftItemsSoon() {
-    if (!ddVersion || (tftItems && tftItems.v === ddVersion) || tftItemsFor === ddVersion) return;
+    if (!ddVersion || (tftItems && tftItems.v === ddVersion && tftItems.a) || tftItemsFor === ddVersion) return;
     tftItemsFor = ddVersion;
     fetch('https://raw.communitydragon.org/latest/cdragon/tft/en_us.json').then((r) => r.json()).then((j) => {
-      const set = Math.max(0, ...Object.keys((j && j.sets) || {}).map(Number).filter(Number.isFinite));
-      const list = new Set((((j && j.setData) || []).find((d) => d && d.mutator === `TFTSet${set}`) || {}).items || []);
-      const all = (Array.isArray(j && j.items) ? j.items : []).filter((x) => x && typeof x.apiName === 'string' && x.name && list.has(x.apiName)), byId = new Map(all.map((x) => [x.apiName, x]));
+      const set = Math.max(0, ...Object.keys((j && j.sets) || {}).map(Number).filter(Number.isFinite)), sd = ((j && j.setData) || []).find((d) => d && d.mutator === `TFTSet${set}`) || {};
+      const list = new Set(sd.items || []), augIds = new Set(sd.augments || []), items = (Array.isArray(j && j.items) ? j.items : []).filter((x) => x && typeof x.apiName === 'string' && x.name);
+      const all = items.filter((x) => list.has(x.apiName)), byId = new Map(all.map((x) => [x.apiName, x]));
       const part = (id) => byId.has(id) && !(byId.get(id).composition || []).length, it = (x) => [x.apiName, String(x.name), String(x.icon || '')], r = {}, c = new Set();
       const two = all.filter((x) => Array.isArray(x.composition) && x.composition.length === 2 && x.composition.every(part));
       const up = {}, root = (p) => (up[p] && up[p] !== p ? (up[p] = root(up[p])) : p), n = {}; // the families of components
@@ -9254,7 +9261,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       for (const x of two) if (root(x.composition[0]) === big) { (r[[...x.composition].sort().join(' ')] ||= []).push(it(x)); for (const p of x.composition) c.add(p); }
       const at = (id) => { const i = TFT_PARTS.indexOf(id.replace(/^.*_/, '')); return i < 0 ? 99 : i; };
       if (!c.size) throw new Error('no recipes');
-      tftItems = { v: ddVersion, c: [...c].sort((a, b) => at(a) - at(b) || a.localeCompare(b)).map((id) => it(byId.get(id))), r };
+      tftItems = { v: ddVersion, c: [...c].sort((a, b) => at(a) - at(b) || a.localeCompare(b)).map((id) => it(byId.get(id))), r, a: items.filter((x) => augIds.has(x.apiName)).map((x) => [x.apiName, String(x.name), augTierOf(x.icon)]) };
       store.set('lpc-tft-recipes', JSON.stringify(tftItems));
       if (!tftView.hidden) renderTftItems();
       pushOverlay();
@@ -9308,6 +9315,137 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     tftItemsSoon();
     const t = tftRecipes(), x = (i) => (i ? [i.name, i.pic, i.want ? 1 : 0] : 0);
     return t && { c: t.c.map(x), g: t.g.map((row) => row.map(x)) };
+  }
+
+  // ---- ratings on TFT's augment cards (the Overlay page's "How I placed with each augment"): while you pick an augment,
+  // the desktop app reads the three cards off your screen (a game tells apps nothing, so it's read like the minimap) and
+  // the overlay puts on each card how you placed with it in your last games. A pick is three icons in one tier's colour
+  // (silver, gold or prismatic) over green name banners, at their places on a 16:9 screen (a wider or narrower one is read
+  // in its middle 16:9). Tesseract (vendor/tesseract-5.1.1, Apache 2.0) reads each banner, and the name is the closest of
+  // that tier's augments in CommunityDragon's list (tftItemsSoon). Nothing read leaves your PC.
+  // ponytail: the places, colours and green banners are Set 18's, measured on 1280x720 videos of patches 18.3 and 18.4;
+  // another set's cards, or another UI scale, need measuring again (the project's results/tft-helpers/screens/README.md)
+  const AUG_X = [366, 640, 913]; // the cards' middles at 1280x720
+  let augs = null, augsAt = -Infinity, augOcr = null; // reading the cards: { stop, track, g (the screen at 1280x720), box, cards: [{ px (its banner when read), name } or null] }; Tesseract
+  function augTick() { // every second: in a TFT game with it on, the app shares the screen Settings picks, by itself
+    const want = !!client && !!opts.tftAugs && tftPlaying() && boardOk();
+    if (augs && !want) augStop();
+    else if (!augs && want && performance.now() - augsAt > 30000) augStart();
+    if (augs) { if (!ddVersion) ddSoon(); tftItemsSoon(); } // the augments' names, once Data Dragon says the patch
+  }
+  async function augStart() {
+    augsAt = performance.now();
+    const a = (augs = { cards: [null, null, null], busy: false });
+    let s;
+    try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false }); } catch (err) {
+      console.warn('augment cards:', err);
+      if (augs === a) augs = null; // again in 30 s
+      return;
+    }
+    if (augs !== a) return s.getTracks().forEach((t) => t.stop());
+    a.track = s.getVideoTracks()[0];
+    a.g = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 }).getContext('2d', { willReadFrequently: true });
+    a.stop = CameraBox.watch(s, 1000, (src, w, h) => augFrame(a, src, w, h));
+    if (lcuOn()) tftGamesLoad(); // your games
+  }
+  function augStop() {
+    const a = augs;
+    augs = null;
+    if (a.stop) a.stop();
+    if (a.track) a.track.stop();
+    if (augOcr) augOcr.then((w) => w.terminate()).catch(() => {});
+    augOcr = null;
+    pushOverlay();
+  }
+  const hsl = (r, g, b) => { // [hue 0-360, saturation, lightness 0-1], as Python's colorsys
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), c = mx - mn, l = (mx + mn) / 510;
+    return [!c ? 0 : (mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4) * 60, !c ? 0 : l <= 0.5 ? c / (mx + mn) : c / (510 - mx - mn), l];
+  };
+  function augTier(d) { // a card's icon (90x82 at 1280x720) by the colour of its bright part: 1 silver, 2 gold, 3 prismatic, else 0
+    let n = 0, sat = 0, gold = 0, prism = 0;
+    for (let y = 0; y < 82; y += 2) for (let x = 0; x < 90; x += 2) {
+      const i = (y * 90 + x) * 4, [h, s, l] = hsl(d[i], d[i + 1], d[i + 2]);
+      if (l <= 0.55) continue;
+      n++; sat += s; gold += h >= 30 && h <= 60 && s > 0.45; prism += (h >= 250 || h <= 10) && s > 0.2;
+    }
+    return n < 50 ? 0 : gold / n >= 0.6 ? 2 : prism / n >= 0.3 ? 3 : gold / n < 0.1 && prism / n < 0.1 && sat / n < 0.45 ? 1 : 0;
+  }
+  function augBanner(d) { // a card's name banner (196x34 at 1280x720): mostly dark green
+    let n = 0, green = 0;
+    for (let y = 0; y < 34; y += 2) for (let x = 0; x < 196; x += 2) { const i = (y * 196 + x) * 4, [h, s, l] = hsl(d[i], d[i + 1], d[i + 2]); n++; green += h >= 70 && h <= 170 && s > 0.2 && l > 0.06 && l < 0.4; }
+    return green / n >= 0.7;
+  }
+  function augFrame(a, src, w, h) { // once a second: the cards, read again where a banner changed (a reroll, or still flying in)
+    if (augs !== a) return;
+    const bw = Math.min(w, (h * 16) / 9), bh = (bw * 9) / 16, x0 = (w - bw) / 2, y0 = (h - bh) / 2;
+    a.g.drawImage(src, x0, y0, bw, bh, 0, 0, 1280, 720);
+    a.box = [x0 / w, y0 / h, bw / w, bh / h];
+    const tiers = AUG_X.map((x) => augTier(a.g.getImageData(x - 45, 240, 90, 82).data)), names = AUG_X.map((x) => a.g.getImageData(x - 98, 344, 196, 34));
+    const tier = tiers.every((t) => t === tiers[0]) && names.every((n) => augBanner(n.data)) ? tiers[0] : 0;
+    if (!tier) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
+    const redo = [0, 1, 2].filter((i) => !a.cards[i] || augDiff(a.cards[i].px, names[i].data) > 8);
+    if (a.busy || a.failed || !redo.length) return;
+    a.busy = true;
+    augRead(redo.map((i) => names[i])).then((texts) => {
+      if (augs !== a) return;
+      redo.forEach((i, k) => { a.cards[i] = { px: names[i].data, name: augMatch(texts[k], tier) }; });
+      pushOverlay();
+    }).catch((e) => { a.failed = true; console.warn('augment cards:', e); }).finally(() => { a.busy = false; }); // Tesseract didn't load: not again this game
+  }
+  const augDiff = (p, q) => { let d = 0; for (let i = 0; i < p.length; i += 4) d += Math.abs(p[i] - q[i]); return (d * 4) / p.length; }; // the red's average change
+  const augCv = [196, 588].map((w) => Object.assign(document.createElement('canvas'), { width: w, height: (w * 34) / 196 }));
+  async function augRead(list) { // the banners' text: their red, three times the size, dark on light and levelled 20% to 75%
+    augOcr = augOcr || augLoad();
+    const w = await augOcr, g = augCv[1].getContext('2d', { willReadFrequently: true }), out = [];
+    for (const img of list) {
+      augCv[0].getContext('2d').putImageData(img, 0, 0);
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(augCv[0], 0, 0, 588, 102);
+      const p = g.getImageData(0, 0, 588, 102), d = p.data;
+      for (let i = 0; i < d.length; i += 4) d[i] = d[i + 1] = d[i + 2] = ((204 - d[i]) * 255) / 140.25;
+      g.putImageData(p, 0, 0);
+      out.push((await w.recognize(augCv[1])).data.text);
+    }
+    return out;
+  }
+  function augLoad() { // Tesseract and its English model, from our own site, once a game
+    const V = new URL('/vendor/tesseract-5.1.1/', location.href).href;
+    const lib = window.Tesseract ? Promise.resolve() : new Promise((res, rej) => document.head.append(Object.assign(document.createElement('script'), { src: V + 'tesseract.min.js', onload: res, onerror: rej })));
+    return lib.then(() => window.Tesseract.createWorker('eng', 1, { workerPath: V + 'worker.min.js', corePath: V + 'tesseract-core-simd-lstm.wasm.js', langPath: V, workerBlobURL: false }))
+      .then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.'! " }); return w; }); // one line
+  }
+  const augKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9+]/g, '');
+  function lev(a, b) { // the edits from a to b
+    let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const next = [i];
+      for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      row = next;
+    }
+    return row[b.length];
+  }
+  function augMatch(text, tier) { // the augment of that tier (or none) whose name is closest to what was read, if it's close
+    // a lone first letter is a leaf of the card's frame, and the card font's I reads as l, 1, | or !
+    const k = augKey(String(text).trim().replace(/^\S\s+(?=\S\S)/, '').replace(/\s([Il1|!]{1,3})$/, (m, g) => ' ' + 'I'.repeat(g.length)));
+    let best = null, top = 0.79;
+    for (const [, name, t] of (tftItems && tftItems.a) || []) {
+      if (t && t !== tier) continue;
+      const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1);
+      if (s > top) { top = s; best = name; }
+    }
+    return best;
+  }
+  function augYou(name) { // how you placed with an augment in your last games
+    const k = augKey(name), ids = new Map(((tftItems && tftItems.a) || []).map(([id, n]) => [id, n])), l = (tftGames || []).filter((g) => g.augs.some((id) => augKey(ids.get(id) || tftName(id)) === k));
+    if (!tftGames) return { t: 'Your games haven’t loaded', k: '' };
+    if (!l.length) return { t: `Not in your last ${tftGames.length} games`, k: '' };
+    const avg = l.reduce((t, g) => t + g.place, 0) / l.length;
+    return { t: `Your average: ${avg.toFixed(1)} in ${l.length} game${l.length === 1 ? '' : 's'}`, k: l.length < 2 ? '' : avg <= 4 ? 'good' : 'bad' };
+  }
+  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot, as shares of the screen; t: what to say; k: good, bad or '' }]
+    if (!augs || !augs.box || !augs.cards.some((c) => c && c.name)) return null;
+    const [x0, y0, bw, bh] = augs.box;
+    return augs.cards.map((c, i) => c && c.name && { x: +(x0 + (AUG_X[i] / 1280) * bw).toFixed(4), y: +(y0 + 0.73 * bh).toFixed(4), ...augYou(c.name) }).filter(Boolean);
   }
 
   function renderTft() {
@@ -11015,7 +11153,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
-    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
+    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
@@ -11023,7 +11161,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -11170,6 +11308,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [41, 'October 20: ratings on TFT’s augment cards', [
+      'When you pick an augment in a TFT game, the overlay puts on each card your average place with it in your last 20 games. Tick “How I placed with each augment” on the Overlay page: the desktop app reads the cards off your screen, and what it reads stays on your PC.',
+    ]],
     [40, 'October 20: your chance to win in a surrender vote', [
       'When a surrender vote starts, your team’s chance to win pops up beside League’s vote box, with the gold, kills and towers it comes from, so you know what you’re voting on.',
       'Premade sees the vote box on your League screen, so the pop-up needs your screen shared, as for proximity voice (Share League screen on Voice) or the callouts.',
@@ -11571,6 +11712,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Roll calculator', 'Your chance to hit a champion’s 2 or 3 star with the gold you have, at your level, counting the copies already taken.', 'On TFT: pick the champion, your level and gold, and how many copies you and the others have.', '#tftRollBox'],
       ['Item recipes', 'What every pair of components makes, with the items you put on your comp’s champions ringed in gold. The desktop app can show them over your TFT games too.',
         'Nothing to set up on TFT. For TFT games, tick TFT item recipes on the Overlay page.', '#tftItemsBox,#optOverlayTft'],
+      ['Ratings on augment cards', 'When you pick an augment in a TFT game, each card shows your average place with it in your last 20 games.',
+        'Tick “How I placed with each augment” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text on a 16:9 screen), with League in Borderless mode.', '#optTftAugs', 'app'],
     ]],
     ['Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
       ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade.',
@@ -11790,7 +11933,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); camTick(); lendTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); camTick(); lendTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -11857,6 +12000,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), // the in-game helpers
+    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, // what's read off TFT's augment cards
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now
