@@ -2,8 +2,9 @@
 // voice page's PeerJS client works with it unchanged. It only introduces players (WebRTC offers, answers and
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
 // Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only those with its
-// password. /stats counts rooms and players each day for the voice page (Settings > Our server). /push/... is the
-// phone remote's notifications (push.js). /riot/... is Riot data (the Riot object, at the end).
+// password. /stats counts rooms and players each day for the voice page (Settings > Our server), and /hello and /who
+// are who has Premade (both in the Stats object). /push/... is the phone remote's notifications (push.js). /riot/... is
+// Riot data (the Riot object, at the end).
 import { DurableObject } from 'cloudflare:workers';
 import { push } from './push.js';
 
@@ -12,6 +13,18 @@ const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
 const CORS = { 'access-control-allow-origin': '*' };
 const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: one counter for every room, fine for friend groups
 const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(0, 10); // UTC
+// what a page says when Premade opens (/hello): its device's own random id, the app version ('web' on the website,
+// 'old' before 1.3), its voice name and its League accounts' Riot IDs; null for anything else
+const helloOf = (b) => {
+  if (!b || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
+  const riot = Array.isArray(b.riot) ? b.riot.filter((n) => typeof n === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(n)).slice(0, 10) : [];
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot };
+};
+// the owner's key (the secret OWNER_KEY), checked in constant time; nobody is the owner without one
+const owner = (env, key) => {
+  const [a, b] = [typeof key === 'string' ? key : '', env.OWNER_KEY || ''].map((s) => new TextEncoder().encode(s));
+  return b.byteLength > 0 && a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
+};
 
 export default {
   async fetch(req, env) {
@@ -22,6 +35,14 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    if (req.method === 'POST' && (url.pathname === '/hello' || url.pathname === '/who')) { // a plain text body, so no preflight
+      const b = await req.json().catch(() => null);
+      if (url.pathname === '/who') return owner(env, b && b.key) ? Response.json({ apps: await stats(env).who() }, { headers: CORS }) : new Response('Not the owner key', { status: 403, headers: CORS });
+      const h = helloOf(b);
+      if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
+      await stats(env).hello(h);
+      return new Response(null, { status: 204, headers: CORS });
+    }
     const code = /^\/push\/([a-z0-9]{12})(\/ring)?$/.exec(url.pathname); // the phone remote's notifications (push.js)
     if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
     if (url.pathname.startsWith('/riot/')) return riot(env).fetch(req);
@@ -99,12 +120,26 @@ export class Room extends DurableObject {
 }
 
 // Rooms and players each day, kept 60 days. A player is a hash of their internet address and that day's random salt,
-// which is deleted once the day is over, so nobody can turn it back into an address. No names are kept.
+// which is deleted once the day is over, so nobody can turn it back into an address. No names are kept with them.
+// Who has Premade (apps), for its owner only (/who): each device that opened it, by the random id it made itself, with
+// what its last hello said (helloOf) and when it first and last opened Premade (seconds); kept a year from the last.
+// ponytail: anyone can add a line, fine for a friends' app; a limit for each address if it ever gets spammed
 export class Stats extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
+  }
+  hello({ id, v, name, riot }) {
+    const now = Math.round(Date.now() / 1000);
+    this.ctx.storage.sql.exec('INSERT INTO apps VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v, name = excluded.name, riot = excluded.riot, last = excluded.last',
+      id, v, name, JSON.stringify(riot), now, now);
+  }
+  who() { // [{ v, name, riot: [Riot ID], first, last }], the last opened first
+    const sql = this.ctx.storage.sql;
+    sql.exec('DELETE FROM apps WHERE last < ?', Math.round(Date.now() / 1000) - 365 * 86400);
+    return sql.exec('SELECT v, name, riot, first, last FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot) }));
   }
   prune() {
     this.ctx.storage.sql.exec('DELETE FROM salt WHERE day < ?', day());
