@@ -121,6 +121,21 @@ const video = videoColours(corner, R, 1);
 const fromVideo = boxOnMinimap(video);
 assert(Math.abs(fromVideo.res.cx - small.res.cx) < 0.01 && Math.abs(fromVideo.res.cy - small.res.cy) < 0.01, 'video colours must not move the position');
 
+// Show Minimap on left: the bottom-left corner of the screen, with the minimap's frame the mirror image (its gold edge
+// on its right). Here the whole corner is mirrored, so the camera box lands mirrored too.
+const leftCorner = new Uint8ClampedArray(corner.length);
+for (let y = 0; y < R; y++) for (let x = 0; x < R; x++) leftCorner.set(corner.subarray((y * R + R - 1 - x) * 4, (y * R + R - x) * 4), (y * R + x) * 4);
+const onLeft = findMinimap(leftCorner, R, true);
+assert(onLeft && onLeft.x === 0 && onLeft.y === small.m.y && onLeft.s === small.m.s, `the minimap on the left: ${JSON.stringify(onLeft)}`);
+assert(!findMinimap(leftCorner, R) && !findMinimap(corner, R, true), 'each side only finds its own frame');
+{
+  const s2 = onLeft.s, crop = new Uint8ClampedArray(s2 * s2 * 4);
+  for (let y = 0; y < s2; y++) crop.set(leftCorner.subarray(((onLeft.y + y) * R) * 4, ((onLeft.y + y) * R + s2) * 4), y * s2 * 4);
+  const res = new Tracker().update(crop, s2, s2);
+  assert(res.found && Math.abs(res.cx - (1 - small.res.cx)) < 0.01 && Math.abs(res.cy - small.res.cy) < 0.01, `camera box on the left minimap: ${res.cx}, ${res.cy}`);
+  console.log(`minimap on the left: ${s2}px, camera box ${(res.cx * 100).toFixed(1)}% across`);
+}
+
 // ---- Following your champion icon instead of the camera (Follower), on Rayan's minimap.
 // The player's icon is Rayan's, cut from the screenshot; teammates wear the same blue ring around other art from
 // Rayan's HUD (fixtures/rayan-hud-art-7x40.rgba.gz). Scripted moments of a game run frame by frame (5 a second),
@@ -213,7 +228,7 @@ function play(name, { f = 1, video = false, boxOver = true }, moments) {
     if (st.me) stamp(px, st.sprite || player, ...sc(st.me));
     if (boxOver) box(px, ...sc(st.cam));
     if (video) px = videoColours(px, t, 1);
-    const res = follower.update(px, t, now);
+    const res = follower.update(px, t, now, st.ally);
     // distances are on the screenshot's scale, in pixels
     const off = (p) => Math.hypot(res.x * S - p[0], res.y * S - p[1]);
     const say = `${name}, ${m.name}, frame ${k}: ${JSON.stringify({ by: res.by, learned: res.learned, x: +(res.x * S).toFixed(1), y: +(res.y * S).toFixed(1), me: st.me && st.me.map(Math.round) })}`;
@@ -252,6 +267,32 @@ function lockedThenFree(name, opts) {
 }
 lockedThenFree('locked then free', {});
 lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, video: true });
+
+// Recall: the camera stays in the lane while the player's icon lands in the fountain, and it must follow the player
+// there at once, not after the 3 s it keeps a hidden icon's spot. A teammate stands in the other fountain all along
+// and is never taken for the player, also while the player's icon is hidden for a second before.
+// Then F2 held for 20 s on a teammate walking a long way, the camera on them: with the Windows app saying so (ally),
+// it learns nothing from the camera meanwhile and stays on the player, before and after F2 is let go.
+{
+  const walk = along([[60, 200], [110, 150]]), end = walk(30), out = along([[27, 256], [70, 215]]), mates = [[230, 240, 0], [256, 26, 1]];
+  const locked = { name: 'camera locked on the player', frames: 30, at: (k) => ({ me: walk(k), mates, cam: lockedOn(walk(k)) }),
+    check: (res, st, k, off, say) => (k >= 20 || res.by === 'icon' ? onMe(res, st, off, say) : onCamera(res, st, off, say)) };
+  play('recall', {}, [
+    locked,
+    { name: 'icon hidden for a second', frames: 5, at: () => ({ me: null, mates, cam: lockedOn(end) }),
+      check: (res, st, k, off, say) => assert(res.by === 'icon' && res.held && off(end) <= 2.5, say) },
+    { name: 'recalled, camera left in the lane', frames: 20, at: (k) => ({ me: out(k), mates, cam: lockedOn(end) }),
+      check: (res, st, k, off, say) => onMe(res, st, off, say) },
+  ]);
+  const mate = along([[150, 230], [250, 130], [250, 40]]);
+  play('F2 held', {}, [
+    locked,
+    { name: 'F2 on a walking teammate', frames: 100, at: (k) => ({ me: end, mates: [mates[0], [...mate(k), 2]], cam: lockedOn(mate(k)), ally: true }),
+      check: (res, st, k, off, say) => onMe(res, st, off, say) },
+    { name: 'F2 let go, camera back on the player', frames: 10, at: (k) => ({ me: end, mates: [mates[0], [...mate(100 + k), 2]], cam: lockedOn(end) }),
+      check: (res, st, k, off, say) => onMe(res, st, off, say) },
+  ]);
+}
 
 // Camera free from the start and never on the player; it pans over to a standing teammate and rests there: it must
 // not learn anyone. Then one tap of Space (camera jumps onto the player and stays there) and it follows the player.

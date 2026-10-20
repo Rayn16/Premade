@@ -547,7 +547,8 @@ function saveBounds() {
 }
 
 // ---- shortcuts that work while League is in front: mute, clip and show/hide are Windows hotkeys; push to talk asks
-// Windows every 15 ms whether its key is down (GetAsyncKeyState reads the key, it doesn't hook or block it)
+// Windows every 15 ms whether its key is down (GetAsyncKeyState reads the key, it doesn't hook or block it), and so do
+// F2 to F5, League's keys for the camera on a teammate, so the page doesn't learn your champion from it meanwhile
 const VK = { Mouse3: 4, Mouse4: 5, Mouse5: 6, Tab: 9, CapsLock: 0x14, Space: 0x20, Backquote: 0xc0, ShiftLeft: 0xa0, ShiftRight: 0xa1, ControlLeft: 0xa2, ControlRight: 0xa3, AltLeft: 0xa4, AltRight: 0xa5 };
 function vk(code) {
   let m;
@@ -571,16 +572,19 @@ ipcMain.handle('keys', (e, k) => {
     }),
     ptt: false,
   };
-  const code = typeof k.ptt === 'string' && vk(k.ptt);
-  if (code && process.platform === 'win32') {
+  const code = typeof k.ptt === 'string' && vk(k.ptt), ally = ['F2', 'F3', 'F4', 'F5'].map(vk);
+  if (process.platform === 'win32') {
     try {
       keyState = keyState || require('koffi').load('user32.dll').func('short __stdcall GetAsyncKeyState(int vKey)');
-      let down = false;
+      let down = false, onAlly = false;
       pttTimer = setInterval(() => {
-        const now = (keyState(code) & 0x8000) !== 0;
+        if (win.isDestroyed()) return; // closed, the app is quitting
+        const now = !!code && (keyState(code) & 0x8000) !== 0;
         if (now !== down) { down = now; win.webContents.send('key', now ? 'ptt-down' : 'ptt-up'); }
+        const look = ally.some((c) => (keyState(c) & 0x8000) !== 0);
+        if (look !== onAlly) { onAlly = look; win.webContents.send('key', look ? 'ally-down' : 'ally-up'); }
       }, 15);
-      ok.ptt = true;
+      ok.ptt = !!code;
     } catch (err) { console.error('push to talk:', err); }
   }
   return ok;

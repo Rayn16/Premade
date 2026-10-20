@@ -47,10 +47,16 @@ function fakeScreen([w, h]) {
   navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(10);
   let tick = 0;
   setInterval(() => { g.fillStyle = tick++ % 2 ? '#1b2a22' : '#1c2a22'; g.fillRect(0, 0, 1, 1); }, 100); // canvas capture only sends changed frames
-  // Rayan's 646px screen corner, at the bottom-right of a 2548x1435 screen like the one it came from
-  window.paintCorner = (b64) => {
+  // Rayan's 646px screen corner, at the bottom-right of a 2548x1435 screen like the one it came from; left: mirrored
+  // at the bottom-left, like a minimap shown on the left (League's Interface settings)
+  window.paintCorner = (b64, left) => {
     const bytes = Uint8ClampedArray.from(atob(b64), (c) => c.charCodeAt(0));
-    g.putImageData(new ImageData(bytes, 646, 646), w - 646, h - 646);
+    if (left) for (let y = 0; y < 646; y++) for (let x = 0; x < 323; x++) for (let c = 0; c < 4; c++) {
+      const a = (y * 646 + x) * 4 + c, b = (y * 646 + 645 - x) * 4 + c;
+      [bytes[a], bytes[b]] = [bytes[b], bytes[a]];
+    }
+    g.fillStyle = '#1b2a22'; g.fillRect(0, 0, w, h);
+    g.putImageData(new ImageData(bytes, 646, 646), left ? 0 : w - 646, h - 646);
   };
   // A 300px minimap with the real frame's gold edge, a white 70x40 camera box centred at (fx, fy) of it, and a
   // champion icon with the team's blue ring at icon (by default where it sits when the camera is on it)
@@ -302,6 +308,14 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // Ana's screen never moves, so the page can't tell which icon is Ana's yet: camera box, moved down to the champion
     assert(Math.abs(me.minimap.s - 278) <= 3 && me.by === 'camera' && Math.abs(me.x - 0.387) < 0.01 && Math.abs(me.y - 0.605) < 0.01, 'same minimap and box as the screenshot test');
     assert(me.icons.length === 1 && Math.abs(me.icons[0].x - 105) <= 1 && Math.abs(me.icons[0].y - 168) <= 1, 'Ana\'s icon found as on the screenshot');
+    // the same minimap shown on the left: found there (the page looks again every 5 s), then back on the right
+    await ana.evaluate((b64) => paintCorner(b64, true), CORNER);
+    await waitFor(ana, () => lpc.me().minimap && lpc.me().minimap.x === 0, null, 'Ana\'s minimap found on the left', 20000);
+    const left = await ana.evaluate(() => lpc.me());
+    assert(Math.abs(left.minimap.s - 278) <= 3 && left.minimap.y === 1435 - left.minimap.s && Math.abs(left.x - (1 - me.x)) < 0.015 && Math.abs(left.y - me.y) < 0.01, `the minimap on the left: ${JSON.stringify(left.minimap)} at ${left.x}, ${left.y}`);
+    await ana.evaluate((b64) => paintCorner(b64), CORNER);
+    await waitFor(ana, () => lpc.me().minimap && lpc.me().minimap.x > 0 && Math.abs(lpc.me().x - 0.387) < 0.01, null, 'Ana\'s minimap back on the right', 20000);
+    console.log(`minimap on the left too: ${left.minimap.s}px at the bottom left, ${(left.x * 100).toFixed(1)}% across`);
 
     await hears(ana, ['Ben'], 1, 'Ben close by: full volume');
     await hears(ben, ['Ana'], 1, 'Ana close by: full volume');
@@ -911,7 +925,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 20: clips by voice'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 20: the minimap tracker'], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);

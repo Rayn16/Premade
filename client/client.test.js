@@ -142,8 +142,8 @@ assert.deepStrictEqual(hide([{ gameName: 'Rayan', tagLine: 'EUW', summonerId: 42
 assert.strictEqual(hide.path('/lol-ranked/v1/ranked-stats/abc-123-def'), '/lol-ranked/v1/ranked-stats/id-3');
 assert.strictEqual(hide.path('/lol-summoner/v1/alias/lookup?gameName=Rayan&tagLine=EUW'), '/lol-summoner/v1/alias/lookup?gameName=Player%201&tagLine=Player%202');
 assert.strictEqual(hide.path('/lol-summoner/v2/summoners/puuid/0123456789abcdef0123456789abcdef'), '/lol-summoner/v2/summoners/puuid/id-5', 'an account id not seen before');
-// push-to-talk keys as Windows numbers them
-assert.deepStrictEqual(['KeyV', 'Digit4', 'Numpad0', 'F13', 'Mouse4', 'CapsLock', 'AltLeft', 'Nope'].map(vk), [0x56, 0x34, 0x60, 0x7c, 5, 0x14, 0xa4, 0]);
+// push-to-talk keys as Windows numbers them, and F2 to F5 (the camera on a teammate)
+assert.deepStrictEqual(['KeyV', 'Digit4', 'Numpad0', 'F13', 'Mouse4', 'CapsLock', 'AltLeft', 'Nope', 'F2', 'F5'].map(vk), [0x56, 0x34, 0x60, 0x7c, 5, 0x14, 0xa4, 0, 0x71, 0x74]);
 
 const until = async (fn, what, ms = 10000) => {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 100))) if (await fn()) return;
