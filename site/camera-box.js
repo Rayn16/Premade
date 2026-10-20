@@ -296,6 +296,32 @@ globalThis.CameraBox = (() => {
     return ctx.getImageData(0, 0, sq.s, sq.s).data;
   }
 
+  // League's surrender vote box (also an early or AFK surrender, a remake and the vote after disruptive behavior), as
+  // League's own layout has it (clientstates/gameplay/ux/lol/surrender, CommunityDragon's copy): 223 x 113 at
+  // (1357, 602) on a 1600 x 1200 screen, hung from the bottom-right corner and sized by the screen's height alone (the
+  // HUD scale leaves it be). In it the votes are a row of boxes at y 44-56 (green yes, red no, grey not yet, black
+  // between), the timer a bar at y 62-67 (teal while it runs, black once run down), the rest a dark panel. rgba is
+  // that box scaled to 223 x 113; true when it shows with a yes in it, which every vote starts with (whoever called it).
+  // ponytail: only where League puts it; a box dragged elsewhere isn't seen
+  const VOTE = { x: 1357, y: 602, w: 223, h: 113 };
+  function findVote(rgba) {
+    const part = (y, x0, x1, ok) => { let n = 0; for (let x = x0; x < x1; x++) { const i = (y * VOTE.w + x) * 4; if (ok(rgba[i], rgba[i + 1], rgba[i + 2])) n++; } return n / (x1 - x0); };
+    const dark = (r, g, b) => min(r, g, b) >= 8 && max(r, g, b) <= 60 && max(r, g, b) - min(r, g, b) <= 26;
+    const yes = (r, g, b) => g > 90 && r < 60 && g - b > 45, no = (r, g, b) => r > 80 && g < 50 && b < 50;
+    const grey = (r, g, b) => r > 32 && r < 72 && max(r, g, b) - min(r, g, b) < 14, gap = (r, g, b) => max(r, g, b) < 32;
+    const timer = (r, g, b) => (r < 60 && g > 70 && b > 70) || max(r, g, b) < 24;
+    return [28, 73, 106].every((y) => part(y, 8, 216, dark) >= 0.8)
+      && part(50, 16, 206, (r, g, b) => yes(r, g, b) || no(r, g, b) || grey(r, g, b) || gap(r, g, b)) >= 0.85
+      && part(50, 16, 206, yes) >= 0.1 && part(50, 16, 206, gap) <= 0.2 && part(65, 16, 206, timer) >= 0.85;
+  }
+  // Browser only: whether the vote box shows on a w x h frame, read through the scratch context ctx
+  function seeVote(ctx, src, w, h) {
+    const s = h / 1200;
+    ctx.canvas.width = VOTE.w; ctx.canvas.height = VOTE.h;
+    ctx.drawImage(src, w - (1600 - VOTE.x) * s, VOTE.y * s, VOTE.w * s, VOTE.h * s, 0, 0, VOTE.w, VOTE.h);
+    return findVote(ctx.getImageData(0, 0, VOTE.w, VOTE.h).data);
+  }
+
   // Browser only. Calls onFrame(src, w, h) with a frame of a screen share at most every ms milliseconds, until the
   // returned stop() is called or the share ends. Where the browser has MediaStreamTrackProcessor, frames arrive as a
   // stream, which keeps going while this tab is hidden behind the game; elsewhere it polls a video element.
@@ -327,5 +353,5 @@ globalThis.CameraBox = (() => {
     return () => { on = false; };
   }
 
-  return { Tracker, Follower, RING, PICK_LOOK, findIcons, iconLook, picLook, lookDiff, iconDiff, iconLike, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, watch };
+  return { Tracker, Follower, RING, PICK_LOOK, VOTE, findIcons, iconLook, picLook, lookDiff, iconDiff, iconLike, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, findVote, seeVote, watch };
 })();

@@ -119,7 +119,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // While you're dead or in your base it can also show the next item to buy (buy: { name, pic, why }), and while you're
   // dead the tips for your lane (tips: { title, lines }) and a teammate's screen (screen: { name, img }, a JPEG picture
   // of it several times a second; the Overlay page sends no img and gets an empty frame). Your team's chance to win
-  // comes at the end of the objective timers' line.
+  // comes at the end of the objective timers' line, and during a surrender vote also on a card of its own (vote: like
+  // after's) beside League's vote box.
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const main = document.getElementById('main'), parts = document.getElementById('parts'), call = document.getElementById('call');
@@ -283,6 +284,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     for (const t of s.toasts || []) add('toasts', el('toast', String(t)));
     if (Array.isArray(s.missing) && s.missing.length) add('missing', missing(s.missing));
     if (s.after && typeof s.after === 'object') add('after', after(s.after));
+    if (s.vote && typeof s.vote === 'object') add('vote', after(s.vote));
     if (s.tips && Array.isArray(s.tips.lines)) add('tips', tips(s.tips));
     if (s.screen && typeof s.screen === 'object') add('screen', cam(s.screen));
     const own = [];
