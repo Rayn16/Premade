@@ -545,6 +545,25 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .sstate { display: flex; align-items: center; gap: 8px; }
 .flash { animation: flash 2.4s ease-out; }
 @keyframes flash { 0%, 50% { outline: 3px solid var(--gold); outline-offset: 3px; } 100% { outline: 3px solid transparent; outline-offset: 3px; } }
+
+/* TFT: champions as buttons with their cost's colour from the game's shop (grey, green, blue, purple, gold), your comp
+   above the pool, and saved comps */
+.tftunits { display: flex; flex-wrap: wrap; gap: 6px; }
+.tftunits:empty::before { content: attr(data-empty); color: var(--muted); font-size: 14px; }
+.tftunit { --c: var(--line); display: grid; justify-items: center; gap: 3px; width: 66px; padding: 5px 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 500 11px/1.15 var(--body); cursor: pointer; }
+.tftunit:hover { border-color: var(--gold); }
+.tftunit[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, var(--raised)); }
+.tftunit img { width: 40px; height: 40px; border-radius: 4px; border: 2px solid var(--c); object-fit: cover; }
+.tftunit span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tftunit[data-cost="1"] { --c: #8c96a0; }
+.tftunit[data-cost="2"] { --c: var(--good); }
+.tftunit[data-cost="3"] { --c: #3b9cff; }
+.tftunit[data-cost="4"] { --c: #c86bff; }
+.tftunit[data-cost="5"] { --c: var(--best); }
+.tftcomps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tftcomps:empty::before { content: attr(data-empty); color: var(--muted); font-size: 14px; }
+.tftcomps li { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font-size: 14px; }
+.tftcomps .gitems { flex-wrap: wrap; }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -601,6 +620,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
     <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
     <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
+    <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
     <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
@@ -1190,6 +1210,48 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
     </section>
 
+    <section class="view" data-view="tft" aria-label="TFT" hidden>
+      <h1 class="title">TFT</h1>
+      <p id="tftNote" class="phase" role="status" hidden></p>
+      <div id="tftRanks" class="ranks"></div>
+      <div class="prodash">
+        <div class="stack">
+          <section id="tftBuild" class="panel" aria-labelledby="h-tftbuild">
+            <h2 id="h-tftbuild" class="ph">Team codes <button class="tip" type="button" popovertarget="t-tftcode" aria-label="About team codes">?</button></h2>
+            <label class="field">Team code <input id="tftCode" autocomplete="off" spellcheck="false" placeholder="Paste a code from a friend, a streamer or a site"></label>
+            <div id="tftBoard" class="tftunits" aria-label="Your comp" data-empty="Pick up to 10 champions below, or paste a code."></div>
+            <div id="tftTraits" class="tags"></div>
+            <div class="toolbar">
+              <button id="tftCopy" class="btn primary" type="button">Copy team code</button>
+              <button id="tftSave" class="btn small" type="button">Save</button>
+              <button id="tftShare" class="btn small" type="button">Send to my room</button>
+              <button id="tftClear" class="btn small" type="button">Clear</button>
+            </div>
+            <p id="tftCodeNote" class="hint" role="status"></p>
+            <label class="field">Find a champion or trait <input id="tftFind" type="search" autocomplete="off" spellcheck="false"></label>
+            <div id="tftPool" class="tftunits" data-empty="Loading this set’s champions…"></div>
+          </section>
+          <section id="tftOddsBox" class="panel" aria-labelledby="h-tftodds" hidden>
+            <h2 id="h-tftodds" class="ph">Shop odds</h2>
+            <p class="hint">The chance of each cost in a shop slot at each level, from Riot’s data for this patch.</p>
+            <div class="tablewrap"><table class="ready"><thead><tr><th>Level</th><th>1 cost</th><th>2 cost</th><th>3 cost</th><th>4 cost</th><th>5 cost</th></tr></thead><tbody id="tftOdds"></tbody></table></div>
+          </section>
+        </div>
+        <div class="stack">
+          <section id="tftMineBox" class="panel" aria-labelledby="h-tftmine">
+            <h2 id="h-tftmine" class="ph">My comps</h2>
+            <ul id="tftMine" class="tftcomps" data-empty="Comps you save show here."></ul>
+          </section>
+        </div>
+      </div>
+      <section id="tftGamesBox" class="panel" aria-labelledby="h-tftgames" hidden>
+        <h2 id="h-tftgames" class="ph">Your recent games</h2>
+        <div id="tftForm" class="timers"></div>
+        <div id="tftTraitBox" class="tablewrap" hidden><table class="ready"><thead><tr><th>Trait</th><th>Games</th><th>Average place</th><th>Top 4</th></tr></thead><tbody id="tftTraitRows"></tbody></table></div>
+        <ol id="tftGames" class="games"></ol>
+      </section>
+    </section>
+
     <section class="view" data-view="clips" aria-label="Clips" hidden>
       <h1 class="title">Clips</h1>
       <section class="panel" aria-labelledby="h-clips">
@@ -1466,6 +1528,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists (titles, pictures, abilities, splash art close-ups, stories with the name blanked out, items and their costs), where fast right answers score most; it ends when the host's League finds a match. <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
+<div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
@@ -2980,8 +3043,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const li = document.createElement('li'), time = document.createElement('time'), b = document.createElement('b');
     time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     b.textContent = who;
-    li.append(time, b, ...text.split(/(https?:\/\/\S+)/).map((s, i) => {
+    li.append(time, b, ...text.split(/(https?:\/\/\S+|\b0[12][0-9a-f]{20,30}TFTSet\d+\b)/i).map((s, i) => {
       if (i % 2 === 0) return s;
+      if (!/^https?:/i.test(s)) return Object.assign(tftBtn('Copy team code', () => tftCopy(s)), { title: s }); // a TFT comp, for League's Team Planner
       const a = document.createElement('a');
       a.href = a.textContent = s;
       a.target = '_blank';
@@ -3794,6 +3858,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'clips') loadClips();
     if (name === 'settings') { loadScreens(); serverStats(); }
     if (name === 'features') renderFeatures();
+    if (name === 'tft') renderTft();
     main.scrollTop = 0;
     render();
     if (name === 'game' || name === 'pregame') renderGame();
@@ -5610,6 +5675,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     li.querySelector('.gitems').append(...x.units.filter(([c]) => tftPic(c)).map(([c, t]) => Object.assign(new Image(), { src: tftPic(c), alt: '', title: `${tftName(c)} ${stars(t)}` })));
     li.querySelector('.talk').append(...[['Traits', x.traits.map(([t, n]) => `${n} ${tftName(t)}`).join(', ')], ['Augments', names(x.augs)],
       ...x.units.map(([c, t, items]) => [`${tftName(c)} ${stars(t)}`, names(items) || 'no items'])].filter(([, v]) => v).map(([k, v]) => { const r = document.createElement('li'); r.append(Object.assign(document.createElement('b'), { textContent: k }), v); return r; }));
+    const code = tftBoardCode(x); // this board for League's Team Planner
+    if (code) { const bar = Object.assign(document.createElement('div'), { className: 'toolbar' }); bar.append(tftBtn('Copy team code', () => tftCopy(code))); li.querySelector('.gbody').append(bar); }
     return li;
   }
   // a game's report: kept from when it ended, else from League's client, else Riot's copy through our server
@@ -7068,7 +7135,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), lanes = {}, by = new Map(), traits = {};
     for (const x of g) { if (x.lane) { const v = (lanes[x.lane] ||= [0, 0]); v[0]++; v[1] += x.win; } if (x.champ) by.set(x.champ, [...(by.get(x.champ) || []), x]); if (tft && x.traits[0]) traits[x.traits[0][0]] = (traits[x.traits[0][0]] || 0) + 1; }
     const roles = Object.entries(lanes).sort((x, y) => y[1][0] - x[1][0]), [role, [rn] = []] = roles[0] || [], [main, mn] = Object.entries(traits).sort((x, y) => y[1] - x[1])[0] || [];
-    const tile = (label, v) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = label; s.append(b, v); return s; };
     $('h-proform').textContent = n ? `Last ${n} ${label}game${n === 1 ? '' : 's'}` : `Recent ${label}games`;
     $('proRolesBox').hidden = !roles.length; // Summoner's Rift games of this tab: games and wins in each role
     $('proRolesNote').textContent = $('h-proform').textContent;
@@ -7082,7 +7148,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       .map(([c, l]) => champTile(c, `${l.length} game${l.length === 1 ? '' : 's'} · ${Math.round((100 * l.filter((x) => x.win).length) / l.length)}% won · ${kda(...['k', 'd', 'a'].map((s) => l.reduce((t, x) => t + x[s], 0)))} KDA`, pages)));
     renderProChamps(p, tft ? [] : all, label, pages);
     if (tft) tftSoon();
-    const shown = all.slice(0, proShow), list = `${p.n} ${q} ${ddVersion} ${!!ddTft} ${shown.map((x) => x.id + ',').join('')}`;
+    const shown = all.slice(0, proShow), list = `${p.n} ${q} ${ddVersion} ${!!ddTft} ${!!tftPlan} ${shown.map((x) => x.id + ',').join('')}`;
     if (!n) $('proGames').replaceChildren(...(proMore.busy ? [] : [Object.assign(document.createElement('li'), { className: 'hint', textContent: (tft && tftWhy(p)) || `No recent ${label}games.` })]));
     else if (list !== proList) { // only games added at the end when that's all that changed, so an open report stays open
       if (!proList || !list.startsWith(proList)) $('proGames').replaceChildren();
@@ -7519,7 +7585,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return list.map((g) => {
       const j = g && (typeof g.json === 'string' ? jsonOr(g.json) : g.json), i = j && (j.info || j), meta = (g && g.metadata) || {}; // the game, as an object or its text
       const p = i && Array.isArray(i.participants) ? i.participants.find((x) => x && x.puuid === u) : null, id = String(meta.match_id || (i && i.gameId) || '').split('_').pop();
-      return !p || !(p.placement > 0) || !id ? null : { tft: true, id: 't' + id, at: +i.game_datetime || +meta.timestamp || 0, len: +i.game_length || 0, queue: +(i.queue_id ?? i.queueId) || 0, place: p.placement | 0, level: p.level | 0,
+      return !p || !(p.placement > 0) || !id ? null : { tft: true, id: 't' + id, at: +i.game_datetime || +meta.timestamp || 0, len: +i.game_length || 0, queue: +(i.queue_id ?? i.queueId) || 0, place: p.placement | 0, level: p.level | 0, sn: +i.tft_set_number || 0,
         traits: (Array.isArray(p.traits) ? p.traits : []).filter((t) => t && t.style > 0).sort((a, b) => b.style - a.style || b.num_units - a.num_units).map((t) => [String(t.name), t.num_units | 0]),
         units: (Array.isArray(p.units) ? p.units : []).filter(Boolean).map((x) => [String(x.character_id), x.tier | 0, Array.isArray(x.itemNames) ? x.itemNames.map(String) : []]), augs: (Array.isArray(p.augments) ? p.augments : []).map(String) };
     }).filter(Boolean).sort((a, b) => b.at - a.at);
@@ -7529,6 +7595,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : !lcu ? 'Start League to see TFT games.' : p.plat && myPlat && p.plat !== myPlat ? `League’s client only has TFT games for players on your server, ${PLATS[myPlat][0]}.` : '';
   }
   function tftSoon() {
+    tftPlanSoon(); // the Team Planner's champions too, for team codes
     if (ddTft || !ddVersion || performance.now() - ddTftAt < 60000) return;
     ddTftAt = performance.now();
     Promise.all(['champion', 'trait', 'item', 'augments'].map((k) => fetch(`${DD}/cdn/${ddVersion}/data/en_US/tft-${k}.json`).then((r) => r.json()))).then((all) => {
@@ -7536,10 +7603,164 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       for (const j of all) for (const v of Object.values((j && j.data) || {})) if (v && v.id) out[v.id] = { name: String(v.name || ''), img: v.image && v.image.group && v.image.full ? `${DD}/cdn/${ddVersion}/img/${v.image.group}/${v.image.full}` : '' };
       ddTft = out;
       if (!profView.hidden) renderProfile();
+      if (!tftView.hidden) renderTft();
     }).catch(() => {});
   }
   function tftName(id) { return (ddTft && ddTft[id] && ddTft[id].name) || String(id).replace(/^(TFT\d*|Set\d+)_(Item_|Augment_)?/i, '').replace(/([a-z])([A-Z0-9])/g, '$1 $2'); } // TFT13_Jinx: Jinx
   function tftPic(id) { return (ddTft && ddTft[id] && ddTft[id].img) || ''; }
+
+  // ---- TFT: team codes for League's Team Planner (build a comp or open anyone's code, then copy it in one click and
+  // paste it there), saved comps, comps sent to your room, your TFT ranks and games from League's client, and Riot's
+  // shop odds. A team code: 02, each champion's Team Planner number in three hex digits (000 for an empty spot, 10
+  // spots), then the set (TFTSet18). Riot keeps those numbers in League's game data only, so the Team Planner's
+  // champions come from CommunityDragon's copy of it; Riot's TFT API would need a TFT key of its own.
+  // ponytail: that list is League's client's (rcp-be-lol-game-data). TFT moves to an app of its own on November 4 (patch
+  // 18.6); if the list stops following new sets after that, read it from wherever TFT's app keeps it
+  const CD = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default';
+  const tftView = main.querySelector('.view[data-view="tft"]');
+  let tftPlan = null, tftPlanAt = -Infinity, tftPlanErr = false; // set ('TFTSet18') -> its Team Planner champions [{ id, name, cost, code, img, traits }]
+  let tftPick = load('lpc-tft-pick', []), tftComps = load('lpc-tft-comps', []); // the comp being built (champion ids), and saved comps [{ n: name, c: code }]
+  let tftGames = null, tftGamesAt = -Infinity, tftOdds = null; // your last 20 TFT games (tftOf), and Riot's shop odds by level
+  function tftPlanSoon() {
+    if (tftPlan || performance.now() - tftPlanAt < 60000) return;
+    tftPlanAt = performance.now();
+    fetch(`${CD}/v1/tftchampions-teamplanner.json`).then((r) => r.json()).then((j) => {
+      const out = {};
+      for (const [set, rows] of Object.entries(j || {})) if (/^TFTSet\d+$/.test(set) && Array.isArray(rows)) out[set] = rows.filter((c) => c && c.character_id && c.team_planner_code > 0 && c.team_planner_code < 4096)
+        .map((c) => ({ id: String(c.character_id), name: String(c.display_name || tftName(c.character_id)), cost: c.tier | 0, code: c.team_planner_code | 0,
+          img: c.squareIconPath ? CD + String(c.squareIconPath).replace(/^\/lol-game-data\/assets/i, '').toLowerCase() : '', traits: (Array.isArray(c.traits) ? c.traits : []).map((t) => String((t && t.name) || t)) }));
+      tftPlan = out;
+      if (!tftView.hidden) renderTft();
+      if (!profView.hidden) renderProfile(); // its TFT games get their team codes
+    }).catch(() => { tftPlanErr = true; if (!tftView.hidden) renderTft(); });
+  }
+  const tftSet = () => Object.keys(tftPlan || {}).sort((a, b) => b.slice(6) - a.slice(6))[0] || ''; // the newest set: the only one League's Team Planner takes
+  const tftRows = () => (tftPlan && tftPlan[tftSet()]) || [];
+  const tftCodeOf = (set, units) => '02' + units.map((c) => c.code.toString(16).padStart(3, '0')).join('') + '000'.repeat(10 - units.length) + set;
+  function tftRead(text) { // a team code -> { set, units } (champions it doesn't know left out), or null. Older codes (01, two digits a champion) only say their set
+    const m = /\b(0[12])([0-9a-f]{20,30})TFTSet(\d+)\b/i.exec(text || ''), w = m && (m[1] === '01' ? 2 : 3), set = m && 'TFTSet' + m[3], rows = (m && w === 3 && tftPlan && tftPlan[set]) || [], units = [];
+    if (!m || m[2].length !== 10 * w) return null;
+    for (let i = 0; i < m[2].length; i += w) { const n = parseInt(m[2].slice(i, i + w), 16), c = n && rows.find((r) => r.code === n); if (c && !units.includes(c)) units.push(c); }
+    return { set, units };
+  }
+  const tftNow = () => { const set = tftSet(), units = tftPick.map((id) => tftRows().find((r) => r.id === id)).filter(Boolean); return { set, units, code: units.length ? tftCodeOf(set, units) : '' }; };
+  function tftTraits(units) { // [[trait, champions with it]], most first
+    const t = {};
+    for (const c of units) for (const x of c.traits) t[x] = (t[x] || 0) + 1;
+    return Object.entries(t).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+  const tftLabel = (units) => tftTraits(units).slice(0, 2).map(([t, n]) => `${n} ${t}`).join(', ') || units.slice(0, 3).map((c) => c.name).join(', ');
+  // a game's final board as a team code: its champions in the Team Planner by the same id, else the same name (League's
+  // match history and its Team Planner don't always name a champion alike), the 10 dearest. Only this set's games.
+  function tftBoardCode(x) {
+    const set = tftSet(), rows = tftRows(), key = (s) => String(s).toLowerCase().replace(/[^a-z]/g, ''), units = [];
+    if (!rows.length || (x.sn && 'TFTSet' + x.sn !== set)) return '';
+    for (const [id] of x.units) { const c = rows.find((r) => r.id === id) || rows.find((r) => key(r.name) === key(tftName(id))); if (c && !units.includes(c)) units.push(c); }
+    return units.length ? tftCodeOf(set, units.sort((a, b) => b.cost - a.cost).slice(0, 10)) : '';
+  }
+  async function tftCopy(code) { // League's Team Planner pastes it: TFT tab, the planner beside Play (or top right in a game), Paste
+    try { await navigator.clipboard.writeText(code); notify('Team code copied. In League, open the Team Planner and press Paste.', true); } catch { say(`Copy this team code: ${code}`); }
+  }
+  const tftBtn = (textContent, onclick) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent, onclick });
+  function tftUnit(c, onclick) { // a champion: picture, name, its cost's colour; traits on hover
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tftunit', title: [c.name, ...c.traits].join(' · '), onclick }), img = Object.assign(new Image(), { alt: '', loading: 'lazy' });
+    b.dataset.cost = c.cost;
+    img.onerror = () => { img.style.visibility = 'hidden'; }; // a picture CommunityDragon doesn't have: just the name
+    if (c.img) img.src = c.img;
+    b.append(img, Object.assign(document.createElement('span'), { textContent: c.name }));
+    return b;
+  }
+  const tftKeep = () => { store.set('lpc-tft-pick', JSON.stringify(tftPick)); $('tftCodeNote').textContent = ''; renderTftBuild(); };
+  function tftOpen(text) { // a pasted code (or a saved comp) into the builder
+    const t = tftRead(text);
+    if (!text.trim()) return void ($('tftCodeNote').textContent = '');
+    if (!t) return void ($('tftCodeNote').textContent = 'That isn’t a whole team code: it starts with 02 and ends with the set, like TFTSet18.');
+    if (!tftPlan) return void ($('tftCodeNote').textContent = 'This set’s champions are still loading. Try again in a moment.');
+    if (t.set !== tftSet()) return void ($('tftCodeNote').textContent = `That code is for Set ${t.set.slice(6)}. League’s Team Planner takes Set ${tftSet().slice(6)} codes.`);
+    if (!t.units.length) return void ($('tftCodeNote').textContent = 'None of that code’s champions are in this set’s Team Planner.');
+    tftPick = t.units.map((c) => c.id);
+    tftKeep();
+    $('tftCodeNote').textContent = `Opened a comp of ${t.units.length} champion${t.units.length === 1 ? '' : 's'}.`;
+  }
+  function renderTftBuild() {
+    const { units, code } = tftNow(), rows = tftRows(), words = $('tftFind').value.toLowerCase().split(/\s+/).filter(Boolean);
+    if (document.activeElement !== $('tftCode')) $('tftCode').value = code;
+    $('tftBoard').replaceChildren(...units.map((c) => tftUnit(c, () => { tftPick = tftPick.filter((id) => id !== c.id); tftKeep(); })));
+    $('tftTraits').replaceChildren(...tftTraits(units).map(([t, n]) => Object.assign(document.createElement('span'), { className: 'tag', textContent: `${n} ${t}` })));
+    for (const id of ['tftCopy', 'tftSave', 'tftShare', 'tftClear']) $(id).disabled = !units.length;
+    $('tftPool').dataset.empty = tftPlanErr && !tftPlan ? 'Couldn’t load this set’s champions. It tries again when you come back to this page.' : !tftPlan ? 'Loading this set’s champions…' : rows.length ? 'No champion or trait has those words.' : 'No Team Planner champions for this set yet.';
+    $('tftPool').replaceChildren(...rows.filter((c) => words.every((w) => [c.name, ...c.traits].join(' ').toLowerCase().includes(w))).sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)).map((c) => {
+      const b = tftUnit(c, () => { tftPick = tftPick.includes(c.id) ? tftPick.filter((id) => id !== c.id) : tftPick.length < 10 ? [...tftPick, c.id] : tftPick; tftKeep(); if (tftPick.length === 10 && !tftPick.includes(c.id)) $('tftCodeNote').textContent = 'League’s Team Planner holds 10 champions.'; });
+      b.setAttribute('aria-pressed', tftPick.includes(c.id));
+      return b;
+    }));
+    $('tftMine').replaceChildren(...tftComps.map((m) => {
+      const t = tftRead(m.c), li = document.createElement('li'), pics = document.createElement('span'), bar = document.createElement('div');
+      pics.className = 'gitems';
+      pics.append(...((t && t.units) || []).map((c) => Object.assign(new Image(), { src: c.img, alt: '', title: c.name })));
+      bar.className = 'toolbar';
+      bar.append(tftBtn('Open', () => { $('tftCode').value = m.c; tftOpen(m.c); }), tftBtn('Copy team code', () => tftCopy(m.c)),
+        tftBtn('Delete', () => { tftComps = tftComps.filter((x) => x !== m); store.set('lpc-tft-comps', JSON.stringify(tftComps)); renderTftBuild(); }));
+      li.append(Object.assign(document.createElement('b'), { textContent: m.n }), pics, bar);
+      return li;
+    }));
+  }
+  function tile(label, v) { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = label; s.append(b, v); return s; } // a number with its name over it (.timers)
+  async function renderTftGames() { // your TFT ranks (League's client, or as it last said) and last 20 games, from League's client
+    const why = !lcuOn() ? 'Your TFT ranks and games come from League’s client, so they show in Premade’s desktop app while League is running. Team codes work here too.'
+      : !client.front ? 'Your TFT games come with the next app update.' : !lcu ? 'Start League to see your TFT games.' : '';
+    $('tftNote').textContent = why;
+    $('tftNote').hidden = !why;
+    if (!why) await myRank();
+    const rk = rankNow || (proMine && proMine.src === 'league' && proMine.rk) || null;
+    $('tftRanks').replaceChildren(...(rk ? [['TFT', 'RANKED_TFT'], ['Double Up', 'RANKED_TFT_DOUBLE_UP'], ['Hyper Roll', 'RANKED_TFT_TURBO']].map(([n, k]) => tftCard(n, rk[k])) : []));
+    if (!why && me0 && performance.now() - tftGamesAt > 60000) {
+      tftGamesAt = performance.now();
+      const h = await lcuGet(`/lol-match-history/v1/products/tft/${me0.puuid}/matches?begin=0&count=20`);
+      if (h && Array.isArray(h.games)) tftGames = tftOf(h.games, me0.puuid);
+    }
+    const g = tftGames || [], n = g.length, top4 = g.filter((x) => x.place <= 4).length, by = {};
+    $('tftGamesBox').hidden = !n;
+    $('h-tftgames').textContent = `Your last ${n} TFT game${n === 1 ? '' : 's'}`;
+    $('tftForm').replaceChildren(...(n ? [tile('Average place', (g.reduce((t, x) => t + x.place, 0) / n).toFixed(1)), tile('Top 4', `${top4} of ${n} · ${pct(top4 / n)}`), tile('Firsts', String(g.filter((x) => x.place === 1).length))] : []));
+    for (const x of g) for (const [t] of x.traits) { const v = (by[t] ||= { n: 0, p: 0, t4: 0 }); v.n++; v.p += x.place; v.t4 += x.place <= 4; } // the traits you played (active), with how you placed
+    const traits = Object.entries(by).filter(([, v]) => v.n >= 2).sort((a, b) => b[1].n - a[1].n || a[1].p / a[1].n - b[1].p / b[1].n).slice(0, 8);
+    $('tftTraitBox').hidden = !traits.length;
+    $('tftTraitRows').replaceChildren(...traits.map(([t, v]) => { const tr = document.createElement('tr'); tr.append(...[tftName(t), v.n, (v.p / v.n).toFixed(1), pct(v.t4 / v.n)].map((s) => Object.assign(document.createElement('td'), { textContent: String(s) }))); return tr; }));
+    $('tftGames').replaceChildren(...g.map(tftLi));
+  }
+  function tftOddsSoon() { // Riot's shop odds for this patch, from Data Dragon
+    if (tftOdds || !ddVersion) return;
+    tftOdds = [];
+    fetch(`${DD}/cdn/${ddVersion}/data/en_US/tft-shop-drop-rates-data.json`).then((r) => r.json()).then((j) => { tftOdds = (j && j.data && Array.isArray(j.data.Shop) && j.data.Shop) || []; if (!tftView.hidden) renderTft(); }).catch(() => {});
+  }
+  function renderTft() {
+    if (!ddVersion) ddragon().then(() => { if (!tftView.hidden) renderTft(); }).catch(() => {});
+    if (tftPlanErr && !tftPlan) { tftPlanErr = false; tftPlanAt = -Infinity; } // try again
+    tftSoon();
+    tftOddsSoon();
+    renderTftBuild();
+    const odds = (tftOdds || []).filter((l) => l && Array.isArray(l.dropRatesByTier));
+    $('tftOddsBox').hidden = !odds.length;
+    $('tftOdds').replaceChildren(...odds.map((l) => {
+      const tr = document.createElement('tr');
+      tr.append(Object.assign(document.createElement('td'), { textContent: `Level ${l.level}` }), ...[1, 2, 3, 4, 5].map((k) => { const d = l.dropRatesByTier.find((x) => x && x.cost === k); return Object.assign(document.createElement('td'), { textContent: d ? `${d.rate}%` : '' }); }));
+      return tr;
+    }));
+    renderTftGames();
+  }
+  $('tftCode').addEventListener('input', () => tftOpen($('tftCode').value));
+  $('tftCode').addEventListener('change', () => { $('tftCode').value = tftNow().code; }); // leaving the box shows this comp's code again (only the box: redrawing the buttons here would eat the click that left it)
+  $('tftFind').addEventListener('input', () => renderTftBuild());
+  $('tftCopy').addEventListener('click', () => tftCopy(tftNow().code));
+  $('tftSave').addEventListener('click', () => {
+    const { units, code } = tftNow();
+    if (!tftComps.some((m) => m.c === code)) { tftComps = [{ n: tftLabel(units), c: code }, ...tftComps].slice(0, 30); store.set('lpc-tft-comps', JSON.stringify(tftComps)); }
+    renderTftBuild();
+    $('tftCodeNote').textContent = 'Saved in My comps.';
+  });
+  $('tftShare').addEventListener('click', () => { const { units, code } = tftNow(); notify(sendChat(`TFT comp, ${tftLabel(units)}: ${code}`) ? 'Sent to your room' : 'Join a voice room first, then send it to your friends there.', true); });
+  $('tftClear').addEventListener('click', () => { tftPick = []; tftKeep(); });
   $('proForget').addEventListener('click', () => { // Not you?: the shown account's profile goes (its LP stays), and the newest other one shows
     delete accounts[acctOf((shownMine() || {}).n)];
     store.set('lpc-accounts', JSON.stringify(accounts));
@@ -8910,6 +9131,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [29, 'October 20: a TFT page', [
+      'TFT has a page of its own. Build a comp or open any team code, then Copy team code and paste it in League’s Team Planner.',
+      'Save comps in My comps, and send one to your voice room: team codes in the chat get a Copy team code button.',
+      'Your TFT ranks, your last 20 games with the traits you play most, a team code for each final board, and this patch’s shop odds.',
+    ]],
     [28, 'October 20: the Features page', [
       'Features, the new page at the bottom of the menu: everything Premade can do, where it is and how to set it up. Show me takes you straight to it.',
       'Get set up, at the top of Features, shows what’s done and what’s left before a game with friends: the desktop app, your name, mic, room, screen and League in Borderless.',
@@ -9198,6 +9424,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Talk time and voice games', 'How long everyone in your room talked, a talk map of where the room talked most, and each game with friends in voice, kept on this computer. Talk and win says whether you win more when the room talks more.',
         'Stats, Games.', '#talkMap'],
       ['Rank watch', 'Follow friends by Riot ID to see their rank and LP go up and down, with a feed of their games, rank-ups and pentakills and a popup when something changes.', 'Stats, Players: type their Riot ID and press Follow.', '#watchId', 'app'],
+    ]],
+    ['TFT', 'Teamfight Tactics: team codes for League’s Team Planner, your comps, your games and the shop odds.', [
+      ['Team codes', 'Build a comp from this set’s champions, with its traits counted, or open a team code from a friend, a streamer or a site. Copy team code puts it on your clipboard for League’s Team Planner.',
+        'On TFT, pick champions or paste a code, press Copy team code, then in League open the Team Planner (TFT tab, beside Play, or top right in a game) and press Paste.', '#tftBuild'],
+      ['My comps', 'Comps you save, to open or copy again any time.', 'Save, under Team codes.', '#tftMineBox'],
+      ['Send a comp to your room', 'Your comp goes to the room chat, where a team code gets its own Copy team code button for everyone.', 'Send to my room, under Team codes, while you’re in a voice room.', '#tftShare'],
+      ['Your TFT games', 'Your TFT, Double Up and Hyper Roll ranks, your last 20 games with your average place, top 4s and the traits you play most, and each game’s final board as a team code.',
+        'Nothing to set up: open TFT in the desktop app while League is running. Profile’s TFT tab has the same boards for anyone on your server.', '#tftGamesBox', 'app'],
+      ['Shop odds', 'The chance of each champion cost in your shop at every level, from Riot’s data for this patch.', 'Nothing to set up.', '#tftOddsBox'],
     ]],
     ['Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
       ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade.',
