@@ -1822,7 +1822,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
-  const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
+  const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Alt+V', ptt: '', ...load('lpc-keys', {}) };
+  if (keys.overlay === 'Ctrl+Shift+O') keys.overlay = 'Alt+V'; // the old default, kept by anyone who changed another key
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
   // The theme's colours (Settings > Look) for what's drawn in code: the live map, the season recap and the overlay
   const lookNow = () => {
@@ -3974,8 +3975,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         F.list.push((f = { name: p.name, id: c.id, look: null, run: 0, from: 0, seen: -Infinity, at: null, trail: [], zone: '', where: '', lane: '', called: false, d: p.d, dead: 0 }));
         picPixels(c.id).then((px) => { f.look = CameraBox.picLook(px, 128); }).catch(() => {});
       }
-      if (p.d > f.d) Object.assign(f, { d: p.d, dead: now + deadFor(p.lvl, gameNow()) * 1000, lane: '', called: false });
-      if (f.dead && now >= f.dead) Object.assign(f, { dead: 0, seen: now, where: 'in their base' }); // back in their fountain
+      if (p.d > f.d) Object.assign(f, { d: p.d, dead: now + (p.dead && p.respawn > 0 ? p.respawn : deadFor(p.lvl, gameNow())) * 1000, lane: '', called: false }); // League's own timer when the app passes it
+      if (f.dead && (now >= f.dead || p.dead === false)) Object.assign(f, { dead: 0, seen: now, where: 'in their base' }); // back in their fountain
     }
     const n = s.sq.s, pairs = [], got = new Map(), used = new Set();
     for (const i of CameraBox.findIcons(s.px, n, true)) {
@@ -3983,7 +3984,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       for (const f of F.list) if (f.look) { const d = CameraBox.lookDiff(look, f.look); if (d < CameraBox.PICK_LOOK) pairs.push([d, f, i]); }
     }
     for (const [, f, i] of pairs.sort((a, b) => a[0] - b[0])) if (!got.has(f) && !used.has(i)) { got.set(f, i); used.add(i); }
-    const jg = theirJungler(), you = fresh(me) && !mine.dead ? me : null;
+    const jg = (F.jg = theirJungler() || F.jg || ''), you = fresh(me) && !mine.dead ? me : null; // kept for the game: a sold jungle pet doesn't make them a laner
     for (const f of F.list) {
       const i = got.get(f);
       if (!i) { f.run = 0; continue; }
@@ -3999,10 +4000,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (f.id !== jg) continue;
       const d = at.x + at.y - 1; // the mid lane runs corner to corner, the blue base bottom left
       if (!F.jg1 && gameNow() < 150) F.jg1 = d < 0 ? 'top' : 'bot';
-      if (opts.jgCall && gap > 10000) sayCall(Math.abs(d) < 0.06 ? 'Jungler in mid' : d < 0 ? 'Jungler on topside' : 'Jungler on botside', 2, f.name);
+      if (opts.jgCall && gap > 10000 && !/base/.test(f.zone)) sayCall(Math.abs(d) < 0.06 ? 'Jungler in mid' : d < 0 ? 'Jungler on topside' : 'Jungler on botside', 2, f.name);
       if (opts.gankCall && you && now - F.gank > 20000 && now - o.t >= 600 && zoneOf(you) !== 'your base') {
-        const was = Math.hypot(o.x - you.x, o.y - you.y), is = Math.hypot(at.x - you.x, at.y - you.y);
-        if (is < 0.25 && was - is > 0.015) { F.gank = now; sayCall(`${champName(f.id)} heading your way`, 4, f.name); } // closer by 220+ units, within 3,700
+        // only their own steps count (you walking toward them isn't a gank), and mostly straight at you, not past you
+        const is = Math.hypot(at.x - you.x, at.y - you.y), closer = is && (dx * (you.x - at.x) + dy * (you.y - at.y)) / is;
+        if (is < 0.25 && closer > 0.015 && closer > 0.7 * far) { F.gank = now; sayCall(`${champName(f.id)} heading your way`, 4, f.name); } // 220+ units toward you, within 3,700
       }
     }
     const inv = F.list.filter((f) => now - f.seen < 1000 && f.zone === 'your jungle');
@@ -4027,8 +4029,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const n = nudgeNow(), now = performance.now();
     if (!league || (n === null && !(share && share.foes) && !callsOn())) return null;
     if (callRoom !== league.room) { callRoom = league.room; calls = []; callCur = null; }
-    if (!callCur || now - callCur.from > 3000) { // each for 3 s, the most urgent first; one that waited 8 s is dropped
-      calls = calls.filter((c) => now - c.at < 8000).sort((a, b) => b.pri - a.pri || a.at - b.at);
+    if (!callCur || now - callCur.from > 3000) { // each for 3 s, the most urgent first; one that waited 8 s is dropped, 4 s for where someone is now
+      calls = calls.filter((c) => now - c.at < (c.pri >= 2 ? 4000 : 8000)).sort((a, b) => b.pri - a.pri || a.at - b.at);
       const next = calls.shift();
       callCur = next ? { text: next.text, from: now } : null;
       if (next && opts.speakCalls && !overlayHide) speak(next.text);
@@ -11311,6 +11313,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [44, 'October 20: righter callouts, and Alt+V for the overlay', [
+      'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts.',
+      'Callouts are right more often: “heading your way” only when their jungler walks straight at you, not when you walk toward them or they pass by; no “Jungler in mid” for a jungler in a base; their jungler stays their jungler after selling the jungle pet, so they’re never called a missing laner; dead players come back on League’s own respawn timer; and a jungler or gank callout that waited more than 4 seconds behind another is dropped instead of showing late.',
+    ]],
     [42, 'October 20: Premade moves to GitHub', [
       'Premade’s site is now at rayn16.github.io/Premade, on GitHub’s free hosting, because the old site used up its free updates for the month.',
       'App 1.16 moves there by itself and brings what Premade saved with it: your settings, LP and game history, notes and the rest. Pair the phone remote again from the new address.',
@@ -11479,7 +11485,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ]],
     [14, 'October 19: everyone’s rank on the loading screen, and tips for your lane', [
       'On League’s loading screen the overlay shows all ten players, like Porofessor: your team on the left at the top and theirs below, each with their rank, their record on their champion and tags such as a win streak or a first time on the champion. It needs app 1.10 and League in Borderless mode.',
-      'In a game, the overlay shortcut (Ctrl+Shift+O unless you changed it) shows everyone’s rank again. Press it again to hide the overlay, and once more to bring it back.',
+      'In a game, the overlay shortcut (Alt+V unless you changed it) shows everyone’s rank again. Press it again to hide the overlay, and once more to bring it back.',
       'Tips for your lane: in champ select and on the loading screen, tips for your champion against the one in your lane. How the matchup goes in high elo (with gold and CS at 10 minutes), the runes, spells and early items high elo players take in it, your own games against it, its range and damage, Riot’s own tips for both champions and your matchup note. Riot’s rules keep tips out of the game itself.',
     ]],
     [13, 'October 19: queues, TFT and live games', [
@@ -11540,7 +11546,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       '3D sound with headphones: voices come from in front and behind too.',
       'Voice connection (Voice settings, Microphone): Faster for less delay, or Less data for slow internet.',
       'A note when you talk while muted.',
-      'Overlay: pick what it shows, make it see-through, and hide it with Ctrl+Shift+O.',
+      'Overlay: pick what it shows, make it see-through, and hide it with Alt+V.',
       'Pregame page: Find match and Stop, a Practice Tool game in one click, trades with teammates and a ring when it’s your turn. Game page: a sound 30 seconds before Dragon and Baron, and your CS and lane against your opponent.',
       'Phone remote: add it to your home screen, it buzzes and rings when a match is found, and it can queue and trade.',
       'Invite links can open the desktop app, and the app opens where you left it.',
@@ -11738,7 +11744,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['Loading screen board', 'On League’s loading screen, all ten players like Porofessor: your team at the top left and theirs below, with their rank, record on their champion and tags, and the tips for your lane on the right.',
-        'On unless you turn it off: the Overlay page, What it shows. In a game, Ctrl+Shift+O shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
+        'On unless you turn it off: the Overlay page, What it shows. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE) and the clips you saved that game.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayAfter', 'app'],
       ['Tips while you’re dead', 'While you wait to respawn on Summoner’s Rift, the tips for your lane from champ select on the left of your screen: your notes on the matchup, how high elo players do in it, your own games against them and Riot’s tips.',
         'On unless you turn it off: the Overlay page, What it shows. Drag it anywhere in Layout.', '#optDeadTips', 'app'],
@@ -11754,7 +11760,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Off until you turn it on: the Overlay page, Callouts, Remind me to check the minimap.', '#optMapNudge', 'app'],
       ['Jungler callout', 'When the other team’s jungler shows up on your minimap after 10 seconds out of sight: “Jungler on topside”, botside or in mid, for 3 seconds. Read from your own minimap.',
         'Off until you turn it on: the Overlay page, Callouts, Call out their jungler.', '#optJgCall', 'app'],
-      ['Gank warning', '“Lee Sin heading your way” when your minimap shows their jungler coming toward you.', 'Off until you turn it on: the Overlay page, Callouts.', '#optGankCall', 'app'],
+      ['Gank warning', '“Lee Sin heading your way” when your minimap shows their jungler walking straight at you (not when you walk toward them, or they pass by).', 'Off until you turn it on: the Overlay page, Callouts.', '#optGankCall', 'app'],
       ['Missing laners', '“Zed missing from mid” when a player you saw in a lane has been out of sight for 10 seconds, for every lane.', 'Off until you turn it on: the Overlay page, Callouts.', '#optMissCall', 'app'],
       ['Invades', '“Lee Sin in your jungle”, or how many, when your minimap shows the other team there, like a level 1 invade.', 'Off until you turn it on: the Overlay page, Callouts.', '#optInvadeCall', 'app'],
       ['Who’s off your minimap', 'A list by your minimap of everyone on their team you can’t see, how long since you saw them and where they were heading, like “Lee Sin 0:40 toward bot”, and about when a dead one is back.',
@@ -11776,7 +11782,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Match found on a locked phone', 'A notification when a match is found, or your squad calls or pings, even with your phone’s screen off or the remote closed.', 'On the phone remote, tick “Tell me when a match is found or my squad calls”. On an iPhone, open the remote from its home screen icon first.', '#remoteBox, #optRemote', 'app'],
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
-      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Ctrl+Shift+O). They work while League is in front.',
+      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
         'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift.', '#kShow', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
