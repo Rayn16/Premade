@@ -9221,29 +9221,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   for (const id of ['tftRollLvl', 'tftRollGold', 'tftRollHave', 'tftRollTaken']) $(id).addEventListener('input', () => renderTftRoll());
 
   // ---- item recipes: what each pair of components makes, from CommunityDragon's copy of TFT's game data (Data Dragon
-  // has no recipes), kept in this browser for each patch: the items made of two components, this set's or every set's.
-  // If a pair still has two (an old item left in the game's data), the one Data Dragon has this patch wins. Gold rings:
-  // the items you put most on your comp's champions in your last games (tftWants).
+  // has no recipes), kept in this browser for each patch: the items of two components in this set's own item list
+  // (setData). The list also has the old engine's items (TFT_Item_..., Set 18 plays DA_...), which only combine with
+  // each other, so the biggest family of components wins. If a pair still has two, the one Data Dragon has wins. Gold
+  // rings: the items you put most on your comp's champions in your last games (tftWants).
   const TFT_PARTS = ['BFSword', 'RecurveBow', 'NeedlesslyLargeRod', 'TearOfTheGoddess', 'ChainVest', 'NegatronCloak', 'GiantsBelt', 'SparringGloves', 'Spatula', 'FryingPan']; // the game's order
   // CommunityDragon's file is big (every set's data), so it's fetched at most once a patch each time Premade starts, even if it fails
-  let tftItems = load('lpc-tft-items', null), tftItemsFor = ''; // { v: Data Dragon's version, c: components [[id, name, icon]], r: { 'id id': [[id, name, icon]] } }
+  let tftItems = load('lpc-tft-recipes', null), tftItemsFor = ''; // { v: Data Dragon's version, c: components [[id, name, icon]], r: { 'id id': [[id, name, icon]] } } (lpc-tft-items held the first version's mixed list)
   function tftItemsSoon() {
     if (!ddVersion || (tftItems && tftItems.v === ddVersion) || tftItemsFor === ddVersion) return;
     tftItemsFor = ddVersion;
     fetch('https://raw.communitydragon.org/latest/cdragon/tft/en_us.json').then((r) => r.json()).then((j) => {
-      const all = (Array.isArray(j && j.items) ? j.items : []).filter((x) => x && typeof x.apiName === 'string' && x.name), byId = new Map(all.map((x) => [x.apiName, x]));
-      const set = Math.max(0, ...Object.keys((j && j.sets) || {}).map(Number).filter(Number.isFinite)), ours = (id) => { const m = /^(?:TFT|DA_)(\d+)_/i.exec(id); return !m || +m[1] === set; };
+      const set = Math.max(0, ...Object.keys((j && j.sets) || {}).map(Number).filter(Number.isFinite));
+      const list = new Set((((j && j.setData) || []).find((d) => d && d.mutator === `TFTSet${set}`) || {}).items || []);
+      const all = (Array.isArray(j && j.items) ? j.items : []).filter((x) => x && typeof x.apiName === 'string' && x.name && list.has(x.apiName)), byId = new Map(all.map((x) => [x.apiName, x]));
       const part = (id) => byId.has(id) && !(byId.get(id).composition || []).length, it = (x) => [x.apiName, String(x.name), String(x.icon || '')], r = {}, c = new Set();
-      for (const x of all) {
-        const two = Array.isArray(x.composition) ? x.composition : [];
-        if (two.length !== 2 || !two.every(part) || !ours(x.apiName)) continue;
-        (r[[...two].sort().join(' ')] ||= []).push(it(x));
-        for (const p of two) c.add(p);
-      }
-      const at = (id) => { const i = TFT_PARTS.indexOf(id.replace(/^TFT_Item_/, '')); return i < 0 ? 99 : i; };
+      const two = all.filter((x) => Array.isArray(x.composition) && x.composition.length === 2 && x.composition.every(part));
+      const up = {}, root = (p) => (up[p] && up[p] !== p ? (up[p] = root(up[p])) : p), n = {}; // the families of components
+      for (const x of two) up[root(x.composition[0])] = root(x.composition[1]);
+      for (const x of two) n[root(x.composition[0])] = (n[root(x.composition[0])] || 0) + 1;
+      const big = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+      for (const x of two) if (root(x.composition[0]) === big) { (r[[...x.composition].sort().join(' ')] ||= []).push(it(x)); for (const p of x.composition) c.add(p); }
+      const at = (id) => { const i = TFT_PARTS.indexOf(id.replace(/^.*_/, '')); return i < 0 ? 99 : i; };
       if (!c.size) throw new Error('no recipes');
       tftItems = { v: ddVersion, c: [...c].sort((a, b) => at(a) - at(b) || a.localeCompare(b)).map((id) => it(byId.get(id))), r };
-      store.set('lpc-tft-items', JSON.stringify(tftItems));
+      store.set('lpc-tft-recipes', JSON.stringify(tftItems));
       if (!tftView.hidden) renderTftItems();
       pushOverlay();
     }).catch(() => {});
