@@ -564,6 +564,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .tftcomps:empty::before { content: attr(data-empty); color: var(--muted); font-size: 14px; }
 .tftcomps li { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font-size: 14px; }
 .tftcomps .gitems { flex-wrap: wrap; }
+/* the Overlay page's layout: your screen with League's score, abilities and minimap sketched in, overlay.html in a frame
+   the size of the screen shrunk to fit (ovDraw), and a box over each part to drag. The frame keeps the overlay's own
+   colour scheme, so it stays see-through. */
+.ovstage { position: relative; overflow: hidden; aspect-ratio: 16 / 9; border: 1px solid var(--gold-line); border-radius: 8px; background: radial-gradient(ellipse at 45% 40%, #2f3d2c, #10170f 75%); }
+.ovstage iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; pointer-events: none; color-scheme: normal; }
+.ovsk { position: absolute; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 0.16); border-radius: 4px; background: rgb(0 0 0 / 0.4); color: rgb(255 255 255 / 0.4); font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.ovscore { top: 0; right: 0; width: 24%; height: 4%; }
+.ovhud { left: 33%; right: 33%; bottom: 0; height: 13%; }
+.ovmap { right: 0.4%; bottom: 0.7%; height: 26%; aspect-ratio: 1; }
+.ovhandle { position: absolute; padding: 0; border: 1px dashed color-mix(in srgb, var(--gold) 65%, transparent); border-radius: 4px; background: none; cursor: grab; touch-action: none; }
+.ovhandle[data-part=""] { border-color: color-mix(in srgb, var(--link) 65%, transparent); }
+.ovhandle:hover, .ovhandle[aria-pressed="true"] { border-style: solid; border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.ovhandle span { position: absolute; top: 0; left: 0; padding: 2px 6px; border-radius: 3px 0 4px 0; background: var(--gold); color: var(--bg); font: 600 11px/1.2 var(--body); white-space: nowrap; opacity: 0; pointer-events: none; }
+.ovhandle:is(:hover, :focus-visible, [aria-pressed="true"]) span { opacity: 1; }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -619,6 +633,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav" type="button" data-view="voice"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Voice</span></button>
     <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
     <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
+    <button class="nav client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
     <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
     <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
     <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
@@ -1291,6 +1306,55 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </details>
     </section>
 
+    <section class="view" data-view="overlay" aria-label="Overlay" hidden>
+      <h1 class="title">Overlay</h1>
+      <p id="ovNote" class="phase" role="status" hidden></p>
+      <div class="prodash">
+        <section class="panel" aria-labelledby="h-ovlayout">
+          <h2 id="h-ovlayout" class="ph">Layout <button class="tip" type="button" popovertarget="t-overlay" aria-label="About the overlay">?</button></h2>
+          <p class="hint">Your screen in a game, with League’s score, abilities and minimap sketched in. Drag a part anywhere to give it a place of its own, or drag the rest to move them together. Pick one to size it.</p>
+          <div id="ovStage" class="ovstage">
+            <div class="ovsk ovscore">Score</div><div class="ovsk ovhud">Abilities</div><div class="ovsk ovmap">Minimap</div>
+            <iframe id="ovFrame" title="The overlay as it shows in a game" tabindex="-1" aria-hidden="true"></iframe>
+            <div id="ovHandles" role="group" aria-label="The overlay’s parts: drag one, or pick it and use the arrow keys"></div>
+          </div>
+          <div class="range"><span>Size</span><span id="ovWhat">The rest</span><input id="optScale" type="range" min="0.7" max="2" step="0.1" aria-label="Size of what’s picked"><output id="scaleOut"></output></div>
+          <div class="range"><span>See-through</span><span></span><input id="optOpacity" type="range" min="0.3" max="1" step="0.05" aria-label="How solid the overlay is"><output id="opacityOut"></output></div>
+          <label class="field">Where the rest goes <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
+          <div class="toolbar">
+            <button id="ovBack" class="btn small" type="button" disabled>Put it back</button>
+            <button id="ovReset" class="btn small" type="button">Put everything back</button>
+            <button id="moveBtn" class="btn small" type="button">Move it</button>
+          </div>
+        </section>
+        <div class="stack">
+          <section class="panel" aria-labelledby="h-ovshow">
+            <h2 id="h-ovshow" class="ph">What it shows</h2>
+            <label class="check"><input id="optOverlay" type="checkbox"> Who's talking</label>
+            <label class="check"><input id="optOverlayMe" type="checkbox"> My mic and who hears me</label>
+            <label class="check"><input id="optOverlayChat" type="checkbox"> Room chat</label>
+            <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"> Objective timers and gold</label>
+            <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"> CS counter</label>
+            <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"> My lane: CS and gold against my opponent</label>
+            <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
+            <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
+            <label class="check"><input id="optOverlayToasts" type="checkbox"> Popups</label>
+          </section>
+          <section class="panel" aria-labelledby="h-ovcalls">
+            <h2 id="h-ovcalls" class="ph">Callouts <button class="tip" type="button" popovertarget="t-calls" aria-label="About callouts">?</button></h2>
+            <p class="hint">From your minimap as your screen shows it, so never more than you can see. Summoner’s Rift only, and off until you turn them on.</p>
+            <label class="check"><input id="optMapNudge" type="checkbox"> Remind me to check the minimap <button class="tip" type="button" popovertarget="t-nudge" aria-label="About the minimap reminder">?</button></label>
+            <label class="check"><input id="optJgCall" type="checkbox"> Call out their jungler <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></label>
+            <label class="check"><input id="optGankCall" type="checkbox"> Warn me when their jungler heads my way</label>
+            <label class="check"><input id="optMissCall" type="checkbox"> Call out missing laners</label>
+            <label class="check"><input id="optInvadeCall" type="checkbox"> Call out enemies in my jungle</label>
+            <label class="check"><input id="optMissList" type="checkbox"> List who’s off my minimap</label>
+            <label class="check"><input id="optSpeakCalls" type="checkbox"> Read callouts out loud</label>
+          </section>
+        </div>
+      </div>
+    </section>
+
     <section class="view" data-view="settings" aria-label="Settings" hidden>
       <h1 class="title">Settings</h1>
       <div class="settings">
@@ -1308,24 +1372,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <p class="hint">Pick the screen League is on.</p>
             </div>
           </div>
-        </section>
-        <section class="panel client-only">
-          <h2 class="ph">Overlay <button class="tip" type="button" popovertarget="t-overlay" aria-label="About the overlay">?</button></h2>
-          <fieldset><legend class="hint">Show on top of League</legend>
-            <label class="check"><input id="optOverlay" type="checkbox"> Who's talking</label>
-            <label class="check"><input id="optOverlayMe" type="checkbox"> My mic and who hears me</label>
-            <label class="check"><input id="optOverlayChat" type="checkbox"> Room chat</label>
-            <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"> Objective timers and gold</label>
-            <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"> CS counter</label>
-            <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
-            <label class="check"><input id="optOverlayToasts" type="checkbox"> Popups</label>
-            <label class="check"><input id="optMapNudge" type="checkbox"> Remind me to check the minimap <button class="tip" type="button" popovertarget="t-nudge" aria-label="About the minimap reminder">?</button></label>
-            <label class="check"><input id="optJgCall" type="checkbox"> Call out their jungler <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></label>
-          </fieldset>
-          <label class="field">Where <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
-          <div class="range"><span>Size</span><span></span><input id="optScale" type="range" min="0.7" max="2" step="0.1" aria-label="Overlay size"><output id="scaleOut"></output></div>
-          <div class="range"><span>See-through</span><span></span><input id="optOpacity" type="range" min="0.3" max="1" step="0.05" aria-label="How solid the overlay is"><output id="opacityOut"></output></div>
-          <div class="toolbar"><button id="moveBtn" class="btn small" type="button">Move it</button></div>
         </section>
         <section class="panel client-only">
           <h2 class="ph">During a game</h2>
@@ -1508,9 +1554,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
-<div id="t-overlay" class="tipbox" popover>A small see-through bubble on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. Press Move it to drag it anywhere on the League screen. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keyboard shortcuts) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS.</div>
+<div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Layout, drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it lets you drag the rest on the League screen itself. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keyboard shortcuts) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
 <div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
-<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, no sound. It reads only your minimap from your screen share, so it never knows more than you can see. Summoner's Rift only.</div>
+<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read callouts out loud is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
+<div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read callouts out loud uses your computer’s own voice.</div>
 <div id="t-compact" class="tipbox" popover>While a game is on, this window shrinks to a strip with your mic and who's talking, and grows back when the game ends.</div>
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
@@ -1569,9 +1616,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
+    overlayLane: true, overlayAfter: true, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
+  if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
   // The theme's colours (Settings > Look) for what's drawn in code: the live map, the season recap and the overlay
@@ -3406,7 +3455,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const res = s.last = s.follower.update(s.px, s.sq.s, performance.now(), allyCam);
         if (res.found) { me = { x: res.x, y: res.y, t: performance.now(), by: res.by, learned: res.learned }; send(posMsg()); }
         if (!document.hidden) preview(src, s.sq, res);
-        seeJungler(s);
+        seeFoes(s);
       }
       volumes();
     });
@@ -3555,12 +3604,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const talk = on(opts.overlay && voice), meOn = on(opts.overlayMe && voice);
     overlayOn = on(opts.overlayChat && voice); // room chat shows there, so it needs no popup
     const game = on(opts.overlayGame && league) ? gameLine() : '', cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
-    const board = boardNow(), visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!board;
+    const lane = on(opts.overlayLane && league) ? laneLine() : '', board = boardNow(), visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!board;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
-    const s = !visible && call === null ? { visible: false } : {
-      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, board: board || (call === null ? null : true), call: call || '', theme: look.dark ? look : null,
+    const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow();
+    // the whole screen also for the other team off your minimap, the card after a game and parts with places of their own
+    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || (visible && Object.keys(opts.overlayParts).length > 0));
+    const s = !visible && !full ? { visible: false } : {
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
+      parts: boardOk() ? ovSpots() : null, missing, after,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -3581,7 +3634,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     pushOverlay();
   }
-  // Everyone's rank on the overlay (app 1.10), like Porofessor: over League's loading screen (Settings, Overlay) and
+  // Everyone's rank on the overlay (app 1.10), like Porofessor: over League's loading screen (the Overlay page) and
   // in a game when the overlay shortcut asks for it. Your team on the left in the top half and theirs in the bottom
   // half, each with their rank, their record on their champion and tags; and on the loading screen, the tips for your
   // lane. From scouting (League's client), so not while scouting is off.
@@ -3620,7 +3673,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pushOverlay();
   }
   $('moveBtn').addEventListener('click', () => moveOverlay(!overlayEdit));
-  // The minimap reminder (Settings > Overlay), for new players: "Check your minimap" at the top of the screen for 2 s,
+  // The minimap reminder (the Overlay page), for new players: "Check your minimap" at the top of the screen for 2 s,
   // every 10 s in your first game with it and a second longer apart each game after, from 1:00 on Summoner's Rift; off
   // by itself after 20 games. It goes by League's clock alone, never by what happens in the game, so it's no help
   // Riot's rules bar. Needs app 1.10 for the whole screen. opts.mapNudge: false, or { n: games, room: the last one }.
@@ -3631,7 +3684,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.room !== league.room) { // a new game: count it, or the last one is done
       if (m.n >= NUDGE_GAMES) {
         opts.mapNudge = $('optMapNudge').checked = false;
-        setTimeout(() => notify(`That was ${NUDGE_GAMES} games with the minimap reminder, so it’s off now. Settings > Overlay turns it back on.`, true)); // not inside pushOverlay
+        setTimeout(() => notify(`That was ${NUDGE_GAMES} games with the minimap reminder, so it’s off now. The Overlay page turns it back on.`, true)); // not inside pushOverlay
       } else opts.mapNudge = { n: m.n + 1, room: league.room };
       saveOpts();
       return nudgeNow();
@@ -3640,44 +3693,249 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return t >= 60 && t % (9 + m.n) < 2;
   }
   $('optMapNudge').checked = !!opts.mapNudge;
-  $('optMapNudge').addEventListener('change', (e) => { opts.mapNudge = e.target.checked && { n: 0, room: '' }; saveOpts(); pushOverlay(); });
-  // Their jungler on your minimap (Settings > Overlay), for new players learning to watch for them: when the other
-  // team's jungler shows up there after 10 s out of sight, the top of the screen says where for 3 s. Text only, and
-  // only from your minimap as your screen shows it: their icon, found by their champion's Data Dragon picture.
-  // share.jg: { id: their Data Dragon id, look (CameraBox.picLook), run: frames in a row seen, seen, call: { text, at } }.
+  $('optMapNudge').addEventListener('change', (e) => { opts.mapNudge = e.target.checked && { n: 0, room: '' }; saveOpts(); pushOverlay(); ovDraw(); });
+  // The other team on your minimap (the Overlay page's callouts and the list of who's off it), for new players learning
+  // to watch it. Each frame their red-ringed icons are matched to their champions' Data Dragon pictures, closest first,
+  // and where each one was last seen is kept: only from your minimap as your screen shows it, so never more than you
+  // see. Their jungler showing up after 10 s out of sight: where (jgCall); coming toward you: a warning (gankCall);
+  // anyone in your jungle (invadeCall); a laner you saw for 3 s gone for 10 s: "Zed missing from mid" (missCall).
+  // share.foes: { room, list, calls (waiting their turn at the top of the screen), cur (the one showing), inv (when
+  // someone was last in your jungle), gank (the last warning) }; a foe: { name, id (Data Dragon), look, run (frames in
+  // a row seen), from (in sight since), seen, at, trail (the last 2 s), zone, where, lane (the lane they were last in),
+  // called (missing, said), d (deaths), dead (when they're back) }.
+  const SR = /^(CLASSIC|SWIFTPLAY)$/;
+  const foesOn = () => (opts.jgCall || opts.gankCall || opts.missCall || opts.invadeCall || opts.missList) && !!league && !!mine.team && SR.test(league.mode) && boardOk();
   function theirJungler() { // by League's positions, else by the jungle pet they carry
     // ponytail: jungle pets are items 1101 to 1103 (since 2024); if Riot renumbers them, only games with positions find them
     const pet = (league.players || []).find((p) => p.team !== mine.team && (p.items || []).some(([i]) => i >= 1101 && i <= 1103));
     const c = champOf((liveList().find((p) => !p.ally && p.pos === 'JUNGLE') || {}).champ) || champOf(pet && pet.champ);
     return c ? c.id : '';
   }
-  function seeJungler(s) { // each minimap frame
-    const id = opts.jgCall && league && mine.team && /^(CLASSIC|SWIFTPLAY)$/.test(league.mode) && boardOk() ? theirJungler() : '';
-    if (!s.jg || s.jg.id !== id) {
-      const j = s.jg = { id, look: null, run: 0, seen: -Infinity, call: null };
-      if (id) picPixels(id).then((p) => { j.look = CameraBox.picLook(p, 128); }).catch(() => {});
-    }
-    const j = s.jg, got = j.look && CameraBox.iconLike(s.px, s.sq.s, j.look, true), now = performance.now();
-    if (!got) return void (j.run = 0);
-    if (++j.run < 2) return; // twice in a row, so a passing likeness doesn't count
-    const d = (got.x + got.y) / s.sq.s - 1; // the mid lane runs corner to corner, the blue base bottom left
-    if (now - j.seen > 10000) j.call = { text: Math.abs(d) < 0.06 ? 'Jungler in mid' : d < 0 ? 'Jungler on topside' : 'Jungler on botside', at: now };
-    j.seen = now;
+  const ZONES = { 'the top lane': 'top', 'the middle lane': 'mid', 'the bottom lane': 'bot' };
+  function zoneOf(p) { // a spot on your minimap on the Rift, for your team: top, mid, bot, the river, your jungle, their base...
+    const o = Terrain.onMinimap, z = placeOf({ x: ((p.x - o.x) / o.w) * MAP, y: (1 - (p.y - o.y) / o.h) * MAP }, mine.team === 'CHAOS' ? 200 : 100);
+    return ZONES[z] || z;
   }
-  function callNow() { // the line at the top of the screen: null with neither the reminder nor the callout this game, else it or ''
-    const n = nudgeNow(), j = share && share.jg && share.jg.id ? share.jg : null;
-    return n === null && !j ? null : j && j.call && performance.now() - j.call.at < 3000 ? j.call.text : n ? 'Check your minimap' : '';
+  // how long a champion stays dead, in seconds: League's time for their level, longer each minute from 15:00 to half
+  // again at 55:00 (wiki.leagueoflegends.com/en-us/Death)
+  // ponytail: an estimate; the exact time needs the app to pass on each player's respawnTimer
+  const DEATH = [10, 10, 12, 12, 14, 16, 20, 25, 28, 32.5, 35, 37.5, 40, 42.5, 45, 47.5, 50, 52.5];
+  function deadFor(lvl, t) {
+    const m = t / 60, more = m < 15 ? 0 : m < 30 ? (m - 15) * 0.0085 : m < 45 ? 0.1275 + (m - 30) * 0.006 : Math.min(0.5, 0.2175 + (m - 45) * 0.029);
+    return DEATH[Math.min(18, Math.max(1, lvl | 0)) - 1] * (1 + more);
+  }
+  function sayCall(F, text, pri, who) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner 1
+    if (who && F.calls.some((c) => c.who === who && c.pri >= pri)) return;
+    F.calls = F.calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, at: performance.now() });
+  }
+  function seeFoes(s) { // each minimap frame
+    if (!foesOn()) return void (s.foes = null);
+    const now = performance.now(), F = s.foes && s.foes.room === league.room ? s.foes : (s.foes = { room: league.room, list: [], calls: [], cur: null, inv: -Infinity, gank: -Infinity });
+    for (const p of league.players || []) { // the other team, and who died since the last frame
+      const c = p.team !== mine.team && champOf(p.champ);
+      if (!c) continue;
+      let f = F.list.find((x) => x.name === p.name);
+      if (!f) {
+        F.list.push((f = { name: p.name, id: c.id, look: null, run: 0, from: 0, seen: -Infinity, at: null, trail: [], zone: '', where: '', lane: '', called: false, d: p.d, dead: 0 }));
+        picPixels(c.id).then((px) => { f.look = CameraBox.picLook(px, 128); }).catch(() => {});
+      }
+      if (p.d > f.d) Object.assign(f, { d: p.d, dead: now + deadFor(p.lvl, gameNow()) * 1000, lane: '', called: false });
+      if (f.dead && now >= f.dead) Object.assign(f, { dead: 0, seen: now, where: 'in their base' }); // back in their fountain
+    }
+    const n = s.sq.s, pairs = [], got = new Map(), used = new Set();
+    for (const i of CameraBox.findIcons(s.px, n, true)) {
+      const look = CameraBox.iconLook(s.px, n, i.x, i.y);
+      for (const f of F.list) if (f.look) { const d = CameraBox.lookDiff(look, f.look); if (d < CameraBox.PICK_LOOK) pairs.push([d, f, i]); }
+    }
+    for (const [, f, i] of pairs.sort((a, b) => a[0] - b[0])) if (!got.has(f) && !used.has(i)) { got.set(f, i); used.add(i); }
+    const jg = theirJungler(), you = fresh(me) && !mine.dead ? me : null;
+    for (const f of F.list) {
+      const i = got.get(f);
+      if (!i) { f.run = 0; continue; }
+      if (++f.run < 2) continue; // twice in a row, so a passing likeness doesn't count
+      const at = { x: i.x / n, y: i.y / n }, gap = now - f.seen;
+      if (gap > 1000) Object.assign(f, { from: now, trail: [], called: false });
+      f.trail = [...f.trail.filter((p) => now - p.t < 2000), { ...at, t: now }];
+      const o = f.trail[0], dx = at.x - o.x, dy = at.y - o.y, far = Math.hypot(dx, dy);
+      f.zone = zoneOf(at);
+      f.where = far > 0.02 ? `toward ${zoneOf({ x: at.x + (dx / far) * 0.1, y: at.y + (dy / far) * 0.1 })}` : `in ${f.zone}`; // heading 1,500 units on
+      if (['top', 'mid', 'bot'].includes(f.zone)) f.lane = f.zone; else if (/base/.test(f.zone)) f.lane = '';
+      Object.assign(f, { at, seen: now, dead: 0 });
+      if (f.id !== jg) continue;
+      const d = at.x + at.y - 1; // the mid lane runs corner to corner, the blue base bottom left
+      if (opts.jgCall && gap > 10000) sayCall(F, Math.abs(d) < 0.06 ? 'Jungler in mid' : d < 0 ? 'Jungler on topside' : 'Jungler on botside', 2, f.name);
+      if (opts.gankCall && you && now - F.gank > 20000 && now - o.t >= 600 && zoneOf(you) !== 'your base') {
+        const was = Math.hypot(o.x - you.x, o.y - you.y), is = Math.hypot(at.x - you.x, at.y - you.y);
+        if (is < 0.25 && was - is > 0.015) { F.gank = now; sayCall(F, `${champName(f.id)} heading your way`, 4, f.name); } // closer by 220+ units, within 3,700
+      }
+    }
+    const inv = F.list.filter((f) => now - f.seen < 1000 && f.zone === 'your jungle');
+    if (opts.invadeCall && inv.length) {
+      if (now - F.inv > 20000) sayCall(F, inv.length > 1 ? `${inv.length} enemies in your jungle` : `${champName(inv[0].id)} in your jungle`, 3, inv.length > 1 ? '' : inv[0].name);
+      F.inv = now;
+    }
+    if (opts.missCall) for (const f of F.list) {
+      if (f.id === jg || !f.lane || f.called || f.dead || now - f.seen < 10000 || f.seen - f.from < 3000) continue;
+      f.called = true;
+      sayCall(F, `${champName(f.id)} missing from ${f.lane}`, 1, f.name);
+    }
+  }
+  function speak(text) { // a callout read out loud, in the computer's own voice
+    if (!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(text), { lang: 'en-US', rate: 1.1 }));
+  }
+  function callNow() { // the line at the top of the screen: null with no reminder or callouts this game, else what it says now, or ''
+    const n = nudgeNow(), F = share && share.foes, now = performance.now();
+    if (n === null && !F) return null;
+    if (F && (!F.cur || now - F.cur.from > 3000)) { // each for 3 s, the most urgent first; one that waited 8 s is dropped
+      F.calls = F.calls.filter((c) => now - c.at < 8000).sort((a, b) => b.pri - a.pri || a.at - b.at);
+      const next = F.calls.shift();
+      F.cur = next ? { text: next.text, from: now } : null;
+      if (next && opts.speakCalls && !overlayHide) speak(next.text);
+    }
+    return F && F.cur ? F.cur.text : n ? 'Check your minimap' : '';
+  }
+  function missRows() { // the other team off your minimap, for the overlay: [name, picture, how long, where], or null without the list
+    const F = share && share.foes, now = performance.now();
+    if (!opts.missList || !F) return null;
+    return F.list.filter((f) => now - f.seen > 2000).map((f) => [champName(f.id), champImg(f.id),
+      f.dead ? 'dead' : f.seen > 0 ? mmss((now - f.seen) / 1000) : '', f.dead ? `back in ${mmss(Math.max(0, f.dead - now) / 1000)}` : f.seen > 0 ? f.where : 'not seen yet']);
+  }
+  // the minimap read for the callouts: the app shares the screen Settings picks by itself in a Summoner's Rift game, and
+  // stops once the game ends if it started it; it tries again 30 s after a share that didn't start
+  let autoShareAt = -Infinity;
+  function autoShare() {
+    if (share && share.auto && !league) stopShare();
+    if (!client || share || !foesOn() || performance.now() - autoShareAt < 30000) return;
+    autoShareAt = performance.now();
+    startShare().then(() => { if (share) share.auto = true; });
   }
   $('optJgCall').checked = !!opts.jgCall;
-  $('optJgCall').addEventListener('change', (e) => { opts.jgCall = e.target.checked; saveOpts(); });
-  const showScale = () => { $('scaleOut').textContent = pct(opts.overlayScale); };
-  $('optScale').value = opts.overlayScale;
+  $('optJgCall').addEventListener('change', (e) => { opts.jgCall = e.target.checked; saveOpts(); ovDraw(); });
+  // ---- the Overlay page's Layout: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
+  // part that's on looks like in a game (ovSample). A box over each part: drag it, or pick it and use the arrow keys
+  // (Shift: further), to give that part a place of its own (opts.overlayParts, ovPlace); the rest's box moves the rest
+  // (overlayBox). Size sizes the one picked when it has a place of its own, else the rest. The line at the top, who's
+  // off your minimap and the card after a game have places of their own from the start (OV_SPOTS). Parts with places
+  // of their own need the whole screen, so app 1.10.
+  const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, missing: { x: 0.99, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' } };
+  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', missing: 'Off my minimap', after: 'After the game' };
+  const ovSpots = () => ({ ...OV_SPOTS, ...opts.overlayParts });
+  const ovFrame = $('ovFrame'), ovStage = $('ovStage'), ovView = document.querySelector('.view[data-view="overlay"]');
+  let ovFire = null, ovPick = '';
+  window.ovPreview = { on: (name, fn) => { if (name === 'overlay') { ovFire = fn; ovDraw(); } }, overlayDone() {} }; // overlay.html, in the frame
+  function ovSample() { // what each part that's on looks like in a game
+    return {
+      call: opts.mapNudge || opts.jgCall || opts.gankCall || opts.missCall || opts.invadeCall ? 'Zed missing from mid' : '',
+      game: opts.overlayGame ? 'Dragon 1:23 · Baron 12:00 · Kills 5–3 · Gold +1.2k' : '', cs: opts.overlayCs ? 'CS 64 · 7.1 a minute (usual 6.4)' : '', lane: opts.overlayLane ? 'vs Zed: CS +6 · gold +0.3k' : '',
+      talking: !!opts.overlayMe, hear: opts.overlayMe ? ['Sam', 'Kai'] : null, talkers: opts.overlay ? [{ name: 'Sam', pic: '', team: 'ally' }] : [],
+      chat: opts.overlayChat ? [{ name: 'Kai', text: 'dragon in a minute?' }] : [], toasts: opts.overlayToasts ? ['Popups show here'] : [],
+      missing: opts.missList ? [['Zed', champImg('Zed'), '0:40', 'toward bot'], ['Lee Sin', champImg('LeeSin'), '0:12', 'in their jungle']] : null,
+      after: opts.overlayAfter ? { title: 'Victory · Ahri', win: true, lines: ['+21 LP: Gold II · 45 LP', 'Score 82 · MVP', '2 clips saved'] } : null,
+    };
+  }
+  function ovDraw() {
+    if (!ovFire || ovView.hidden) return;
+    const W = screen.width || 1920, H = screen.height || 1080, f = ovStage.clientWidth / W, s = ovSample();
+    ovStage.style.aspectRatio = `${W} / ${H}`;
+    Object.assign(ovFrame.style, { width: `${W}px`, height: `${H}px`, transform: `scale(${f})` });
+    ovFire({ visible: true, board: boardOk() || null, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, opacity: opts.overlayOpacity, theme: look.dark ? look : null, parts: ovSpots(), ...s });
+    const doc = ovFrame.contentDocument, boxes = [['', doc.getElementById('main')], ...[...doc.querySelectorAll('[data-part]')].map((e) => [e.dataset.part, e])];
+    const had = $('ovHandles').contains(document.activeElement) ? document.activeElement.dataset.part : null; // kept on the same part
+    $('ovHandles').replaceChildren(...boxes.filter(([k]) => k !== 'call' || s.call).map(([k, e]) => {
+      const r = e.getBoundingClientRect(), b = Object.assign(document.createElement('button'), { type: 'button', className: 'ovhandle' });
+      b.dataset.part = k;
+      b.setAttribute('aria-pressed', String(k === ovPick));
+      b.setAttribute('aria-label', OV_NAMES[k] || k);
+      Object.assign(b.style, { left: `${r.left * f}px`, top: `${r.top * f}px`, width: `${r.width * f}px`, height: `${r.height * f}px` });
+      b.append(Object.assign(document.createElement('span'), { textContent: OV_NAMES[k] || k }));
+      return b;
+    }));
+    const again = [...$('ovHandles').children].find((b) => b.dataset.part === had);
+    if (again) again.focus();
+    ovPicked(ovPick);
+  }
+  function ovPicked(k) {
+    ovPick = k;
+    for (const b of $('ovHandles').children) b.setAttribute('aria-pressed', String(b.dataset.part === k));
+    $('ovBack').disabled = !opts.overlayParts[k];
+    showScale();
+  }
+  // where a part's box (x, y, w, h: shares of the screen) puts it: hung from the corner or the middle of the edge
+  // nearest it, so it grows away from the screen's edges; the rest's box is where its window goes
+  function ovPlace(k, b) {
+    const r = (v) => Math.round(clamp(v) * 1000) / 1000;
+    if (!k) { opts.overlayBox = { x: r(b.x), y: r(b.y) }; opts.overlayPos = $('optPos').value = 'custom'; }
+    else {
+      const cx = b.x + b.w / 2, ax = cx < 0.4 ? 'l' : cx > 0.6 ? 'r' : 'c', ay = b.y + b.h / 2 < 0.5 ? 't' : 'b', was = ovSpots()[k];
+      opts.overlayParts[k] = { x: r(ax === 'l' ? b.x : ax === 'r' ? b.x + b.w : cx), y: r(ay === 't' ? b.y : b.y + b.h), ax, ay, ...(was && was.k && { k: was.k }) };
+    }
+    saveOpts();
+    pushOverlay();
+    ovDraw();
+  }
+  $('ovHandles').addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.ovhandle');
+    if (!b || e.button !== 0) return;
+    e.preventDefault();
+    b.focus();
+    ovPicked(b.dataset.part);
+    b.setPointerCapture(e.pointerId);
+    const W = ovStage.clientWidth, H = ovStage.clientHeight, x0 = b.offsetLeft - e.clientX, y0 = b.offsetTop - e.clientY;
+    let moved = false;
+    b.onpointermove = (m) => {
+      moved = true;
+      b.style.left = `${Math.min(Math.max(x0 + m.clientX, 0), W - b.offsetWidth)}px`;
+      b.style.top = `${Math.min(Math.max(y0 + m.clientY, 0), H - b.offsetHeight)}px`;
+    };
+    b.onpointerup = b.onpointercancel = () => {
+      b.onpointermove = b.onpointerup = b.onpointercancel = null;
+      if (moved) ovPlace(b.dataset.part, { x: b.offsetLeft / W, y: b.offsetTop / H, w: b.offsetWidth / W, h: b.offsetHeight / H });
+    };
+  });
+  $('ovHandles').addEventListener('keydown', (e) => {
+    const b = e.target.closest('.ovhandle'), d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!b || !d) return;
+    e.preventDefault();
+    const W = ovStage.clientWidth, H = ovStage.clientHeight, k = b.dataset.part, step = e.shiftKey ? 0.05 : 0.01, w = b.offsetWidth / W, h = b.offsetHeight / H;
+    ovPicked(k);
+    ovPlace(k, { x: Math.min(Math.max(b.offsetLeft / W + d[0] * step, 0), 1 - w), y: Math.min(Math.max(b.offsetTop / H + d[1] * step, 0), 1 - h), w, h });
+  });
+  $('ovBack').addEventListener('click', () => { delete opts.overlayParts[ovPick]; saveOpts(); pushOverlay(); ovDraw(); });
+  $('ovReset').addEventListener('click', () => {
+    Object.assign(opts, { overlayParts: {}, overlayPos: 'tl', overlayBox: null, overlayScale: 1 });
+    $('optPos').value = 'tl';
+    saveOpts();
+    pushOverlay();
+    ovDraw();
+  });
+  new ResizeObserver(() => ovDraw()).observe(ovStage);
+  function ovOpen() { // the Overlay page
+    $('ovNote').hidden = boardOk();
+    $('ovNote').textContent = 'Your app shows the overlay in one box. Update it to place each part and use the callouts.';
+    if (!ovFrame.getAttribute('src')) ovFrame.src = 'overlay.html';
+    ovDraw();
+  }
+  const showScale = () => { // the picked part's size when it has a place of its own, else the rest's
+    const p = opts.overlayParts[ovPick] || OV_SPOTS[ovPick], k = (p && p.k) || opts.overlayScale;
+    $('optScale').value = k;
+    $('scaleOut').textContent = pct(k);
+    $('ovWhat').textContent = p ? OV_NAMES[ovPick] : 'The rest';
+  };
   showScale();
-  $('optScale').addEventListener('input', (e) => { opts.overlayScale = +e.target.value; saveOpts(); showScale(); pushOverlay(); });
+  $('optScale').addEventListener('input', (e) => {
+    const p = opts.overlayParts[ovPick] || OV_SPOTS[ovPick];
+    if (p) opts.overlayParts[ovPick] = { ...p, k: +e.target.value }; else opts.overlayScale = +e.target.value;
+    saveOpts();
+    showScale();
+    pushOverlay();
+    ovDraw();
+  });
   const showOpacity = () => { $('opacityOut').textContent = opts.overlayOpacity >= 1 ? 'Solid' : pct(opts.overlayOpacity); };
   $('optOpacity').value = opts.overlayOpacity;
   showOpacity();
-  $('optOpacity').addEventListener('input', (e) => { opts.overlayOpacity = +e.target.value; saveOpts(); showOpacity(); pushOverlay(); });
+  $('optOpacity').addEventListener('input', (e) => { opts.overlayOpacity = +e.target.value; saveOpts(); showOpacity(); pushOverlay(); ovDraw(); });
   // App size (Settings > Look): the page zooms when you let go of the slider, as it would move under you while you drag
   const showZoom = () => { $('zoomOut').textContent = pct($('optZoom').value); };
   $('optZoom').value = opts.zoom;
@@ -3691,6 +3949,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     opts.overlayPos = $('optPos').value = 'custom';
     saveOpts();
     pushOverlay();
+    ovDraw();
   });
 
   // ---- Discord status (Windows client): your profile shows you're in proximity chat, in a game or the lobby, with a
@@ -3859,6 +4118,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'settings') { loadScreens(); serverStats(); }
     if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
+    if (name === 'overlay') ovOpen();
     main.scrollTop = 0;
     render();
     if (name === 'game' || name === 'pregame') renderGame();
@@ -3899,7 +4159,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let riotSum = null;    // our server's /riot/summary: each champion's high elo games and wins in each role, this patch (c) and the last (old)
   let tierMemo = null, tierRole = ''; // the tier list's counts (tiers), and the role picked for it ('': yours)
   let gfs = null;        // League's gameflow session in champ select and in a game: the queue, the map and the teams
-  let curGame = null;    // the game being played: { id, queue, ranked, result }
+  let curGame = null;    // the game being played: { id, queue, ranked, result, champ, clips (saved in it) }
   let phaseWas = '', lcuBusy = false, accepting = false, runesFor = '', runesNote = '';
   const scoutData = new Map(), scouting = new Set(); // puuid -> { ranked, games, mastery, level }
   const aliasPuuid = new Map(); // a Riot ID in the game -> puuid, when League's client didn't say
@@ -4528,9 +4788,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // against your usual on this champion in your recent games of this mode
   const meIn = () => (league && league.me && Array.isArray(league.players) ? league.players.find((q) => q.team === mine.team && q.champ === league.me.champ) || null : null);
   const posIn = (q) => q.pos || (livePlayers.find((p) => p.team === q.team && champOf(q.champ) && p.champ === +champOf(q.champ).key) || {}).pos || '';
+  const laneFoeIn = (m) => { const pos = m && posIn(m); return (pos && league.players.find((q) => q.team !== m.team && posIn(q) === pos)) || null; };
   function laneText() {
-    const m = meIn(), pos = m && posIn(m), o = pos && league.players.find((q) => q.team !== m.team && posIn(q) === pos);
+    const m = meIn(), o = laneFoeIn(m);
     return o ? `Your lane against ${champName(o.champ)}: level ${m.lvl} vs ${o.lvl} · CS ${m.cs} vs ${o.cs} · kills ${m.k} vs ${o.k}` : '';
+  }
+  function laneLine() { // for the overlay: your CS and the gold in your items against theirs
+    const m = meIn(), o = laneFoeIn(m), d = o && m.cs - o.cs, g = o && itemGold ? goldOf(m) - goldOf(o) : null;
+    if (o) itemsSoon();
+    return o ? `vs ${champName(o.champ)}: CS ${d ? (d > 0 ? '+' : '−') + Math.abs(d) : 'even'}${g == null ? '' : ` · gold ${goldText(g)}`}` : '';
   }
   function csText(over) { // over: for the overlay, which also counts down a CS drill
     const m = meIn(), min = gameNow() / 60, c = m && champOf(m.champ);
@@ -4619,10 +4885,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!league || !Array.isArray(league.players) || !league.players.length) return null;
     itemsSoon();
     const us = mine.team || 'ORDER', sum = (team, f) => league.players.filter((p) => p.team === team).reduce((n, p) => n + f(p), 0);
-    const gold = (p) => (p.items || []).reduce((n, [id, k]) => n + (itemGold ? itemGold[id] || 0 : 0) * (k || 1), 0);
     const them = us === 'ORDER' ? 'CHAOS' : 'ORDER', towers = (team) => (league.events || []).filter((e) => e.e === 'tower' && e.of && e.of !== team).length;
-    return { gold: itemGold ? sum(us, gold) - sum(them, gold) : null, kills: [sum(us, (p) => p.k), sum(them, (p) => p.k)], towers: [towers(us), towers(them)] };
+    return { gold: itemGold ? sum(us, goldOf) - sum(them, goldOf) : null, kills: [sum(us, (p) => p.k), sum(them, (p) => p.k)], towers: [towers(us), towers(them)] };
   }
+  const goldOf = (p) => (p.items || []).reduce((n, [id, k]) => n + (itemGold ? itemGold[id] || 0 : 0) * (k || 1), 0); // a player's items
   const gameLine = () => { const g = teamGold(); return [...timers().map(([n, s]) => `${n} ${clock(s)}`), ...(g ? [`Kills ${g.kills[0]}–${g.kills[1]}`, ...(g.gold != null ? [`Gold ${goldText(g.gold)}`] : [])] : [])].join(' · '); }; // for the overlay
   const goldText = (g) => (g == null ? '' : Math.abs(g) < 100 ? 'even' : `${g > 0 ? '+' : '−'}${(Math.abs(g) / 1000).toFixed(1)}k`);
   let goldLog = { room: '', pts: [] }; // the gold difference every 30 s of the game, for the report's graph
@@ -4640,9 +4906,24 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (!reports || typeof reports !== 'object') reports = {};
   const afterDone = new Set();
   let postWait = 0; // the game that just ended, while its report isn't ready (the Game page says so)
+  // The card over League's end screen (the Overlay page, app 1.10): win or loss and your champion, then the LP it won or
+  // lost, your score and the clips you saved in it as each comes in, for 3 minutes or until you leave the end screen.
+  // afterCard: { id, at, result, champ, clips }.
+  let afterCard = null;
+  function afterNow() {
+    const a = afterCard;
+    if (!a || !opts.overlayAfter || !boardOk() || PHASES[lcu] !== 'end' || Date.now() - a.at > 180000) return null;
+    const lp = lpLog.find((e) => e.id === a.id), r = reports[a.id], m = r && r.players[r.me];
+    return {
+      title: [a.result === 'Win' ? 'Victory' : a.result === 'Lose' ? 'Defeat' : 'Game over', champName(a.champ)].filter(Boolean).join(' · '), win: a.result ? a.result === 'Win' : null,
+      lines: [lp ? `${lp.delta < 0 ? '−' : '+'}${Math.abs(lp.delta)} LP: ${rankText({ tier: lp.tier, division: lp.div, leaguePoints: lp.lp })}` : '', m ? `Score ${m.score}${m.badge ? ` · ${m.badge}` : ''}` : '',
+        a.clips ? `${a.clips} ${a.clips === 1 ? 'clip' : 'clips'} saved` : ''].filter(Boolean),
+    };
+  }
   async function afterGame(g) {
     if (!g || afterDone.has(g.id)) return;
     afterDone.add(g.id);
+    afterCard = { id: g.id, at: Date.now(), result: g.result, champ: g.champ || '', clips: g.clips || 0 };
     postWait = g.id;
     const gold = goldLog.pts.length > 1 ? goldLog.pts : null;
     if (g.ranked) for (let i = 0; i < 20; i++) {
@@ -5074,7 +5355,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ph) await patchTick();
       if (ph) { rankTick(); crawl(); watchTick(); } // one League call at most each, in the background
       if (/^(None|Lobby|CheckedIntoTournament)$/.test(ph) && has17() && !preViewEl.hidden) clashTick();
-      if (league) { if (curGame && league.result) curGame.result = league.result; await aliasTick(); } else if (PHASES[ph] === 'loading') await aliasTick();
+      if (league) { if (curGame && league.result) curGame.result = league.result; if (curGame && league.me) curGame.champ = league.me.champ; await aliasTick(); } else if (PHASES[ph] === 'loading') await aliasTick();
       if (ph && !me0) loadMine();
       if ((ph === 'ChampSelect' || league || (clash && clash.players.length)) && !ddVersion) ddSoon();
     } finally { lcuBusy = false; }
@@ -5247,6 +5528,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
       if (!name) throw new Error('nothing to save');
       clipNames.unshift(name);
+      if (curGame) curGame.clips = (curGame.clips || 0) + 1; // for the card after the game
       notify(`Clip saved${said ? ` when you said “${said}”` : CLIP_WHY[why] || ''}: ${name}`, true);
       await cleanClips();
       loadClips();
@@ -6287,7 +6569,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const f = tl.frames.filter((x) => x.timestamp <= e.timestamp - 30000 && at(x)).pop(); // their last spot at least 30 s before
       says.push(`${mmss(e.timestamp / 1000)}: ${name} ${e.killerId === jg.id ? 'killed' : 'helped kill'} you in ${placeOf(e.position, me.t)}.${f ? ` At ${mmss(f.timestamp / 1000)} they were in ${placeOf(at(f), me.t)} on ${side(at(f))}.` : ''}`);
     }
-    if (ganks.length) says.push(`Next game, glance at your minimap every few seconds, and play safe when their jungler shows up near your lane until you see them again.${opts.mapNudge || opts.jgCall ? '' : ' Settings > Overlay can remind you, or call out their jungler when they show up.'}`);
+    if (ganks.length) says.push(`Next game, glance at your minimap every few seconds, and play safe when their jungler shows up near your lane until you see them again.${opts.mapNudge || opts.jgCall ? '' : ' The Overlay page can remind you, or call out their jungler when they show up.'}`);
     // their spot each minute (gold, numbered) and where you died (crosses)
     const cv = document.createElement('canvas'), g = cv.getContext('2d'), W = 480, xy = (pos) => [(pos.x / MAP) * W, (1 - pos.y / MAP) * W];
     cv.width = cv.height = W;
@@ -9017,12 +9299,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
-    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto']]) {
+    ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
+    ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls']]) {
     $(id).checked = opts[k];
-    $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || pushOverlay)(); });
+    $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ['optOverlayBoard', boardOk()], ['optMapNudge', boardOk()], ['optJgCall', boardOk()]]) {
+  for (const [id, ok] of [['optFront', client && client.front], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -9042,7 +9325,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('optRuneSrc').value = opts.runeSrc;
   $('optRuneSrc').addEventListener('change', (e) => { opts.runeSrc = e.target.value; saveOpts(); });
   $('optPos').value = opts.overlayPos;
-  $('optPos').addEventListener('change', (e) => { opts.overlayPos = e.target.value; saveOpts(); pushOverlay(); });
+  $('optPos').addEventListener('change', (e) => { opts.overlayPos = e.target.value; saveOpts(); pushOverlay(); ovDraw(); });
   // A new voice connection setting: a new call with everyone whose calls you start; the others start one when your
   // 'me' message tells them (vq)
   function voiceChanged() {
@@ -9131,6 +9414,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [30, 'October 20: the Overlay page', [
+      'The overlay has a page of its own, Overlay in the menu, with everything it can show and a Layout: drag each part anywhere on a picture of your screen and size it, and the rest stays together.',
+      'Your lane: beside your CS counter, your CS and item gold against the player in your lane, like “vs Zed: CS +6 · gold +0.3k”.',
+      'After a game, a card over League’s end screen with the LP you won or lost, your score and the clips you saved.',
+      'New callouts, all off until you turn them on: their jungler heading your way, missing laners like “Zed missing from mid”, enemies in your jungle, and a list of who’s off your minimap and for how long. They can be read out loud too.',
+    ]],
     [29, 'October 20: a TFT page', [
       'TFT has a page of its own. Build a comp or open any team code, then Copy team code and paste it in League’s Team Planner.',
       'Save comps in My comps, and send one to your voice room: team codes in the chat get a Copy team code button.',
@@ -9141,7 +9430,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Get set up, at the top of Features, shows what’s done and what’s left before a game with friends: the desktop app, your name, mic, room, screen and League in Borderless.',
     ]],
     [27, 'October 20: minimap reminders and their jungler', [
-      'New to League? Settings > Overlay can remind you to check your minimap, and call out when the other team’s jungler shows up on it. Both are off until you turn them on.',
+      'New to League? The Overlay page can remind you to check your minimap, and call out when the other team’s jungler shows up on it. Both are off until you turn them on.',
       'Game reports show where their jungler was in the first 14 minutes, and which of your team’s deaths they were in on.',
     ]],
     [26, 'October 20: voice fixes', [
@@ -9442,16 +9731,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
       ['Your clips', 'Play, cut, rename, star or bin your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
     ]],
-    ['Overlay', 'A see-through bubble on top of League, in the desktop app. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
-      ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'Settings, Overlay: tick what you want on it.', '#optOverlay', 'app'],
+    ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
+      ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
+      ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
+      ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
+        'The Overlay page, Layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['Loading screen board', 'On League’s loading screen, all ten players like Porofessor: your team at the top left and theirs below, with their rank, record on their champion and tags, and the tips for your lane on the right.',
-        'On unless you turn it off: Settings, Overlay. In a game, Ctrl+Shift+O shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
-      ['Move and size it', 'Top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'Settings, Overlay: Move it, then drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
+        'On unless you turn it off: the Overlay page, What it shows. In a game, Ctrl+Shift+O shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
+      ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE) and the clips you saved that game.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayAfter', 'app'],
+      ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'The Overlay page, Layout: drag the rest, or Move it and drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
       ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
-        'Off until you turn it on: Settings, Overlay, Remind me to check the minimap.', '#optMapNudge', 'app'],
-      ['Jungler callout', 'When the other team’s jungler shows up on your minimap after 10 seconds out of sight: “Jungler on topside”, botside or in mid, for 3 seconds. Text only, read from your own minimap.',
-        'Off until you turn it on: Settings, Overlay, Call out their jungler. It reads your shared League screen.', '#optJgCall', 'app'],
+        'Off until you turn it on: the Overlay page, Callouts, Remind me to check the minimap.', '#optMapNudge', 'app'],
+      ['Jungler callout', 'When the other team’s jungler shows up on your minimap after 10 seconds out of sight: “Jungler on topside”, botside or in mid, for 3 seconds. Read from your own minimap.',
+        'Off until you turn it on: the Overlay page, Callouts, Call out their jungler.', '#optJgCall', 'app'],
+      ['Gank warning', '“Lee Sin heading your way” when your minimap shows their jungler coming toward you.', 'Off until you turn it on: the Overlay page, Callouts.', '#optGankCall', 'app'],
+      ['Missing laners', '“Zed missing from mid” when a player you saw in a lane has been out of sight for 10 seconds, for every lane.', 'Off until you turn it on: the Overlay page, Callouts.', '#optMissCall', 'app'],
+      ['Invades', '“Lee Sin in your jungle”, or how many, when your minimap shows the other team there, like a level 1 invade.', 'Off until you turn it on: the Overlay page, Callouts.', '#optInvadeCall', 'app'],
+      ['Who’s off your minimap', 'A list by your minimap of everyone on their team you can’t see, how long since you saw them and where they were heading, like “Lee Sin 0:40 toward bot”, and about when a dead one is back.',
+        'Off until you turn it on: the Overlay page, Callouts. Drag it anywhere in Layout.', '#optMissList', 'app'],
+      ['Spoken callouts', 'The callouts read out loud in your computer’s own voice, as well as shown.', 'Off until you turn it on: the Overlay page, Callouts, Read callouts out loud.', '#optSpeakCalls', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
       ['Phone remote', 'Start the queue, accept matches, pick or ban champions, answer trades and use room chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
@@ -9619,7 +9918,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -9631,6 +9930,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     slot: () => slot,
     room: () => room,
     jungler: (r, tl) => junglerEl(r, tl),
+    foes: () => (share && share.foes ? share.foes.list.map(({ name, id, seen, zone, where, lane, called, dead }) => ({ name, id, seen, zone, where, lane, called, dead })) : null),
+    zone: (p) => zoneOf(p),
     me: () => ({ ...me, fresh: fresh(me), minimap: share && share.sq, icons: share && share.last ? share.last.icons : [], mine }),
     talk: () => ({ me: myTalk, heat: myHeat.reduce((a, b) => a + b, 0), peers: [...peers.values()].map((p) => p.talk || 0) }),
     peers: () => [...peers].map(([id, p]) => ({
