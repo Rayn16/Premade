@@ -1697,7 +1697,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: help while you’re dead, and your chance to win\s+While you’re dead on Summoner’s Rift[\s\S]*October 20: dodge, an avoid list and ladder places\s+Dodge leaves champ select in one click[\s\S]*October 20: timers, a coach and customs\s+Enemy timers: say “Premade, mid flash”[\s\S]*October 20: TFT helpers\s+A roll calculator on TFT[\s\S]*October 20: who has Premade\s+Our server now keeps a list of who has Premade[\s\S]*October 20: the Overlay page\s+The overlay has a page of its own[\s\S]*October 20: a TFT page\s+TFT has a page of its own[\s\S]*October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? The Overlay page can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: builds at your rank, one-tricks and pros\s+Builds at your rank: our server now counts Emerald and Diamond games[\s\S]*October 20: help while you’re dead, and your chance to win\s+While you’re dead on Summoner’s Rift[\s\S]*October 20: dodge, an avoid list and ladder places\s+Dodge leaves champ select in one click[\s\S]*October 20: timers, a coach and customs\s+Enemy timers: say “Premade, mid flash”[\s\S]*October 20: TFT helpers\s+A roll calculator on TFT[\s\S]*October 20: who has Premade\s+Our server now keeps a list of who has Premade[\s\S]*October 20: the Overlay page\s+The overlay has a page of its own[\s\S]*October 20: a TFT page\s+TFT has a page of its own[\s\S]*October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? The Overlay page can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
@@ -1906,6 +1906,109 @@ const leagueData = (over = {}) => ({
       await hl({ inGame: false, phase: 'None' });
       await hctx.close();
       console.log('matchup explorer: hidden in a game');
+    }
+
+    // ---- builds at your rank: for your Gold II, Emerald and Diamond's games (ed) in champ select, on the tier list and
+    // on champion pages, with one-tricks, pro players and champions to try; and when to stop, in Stats
+    {
+      // Emerald and Diamond: 40 games, Ahri's 30 in the middle (18 won) on Arcane Comet with Teleport, and Zed's 12 (5 won)
+      const ED = { p: '15.20', c: { 103: { MIDDLE: [30, 18] }, 238: { MIDDLE: [12, 5] }, 99: { MIDDLE: [4, 2] }, 86: { TOP: [40, 20] }, 122: { TOP: [40, 20] } }, old: null, today: 4, total: 40, by: { euw1: 25, na1: 15 }, at: 0 };
+      const edAhri = Array.from({ length: 30 }, (_, i) => hGame(7000 + i, +(i < 18), 238, { rn: COMET, s: [4, 12], b: [[10, 1056], [600, 6655], [700, 3020], [1200, 3157]] }));
+      // high elo Ahri with each player's code: one on 8 games (6 won, Arcane Comet), one on 4 (all won, Electrocute), the
+      // rest once; Faker (T1) and Chovy (GEN) played the newest two
+      const oct18 = Math.floor(new Date(2026, 9, 18, 20).getTime() / 1000);
+      const hiAhri = H_CHAMP['103/MIDDLE'].map((g, i) => ({ ...g, u: i < 8 ? 'aaaa1111' : i >= 20 && i < 24 ? 'bbbb2222' : `c${i}`, ...(i < 2 && { t: oct18, pro: [['Faker', 'T1'], ['Chovy', 'GEN']][i] }) }));
+      const champAsked = [];
+      const [ectx, ep] = await context(browser, { version: '1.13.0' });
+      await ectx.exposeFunction('fakeLcu', fakeLcu);
+      await ectx.route(/127\.0\.0\.1:9001\/stats/, (r) => r.fulfill({ json: { days: [] }, headers: { 'access-control-allow-origin': '*' } }));
+      await ectx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|alike|api|past)/, (r) => {
+        const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' }, c = +u.searchParams.get('c'), role = u.searchParams.get('r') || 'MIDDLE', t = u.searchParams.get('t') || '';
+        if (u.pathname.endsWith('/summary')) return r.fulfill({ json: { ...HSUM, ed: ED, ...(u.searchParams.has('more') && { pros: 2, lp: { at: Date.now(), ok: true }, pools: 1234 }) }, headers: cors });
+        if (u.pathname.endsWith('/alike')) return r.fulfill({ json: c === 103 ? { n: 30, of: 900, list: [[238, 12], [254, 9], [122, 5]] } : { n: 0, of: 900, list: [] }, headers: cors });
+        if (!u.pathname.endsWith('/champ')) return r.fulfill({ status: 404, json: {}, headers: cors });
+        champAsked.push(`${c}/${u.searchParams.get('r')}/${t}`);
+        const games = c === 103 && role === 'MIDDLE' ? (t ? edAhri : hiAhri) : t ? [] : H_CHAMP[`${c}/${role}`] || [];
+        r.fulfill({ json: { t, patch: '15.20', role, roles: games.length ? { [role]: [games.length, games.filter((g) => g.w).length] } : {}, games }, headers: cors });
+      });
+      // your last 20 games, on four days, oldest first: WLLLW, WLLWW, LLWLL, WWLWL (9 won)
+      const mine = MY_HIST.games.games, tpl = mine[0];
+      MY_HIST.games.games = ['WLLLW', 'WLLWW', 'LLWLL', 'WWLWL'].flatMap((day, d) => [...day].map((r, i) => ({ ...tpl, gameId: 77000 + 10 * d + i, gameCreation: new Date(2026, 9, 10 + d, 12 + i).getTime(),
+        participants: [{ ...tpl.participants[0], stats: { ...tpl.participants[0].stats, win: r === 'W' } }] }))).reverse();
+      const el = (d) => ep.evaluate((d) => lpcClient.emit('league', d), d);
+      lcu.cs = null;
+      lcu.phase = 'None';
+      await ep.goto(URL_);
+      await wait(ep, () => window.lpc, null, 'the page');
+      await el({ inGame: false, phase: 'None' });
+      await wait(ep, () => lpc.lcu().me0 && lpc.lcu().hist === 20, null, 'your account and match history');
+      await ep.click('.nav[data-view="pregame"]');
+      // the tier list on Emerald and Diamond's games, for your rank; Challenger and Grandmaster's a click away
+      await wait(ep, () => !document.getElementById('tierBox').hidden && !document.getElementById('tierEloBox').hidden && document.querySelectorAll('#tierRows tr').length === 2, null, 'the tier list for your rank');
+      assert.strictEqual(await ep.inputValue('#tierElo'), 'ed');
+      assert.strictEqual(await text(ep, '#tierNote'), 'Middle in 40 Emerald and Diamond games our server counted from Riot, patch 25.20.');
+      assert.deepStrictEqual(await ep.$$eval('#tierRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim())), ['Ahri S 60% 30 · 75% picked', 'Zed D 42% 12 · 30% picked']);
+      await ep.selectOption('#tierElo', '');
+      await wait(ep, () => document.getElementById('tierNote').textContent === 'Middle in 200 Challenger and Grandmaster games our server counted from Riot, patch 25.20 and 25.19.', null, 'Challenger and Grandmaster’s tier list');
+      await ep.selectOption('#tierElo', 'ed');
+      await wait(ep, () => /Emerald and Diamond/.test(document.getElementById('tierNote').textContent), null, 'and back');
+      // Ahri's page from it: Emerald and Diamond's games, with high elo's one-tricks and pro players, and champions to try
+      await ep.click('#tierRows tr:first-child td:nth-child(3)');
+      await wait(ep, () => document.getElementById('champDlg').open && /Pro players/.test(document.getElementById('champDlgBody').textContent) && /Champions to try/.test(document.getElementById('champDlgBody').textContent), null, 'Ahri’s page');
+      const ePage = (await text(ep, '#champDlgBody')).replace(/\s+/g, ' ');
+      for (const re of [/In Emerald and Diamond Games from .*Ahri middle won 60% of 30 Emerald and Diamond games on patch 25\.20\. Runes: Arcane Comet, Manaflow Band, Transcendence, Scorch, Taste of Blood, Treasure Hunter \(Sorcery with Domination\): 60% won in 30 games\. Spells: Flash and Teleport\. Start Doran’s Ring First items, in order Luden’s Companion Zhonya’s Hourglass Boots Sorcerer’s Shoes Best against: Zed, 60% won in 30 games\. One-tricks/i,
+        /One-tricks The players with the most of these games on Ahri, and what they take\. Player 1: 8 games, 75% won\. Arcane Comet \(Sorcery with Domination\), Flash and Teleport\. Luden’s Companion Zhonya’s Hourglass Sorcerer’s Shoes Player 2: 4 games, 100% won\. Electrocute \(Domination with Sorcery\), Flash and Ignite\. Pro players/i,
+        /Pro players Their latest solo queue games on Ahri, with their items in the order they bought them\. Faker \(T1\), Oct 18: won against Zed\. Arcane Comet \(Sorcery with Domination\), Flash and Teleport\. Luden’s Companion Sorcerer’s Shoes Zhonya’s Hourglass Chovy \(GEN\), Oct 18: won against Zed\. .* Pro players and their teams from Leaguepedia, under CC BY-SA\. Champions to try/i,
+        /Champions to try If you like Ahri, try these: the champions high elo Ahri players also play most\. Zed 40% of Ahri players play it Vi 30% of Ahri players play it Darius 17% of Ahri players play it/i]) assert.match(ePage, re);
+      assert.deepStrictEqual(await ep.$$eval('#champDlgBody select option', (o) => o.map((x) => [x.value, x.textContent])), [['', 'Challenger and Grandmaster'], ['ed', 'Emerald and Diamond']]);
+      await ep.selectOption('#champDlgBody select', '');
+      await wait(ep, () => /In high elo .*Ahri middle won 47% of 60 Challenger and Grandmaster games on patch 25\.20/i.test(document.getElementById('champDlgBody').innerText.replace(/\s+/g, ' ')), null, 'Challenger and Grandmaster’s games on Ahri’s page');
+      await shot(ep, 'champion-page-one-tricks');
+      await ep.click('#champDlgClose');
+      console.log('builds at your rank: the tier list and Ahri’s page on Emerald and Diamond’s games, with one-tricks, pro players and champions to try');
+      // champ select: Ahri's runes, spells and build from Emerald and Diamond's games
+      champSelect(6670001);
+      lcu.phase = 'ChampSelect';
+      await el({ inGame: false, phase: 'ChampSelect' });
+      await wait(ep, () => !document.getElementById('csBox').hidden, null, 'champ select');
+      Object.assign(flatActions().find((a) => a.id === 3), { completed: true, isInProgress: false });
+      Object.assign(flatActions().find((a) => a.id === 8), { completed: true, isInProgress: false, championId: 103 });
+      lcu.cs.myTeam[2].championId = 103;
+      lcu.cs.theirTeam[2].championId = 238;
+      await wait(ep, () => /^Runes: the most popular page for Ahri, middle, in Emerald and Diamond/.test(document.getElementById('runesNote').textContent), null, 'Emerald and Diamond’s runes');
+      assert.strictEqual(await text(ep, '#runesNote'), 'Runes: the most popular page for Ahri, middle, in Emerald and Diamond (Arcane Comet: 60% won in 30 games). Spells: Flash on D, Teleport on F.');
+      await wait(ep, () => /^Items: the Emerald and Diamond build on Ahri \(from 30 games\)/.test(document.getElementById('buildNote').textContent), null, 'Emerald and Diamond’s build');
+      assert.deepStrictEqual(lcu.itemSets.itemSets.find((s) => s.uid === 'lpc-103').blocks.slice(0, 3).map((b) => [b.type, b.items.map((i) => i.id).join()]),
+        [['Emerald and Diamond start', '1056'], ['Emerald and Diamond first items, in order', '6655,3157'], ['Emerald and Diamond boots', '3020']]);
+      assert.strictEqual(await text(ep, '#topNote'), 'In Emerald and Diamond, Ahri middle won 60% of 30 games. Against their picks: Zed, 60% won in 30 games.');
+      assert(champAsked.includes('103/MIDDLE/ed'), 'Emerald and Diamond’s Ahri in the middle asked for');
+      lcu.cs = null;
+      lcu.phase = 'None';
+      await el({ inGame: false, phase: 'None' });
+      console.log('builds at your rank: Arcane Comet, Teleport and the build from Emerald and Diamond’s games in champ select');
+      // Pregame settings: Challenger and Grandmaster's games instead
+      assert(await ep.isVisible('#eloBox') || (await ep.click('#preSet summary'), await ep.isVisible('#eloBox')), 'Most popular in, in Pregame settings');
+      assert.strictEqual(await ep.inputValue('#optElo'), 'auto');
+      // Stats: when to stop, then champions to try for Ahri (you play Zed already)
+      await ep.click('.nav[data-view="stats"]');
+      await ep.click('.tab[data-tab="you"]');
+      await wait(ep, () => !document.getElementById('stops').hidden, null, 'when to stop');
+      assert.deepStrictEqual(await texts(ep, '#stops tbody tr'), ['After a win 7 2W 5L · 29%', 'After a loss 5 1W 4L · 20%', 'After 2 losses in a row 3 2W 1L · 67%', 'After 3 or more in a row 1 1W 0L · 100%',
+        'First game of the day 4 3W 1L · 75%', 'Second game 4 1W 3L · 25%', 'Third game 4 1W 3L · 25%', 'Fourth game 4 2W 2L · 50%', 'Fifth game or later 4 2W 2L · 50%']);
+      assert.strictEqual(await text(ep, '#stopNote'), 'Stop after a loss: you won 20% of the 5 games right after, against 45% in all. Your first game of the day: 75% won; your fifth or later: 50%.');
+      await ep.click('.tab[data-tab="champs"]');
+      await wait(ep, () => document.querySelectorAll('#tryList .champ').length === 2, null, 'champions to try');
+      assert.deepStrictEqual((await texts(ep, '#tryList h3')).map((s) => s.toLowerCase()), ['if you like ahri']);
+      assert.deepStrictEqual(await texts(ep, '#tryList .champ'), ['Vi 30% of Ahri players play it', 'Darius 17% of Ahri players play it']);
+      assert.strictEqual(await text(ep, '#tryNote'), '');
+      await shot(ep, 'stats-champions-to-try');
+      // Settings > Our server: Emerald and Diamond's games, the pro players and the ladder players' champions
+      await ep.click('.nav[data-view="settings"]');
+      await wait(ep, () => !document.getElementById('serverMore').hidden, null, 'our server’s counts');
+      assert.match(await text(ep, '#serverMore'), /^Emerald and Diamond games counted from Riot: 40 \(EUW 25, NA 15\), 4 games today\. Pro players found from Leaguepedia’s player list: 2, read \w+ \d+\. High elo players asked which champions they play, for Champions to try: 1,234\.$/);
+      await ectx.close();
+      MY_HIST.games.games = mine;
+      console.log('when to stop: after a loss, 20% won against 45%; champions to try: Vi and Darius for Ahri; our server’s Emerald and Diamond, pro and champion counts');
     }
 
     assert.deepStrictEqual(lcu.refused, [], 'every call is one the desktop app lets through');

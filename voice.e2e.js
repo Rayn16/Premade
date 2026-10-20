@@ -901,7 +901,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await shot(ana, 'ana-compact');
     await ana.click('#compactBtn');
     assert(await ana.isVisible('main'), 'full view again');
-    await ana.context().route('**/riot/summary', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
+    await ana.context().route('**/riot/summary*', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
     await ana.click('.nav[data-view="settings"]');
     await ana.waitForSelector('#serverBox', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverToday'), 'Today: 3 players in 2 rooms. Busiest day of the last two weeks: 7 players.');
