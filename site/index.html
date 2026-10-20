@@ -503,6 +503,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .past .emb { width: 24px; height: 24px; margin: -2px 0 -2px -5px; }
 .rank .peak { grid-column: 2; font-size: 13px; }
 .games summary .tags:empty { display: none; }
+
+/* Profile and Stats extras: warnings and the goal on rank cards, two players side by side, the week's card, the
+   match history's filters and the rank watch feed */
+.rank .warn { grid-column: 2; font-size: 13px; color: var(--warn); }
+.rank .warn[data-k="bad"] { color: var(--bad); }
+.rank .goal { grid-column: 2; font-size: 13px; color: var(--fg); }
+.cmp td[data-best] { color: var(--good); font-weight: 600; }
+.pick select { font-size: 14px; padding: 8px 10px; }
+#proAcct { padding: 8px 10px; font-size: 14px; }
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.feed li { display: flex; align-items: center; gap: 10px; }
+.feed .pic0, .feed .emb { width: 26px; height: 26px; }
+.feed .sub { display: inline; margin-left: 6px; }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -584,14 +597,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <p id="proFindNote" class="hint" role="status"></p>
           </div>
           <div class="toolbar">
+            <select id="proAcct" aria-label="Your account" hidden></select>
             <button id="proRoom" class="btn primary" type="button">Voice room</button>
             <button id="profileBtn" class="btn" type="button" hidden>Share my profile</button>
             <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
             <button id="proForget" class="btn" type="button" hidden>Not you?</button>
+            <button id="proCmp" class="btn" type="button" aria-expanded="false" hidden>Compare with me</button>
+            <button id="proMineToo" class="btn" type="button" hidden>Add to my accounts</button>
             <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
           </div>
         </div>
       </header>
+      <section id="weekBox" class="panel" aria-labelledby="h-week" hidden>
+        <h2 id="h-week" class="ph"></h2>
+        <div id="weekTiles" class="timers"></div>
+        <div class="toolbar"><button id="weekOk" class="btn small" type="button">Got it</button></div>
+      </section>
       <section id="profileOut" class="panel" aria-label="Your profile link" hidden>
         <p class="hint">A web page with your rank, record and top champions that anyone can open, from your last 100 games. It shows them as they are now, so make a new link later to update it.</p>
         <label class="field">Your link <input id="profileLink" readonly spellcheck="false"></label>
@@ -600,6 +621,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <p id="proNote" class="phase" role="status" hidden></p>
       <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
       <div id="proRanks" class="ranks"></div>
+      <section id="proCmpBox" class="panel" aria-labelledby="h-procmp" hidden>
+        <h2 id="h-procmp" class="ph">Side by side</h2>
+        <p id="cmpNote" class="hint"></p>
+        <div class="tablewrap"><table class="ready cmp"><thead><tr><th></th><th id="cmpA"></th><th id="cmpB"></th></tr></thead><tbody id="cmpRows"></tbody></table></div>
+      </section>
       <section id="proLiveBox" class="panel" aria-labelledby="h-prolive" hidden>
         <h2 id="h-prolive" class="ph">Live game</h2>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th></tr></thead><tbody id="proLiveRows"></tbody></table></div>
@@ -630,6 +656,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <h2 id="h-proroles" class="ph">Roles</h2>
             <p id="proRolesNote" class="hint"></p>
             <div class="tablewrap"><table class="ready"><thead><tr><th>Role</th><th>Games</th><th>Won</th></tr></thead><tbody id="proRoles"></tbody></table></div>
+          </section>
+          <section id="proChampBox" class="panel" aria-labelledby="h-prochamps" hidden>
+            <h2 id="h-prochamps" class="ph">Champions</h2>
+            <p id="proChampNote" class="hint"></p>
+            <div class="tablewrap"><table class="ready"><thead><tr><th>Champion</th><th>Games</th><th>Won</th><th>KDA</th><th>CS</th></tr></thead><tbody id="proChampRows"></tbody></table></div>
           </section>
           <section id="proMasteryBox" class="panel" aria-labelledby="h-promastery">
             <h2 id="h-promastery" class="ph">Mastery</h2>
@@ -969,7 +1000,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-ranked">
         <h2 id="h-ranked" class="ph">Ranked <button class="tip" type="button" popovertarget="t-lp" aria-label="About the LP tracker">?</button></h2>
         <div id="rankNow" class="timers"></div>
-        <div class="toolbar"><label class="field">Queue <select id="lpQueue"><option value="RANKED_SOLO_5x5">Solo/Duo</option><option value="RANKED_FLEX_SR">Flex</option></select></label></div>
+        <div class="toolbar"><label class="field">Queue <select id="lpQueue"><option value="RANKED_SOLO_5x5">Solo/Duo</option><option value="RANKED_FLEX_SR">Flex</option></select></label><label id="lpAcctBox" class="field" hidden>Account <select id="lpAcct"></select></label><label class="field">Goal <select id="lpGoal"></select></label></div>
+        <p id="lpGoalNote" hidden></p>
         <p id="lpToday"></p>
         <svg id="lpChart" class="chart" viewBox="0 0 600 160" role="img" aria-label="Your rank after each ranked game" hidden></svg>
         <ol id="lpList" class="lplist"></ol>
@@ -1006,6 +1038,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div><h3 class="ph">You win most with</h3><div id="allies" class="picks"></div></div>
         </div>
       </section>
+      <section class="panel lcu-only" data-tab="champs" aria-labelledby="h-pool">
+        <h2 id="h-pool" class="ph">Champion pool <button class="tip" type="button" popovertarget="t-pool" aria-label="About the champion pool">?</button></h2>
+        <p id="poolNote" class="hint"></p>
+        <div class="duo">
+          <div><h3 class="ph">Keep</h3><div id="poolKeep" class="picks"></div></div>
+          <div><h3 class="ph">Practice</h3><div id="poolPractice" class="picks"></div></div>
+          <div><h3 class="ph">Drop</h3><div id="poolDrop" class="picks"></div></div>
+        </div>
+      </section>
+      <section class="panel lcu-only" data-tab="champs" aria-labelledby="h-duos">
+        <h2 id="h-duos" class="ph">Duo and party picks <button class="tip" type="button" popovertarget="t-duos" aria-label="About duo and party picks">?</button></h2>
+        <p id="duoNote" class="hint"></p>
+        <div id="duos" class="duo"></div>
+      </section>
       <section class="panel lcu-only" data-tab="champs" aria-labelledby="h-coll">
         <h2 id="h-coll" class="ph">Champion collection</h2>
         <p id="collNote" class="hint"></p>
@@ -1019,6 +1065,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
       <section class="panel lcu-only" data-tab="games" aria-labelledby="h-matches">
         <h2 id="h-matches" class="ph">Match history <button class="tip" type="button" popovertarget="t-matches" aria-label="About match history">?</button></h2>
+        <form id="matchFilter" class="pick" role="search" aria-label="Filter your match history">
+          <label>Search <input id="mfFind" type="search" autocomplete="off" spellcheck="false" placeholder="Champion or player"></label>
+          <label>Champion <select id="mfChamp"><option value="">Any</option></select></label>
+          <label>Role <select id="mfRole"><option value="">Any</option><option value="TOP">Top</option><option value="JUNGLE">Jungle</option><option value="MIDDLE">Middle</option><option value="BOTTOM">Bottom</option><option value="UTILITY">Support</option></select></label>
+          <label>Result <select id="mfRes"><option value="">Any</option><option value="w">Wins</option><option value="l">Losses</option></select></label>
+          <label>With <select id="mfWith"><option value="">Anyone</option></select></label>
+          <label>When <select id="mfWhen"><option value="">Any time</option><option value="0">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label>
+        </form>
         <p id="matchNote" class="hint"></p>
         <div class="toolbar"><button id="exportBtn" class="btn small" type="button" hidden>Export to a spreadsheet</button></div>
         <ol id="matches" class="games"></ol>
@@ -1053,6 +1107,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </form>
         <p id="watchNote" class="hint" role="status"></p>
         <ul id="watchList" class="watchlist"></ul>
+        <h3 id="h-feed" class="ph" hidden>Latest from them</h3>
+        <ul id="watchFeed" class="feed"></ul>
       </section>
     </section>
 
@@ -1265,6 +1321,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   </div>
 </dialog>
 
+<dialog id="patchDlg" class="wizard" aria-labelledby="patchDlgTitle">
+  <div class="wz">
+    <h2 id="patchDlgTitle" class="title"></h2>
+    <p id="patchDlgNote" class="hint"></p>
+    <div id="patchDlgList" class="patchlist"></div>
+    <footer><button id="patchDlgGo" class="btn" type="button">See Patch changes</button><button id="patchDlgClose" class="btn primary" type="button">Close</button></footer>
+  </div>
+</dialog>
+
 <div id="t-code" class="tipbox" popover>Friends join by typing this code on the site or in the Windows client, or by opening your invite link. Everyone in the same game should be in the same room.</div>
 <div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Players are at full volume up to two thirds of it, then fade to silent at the edge. It only changes what you hear.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
@@ -1294,12 +1359,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
-<div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
+<div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-backup" class="tipbox" popover>Back up saves your settings, matchup notes, LP history, game history, reports and clip favorites in one file. Restore loads such a file, on this PC or another, and replaces what's here.</div>
-<div id="t-lp" class="tipbox" popover>Your LP after each ranked game you play with the app open, kept on this computer: today's wins, losses and LP, and a chart of your rank.</div>
+<div id="t-lp" class="tipbox" popover>Your LP after each ranked game you play with the app open, kept on this computer: today's wins, losses and LP, and a chart of your rank. Pick a goal to see how many wins it takes at the LP you usually win and lose, and how many games at your win rate. Each League account you log in with keeps its own LP and profile; switch between them in Account, here or on Profile.</div>
+<div id="t-pool" class="tipbox" popover>From your last 100 games on Summoner's Rift, each champion in the role you play it most. Keep: you win with it. Practice: strong in that role in high elo (S or A tier), but you lose more than you win with it or haven't played it much. Drop: you lose more than you win with it, and it isn't strong in high elo either. Win rates are pulled toward 50% while games are few, so one lucky game doesn't count for much. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-duos" class="tipbox" popover>From your games League's client has in detail (the newest 150): each teammate you played with at least three times, your record together, and which champions and roles won most for the two of you; then the groups you played in. Two games or more for a pair. Only on this computer.</div>
 <div id="t-matches" class="tipbox" popover>Your last 100 games from Riot's match history, and a report for each game: a score out of 100 for every player from KDA, kill share, damage dealt or taken, CS or vision, and gold. MVP is the best on the winning team, ACE the best on the losing team. A report also has the game's replay, how you played against your usual, high elo players and your lane opponent, your laning at 10 and 15 minutes, and when everyone bought each item.</div>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
@@ -2892,6 +2959,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     league = d && d.inGame ? d : null;
     leagueAt = performance.now();
     lcu = d && typeof d.phase === 'string' ? d.phase.slice(0, 40) : null;
+    if (!phase && lcu && me0) loadMine(true); // League started again, maybe with another account
     if (lcu !== phase && !profView.hidden) renderProfile(); // League opened or closed: what Profile can show changes
     statusTick();
     if (league && !was) { autoPickOff = false; checkWindow(); if (opts.compact && !document.body.classList.contains('compact')) setCompact(true, true); }
@@ -3410,15 +3478,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!force && performance.now() - myHistAt < 120000) return;
     myHistAt = performance.now();
     const [h, m, cp, who] = await Promise.all([historyOf('current-summoner', 100),
-      lcuGet('/lol-champion-mastery/v1/local-player/champion-mastery'), champPos ? null : lcuGet('/lol-perks/v1/recommended-champion-positions'), me0 ? null : lcuGet('/lol-summoner/v1/current-summoner')]);
+      lcuGet('/lol-champion-mastery/v1/local-player/champion-mastery'), champPos ? null : lcuGet('/lol-perks/v1/recommended-champion-positions'), lcuGet('/lol-summoner/v1/current-summoner')]);
+    if (who && who.puuid && me0 && who.puuid !== me0.puuid) { myHist = null; myMastery = []; rankNow = null; rankAt = -Infinity; proAcct = ''; } // League has another account now
     if (h) myHist = gamesOf(h);
     const plat = h && String((h.games.games.find((g) => g.platformId) || {}).platformId || '').toLowerCase();
     if (PLATS[plat]) myPlat = plat;
     if (h && h.games.games.some((g) => (g.gameDuration | 0) >= 300)) checked('history', myHist.length > 0);
     if (Array.isArray(m)) myMastery = m;
     if (cp && typeof cp === 'object') champPos = cp;
-    if (who && who.puuid) me0 = who;
+    if (who && who.puuid) { me0 = who; lpAdopt(myAcct()); }
     if (h) historyChanged();
+    patchPop();
     renderGame();
     if (!statsView.hidden) renderStats();
     if (!profView.hidden) renderProfile();
@@ -3863,7 +3933,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (g.ranked) for (let i = 0; i < 20; i++) {
       const n = await lcuGet('/lol-ranked/v1/current-lp-change-notification');
       if (n && n.gameId === g.id) {
-        lpLog = [...lpLog, { id: g.id, at: Date.now(), q: n.queueType, tier: n.tier, div: n.division, lp: n.leaguePoints | 0, delta: n.leaguePointsDelta | 0, win: g.result ? g.result === 'Win' : n.leaguePointsDelta > 0 }].slice(-300);
+        lpLog = [...lpLog, { id: g.id, at: Date.now(), q: n.queueType, tier: n.tier, div: n.division, lp: n.leaguePoints | 0, delta: n.leaguePointsDelta | 0, win: g.result ? g.result === 'Win' : n.leaguePointsDelta > 0, a: myAcct() }].slice(-300);
         store.set('lpc-lp', JSON.stringify(lpLog));
         notify(`${n.leaguePointsDelta >= 0 ? '+' : ''}${n.leaguePointsDelta | 0} LP: ${rankText({ ...n, wins: 0, losses: 0 })}`, true);
         rankAt = -Infinity; // your rank changed
@@ -4764,8 +4834,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   async function renderRanked() {
     if (!lcuOn()) return;
     await myRank();
-    const q = $('lpQueue').value, list = lpLog.filter((e) => e.q === q), today = list.filter((e) => new Date(e.at).toDateString() === new Date().toDateString());
-    $('rankNow').replaceChildren(...[['Solo/Duo', 'RANKED_SOLO_5x5'], ['Flex', 'RANKED_FLEX_SR']].map(([n, k]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, withEmblem(rankNow && rankNow[k] && rankNow[k].tier, rankNow ? rankText(rankNow[k]) : lcu ? '…' : 'Start League to see it')); return s; }));
+    const sm = shownMine(), rk = !sm || isLive(sm) ? rankNow : sm.rk; // the account picked in Account, else League's
+    acctSelect($('lpAcct'));
+    $('lpAcctBox').hidden = $('lpAcct').hidden;
+    const q = $('lpQueue').value, list = lpOf(acctOf(sm && sm.n)).filter((e) => e.q === q), today = list.filter((e) => new Date(e.at).toDateString() === new Date().toDateString());
+    renderGoal(sm, q);
+    $('rankNow').replaceChildren(...[['Solo/Duo', 'RANKED_SOLO_5x5'], ['Flex', 'RANKED_FLEX_SR']].map(([n, k]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, withEmblem(rk && rk[k] && rk[k].tier, rk ? rankText(rk[k]) : lcu ? '…' : 'Start League to see it')); return s; }));
     const lp = today.reduce((n, e) => n + e.delta, 0), w = today.filter((e) => e.win).length;
     $('lpToday').textContent = today.length ? `Today: ${w}W ${today.length - w}L, ${lp >= 0 ? '+' : ''}${lp} LP.` : list.length ? 'No ranked games today yet.' : 'Your LP shows up here after each ranked game you play with the app open.';
     const pts = list.slice(-40).map(ladder).filter((v) => v != null), svg = $('lpChart');
@@ -4785,8 +4859,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!lcuOn()) return;
     loadMine();
     const g = myHist || [];
+    fillSel($('mfChamp'), [...new Set(g.map((x) => x.champ))].filter((c) => champOf(c)).map((c) => [c, champName(c)]).sort((a, b) => a[1].localeCompare(b[1])), 'Any');
+    fillSel($('mfWith'), playedWith().slice(0, 20).map((f) => [f.u, f.name]), 'Anyone');
+    const shown = matchList(), n = shown.length;
     $('exportBtn').hidden = !g.length;
-    $('matchNote').textContent = myHist ? (g.length ? '' : 'No games in your match history yet.') : lcu ? 'Loading your match history…' : 'Start League to see your match history.';
+    $('matchNote').textContent = myHist ? (!g.length ? 'No games in your match history yet.' : !filtering() ? '' : n ? `${n} of your last ${g.length} games ${n === 1 ? 'matches' : 'match'}.` : 'No games match.')
+      : lcu ? 'Loading your match history…' : 'Start League to see your match history.';
     const by = new Map();
     for (const x of g) { const s = by.get(x.champ) || { n: 0, w: 0, k: 0, d: 0, a: 0 }; s.n++; s.w += x.win; s.k += x.k; s.d += x.d; s.a += x.a; by.set(x.champ, s); }
     $('champRows').replaceChildren(...[...by].sort((a, b) => b[1].n - a[1].n).slice(0, 15).map(([c, s]) => {
@@ -4799,7 +4877,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return tr;
     }));
     $('champTable').hidden = !by.size;
-    $('matches').replaceChildren(...g.slice(0, 20).map((x) => gameLi(x)));
+    $('matches').replaceChildren(...shown.map((x) => gameLi(x)));
   }
   // one game in a list: the champion, when, K/D/A, CS, its biggest multikill and first blood, items and the result;
   // opened, the game's report. who: whose game it is (you if not said); plat: their server, for Riot's copy of a game
@@ -4980,7 +5058,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return (puuid && metMap.get(puuid)) || [];
   }
-  const myGames = () => Object.values(deep).filter((g) => g.ps && g.ps[g.me]);
+  const myGames = () => Object.values(deep).filter((g) => g.ps && g.ps[g.me] && (!me0 || g.ps[g.me].u === me0.puuid)); // the account League has now
 
   // ---- Data Dragon's items and runes, for builds, item sets, the item timeline and rune names
   let ddItems = null, ddItemsAt = -Infinity, runeNames = null, runeNamesAt = -Infinity;
@@ -5518,7 +5596,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const s of statsView.querySelectorAll('.panel[data-tab]')) s.hidden = s.dataset.tab !== statsTab;
     if (statsTab === 'you') { renderRanked(); renderTrends(); renderFame(); renderTimes(); }
     if (statsTab === 'champs' || statsTab === 'games') renderMatches();
-    if (statsTab === 'champs') { renderNemeses(); renderCollection(); patchChanges(); }
+    if (statsTab === 'champs') { renderNemeses(); renderPool(); renderDuos(); renderCollection(); patchChanges(); }
     if (statsTab === 'games') { drawStats(); renderGames(); }
     if (statsTab === 'players') renderWatch();
   }
@@ -5604,7 +5682,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const st = new Map();
     for (const g of myGames()) {
       const m = g.ps[g.me];
-      for (const p of g.ps) if (p !== m && p.t === m.t && p.u) { const s = st.get(p.u) || { n: 0, w: 0, name: p.n }; s.n++; s.w += m.w; s.name = p.n || s.name; st.set(p.u, s); }
+      for (const p of g.ps) if (p !== m && p.t === m.t && p.u) { const s = st.get(p.u) || { u: p.u, n: 0, w: 0, name: p.n }; s.n++; s.w += m.w; s.name = p.n || s.name; st.set(p.u, s); }
     }
     return [...st.values()].filter((s) => s.n >= 2 && s.name).sort((a, b) => b.n - a.n);
   }
@@ -5743,13 +5821,51 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return { n: `${me0.gameName}#${me0.tagLine || ''}`, u: me0.puuid, lvl: me0.summonerLevel | 0, icon: me0.profileIconId | 0, plat: myPlat || (proMine && proMine.plat) || '',
       rk: rankNow, games: myHist, m: myMastery.slice().sort((a, b) => b.championPoints - a.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
   }
-  const shownPro = () => proOther || liveMine() || proMine;
+  // More than one League account: each one's profile is kept (lpc-accounts, by Riot ID in lower case, as lpc-past keeps
+  // past ranks) with its own LP (each lpc-lp entry's a) and games, and Account on Profile and in Stats' Ranked switches
+  // between them. proAcct: the one picked there ('': League's, else the last one)
+  const acctOf = (n) => String(n || '').toLowerCase();
+  const myAcct = () => (me0 && me0.gameName ? acctOf(`${me0.gameName}#${me0.tagLine || ''}`) : '');
+  let accounts = load('lpc-accounts', {}), proAcct = '';
+  if (!accounts || typeof accounts !== 'object' || Array.isArray(accounts)) accounts = {};
+  if (proMine && !accounts[acctOf(proMine.n)]) accounts[acctOf(proMine.n)] = proMine; // the one profile kept before
+  const lpOf = (a) => lpLog.filter((e) => e.a === a);
+  function lpAdopt(a) { // LP kept before there were accounts goes to the first account seen
+    if (!a || !lpLog.some((e) => !e.a)) return;
+    for (const e of lpLog) e.a ||= a;
+    store.set('lpc-lp', JSON.stringify(lpLog));
+  }
+  lpAdopt(proMine && acctOf(proMine.n));
+  const isLive = (p) => { const lm = liveMine(); return !!p && !!lm && acctOf(p.n) === acctOf(lm.n); };
+  function shownMine() { // yours: the account picked, else League's, else the last one
+    const lm = liveMine(), k = proAcct && accounts[proAcct] ? proAcct : '';
+    if (!k || (lm && acctOf(lm.n) === k)) return lm || proMine;
+    return proMine && acctOf(proMine.n) === k ? proMine : accounts[k];
+  }
+  const shownPro = () => proOther || shownMine();
   function saveMine(p) {
     proMine = p;
     if (p.src === 'riot') riotMineAt = performance.now(); // just asked
     const { live, ...keep } = p; // whether you're in a game is only true for now
     store.set('lpc-profile', JSON.stringify(keep));
+    accounts[acctOf(p.n)] = keep;
+    store.set('lpc-accounts', JSON.stringify(accounts));
   }
+  function pickAcct(k) {
+    const lm = liveMine();
+    proAcct = lm && acctOf(lm.n) === k ? '' : k;
+    if (proAcct && accounts[k]) { proMine = accounts[k]; store.set('lpc-profile', JSON.stringify(proMine)); riotMineAt = -Infinity; } // a Refresh asks Riot for this one
+    proOther = null;
+    renderProfile();
+    if (!statsView.hidden) renderRanked();
+  }
+  function acctSelect(sel) { // the Account box: shown with two accounts or more, the shown one picked
+    const ks = Object.keys(accounts).sort(), now = acctOf((shownMine() || {}).n);
+    sel.hidden = ks.length < 2;
+    if (sel.dataset.key !== ks.join()) { sel.dataset.key = ks.join(); sel.replaceChildren(...ks.map((k) => new Option(accounts[k].n, k))); }
+    sel.value = now;
+  }
+  for (const id of ['proAcct', 'lpAcct']) $(id).addEventListener('change', (e) => pickAcct(e.target.value));
   const TIER_C = ['#8c7a73', '#b0714f', '#a9b9c4', '#d9ad55', '#4fb0aa', '#34b37a', '#7088e8', '#b867e6', '#e65c5c', '#f4cf73']; // each tier's crest
   const QS = ['RANKED_SOLO_5x5', 'RANKED_FLEX_SR'], QN = { RANKED_SOLO_5x5: 'Solo/Duo', RANKED_FLEX_SR: 'Flex' };
   const rkName = (q) => `${cap(q.tier)}${TIERS.indexOf(q.tier) < 7 && q.division && q.division !== 'NA' ? ' ' + q.division : ''}`; // Diamond II, Master
@@ -5921,7 +6037,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proTagsBox').hidden = !tags.length;
     if ($('proTags').dataset.key !== tk) { $('proTags').dataset.key = tk; $('proTags').replaceChildren(...tags.map(([k, t]) => tag(k, t))); }
   }
-  function rankCard(label, q, more, peak) { // q: the queue's rank, null unranked, undefined not known yet; peak: this season's highest
+  function rankCard(label, q, more, peak, lines = []) { // q: the queue's rank, null unranked, undefined not known yet; peak: this season's highest; lines: [class, kind, text] under it
     const s = document.createElement('section'), i = q ? TIERS.indexOf(q.tier) : -1, n = i < 0 ? 0 : (q.wins | 0) + (q.losses | 0);
     s.className = 'panel rank';
     s.innerHTML = '<svg class="crest" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 56 14v19c0 13-9.5 22-24 27C17.5 55 8 46 8 33V14z"/><text x="32" y="40"></text></svg><h2 class="ph"></h2><p class="rtier"></p><p class="hint"></p>';
@@ -5932,6 +6048,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     s.querySelector('.rtier').textContent = q === undefined ? '…' : i < 0 ? 'Unranked' : rkName(q);
     s.querySelector('.hint').textContent = i < 0 ? '' : [`${q.leaguePoints | 0} LP`, n ? `${q.wins | 0}W ${q.losses | 0}L · ${Math.round((100 * q.wins) / n)}%` : '', more].filter(Boolean).join(' · ');
     if (i >= 0 && rkVal(peak) > rkVal(q)) s.append(Object.assign(document.createElement('p'), { className: 'hint peak', textContent: `Peak this season: ${rkName(peak)}` }));
+    for (const [cls, k, t] of lines) if (t) { const l = Object.assign(document.createElement('p'), { className: cls, textContent: t }); if (k) l.dataset.k = k; s.append(l); }
     return s;
   }
   function tftCard(label, q) { // a TFT queue from League's client: its games, not a record (TFT's wins are firsts); Hyper Roll has a colour and a rating
@@ -5939,19 +6056,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (hyper) { s.querySelector('.rtier').textContent = cap(q.ratedTier); s.querySelector('.hint').textContent = `${q.ratedRating | 0} rating`; }
     return s;
   }
-  function lpToday(k) {
-    const t = lpLog.filter((e) => e.q === k && new Date(e.at).toDateString() === new Date().toDateString()), d = t.reduce((n, e) => n + e.delta, 0), w = t.filter((e) => e.win).length;
+  function lpToday(k, p) {
+    const t = lpOf(acctOf(p.n)).filter((e) => e.q === k && new Date(e.at).toDateString() === new Date().toDateString()), d = t.reduce((n, e) => n + e.delta, 0), w = t.filter((e) => e.win).length;
     return t.length ? `today ${w}W ${t.length - w}L, ${d >= 0 ? '+' : '−'}${Math.abs(d)} LP` : '';
   }
   function renderProfile() {
     const lm = liveMine();
     if (lm && lm.rk) { const key = JSON.stringify([lm.n, lm.lvl, lm.icon, lm.plat, lm.rk, lm.games.map((x) => x.id), lm.m]); if (key !== proSaved) { proSaved = key; saveMine(lm); } }
-    const p = shownPro(), mine = !proOther, pages = mine && lcuOn(), [name, tag] = p ? p.n.split('#') : [], was = rankNow; // pages: champion pages are your games in League's client
+    const p = shownPro(), mine = !proOther, live = mine && isLive(p), pages = live, [name, tag] = p ? p.n.split('#') : [], was = rankNow; // live: League's account now; pages: champion pages are its games in League's client
     if (!ddVersion) ddragon().then(() => { if (!profView.hidden) renderProfile(); }).catch(() => {});
     itemsSoon();
     riotCheck();
     if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
-    if (mine && !lm) riotMine();
+    if (mine && !live) riotMine();
     const ru = lm && riotU(lm), day = ru + new Date().toDateString();
     if (ru && pastSent !== day) { pastSent = day; riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${ru}`).catch(() => {}); } // once a day, so our server keeps your rank
     $('proName').textContent = p ? name : 'Your League profile';
@@ -5964,13 +6081,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proNote').textContent = !p ? (lcuOn() ? 'Start League and your profile fills in here: your rank, status and recent games.'
       : riotOn ? 'Type your Riot ID above to see your profile here: your rank, whether you’re in a game, and your recent games.'
       : 'Your League profile shows up here in the desktop app while League is open: your rank, status and recent games.')
-      : mine && !lm ? `As of ${when}.${lcuOn() ? ' Start League to update it.' : ''}` : '';
+      : mine && !live ? `As of ${when}.${!lcuOn() ? '' : lm ? ' Sign in to it in League to update it.' : ' Start League to update it.'}` : '';
     $('proNote').hidden = !$('proNote').textContent;
     $('proApp').hidden = !!p || lcuOn();
     $('proBack').hidden = mine;
-    $('profileBtn').hidden = !(mine && lm);
-    $('proRefresh').hidden = !(mine && p && !lm && riotOn && PLATS[p.plat]);
-    $('proForget').hidden = !(mine && p && !lcuOn());
+    $('profileBtn').hidden = !live;
+    $('proRefresh').hidden = !(mine && p && !live && riotOn && PLATS[p.plat]);
+    $('proForget').hidden = !(mine && p && !live && (!lcuOn() || Object.keys(accounts).length > 1));
+    $('proMineToo').hidden = mine;
+    acctSelect($('proAcct'));
+    $('proAcct').hidden ||= !mine;
     const setup = !lcuOn() && !proMine; // in a browser, the first Riot ID you give is you
     $('proFindBox').hidden = !(riotOn || (lcuOn() && lcu));
     $('proId').placeholder = setup ? 'Your Riot ID: Name#TAG' : 'Look up a player: Name#TAG';
@@ -5979,15 +6099,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const id of ['proRanks', 'proGamesBox', 'proMasteryBox', 'proPast', 'proTagsBox', 'proRolesBox']) $(id).hidden = !p;
     proStatus();
     renderLive(p);
-    if (!p) { proList = ''; return; }
+    renderWeek(mine && p);
+    $('proChampBox').hidden ||= !p;
+    if (!p) { proList = ''; return void renderCmp(p); }
     if (!proMore || proMore.n !== p.n) { proMore = { n: p.n, games: [], lcu: null, riot: {}, tft: null, auto: {}, busy: false, note: '' }; proShow = 20; }
+    renderCmp(p);
     renderTags(p);
     const q = proQ, tft = q === 'tft', all = proAll(p).filter((x) => qOk(x, q)), label = PROQ[q][0] ? PROQ[q][0] + ' ' : '';
     for (const b of $('proQueues').children) b.setAttribute('aria-selected', String(b.dataset.q === q));
     if (q !== 'all' && all.length < 20 && !proMore.busy && !proMore.auto[q] && moreFrom(p)) { proMore.auto[q] = true; return void moreGames(p); } // the tab's own games, once
     $('proRanks').hidden = tft && p.src !== 'league'; // TFT ranks come from League's client only
     $('proRanks').replaceChildren(...(tft ? [['TFT', 'RANKED_TFT'], ['Double Up', 'RANKED_TFT_DOUBLE_UP'], ['Hyper Roll', 'RANKED_TFT_TURBO']].map(([n, k]) => tftCard(n, p.rk && p.rk[k]))
-      : QS.map((k) => rankCard(QN[k], p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k) : '', peakNow(p, k)))));
+      : QS.map((k) => rankCard(QN[k], p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k, p) : '', peakNow(p, k), [...rankWarns(p, k, mine), ...(mine ? [['goal', '', goalShort(p, k)]] : [])]))));
     const g = all.slice(0, 20), n = g.length, w = g.filter((x) => (tft ? x.place <= 4 : x.win)).length, [k, d, a] = ['k', 'd', 'a'].map((s) => g.reduce((t, x) => t + (x[s] | 0), 0));
     const rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), lanes = {}, by = new Map(), traits = {};
     for (const x of g) { if (x.lane) { const v = (lanes[x.lane] ||= [0, 0]); v[0]++; v[1] += x.win; } if (x.champ) by.set(x.champ, [...(by.get(x.champ) || []), x]); if (tft && x.traits[0]) traits[x.traits[0][0]] = (traits[x.traits[0][0]] || 0) + 1; }
@@ -6004,6 +6127,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proWl').firstChild.style.width = pct(n ? w / n : 0);
     $('proChamps').replaceChildren(...[...by].sort((x, y) => y[1].length - x[1].length).slice(0, 3)
       .map(([c, l]) => champTile(c, `${l.length} game${l.length === 1 ? '' : 's'} · ${Math.round((100 * l.filter((x) => x.win).length) / l.length)}% won · ${kda(...['k', 'd', 'a'].map((s) => l.reduce((t, x) => t + x[s], 0)))} KDA`, pages)));
+    renderProChamps(p, tft ? [] : all, label, pages);
     if (tft) tftSoon();
     const shown = all.slice(0, proShow), list = `${p.n} ${q} ${ddVersion} ${!!ddTft} ${shown.map((x) => x.id + ',').join('')}`;
     if (!n) $('proGames').replaceChildren(...(proMore.busy ? [] : [Object.assign(document.createElement('li'), { className: 'hint', textContent: (tft && tftWhy(p)) || `No recent ${label}games.` })]));
@@ -6129,11 +6253,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       participants: ps.map((p, k) => ({ participantId: k + 1, teamId: p.teamId, championId: p.championId, stats: p,
         timeline: { lane: p.teamPosition === 'UTILITY' ? 'BOTTOM' : p.teamPosition, role: p.teamPosition === 'UTILITY' ? 'SUPPORT' : 'SOLO' } })) };
   }
-  async function riotMine(force) { // yours from Riot while League's client can't say: when Profile opens, every 3 minutes at most
-    if (!riotOn || riotBusy || !proMine || !PLATS[proMine.plat] || (lcuOn() && lcu) || (!force && performance.now() - riotMineAt < 180000)) return;
+  async function riotMine(force) { // yours from Riot while League's client can't say (it's closed, or on another of your accounts): when Profile opens, every 3 minutes at most
+    const p = shownMine(), lm = liveMine(), other = !!proAcct && !!lm && acctOf(lm.n) !== proAcct;
+    if (!riotOn || riotBusy || !p || !PLATS[p.plat] || (lcuOn() && lcu && !other) || (!force && performance.now() - riotMineAt < 180000)) return;
     riotMineAt = performance.now();
     riotBusy = true;
-    try { const p = await riotProfile(proMine.n, proMine.plat); if (p) saveMine(p); } catch {} finally { riotBusy = false; }
+    try { const r = await riotProfile(p.n, p.plat); if (r) saveMine(r); } catch {} finally { riotBusy = false; }
     if (!profView.hidden) renderProfile();
   }
   // ---- high elo: what Challenger and Grandmaster players do on a champion in a role, from the ranked games our server
@@ -6311,7 +6436,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!p) return void (note.textContent = riotOn ? `No League player is called ${v}.` : `Nobody called ${v} on your server.`);
     note.textContent = '';
     $('proId').value = '';
-    if (setup || (proMine && p.u === proMine.u) || (me0 && p.u === me0.puuid)) { proOther = null; if (!liveMine()) saveMine(p); } else proOther = p;
+    const k = acctOf(p.n), lm = liveMine();
+    if (setup || accounts[k] || (proMine && p.u === proMine.u) || (me0 && p.u === me0.puuid)) { proOther = null; proAcct = lm && acctOf(lm.n) === k ? '' : k; if (proAcct) saveMine(p); } else proOther = p; // one of yours: shown as yours
     renderProfile();
   }
   $('proFind').addEventListener('submit', (e) => { e.preventDefault(); lookUp($('proId').value.trim()); });
@@ -6391,7 +6517,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function tftName(id) { return (ddTft && ddTft[id] && ddTft[id].name) || String(id).replace(/^(TFT\d*|Set\d+)_(Item_|Augment_)?/i, '').replace(/([a-z])([A-Z0-9])/g, '$1 $2'); } // TFT13_Jinx: Jinx
   function tftPic(id) { return (ddTft && ddTft[id] && ddTft[id].img) || ''; }
-  $('proForget').addEventListener('click', () => { proMine = null; proSaved = ''; store.set('lpc-profile', 'null'); renderProfile(); });
+  $('proForget').addEventListener('click', () => { // Not you?: the shown account's profile goes (its LP stays), and the newest other one shows
+    delete accounts[acctOf((shownMine() || {}).n)];
+    store.set('lpc-accounts', JSON.stringify(accounts));
+    proMine = Object.values(accounts).sort((a, b) => b.at - a.at)[0] || null;
+    proSaved = '';
+    proAcct = '';
+    store.set('lpc-profile', JSON.stringify(proMine));
+    renderProfile();
+  });
   $('proRoom').addEventListener('click', () => view('voice'));
 
   // ---- your champions: nemeses and best allies, the collection, a page for each champion, and patch changes
@@ -6568,16 +6702,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const champs = topChamps(8).map(champOf).filter((c) => patchDiff && c.id in patchDiff.lines);
     $('patchHead').textContent = !topChamps(1).length ? 'The champions you play show up here once League is open.' : !patchDiff || !champs.length ? 'Comparing this patch with the last one…'
       : `Patch ${patchName(patchDiff.v)} against ${patchName(patchDiff.from)} for the champions you play most, from Riot’s Data Dragon: base stats, cooldowns, costs and ranges. Riot’s patch notes have the rest.`;
-    $('patchList').replaceChildren(...champs.map((c) => {
-      const box = document.createElement('div'), lines = patchDiff.lines[c.id];
-      box.className = 'patchchamp';
-      box.innerHTML = '<div class="who"><img class="pic0" alt=""><b></b></div>';
-      box.querySelector('img').src = champPic(c.id);
-      box.querySelector('b').textContent = c.name;
-      if (lines.length) { const ul = document.createElement('ul'); ul.append(...lines.map((t) => Object.assign(document.createElement('li'), { textContent: t }))); box.append(ul); }
-      else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'No changes to its base stats, cooldowns, costs or ranges.' }));
-      return box;
-    }));
+    $('patchList').replaceChildren(...champs.map(patchBox));
+  }
+  function patchBox(c) { // a champion's changes, here and in the patch day popup
+    const box = document.createElement('div'), lines = patchDiff.lines[c.id];
+    box.className = 'patchchamp';
+    box.innerHTML = '<div class="who"><img class="pic0" alt=""><b></b></div>';
+    box.querySelector('img').src = champPic(c.id);
+    box.querySelector('b').textContent = c.name;
+    if (lines.length) { const ul = document.createElement('ul'); ul.append(...lines.map((t) => Object.assign(document.createElement('li'), { textContent: t }))); box.append(ul); }
+    else box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'No changes to its base stats, cooldowns, costs or ranges.' }));
+    return box;
   }
 
   // ---- player lookup: any Riot ID in your region, through League's client; and rank watch: friends you follow,
@@ -6624,15 +6759,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderWatch();
   }
   async function watchOne(w) {
-    const r = await lcuGet(`/lol-ranked/v1/ranked-stats/${w.u}`), q = r && r.queueMap && r.queueMap.RANKED_SOLO_5x5;
-    if (!q) return;
-    const v = ladder({ tier: q.tier, div: q.division, lp: q.leaguePoints }), last = w.log[w.log.length - 1];
-    w.rank = rankText(q);
+    const [r, h] = await Promise.all([lcuGet(`/lol-ranked/v1/ranked-stats/${w.u}`), lcuGet(`/lol-match-history/v1/products/lol/${w.u}/matches?begIndex=0&endIndex=4`)]), q = r && r.queueMap && r.queueMap.RANKED_SOLO_5x5;
+    if (h) watchGames(w, gamesOf(h));
+    const v = q && ladder({ tier: q.tier, div: q.division, lp: q.leaguePoints }), last = w.log[w.log.length - 1], st = q && stepOf(q), up = st != null && w.st != null && st > w.st, name = w.n.split('#')[0];
+    if (q) w.rank = rankText(q);
     if (v != null && (!last || last.v !== v)) {
-      if (last) notify(`${w.n.split('#')[0]}: ${v >= last.v ? '+' : '−'}${Math.abs(v - last.v)} LP, now ${rankText({ ...q, wins: 0, losses: 0 })}`, true);
+      if (last && !up) notify(`${name}: ${v >= last.v ? '+' : '−'}${Math.abs(v - last.v)} LP, now ${rankText({ ...q, wins: 0, losses: 0 })}`, true);
       w.log = [...w.log, { at: Date.now(), v }].slice(-60);
     }
+    if (up) { feedAdd(w, { k: 'up', at: Date.now(), t: rkName(q), tier: q.tier }); notify(`${name} ranked up to ${rkName(q)}!`, true); }
+    if (st != null) w.st = st;
     saveWatch();
+  }
+  // the rank watch feed (Latest from them): each followed player's games since they were last looked up (their latest
+  // 3 the first time), their rank-ups and pentakills, with a popup for those two. w.ids: their games already seen;
+  // w.st: their rank as a step (a division each, Master and up a tier each)
+  const stepOf = (q) => { const i = TIERS.indexOf(q.tier); return i < 0 ? null : i * 4 + (i < 7 ? Math.max(0, LADDER_DIV.indexOf(q.division)) : 0); };
+  const feedAdd = (w, e) => { w.feed = [...(Array.isArray(w.feed) ? w.feed : []), e].sort((a, b) => a.at - b.at).slice(-20); };
+  function watchGames(w, games) {
+    const first = !Array.isArray(w.ids), seen = new Set(w.ids || []), name = w.n.split('#')[0];
+    for (const x of games.filter((x) => !seen.has(x.id)).slice(0, first ? 3 : 5).reverse()) {
+      const at = x.at + x.len * 1000; // when it ended
+      feedAdd(w, { k: 'game', at, c: x.champ, win: x.win, kda: `${x.k}/${x.d}/${x.a}`, q: x.queue, mode: x.mode });
+      if (x.penta) { feedAdd(w, { k: 'penta', at, c: x.champ }); if (!first) notify(`${name} got a pentakill as ${champName(x.champ)}!`, true); }
+    }
+    w.ids = [...new Set([...games.map((x) => x.id), ...(w.ids || [])])].slice(0, 30);
   }
   async function watchTick() {
     if (watchBusy || !watchList.length || !lcuOn() || !lcu || performance.now() - watchAt < Math.max(30000, 600000 / watchList.length)) return;
@@ -6656,6 +6807,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       li.querySelector('button').addEventListener('click', () => { watchList = watchList.filter((x) => x !== w); saveWatch(); renderWatch(); });
       return li;
     }));
+    const feed = watchList.flatMap((w) => (Array.isArray(w.feed) ? w.feed : []).map((e) => [w, e])).sort((a, b) => b[1].at - a[1].at).slice(0, 20);
+    $('h-feed').hidden = !feed.length;
+    $('watchFeed').replaceChildren(...feed.map(([w, e]) => {
+      const li = document.createElement('li'), t = document.createElement('span');
+      t.append(Object.assign(document.createElement('b'), { textContent: w.n.split('#')[0] }), ` ${e.k === 'up' ? `ranked up to ${e.t}` : e.k === 'penta' ? `got a pentakill as ${champName(e.c)}`
+        : `${e.win ? 'won' : 'lost'} as ${champName(e.c)}, ${e.kda} · ${QUEUES[e.q] || cap(e.mode)}`}`, Object.assign(document.createElement('span'), { className: 'sub', textContent: whenText(e.at) }));
+      li.append(e.k === 'up' ? emblem(e.tier) : Object.assign(new Image(), { src: champImg(e.c), alt: '', className: 'pic0' }), t);
+      return li;
+    }));
   }
   $('watchForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -6666,6 +6826,277 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('watchId').value = '';
     await addWatch(f.name, f.puuid);
   });
+
+  // ---- Profile and Stats extras: a rank goal, League's warnings on rank cards, match history filters, Compare with
+  // me, everyone's champions, the weekly recap, duo and party picks, the champion pool and the patch day popup
+  // Rank goal: a rank to reach in a queue, for each account (lpc-goals: 'account queue' -> 'GOLD II'), and how far it
+  // is: LP to go, wins at the LP you usually win (your last 30 games in that queue; else a usual 25) and games at this
+  // season's win rate
+  let goals = load('lpc-goals', {});
+  if (!goals || typeof goals !== 'object' || Array.isArray(goals)) goals = {};
+  const GOALS = [...TIERS.slice(0, 7).flatMap((t) => LADDER_DIV.map((d) => `${t} ${d}`)), 'MASTER'];
+  const goalRk = (g) => { const [tier, division] = String(g).split(' '); return { tier, division }; };
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  function lpUsual(a, q) {
+    const l = lpOf(a).filter((e) => e.q === q).slice(-30), avg = (x) => (x.length >= 3 ? x.reduce((t, e) => t + Math.abs(e.delta), 0) / x.length : null);
+    const won = avg(l.filter((e) => e.win && e.delta > 0)), lost = avg(l.filter((e) => !e.win && e.delta < 0)), up = won ?? lost ?? 25;
+    return { up, down: lost ?? up, guess: won == null || lost == null };
+  }
+  function goalOf(p, q) {
+    const g = p && goals[`${acctOf(p.n)} ${q}`], r = p && p.rk && p.rk[q];
+    if (!g || !p.rk) return null;
+    if (!r || !TIERS.includes(r.tier)) return { g, unranked: true };
+    const to = goalRk(g), togo = ladder({ tier: to.tier, div: to.division, lp: 0 }) - ladder({ tier: r.tier, div: r.division, lp: r.leaguePoints });
+    if (togo <= 0) return { g, done: true };
+    const u = lpUsual(acctOf(p.n), q), n = (r.wins | 0) + (r.losses | 0), wr = n >= 10 ? r.wins / n : null, net = wr == null ? 0 : wr * u.up - (1 - wr) * u.down;
+    return { g, togo, wins: Math.ceil(togo / u.up), games: net > 0 ? Math.ceil(togo / net) : null, wr, ...u };
+  }
+  function goalShort(p, q) { // on the rank card
+    const o = goalOf(p, q), name = o && rkName(goalRk(o.g));
+    return !o ? '' : o.unranked ? `Goal ${name}: after your placements` : o.done ? `Goal ${name} reached` : `Goal ${name}: ${o.togo} LP, about ${plural(o.wins, 'win')}`;
+  }
+  function renderGoal(p, q) { // in Stats' Ranked, for the account and queue shown
+    const sel = $('lpGoal'), o = goalOf(p, q), name = o && rkName(goalRk(o.g));
+    if (!sel.options.length) sel.append(new Option('No goal', ''), ...GOALS.map((g) => new Option(rkName(goalRk(g)), g)));
+    sel.disabled = !p;
+    sel.value = (p && goals[`${acctOf(p.n)} ${q}`]) || '';
+    $('lpGoalNote').hidden = !o;
+    if (o) $('lpGoalNote').textContent = o.unranked ? `How far ${name} is shows here once you have a ${QN[q]} rank.` : o.done ? `You’re ${name} or higher: pick a higher goal.`
+      : `${name} is ${o.togo} LP away: about ${plural(o.wins, 'win')} at ${o.guess ? 'a usual' : 'your usual'} +${Math.round(o.up)} LP a win${o.games ? `, or about ${plural(o.games, 'game')} at your ${pct(o.wr)} win rate this season`
+        : o.wr != null ? `, but at your ${pct(o.wr)} win rate this season you lose about as much LP as you win, or more` : ''}.${o.guess ? ' That’s a usual LP gain: yours shows once you’ve played a few ranked games with the app open.' : ''}`;
+  }
+  $('lpGoal').addEventListener('change', (e) => {
+    const p = shownMine(), k = p && `${acctOf(p.n)} ${$('lpQueue').value}`;
+    if (!k) return;
+    if (e.target.value) goals[k] = e.target.value; else delete goals[k];
+    store.set('lpc-goals', JSON.stringify(goals));
+    renderRanked();
+  });
+  // League's client's warnings on a rank card (Riot's API doesn't have them): placement games left, days until decay
+  // (Diamond and up; each ranked game banks more days), and a demotion one loss away. LP lost below 0 carries into the
+  // division below; a new tier has some protection, so it says 'can'
+  function rankWarns(p, q, mine) {
+    const r = p && p.rk && p.rk[q], out = [];
+    if (!r) return out;
+    const i = TIERS.indexOf(r.tier), w = r.warnings || {}, left = r.provisionalGamesRemaining | 0, of = r.provisionalGameThreshold | 0;
+    if (left > 0) out.push(['warn', '', `Placements: ${left}${of > left ? ` of ${of}` : ''} game${left === 1 ? '' : 's'} left`]);
+    if (i < 0) return out;
+    const days = i >= 6 && Number.isFinite(w.daysUntilDecay) && w.daysUntilDecay >= 0 ? w.daysUntilDecay - Math.floor((Date.now() - (p.at || Date.now())) / 864e5) : null; // days kept count down while League is closed
+    if (days != null) out.push(['warn', w.displayDecayWarning || days <= 3 ? 'bad' : '', days > 0 ? `Decays in ${plural(days, 'day')} without a ranked game` : 'Decaying: a ranked game stops it']);
+    const d = LADDER_DIV.indexOf(r.division), below = i === 7 ? 'Diamond I' : i > 7 ? '' : d > 0 ? `${cap(r.tier)} ${LADDER_DIV[d - 1]}` : i ? `${cap(TIERS[i - 1])} I` : ''; // Iron IV, Grandmaster and Challenger: none
+    const lp = r.leaguePoints | 0;
+    if (below && mine && lp < lpUsual(acctOf(p.n), q).down) out.push(['warn', 'bad', `${lp} LP: one loss can drop you to ${below}`]);
+    else if (below && w.demotionWarning > 0) out.push(['warn', 'bad', `League warns you could drop to ${below}`]);
+    return out;
+  }
+  // Stats' match history filters: champion, role, result, a friend on your team, when, and a search by champion or by
+  // anyone's name in the game (from your games in detail). Filtered, every match of your last 100 games shows.
+  const MF = ['mfFind', 'mfChamp', 'mfRole', 'mfRes', 'mfWith', 'mfWhen'];
+  const filtering = () => MF.some((id) => $(id).value.trim());
+  function matchList() {
+    const g = myHist || [];
+    if (!filtering()) return g.slice(0, 20);
+    const [find, c, role, res, u, when] = MF.map((id) => $(id).value.trim()), s = find.toLowerCase(), since = !when ? 0 : +when ? Date.now() - when * 864e5 : new Date().setHours(0, 0, 0, 0);
+    const has = (t) => String(t || '').toLowerCase().includes(s);
+    return g.filter((x) => {
+      const d = deep[x.id], m = d && d.ps && d.ps[d.me];
+      return (!c || x.champ === +c) && (!role || x.lane === role) && (!res || x.win === (res === 'w')) && x.at >= since
+        && (!u || (!!m && d.ps.some((p) => p !== m && p.u === u && p.t === m.t))) && (!s || has(champName(x.champ)) || (!!d && d.ps.some((p) => has(p.n) || has(champName(p.c)))));
+    });
+  }
+  function fillSel(sel, list, any) { // a filter's choices ([value, text]), keeping the one picked
+    const key = JSON.stringify(list), v = sel.value;
+    if (sel.dataset.key === key) return;
+    sel.dataset.key = key;
+    sel.replaceChildren(new Option(any, ''), ...list.map(([k, t]) => new Option(t, k)));
+    sel.value = list.some(([k]) => String(k) === v) ? v : '';
+  }
+  $('matchFilter').addEventListener('input', renderMatches);
+  $('matchFilter').addEventListener('submit', (e) => e.preventDefault());
+  // Compare with me: a player you looked up and you, side by side: ranks, and each one's last 20 games (not TFT); and
+  // your games together, from your profile's games and your games in detail
+  let proCmp = false;
+  function statsOf(list) {
+    const g = list.filter((x) => !x.tft).slice(0, 20), rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), sum = (l, f) => l.reduce((t, x) => t + f(x), 0), by = {}, lanes = {};
+    for (const x of g) { by[x.champ] = (by[x.champ] || 0) + 1; if (x.lane) lanes[x.lane] = (lanes[x.lane] || 0) + 1; }
+    return { n: g.length, w: sum(g, (x) => +x.win), k: sum(g, (x) => x.k), d: sum(g, (x) => x.d), a: sum(g, (x) => x.a), cs: rift.length ? sum(rift, (x) => x.cs / (x.len / 60)) / rift.length : null,
+      vis: rift.length ? sum(rift, (x) => x.vision) / rift.length : null, role: Object.keys(lanes).sort((a, b) => lanes[b] - lanes[a])[0] || '', top: Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 3).map(Number) };
+  }
+  function together(me, them) { // { w: [games, your wins] on the same team, v: against each other }
+    const out = { w: [0, 0], v: [0, 0] }, seen = new Set(), theirs = new Map(proAll(them).map((x) => [x.id, x])), add = (k, win) => { out[k][0]++; out[k][1] += +win; };
+    for (const x of me.games || []) { const y = theirs.get(x.id); if (y && !x.tft) { seen.add(x.id); add(y.team === x.team ? 'w' : 'v', x.win); } }
+    for (const [id, g] of Object.entries(deep)) {
+      const m = g.ps && g.ps[g.me], o = m && !seen.has(+id) && (m.u === me.u || acctOf(m.n) === acctOf(me.n)) ? g.ps.find((p) => p !== m && ((them.u && p.u === them.u) || acctOf(p.n) === acctOf(them.n))) : null; // Riot's puuids aren't League's: then the name
+      if (o) add(o.t === m.t ? 'w' : 'v', m.w);
+    }
+    return out;
+  }
+  function renderCmp(p) {
+    const me = proOther && shownMine(), box = $('proCmpBox');
+    $('proCmp').hidden = !me;
+    $('proCmp').setAttribute('aria-expanded', String(!!me && proCmp));
+    $('proCmp').textContent = proCmp ? 'Hide the comparison' : 'Compare with me';
+    box.hidden = !me || !proCmp;
+    if (box.hidden) return;
+    const a = statsOf(me.games || []), b = statsOf(proAll(p)), t = together(me, p), name = (x) => x.n.split('#')[0], rk = (x, q) => { const r = x.rk && x.rk[q]; return r && TIERS.includes(r.tier) ? r : null; };
+    const both = (f) => [a, b].map((s) => (s.n ? f(s) : '—')), val = (f) => [a, b].map((s) => (s.n ? f(s) : null));
+    const rows = [...QS.map((q) => [QN[q], ...[me, p].map((x) => { const r = rk(x, q); return r ? `${rkName(r)} · ${r.leaguePoints | 0} LP` : x.rk ? 'Unranked' : '…'; }), ...[me, p].map((x) => rkVal(rk(x, q)))]),
+      ['Plays most', ...both((s) => s.top.map(champName).join(', '))], ['Record', ...both((s) => `${s.w}W ${s.n - s.w}L · ${pct(s.w / s.n)}`), ...val((s) => s.w / s.n)],
+      ['KDA', ...both((s) => `${(s.k / s.n).toFixed(1)} / ${(s.d / s.n).toFixed(1)} / ${(s.a / s.n).toFixed(1)} · ${kda(s.k, s.d, s.a)}`), ...val((s) => (s.k + s.a) / Math.max(1, s.d))],
+      ['CS a minute', ...[a, b].map((s) => (s.cs == null ? '—' : s.cs.toFixed(1))), a.cs, b.cs], ['Vision a game', ...[a, b].map((s) => (s.vis == null ? '—' : s.vis.toFixed(1))), a.vis, b.vis],
+      ['Main role', ...[a, b].map((s) => POS[s.role] || '—')]];
+    $('cmpA').textContent = `${name(me)} (you)`;
+    $('cmpB').textContent = name(p);
+    const txt = [t.w[0] ? `on the same team ${t.w[1]}W ${t.w[0] - t.w[1]}L` : '', t.v[0] ? `against each other you won ${t.v[1]} of ${t.v[0]}` : ''].filter(Boolean).join('; ');
+    $('cmpNote').textContent = `Your last ${plural(a.n, 'game')} and their last ${b.n}, not TFT. ${txt ? `Together: ${txt}.` : 'No games together in your recent games.'}`;
+    const key = JSON.stringify(rows);
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    $('cmpRows').replaceChildren(...rows.map(([label, x, y, vx, vy]) => {
+      const tr = document.createElement('tr');
+      for (const v of [label, x, y]) tr.append(Object.assign(document.createElement('td'), { textContent: v }));
+      if (vx != null && vy != null && vx !== vy) tr.children[vx > vy ? 1 : 2].dataset.best = '';
+      return tr;
+    }));
+  }
+  $('proCmp').addEventListener('click', () => { proCmp = !proCmp; renderCmp(shownPro()); });
+  $('proMineToo').addEventListener('click', () => { const p = proOther; if (!p) return; proOther = null; saveMine(p); pickAcct(acctOf(p.n)); }); // one of yours, like a second account
+  // Profile's Champions: every champion in the shown player's loaded games of this tab, growing with Show more games
+  function renderProChamps(p, all, label, open) {
+    const box = $('proChampBox'), by = new Map();
+    for (const x of all) {
+      const s = by.get(x.champ) || { n: 0, w: 0, k: 0, d: 0, a: 0, cs: 0, min: 0 };
+      s.n++; s.w += +x.win; s.k += x.k; s.d += x.d; s.a += x.a;
+      if (x.mode === 'CLASSIC' && x.len > 0) { s.cs += x.cs; s.min += x.len / 60; }
+      by.set(x.champ, s);
+    }
+    const rows = [...by].filter(([c]) => c).sort((x, y) => y[1].n - x[1].n || y[1].w - x[1].w), key = JSON.stringify([p.n, ddVersion, open, rows]);
+    box.hidden = !rows.length;
+    $('proChampNote').textContent = `From ${plural(all.length, label + 'game')}${moreFrom(p) ? ': Show more games adds older ones' : ''}.`;
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    $('proChampRows').replaceChildren(...rows.map(([c, s]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${open ? '<button type="button" class="who champlink">' : '<div class="who">'}<img class="pic0" alt=""><b></b>${open ? '</button>' : '</div>'}</td><td></td><td></td><td></td><td></td>`;
+      tr.querySelector('img').src = champImg(c);
+      tr.querySelector('b').textContent = champName(c);
+      if (open) tr.querySelector('button').addEventListener('click', () => openChamp(c));
+      [s.n, pct(s.w / s.n), kda(s.k, s.d, s.a), s.min ? (s.cs / s.min).toFixed(1) : '—'].forEach((v, i) => { tr.children[i + 1].textContent = v; });
+      return tr;
+    }));
+  }
+  // Weekly recap: from Monday, a card on Profile about last week (Monday to Sunday) until you close it: games, LP in
+  // each queue, the best champion and the stat that improved most against the 20 games before (lpc-week: each
+  // account's week closed last)
+  const GAINS = [['CS a minute', (x) => x.cs / (x.len / 60), 1], ['Vision score', (x) => x.vision, 1], ['Deaths', (x) => x.d, -1], ['KDA', (x) => (x.k + x.a) / Math.max(1, x.d), 1], ['Damage a minute', (x) => x.dmg / (x.len / 60), 1]];
+  let weekSeen = load('lpc-week', {});
+  if (!weekSeen || typeof weekSeen !== 'object' || Array.isArray(weekSeen)) weekSeen = {};
+  function weekOf(p) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // this Monday
+    const end = d.getTime(), start = d.setDate(d.getDate() - 7), all = (p.games || []).filter((x) => !x.tft), g = all.filter((x) => x.at >= start && x.at < end);
+    if (!g.length) return null;
+    const rift = (l) => l.filter((x) => x.mode === 'CLASSIC' && x.len > 0), now = rift(g), before = rift(all.filter((x) => x.at < start)).slice(0, 20), avg = (l, f) => l.reduce((t, x) => t + f(x), 0) / l.length, by = new Map();
+    for (const x of g) { const s = by.get(x.champ) || { c: x.champ, n: 0, w: 0, k: 0, d: 0, a: 0 }; s.n++; s.w += +x.win; s.k += x.k; s.d += x.d; s.a += x.a; by.set(x.champ, s); }
+    const score = (s) => (s.k + s.a) / Math.max(1, s.d), best = [...by.values()].sort((x, y) => y.w - x.w || y.w / y.n - x.w / x.n || score(y) - score(x))[0];
+    const up = now.length < 2 || before.length < 5 ? null : GAINS.map(([n, f, k]) => { const a = avg(now, f), b = avg(before, f); return { n, a, b, gain: b ? (k * (a - b)) / b : 0 }; }).filter((x) => x.gain > 0.05).sort((x, y) => y.gain - x.gain)[0];
+    const lp = QS.map((q) => [q, lpOf(acctOf(p.n)).filter((e) => e.q === q && e.at >= start && e.at < end)]).filter(([, l]) => l.length);
+    return { start, end, n: g.length, w: g.filter((x) => x.win).length, lp, best, up };
+  }
+  function renderWeek(p) {
+    const w = p && weekOf(p), tile = (label, v) => { const s = document.createElement('span'); s.append(Object.assign(document.createElement('b'), { textContent: label }), v); return s; };
+    $('weekBox').hidden = !w || weekSeen[acctOf(p.n)] >= w.start;
+    if ($('weekBox').hidden) return;
+    const f = (v) => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1)), b = w.best;
+    $('h-week').textContent = `Your week: ${dayText(w.start)} to ${dayText(w.end - 1)}`;
+    $('weekTiles').replaceChildren(...[tile('Games', `${w.n}: ${w.w}W ${w.n - w.w}L`), ...w.lp.map(([q, l]) => { const d = l.reduce((t, e) => t + e.delta, 0); return tile(`${QN[q]} LP`, `${d >= 0 ? '+' : '−'}${Math.abs(d)} in ${plural(l.length, 'game')}`); }),
+      tile('Best champion', `${champName(b.c)}: ${b.w}W ${b.n - b.w}L`), w.up && tile('Most improved', `${w.up.n}: ${f(w.up.a)}, from ${f(w.up.b)}`)].filter(Boolean));
+  }
+  $('weekOk').addEventListener('click', () => {
+    const p = shownMine(), w = p && weekOf(p);
+    if (w) { weekSeen[acctOf(p.n)] = w.start; store.set('lpc-week', JSON.stringify(weekSeen)); }
+    $('weekBox').hidden = true;
+  });
+  // Duo and party picks: each teammate in 3 or more of your Summoner's Rift games in detail, your record together and
+  // the champion pairs and roles that won most for you two (2 games or more); then the groups of them you played in
+  function duoPicks() {
+    const games = myGames().filter((g) => g.mode === 'CLASSIC'), mates = new Map(), team = (g) => { const m = g.ps[g.me]; return [m, g.ps.filter((p) => p !== m && p.t === m.t && p.u)]; };
+    for (const g of games) { const [m, ps] = team(g); for (const p of ps) { const f = mates.get(p.u) || { u: p.u, name: p.n, l: [] }; f.l.push([m, p]); f.name = p.n || f.name; mates.set(p.u, f); } }
+    const best = (l) => [...l.reduce((mp, [k, w]) => { const v = mp.get(k) || [0, 0]; v[0]++; v[1] += +w; return mp.set(k, v); }, new Map())].filter(([, [n]]) => n >= 2).sort((a, b) => adj(b[1][1], b[1][0], 4) - adj(a[1][1], a[1][0], 4));
+    const pals = [...mates.values()].filter((f) => f.l.length >= 3 && f.name).sort((a, b) => b.l.length - a.l.length).slice(0, 6), groups = new Map();
+    for (const g of games) {
+      const [m, ps] = team(g), with_ = pals.filter((f) => ps.some((p) => p.u === f.u)); // in the order of most games
+      if (with_.length < 2) continue;
+      const k = with_.map((f) => f.u).join(' '), x = groups.get(k) || { names: with_.map((f) => f.name), l: [] };
+      x.l.push(m);
+      groups.set(k, x);
+    }
+    return { pals: pals.map((f) => ({ ...f, w: f.l.filter(([m]) => m.w).length, champs: best(f.l.map(([m, p]) => [`${m.c} ${p.c}`, m.w])).slice(0, 3), roles: best(f.l.filter(([m, p]) => m.l && p.l).map(([m, p]) => [`${m.l} ${p.l}`, m.w])).slice(0, 2) })),
+      groups: [...groups.values()].filter((x) => x.l.length >= 2).sort((a, b) => b.l.length - a.l.length).slice(0, 4).map((x) => ({ ...x, w: x.l.filter((m) => m.w).length, mine: best(x.l.map((m) => [m.c, m.w]))[0] })) };
+  }
+  function renderDuos() {
+    const d = duoPicks(), rec = ([n, w]) => `${w}W ${n - w}L`, short = (n) => String(n).split('#')[0], pos = (r) => POS[r].toLowerCase();
+    const box = (h, lines) => { const div = document.createElement('div'); div.append(Object.assign(document.createElement('h3'), { className: 'ph', textContent: h }), ...lines.map((t) => Object.assign(document.createElement('p'), { className: 'hint', textContent: t }))); return div; };
+    $('duoNote').textContent = Object.keys(deep).length < 10 ? 'Reading your games: this fills in while League is open.' : d.pals.length ? '' : 'Nobody was on your team in three of your games in detail yet.';
+    $('duos').replaceChildren(...d.pals.map((f) => box(`With ${short(f.name)}: ${f.w}W ${f.l.length - f.w}L`, [
+      ...f.champs.map(([k, v]) => { const [a, b] = k.split(' ').map(Number); return `${champName(a)} with their ${champName(b)}: ${rec(v)}`; }),
+      ...f.roles.map(([k, v]) => { const [a, b] = k.split(' '); return `You ${pos(a)}, them ${pos(b)}: ${rec(v)}`; }),
+    ])), ...d.groups.map((x) => box(`${x.names.map(short).join(', ')} and you: ${x.w}W ${x.l.length - x.w}L`, x.mine ? [`You on ${champName(x.mine[0])}: ${rec(x.mine[1])}`] : [])));
+  }
+  // Champion pool: each champion in your last 100 games on Summoner's Rift, in the role you play it most: keep it (you
+  // win with it: 3 games or more, pulled toward 50%), practice it (S or A tier there in high elo, but you don't win
+  // with it yet) or drop it (you lose more than you win, and it isn't S or A tier either)
+  function poolOf() {
+    const by = new Map(), out = { keep: [], practice: [], drop: [] };
+    for (const x of myHist || []) if (x.mode === 'CLASSIC' && champOf(x.champ)) by.set(x.champ, [...(by.get(x.champ) || []), x]);
+    for (const [c, l] of by) {
+      const lanes = {};
+      for (const x of l) if (x.lane) lanes[x.lane] = (lanes[x.lane] || 0) + 1;
+      const role = Object.keys(lanes).sort((a, b) => lanes[b] - lanes[a])[0] || usualRole(), [hn, hw] = recIn(c, role), tier = hn >= 10 ? TIERS_AT.find(([, min]) => adj(hw, hn) >= min)[0] : '';
+      const n = l.length, w = l.filter((x) => x.win).length, s = { c, n, w, role, tier, me: adj(w, n, 6) };
+      if (n >= 3 && s.me >= 0.5) out.keep.push(s);
+      else if (tier === 'S' || tier === 'A') out.practice.push(s);
+      else if (n >= 3) out.drop.push(s);
+    }
+    out.keep.sort((a, b) => b.me - a.me);
+    out.practice.sort((a, b) => a.tier.localeCompare(b.tier) || b.n - a.n);
+    out.drop.sort((a, b) => a.me - b.me);
+    return out;
+  }
+  function renderPool() {
+    const had = !!tiers(), p = poolOf(), none = (t) => Object.assign(document.createElement('p'), { className: 'hint', textContent: t });
+    riotCheck().then(() => { if (!had && tiers() && !statsView.hidden && statsTab === 'champs') renderPool(); });
+    const sub = (s) => `${plural(s.n, 'game')}, ${pct(s.w / s.n)} won · ${POS[s.role]}${s.tier ? `, ${s.tier} tier in high elo` : ''}`;
+    $('poolNote').textContent = !myHist ? 'Your champion pool shows up here once League is open.' : had ? '' : 'Practice needs the high elo tiers from our server, which isn’t answering right now.';
+    for (const [id, l, empty] of [['poolKeep', p.keep, 'No champion you win with in three games or more yet.'], ['poolPractice', p.practice, 'Nothing to practice.'], ['poolDrop', p.drop, 'Nothing to drop.']])
+      $(id).replaceChildren(...(l.length ? l.slice(0, 6).map((s) => champTile(s.c, sub(s))) : myHist ? [none(empty)] : []));
+  }
+  // Patch day popup: on a new patch (Data Dragon's newest version), once, what changed for the champions you play most,
+  // as Patch changes in Stats has it; not in champ select or a game (then later), and not for the first patch the app
+  // sees (lpc-patch-seen)
+  let patchPopping = false;
+  async function patchPop() {
+    if (patchPopping || !lcuOn() || !lcu || /^(ReadyCheck|ChampSelect|GameStart|InProgress|Reconnect)$/.test(lcu)) return;
+    patchPopping = true;
+    try {
+      await ddragon().catch(() => {}); // without Data Dragon: next time
+      const v = patchName(ddVersions[0]), seen = store.get('lpc-patch-seen'), champs = topChamps(8).map(champOf);
+      if (ddVersions.length < 2 || seen === v || !champs.length) return;
+      if (!seen) return void store.set('lpc-patch-seen', v);
+      await patchChanges();
+      if (!patchDiff || patchDiff.v !== ddVersions[0] || champs.some((c) => !(c.id in patchDiff.lines)) || document.querySelector('dialog[open]')) return; // not all compared yet, or another window is open: next time
+      store.set('lpc-patch-seen', v);
+      const changed = champs.filter((c) => patchDiff.lines[c.id].length);
+      if (!changed.length) return void notify(`Patch ${v} is out: no changes to your champions’ base stats, cooldowns, costs or ranges.`, true);
+      $('patchDlgTitle').textContent = `Patch ${v} is out`;
+      $('patchDlgNote').textContent = `What changed for the champions you play most since patch ${patchName(patchDiff.from)}, from Riot’s Data Dragon: base stats, cooldowns, costs and ranges. Riot’s patch notes have the rest.`;
+      $('patchDlgList').replaceChildren(...changed.map(patchBox));
+      $('patchDlg').showModal();
+    } finally { patchPopping = false; }
+  }
+  $('patchDlgClose').addEventListener('click', () => $('patchDlg').close());
+  $('patchDlgGo').addEventListener('click', () => { $('patchDlg').close(); statsTab = 'champs'; store.set('lpc-stats-tab', statsTab); view('stats'); $('h-patch').scrollIntoView(); });
 
   // ---- friends in the room (desktop app with League): their rank and today's LP, your record together, and Watch to
   // spectate their game. Each app shares its own League name and rank in its 'me' message (lol), unless that's off in
@@ -6678,7 +7109,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function lolShare() {
     if (!opts.shareLol || !me0 || !me0.puuid) return undefined;
-    const q = rankNow && rankNow.RANKED_SOLO_5x5, today = lpLog.filter((e) => e.q === 'RANKED_SOLO_5x5' && new Date(e.at).toDateString() === new Date().toDateString());
+    const q = rankNow && rankNow.RANKED_SOLO_5x5, today = lpOf(myAcct()).filter((e) => e.q === 'RANKED_SOLO_5x5' && new Date(e.at).toDateString() === new Date().toDateString());
     return { id: me0.puuid, n: me0.gameName ? `${me0.gameName}#${me0.tagLine || ''}` : '', rk: q && TIERS.includes(q.tier) ? [q.tier, q.division || '', q.leaguePoints | 0] : null, d: today.length ? today.reduce((n, e) => n + e.delta, 0) : null };
   }
   function lolOf(v) {
@@ -7329,7 +7760,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const csvCell = (v) => (/[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
   $('exportBtn').addEventListener('click', () => {
     const rows = [['Date', 'Champion', 'Queue', 'Result', 'Kills', 'Deaths', 'Assists', 'CS', 'Minutes', 'Game ID'],
-      ...(myHist || []).map((x) => [new Date(x.at).toLocaleString('sv').slice(0, 16), champName(x.champ), QUEUES[x.queue] || cap(x.mode), x.win ? 'Win' : 'Loss', x.k, x.d, x.a, x.cs, Math.round(x.len / 60), x.id])];
+      ...(filtering() ? matchList() : myHist || []).map((x) => [new Date(x.at).toLocaleString('sv').slice(0, 16), champName(x.champ), QUEUES[x.queue] || cap(x.mode), x.win ? 'Win' : 'Loss', x.k, x.d, x.a, x.cs, Math.round(x.len / 60), x.id])];
     download(`Match history ${today()}.csv`, '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n'), 'text/csv'); // the BOM tells Excel it's UTF-8
   });
   // ---- performance meter (desktop app 1.7+): how much of the PC the app uses, and whether what costs the most is on
@@ -7341,6 +7772,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [19, 'October 20: Profile and Stats', [
+      'Pick a rank goal in Stats > You, under Ranked: it says how many wins it takes at the LP you usually win. Your rank cards on Profile show it too.',
+      'Rank cards also show what League’s client warns about: placement games left, days until decay from Diamond up, and when one loss can drop you a division.',
+      'More than one League account? Each keeps its own profile, LP and games. Account, on Profile and in Ranked, switches between them.',
+      'Filter your match history in Stats > Games by champion, role, result, friend or date, or search for a champion or a player.',
+      'On anyone’s profile, Compare with me puts the two of you side by side, with your record together. Every profile has a Champions table that grows as you load older games.',
+      'From Monday, Profile has a card about your last week: your games, LP, best champion and the stat you improved most.',
+      'Stats > Champions has your champion pool, to keep, practice or drop, and your duo and party picks: the champions and roles that win most with each friend.',
+      'The players you follow in Stats > Players get a feed of their latest games, rank-ups and pentakills.',
+      'On a new patch, a popup lists what changed for the champions you play.',
+    ]],
     [18, 'October 20: clips by voice', [
       'Say “Premade, clip that” in a game and Premade saves a clip, or record a phrase of your own. Turn it on in Clip settings, under your clips on the Clips page, where all the clip settings are now.',
       'The speech recognition runs on your computer, so nothing you say is sent anywhere. The first time, it downloads its English speech model, about 40 MB.',
@@ -7573,7 +8015,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     lcu: () => ({ phase: lcu, cs: !!cs, rc, curGame, runesNote, live: livePlayers.length, scouted: [...scoutData.keys()], me0, hist: myHist && myHist.length, remote: !!remote, phones: remoteConns.size }),
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
-    deep: () => deep, fame: () => fame, coll: () => coll, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
+    deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now
     crawlAll: async () => { for (let i = 0; i < 400; i++) { if (crawling) { await sleep(20); continue; } crawlAt = -Infinity; if (!(await crawl())) break; } return Object.keys(deep).length; },
