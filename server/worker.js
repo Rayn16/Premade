@@ -3,10 +3,13 @@
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
 // Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only those with its
 // password. /stats counts rooms and players each day for the voice page (Settings > Our server), and /hello and /who
-// are who has Premade (both in the Stats object). /push/... is the phone remote's notifications (push.js). /riot/... is
-// Riot data (the Riot object, at the end).
+// are who has Premade (both in the Stats object). /push/... is the phone remote's notifications (push.js), /squad/...
+// friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
+// own. /riot/... is Riot data (the Riot object, at the end).
 import { DurableObject } from 'cloudflare:workers';
-import { push } from './push.js';
+import { push, tell as tellPhones } from './push.js';
+import { squad } from './squad.js';
+import { events } from './esports.js';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
@@ -45,6 +48,9 @@ export default {
     }
     const code = /^\/push\/([a-z0-9]{12})(\/ring)?$/.exec(url.pathname); // the phone remote's notifications (push.js)
     if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
+    const sq = /^\/squad\/([a-z0-9]{12})(\/(call|answer|ping|pick))?$/.exec(url.pathname); // squads (squad.js)
+    if (sq) return env.ROOMS.get(env.ROOMS.idFromName(`squad:${sq[1]}`)).fetch(req);
+    if (url.pathname === '/esports') return env.ROOMS.get(env.ROOMS.idFromName('esports')).fetch(req);
     if (url.pathname.startsWith('/riot/')) return riot(env).fetch(req);
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });
     return new Response('Not found', { status: 404 });
@@ -74,6 +80,8 @@ export class Room extends DurableObject {
   async fetch(req) {
     const url = new URL(req.url), id = url.searchParams.get('id'), token = url.searchParams.get('token');
     if (url.pathname.startsWith('/push/')) return push(req, this.ctx.storage, this.env);
+    if (url.pathname.startsWith('/squad/')) return squad(req, this.ctx.storage, this.env, this);
+    if (url.pathname === '/esports') return Response.json({ ev: await this.esports() }, { headers: CORS });
     const [client, server] = Object.values(new WebSocketPair());
     const old = this.open(id), [any] = this.open(), lock = (any && any.deserializeAttachment().lock) || '';
     this.ctx.acceptWebSocket(server, [id]);
@@ -117,6 +125,8 @@ export class Room extends DurableObject {
   webSocketClose(ws, code) {
     try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
   }
+  tell(msg) { return tellPhones(this.ctx.storage, msg); } // a squad's call or ping, on this remote code's phones (squad.js)
+  esports() { return events(this, this.env); } // the esports object's matches, for the pick'em (squad.js)
 }
 
 // Rooms and players each day, kept 60 days. A player is a hash of their internet address and that day's random salt,
