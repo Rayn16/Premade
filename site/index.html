@@ -970,6 +970,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <h2 class="ph">In a game</h2>
             <label class="check"><input id="optAutoRoom" type="checkbox"> Join my game's room by itself <button class="tip" type="button" popovertarget="t-auto" aria-label="About joining your game's room">?</button></label>
             <label class="check"><input id="optHurt" type="checkbox"> Shaky, rough voice when my champion is low on health</label>
+            <label class="check"><input id="optLendScreen" type="checkbox"> Let teammates in my room watch my screen while they’re dead</label>
           </section>
         </div>
       </details>
@@ -1409,6 +1410,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
             <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
             <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"> TFT item recipes in TFT games</label>
+            <label class="check lcu-only"><input id="optDeadTips" type="checkbox"> Tips for my lane while I’m dead</label>
+            <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"> What to buy next, while I’m dead or in my base</label>
+            <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"> My team’s chance to win</label>
+            <label class="check lcu-only"><input id="optWatchMates" type="checkbox"> A teammate’s screen while I’m dead, if they let me</label>
             <label class="check"><input id="optOverlayToasts" type="checkbox"> Popups</label>
           </section>
           <section class="panel" aria-labelledby="h-ovcalls">
@@ -1701,6 +1706,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
+    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
@@ -2166,7 +2172,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
   const meMsg = () => ({
-    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(),
+    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share,
     ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
     ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }),
@@ -2191,6 +2197,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
+    if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(quiz|quizA|quizR|quizEnd|draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
@@ -2224,6 +2231,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.st = Object.hasOwn(STATUS, m.st) ? m.st : '';
       p.min = Number.isFinite(m.min) ? Math.max(0, Math.min(300, Math.floor(m.min))) : 0;
       p.lol = lolOf(m.lol);
+      p.lend = m.lend === true;
       takeMode(m.rm, p.slot);
       takeSwap(m.sw, p.slot);
       if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeMvp(m.mv, p.slot); takeFs(m.fs); }
@@ -3063,6 +3071,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     peer.on('connection', adopt);
     peer.on('call', (call) => {
       if (!inRoom(call.peer)) return call.close();
+      if (call.metadata && call.metadata.screen) return camCall(call); // a teammate's screen, not their voice
       if (peers.has(call.peer)) return answer(call);
       const pd = pending.get(call.peer);
       if (!pd) return call.close(); // someone who hasn't said hi
@@ -3701,18 +3710,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const now = performance.now(), on = (o) => overlayEdit || (!overlayHide && !!o), voice = !!peer && !!(league || fresh(me));
     const talk = on(opts.overlay && voice), meOn = on(opts.overlayMe && voice);
     overlayOn = on(opts.overlayChat && voice); // room chat shows there, so it needs no popup
-    const game = on(opts.overlayGame && league) ? gameLine() : '', cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
-    const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, board = boardNow();
-    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!board;
+    const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
+    const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
+    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
-    const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow();
-    // the whole screen also for the other team off your minimap, the card after a game and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || (visible && Object.keys(opts.overlayParts).length > 0));
+    const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips();
+    const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
+    // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
+    // teammate's screen while you're dead, and parts with places of their own
+    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || (visible && Object.keys(opts.overlayParts).length > 0));
     const s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
-      parts: boardOk() ? ovSpots() : null, missing, after,
+      parts: boardOk() ? ovSpots() : null, missing, after, tips, buy, screen,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -3909,25 +3920,170 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return F.list.filter((f) => now - f.seen > 2000).map((f) => [champName(f.id), champImg(f.id),
       f.dead ? 'dead' : f.seen > 0 ? mmss((now - f.seen) / 1000) : '', f.dead ? `back in ${mmss(Math.max(0, f.dead - now) / 1000)}` : f.seen > 0 ? f.where : 'not seen yet']);
   }
-  // the minimap read for the callouts: the app shares the screen Settings picks by itself in a Summoner's Rift game, and
-  // stops once the game ends if it started it; it tries again 30 s after a share that didn't start
+  // the minimap read for the callouts: the app shares the screen Settings picks by itself in a Summoner's Rift game (in
+  // any game in a room when you let teammates watch your screen), and stops once the game ends if it started it; it
+  // tries again 30 s after a share that didn't start
   let autoShareAt = -Infinity;
   function autoShare() {
     if (share && share.auto && !league) stopShare();
-    if (!client || share || !foesOn() || performance.now() - autoShareAt < 30000) return;
+    if (!client || share || !(foesOn() || (opts.lendScreen && !!league && !!peer)) || performance.now() - autoShareAt < 30000) return;
     autoShareAt = performance.now();
     startShare().then(() => { if (share) share.auto = true; });
   }
   $('optJgCall').checked = !!opts.jgCall;
   $('optJgCall').addEventListener('change', (e) => { opts.jgCall = e.target.checked; saveOpts(); ovDraw(); });
+  // ---- in-game helpers on the overlay, from Rayan's list of ideas without Riot's rules (Rayan's Riot contact said
+  // yes): the tips for your lane while you're dead, what to buy next, your team's chance to win and a teammate's screen
+  // while you're dead. Each can be turned off on the Overlay page.
+  // Your lane's tips (tipsFor) each time you die, until you're back, on Summoner's Rift once League says your lane;
+  // without the runes and spells players take, which are no use mid-game.
+  function deadTips() {
+    if (!opts.deadTips || !boardOk() || !league || !mine.dead || !SR.test(league.mode)) return null;
+    const lane = myLane(liveList()), t = lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null;
+    return t && { title: t.title, lines: t.lines.filter((x) => !/ players take /.test(x)).slice(0, 6) };
+  }
+  // What to buy next, while you're dead or in your base on Summoner's Rift: of the finished items and boots high elo
+  // players build on your champion in your role (our server's games), the one bought soonest after builds most like
+  // yours, weighed up for what the other team needs answering: armor against mostly physical damage (by their items,
+  // else their champion), magic resist against magic damage, Grievous Wounds against healers and penetration against
+  // two or more stacking armor or magic resist, each of them counted by their item gold and kills. Never an item high
+  // elo players never build with one you have (two of a kind, like two Lifeline items).
+  // Worked out again only when your items, the other team's items or kills, or the high elo games change (buyWas).
+  // ponytail: hand-set weights and a hand list of healers; tune them once real games say otherwise
+  const HEALERS = new Set(['Aatrox', 'Briar', 'DrMundo', 'Fiddlesticks', 'Illaoi', 'Maokai', 'Milio', 'Nami', 'Nasus', 'Olaf', 'Renata', 'Seraphine', 'Sona', 'Soraka', 'Swain', 'Sylas', 'Vladimir', 'Volibear', 'Warwick', 'Yuumi']);
+  let buyWas = { top: null, key: '', out: null };
+  function buyNext() {
+    const m = opts.overlayBuy && league && SR.test(league.mode) && (mine.dead || (fresh(me) && zoneOf(me) === 'your base')) ? meIn() : null, c = m && champOf(m.champ), role = m && posIn(m);
+    if (!c || !POS[role]) return null;
+    itemsSoon();
+    const top = topNow(+c.key, role, renderGame), it = (id) => (ddItems && ddItems[id]) || {}, fin = (id) => !!(it(id).done || it(id).boots);
+    if (!ddItems || !topOk(top)) return null;
+    const key = JSON.stringify([c.key, role, m.items, league.players.filter((p) => p.team !== m.team).map((p) => [p.champ, p.items, p.k])]);
+    if (buyWas.top === top && buyWas.key === key) return buyWas.out;
+    buyWas = { top, key, out: null };
+    const have = new Set((m.items || []).map(([id]) => id).filter(fin)), shod = [...have].some((id) => it(id).boots), n = new Map(), paired = new Set(), score = new Map();
+    for (const s of top.buys.map((b) => [...new Set(b.map(([, id]) => id).filter(fin))])) {
+      for (const x of s) { n.set(x, (n.get(x) || 0) + 1); for (const y of s) if (have.has(y)) paired.add(`${x},${y}`); }
+      const like = (s.filter((x) => have.has(x)).length + 1) / (have.size + 1); // how much of your build this game's has
+      s.filter((x) => !have.has(x) && !(shod && it(x).boots)).forEach((x, i) => score.set(x, (score.get(x) || 0) + like / (i + 1)));
+    }
+    for (const x of score.keys()) if (n.get(x) >= 3 && [...have].some((y) => n.get(y) >= 3 && !paired.has(`${x},${y}`))) score.delete(x);
+    if (!score.size) return null;
+    const foes = league.players.filter((p) => p.team !== m.team && champOf(p.champ)).map((p) => {
+      const f = champOf(p.champ), st = (k) => (p.items || []).reduce((v, [id, k2]) => v + ((it(id).st || {})[k] || 0) * (k2 || 1), 0), ad = st('ad'), ap = st('ap');
+      return { name: f.name, w: 1 + goldOf(p) / 3000 + (p.k || 0) / 4, magic: ad || ap ? ap > ad : isMagic(f), heal: HEALERS.has(f.id), ar: st('ar') >= 80, mr: st('mr') >= 80 };
+    });
+    const all = foes.reduce((v, f) => v + f.w, 0) || 1, of = (k, on) => foes.filter((f) => f[k] === on), part = (k, on = true) => of(k, on).reduce((v, f) => v + f.w, 0) / all;
+    const names = (k, on = true) => of(k, on).sort((a, b) => b.w - a.w).slice(0, 2).map((f) => f.name).join(' and ');
+    const needs = { // an item's answer: [how much the other team needs it, why]
+      ar: [Math.max(0, part('magic', false) - 0.55) * 2.5, () => `armor against ${names('magic', false)}`],
+      mr: [Math.max(0, part('magic') - 0.55) * 2.5, () => `magic resist against ${names('magic')}`],
+      gw: [part('heal') >= 0.2 ? 2 * part('heal') : 0, () => `Grievous Wounds against ${names('heal')}`],
+      pa: [Math.min(1, of('ar', true).length / 2), () => `armor penetration against ${names('ar')}`],
+      pm: [Math.min(1, of('mr', true).length / 2), () => `magic penetration against ${names('mr')}`],
+    };
+    const most = Math.max(...score.values());
+    let best = null;
+    for (const [id, s] of score) {
+      const i = it(id), st = i.st || {}, [need, why] = [st.ar > 0 && 'ar', st.mr > 0 && 'mr', i.gw && 'gw', i.pen === 'ar' && 'pa', i.pen === 'mr' && 'pm'].filter(Boolean).map((k) => needs[k]).sort((a, b) => b[0] - a[0])[0] || [0];
+      const v = Math.sqrt(s / most) * (1 + need);
+      if (!best || v > best.v) best = { id, v, why: need >= 0.3 ? why() : `usual next on ${c.name}` };
+    }
+    return (buyWas.out = { name: it(best.id).name, pic: itemPic(best.id), why: best.why });
+  }
+  // Your team's chance to win on Summoner's Rift: from the gold in everyone's items, kills, towers, dragons and the soul,
+  // Baron and Elder while their buffs last (3:00 and 2:30) and inhibitors down, gold counting for less as the game goes
+  // on. At the end of the objective timers' line on the overlay.
+  // ponytail: hand-set weights (2,000 gold up at 10:00 is about 75%, 8,000 at 20:00 about 95%, Elder alone about 77%);
+  // fit them on real games' timelines if they read wrong
+  function winChance() {
+    const g = league && SR.test(league.mode) ? teamGold() : null;
+    if (!g || g.gold == null) return null;
+    const t = gameNow(), ev = league.events || [], us = mine.team || 'ORDER', side = (e) => (!e.team ? 0 : e.team === us ? 1 : -1);
+    const sum = (what, f = side) => ev.filter((e) => e.e === what).reduce((v, e) => v + f(e), 0), buff = (what, s) => sum(what, (e) => (t - e.t < s ? side(e) : 0));
+    const drakes = ev.filter((e) => e.e === 'dragon'), soul = drakes.find((e) => drakes.filter((x) => x.team === e.team && x.t <= e.t).length === 4);
+    const down = sum('inhib', (e) => (!e.of || t - e.t >= 300 || ev.some((b) => b.e === 'inhib-back' && b.name === e.name && b.t > e.t) ? 0 : e.of === us ? -1 : 1));
+    const z = 0.00055 * (10 / Math.max(10, t / 60)) ** 0.6 * g.gold + 0.03 * (g.kills[0] - g.kills[1]) + 0.12 * (g.towers[0] - g.towers[1])
+      + 0.12 * sum('dragon') + 0.5 * (soul ? side(soul) : 0) + 0.8 * buff('baron', 180) + 1.2 * buff('elder', 150) + 0.4 * down;
+    return 1 / (1 + Math.exp(-z));
+  }
+  const winText = () => { const w = opts.overlayWin ? winChance() : null; return w == null ? '' : `Win chance ${pct(Math.min(0.99, Math.max(0.01, w)))}`; };
+  // A teammate's screen while you're dead: a friend in your room who lets teammates watch (Voice settings, In a game:
+  // lendScreen, said in their 'me' as lend while they share their screen) sends you theirs while you wait to respawn,
+  // straight from their PC like voice, and the overlay shows it in a corner: the first one alive on your team in this
+  // game. Both sides check the other is a teammate in the same game, so the other team never gets it. {t:'watch', on}
+  // asks for it (again every 5 s until it comes) and lets it go. It comes as a call of its own (metadata.screen), at
+  // most 1280x720 and 1.2 Mbps so their game and voice don't feel it, and the overlay gets a 640 px picture of it 8
+  // times a second (cam.img, as of cam.at).
+  // ponytail: each app's own word on its team and champion decides who's a teammate, so a changed app could pretend;
+  // that's why lending is off until you turn it on, for rooms of people you trust
+  const mate = (p) => !!league && !!mine.team && p.team === mine.team && !!p.champ && (league.players || []).some((q) => q.team === p.team && q.champ === p.champ);
+  const tell = (p, m) => { const [c] = p.conns; if (c) c.send(m); };
+  const camCv = document.createElement('canvas'), camG = camCv.getContext('2d');
+  let cam = null; // the screen you're watching: { p, call, stop, img, at, asked }
+  function camTick() { // every second
+    const ok = (p) => !!p && p.lend && !p.dead && mate(p) && peers.get(idFor(p.slot)) === p;
+    const want = opts.watchMates && boardOk() && !!league && mine.dead ? (cam && ok(cam.p) ? cam.p : [...peers.values()].sort((a, b) => a.slot - b.slot).find(ok)) : null;
+    if (cam && cam.p !== want) camOff();
+    if (!want) return;
+    cam = cam || { p: want, call: null, stop: null, img: '', at: 0, asked: -Infinity };
+    if (!cam.call && performance.now() - cam.asked >= 5000) { cam.asked = performance.now(); tell(want, { t: 'watch', on: true }); }
+  }
+  function camOff() {
+    const c = cam;
+    cam = null;
+    if (!c) return;
+    tell(c.p, { t: 'watch', on: false });
+    if (c.stop) c.stop();
+    if (c.call) c.call.close();
+  }
+  function camCall(call) { // their screen coming in: taken only from the one you asked
+    const c = cam;
+    if (!c || peers.get(call.peer) !== c.p) return call.close();
+    if (c.call) c.call.close();
+    c.call = call;
+    call.answer(); // nothing goes back
+    call.on('stream', (s) => {
+      if (cam !== c || c.call !== call) return;
+      if (c.stop) c.stop();
+      c.stop = CameraBox.watch(s, 125, (src, w, h) => {
+        const H = Math.round(Math.min(480, (640 * h) / w));
+        if (camCv.width !== 640 || camCv.height !== H) Object.assign(camCv, { width: 640, height: H });
+        camG.drawImage(src, 0, 0, 640, H);
+        c.img = camCv.toDataURL('image/jpeg', 0.7);
+        c.at = performance.now();
+      });
+    });
+    call.on('close', () => { if (c.call === call) { c.call = null; if (c.stop) c.stop(); c.stop = null; } });
+  }
+  // lending yours: to each teammate who asked and is dead, while you share your screen; you're told once a game who
+  const lends = new Map(), lendSaid = new Set(); // a teammate -> { call, track }: the call carrying your screen to them
+  function lendTick() { // every second, and when a teammate asks
+    const ok = (p) => opts.lendScreen && !!share && !!peer && !!p.watch && p.dead && mate(p) && peers.get(idFor(p.slot)) === p;
+    for (const [p, l] of lends) if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); }
+    for (const p of peers.values()) {
+      if (lends.has(p) || !ok(p)) continue;
+      const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track]), { metadata: { screen: true } });
+      if (!call) { track.stop(); continue; }
+      track.applyConstraints({ width: { max: 1280 }, height: { max: 720 }, frameRate: { max: 10 } }).catch(() => {});
+      lends.set(p, { call, track });
+      call.on('iceStateChanged', (st) => {
+        if (st === 'connected') for (const x of call.peerConnection.getSenders()) { const q = x.getParameters(); if (q.encodings && q.encodings[0]) { q.encodings[0].maxBitrate = 1200000; x.setParameters(q).catch(() => {}); } }
+      });
+      call.on('close', () => { track.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
+      if (!lendSaid.has(league.room + p.slot)) { lendSaid.add(league.room + p.slot); notify(`${nameOf(p)} is watching your screen while they’re dead.`, true); }
+    }
+  }
   // ---- the Overlay page's Layout: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
   // part that's on looks like in a game (ovSample). A box over each part: drag it, or pick it and use the arrow keys
   // (Shift: further), to give that part a place of its own (opts.overlayParts, ovPlace); the rest's box moves the rest
   // (overlayBox). Size sizes the one picked when it has a place of its own, else the rest. The line at the top, who's
   // off your minimap and the card after a game have places of their own from the start (OV_SPOTS). Parts with places
   // of their own need the whole screen, so app 1.10.
-  const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, missing: { x: 0.99, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' } };
-  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', missing: 'Off my minimap', after: 'After the game' };
+  const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, missing: { x: 0.99, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' },
+    buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' } }; // under League's score, under the rest, over who's off your minimap
+  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', missing: 'Off my minimap', after: 'After the game',
+    buy: 'What to buy', tips: 'Tips while dead', screen: 'Teammate’s screen' };
   const ovSpots = () => ({ ...OV_SPOTS, ...opts.overlayParts });
   const ovFrame = $('ovFrame'), ovStage = $('ovStage'), ovView = document.querySelector('.view[data-view="overlay"]');
   let ovFire = null, ovPick = '';
@@ -3935,12 +4091,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function ovSample() { // what each part that's on looks like in a game
     return {
       call: opts.mapNudge || opts.jgCall || opts.gankCall || opts.missCall || opts.invadeCall ? 'Zed missing from mid' : opts.spikeCall || opts.coach || opts.jgClock ? 'Zed is level 6' : '',
-      game: opts.overlayGame ? `Dragon 1:23 · Baron 12:00${opts.foeTimers ? ' · Zed Flash 4:12' : ''} · Kills 5–3 · Gold +1.2k` : '', cs: opts.overlayCs ? 'CS 64 · 7.1 a minute (usual 6.4)' : '', lane: opts.overlayLane ? 'vs Zed: CS +6 · gold +0.3k' : '',
+      game: [opts.overlayGame ? `Dragon 1:23 · Baron 12:00${opts.foeTimers ? ' · Zed Flash 4:12' : ''} · Kills 5–3 · Gold +1.2k` : '', opts.overlayWin ? 'Win chance 62%' : ''].filter(Boolean).join(' · '), cs: opts.overlayCs ? 'CS 64 · 7.1 a minute (usual 6.4)' : '', lane: opts.overlayLane ? 'vs Zed: CS +6 · gold +0.3k' : '',
       talking: !!opts.overlayMe, hear: opts.overlayMe ? ['Sam', 'Kai'] : null, talkers: opts.overlay ? [{ name: 'Sam', pic: '', team: 'ally' }] : [],
       chat: opts.overlayChat ? [{ name: 'Kai', text: 'dragon in a minute?' }] : [], toasts: opts.overlayToasts ? ['Popups show here'] : [],
       missing: opts.missList ? [['Zed', champImg('Zed'), '0:40', 'toward bot'], ['Lee Sin', champImg('LeeSin'), '0:12', 'in their jungle']] : null,
       after: opts.overlayAfter ? { title: 'Victory · Ahri', win: true, lines: ['+21 LP: Gold II · 45 LP', 'Score 82 · MVP', '2 clips saved'] } : null,
       tft: opts.overlayTft ? tftSheet() : null,
+      buy: opts.overlayBuy ? { name: 'Zhonya’s Hourglass', pic: itemPic(3157), why: 'armor against Zed and Talon' } : null,
+      tips: opts.deadTips ? { title: 'Ahri against Zed', lines: ['Your note: stay out of his shadow’s range at level 6', 'High elo: Ahri won 8 of 20 games against Zed. A hard matchup for Ahri.', 'Zed is a melee assassin with mostly physical damage, so armor helps against them.'] } : null,
+      screen: opts.watchMates ? { name: 'Sam', img: '' } : null,
     };
   }
   function ovDraw() {
@@ -5388,7 +5547,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const m = mayhem() && meIn(), tip = m ? augTip(m.champ) : '';
       $('augTips').hidden = !tip;
       $('augTips').textContent = tip;
-      const rows = liveList(), ln = loadingNow() ? myLane(rows) : null; // the tips only before the game starts
+      const rows = liveList(), ln = loadingNow() || (opts.deadTips && !!league && mine.dead) ? myLane(rows) : null; // the tips before the game starts, and while you're dead
       renderTips($('gameTips'), ln && (ln.foe || ln.duo) ? tipsFor(ln.me.champ, ln.foe, ln.me.pos, ln.duo) : null);
       premade = findPremades(rows);
       $('liveRows').replaceChildren(...rows.map(scoutRow));
@@ -6493,16 +6652,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- Data Dragon's items and runes, for builds, item sets, the item timeline and rune names
   let ddItems = null, ddItemsAt = -Infinity, runeNames = null, runeNamesAt = -Infinity;
-  function itemsSoon() { // id -> { name, gold, done (a finished item), boots, use (a consumable or trinket), trinket, rift (in the Rift's shop), from (its parts), ah, uh, sh (ability, ultimate and summoner spell haste) }
+  // and for what to buy next: st (its armor, magic resist, attack damage and ability power), pen (armor or magic
+  // penetration: 'ar' or 'mr') and gw (it gives Grievous Wounds)
+  function itemsSoon() { // id -> { name, gold, done (a finished item), boots, use (a consumable or trinket), trinket, rift (in the Rift's shop), from (its parts), ah, uh, sh (ability, ultimate and summoner spell haste), st, pen, gw }
     if (ddItems || !ddVersion || performance.now() - ddItemsAt < 60000) return;
     ddItemsAt = performance.now();
     fetch(`${DD}/cdn/${ddVersion}/data/en_US/item.json`).then((r) => r.json()).then((j) => {
       ddItems = Object.fromEntries(Object.entries(j.data).map(([id, it]) => {
-        const tags = it.tags || [], gold = +(it.gold && it.gold.total) || 0, boots = tags.includes('Boots') && gold > 300;
+        const tags = it.tags || [], gold = +(it.gold && it.gold.total) || 0, boots = tags.includes('Boots') && gold > 300, s = it.stats || {};
         const d = String(it.description || ''), text = (t) => t.replace(/<[^>]+>/g, ' '), num = (t, re) => +((re.exec(text(t)) || [])[1] || 0), stats = (/<stats>([\s\S]*?)<\/stats>/.exec(d) || [])[1] || '';
         return [id, { name: String(it.name || ''), gold, boots, trinket: tags.includes('Trinket'), use: tags.includes('Consumable') || tags.includes('Trinket'), done: !(it.into && it.into.length) && gold >= 2000 && !boots,
           rift: !!(it.maps && it.maps['11']) && it.inStore !== false && !it.requiredAlly && !it.requiredChampion, from: (it.from || []).map(Number),
-          ah: num(stats, /(\d+)\s+Ability Haste/), uh: num(d, /(\d+)\s+Ultimate Ability Haste/), sh: num(d, /(\d+)\s+Summoner Spell Haste/) }]; // haste, for enemy timers
+          ah: num(stats, /(\d+)\s+Ability Haste/), uh: num(d, /(\d+)\s+Ultimate Ability Haste/), sh: num(d, /(\d+)\s+Summoner Spell Haste/), // haste, for enemy timers
+          st: { ar: +s.FlatArmorMod || 0, mr: +s.FlatSpellBlockMod || 0, ad: +s.FlatPhysicalDamageMod || 0, ap: +s.FlatMagicDamageMod || 0 },
+          pen: tags.includes('ArmorPenetration') ? 'ar' : tags.includes('MagicPenetration') ? 'mr' : '', gw: /Grievous Wounds/i.test(d) }];
       }));
       itemGold = Object.fromEntries(Object.entries(ddItems).map(([id, it]) => [id, it.gold]));
     }).catch(() => {});
@@ -8123,7 +8286,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const vsText = (v) => `${champName(v.c)}, ${pct(v.w / v.n)} won in ${v.n} games${v.gold == null ? '' : ` (${v.gold >= 0 ? '+' : '−'}${Math.abs(v.gold)} gold at 10)`}`;
 
   // ---- matchup tips: playing your champion against their champion in your lane, before the game (champ select and the
-  // loading screen: Riot's rules keep advice out of the game itself). From the high elo games our server counts (how
+  // loading screen) and while you're dead (deadTips: Riot's rules keep advice out of the game itself, and Rayan's Riot
+  // contact said yes to this). From the high elo games our server counts (how
   // the matchup goes, gold and CS at 10 minutes, the runes, spells and early items players take in it, and what their
   // champion takes against yours; 5 games or more), your own games against it, the two champions' range and damage,
   // Riot's own tips for both (Data Dragon's allytips and enemytips) and your matchup note. Nothing from other sites.
@@ -9950,19 +10114,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(),
-    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms }; // what else to redo; pushOverlay for the rest
+    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower']]) {
+    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
+
+    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optFront', client && client.front], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -10072,6 +10238,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [35, 'October 20: help while you’re dead, and your chance to win', [
+      'While you’re dead on Summoner’s Rift, the tips for your lane from champ select come back on the overlay and the Game page: your notes, how high elo players do in the matchup and Riot’s tips.',
+      'What to buy next: while you’re dead or in your base, the next item for this game, from what high elo players build on your champion and the other team’s damage and items, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
+      'Your team’s chance to win, live at the end of the timers line on the overlay, from the gold, kills, towers, dragons, Baron, Elder and inhibitors.',
+      'Watch a friend’s screen in a corner while you’re dead, if they let you in Voice settings, In a game. Only friends in your room on your team in the same game.',
+    ]],
     [34, 'October 20: dodge, an avoid list and ladder places', [
       'Dodge leaves champ select in one click without closing League. It still counts as a dodge, so it asks twice.',
       'An avoid list for players you never want to play with again: Avoid beside their name in champ select, on Game or in a game report. They’re flagged in champ select when League shows their name, on the loading screen and in a game.',
@@ -10431,11 +10603,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
       ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
-      ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
+      ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['Loading screen board', 'On League’s loading screen, all ten players like Porofessor: your team at the top left and theirs below, with their rank, record on their champion and tags, and the tips for your lane on the right.',
         'On unless you turn it off: the Overlay page, What it shows. In a game, Ctrl+Shift+O shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE) and the clips you saved that game.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayAfter', 'app'],
+      ['Tips while you’re dead', 'While you wait to respawn on Summoner’s Rift, the tips for your lane from champ select on the left of your screen: your notes on the matchup, how high elo players do in it, your own games against them and Riot’s tips.',
+        'On unless you turn it off: the Overlay page, What it shows. Drag it anywhere in Layout.', '#optDeadTips', 'app'],
+      ['What to buy next', 'While you’re dead or in your base, the next item for this game, from what high elo players build on your champion and the other team’s damage, healing, armor and magic resist, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
+        'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayBuy', 'app'],
+      ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time.',
+        'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayWin', 'app'],
+      ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
+        'On unless you turn it off: the Overlay page, What it shows. Each friend turns on Voice settings, In a game, Let teammates in my room watch my screen.', '#optWatchMates', 'app'],
       ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'The Overlay page, Layout: drag the rest, or Move it and drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
       ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
@@ -10624,7 +10804,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); camTick(); lendTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -10690,6 +10870,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), // the in-game helpers
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now
