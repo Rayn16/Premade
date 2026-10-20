@@ -1361,6 +1361,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let range = +store.get('lpc-range') || 1200;
   const peers = new Map();               // peer id -> { slot, name, conns, call, audio, pos, muted, user, vol, row, chip, ... }
   let muted = false, pttDown = false, mySpokeAt = -Infinity;
+  let allyCam = false; // F2 to F5 held: League's camera is on a teammate (Windows app 1.13+)
   let league = null;  // League's own data on the game going on, from the Windows client (client/main.js summary): { mode, me, room, result }
   let mine = { champ: '', team: '', dead: false, respawn: 0 }; // what the others are told about us
   let pickedChamp = ''; // the champion you named with Find me
@@ -1650,6 +1651,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     rg.filter = 'blur(3px)'; // softens the 128-cell grid's steps
     rg.drawImage(grid, 0, 0, 512, 512);
   }
+  const riftMini = document.createElement('canvas'); // the same inside the minimap's frame, under spots read off the minimap
+  {
+    riftMini.width = riftMini.height = 512;
+    const g = riftMini.getContext('2d'), o = Terrain.onMinimap;
+    g.fillStyle = 'rgb(6, 12, 17)'; // wall
+    g.fillRect(0, 0, 512, 512);
+    g.drawImage(rift, o.x * 512, o.y * 512, o.w * 512, o.h * 512);
+  }
   let markers = []; // what the map shows, for the test hooks
   let myPic = null; // your champion's picture for your own marker
   function drawMap() {
@@ -1659,7 +1668,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (mapEl.width !== S) mapEl.width = mapEl.height = S;
     const g = mapG, k = S / 420;
     g.imageSmoothingQuality = 'high';
-    g.drawImage(performance.now() - mapBgAt < STALE ? mapBg : rift, 0, 0, S, S);
+    g.drawImage(performance.now() - mapBgAt < STALE ? mapBg : riftMini, 0, 0, S, S);
     markers = [];
     if (fresh(me)) {
       const x = me.x * S, y = me.y * S, R = (range / MAP) * S;
@@ -2227,7 +2236,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     if (has('immersive')) {
       if (L && mine.dead) out.push('ghost');
-      else if (fresh(me) && Terrain.at(me.x, me.y) === 2) out.push('river');
+      else if (fresh(me) && Terrain.atMinimap(me) === 2) out.push('river');
       if (L && !mine.dead && L.me && L.me.speed >= 500) out.push('speed'); // Ghost, Homeguard, speed ultimates
     }
     return out.filter((n) => FX[n]).sort((a, b) => RANK.indexOf(a) - RANK.indexOf(b));
@@ -2778,7 +2787,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (s.sq) s.miss = 0;
       if (s.sq) {
         s.px = CameraBox.minimapPixels(cctx, src, s.sq);
-        const res = s.last = s.follower.update(s.px, s.sq.s, performance.now());
+        const res = s.last = s.follower.update(s.px, s.sq.s, performance.now(), allyCam);
         if (res.found) { me = { x: res.x, y: res.y, t: performance.now(), by: res.by, learned: res.learned }; send(posMsg()); }
         if (!document.hidden) preview(src, s.sq, res);
       }
@@ -2794,8 +2803,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     let top = 0;
     for (let i = 0; i < d.length; i += 64) top = Math.max(top, d[i], d[i + 1], d[i + 2]);
     if (top < 20) return 'The shared picture is black. In League, set Settings > Video > Window Mode to Borderless, then stop and share again.';
-    return client ? 'No minimap in the bottom-right corner of this screen. Pick the screen League is on in Settings, and be in a game, not the client or loading screen.'
-      : 'No minimap in the bottom-right corner of what you shared. Share the screen League is on (not a second monitor), and be in a game, not the client or loading screen.';
+    return client ? 'No minimap in a bottom corner of this screen. Pick the screen League is on in Settings, and be in a game, not the client or loading screen.'
+      : 'No minimap in a bottom corner of what you shared. Share the screen League is on (not a second monitor), and be in a game, not the client or loading screen.';
   }
   // The minimap in the tracking card with a gold circle on the spot used as you, so you can see it picked your
   // champion; a clean copy for the big map and the talk map; and a close-up of the icon it follows.
@@ -3061,7 +3070,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const g = cv.getContext('2d'), S = cv.width, c = S / HEAT, most = Math.max(...heat);
     g.globalCompositeOperation = 'source-over';
     g.fillStyle = '#000'; g.fillRect(0, 0, S, S);
-    g.globalAlpha = 0.6; g.drawImage(talkBgSet ? talkBg : rift, 0, 0, S, S); g.globalAlpha = 1;
+    g.globalAlpha = 0.6; g.drawImage(talkBgSet ? talkBg : riftMini, 0, 0, S, S); g.globalAlpha = 1;
     g.globalCompositeOperation = 'lighter';
     if (most > 0) heat.forEach((v, i) => {
       if (!v) return;
@@ -7341,6 +7350,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [19, 'October 20: the minimap tracker', [
+      'Premade finds your minimap on the left side of the screen too, if you moved it there in League’s Interface settings.',
+      'After a recall, Premade follows you in your fountain at once, instead of about 3 seconds later.',
+      'Walls, the river and bushes now line up with your minimap. They were about 5% off, so a voice could be muffled by a wall that wasn’t there.',
+      'While you hold F2 to F5 to look at a teammate, Premade doesn’t take them for you. This needs app 1.13, which installs itself.',
+    ]],
     [18, 'October 20: clips by voice', [
       'Say “Premade, clip that” in a game and Premade saves a clip, or record a phrase of your own. Turn it on in Clip settings, under your clips on the Clips page, where all the clip settings are now.',
       'The speech recognition runs on your computer, so nothing you say is sent anywhere. The first time, it downloads its English speech model, about 40 MB.',
@@ -7489,7 +7504,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('key').hidden = !hashKey;
   if (client) {
     client.on('league', onLeague);
-    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') pushTalk(k === 'ptt-down'); });
+    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') pushTalk(k === 'ptt-down'); else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
     client.useScreen(store.get('lpc-screen') || '');
     if (client.record) client.record(opts.record);
     // an app link (lolprox://join/<room>[.<password>], from "Open this room in the desktop app") brings you into that room

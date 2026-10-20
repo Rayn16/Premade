@@ -97,6 +97,8 @@ globalThis.CameraBox = (() => {
   const PICK_LOOK = 24;   // largest difference between a champion's Data Dragon picture and its minimap icon (Yasuo: 15, others 28+)
   const HOLD = 3000;      // ms your last spot is kept while your icon is hidden, e.g. under a teammate's icon
   const PACE = 0.1;       // fastest a champion crosses the minimap, in minimap widths a second, dashes and Flash included
+  const BASES = [[0.093, 0.927], [0.925, 0.085]]; // the two fountains, where a recall lands (measured on Rayan's minimap)
+  const BASE = 0.08;      // how far from a fountain's centre an icon counts as just recalled, as a share of the minimap width
 
   // Finds champion icons with your team's blue ring (yours included). Returns centres in minimap pixels, best first.
   function findIcons(rgba, s) {
@@ -193,20 +195,23 @@ globalThis.CameraBox = (() => {
   // icon has been gone for HOLD (dead), it follows the camera box, moved down to where your champion stands
   // when the camera is on it.
   // update() returns {found, by: 'icon' | 'camera', learned, held (icon not seen this frame), x, y (0..1 of the minimap), cam (camera box result),
-  // icons (findIcons)}.
+  // icons (findIcons)}. ally: the camera is on a teammate (F2 to F5 held), so it learns nothing from it.
   class Follower {
     constructor() { this.camera = new Tracker(); this.looks = []; this.seen = -Infinity; this.at = null; this.streak = null; this.box = null; }
-    update(rgba, s, now) {
+    update(rgba, s, now, ally) {
       const cam = this.camera.update(rgba, s, s), icons = findIcons(rgba, s);
-      if (cam.found) this.learn(rgba, s, icons, cam.cx * s, (cam.cy + LOCK_DY) * s);
+      if (cam.found && !ally) this.learn(rgba, s, icons, cam.cx * s, (cam.cy + LOCK_DY) * s);
       else this.streak = this.box = null;
       const me = this.looks.reduce((b, l) => (!b || l.n > b.n ? l : b), null);
       if (me) {
         // While it has you, only icons you could have walked to count, so a teammate whose icon looks a bit like
-        // yours can't take over when yours is hidden for a moment. Once you're gone, it wants a closer look.
+        // yours can't take over when yours is hidden for a moment. Once you're gone, it wants a closer look, and so
+        // does a fountain at once, as a recall lands there.
         const lost = now - this.seen >= HOLD, reach = (2 * RING + (PACE * (now - this.seen)) / 1000) * s;
         const nearby = lost ? icons : icons.filter((i) => Math.hypot(i.x - this.at.x * s, i.y - this.at.y * s) < reach);
-        const mine = closest(nearby, (i) => iconDiff(rgba, s, i.x, i.y, me.look), lost ? SURE_LOOK : SAME_LOOK);
+        const diff = (i) => iconDiff(rgba, s, i.x, i.y, me.look);
+        const mine = closest(nearby, diff, lost ? SURE_LOOK : SAME_LOOK)
+          || (!lost && closest(icons.filter((i) => BASES.some(([x, y]) => Math.hypot(i.x / s - x, i.y / s - y) < BASE)), diff, SURE_LOOK));
         if (mine) { this.seen = now; this.at = { x: mine.x / s, y: mine.y / s }; }
         if (now - this.seen < HOLD) return { found: true, by: 'icon', learned: true, held: this.seen !== now, x: this.at.x, y: this.at.y, cam, icons };
       }
@@ -248,15 +253,17 @@ globalThis.CameraBox = (() => {
   // are a thin gold line, so we try every size s and keep the one whose left column and top row are
   // both gold. Colour is judged over 2x2 pixels because screen-share video can store colour at half
   // resolution, which greys out a 1px gold line but leaves its 2x2 average gold.
+  // left: rgba is the bottom-left corner instead, for players who show the minimap on the left (League's Interface
+  // settings). That minimap is taken to be the mirror image, its gold edge on its right, so the gold is mirrored too.
   // Returns {x, y, s} in that square's pixels, or null when no such frame shows.
-  function findMinimap(rgba, r) {
+  function findMinimap(rgba, r, left) {
     const gold = new Uint8Array(r * r);
     for (let y = 0; y < r - 1; y++) for (let x = 0; x < r - 1; x++) {
       const p = (y * r + x) * 4, q = p + r * 4; // sums over the pixel, its right, below and below-right
       const R = rgba[p] + rgba[p + 4] + rgba[q] + rgba[q + 4];
       const G = rgba[p + 1] + rgba[p + 5] + rgba[q + 1] + rgba[q + 5];
       const B = rgba[p + 2] + rgba[p + 6] + rgba[q + 2] + rgba[q + 6];
-      if (R > 400 && G > 300 && R - B > 140 && G <= R + 40) gold[y * r + x] = 1;
+      if (R > 400 && G > 300 && R - B > 140 && G <= R + 40) gold[y * r + (left ? r - 2 - x : x)] = 1;
     }
     let best = 0, bs = 0;
     for (let s = Math.round(r * 0.3); s <= r; s++) {
@@ -265,17 +272,20 @@ globalThis.CameraBox = (() => {
       for (let i = e; i < r; i++) { col += gold[i * r + e]; row += gold[e * r + i]; }
       if (min(col, row) / s > best) { best = min(col, row) / s; bs = s; }
     }
-    return best >= 0.5 ? { x: r - bs, y: r - bs, s: bs } : null; // the real frame scores 0.75+, other screen areas 0.11 or less
+    return best >= 0.5 ? { x: left ? 0 : r - bs, y: r - bs, s: bs } : null; // the real frame scores 0.75+, other screen areas 0.11 or less
   }
 
   // Browser only. ctx is a scratch 2D canvas context; src is anything drawImage takes (image, video, VideoFrame).
-  // locateMinimap returns the minimap square on the whole frame, minimapPixels its RGBA pixels.
+  // locateMinimap returns the minimap square on the whole frame (bottom right, else bottom left), minimapPixels its RGBA pixels.
   function locateMinimap(ctx, src, w, h) {
     const r = min(Math.round(h * 0.45), w);
     ctx.canvas.width = r; ctx.canvas.height = r;
-    ctx.drawImage(src, w - r, h - r, r, r, 0, 0, r, r);
-    const m = findMinimap(ctx.getImageData(0, 0, r, r).data, r);
-    return m && { x: w - r + m.x, y: h - r + m.y, s: m.s };
+    for (const left of [false, true]) {
+      ctx.drawImage(src, left ? 0 : w - r, h - r, r, r, 0, 0, r, r);
+      const m = findMinimap(ctx.getImageData(0, 0, r, r).data, r, left);
+      if (m) return { x: (left ? 0 : w - r) + m.x, y: h - r + m.y, s: m.s };
+    }
+    return null;
   }
   function minimapPixels(ctx, src, sq) {
     ctx.canvas.width = sq.s; ctx.canvas.height = sq.s; // resizing also clears it
