@@ -1756,7 +1756,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
-<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions, answer trades and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found or my squad calls” on the phone and it gets a notification even with its screen off or the page closed, also for your squad’s calls and pings (Your group, on the Voice page) (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
+<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, go through champ select (both teams, picks and bans, trades, runes, spells, skins and dodge), start enemy timers and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found or my squad calls” on the phone and it gets a notification even with its screen off or the page closed, also for your squad’s calls and pings (Your group, on the Voice page) (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists (titles, pictures, abilities, splash art close-ups, stories with the name blanked out, items and their costs), where fast right answers score most; it ends when the host's League finds a match. <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
@@ -4776,16 +4776,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderGame();
   }
   // Dodge (app 1.14): leaves champ select without closing League, the way League's own client does. League counts it
-  // as a dodge, with its LP loss and wait before the next queue, so it takes a second click within 4 s.
+  // as a dodge, with its LP loss and wait before the next queue, so it takes a second click within 4 s (the phone
+  // remote asks twice too).
   let dodgeAt = -Infinity;
   const dodgeArmed = () => performance.now() - dodgeAt < 4000;
-  $('dodgeBtn').addEventListener('click', async () => {
+  $('dodgeBtn').addEventListener('click', () => {
     if (!dodgeArmed()) { dodgeAt = performance.now(); renderGame(); setTimeout(renderGame, 4100); return; }
     dodgeAt = -Infinity;
-    const r = await lcuAsk('POST', '/lol-lobby-team-builder/champ-select/v1/session/quit');
-    if (!okStatus(r)) notify(r.status ? 'League didn’t let you leave champ select.' : 'Dodge comes with the app update: restart Premade to get it.', true);
-    leagueTick();
+    dodge();
   });
+  async function dodge() {
+    const r = await lcuAsk('POST', '/lol-lobby-team-builder/champ-select/v1/session/quit');
+    const why = r.status ? 'League didn’t let you leave champ select.' : 'Dodge comes with the app update: restart Premade to get it.';
+    if (!okStatus(r)) { notify(why, true); remoteSay(why); }
+    leagueTick();
+  }
   // your champions for your role: from your last 100 games and your mastery, the ones you may pick now that Riot
   // recommends for that position
   let myHist = null, myHistAt = -Infinity, myMastery = [], champPos = null;
@@ -5162,11 +5167,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('runesVs').addEventListener('click', () => { const me = myCell(); if (me && me.championId) { runesPick = 'vs'; setRunes(me.championId, myPos()); } });
   $('champForm').addEventListener('submit', (e) => { e.preventDefault(); const c = champByName($('anyChamp').value); if (c) hover(+c.key); else say('Pick a champion from the list.'); });
   $('pickLock').addEventListener('click', () => { const v = $('anyChamp').value.trim(), c = v && champByName(v); lockIn(c ? +c.key : 0); });
-  $('rerollBtn').addEventListener('click', async () => {
+  async function reroll() {
     if (!okStatus(await lcuAsk('POST', '/lol-champ-select/v1/session/my-selection/reroll'))) notify('League didn’t reroll.', true);
     await champTick();
     renderGame();
-  });
+  }
+  $('rerollBtn').addEventListener('click', reroll);
   const champByName = (v) => Object.values(ddChamp).find((c) => c.name.toLowerCase() === String(v).trim().toLowerCase()) || null;
 
   // ---- in the game: everyone's rank and recent games from the loading screen on (League's client knows who's in
@@ -6217,8 +6223,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- phone remote: your phone opens remote.html#<code> (the QR code) and joins this page's own room on the
   // connection server as lolprox-r<code>-<1 to 9>; this page is lolprox-r<code>-0. The phone gets League's state and
-  // sends accept, decline, hover, lock in and the auto-accept setting, and answers League chat (lolopen, lolsay and
-  // lolinv). Anyone with the code can use it, so New code makes another.
+  // sends accept, decline, the queue, the auto-accept setting and in champ select all you'd do there in League (hover,
+  // lock in, trades, spells, skin, runes, the bench), and answers League chat (lolopen, lolsay and lolinv). Anyone with
+  // the code can use it, so New code makes another.
   let remote = null, remoteWas = '', qrLib = null;
   const remoteConns = new Set();
   const id12 = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); // a code or id our server takes
@@ -6269,23 +6276,91 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       t: 'state', phase: lcu || '', auto: opts.autoAccept, alarm: opts.turnAlarm,
       queue: lcu === 'Lobby' && lobby ? { lead: lead(), custom: custom() } : lcu === 'Matchmaking' && search ? { time: Math.round(search.timeInQueue || 0), est: Math.round(search.estimatedQueueTime || 0) } : null,
       rc: lcu === 'ReadyCheck' && rc && rc.state === 'InProgress' ? { response: rc.playerResponse, left: Math.max(0, 12 - Math.round(rc.timer || 0)) } : null,
-      cs: cs && lcu === 'ChampSelect' ? {
-        action: a ? { id: a.id, type: a.type, now: !!a.isInProgress, champ: a.championId || 0 } : null,
-        team: cs.myTeam.map((p) => ({ champ: p.championId || p.championPickIntent || 0, pos: String(p.assignedPosition || '').toUpperCase(), me: p.cellId === cs.localPlayerCellId, trades: p.cellId === cs.localPlayerCellId ? [] : tradesWith(p.cellId) })),
-        theirs: (cs.theirTeam || []).map((p) => p.championId || 0), picks: suggestions().map((s) => s.id), can: (a && a.type === 'ban' ? bannable : pickable) || [],
-      } : null,
+      cs: cs && lcu === 'ChampSelect' ? csRemote(a) : null,
       game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold(), foes: opts.foeTimers ? liveList().filter((p) => !p.ally && p.champ).map((p) => p.champ) : null } : null, // foes: to tap for enemy timers
       chat: peer ? chatLines : null, // in a voice room
       lol: chatOk() && lcu ? { inv: lolChat.inv, convs: lolChat.convs.slice(0, 12).map(({ id, name, unread, last }) => ({ id, name, unread, last: last.slice(0, 80) })),
         open: lolChat.open ? { id: lolChat.open, name: chatName(), msgs: lolChat.msgs.slice(-15) } : null } : null, // League chat (app 1.14)
     };
   }
+  // champ select as the phone shows it (remote.html renderCs), like League's own: both teams with whose turn it is
+  // (names only where League shows them), the bans, when this part ends (by this PC's clock: pushRemote adds its time,
+  // so the phone counts down by its own), what you may pick or ban with each one's roles, your spells, skin and rune
+  // pages, and whether you can dodge. theirs is for a phone still on the last version.
+  const ROLE_KEY = { TOP: 't', JUNGLE: 'j', MIDDLE: 'm', BOTTOM: 'b', UTILITY: 's' };
+  function csRemote(a) {
+    csExtras();
+    const acts = csActions(), me = myCell() || {}, t = cs.timer || {};
+    // locked: a champion and no pick still to make (ARAM has no picks at all; their hovers never show)
+    const seat = (p) => ({ champ: p.championId || p.championPickIntent || 0, locked: p.championId > 0 && !acts.some((x) => x.type === 'pick' && !x.completed && x.actorCellId === p.cellId), pos: String(p.assignedPosition || '').toUpperCase(),
+      name: hidden(p) && p.cellId !== cs.localPlayerCellId ? '' : String(p.gameName || ''), now: (acts.find((x) => x.isInProgress && x.actorCellId === p.cellId) || {}).type || '' });
+    const ours = new Set(cs.myTeam.map((p) => p.cellId)), bans = acts.filter((x) => x.type === 'ban' && x.completed && x.championId > 0), ban = !!a && a.type === 'ban', can = (ban ? bannable : pickable) || [];
+    const top = me.championId && mapNow() === 11 ? topMineNow(me.championId, myPos(), renderGame) : null; // as champ select's runes
+    return {
+      action: a ? { id: a.id, type: a.type, now: !!a.isInProgress, champ: a.championId || 0 } : null,
+      stage: csStage(), ends: t.isInfinite || !(t.adjustedTimeLeftInPhase > 0) ? 0 : Math.round((t.internalNowInEpochMs > 0 ? t.internalNowInEpochMs : Date.now() - (performance.now() - csAt)) + t.adjustedTimeLeftInPhase),
+      team: cs.myTeam.map((p) => ({ ...seat(p), spells: [p.spell1Id | 0, p.spell2Id | 0], me: p.cellId === cs.localPlayerCellId, trades: p.cellId === cs.localPlayerCellId ? [] : tradesWith(p.cellId) })),
+      them: (cs.theirTeam || []).filter(Boolean).map(seat), theirs: (cs.theirTeam || []).map((p) => (p && p.championId) || 0),
+      bans: [bans.filter((x) => ours.has(x.actorCellId)), bans.filter((x) => !ours.has(x.actorCellId))].map((l) => l.map((x) => x.championId)),
+      picks: ban ? banIdeas().map((x) => x.c) : suggestions().map((s) => s.id), can, roles: can.map((id) => ((champPos && champPos[id] && champPos[id].recommendedPositions) || []).map((r) => ROLE_KEY[r] || '').join('')),
+      mode: (gfs && gfs.gameData && gfs.gameData.queue && gfs.gameData.queue.gameMode) || '', spells: [me.spell1Id | 0, me.spell2Id | 0], skin: me.selectedSkinId | 0,
+      skins: me.championId ? csx.skins : [], pages: csx.pages, recs: [...(topOk(top) && top.runes && top.runes.n >= 5 ? [{ name: `Most popular in ${eloIn(top.elo)}`, p: top.runes.perks }] : []), ...csx.recs],
+      bench: cs.benchEnabled ? (cs.benchChampions || []).map((b) => (b && b.championId) || 0).filter((c) => c > 0) : null, rerolls: cs.allowRerolling ? cs.rerollsRemaining | 0 : 0,
+      note: remoteNote && Date.now() - remoteNote.at < 8000 ? remoteNote.text : '', dodge: !cs.isCustomGame, // a custom game has no dodge
+    };
+  }
+  // what the phone's Runes and Skins tabs need besides the session, asked for every 3 s while a phone is connected: your
+  // rune pages, the skins you own for your champion (desktop app 1.14) and Riot's recommended pages for it
+  const csx = { at: -Infinity, pages: [], skins: [], recs: [], recFor: '' };
+  async function csExtras() {
+    if (performance.now() - csx.at < 3000) return;
+    csx.at = performance.now();
+    const me = myCell() || {}, champ = me.championId || me.championPickIntent || 0, key = `${champ}/${myPos()}/${mapNow()}`, own = (s) => !!s && !s.disabled && (s.unlocked || s.isBase || !!(s.ownership && s.ownership.owned));
+    const [pages, skins] = await Promise.all([lcuGet('/lol-perks/v1/pages'), me.championId ? lcuGet('/lol-champ-select/v1/skin-carousel-skins') : null]);
+    csx.pages = (Array.isArray(pages) ? pages : []).filter((p) => p && Number.isInteger(p.id))
+      .map((p) => ({ id: p.id, name: String(p.name || ''), edit: !!p.isEditable, cur: !!p.current, p: [p.primaryStyleId | 0, p.subStyleId | 0, ...(Array.isArray(p.selectedPerkIds) ? p.selectedPerkIds : [])] }));
+    csx.skins = (Array.isArray(skins) ? skins : []).filter(own).map((s) => ({ id: s.id, name: String(s.name || ''), ch: (s.childSkins || s.chromas || []).filter(own).map((c) => [c.id, String(c.shortName || c.name || ''), String((c.colors || [])[0] || '')]) }));
+    if (csx.recFor !== key) {
+      csx.recFor = key;
+      csx.recs = [];
+      for (const pos of champ ? [...new Set([myPos(), 'NONE'])].filter(Boolean) : []) {
+        const r = await lcuGet(`/lol-perks/v1/recommended-pages/champion/${champ}/position/${pos}/map/${mapNow()}`);
+        csx.recs = (Array.isArray(r) ? r : []).filter((x) => x && Array.isArray(x.perks) && x.perks.length === 9)
+          .map((x) => ({ name: `Riot’s ${(x.keystone && x.keystone.name) || 'page'}`, p: [x.primaryPerkStyleId, x.secondaryPerkStyleId, ...x.perks.map((k) => k.id)] }));
+        if (csx.recs.length) break;
+      }
+    }
+    pushRemote();
+  }
+  // what the phone changes in champ select: your spells or skin, the rune page you use, or a page it edited (over that
+  // page when it's yours to edit, else as a new one), with how it went for the phone
+  let remoteNote = null;
+  const remoteSay = (text) => { remoteNote = { text, at: Date.now() }; };
+  async function mySelection(body, what) {
+    if (!okStatus(await lcuAsk('PATCH', '/lol-champ-select/v1/session/my-selection', body))) remoteSay(`League didn’t take that ${what}.`);
+    await champTick();
+    renderGame();
+  }
+  async function usePage(id) {
+    if (!okStatus(await lcuAsk('PUT', '/lol-perks/v1/currentpage', id))) remoteSay('League didn’t switch to that rune page.');
+    csx.at = -Infinity;
+    await csExtras();
+  }
+  async function savePage(id, name, p) {
+    const pages = await lcuGet('/lol-perks/v1/pages'), old = Array.isArray(pages) && pages.find((x) => x && x.id === id && x.isEditable);
+    const page = { name: name.trim().slice(0, 25) || 'Premade', primaryStyleId: p[0], subStyleId: p[1], selectedPerkIds: p.slice(2), current: true };
+    const r = old ? await lcuAsk('PUT', `/lol-perks/v1/pages/${old.id}`, { ...old, ...page }) : await lcuAsk('POST', '/lol-perks/v1/pages', page);
+    if (okStatus(r) && old) await lcuAsk('PUT', '/lol-perks/v1/currentpage', old.id);
+    remoteSay(okStatus(r) ? `Saved “${page.name}”, and it’s your rune page now.` : old ? 'League didn’t take that page. Check every rune is picked.' : 'League has no room for another rune page: change one of yours instead.');
+    csx.at = -Infinity;
+    await csExtras();
+  }
   function pushRemote() {
     if (!remoteConns.size) return;
     const s = remoteState(), j = JSON.stringify(s);
     if (j === remoteWas) return;
     remoteWas = j;
-    for (const c of remoteConns) c.send(s);
+    for (const c of remoteConns) c.send({ ...s, now: Date.now() }); // the time it was sent, for the phone's champ select clock
   }
   function onRemote(m) {
     if (!m || typeof m !== 'object') return;
@@ -6300,6 +6375,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (m.t === 'lolopen') chatOpen(m.id);
     else if (m.t === 'lolsay') chatSay(m.text);
     else if (m.t === 'lolinv' && typeof m.id === 'string') chatInvite(m.id, m.yes === true);
+    else if (cs && m.t === 'spells' && [m.d, m.f].every((x) => Number.isInteger(x) && x > 0)) mySelection({ spell1Id: m.d, spell2Id: m.f }, 'spell');
+    else if (cs && m.t === 'skin' && Number.isInteger(m.id) && m.id > 0) mySelection({ selectedSkinId: m.id }, 'skin');
+    else if (cs && m.t === 'page' && Number.isInteger(m.id)) usePage(m.id);
+    else if (cs && m.t === 'runes' && Number.isInteger(m.id) && typeof m.name === 'string' && Array.isArray(m.p) && m.p.length === 11 && m.p.every((x) => Number.isInteger(x) && x > 0)) savePage(m.id, m.name, m.p);
+    else if (cs && m.t === 'bench' && Number.isInteger(m.champ) && cs.benchEnabled) benchTake(m.champ);
+    else if (cs && m.t === 'reroll' && cs.allowRerolling) reroll();
+    else if (cs && m.t === 'dodge' && !cs.isCustomGame) dodge();
     remoteWas = '';
   }
   $('remoteNew').addEventListener('click', () => {
@@ -11075,6 +11157,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [39, 'October 20: champ select on your phone', [
+      'After you accept a match, the phone remote shows champ select as League does: both teams with their champions and whose turn it is, the bans and the seconds left. Names show only where League shows them.',
+      'Pick or ban from your phone: the best picks or bans for you, or any champion you may, found by name or role. Lock in, answer trades or dodge, and in ARAM take a champion from the bench or reroll.',
+      'Change your runes on your phone, starting from Riot’s page or the most popular one for your champion, or rune by rune, and your summoner spells and skin. Skins need app 1.15 too.',
+    ]],
     [38, 'October 20: practice tools, whole games on video and champion colours', [
       'Combo trainer: in Practice Tool, tick it on Game and the overlay shows your key presses with the time between them, then each combo’s time against your best on that champion.',
       'Jungle clear timer: in Practice Tool, buy a jungle pet and clear your camps. Each camp is timed against your best clear, and Game keeps your clears.',
@@ -11515,8 +11602,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Off until you turn it on: the Overlay page, Timers and coach.', '#optJgClock', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
-      ['Phone remote', 'Start the queue, accept matches, pick or ban champions, answer trades, start enemy timers, and use room chat and League chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
+      ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
         'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
+      ['Champ select on your phone', 'Champ select as League shows it: both teams, the bans and the seconds left. Pick or ban any champion you may, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, summoner spells and skin.',
+        'With the phone remote connected, it fills in after you accept. Runes: start from Riot’s page or the most popular one, or tap rune by rune, then Save. Skins need the app’s next update.', '#remoteBox, #optRemote', 'app'],
       ['Match found on a locked phone', 'A notification when a match is found, or your squad calls or pings, even with your phone’s screen off or the remote closed.', 'On the phone remote, tick “Tell me when a match is found or my squad calls”. On an iPhone, open the remote from its home screen icon first.', '#remoteBox, #optRemote', 'app'],
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
