@@ -13,19 +13,21 @@
 <script>
   if (window.lpcClient) document.documentElement.classList.add('in-client'); // the Windows client (client/preload.js)
   if (window.lpcClient && window.lpcClient.lcu) document.documentElement.classList.add('has-lcu'); // version 1.6+: League's own client
+  try { document.documentElement.style.setProperty('--zoom', Math.min(2, Math.max(0.7, +JSON.parse(localStorage.getItem('lpc-opts')).zoom || 1))); } catch {} // App size (Settings > Look)
 </script>
 <style>
 /* The themes (Settings > Look), red and black unless you pick another: the page, its panels and raised parts, text,
    trim in the theme's colour (--gold, from when League's gold was the only look), buttons and the focus ring in its
    accent, links, the glow on whoever is talking, gold for the best (an S tier, a first place), and green, amber and
-   red. data-theme on <html> picks one; on a preview in Settings it gives that preview its theme's colours.
+   red. data-theme on <html> picks one; on a preview in Settings it gives that preview its theme's colours. Custom
+   starts from red and black, and lpcLook puts your own colours over it.
    A dashboard: sections down the left like Discord, the chosen one in the middle, a status bar along the bottom. */
 :root {
   --display: "Cinzel", Georgia, serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
-:root, [data-theme="red"] {
+:root, [data-theme="red"], [data-theme="custom"] {
   --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a;
   --gold: #ff4f5a; --gold-hi: #ffffff; --gold-line: #7a1f28; --accent: #d9202d; --accent-fg: #ffffff; --link: #ff5c66; --talk: #ffffff;
   --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
@@ -62,13 +64,17 @@
   color-scheme: dark;
 }
 :root:not(.in-client) .client-only, :root:not(.has-lcu) .lcu-only, .in-client .browser-only, [hidden] { display: none !important; }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: none; } /* no scrollbars: the wheel, keys and touch still scroll */
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
 h1, h2, h3, p { margin: 0; }
 a { color: var(--link); }
 
-.app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100vh; height: 100dvh; }
+/* App size (Settings > Look) zooms the whole page. Viewport units grow with the zoom, so the app fills the window by
+   percent rather than 100vh and the few left are divided by --zoom; the layout's breakpoints are container queries on
+   .app, whose width shrinks as the page zooms in */
+:root { zoom: var(--zoom, 1); }
+.app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100%; container: app / inline-size; }
 .rail { grid-area: rail; display: flex; flex-direction: column; gap: 4px; width: 196px; padding: 14px 10px; background: var(--panel); border-right: 1px solid var(--gold-line); overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 18px; font: 700 14px/1.15 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 .brand img { width: 34px; height: 34px; border-radius: 6px; flex: none; }
@@ -81,7 +87,7 @@ main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32p
 .view { display: grid; gap: 18px; align-content: start; }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
-@media (max-width: 760px) {
+@container app (max-width: 760px) {
   .rail { width: auto; padding-inline: 6px; }
   .brand span, .nav span { display: none; }
   .brand { padding-inline: 4px; }
@@ -116,13 +122,13 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 
 /* help tips: a "?" button opens a short note next to it */
 .tip { width: 20px; height: 20px; padding: 0; flex: none; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid var(--gold-line); background: none; color: var(--gold); font: 700 12px/1 var(--body); cursor: help; }
-.tipbox { max-width: min(330px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 400 14px/1.5 var(--body); box-shadow: 0 12px 32px rgb(0 0 0 / 0.45); }
+.tipbox { max-width: min(330px, calc(100% - 32px)); padding: 12px 14px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 400 14px/1.5 var(--body); box-shadow: 0 12px 32px rgb(0 0 0 / 0.45); }
 @supports (anchor-name: --a) {
   .tipbox { position-anchor: --tip; inset: auto; top: anchor(bottom); left: anchor(left); margin: 8px 0 0; position-try-fallbacks: flip-block, flip-inline; }
 }
 
 /* the big join screen */
-.join { min-height: 72vh; display: grid; place-items: center; }
+.join { min-height: calc(72vh / var(--zoom, 1)); display: grid; place-items: center; }
 .joincard { width: min(460px, 100%); display: grid; gap: 18px; padding: 34px 28px; text-align: center; background: var(--panel); border: 1px solid var(--gold-line); border-radius: 10px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.3); }
 .joincard img { width: 64px; height: 64px; margin: 0 auto; border-radius: 12px; }
 .huge { font-size: 20px; padding: 18px 24px; letter-spacing: 0.04em; }
@@ -144,7 +150,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .voiceset[open] > summary { margin-bottom: 16px; }
 .voiceset[open] > summary::before { transform: rotate(45deg); }
 .dash { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 350px); gap: 18px; align-items: start; }
-@media (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 1000px) { .dash { grid-template-columns: minmax(0, 1fr); } }
 .mapbox { display: grid; gap: 12px; justify-items: center; }
 .mapbox > * { width: min(100%, 640px); }
 #map { aspect-ratio: 1; display: block; border-radius: 8px; border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 6%, transparent); }
@@ -206,8 +212,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .gbody > img { width: 200px; height: 200px; border-radius: 6px; flex: none; }
 .gbody .talk { flex: 1 1 240px; align-content: start; }
 
-/* settings */
-.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; align-items: start; }
+/* settings: 1px rows, each box spans its height plus the 16px gap (the script's brick), so boxes stack with no holes */
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); grid-auto-rows: 1px; column-gap: 16px; align-items: start; }
 .mic { display: grid; gap: 12px; }
 .mic meter { width: 100%; }
 .keyrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; align-items: center; font-size: 14px; }
@@ -254,7 +260,7 @@ body.compact .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12p
 .chips:empty::before { content: attr(data-empty); color: var(--muted); font-size: 13px; }
 
 /* popups */
-.toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100% - 32px)); pointer-events: none; }
 .toast { white-space: pre-line; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--fg); box-shadow: 0 10px 28px rgb(0 0 0 / 0.4); font-size: 14px; animation: toast-in 0.2s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } .pic { transition: none; } }
@@ -289,6 +295,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .tag { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .tag[data-k="good"] { border-color: var(--good); color: var(--good); }
 .tag[data-k="bad"] { border-color: var(--bad); color: var(--bad); }
+.tag[data-k="fun"] { border-color: var(--best); color: var(--best); }
 .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; color: var(--muted); font-size: 14px; }
 .champ { display: grid; grid-template: "pic name" auto "pic sub" auto / 40px minmax(0, 1fr); gap: 0 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--fg); font: 600 14px/1.25 var(--body); text-align: left; cursor: pointer; }
 .champ img { grid-area: pic; width: 40px; height: 40px; border-radius: 4px; }
@@ -336,7 +343,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .dchamp[aria-disabled="true"] .dsc { opacity: 0.55; }
 .dchamp[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--gold); }
 .dchamp[data-fav]::after { content: "★"; position: absolute; right: -7px; bottom: -9px; color: var(--best); font-size: 16px; line-height: 1; text-shadow: 0 0 3px #000; }
-@media (max-width: 560px) { .draft { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 560px) { .draft { grid-template-columns: minmax(0, 1fr); } }
 .mixbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
 #mixAd { background: #e8833a; }
 #mixAp { background: #4aa8ff; }
@@ -372,8 +379,9 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .clip .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+#clipKeyNote:empty { display: none; }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
-#clipVideo { width: 100%; max-height: 62vh; background: #000; border-radius: 6px; }
+#clipVideo { width: 100%; max-height: calc(62vh / var(--zoom, 1)); background: #000; border-radius: 6px; }
 .trim { display: grid; grid-template-columns: auto minmax(0, 1fr) 4.5em; gap: 8px 12px; align-items: center; font-size: 14px; }
 .trim output { font: 500 13px/1 var(--mono); color: var(--muted); text-align: right; }
 .helplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 14px; }
@@ -459,9 +467,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .awards { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
 .awards b { color: var(--gold); }
 
-/* Profile, the first page: you in League like a stats site's profile. Icon and level, Riot ID, region and status;
-   a crest for each rank; recent games with their items; mastery; looking anyone up */
+/* Profile, the first page: you in League like a stats site's profile. Icon and level, Riot ID, region and status,
+   with looking anyone up beside them; a crest for each rank; recent games with their items; mastery */
 .prohead { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; }
+.proside { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
+#proFindBox { display: grid; gap: 6px; width: min(100%, 400px); }
+#proFindNote:empty { display: none; }
 .proicon { position: relative; width: 96px; height: 96px; flex: none; border-radius: 50%; border: 2px solid var(--gold); background: var(--raised); }
 .proicon img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .lvl { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 2px 8px; border: 1px solid var(--gold-line); border-radius: 999px; background: var(--bg); font: 500 12px/1.3 var(--mono); color: var(--gold-hi); white-space: nowrap; }
@@ -477,7 +488,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .crest text { fill: var(--tc); font: 700 20px var(--display); text-anchor: middle; }
 .rtier { font: 600 20px/1.2 var(--body); }
 .prodash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 1000px) { .prodash { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 1000px) { .prodash { grid-template-columns: minmax(0, 1fr); } }
 .mixbar .w { background: var(--good); }
 .mixbar .l { background: var(--bad); flex: 1; }
 .games summary .pic0 { width: 30px; height: 30px; }
@@ -497,28 +508,44 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
   // blue and gold back when it was the default, counts as the default), Light while your computer is in light mode if
   // you ticked that, and your own main colour. That colour fills buttons, with black or white text, whichever reads
-  // better; the trim, links and lines in it are mixed toward the theme's text until they read well (4.5:1) on all of
-  // its backgrounds. Settings calls this again after a change.
-  function lpcLook() {
-    const root = document.documentElement;
-    let t = '', o = {};
-    try { t = localStorage.getItem('lpc-theme') || ''; o = JSON.parse(localStorage.getItem('lpc-opts')) || {}; } catch {}
-    if (o.themeAuto && matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
-    root.dataset.theme = ['league', 'light', 'purple', 'green', 'mono'].includes(t) ? t : 'red';
-    const own = { accent: '', 'accent-fg': '', gold: '', 'gold-line': '', link: '' }; // '' takes off your colour
-    if (/^#[0-9a-f]{6}$/i.test(o.main || '')) {
-      const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
-      const lin = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4), lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
-      const mix = (a, b, w) => a.map((v, i) => Math.round(v * w + b[i] * (1 - w)));
-      const css = getComputedStyle(root), [fg, ...backs] = ['fg', 'bg', 'panel', 'raised'].map((k) => rgb(css.getPropertyValue('--' + k).trim()));
-      const reads = (c) => backs.every((b) => (Math.max(lum(c), lum(b)) + 0.05) / (Math.min(lum(c), lum(b)) + 0.05) >= 4.5);
-      const m = rgb(o.main);
-      let w = 20;
-      while (w && !reads(mix(m, fg, w / 20))) w--;
-      const text = hex(mix(m, fg, w / 20));
-      Object.assign(own, { accent: hex(m), 'accent-fg': lum(m) > 0.179 ? '#000000' : '#ffffff', gold: text, link: text, 'gold-line': hex(mix(m, backs[1], 0.5)) });
+  // better; the trim, links and lines in it are mixed toward white or black, whichever reads on the page, until they
+  // read well (4.5:1) on all of its backgrounds. Custom is your own background and text over red and black: panels a
+  // step toward that white or black, the page moved the other way until it reads on its panels too, then your text
+  // and the gold, green, amber and red text mixed toward it until they read, and dim text between yours and the page.
+  // Settings calls this again after a change, and for the Custom card's preview (el).
+  function lpcLook(el = document.documentElement, t) {
+    let o = {};
+    try { t ??= localStorage.getItem('lpc-theme') || ''; o = JSON.parse(localStorage.getItem('lpc-opts')) || {}; } catch {}
+    if (el === document.documentElement && o.themeAuto && matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
+    el.dataset.theme = ['league', 'light', 'purple', 'green', 'mono', 'custom'].includes(t) ? t : 'red';
+    for (const k of ['bg', 'panel', 'raised', 'fg', 'muted', 'line', 'gold', 'gold-hi', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'best', 'good', 'warn', 'bad']) el.style.removeProperty('--' + k);
+    el.style.removeProperty('color-scheme'); // the theme's own colours, then yours over them
+    const ok = (h) => /^#[0-9a-f]{6}$/i.test(h || ''), custom = el.dataset.theme === 'custom';
+    if (!custom && !ok(o.main)) return;
+    const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+    const lin = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4), lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+    const mix = (a, b, w) => a.map((v, i) => Math.round(v * w + b[i] * (1 - w)));
+    const css = getComputedStyle(el), get = (k) => rgb(css.getPropertyValue('--' + k).trim());
+    let [fg, ...backs] = ['fg', 'bg', 'panel', 'raised'].map(get);
+    const reads = (c) => backs.every((b) => (Math.max(lum(c), lum(b)) + 0.05) / (Math.min(lum(c), lum(b)) + 0.05) >= 4.5);
+    const readable = (c, to) => { let w = 20; while (w && !reads(mix(c, to, w / 20))) w--; return mix(c, to, w / 20); };
+    const want = custom && ok(o.customBg) ? rgb(o.customBg) : backs[0], light = lum(want) > 0.179, pole = light ? [0, 0, 0] : [255, 255, 255];
+    const own = {};
+    if (custom) {
+      for (let w = 20; w >= 0; w--) {
+        const b = mix(want, pole.map((v) => 255 - v), w / 20);
+        backs = [b, mix(pole, b, 0.05), mix(pole, b, 0.09)];
+        if (reads(pole)) break;
+      }
+      fg = readable(ok(o.customFg) ? rgb(o.customFg) : fg, pole);
+      const [bg, panel, raised] = backs, text = hex(fg);
+      Object.assign(own, { bg: hex(bg), panel: hex(panel), raised: hex(raised), fg: text, 'gold-hi': text, talk: text, muted: hex(readable(mix(fg, bg, 0.6), fg)), line: hex(mix(pole, bg, 0.16)) });
+      for (const k of ['best', 'good', 'warn', 'bad']) own[k] = hex(readable(get(k), pole));
+      el.style.colorScheme = light ? 'light' : 'dark';
     }
-    for (const k in own) root.style.setProperty('--' + k, own[k]);
+    const m = ok(o.main) ? rgb(o.main) : get('accent'), text = hex(readable(m, pole)); // Custom without a main colour: red and black's
+    Object.assign(own, { accent: hex(m), 'accent-fg': lum(m) > 0.179 ? '#000000' : '#ffffff', gold: text, link: text, 'gold-line': hex(mix(m, backs[1], 0.5)) });
+    for (const k in own) el.style.setProperty('--' + k, own[k]);
   }
   lpcLook();
 </script>
@@ -548,12 +575,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
           <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
         </div>
-        <div class="toolbar">
-          <button id="proRoom" class="btn primary" type="button">Voice room</button>
-          <button id="profileBtn" class="btn" type="button" hidden>Share my profile</button>
-          <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
-          <button id="proForget" class="btn" type="button" hidden>Not you?</button>
-          <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
+        <div class="proside">
+          <div id="proFindBox" hidden>
+            <form id="proFind" class="chatform" role="search">
+              <input id="proId" type="search" autocomplete="off" spellcheck="false" placeholder="Look up a player: Name#TAG" aria-label="Look up a player by Riot ID">
+              <button id="proGo" class="btn" type="submit">Look up</button>
+            </form>
+            <p id="proFindNote" class="hint" role="status"></p>
+          </div>
+          <div class="toolbar">
+            <button id="proRoom" class="btn primary" type="button">Voice room</button>
+            <button id="profileBtn" class="btn" type="button" hidden>Share my profile</button>
+            <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
+            <button id="proForget" class="btn" type="button" hidden>Not you?</button>
+            <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
+          </div>
         </div>
       </header>
       <section id="profileOut" class="panel" aria-label="Your profile link" hidden>
@@ -598,15 +634,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <section id="proMasteryBox" class="panel" aria-labelledby="h-promastery">
             <h2 id="h-promastery" class="ph">Mastery</h2>
             <div id="proMastery" class="stack"></div>
-          </section>
-          <section id="proFindBox" class="panel" aria-labelledby="h-profind">
-            <h2 id="h-profind" class="ph">Look up a player</h2>
-            <form id="proFind" class="stack">
-              <label class="field">Riot ID <input id="proId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label>
-              <label id="proRegionRow" class="field" hidden>Region <select id="proRegion"></select></label>
-              <div><button id="proGo" class="btn" type="submit">Look up</button></div>
-            </form>
-            <p id="proFindNote" class="hint" role="status"></p>
           </section>
         </div>
       </div>
@@ -1038,6 +1065,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="clipList" class="cliplist" hidden></ul>
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
       </section>
+      <details id="clipSet" class="voiceset">
+        <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
+        <div class="settings">
+          <section class="panel">
+            <h2 class="ph">Recording <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
+            <label class="check"><input id="optClips" type="checkbox"> Keep the last part of each game, for the clip key</label>
+            <div class="toolbar">
+              <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
+              <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
+            </div>
+            <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
+          </section>
+          <section class="panel">
+            <h2 class="ph">Saving a clip <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
+            <div class="keyrow"><span>Clip key</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
+            <p id="clipKeyNote" class="hint"></p>
+            <label class="check"><input id="optClipMulti" type="checkbox"> Save a clip by itself when I get a double kill or better</label>
+            <label class="check"><input id="optClipBig" type="checkbox"> And for my team's steals and Aces, and my pentakills</label>
+          </section>
+          <section class="panel">
+            <h2 class="ph">By voice <button class="tip" type="button" popovertarget="t-voiceclip" aria-label="About clips by voice">?</button></h2>
+            <label class="check"><input id="optClipVoice" type="checkbox"> Save a clip when I say “Premade, clip that”</label>
+            <label class="field">Or my own phrase <input id="optClipPhrase" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Record it, or type it"></label>
+            <div class="toolbar"><button id="phraseRec" class="btn small" type="button">Record my phrase</button><button id="voiceTest" class="btn small" type="button">Test</button></div>
+            <p id="voiceNote" class="hint" role="status"></p>
+          </section>
+        </div>
+      </details>
     </section>
 
     <section class="view" data-view="settings" aria-label="Settings" hidden>
@@ -1046,7 +1101,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <section class="panel client-only">
           <h2 class="ph">Keyboard shortcuts <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
           <div class="keyrow client-only"><span>Show or hide this window</span><kbd id="kShow"></kbd><button class="btn small" type="button" data-key="show">Change</button><span></span></div>
-          <div class="keyrow lcu-only"><span>Save a clip</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
           <div class="keyrow client-only"><span>Everyone’s rank in a game, or hide the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
           <p id="keysNote" class="hint"></p>
         </section>
@@ -1087,19 +1141,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <label class="check"><input id="optRecord" type="checkbox"> Save test recordings of my games <button class="tip" type="button" popovertarget="t-record" aria-label="About test recordings">?</button></label>
           <div class="toolbar"><button id="recordingsBtn" class="btn small" type="button">Open the recordings folder</button></div>
         </section>
-        <section class="panel lcu-only">
-          <h2 class="ph">Clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
-          <label class="check"><input id="optClips" type="checkbox"> Keep the last part of each game, for the clip key</label>
-          <div class="toolbar">
-            <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
-            <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
-          </div>
-          <label class="check"><input id="optClipMulti" type="checkbox"> Save a clip by itself when I get a double kill or better</label>
-          <label class="check"><input id="optClipBig" type="checkbox"> And for my team's steals and Aces, and my pentakills</label>
-          <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
-        </section>
         <section class="panel">
           <h2 class="ph">Look</h2>
+          <div class="range"><span>App size</span><span></span><input id="optZoom" type="range" min="0.7" max="2" step="0.05" aria-label="App size"><output id="zoomOut"></output></div>
           <fieldset class="themes"><legend class="hint">Theme</legend>
             <label class="theme"><input type="radio" name="theme" value="red"><span class="sw" data-theme="red"></span>Red and black</label>
             <label class="theme"><input type="radio" name="theme" value="league"><span class="sw" data-theme="league"></span>League blue and gold</label>
@@ -1107,7 +1151,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="theme"><input type="radio" name="theme" value="purple"><span class="sw" data-theme="purple"></span>Purple</label>
             <label class="theme"><input type="radio" name="theme" value="green"><span class="sw" data-theme="green"></span>Green</label>
             <label class="theme"><input type="radio" name="theme" value="mono"><span class="sw" data-theme="mono"></span>Black and white</label>
+            <label class="theme"><input type="radio" name="theme" value="custom"><span id="customSw" class="sw" data-theme="custom"></span>Custom</label>
           </fieldset>
+          <div id="customRow" class="toolbar" hidden><label class="check">Background <input id="optCustomBg" type="color"></label><label class="check">Text <input id="optCustomFg" type="color"></label></div>
           <div class="toolbar"><label class="check">Main colour <input id="optMain" type="color"></label><button id="mainReset" class="btn small" type="button">Use the theme’s colour</button></div>
           <label class="check"><input id="optThemeAuto" type="checkbox"> Light when my computer is in light mode</label>
         </section>
@@ -1229,6 +1275,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't.</div>
 <div id="t-out" class="tipbox" popover>Where everyone's voices come out. Using Wave Link? Pick its Voice Chat channel here, the same way you would in Discord.</div>
+<div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
@@ -1246,9 +1293,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
-<div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery and Riot's ranked flags. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
+<div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
-<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key (Settings, Keyboard shortcuts), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
+<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-backup" class="tipbox" popover>Back up saves your settings, matchup notes, LP history, game history, reports and clip favorites in one file. Restore loads such a file, on this PC or another, and replaces what's here.</div>
@@ -1282,11 +1329,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // Settings kept in this browser. keys: shortcuts as "Ctrl+Shift+M", push to talk as a KeyboardEvent code ("KeyV") or "Mouse4".
   const opts = {
-    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true,
+    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false,
+    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
@@ -1607,7 +1654,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let myPic = null; // your champion's picture for your own marker
   function drawMap() {
     if (!mapEl.offsetParent) return; // its section isn't showing
-    const S = Math.round(mapEl.clientWidth * devicePixelRatio);
+    const S = Math.round(mapEl.clientWidth * devicePixelRatio * (mapEl.currentCSSZoom || 1)); // sharp at any App size
     if (!S) return;
     if (mapEl.width !== S) mapEl.width = mapEl.height = S;
     const g = mapG, k = S / 420;
@@ -1919,7 +1966,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return true;
     }
   });`;
-  let raw = null, ac = null, gateNode = null, micSrc = null, hurtDry = null, hurtWet = null, hurtDepth = null, hurtLevel = 0;
+  // clips by voice: hands your raw mic to the speech recognition in blocks of 4096 samples, only while you make a sound
+  // and 1.5 s after (with the 0.5 s before it), so it has nothing to do while you're quiet
+  const TAP = `registerProcessor('tap', class extends AudioWorkletProcessor {
+    constructor() { super(); this.b = new Float32Array(4096); this.n = 0; this.pre = []; this.hold = 0; }
+    process([inp]) {
+      const x = inp[0];
+      if (!x) return true;
+      let e = 0;
+      for (const v of x) e += v * v;
+      this.hold = Math.sqrt(e / x.length) * 5 >= 0.02 ? sampleRate * 1.5 : Math.max(0, this.hold - x.length);
+      this.b.set(x, this.n);
+      this.n += x.length;
+      if (this.n < this.b.length) return true;
+      if (this.hold > 0) { for (const b of this.pre.splice(0)) this.port.postMessage(b); this.port.postMessage(this.b); }
+      else if (this.pre.push(this.b) > 6) this.pre.shift();
+      this.b = new Float32Array(4096);
+      this.n = 0;
+      return true;
+    }
+  });`;
+  let raw = null, ac = null, gateNode = null, micSrc = null, micTap = null, hurtDry = null, hurtWet = null, hurtDepth = null, hurtLevel = 0;
   const HEAT = 32; // talk map cells across the minimap
   let myTalk = 0;
   const myHeat = new Float32Array(HEAT * HEAT);
@@ -2025,6 +2092,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     micSrc.disconnect();
     micSrc.connect(node || gateNode);
     if (node) node.connect(gateNode);
+    if (micTap) micSrc.connect(micTap);
   }
   // Hurt voice: nothing above 35% health, all of it at 5% (League's own data, so the Windows client only)
   function applyHurt() {
@@ -2070,7 +2138,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return true;
     }
   });`;
-  const WORKLETS = URL.createObjectURL(new Blob([GATE, FXW], { type: 'text/javascript' }));
+  const WORKLETS = URL.createObjectURL(new Blob([GATE, FXW, TAP], { type: 'text/javascript' }));
   const FX = {
     ocean: { name: 'Ocean soul', lp: 2800, mod: [0.008, 0.004, 1.5, 0.3, 0.4, 0.8] },        // watery
     mountain: { name: 'Mountain soul', pitch: 0.9, lo: 10, ring: [35, 0.25] },              // rumbling
@@ -2927,6 +2995,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('optOpacity').value = opts.overlayOpacity;
   showOpacity();
   $('optOpacity').addEventListener('input', (e) => { opts.overlayOpacity = +e.target.value; saveOpts(); showOpacity(); pushOverlay(); });
+  // App size (Settings > Look): the page zooms when you let go of the slider, as it would move under you while you drag
+  const showZoom = () => { $('zoomOut').textContent = pct($('optZoom').value); };
+  $('optZoom').value = opts.zoom;
+  showZoom();
+  $('optZoom').addEventListener('input', showZoom);
+  $('optZoom').addEventListener('change', (e) => { opts.zoom = +e.target.value; saveOpts(); document.documentElement.style.setProperty('--zoom', opts.zoom); });
   if (client) client.on('overlay-moved', (m) => {
     if (m && m.done) return moveOverlay(false);
     if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -2965,7 +3039,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     document.body.classList.toggle('compact', on);
     $('compactBtn').setAttribute('aria-pressed', String(on));
     $('compactBtn').lastChild.textContent = on ? 'Full view' : 'Compact';
-    if (client) client.compact(on ? document.querySelector('.app').offsetHeight : 0); // the strip's height, or 0 for full size
+    if (client) client.compact(on ? document.querySelector('.app').getBoundingClientRect().height : 0); // the strip's height (zoomed, as on screen), or 0 for full size
     render();
   }
   $('compactBtn').addEventListener('click', () => setCompact(!document.body.classList.contains('compact')));
@@ -3148,14 +3222,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return g.gameMode !== 'CLASSIC' ? '' : l === 'BOTTOM' && /SUPPORT/i.test(t.role || '') ? 'UTILITY' : l;
   }
   // games from a match history: newest first, without remakes (under 5 minutes). perks: the rune trees, then the six
-  // runes (match history leaves out the stat shards)
+  // runes (match history leaves out the stat shards). spells: the D and F summoner spells. Profile's tags use the rest,
+  // undefined where a game's data doesn't have it (League's client gives no kill participation, solo kills, steals or pings)
   function gamesOf(h) {
     const list = (h && h.games && Array.isArray(h.games.games) && h.games.games) || [];
     return list.map((g) => {
-      const p = (g.participants && g.participants[0]) || {}, s = p.stats || {};
+      const p = (g.participants && g.participants[0]) || {}, s = p.stats || {}, c = s.challenges || {}, num = (v) => (typeof v === 'number' ? v : undefined), pk = Object.keys(s).filter((k) => /Pings$/.test(k));
       return { id: g.gameId, at: +g.gameCreation || 0, len: +g.gameDuration || 0, queue: g.queueId, mode: g.gameMode, champ: p.championId, win: !!s.win, gold: s.goldEarned | 0,
         k: s.kills | 0, d: s.deaths | 0, a: s.assists | 0, cs: (s.totalMinionsKilled | 0) + (s.neutralMinionsKilled | 0), team: p.teamId | 0, lane: laneOf(g, p),
         vision: s.visionScore | 0, dmg: s.totalDamageDealtToChampions | 0, penta: s.pentaKills | 0, quadra: s.quadraKills | 0, multi: s.largestMultiKill | 0, fb: !!s.firstBloodKill,
+        spells: [p.spell1Id || s.summoner1Id | 0, p.spell2Id || s.summoner2Id | 0], pinks: num(s.visionWardsBoughtInGame), towers: num(s.turretKills), cc: num(s.timeCCingOthers),
+        taken: num(s.totalDamageTaken), spree: num(s.largestKillingSpree), kp: num(c.killParticipation), solo: num(c.soloKills), steals: num(s.objectivesStolen),
+        qping: num(s.enemyMissingPings), pings: pk.length ? pk.reduce((t, k) => t + (s[k] | 0), 0) : undefined,
         items: [0, 1, 2, 3, 4, 5].map((i) => s['item' + i] | 0).filter(Boolean), perks: s.perk0 ? [s.perkPrimaryStyle | 0, s.perkSubStyle | 0, ...[0, 1, 2, 3, 4, 5].map((i) => s['perk' + i] | 0)] : null };
     }).filter((g) => g.len >= 300).sort((a, b) => b.at - a.at);
   }
@@ -4330,9 +4408,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     } catch { return null; }
   }
   const CLIP_WHY = { multi: ' of your multikill', penta: ' of your pentakill', steal: ' of the steal', ace: ' of the Ace' };
-  async function saveClip(why, secs = opts.clipLen) {
+  async function saveClip(why, secs = opts.clipLen, said = '') {
     const r = recorder;
-    if (!r || !r.mr || !r.head || r.saving) return void (why === 'key' && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Settings, Clips.', true));
+    if (!r || !r.mr || !r.head || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Clip settings, on the Clips page.', true));
     r.saving = true;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
@@ -4341,7 +4419,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
       if (!name) throw new Error('nothing to save');
       clipNames.unshift(name);
-      notify(`Clip saved${CLIP_WHY[why] || ''}: ${name}`, true);
+      notify(`Clip saved${said ? ` when you said “${said}”` : CLIP_WHY[why] || ''}: ${name}`, true);
       await cleanClips();
       loadClips();
     } catch (err) { console.warn('clip:', err); notify('Couldn’t save that clip.', true); }
@@ -4361,6 +4439,138 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     clearTimeout(clipTimer);
     clipTimer = setTimeout(() => saveClip(e.e === 'multi' ? (e.n >= 5 ? 'penta' : 'multi') : e.e === 'ace' ? 'ace' : 'steal'), e.e === 'multi' ? 5000 : 3000);
   }
+  // ---- clips by voice (desktop app): with it on, during a game the app listens to your mic for “Premade, clip that”
+  // and your own phrase, and saves a clip as the clip key does. Vosk (vendor/vosk: Kaldi's speech recognition in
+  // WebAssembly, in a worker, with its small US English model) runs on this computer. The model (41 MB) downloads the
+  // first time and stays in this app's storage (IndexedDB); it takes about 200 MB of memory, so it's loaded only while
+  // it's wanted: in a game, or while Record my phrase or Test listens. It listens for the phrases alone (a grammar,
+  // with [unk] for every other word), which finds them in the middle of a sentence too.
+  const SAY = 'Premade, clip that';
+  let vosk = null, ear = null, fired = false, testing = null, recording = false, voiceErr = '', voiceBusy = null;
+  const ears = new Set();
+  const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
+  const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
+  const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
+  const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
+  const voiceWant = () => !!testing || recording || (opts.clipVoice && !voiceErr && !!recorder && !recorder.failed);
+  const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
+  const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
+  async function voiceStart() {
+    voiceErr = '';
+    try { if (!raw) await getMic(); } catch (err) {
+      console.warn('voice clips:', err);
+      voiceErr = 'Couldn’t open your microphone. Check it in Voice settings, then try again.';
+      return false;
+    }
+    if (!vosk) {
+      $('voiceNote').textContent = 'Getting voice recognition ready. The first time it downloads its speech model, about 40 MB…';
+      vosk = import(vendor('vosk.wasm.js')).then(({ VoskClient }) => new Promise((res, rej) => {
+        const v = new VoskClient({ modelUrl: vendor('vosk-model-small-en-us-0.15.tar.gz'), workerUrl: vendor('vosk.worker.js'), wasmUrl: vendor('vosk.wasm'), logLevel: -2 });
+        v.on('load', (m) => (m.result ? res(v) : rej(new Error('the model didn’t load'))));
+        v.on('error', (m) => rej(new Error(m.error)));
+      }));
+    }
+    let v;
+    try { v = await vosk; } catch (err) {
+      console.warn('voice clips:', err);
+      vosk = null;
+      voiceErr = 'Couldn’t start voice recognition on this computer.';
+      return false;
+    }
+    if (!micTap) {
+      micTap = new AudioWorkletNode(ac, 'tap', { numberOfOutputs: 0 });
+      micTap.port.onmessage = ({ data }) => { for (const e of ears) e.acceptWaveformFloat(data, ac.sampleRate); };
+      micSrc.connect(micTap);
+    }
+    if (!ear) listen(v);
+    return true;
+  }
+  function listen(v) {
+    if (ear) { ears.delete(ear); ear.remove(); }
+    ear = new v.KaldiRecognizer(ac.sampleRate, JSON.stringify([...phrases().map(words), '[unk]']));
+    ear.on('partialresult', (m) => voiceHeard(m.result.partial));
+    ear.on('result', (m) => { voiceHeard(m.result.text); fired = false; });
+    ears.add(ear);
+  }
+  function voiceHeard(text) {
+    const p = !fired && saidIn(text);
+    if (!p) return;
+    fired = true; // once a sentence
+    if (testing) testing(p);
+    else if (!recording) saveClip('voice', opts.clipLen, p);
+  }
+  function voiceOff() {
+    for (const e of ears) e.remove();
+    ears.clear();
+    ear = null;
+    if (micTap) { micTap.port.onmessage = null; try { micSrc.disconnect(micTap); } catch {} }
+    micTap = null;
+    if (vosk) vosk.then((v) => v.terminate(), () => {});
+    vosk = null;
+  }
+  async function voiceCheck() {
+    if (voiceBusy) return;
+    if (voiceWant() && !ear) {
+      const ok = await voiceOn();
+      if (!testing && !recording) renderVoice();
+      if (!ok) $('voiceNote').textContent = voiceErr;
+    } else if (!voiceWant() && vosk) voiceOff();
+  }
+  function renderVoice() {
+    const short = opts.clipPhrase && words(opts.clipPhrase).split(' ').length < 2;
+    $('voiceNote').textContent = voiceErr || (short ? 'Your own phrase needs two words or more, so it isn’t said by accident.'
+      : !opts.clipVoice ? '' : !opts.clips ? 'Turn on “Keep the last part of each game” too: that’s what a clip is saved from.'
+      : `${ear ? 'Listening' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
+  }
+  $('voiceTest').addEventListener('click', async () => {
+    if (testing || recording) return;
+    let got;
+    const said = new Promise((res) => { got = res; });
+    testing = got;
+    fired = false;
+    if (!(await voiceOn())) { testing = null; return void ($('voiceNote').textContent = voiceErr); }
+    $('voiceNote').textContent = `Say ${quoted(phrases(), ' or ')}…`;
+    const p = await Promise.race([said, sleep(10000)]);
+    testing = null;
+    $('voiceNote').textContent = !p ? 'Didn’t hear it. Say it a little louder, or record your own phrase.'
+      : `Heard “${p}”.${opts.clipVoice ? ' In a game, that saves a clip.' : ' Turn on the box above to save clips with it.'}`;
+    voiceCheck();
+  });
+  // Record my phrase: writes down the first thing you say with two words or more (Vosk without the grammar)
+  $('phraseRec').addEventListener('click', async () => {
+    if (testing || recording) return;
+    recording = true;
+    if (!(await voiceOn())) { recording = false; return void ($('voiceNote').textContent = voiceErr); }
+    const v = await vosk, r = new v.KaldiRecognizer(ac.sampleRate);
+    ears.add(r);
+    $('voiceNote').textContent = 'Say your phrase now…';
+    const text = await new Promise((res) => {
+      let part = '';
+      r.on('partialresult', (m) => { part = m.result.partial || part; });
+      r.on('result', (m) => { part = m.result.text || part; if (words(m.result.text).split(' ').length >= 2) res(m.result.text); });
+      setTimeout(() => res(part), 8000);
+    });
+    ears.delete(r);
+    r.remove();
+    recording = false;
+    const ok = words(text).split(' ').length >= 2;
+    if (ok) {
+      opts.clipPhrase = $('optClipPhrase').value = words(text);
+      saveOpts();
+      if (ear) listen(v);
+    }
+    $('voiceNote').textContent = !text ? 'Didn’t hear anything. Check your mic in Voice settings and try again.'
+      : !ok ? `Heard “${text}”. Use two words or more, so it isn’t said by accident.` : `Your phrase is “${opts.clipPhrase}”. Press Test to try it.`;
+    voiceCheck();
+  });
+  $('optClipPhrase').value = opts.clipPhrase;
+  $('optClipPhrase').addEventListener('change', (e) => {
+    opts.clipPhrase = e.target.value.trim();
+    saveOpts();
+    if (ear) vosk.then(listen);
+    renderVoice();
+  });
+  renderVoice();
   // A WebM of the last secs seconds of the recording: its header (from head, its first chunk) with a Duration, then the
   // clusters from the last one that starts on a video key frame at least secs before the end, their timecodes moved to
   // start at 0. (Chrome starts a cluster about every second, and a key frame comes every 2 s.) With range [from, to]
@@ -4452,7 +4662,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('clipList').hidden = g;
     if (g) $('clipGrid').replaceChildren(...gallery.map(clipCard));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
-    $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip shortcut'}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Settings, Clips).',
+    $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
   }
   function clipCard(c) {
@@ -5527,10 +5737,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const qOk = (x, q) => (q === 'tft' ? !!x.tft : !x.tft && (!PROQ[q][1] || PROQ[q][1].includes(x.queue)));
   let ddTft = null, ddTftAt = -Infinity; // TFT's units, traits, items and augments from Data Dragon: id -> { name, img }
   const liveRk = new Map(); // puuid -> { at, rk } for the players in a live game on Profile: undefined while asked, null when it failed
-  let proSaved = '', proList = '', regionPicked = false, riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
-  $('proRegion').append(...Object.entries(PLATS).map(([k, [n]]) => new Option(n, k)));
-  $('proRegion').value = (proMine && PLATS[proMine.plat] && proMine.plat) || 'euw1';
-  $('proRegion').addEventListener('change', () => { regionPicked = true; });
+  let proSaved = '', proList = '', riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
   function liveMine() { // yours from League's client, once it has said who you are and given your games
     if (!lcuOn() || !me0 || !me0.gameName || !myHist) return null;
     return { n: `${me0.gameName}#${me0.tagLine || ''}`, u: me0.puuid, lvl: me0.summonerLevel | 0, icon: me0.profileIconId | 0, plat: myPlat || (proMine && proMine.plat) || '',
@@ -5555,6 +5762,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // { peak, last: [tier, division, LP], at } } }; asked again after 10 minutes, null until it answers
   const pasts = new Map(); // puuid -> { at, s }
   let pastSent = ''; // you and the day our server was last asked for your rank, so it keeps yours season by season
+  // someone's puuid in Riot's API: League's client has its own kind, which Riot and our server's record of ranks don't
+  // know, so it's asked for by Riot ID, once (again after a failure, with again). riotUp: a promise of it, null when
+  // Riot doesn't know them; riotU: it now, null until Riot answers (then Profile draws again)
+  const riotUs = new Map(); // 'name#tag' -> that promise, with .u once Riot has answered and .bad when it failed
+  function riotUp(p, again) {
+    if (p.src === 'riot') return Promise.resolve(p.u);
+    const id = riotOn && PLATS[p.plat] ? riotId(p.n) : null, reg = id && PLATS[p.plat][1], old = riotUs.get(p.n);
+    if (!id || (old && !(again && old.bad))) return old || Promise.resolve(null);
+    const w = riotGet(reg === 'sea' ? 'asia' : reg, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(id[0])}/${encodeURIComponent(id[1])}`)
+      .then((a) => { w.u = a && typeof a.puuid === 'string' ? a.puuid : null; if (!profView.hidden) renderProfile(); return w.u; }, (err) => { w.bad = true; throw err; });
+    riotUs.set(p.n, w);
+    return w;
+  }
+  const riotU = (p) => (p.src === 'riot' ? p.u : (riotUp(p).catch(() => {}), (riotUs.get(p.n) || {}).u || null));
   function pastOf(u) {
     const t = pasts.get(u);
     if (riotOn && u && (!t || performance.now() - t.at > 600000)) {
@@ -5566,15 +5787,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return t ? t.s : null;
   }
-  // past seasons' ranks, newest first: last season's from League's client (where it ended and its peak), and each
-  // season our server saw that's over (the last rank it saw then, and the highest)
-  function pastRanks(p) {
-    const now = seasonNow(), out = new Map(), rec = pastOf(p.u) || {};
-    for (const [s, qs] of Object.entries(rec)) for (const q of QS) { const v = qs && qs[q]; if (+s < now && v) out.set(`${s} ${q}`, { s: +s, q, end: rkArr(v.last), peak: rkArr(v.peak), at: +v.at || 0 }); }
+  // what League's client says about someone's seasons, { season: { queue: [end, peak] } }: where last season ended and
+  // its peak, and this season's peak. Yours is kept on this computer (lpc-past), for when League is closed; by Riot ID,
+  // since your profile from Riot has another puuid than League's client.
+  const leaguePast = load('lpc-past', {}); // 'name#tag' in lower case -> { season: { queue: [end, peak] } }
+  function leagueRanks(p) {
+    const now = seasonNow(), id = String(p.n || '').toLowerCase(), kept = JSON.parse(JSON.stringify(leaguePast[id] || {}));
     for (const q of QS) {
-      const x = p.rk && p.rk[q], end = x && rankFrom(x.previousSeasonEndTier, x.previousSeasonEndDivision), peak = x && rankFrom(x.previousSeasonHighestTier, x.previousSeasonHighestDivision);
-      if (now && (end || peak)) out.set(`${now - 1} ${q}`, { s: now - 1, q, end, peak, league: true });
+      const x = p.rk && p.rk[q], end = x && rankFrom(x.previousSeasonEndTier, x.previousSeasonEndDivision), peak = x && rankFrom(x.previousSeasonHighestTier, x.previousSeasonHighestDivision), hi = x && rankFrom(x.highestTier, x.highestDivision);
+      if (now && (end || peak)) (kept[now - 1] ||= {})[q] = [end, peak];
+      if (now && hi) (kept[now] ||= {})[q] = [null, hi];
     }
+    if (me0 && p.u && p.u === me0.puuid && JSON.stringify(kept) !== JSON.stringify(leaguePast[id] || {})) { leaguePast[id] = kept; store.set('lpc-past', JSON.stringify(leaguePast)); }
+    return kept;
+  }
+  // past seasons' ranks, newest first: from League's client (where a season ended and its peak), and each season our
+  // server saw that's over (the last rank it saw then, and the highest)
+  function pastRanks(p) {
+    const now = seasonNow(), out = new Map(), rec = pastOf(riotU(p)) || {};
+    for (const [s, qs] of Object.entries(rec)) for (const q of QS) { const v = qs && qs[q]; if (+s < now && v) out.set(`${s} ${q}`, { s: +s, q, end: rkArr(v.last), peak: rkArr(v.peak), at: +v.at || 0 }); }
+    for (const [s, qs] of Object.entries(leagueRanks(p))) for (const q of QS) { const v = qs && qs[q]; if (+s < now && Array.isArray(v)) out.set(`${s} ${q}`, { s: +s, q, end: v[0], peak: v[1], league: true }); }
     return [...out.values()].filter((x) => x.end || x.peak).sort((a, b) => b.s - a.s || QS.indexOf(a.q) - QS.indexOf(b.q));
   }
   function pastChip(x) { // S2025 Diamond II · peak Diamond I, with the emblem
@@ -5585,44 +5817,102 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : `${x.end ? `${rkName(x.end)} when our server last saw it${x.at ? ` (${new Date(x.at * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })})` : ''}` : ''}${x.end && x.peak ? ', ' : ''}${x.peak ? `highest it saw ${rkName(x.peak)}` : ''}. From Riot, kept by our server.`}`;
     return t;
   }
-  const peakNow = (p, q) => { // this season's highest rank: from League's client, or the highest our server saw
-    const x = p.rk && p.rk[q], v = ((pastOf(p.u) || {})[seasonNow()] || {})[q], a = x && rankFrom(x.highestTier, x.highestDivision), b = v && rkArr(v.peak);
+  const peakNow = (p, q) => { // this season's highest rank: from League's client (now or when it last said), or the highest our server saw
+    const k = (leagueRanks(p)[seasonNow()] || {})[q], v = ((pastOf(riotU(p)) || {})[seasonNow()] || {})[q], a = Array.isArray(k) && k[1], b = v && rkArr(v.peak);
     return rkVal(a) >= rkVal(b) ? a : b;
   };
   // Porofessor-style tags for Profile: the scouting ones (a streak, a one-trick, a possible smurf, seen before) and
-  // more from the last 20 games (Summoner's Rift's for play style), top mastery and Riot's ranked flags
+  // more from the last 20 games (Summoner's Rift's for play style), top mastery, level and Riot's ranked flags. Green
+  // and red ones are good to know, gold ones ('fun') just for fun, shown in that order
   function proTags(p) {
     const g = proAll(p).filter((x) => !x.tft).slice(0, 20), n = g.length, rift = g.filter((x) => x.mode === 'CLASSIC' && x.len > 0), avg = (l, f) => l.reduce((t, x) => t + f(x), 0) / l.length;
+    const stat = (f, perMin) => { const l = rift.filter((x) => Number.isFinite(x[f])); return l.length >= 5 ? avg(l, (x) => x[f] / (perMin ? x.len / 60 : 1)) : NaN; }; // from 5 games that have it
+    const won = (l) => l.filter((x) => x.win).length, top = (l, f) => l.reduce((m, x) => (x[f] > (m ? m[f] : 0) ? x : m), null);
     const out = tagsOf({ games: g, mastery: p.m || [], ranked: p.rk || {}, level: p.lvl }, 0, { puuid: proOther ? p.u : '', me: !proOther });
-    for (const m of p.m || []) if (m.championPoints >= 1e6) out.push(['good', `Millionaire: ${champName(m.championId)}`]);
+    for (const m of p.m || []) if (m.championPoints >= 1e6) out.push(['fun', `Millionaire: ${champName(m.championId)}`]);
     const by = {};
-    for (const x of g) by[x.champ] = (by[x.champ] || 0) + 1;
-    const [c, k] = Object.entries(by).sort((a, b) => b[1] - a[1])[0] || [];
-    if (n >= 10 && k / n >= 0.4 && k / n < 0.7) out.push(['', `${champName(+c)} lover: ${k} of ${n} games`]); // 70% is a one-trick
+    for (const x of g) (by[x.champ] ||= []).push(x);
+    const pool = Object.entries(by).sort((a, b) => b[1].length - a[1].length), [c, k = 0] = pool.length ? [pool[0][0], pool[0][1].length] : [];
+    if (n >= 10 && k / n >= 0.4 && k / n < 0.7) out.push(['fun', `${champName(+c)} lover: ${k} of ${n} games`]); // 70% is a one-trick
+    const rated = pool.filter(([, l]) => l.length >= 4).map(([c, l]) => [+c, won(l), l.length]).sort((a, b) => b[1] / b[2] - a[1] / a[2] || b[2] - a[2]), best = rated[0], worst = rated[rated.length - 1];
+    if (best && best[1] / best[2] >= 0.75) out.push(['good', `Best on ${champName(best[0])}: ${best[1]} of ${best[2]} won`]);
+    if (worst && worst[1] / worst[2] <= 0.25) out.push(['bad', `Struggles on ${champName(worst[0])}: ${worst[1]} of ${worst[2]} won`]);
     if (rift.length >= 5) {
-      const d = avg(rift, (x) => x.d), lane = rift.filter((x) => x.lane && x.lane !== 'UTILITY'), cs = lane.length >= 5 ? avg(lane, (x) => x.cs / (x.len / 60)) : 0;
+      const d = avg(rift, (x) => x.d), kills = avg(rift, (x) => x.k), assists = avg(rift, (x) => x.a), lane = rift.filter((x) => x.lane && x.lane !== 'UTILITY'), cs = lane.length >= 5 ? avg(lane, (x) => x.cs / (x.len / 60)) : 0;
       if (d <= 3) out.push(['good', `Hard to kill: ${d.toFixed(1)} deaths a game`]);
       else if (d >= 8) out.push(['bad', `Dies a lot: ${d.toFixed(1)} deaths a game`]);
+      if (kills >= 9) out.push(['good', `Kill hungry: ${kills.toFixed(1)} kills a game`]);
+      else if (kills <= 2 && assists >= 10) out.push(['fun', `Pacifist: ${kills.toFixed(1)} kills a game`]);
+      if (assists >= 12) out.push(['good', `Assist king: ${assists.toFixed(1)} assists a game`]);
       if (cs >= 8) out.push(['good', `Farmer: ${cs.toFixed(1)} CS a minute`]);
+      const vis = stat('vision', true), pinks = stat('pinks'), kp = stat('kp'), solo = stat('solo'), dpm = stat('dmg', true), taken = stat('taken', true), cc = stat('cc'), towers = stat('towers');
+      if (vis >= 1.8) out.push(['good', `Lights up the map: ${vis.toFixed(1)} vision a minute`]);
+      else if (vis <= 0.5) out.push(['bad', `Plays in the dark: ${vis.toFixed(1)} vision a minute`]);
+      if (pinks >= 2) out.push(['good', `Buys control wards: ${pinks.toFixed(1)} a game`]);
+      else if (pinks < 0.3) out.push(['bad', `Rarely buys control wards: ${pinks.toFixed(1)} a game`]);
+      if (kp >= 0.65) out.push(['good', `Team player: ${pct(kp)} kill participation`]);
+      else if (kp <= 0.35) out.push(['', `Lone wolf: ${pct(kp)} kill participation`]);
+      if (solo >= 1.5) out.push(['good', `Duelist: ${solo.toFixed(1)} solo kills a game`]);
+      if (dpm >= 900) out.push(['good', `Big damage: ${Math.round(dpm)} a minute`]);
+      if (taken >= 1100) out.push(['', `Frontline: takes ${Math.round(taken).toLocaleString('en-US')} damage a minute`]);
+      if (cc >= 40) out.push(['good', `Lockdown: ${Math.round(cc)} s of crowd control a game`]);
+      if (towers >= 1.5) out.push(['good', `Tower taker: ${towers.toFixed(1)} towers a game`]);
       const seen = rift.filter((x) => typeof x.fb === 'boolean'), fb = seen.filter((x) => x.fb).length; // games kept before first blood was
       if (seen.length >= 5 && fb / seen.length >= 0.25) out.push(['good', `First blood in ${fb} of ${seen.length} games`]);
-      const long = rift.filter((x) => x.len >= 1800), short = rift.filter((x) => x.len < 1800), won = (l) => l.filter((x) => x.win).length;
+      const long = rift.filter((x) => x.len >= 1800), short = rift.filter((x) => x.len < 1800);
       if (long.length >= 4 && short.length >= 4 && Math.abs(won(long) / long.length - won(short) / short.length) >= 0.3) {
         const lg = won(long) / long.length > won(short) / short.length, l = lg ? long : short;
         out.push(['', `Better in ${lg ? 'long' : 'short'} games: ${won(l)} of ${l.length} won ${lg ? 'over' : 'under'} 30 minutes`]);
       }
+      const clean = rift.filter((x) => x.win && !x.d).length, fast = rift.filter((x) => x.win && x.len < 1200).length, roles = {}, champs = new Set(rift.map((x) => x.champ)).size;
+      if (clean >= 2) out.push(['good', `Untouchable: ${clean} wins without dying`]);
+      if (fast >= 2) out.push(['fun', `Speedrunner: ${fast} wins under 20 minutes`]);
+      for (const x of rift) if (x.lane) roles[x.lane] = (roles[x.lane] || 0) + 1;
+      const many = Object.values(roles).filter((v) => v >= 2).length;
+      if (many >= 4) out.push(['', `Flexible: ${many} roles in ${rift.length} games`]);
+      if (rift.length >= 15 && champs >= 0.6 * rift.length) out.push(['', `Wide champion pool: ${champs} champions in ${rift.length} games`]);
+      const big = top(rift, 'dmg'), longest = top(rift, 'len');
+      if (big && big.dmg >= 50000) out.push(['fun', `Big hitter: ${big.dmg.toLocaleString('en-US')} damage in one game`]);
+      if (longest && longest.len >= 2700) out.push(['fun', `Marathon: a ${Math.round(longest.len / 60)}-minute game`]);
     }
-    const penta = g.find((x) => x.penta || x.multi >= 5);
-    if (penta) out.push(['good', `Pentakill on ${champName(penta.champ)}`]);
+    const penta = g.find((x) => x.penta || x.multi >= 5), quadra = g.find((x) => x.quadra || x.multi === 4), spree = top(g, 'spree');
+    if (penta) out.push(['fun', `Pentakill on ${champName(penta.champ)}`]);
+    else if (quadra) out.push(['fun', `So close: a quadra kill on ${champName(quadra.champ)}`]);
+    if (spree && spree.spree >= 8) out.push(['fun', `Legendary: ${spree.spree} kills without dying on ${champName(spree.champ)}`]);
+    const steals = g.reduce((t, x) => t + (x.steals | 0), 0), mejai = g.filter((x) => (x.items || []).includes(3041)).length, aram = g.filter((x) => ARAMS.includes(x.queue)).length;
+    if (steals) out.push(['fun', `Objective thief: ${steals} steal${steals === 1 ? '' : 's'}`]);
+    if (mejai >= 2) out.push(['fun', `Mejai’s gambler: ${mejai} games`]);
+    if (n >= 10 && aram / n >= 0.5) out.push(['fun', `ARAM lover: ${aram} of ${n} games`]);
+    const sp = g.filter((x) => (x.mode === 'CLASSIC' || x.mode === 'ARAM') && x.spells && x.spells[0]), fl = sp.filter((x) => x.spells.includes(4)), onF = fl.filter((x) => x.spells[1] === 4).length;
+    if (fl.length >= 5 && onF / fl.length >= 0.8) out.push(['fun', 'Flash on F']);
+    else if (fl.length >= 5 && onF / fl.length <= 0.2) out.push(['fun', 'Flash on D']);
+    if (sp.length >= 5 && fl.length / sp.length <= 0.6) out.push(['fun', `Flashless: no Flash in ${sp.length - fl.length} of ${sp.length} games`]);
+    const pinged = g.filter((x) => Number.isFinite(x.pings)), qp = pinged.length >= 5 ? avg(pinged, (x) => x.qping | 0) : 0, pings = pinged.length >= 5 ? avg(pinged, (x) => x.pings) : NaN;
+    if (qp >= 5) out.push(['fun', `Loves the ? ping: ${qp.toFixed(1)} a game`]);
+    else if (pings >= 50) out.push(['fun', `Shot caller: ${Math.round(pings)} pings a game`]);
+    else if (pings <= 5) out.push(['fun', `Silent type: ${pings.toFixed(1)} pings a game`]);
+    // ponytail: hours and days on this computer's clock, not the player's (off for someone far away); their server's time zone if it matters
+    const hr = (x) => new Date(x.at).getHours(), night = g.filter((x) => hr(x) < 5).length, early = g.filter((x) => hr(x) >= 5 && hr(x) < 9).length, weekend = g.filter((x) => [0, 6].includes(new Date(x.at).getDay())).length;
+    const today = g.filter((x) => new Date(x.at).toDateString() === new Date().toDateString()).length;
+    if (n >= 10 && night / n >= 0.3) out.push(['fun', `Night owl: ${night} of ${n} games after midnight`]);
+    if (n >= 10 && early / n >= 0.25) out.push(['fun', `Early bird: ${early} of ${n} games before 9 AM`]);
+    if (n >= 10 && weekend / n >= 0.65) out.push(['fun', `Weekend warrior: ${weekend} of ${n} games on weekends`]);
+    if (today >= 6) out.push(['fun', `Grinder: ${today} games today`]);
+    if (n >= 2 && g[0].at - g[1].at >= 14 * 864e5) out.push(['', `Back after a break: ${Math.round((g[0].at - g[1].at) / 864e5)} days off`]);
+    if (p.lvl >= 500) out.push(['fun', `Dedicated: level ${p.lvl}`]);
     const streak = out.some(([, t]) => / wins in a row$/.test(t));
     for (const q of QS) {
-      const x = p.rk && p.rk[q], of = q === 'RANKED_FLEX_SR' ? ' in Flex' : '';
+      const x = p.rk && p.rk[q], of = q === 'RANKED_FLEX_SR' ? ' in Flex' : '', gn = x ? (x.wins | 0) + (x.losses | 0) : 0;
       if (!x || !TIERS.includes(x.tier)) continue;
       if (x.hotStreak && !streak) out.push(['good', `Hot streak in ${QN[q]}`]);
+      if (gn >= 30 && x.wins / gn >= 0.58) out.push(['good', `Climbing: ${pct(x.wins / gn)} won in ${QN[q]}`]);
+      else if (gn >= 30 && x.wins / gn <= 0.44) out.push(['bad', `Struggling: ${pct(x.wins / gn)} won in ${QN[q]}`]);
       if (x.veteran) out.push(['', `Veteran of ${rkName(x)}${of}`]);
       if (x.freshBlood) out.push(['', `New to ${rkName(x)}${of}`]);
+      if (x.inactive) out.push(['', `Inactive in ${QN[q]}`]);
     }
-    return out;
+    const order = ['good', 'bad', '', 'fun'];
+    return out.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
   }
   function renderTags(p) { // past ranks under the name, and the tags
     const past = pastRanks(p), tags = proTags(p), pk = JSON.stringify([past, Object.keys(emblems).length]), tk = JSON.stringify(tags);
@@ -5662,7 +5952,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     riotCheck();
     if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
     if (mine && !lm) riotMine();
-    else if (lm && riotOn && PLATS[lm.plat] && pastSent !== lm.u + new Date().toDateString()) { pastSent = lm.u + new Date().toDateString(); riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${lm.u}`).catch(() => {}); } // our server keeps the ranks it gets
+    const ru = lm && riotU(lm), day = ru + new Date().toDateString();
+    if (ru && pastSent !== day) { pastSent = day; riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${ru}`).catch(() => {}); } // once a day, so our server keeps your rank
     $('proName').textContent = p ? name : 'Your League profile';
     $('proTag').textContent = tag ? '#' + tag : '';
     $('proIcon').hidden = !(p && p.icon && ddVersion);
@@ -5671,7 +5962,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proSub').textContent = p ? [PLATS[p.plat] ? PLATS[p.plat][0] : '', p.lvl ? `Level ${p.lvl}` : ''].filter(Boolean).join(' · ') : '';
     const when = p ? new Date(p.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     $('proNote').textContent = !p ? (lcuOn() ? 'Start League and your profile fills in here: your rank, status and recent games.'
-      : riotOn ? 'Type your Riot ID and server below to see your profile here: your rank, whether you’re in a game, and your recent games.'
+      : riotOn ? 'Type your Riot ID above to see your profile here: your rank, whether you’re in a game, and your recent games.'
       : 'Your League profile shows up here in the desktop app while League is open: your rank, status and recent games.')
       : mine && !lm ? `As of ${when}.${lcuOn() ? ' Start League to update it.' : ''}` : '';
     $('proNote').hidden = !$('proNote').textContent;
@@ -5682,10 +5973,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proForget').hidden = !(mine && p && !lcuOn());
     const setup = !lcuOn() && !proMine; // in a browser, the first Riot ID you give is you
     $('proFindBox').hidden = !(riotOn || (lcuOn() && lcu));
-    $('proRegionRow').hidden = !riotOn;
-    $('h-profind').textContent = setup ? 'Your Riot ID' : 'Look up a player';
+    $('proId').placeholder = setup ? 'Your Riot ID: Name#TAG' : 'Look up a player: Name#TAG';
+    $('proId').setAttribute('aria-label', setup ? 'Your Riot ID' : 'Look up a player by Riot ID');
     $('proGo').textContent = setup ? 'Show my profile' : 'Look up';
-    if (!regionPicked && (myPlat || (proMine && PLATS[proMine.plat]))) $('proRegion').value = myPlat || proMine.plat;
     for (const id of ['proRanks', 'proGamesBox', 'proMasteryBox', 'proPast', 'proTagsBox', 'proRolesBox']) $(id).hidden = !p;
     proStatus();
     renderLive(p);
@@ -5760,19 +6050,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return r.json();
   }
   // anyone's profile from Riot: account, level and icon, ranks, top mastery, whether they're in a game and their last
-  // 10 games. 16 calls: our server lets one address make 60 every 2 minutes.
+  // 10 games. plat: their server when it's known, else Riot says which one they play League on (until our server passes
+  // that call, a guess from their tag, like Name#EUW, or yours). 17 calls at most: our server lets one address make 60
+  // every 2 minutes.
+  const platOf = (s) => { const x = String(s || '').toLowerCase(); return Object.keys(PLATS).find((k) => k === x || PLATS[k][0].toLowerCase() === x.replace(/\d+$/, '')) || ''; }; // euw1, EUW, NA1 -> the platform
   async function riotProfile(id, plat) {
-    const [g, t] = riotId(id), reg = PLATS[plat][1];
-    const a = await riotGet(reg === 'sea' ? 'asia' : reg, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(g)}/${encodeURIComponent(t)}`); // accounts aren't on sea
+    const [g, t] = riotId(id), home = (PLATS[plat || myPlat || (proMine && proMine.plat)] || PLATS.euw1)[1], acc = home === 'sea' ? 'asia' : home; // accounts aren't on sea; every region has them all
+    const a = await riotGet(acc, `/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(g)}/${encodeURIComponent(t)}`);
     if (!a || typeof a.puuid !== 'string') return null;
     const u = a.puuid, by = `by-puuid/${u}`;
+    if (!PLATS[plat]) plat = platOf(((await riotGet(acc, `/riot/account/v1/region/by-game/lol/${by}`)) || {}).region) || platOf(t) || myPlat || (proMine && proMine.plat);
+    if (!PLATS[plat]) return null;
+    const reg = PLATS[plat][1];
     const [s, e, m, live, ids] = await Promise.all([riotGet(plat, `/lol/summoner/v4/summoners/${by}`), riotGet(plat, `/lol/league/v4/entries/${by}`),
       riotGet(plat, `/lol/champion-mastery/v4/champion-masteries/${by}/top?count=5`), riotLive(u, plat), riotGet(reg, `/lol/match/v5/matches/${by}/ids?count=10`)]);
+    if (!s) return null; // they don't play on that server
     const games = await riotGames(u, reg, (Array.isArray(ids) ? ids : []).slice(0, 10), true);
     return { n: `${a.gameName || g}#${a.tagLine || t}`, u, lvl: (s && s.summonerLevel) | 0, icon: (s && s.profileIconId) | 0, plat, rk: ranksOf(e), games, m: Array.isArray(m) ? m : [], live, at: Date.now(), src: 'riot' };
   }
   const ranksOf = (e) => Object.fromEntries((Array.isArray(e) ? e : []).filter((x) => x && /^RANKED_(SOLO_5x5|FLEX_SR)$/.test(x.queueType))
-    .map((x) => [x.queueType, { tier: x.tier, division: x.rank, leaguePoints: x.leaguePoints, wins: x.wins, losses: x.losses, hotStreak: !!x.hotStreak, veteran: !!x.veteran, freshBlood: !!x.freshBlood }])); // Riot's ranks as League's client gives them, with Riot's flags
+    .map((x) => [x.queueType, { tier: x.tier, division: x.rank, leaguePoints: x.leaguePoints, wins: x.wins, losses: x.losses, hotStreak: !!x.hotStreak, veteran: !!x.veteran, freshBlood: !!x.freshBlood, inactive: !!x.inactive }])); // Riot's ranks as League's client gives them, with Riot's flags
   // whether someone is in a League game right now (Riot's spectator: not TFT, and not someone in streamer mode), with
   // everyone in it: null when not. Players in streamer mode come without a name.
   async function riotLive(u, plat) {
@@ -5780,37 +6077,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return me ? { q: g.gameQueueConfigId | 0, c: me.championId | 0, start: +g.gameStartTime || 0, team: me.teamId | 0,
       ps: ps.map((x) => ({ u: typeof x.puuid === 'string' ? x.puuid : '', n: typeof x.riotId === 'string' && x.riotId.includes('#') ? x.riotId : '', c: x.championId | 0, team: x.teamId | 0, bot: !!x.bot })) } : null;
   }
-  async function rankOf(u, plat) { // someone's ranks: from League's client for players on your server, else Riot
-    if (lcuOn() && lcu && plat === myPlat) { const r = await lcuGet(`/lol-ranked/v1/ranked-stats/${u}`); return r && r.queueMap ? r.queueMap : null; }
-    return ranksOf(await riotGet(plat, `/lol/league/v4/entries/by-puuid/${u}`));
-  }
-  // the live game on Profile: everyone in it with their rank (asked for once in 10 minutes), the shown player's team
-  // first; a name opens that player's profile
+  // the live game on Profile: everyone in it with their rank from Riot (asked for once in 10 minutes: the game's puuids
+  // are Riot's, which League's client doesn't know), the shown player's team first; a name opens that player's profile
   function renderLive(p) {
     const live = p && p.live, box = $('proLiveBox');
     box.hidden = !(live && live.ps && live.ps.length);
     if (box.hidden) return void (box.dataset.key = '');
+    const pu = riotU(p); // the shown player in it
     for (const x of live.ps) {
       const old = liveRk.get(x.u);
-      if (!x.u || x.bot || x.u === p.u || (old && performance.now() - old.at < 600000)) continue;
+      if (!x.u || x.bot || x.u === pu || (old && performance.now() - old.at < 600000)) continue;
       const t = { at: performance.now(), rk: old ? old.rk : undefined };
       liveRk.set(x.u, t);
-      rankOf(x.u, p.plat).catch(() => null).then((rk) => { t.rk = rk; if (!profView.hidden) renderLive(shownPro()); });
+      riotGet(p.plat, `/lol/league/v4/entries/by-puuid/${x.u}`).then(ranksOf).catch(() => null).then((rk) => { t.rk = rk; if (!profView.hidden) renderLive(shownPro()); });
     }
-    const rows = live.ps.slice().sort((a, b) => (a.team !== live.team) - (b.team !== live.team)), rkFor = (x) => (x.u === p.u ? p.rk : (liveRk.get(x.u) || {}).rk);
+    const rows = live.ps.slice().sort((a, b) => (a.team !== live.team) - (b.team !== live.team)), rkFor = (x) => (x.u === pu ? p.rk : (liveRk.get(x.u) || {}).rk);
     const key = JSON.stringify([p.n, ddVersion, rows.map((x) => [x.u, x.c, rkFor(x)])]);
     if (box.dataset.key === key) return;
     box.dataset.key = key;
     $('proLiveRows').replaceChildren(...rows.map((x) => {
       const tr = document.createElement('tr'), rk = rkFor(x), solo = rk && rk.RANKED_SOLO_5x5, flex = rk && rk.RANKED_FLEX_SR;
       tr.dataset.team = x.team === live.team ? 'ally' : 'enemy';
-      tr.toggleAttribute('data-me', x.u === p.u);
+      tr.toggleAttribute('data-me', x.u === pu);
       tr.innerHTML = '<td><div class="who"><img class="pic0" alt=""><span><b></b><span class="sub"></span></span></div></td><td></td>';
       tr.querySelector('img').src = champImg(x.c);
       const name = tr.querySelector('b');
-      if (x.n && x.u !== p.u) {
+      if (x.n && x.u !== pu) {
         const b = Object.assign(document.createElement('button'), { type: 'button', className: 'plink', textContent: x.n, title: `Open ${x.n}’s profile` });
-        b.addEventListener('click', () => { $('proRegion').value = p.plat; regionPicked = true; $('proId').value = x.n; $('proFind').requestSubmit(); });
+        b.addEventListener('click', () => lookUp(x.n, p.plat));
         name.append(b);
       } else name.textContent = x.bot ? 'Bot' : x.n || 'Name hidden (streamer mode)';
       tr.querySelector('.sub').textContent = champName(x.c);
@@ -5998,26 +6292,29 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     el.dataset.key = key;
     el.querySelector('ul').replaceChildren(...t.lines.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
   }
-  $('proFind').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const v = $('proId').value.trim(), plat = $('proRegion').value, note = $('proFindNote'), setup = !lcuOn() && !proMine;
+  // a Riot ID's profile: from League's client while it's open, for players on your server, else from Riot on whichever
+  // server they play. plat: their server when it's known (everyone in a live game is on its server)
+  async function lookUp(v, plat) {
+    const note = $('proFindNote'), setup = !lcuOn() && !proMine, viaLeague = lcuOn() && !!lcu && (!plat || plat === myPlat); // League's client finds players on your own server only
     if (!riotId(v)) return void (note.textContent = 'Type a Riot ID with its tag, like Name#EUW.');
-    const viaLeague = lcuOn() && !!lcu && (!riotOn || plat === myPlat); // League's client finds players on your own server only
     if (!viaLeague && !riotOn) return void (note.textContent = 'Start League to look players up.');
     note.textContent = 'Looking them up…';
     let p = null;
     try {
       const f = viaLeague ? await findPlayer(v) : null, s = f && (await scoutFetch(f.puuid));
-      p = !viaLeague ? await riotProfile(v, plat) : s && { n: f.name, u: f.puuid, lvl: s.level, icon: s.icon, plat: myPlat, rk: s.ranked, games: s.games || [],
-        m: s.mastery.slice().sort((x, y) => y.championPoints - x.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
-      if (viaLeague && p && riotOn && PLATS[plat]) p.live = await riotLive(p.u, plat).catch(() => undefined); // League's client doesn't say who's in a game
+      if (s && s.level) {
+        p = { n: f.name, u: f.puuid, lvl: s.level, icon: s.icon, plat: myPlat, rk: s.ranked, games: s.games || [],
+          m: s.mastery.slice().sort((x, y) => y.championPoints - x.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
+        if (riotOn && PLATS[myPlat]) p.live = await riotUp(p, true).then((u) => (u ? riotLive(u, myPlat) : undefined)).catch(() => undefined); // League's client doesn't say who's in a game
+      } else if (riotOn) p = await riotProfile(v, plat);
     } catch (err) { return void (note.textContent = err.message === 'busy' ? 'Too many lookups right now. Try again in a minute.' : 'Riot didn’t answer. Try again in a minute.'); }
-    if (!p) return void (note.textContent = `Nobody called ${v} on ${viaLeague ? 'your server' : PLATS[plat][0]}.`);
+    if (!p) return void (note.textContent = riotOn ? `No League player is called ${v}.` : `Nobody called ${v} on your server.`);
     note.textContent = '';
     $('proId').value = '';
     if (setup || (proMine && p.u === proMine.u) || (me0 && p.u === me0.puuid)) { proOther = null; if (!liveMine()) saveMine(p); } else proOther = p;
     renderProfile();
-  });
+  }
+  $('proFind').addEventListener('submit', (e) => { e.preventDefault(); lookUp($('proId').value.trim()); });
   $('proBack').addEventListener('click', () => { proOther = null; renderProfile(); });
   $('proRefresh').addEventListener('click', () => riotMine(true));
   // Show more games: 20 more each time, and older ones once those run out: from League's client while it's open (for
@@ -6047,8 +6344,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       }
       for (let i = 0; i < 5 && !got.some(ok) && moreFrom(p, m, q) === 'riot'; i++) { // a page a time; pages of games already listed are skipped
         m.riot[q] ??= q === 'all' ? lol : 0;
-        const reg = PLATS[p.plat][1], ids = await riotGet(reg, `/lol/match/v5/matches/by-puuid/${p.u}/ids?start=${m.riot[q]}&count=20${PROQ[q][2] || ''}`), list = Array.isArray(ids) ? ids : [];
-        add(await riotGames(p.u, reg, list.filter((x) => !known.has(+String(x).split('_')[1]))));
+        const u = await riotUp(p, true), reg = PLATS[p.plat][1], ids = u && (await riotGet(reg, `/lol/match/v5/matches/by-puuid/${u}/ids?start=${m.riot[q]}&count=20${PROQ[q][2] || ''}`)), list = Array.isArray(ids) ? ids : [];
+        add(await riotGames(u, reg, list.filter((x) => !known.has(+String(x).split('_')[1]))));
         m.riot[q] = list.length ? m.riot[q] + list.length : -1;
       }
       m.note = got.some(ok) || moreFrom(p, m, q) || !have.some(ok) ? '' : 'No older games.';
@@ -6805,12 +7102,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('kClip').textContent = keys.clip || 'Off';
     $('kOverlay').textContent = keys.overlay || 'Off';
     $('kPtt').textContent = keys.ptt ? keyName(keys.ptt) : 'Off (open mic)';
-    for (const b of document.querySelectorAll('[data-key]')) {
+    for (const b of document.querySelectorAll('.keyrow [data-key]')) { // only these buttons: other boxes keep what they drew in data-key
       b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
     }
     $('pttOff').hidden = !keys.ptt;
     const busy = (ks) => ks.filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]), taken = (b) => `Another app already uses ${b.join(' and ')}, so pick something else.`;
-    $('keysNote').textContent = busy(['show', 'clip', 'overlay']).length ? taken(busy(['show', 'clip', 'overlay'])) : '';
+    $('keysNote').textContent = busy(['show', 'overlay']).length ? taken(busy(['show', 'overlay'])) : '';
+    $('clipKeyNote').textContent = busy(['clip']).length ? taken(busy(['clip'])) : '';
     $('talkNote').textContent = !client ? 'In a browser these work while this page is in front.'
       : busy(['mute']).length ? taken(busy(['mute']))
       : keys.ptt && !keysOk.ptt ? 'Push to talk only works while this window is in front on this computer.' : '';
@@ -6827,7 +7125,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const c = comboOf(e);
     if (c.includes('+') || /^F\d/.test(c)) { keys[capture] = c; capture = ''; applyKeys(); }
   }
-  for (const b of document.querySelectorAll('[data-key]')) b.addEventListener('click', () => { capture = b.dataset.key; renderKeys(); });
+  for (const b of document.querySelectorAll('.keyrow [data-key]')) b.addEventListener('click', () => { capture = b.dataset.key; renderKeys(); });
   $('pttOff').addEventListener('click', () => { keys.ptt = ''; applyKeys(); });
   const typing = (e) => e.target instanceof Element && !!e.target.closest('input, select, textarea');
   const pushTalk = (down) => { if (pttDown !== down) { pttDown = down; applyMic(); } };
@@ -6927,11 +7225,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (peer) send({ t: 'hi', name: myName });
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record) }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
-    ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'],
+    ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'],
     ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto']]) {
     $(id).checked = opts[k];
@@ -6967,11 +7265,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
   }
   $('recordingsBtn').addEventListener('click', () => client && client.recordingsFolder && client.recordingsFolder());
-  // Look: the theme, your own main colour and Light with your computer's light mode (lpcLook, at the top, puts them on
-  // the page), then everything drawn in its colours again
+  // Look: the theme, Custom's background and text, your own main colour and Light with your computer's light mode
+  // (lpcLook, at the top, puts them on the page and on the Custom card), then everything drawn in its colours again
   const themeRadios = [...document.querySelectorAll('input[name="theme"]')];
   (themeRadios.find((r) => r.value === store.get('lpc-theme')) || themeRadios[0]).checked = true; // the old 'dark' is red and black now
-  const lookUi = () => { $('optMain').value = opts.main || look.accent; $('mainReset').hidden = !opts.main; };
+  const lookUi = () => {
+    lpcLook($('customSw'), 'custom');
+    $('customRow').hidden = store.get('lpc-theme') !== 'custom';
+    $('optCustomBg').value = opts.customBg || look.bg;
+    $('optCustomFg').value = opts.customFg || look.fg;
+    $('optMain').value = opts.main || look.accent;
+    $('mainReset').hidden = !opts.main;
+  };
   function relook() {
     lpcLook();
     look = lookNow();
@@ -6981,7 +7286,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   lookUi();
   for (const r of themeRadios) r.addEventListener('change', () => { store.set('lpc-theme', r.value); relook(); });
-  $('optMain').addEventListener('input', (e) => { opts.main = e.target.value; saveOpts(); relook(); });
+  for (const [id, k] of [['optCustomBg', 'customBg'], ['optCustomFg', 'customFg'], ['optMain', 'main']]) $(id).addEventListener('input', (e) => { opts[k] = e.target.value; saveOpts(); relook(); });
   $('mainReset').addEventListener('click', () => { opts.main = ''; saveOpts(); relook(); });
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (opts.themeAuto) relook(); });
   if (!client && window.Notification) {
@@ -7036,6 +7341,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [18, 'October 20: clips by voice', [
+      'Say “Premade, clip that” in a game and Premade saves a clip, or record a phrase of your own. Turn it on in Clip settings, under your clips on the Clips page, where all the clip settings are now.',
+      'The speech recognition runs on your computer, so nothing you say is sent anywhere. The first time, it downloads its English speech model, about 40 MB.',
+    ]],
+    [17, 'October 19: a Custom theme, App size and a new logo', [
+      'Settings > Look has a Custom theme: pick your own background and text colours, with your main colour, and Premade keeps every text readable whatever you pick.',
+      'Settings > Look has App size too: make the whole app bigger or smaller, from 70% to 200%.',
+      'Premade has a new logo, the team crest. The app’s own icon changes with app 1.12, which installs itself.',
+      'Look up any player on Profile by their Riot ID, in the box beside your name.',
+      'Profile has about 30 more tags, the gold ones just for fun, and your past ranks stay after League closes.',
+      'Players found through League now show their live game, ranks and older games on Profile.',
+      'Settings has no more gaps between its boxes.',
+    ]],
     [16, 'October 19: app 1.11, your lobby on Pregame', [
       'Pregame runs your lobby now: pick the game to play from the queues League has open, your two roles, invite your League friends who are online, and leave the lobby. It needs app 1.11, which installs itself.',
     ]],
@@ -7145,6 +7463,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     b.style.anchorName = '--tip';
   });
 
+  // ---- settings boxes stack like bricks: each spans as many of its grid's 1px rows as it is tall, plus 16 for the gap,
+  // so a short box leaves no hole beside a tall one and the next box goes up into the shortest column
+  const brick = new ResizeObserver((list) => { for (const e of list) e.target.style.gridRowEnd = `span ${Math.ceil(e.borderBoxSize[0].blockSize) + 16}`; });
+  for (const p of document.querySelectorAll('.settings > *')) brick.observe(p);
+
   // ---- the room's own buttons
   const inviteLink = () => location.origin + location.pathname + '#' + room + (roomKey ? '.' + roomKey : '');
   async function copyInvite() {
@@ -7189,7 +7512,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -7262,6 +7585,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
       age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),
     saveClip,
+    voice: () => ({ on: !!ear, loaded: !!vosk, ears: ears.size, err: voiceErr, phrases: phrases() }), saidIn,
     gate: (v) => { gateNode.parameters.get('threshold').value = v; },
     heard: async (id) => { // loudest sample coming out of the speakers from this player over 1.5 s
       const p = peers.get(id), a = ac.createAnalyser(), d = new Float32Array(a.fftSize);
