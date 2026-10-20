@@ -29,6 +29,14 @@ export default {
   },
 };
 
+// A locked room: each page sends {type: 'LOCK', payload: {key}} whenever its socket opens, key being a hash of the
+// password it knows ('' for none). In a locked room a newcomer is let in (its messages passed on, and others' to it)
+// only once its key matches; else it gets INVALID-KEY and is closed. Only the host, the lowest slot that's in, can
+// lock the room or change its password, and out names a player it removed, whose socket closes. The lock is kept on
+// the sockets themselves, so it's forgotten once everyone has left, like the page does.
+const KEY = /^[0-9a-f]{64}$/;
+const slotOf = (ws) => +ws.deserializeAttachment().id.split('-').pop();
+
 export class Room extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -36,14 +44,14 @@ export class Room extends DurableObject {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"type":"HEARTBEAT"}', '{"type":"HEARTBEAT"}'));
   }
   open(id) {
-    return this.ctx.getWebSockets(id).filter((ws) => ws.readyState === WebSocket.OPEN);
+    return (id === undefined ? this.ctx.getWebSockets() : this.ctx.getWebSockets(id)).filter((ws) => ws.readyState === WebSocket.OPEN);
   }
   async fetch(req) {
     const url = new URL(req.url), id = url.searchParams.get('id'), token = url.searchParams.get('token');
     const [client, server] = Object.values(new WebSocketPair());
-    const old = this.open(id);
+    const old = this.open(id), [any] = this.open(), lock = (any && any.deserializeAttachment().lock) || '';
     this.ctx.acceptWebSocket(server, [id]);
-    server.serializeAttachment({ id, token });
+    server.serializeAttachment({ id, token, lock, in: !lock });
     if (old.some((ws) => ws.deserializeAttachment().token !== token)) {
       server.send(JSON.stringify({ type: 'ID-TAKEN', payload: { msg: 'ID is taken' } })); // the voice page then tries the next slot
       server.close(1000, 'ID is taken');
@@ -58,10 +66,27 @@ export class Room extends DurableObject {
   webSocketMessage(ws, data) {
     let m;
     try { m = JSON.parse(data); } catch { return; }
-    if (!m || !RELAYED.has(m.type) || typeof m.dst !== 'string') return;
-    const src = ws.deserializeAttachment().id, [to] = this.open(m.dst);
-    if (to) to.send(JSON.stringify({ type: m.type, src, dst: m.dst, payload: m.payload }));
-    else if (m.type === 'OFFER') ws.send(JSON.stringify({ type: 'EXPIRE', src: m.dst, dst: src })); // nobody in that slot
+    const a = ws.deserializeAttachment();
+    if (m && m.type === 'LOCK') return this.lock(ws, a, m.payload || {});
+    if (!m || !a.in || !RELAYED.has(m.type) || typeof m.dst !== 'string') return;
+    const [to] = this.open(m.dst).filter((w) => w.deserializeAttachment().in);
+    if (to) to.send(JSON.stringify({ type: m.type, src: a.id, dst: m.dst, payload: m.payload }));
+    else if (m.type === 'OFFER') ws.send(JSON.stringify({ type: 'EXPIRE', src: m.dst, dst: a.id })); // nobody in that slot
+  }
+  lock(ws, a, { key, out }) {
+    key = KEY.test(key) ? key : '';
+    if (!a.in) {
+      if (key === a.lock) return ws.serializeAttachment({ ...a, in: true });
+      ws.send(JSON.stringify({ type: 'INVALID-KEY', payload: { msg: 'This room is locked' } }));
+      return ws.close(1000, 'Locked');
+    }
+    const ins = this.open().filter((w) => w.deserializeAttachment().in);
+    if (!key || key === a.lock || slotOf(ws) !== Math.min(...ins.map(slotOf))) return;
+    for (const w of this.open()) {
+      const b = w.deserializeAttachment();
+      if (b.id === out) w.close(1000, 'Removed');
+      else w.serializeAttachment({ ...b, lock: key });
+    }
   }
   webSocketClose(ws, code) {
     try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
