@@ -11,9 +11,9 @@
 <meta name="apple-mobile-web-app-title" content="LPC Remote">
 <meta name="theme-color" content="#010a13">
 <style>
-/* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone
-   (index.html's Pregame page shows the QR code that opens it). It can live on the home screen (remote-manifest.json).
-   The same navy and gold as the app. */
+/* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone, and
+   room chat (index.html's Pregame page shows the QR code that opens it). It can live on the home screen
+   (remote-manifest.json) and show a notification when a match is found (remote-sw.js). The same navy and gold as the app. */
 :root {
   --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
   --gold: #c8aa6e; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --good: #3ccf8e; --bad: #ff6b6b;
@@ -43,7 +43,7 @@ p { margin: 0; }
 input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .row { display: flex; gap: 10px; }
 .row > * { flex: 1; min-width: 0; }
-input[type="search"] { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
+:is(input[type="search"], #chatText) { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
 .ch { display: grid; justify-items: center; gap: 4px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
 .ch img { width: 52px; height: 52px; border-radius: 6px; background: var(--bg); }
@@ -55,6 +55,10 @@ input[type="search"] { width: 0; padding: 12px; border: 1px solid var(--line); b
 .timers span { display: grid; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font: 500 16px/1.2 ui-monospace, Consolas, monospace; }
 .timers b { font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
 .check { display: flex; align-items: center; gap: 10px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; overflow-wrap: anywhere; }
+.log:empty::before { content: attr(data-empty); color: var(--muted); }
+.log time { font: 500 12px/1 ui-monospace, Consolas, monospace; color: var(--muted); margin-right: 8px; }
+.log b { color: var(--gold); margin-right: 6px; }
 input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
 :is(.btn, .ch, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
@@ -97,20 +101,28 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     <h2 id="h-game">In game</h2>
     <div id="timers" class="timers"></div>
   </section>
+  <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
+    <h2 id="h-chat">Room chat</h2>
+    <ol id="chatLog" class="log" data-empty="No messages yet."></ol>
+    <form id="chatForm" class="row"><input id="chatText" maxlength="300" autocomplete="off" placeholder="Message everyone in the room" aria-label="Message"><button class="btn">Send</button></form>
+  </section>
   <label class="check"><input id="auto" type="checkbox"> Accept matches for me</label>
+  <label id="pushRow" class="check" hidden><input id="push" type="checkbox"> Tell me when a match is found, even with the screen off</label>
+  <p id="pushNote" class="hint" role="status" hidden></p>
   <p id="sound" class="hint" hidden>Tap anywhere to turn on the ring when a match is found.</p>
   <label id="awakeRow" class="check" hidden><input id="awake" type="checkbox"> Keep the screen on while this page is open</label>
   <p id="install" class="hint" hidden>Put the remote on your home screen: in Chrome, the ⋮ menu, Add to Home screen; on an iPhone, Safari’s Share button, Add to Home Screen. <button id="installBtn" class="btn small" type="button" hidden>Add it now</button></p>
-  <p class="hint">This page talks to Premade on your PC, which talks to League. Keep the link to yourself: anyone with it can accept and pick for you while the app is open.</p>
+  <p class="hint">This page talks to Premade on your PC, which talks to League. Keep the link to yourself: anyone with it can accept, pick and chat for you while the app is open.</p>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
 <script>
 (() => {
   // The PC's page is lolprox-r<code>-0 on our connection server; this phone takes the first free one of -1 to -9 and
-  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game } (index.html remoteState) whenever it
-  // changes; this page sends accept, decline, hover, lock, auto, queue and trade. The code is kept on the phone, so the
-  // home screen icon (which opens remote.html with no code) connects too.
+  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game, chat } (index.html remoteState)
+  // whenever it changes; this page sends hi (with whether it's on the screen), accept, decline, hover, lock, auto, queue,
+  // trade and chat. The code is kept on the phone, so the home screen icon (which opens remote.html with no code)
+  // connects too.
   const $ = (id) => document.getElementById(id);
   const local = new URLSearchParams(location.search).get('peer'); // ?peer=127.0.0.1:9000 for tests, as in index.html
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
@@ -125,6 +137,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
   let peer = null, conn = null, state = null, redial = 0, ddv = '';
   const champs = {}; // number -> Data Dragon's champion
   const send = (m) => { if (conn && conn.open) conn.send(m); };
+  const hi = () => ({ t: 'hi', seen: document.visibilityState === 'visible' }); // the PC only has our server push a match found to a phone that isn't looking
   const name = (k) => (champs[k] || {}).name || 'a champion';
   const pic = (k) => (champs[k] && ddv ? `https://ddragon.leagueoflegends.com/cdn/${ddv}/img/champion/${champs[k].id}.png` : '');
   const mmss = (s) => (s <= 0 ? 'up' : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
@@ -212,7 +225,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     conn = null;
     if (old) old.close(); // a try that never opened
     const c = (conn = peer.connect(pc, { reliable: true }));
-    c.on('open', () => { if (conn !== c) return; c.send({ t: 'hi' }); render(); }); // any message has the PC send its state again: its first one can get lost
+    c.on('open', () => { if (conn !== c) return; c.send(hi()); render(); }); // any message has the PC send its state again: its first one can get lost
     c.on('data', (m) => { if (conn === c && m && m.t === 'state') { state = m; render(); } });
     c.on('close', () => { if (conn !== c) return; conn = null; state = null; down('Lost the app on your PC. Trying again…'); later(); });
   }
@@ -248,8 +261,24 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
       const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])];
       $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
     }
+    $('chat').hidden = !(s && Array.isArray(s.chat));
+    if (!$('chat').hidden) renderChat(s.chat);
     $('auto').checked = !!(s && s.auto);
     $('auto').disabled = !s;
+  }
+  let chatWas = '';
+  function renderChat(lines) {
+    const j = JSON.stringify(lines);
+    if (j === chatWas) return;
+    chatWas = j;
+    $('chatLog').replaceChildren(...lines.map((l) => {
+      const li = document.createElement('li'), t = document.createElement('time'), b = document.createElement('b');
+      t.textContent = new Date(l.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      b.textContent = l.who;
+      li.append(t, b, String(l.text));
+      return li;
+    }));
+    $('chatLog').scrollTop = $('chatLog').scrollHeight;
   }
   function renderCs(cs) {
     const a = cs.action, ban = !!a && a.type === 'ban';
@@ -306,6 +335,60 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
   $('lock').addEventListener('click', () => send({ t: 'lock' }));
   $('auto').addEventListener('change', (e) => send({ t: 'auto', on: e.target.checked }));
   $('queueBtn').addEventListener('click', () => send({ t: 'queue', on: !(state && state.phase === 'Matchmaking') }));
+  $('chatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('chatText').value.trim();
+    if (text && conn && conn.open) { send({ t: 'chat', text }); $('chatText').value = ''; }
+  });
+  document.addEventListener('visibilitychange', () => send(hi()));
+
+  // ---- a notification when a match is found, even with the screen off or this page closed: when no phone has the
+  // remote on its screen, the PC has our server push one (server/push.js) to the phones that turned them on, and
+  // remote-sw.js shows it. lpc-remote-push: the code they were turned on for. On an iPhone, only from the home screen icon.
+  const server = local ? `http://${local}` : `https://${peerOpts.host}`;
+  let pushKey = ''; // our server's key for this code, once it has answered (so nothing shows before it has notifications)
+  fetch(`${server}/push/${code}`).then((r) => (r.ok ? r.json() : {})).then((j) => { pushKey = typeof j.key === 'string' ? j.key : ''; pushShow(); }, () => {});
+  const pushTo = (c, j) => fetch(`${server}/push/${c}`, { method: 'POST', body: JSON.stringify(j) }).then((r) => { if (!r.ok) throw new Error(`our server: ${r.status}`); });
+  const unb64 = (k) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0));
+  const sw = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+    ? navigator.serviceWorker.register('remote-sw.js', { scope: 'remote.html' }).then(() => navigator.serviceWorker.ready) : null; // ready: once it runs
+  function pushShow(note = '') {
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    $('pushRow').hidden = !sw || !pushKey;
+    $('push').checked = !!sw && store.get('lpc-remote-push') === code && Notification.permission === 'granted';
+    $('pushNote').textContent = note || (!pushKey ? '' : !sw && iphone && !standalone ? 'For a notification when a match is found, even with the screen off, put the remote on your Home Screen (below) and turn it on there.'
+      : sw && Notification.permission === 'denied' ? 'Your phone blocks notifications from this page. Allow them in its settings to hear about a match with the screen off.' : '');
+    $('pushNote').hidden = !$('pushNote').textContent;
+  }
+  $('push').addEventListener('change', async () => {
+    const on = $('push').checked;
+    let note = '';
+    $('push').disabled = true;
+    try {
+      if (on && (await Notification.requestPermission()) === 'granted') { // asked straight from the tap, as iPhones want
+        const reg = await sw, old = await reg.pushManager.getSubscription();
+        if (old) await old.unsubscribe(); // it may be for another code, whose key is another
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64(pushKey) });
+        await pushTo(code, { add: sub.endpoint });
+        store.set('lpc-remote-push', code);
+        note = 'On: your phone tells you when a match is found, even with its screen off.';
+      } else if (!on) {
+        store.set('lpc-remote-push', '');
+        const sub = await (await sw).pushManager.getSubscription();
+        if (sub) { pushTo(code, { drop: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); }
+      }
+    } catch (err) { console.warn('remote push:', err); note = 'That didn’t work. Check your connection and try again.'; }
+    $('push').disabled = false;
+    pushShow(note);
+  });
+  if (sw) sw.then(async (reg) => {
+    const sub = await reg.pushManager.getSubscription(), was = store.get('lpc-remote-push') || '';
+    if (sub && was === code && Notification.permission === 'granted') return pushTo(code, { add: sub.endpoint }); // still on: our server keeps it
+    if (sub) { if (valid(was)) pushTo(was, { drop: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); } // for an old code
+    store.set('lpc-remote-push', '');
+    pushShow();
+  }).catch((err) => console.warn('remote push:', err));
+  pushShow();
   claim(1);
 })();
 </script>

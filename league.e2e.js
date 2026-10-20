@@ -805,12 +805,61 @@ const leagueData = (over = {}) => ({
     assert(dark > 3000, `the QR code is drawn (${dark} dark pixels)`);
     const link = await pc.getAttribute('#remoteLink', 'href');
     assert.match(link, /^http:\/\/127\.0\.0\.1:8081\/remote\.html\?peer=127\.0\.0\.1:9001&debug#[a-z0-9]{12}$/);
-    const [pctx, phone] = await context(browser, { phone: true });
+    const phoneBrowser = await chromium.launch({ channel: 'chromium' }); // the whole Chromium: the headless one always says no to notifications
+    const [pctx, phone] = await context(phoneBrowser, { phone: true });
+    // the phone's notifications: our server's /push/ (faked here, for the phone and the PC), and a stand-in for the
+    // phone's push service, which headless Chromium hasn't got
+    const code = link.split('#')[1], pushes = []; // what our server was sent: [method, path, body]
+    const PUSH_KEY = 'BPRtml7aY9aXxuIEjvAWzWTtivwu5AyxXa3tRnx3M4uIfyrkb_9JLjqGzydBfmmyV0iNHoejtyG88FGOqCnsdCU';
+    const fakePush = (r) => {
+      const q = r.request(), u = new URL(q.url());
+      pushes.push([q.method(), u.pathname, q.postData() || '']);
+      r.fulfill({ json: q.method() === 'GET' ? { key: PUSH_KEY } : u.pathname.endsWith('/ring') ? { sent: 1 } : { ok: true }, headers: { 'access-control-allow-origin': '*' } });
+    };
+    await pctx.route(/127\.0\.0\.1:9001\/push\//, fakePush);
+    await ctx.route(/127\.0\.0\.1:9001\/push\//, fakePush);
+    await pctx.grantPermissions(['notifications']);
+    await pctx.addInitScript(() => {
+      let sub = localStorage.getItem('test-sub');
+      const made = (endpoint) => ({ endpoint, unsubscribe: async () => { sub = null; localStorage.removeItem('test-sub'); return true; } });
+      PushManager.prototype.subscribe = async function (o) {
+        window.pushKey = btoa(String.fromCharCode(...new Uint8Array(o.applicationServerKey)));
+        localStorage.setItem('test-sub', (sub = 'https://fcm.googleapis.com/fcm/send/phone-1'));
+        return made(sub);
+      };
+      PushManager.prototype.getSubscription = async function () { return sub ? made(sub) : null; };
+    });
     await phone.goto(link);
     await wait(phone, () => document.getElementById('conn').textContent === 'Connected', null, 'the phone to connect');
     await wait(pc, () => document.getElementById('remoteState').textContent === 'Your phone is connected.', null, 'the PC to see the phone');
     await wait(phone, () => /client/.test(document.getElementById('phase').textContent), null, 'the phone to show League');
     console.log(`phone remote: QR code (${dark} dark pixels) and link, the phone connected`);
+    // notifications on: subscribed with our server's key for this code, its push address sent there; a push shows
+    // Match found (remote-sw.js, through Chromium's own way in for push messages); then off again
+    await wait(phone, () => !document.getElementById('pushRow').hidden && document.getElementById('pushNote').hidden, null, 'the notification setting on the phone');
+    await phone.check('#push');
+    await wait(phone, () => document.getElementById('push').checked && !document.getElementById('push').disabled && /^On: /.test(document.getElementById('pushNote').textContent), null, 'notifications on');
+    assert.deepStrictEqual(pushes, [['GET', `/push/${code}`, ''], ['POST', `/push/${code}`, JSON.stringify({ add: 'https://fcm.googleapis.com/fcm/send/phone-1' })]]);
+    assert.strictEqual(await phone.evaluate(() => window.pushKey), Buffer.from(PUSH_KEY, 'base64url').toString('base64'), 'subscribed with our server’s key');
+    const cdp = await pctx.newCDPSession(phone), regs = [];
+    cdp.on('ServiceWorker.workerRegistrationUpdated', (e) => regs.push(...e.registrations));
+    await cdp.send('ServiceWorker.enable');
+    await until(() => regs.some((g) => g.scopeURL.endsWith('/remote.html')), 'the remote’s service worker');
+    await cdp.send('ServiceWorker.deliverPushMessage', { origin: 'http://127.0.0.1:8081', registrationId: regs.find((g) => g.scopeURL.endsWith('/remote.html')).registrationId, data: '' });
+    let shown = [];
+    await until(async () => (shown = await phone.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => `${n.title} ${n.body}`))).length, 'the notification');
+    assert.deepStrictEqual(shown, ['Match found! Tap to open the phone remote.']);
+    await phone.uncheck('#push');
+    await until(() => pushes.length === 3, 'the push address taken back');
+    assert.deepStrictEqual(pushes[2], ['POST', `/push/${code}`, JSON.stringify({ drop: 'https://fcm.googleapis.com/fcm/send/phone-1' })]);
+    assert(!(await phone.evaluate(() => localStorage.getItem('test-sub'))), 'unsubscribed');
+    // room chat: you're in a room, so it's on the phone, and what the phone writes goes to the room as yours
+    await wait(phone, () => !document.getElementById('chat').hidden && document.getElementById('chatLog').children.length === 0, null, 'room chat on the phone');
+    await phone.fill('#chatText', 'brb, in queue');
+    await phone.click('#chatForm button');
+    await wait(pc, () => /Rayan\s*brb, in queue/.test(document.getElementById('chatLog').textContent), null, 'the phone’s message in the room chat');
+    await wait(phone, () => /Rayan\s*brb, in queue/.test(document.getElementById('chatLog').textContent) && document.getElementById('chatText').value === '', null, 'the message on the phone');
+    console.log('phone remote: notifications on (a push shows Match found) and off, room chat written from the phone');
 
     // ---- the queue: a Practice Tool game in one click outside a lobby, Find match in a lobby you lead, Stop from the phone
     await wait(pc, () => !document.getElementById('queueBox').hidden && !document.getElementById('practiceBtn').hidden && document.getElementById('queueBtn').hidden, null, 'Practice Tool offered outside a lobby');
@@ -889,9 +938,18 @@ const leagueData = (over = {}) => ({
     await backToQueue();
     await phone.check('#auto');
     await wait(pc, () => document.getElementById('optAutoAccept').checked, null, 'auto-accept turned on from the phone');
+    assert(!pushes.some(([, p]) => p.endsWith('/ring')), 'no notification for a phone that has the remote on its screen');
+    const onScreen = (v) => phone.evaluate((v) => { Object.defineProperty(document, 'visibilityState', { value: v, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, v);
+    await onScreen('hidden'); // the phone locked
+    await wait(pc, () => lpc.lcu().phones === 1 && lpc.lcu().seen === 0, null, 'the PC to know the phone isn’t looking');
+    // the PC's 1 s tick back in the queue first (the phone shows the queue only after it), so it sees a new match found
+    await wait(phone, () => !document.getElementById('queue').hidden && /^Finding a match/.test(document.getElementById('queueState').textContent), null, 'the PC back in the queue');
     await readyCheck();
     await wait(pc, () => lpc.toasts().includes('Match found: accepted it for you'), null, 'accepted for you');
     assert.strictEqual(callsTo(/ready-check\/accept$/, 'POST').length, 3);
+    await until(() => pushes.some(([m, p]) => m === 'POST' && p === `/push/${code}/ring`), 'the notification for a phone that isn’t looking');
+    assert.strictEqual(pushes.filter(([, p]) => p.endsWith('/ring')).length, 1);
+    await onScreen('visible');
     await pc.evaluate(() => { const c = document.getElementById('optAutoAccept'); c.checked = false; c.dispatchEvent(new Event('change')); });
     console.log('ready check: accepted on the PC, on the phone, and for you (turned on from the phone)');
 
@@ -1388,6 +1446,9 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Platinum IV · 12 LP · With you: 13W 7L'), null, 'the friend’s rank and your record together');
     await wait(fr, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Gold II · 63 LP, +18 today'), null, 'your rank on the friend’s card for you');
     assert(await pc.locator('#players .watch').isHidden(), 'no Watch while the friend isn’t playing');
+    await fr.fill('#chatText', 'gg wp');
+    await fr.click('#chatForm button');
+    await wait(phone, () => /Fren\s*gg wp/.test(document.getElementById('chatLog').textContent), null, 'the friend’s message on the phone');
     assert((await embs(pc, '#players .plol .emb')).includes('TFT_Regalia_Platinum.png'), 'the emblem on the friend’s card');
     await fr.evaluate((d) => lpcClient.emit('league', d), leagueData({ me: { champ: 'Garen', champName: 'Garen', team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 } }));
     await wait(pc, () => { const b = document.querySelector('#players .watch'); return b && !b.hidden; }, null, 'Watch on the friend’s card');
@@ -1493,7 +1554,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
@@ -1518,11 +1579,40 @@ const leagueData = (over = {}) => ({
     await wait(phone3, () => document.getElementById('conn').textContent === 'Connected', null, 'the phone remote from a pasted link');
     await p3ctx.close();
     console.log('phone remote: from the home screen with its kept code, and from a pasted link');
+    // ---- CS drill: Practice Tool games to 10:00 saved with their CS (not one first seen after 10:00), the next one
+    // counted down on the page and the overlay against your best run, its exact CS typed in, and the chart of all three
+    const practice = (room, t, cs) => league(leagueData({ mode: 'PRACTICETOOL', room, t, events: [],
+      players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl: 9, k: 0, d: 0, a: 0, cs, items: [] }] }));
+    lcu.phase = 'InProgress';
+    await pc.click('.nav[data-view="game"]');
+    for (const [t, cs] of [[300, 30], [480, 60], [601, 80]]) await practice('gdrill000001', t, cs);
+    await wait(pc, () => lpc.toasts().includes('CS drill: 80+ CS at 10:00. You can type your exact CS on the Game page.'), null, 'the first drill');
+    for (const [t, cs] of [[300, 40], [450, 60], [602, 90]]) await practice('gdrill000001', t, cs); // the same champion again: the same room code, its clock started again
+    await wait(pc, () => lpc.toasts().includes('CS drill: 90+ CS at 10:00, your best yet. You can type your exact CS on the Game page.'), null, 'the second, your best yet');
+    await practice('gdrill000003', 700, 100);
+    await wait(pc, () => /^This game was past 10:00 when Premade saw it\./.test(document.getElementById('drillNow').textContent), null, 'too late for a drill');
+    await practice('gdrill000004', 290, 40);
+    await wait(pc, () => /^Last-hit until 10:00 on the game clock: 5:\d\d left, CS 40\. Your best run had 40 by 5:00\.$/.test(document.getElementById('drillNow').textContent), null, 'the drill on the Game page');
+    await wait(pc, () => /^CS 40 · \d+\.\d a minute · drill 5:\d\d left$/.test(lpcClient.lastOverlay.cs), null, 'the drill on the overlay');
+    await practice('gdrill000004', 600.5, 70);
+    await wait(pc, () => lpc.toasts().includes('CS drill: 70+ CS at 10:00, your best is 90. You can type your exact CS on the Game page.'), null, 'the third drill');
+    await wait(pc, () => document.getElementById('drillNow').textContent === 'Done: 70+ CS at 10:00. For another drill, start a new Practice Tool game.' && !document.getElementById('drillExact').hidden, null, 'the exact CS asked');
+    await pc.fill('#drillCs', '74');
+    await pc.click('#drillExact button');
+    await wait(pc, () => document.getElementById('drillExact').hidden, null, 'the exact CS saved');
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-drills')).map((d) => [d.champ, d.cs, d.exact || 0, d.steps.length])), [['Ahri', 80, 0, 3], ['Ahri', 90, 0, 3], ['Ahri', 70, 74, 2]]);
+    lcu.phase = 'None';
+    await league({ inGame: false, phase: 'None' });
+    await wait(pc, () => /^Your CS at 10:00 in Practice Tool games\./.test(document.getElementById('drillNow').textContent), null, 'your drills after the game');
+    assert.deepStrictEqual(await pc.$$eval('#drillList li', (l) => l.map((e) => e.textContent.split(' · ').slice(1).join(' · '))), ['Ahri · 74 CS', 'Ahri · 90+ CS · your best', 'Ahri · 80+ CS']);
+    assert.strictEqual(await pc.textContent('#drillTrend figcaption'), 'CS at 10:00: 81 on average, 81 in your last 3');
+    await shot(pc, 'cs-drill');
+    console.log('CS drill: 80+ and 90+ saved, none for a game seen after 10:00, a drill counted down against your best, 74 typed in, the chart');
     // backup and restore: everything but the phone remote's code, back in after a reload
     await pc.click('.nav[data-view="settings"]');
     const [bk] = await Promise.all([pc.waitForEvent('download'), pc.click('#backupBtn')]);
     const backup = JSON.parse(fs.readFileSync(await bk.path(), 'utf8'));
-    assert(backup.app === 'league-proxchat' && backup.data['lpc-name'] === 'Rayan' && backup.data['lpc-lp'] && backup.data['lpc-clip-favs'] && backup.data['lpc-notes'] && backup.data['lpc-watch'] && !('lpc-remote' in backup.data), `the backup: ${Object.keys(backup.data)}`);
+    assert(backup.app === 'league-proxchat' && backup.data['lpc-name'] === 'Rayan' && backup.data['lpc-lp'] && backup.data['lpc-clip-favs'] && backup.data['lpc-notes'] && backup.data['lpc-watch'] && backup.data['lpc-drills'] && !('lpc-remote' in backup.data), `the backup: ${Object.keys(backup.data)}`);
     backup.data['lpc-range'] = '2000';
     pc.once('dialog', (d) => d.accept());
     await Promise.all([pc.waitForEvent('load'), pc.setInputFiles('#restoreFile', { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })]);
@@ -1552,7 +1642,7 @@ const leagueData = (over = {}) => ({
 
     assert.deepStrictEqual(lcu.refused, [], 'every call is one the desktop app lets through');
     console.log(`all ${lcu.calls.length} calls to League's client are on the desktop app's list`);
-    await pctx.close();
+    await phoneBrowser.close();
     await ctx.close();
     console.log('ok');
   } catch (err) {

@@ -955,6 +955,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
+      <section id="drillBox" class="panel" aria-labelledby="h-drill" hidden>
+        <h2 id="h-drill" class="ph">CS drill <button class="tip" type="button" popovertarget="t-drill" aria-label="About the CS drill">?</button></h2>
+        <p id="drillNow" class="phase" role="status"></p>
+        <form id="drillExact" class="pick" hidden><label>Exact CS at 10:00, from League <input id="drillCs" type="number" inputmode="numeric" required></label><button class="btn small" type="submit">Save</button></form>
+        <div id="drillTrend" class="trends"></div>
+        <ol id="drillList" class="lplist"></ol>
+      </section>
       <section id="postBox" class="panel" aria-labelledby="h-post" hidden>
         <h2 id="h-post" class="ph">Your last game <button class="tip" type="button" popovertarget="t-post" aria-label="About your last game">?</button></h2>
         <p id="postHead" class="phase" role="status"></p>
@@ -1295,9 +1302,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-cs" class="tipbox" popover>Best picks for you weighs each champion you may pick for your role: how it does there in high elo, how it does in high elo against their champion in your lane (their pick that plays there most), your own games and mastery on it, and what your team still lacks (magic or physical damage, a tank). Click one to hover it, and again on your turn to lock it in. On your ban turn, Bans for you lists the champions you lose to most, then the strongest in your role in high elo, leaving out the ones you play. Your team's ranks and last 20 games come from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Pregame settings), sets the summoner spells and puts the high elo build and your usual build in League's shop. Tips for your lane show up once your champion and the one in your lane are known: how that matchup goes in high elo, the runes, spells and early items high elo players take in it, your own games against it, its range and damage, Riot's own tips for both champions and your matchup note. They show again on the loading screen, but not in the game itself, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: Korea's Challenger and Grandmaster ranked games our server counts from Riot, this patch (with the last one added while this one is new). The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games.</div>
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
-<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions and answer trades from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
+<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, pick or ban champions, answer trades and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found” on the phone and it gets a notification even with its screen off or the page closed (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists, where fast right answers score most; it ends when the host's League finds a match. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard.</div>
@@ -2456,6 +2464,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pending.clear();
     dialing.clear();
     $('chatLog').replaceChildren();
+    chatLines.length = 0;
     old.removeAllListeners();
     old.disconnect(); // frees your slot on the room server now
     setTimeout(() => old.destroy(), 300); // lets the goodbye go out
@@ -2519,8 +2528,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     });
   }
 
-  // ---- room chat. Links open in your browser (the Windows client sends every other site there).
+  // ---- room chat. Links open in your browser (the Windows client sends every other site there). The last 30 lines
+  // also go to the phone remote, which can write in it too.
+  const chatLines = []; // { who, text, at }
   function addChat(who, text) {
+    chatLines.push({ who, text, at: Date.now() });
+    if (chatLines.length > 30) chatLines.shift();
+    pushRemote();
     const li = document.createElement('li'), time = document.createElement('time'), b = document.createElement('b');
     time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     b.textContent = who;
@@ -2537,13 +2551,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (log.children.length > 100) log.firstElementChild.remove();
     log.scrollTop = log.scrollHeight;
   }
-  $('chatForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const text = $('chatText').value.trim();
-    if (!text || !peer) return;
+  function sendChat(text) {
+    text = text.trim().slice(0, 300);
+    if (!text || !peer) return false;
     sendOnce({ t: 'chat', text });
     addChat(myName || 'You', text);
-    $('chatText').value = '';
+    return true;
+  }
+  $('chatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (sendChat($('chatText').value)) $('chatText').value = '';
   });
   // ---- game modes: the host picks one for the room. Legends and Immersive change your own voice for everyone (from
   // League's data and your minimap), Gibberish scrambles the other team for you, Voice swap moves every voice to
@@ -2915,6 +2932,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!league && was && compactAuto) setCompact(false);
     if (league && league.result && !(ended && ended.room === league.room)) ended = { result: league.result, room: league.room, at: performance.now() };
     refreshMine();
+    drillTick();
     applyHurt();
     applyFx();
     if (league && opts.autoRoom && GAME_ROOM.test(league.room)) autoRoom(league.room);
@@ -2940,7 +2958,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const now = performance.now(), on = (o) => overlayEdit || (!overlayHide && !!o), voice = !!peer && !!(league || fresh(me));
     const talk = on(opts.overlay && voice), meOn = on(opts.overlayMe && voice);
     overlayOn = on(opts.overlayChat && voice); // room chat shows there, so it needs no popup
-    const game = on(opts.overlayGame && league) ? gameLine() : '', cs = on(opts.overlayCs && league) ? csText() : '', aug = on(opts.overlayGame && league) ? augNow() : '';
+    const game = on(opts.overlayGame && league) ? gameLine() : '', cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const board = boardNow(), visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!board;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
@@ -3813,13 +3831,62 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const m = meIn(), pos = m && posIn(m), o = pos && league.players.find((q) => q.team !== m.team && posIn(q) === pos);
     return o ? `Your lane against ${champName(o.champ)}: level ${m.lvl} vs ${o.lvl} · CS ${m.cs} vs ${o.cs} · kills ${m.k} vs ${o.k}` : '';
   }
-  function csText() {
+  function csText(over) { // over: for the overlay, which also counts down a CS drill
     const m = meIn(), min = gameNow() / 60, c = m && champOf(m.champ);
     if (!m || min < 1) return '';
     const on = c && myHist ? myHist.filter((g) => g.champ === +c.key && g.mode === league.mode && g.len > 0) : [];
     const usual = on.length ? on.reduce((n, g) => n + g.cs / (g.len / 60), 0) / on.length : 0;
-    return `CS ${m.cs} · ${(m.cs / min).toFixed(1)} a minute${usual ? ` (usual ${usual.toFixed(1)})` : ''}`;
+    return `CS ${m.cs} · ${(m.cs / min).toFixed(1)} a minute${usual ? ` (usual ${usual.toFixed(1)})` : ''}${over && drillOn() ? ` · drill ${mmss(Math.max(0, 600 - gameNow()))} left` : ''}`;
   }
+  // ---- CS drill: in a Practice Tool game, your CS when the game clock reaches 10:00 is saved (lpc-drills, the last 50),
+  // with when you got each ten, so you can see yourself improve. League's game data only counts CS in tens (Riot rounds
+  // it down on purpose), so the exact number League showed can be typed in.
+  let drills = load('lpc-drills', []), drill = null; // drill: this Practice Tool game's, { room, t, steps: [[seconds, cs]], done, saved }
+  if (!Array.isArray(drills)) drills = [];
+  const drillCs = (d) => d.exact || d.cs;
+  const drillOn = () => !!league && league.mode === 'PRACTICETOOL' && !!drill && drill.room === league.room && !drill.done;
+  function drillTick() {
+    const m = league && league.mode === 'PRACTICETOOL' ? meIn() : null, t = gameNow();
+    if (!m) return;
+    // a new game: another room, or the clock started again (Practice Tool on the same champion has the same room code)
+    if (!drill || drill.room !== league.room || t < drill.t - 30) drill = { room: league.room, steps: [], done: t >= 600, saved: false }; // first seen after 10:00: too late
+    drill.t = t;
+    if (drill.done) return;
+    const last = drill.steps[drill.steps.length - 1];
+    if (m.cs > (last ? last[1] : 0)) drill.steps.push([Math.round(t), m.cs]);
+    if (t < 600) return;
+    const best = Math.max(0, ...drills.map(drillCs));
+    drill.done = drill.saved = true;
+    drills = [...drills, { at: Date.now(), champ: m.champ, cs: m.cs, steps: drill.steps }].slice(-50);
+    store.set('lpc-drills', JSON.stringify(drills));
+    notify(`CS drill: ${m.cs}+ CS at 10:00${!best ? '' : m.cs > best ? ', your best yet' : `, your best is ${best}`}. You can type your exact CS on the Game page.`, true);
+  }
+  function renderDrill() {
+    const on = !!league && league.mode === 'PRACTICETOOL', last = drills[drills.length - 1], m = on && meIn();
+    $('drillBox').hidden = !(on || (!league && drills.length));
+    if ($('drillBox').hidden) return;
+    if (drills.length) ddSoon();
+    const best = drills.reduce((b, d) => (!b || drillCs(d) > drillCs(b) ? d : b), null), had = m && best && ((best.steps || []).find(([, n]) => n >= m.cs) || [])[0]; // when your best run had your CS
+    $('drillNow').textContent = drillOn() && m ? `Last-hit until 10:00 on the game clock: ${mmss(Math.max(0, 600 - gameNow()))} left, CS ${m.cs}${m.cs && had ? `. Your best run had ${m.cs} by ${mmss(had)}` : ''}.`
+      : on && !(drill && drill.saved) ? 'This game was past 10:00 when Premade saw it. For a drill, start a new Practice Tool game and last-hit until 10:00.'
+      : on ? `Done: ${last.cs}+ CS at 10:00. For another drill, start a new Practice Tool game.`
+      : 'Your CS at 10:00 in Practice Tool games. For another drill, start one on Pregame and last-hit until 10:00 on the game clock.';
+    const ask = !!last && !last.exact && Date.now() - last.at < 3600e3; // the exact number, while you remember it
+    $('drillExact').hidden = !ask;
+    if (ask) Object.assign($('drillCs'), { min: last.cs, max: last.cs + 9, placeholder: `${last.cs} to ${last.cs + 9}` });
+    const name = (k) => (champOf(k) || {}).name || k;
+    $('drillTrend').replaceChildren(...(drills.length >= 3 ? [trendChart(drills.slice(-20).map(drillCs), 'CS at 10:00', 0)] : []));
+    $('drillList').replaceChildren(...drills.slice(-10).reverse().map((d) => Object.assign(document.createElement('li'), {
+      textContent: `${new Date(d.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${name(d.champ)} · ${drillCs(d)}${d.exact ? '' : '+'} CS${d === best && drills.length > 1 ? ' · your best' : ''}`,
+    })));
+  }
+  $('drillExact').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const last = drills[drills.length - 1], v = +$('drillCs').value;
+    if (last && Number.isInteger(v) && v >= last.cs && v <= last.cs + 9) { last.exact = v; store.set('lpc-drills', JSON.stringify(drills)); }
+    $('drillCs').value = '';
+    renderDrill();
+  });
   // ARAM: Mayhem's augments: what kind suits your champion, from its class in Data Dragon. Riot's rules allow tips known
   // before the game, but no augment win rates and no "take this one", and League doesn't tell apps which cards you're
   // offered. On the overlay at the start, for a minute after levels 7, 11 and 15 and while you're dead; on the Game page.
@@ -3987,6 +4054,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const live = ph !== 'ChampSelect' && (!!league || playing(PHASES[ph])) && (livePlayers.length || (league && league.players && league.players.length));
     $('liveBox').hidden = !live;
     renderPost(live);
+    renderDrill();
     if (live) {
       const lane = laneText(), csLine = csText();
       $('laneStats').hidden = !lane && !csLine;
@@ -4255,6 +4323,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         phaseWas = ph;
         if ((ph === 'ReadyCheck' || ph === 'ChampSelect') && was !== 'ReadyCheck' && was !== 'ChampSelect' && opts.gameView && !document.body.classList.contains('compact')) view('pregame');
         if (ph === 'ReadyCheck' && opts.front && client.front) client.front(); // desktop app 1.9
+        if (ph === 'ReadyCheck') ringPhone();
         if (/^(GameStart|InProgress|Reconnect)$/.test(ph) && !preViewEl.hidden && opts.gameView) view('game'); // from champ select to the game
         if (ph === 'ChampSelect') {
           cs = null; pickable = null; runesFor = ''; runesNote = ''; scouting.clear(); scoutData.clear(); tradeSeen.clear();
@@ -4293,7 +4362,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       pr.on('connection', (c) => {
         if (!new RegExp(`^lolprox-r${code}-[1-9]$`).test(c.peer)) return c.close();
         c.on('open', () => { remoteConns.add(c); remoteWas = ''; pushRemote(); renderRemote(); });
-        c.on('data', onRemote);
+        c.on('data', (m) => { if (m && m.t === 'hi') c.seen = m.seen === true; onRemote(m); }); // seen: the remote is on the phone's screen
         c.on('close', () => { remoteConns.delete(c); renderRemote(); });
       });
       pr.on('disconnected', () => setTimeout(() => { if (remote === pr && !pr.destroyed) pr.reconnect(); }, 3000));
@@ -4302,6 +4371,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     } else if (!want && remote) { remote.destroy(); remote = null; remoteConns.clear(); }
     renderRemote();
   }
+  // a match found while no phone has the remote on its screen: our server pushes a notification to the phones that
+  // turned them on (server/push.js, remote-sw.js), which shows with the screen off or the remote closed.
+  // ponytail: goes by what each phone said last, so one frozen before it could say it went off screen misses the push
+  // until its connection drops; a heartbeat from the phone if that bites
+  const ringPhone = () => { if (remote && ![...remoteConns].some((c) => c.seen)) fetch(`${serverUrl}/push/${remoteCode()}/ring`, { method: 'POST' }).catch(() => {}); };
   function renderRemote() {
     $('remoteBox').hidden = !remote;
     $('remoteLink').href = $('remoteLink').textContent = remote ? remoteUrl() : '';
@@ -4331,6 +4405,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         theirs: (cs.theirTeam || []).map((p) => p.championId || 0), picks: suggestions().map((s) => s.id), can: (a && a.type === 'ban' ? bannable : pickable) || [],
       } : null,
       game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold() } : null,
+      chat: peer ? chatLines : null, // in a voice room
     };
   }
   function pushRemote() {
@@ -4348,6 +4423,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (m.t === 'auto' && typeof m.on === 'boolean') { opts.autoAccept = $('optAutoAccept').checked = m.on; saveOpts(); }
     else if (m.t === 'queue' && typeof m.on === 'boolean') (m.on ? (lcu === 'Lobby' && lead() ? startQueue() : null) : lcu === 'Matchmaking' ? stopQueue() : null);
     else if (m.t === 'trade' && typeof m.path === 'string' && typeof m.act === 'string') trade(m.path, m.id, m.act);
+    else if (m.t === 'chat' && typeof m.text === 'string') sendChat(m.text);
     remoteWas = '';
   }
   $('remoteNew').addEventListener('click', () => {
@@ -7381,6 +7457,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [20, 'October 20: phone notifications, chat on your phone and a CS drill', [
+      'The phone remote can tell you when a match is found, even with the phone’s screen off or the remote closed: tick “Tell me when a match is found” on your phone. On an iPhone, open the remote from its home screen icon first.',
+      'Room chat is on the phone remote too, to read and write while you’re away from your PC in queue.',
+      'CS drill on the Game page: last-hit in a Practice Tool game until 10:00 and Premade saves your CS, so you can see yourself improve.',
+    ]],
     [19, 'October 20: the minimap tracker', [
       'Premade finds your minimap on the left side of the screen too, if you moved it there in League’s Interface settings.',
       'After a recall, Premade follows you in your fountain at once, instead of about 3 seconds later.',
@@ -7616,7 +7697,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     games: () => games,
     inGame: () => (game ? [...game.players.keys()] : null), // who the game being played has seen in voice
     toasts: () => toasts.map((t) => t.text),
-    lcu: () => ({ phase: lcu, cs: !!cs, rc, curGame, runesNote, live: livePlayers.length, scouted: [...scoutData.keys()], me0, hist: myHist && myHist.length, remote: !!remote, phones: remoteConns.size }),
+    lcu: () => ({ phase: lcu, cs: !!cs, rc, curGame, runesNote, live: livePlayers.length, scouted: [...scoutData.keys()], me0, hist: myHist && myHist.length, remote: !!remote, phones: remoteConns.size, seen: [...remoteConns].filter((c) => c.seen).length }),
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     deep: () => deep, fame: () => fame, coll: () => coll, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
