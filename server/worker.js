@@ -247,6 +247,12 @@ export class Riot extends DurableObject {
     this.sql.exec('CREATE TABLE IF NOT EXISTS pros (u TEXT PRIMARY KEY, n TEXT, tm TEXT, p TEXT, at INTEGER) WITHOUT ROWID'); // pro players' accounts (pro())
     this.sql.exec('CREATE TABLE IF NOT EXISTS proids (id TEXT PRIMARY KEY, n TEXT, tm TEXT) WITHOUT ROWID'); // and the Riot IDs still to look up
     this.sql.exec('CREATE TABLE IF NOT EXISTS pools (u TEXT PRIMARY KEY, c TEXT, at INTEGER) WITHOUT ROWID'); // ladder players' top champions (pool())
+    // augment ratings from Premade players' games (augIn): the games counted, by id; ARAM: Mayhem's champions (a 0: the
+    // champion's games) and each augment they took, with wins; TFT's augments by set, with their games, places and top 4s
+    this.sql.exec('CREATE TABLE IF NOT EXISTS augseen (g TEXT PRIMARY KEY, at INTEGER) WITHOUT ROWID');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS mayhem (c INTEGER, a INTEGER, n INTEGER, w INTEGER, PRIMARY KEY (c, a)) WITHOUT ROWID');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS tftaug (s INTEGER, a TEXT, n INTEGER, p INTEGER, t4 INTEGER, PRIMARY KEY (s, a)) WITHOUT ROWID');
+    this.sent = new Map(); // games each address sent in the last hour
     this.calls = {}; // routing value -> times of our calls in the last 2 minutes
     this.until = {}; // routing value -> when Riot lets us call again
     this.ips = new Map(); // lookups each address made in the last 2 minutes
@@ -310,9 +316,49 @@ export class Riot extends DurableObject {
     if (url.pathname === '/riot/alike') return new Response(this.alike(+url.searchParams.get('c')), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); // it reads every pools row
     if (url.pathname === '/riot/past') return new Response(this.past(url.searchParams.get('u') || ''), { headers: json });
     if (url.pathname === '/riot/places') { const p = url.searchParams.get('p') || ''; return new Response(JSON.stringify(Object.hasOwn(REGION, p) ? this.get(`places:${p}`, {}) : {}), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); }
+    if (url.pathname === '/riot/mayhem' || url.pathname === '/riot/tftaug') {
+      if (req.method === 'POST') return new Response(this.augIn(url.pathname.slice(6), await req.text().catch(() => ''), req.headers.get('cf-connecting-ip') || ''), { headers: cors });
+      return new Response(JSON.stringify(url.pathname === '/riot/mayhem' ? this.mayhem(+url.searchParams.get('c')) : this.tftaug()), { headers: { ...json, 'cache-control': 'public, max-age=600' } });
+    }
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
     if (m && this.env.RIOT_KEY) return this.lookup(m[1], m[2], url.searchParams, req.headers.get('cf-connecting-ip') || '', cors);
     return new Response('Not found', { status: 404, headers: cors });
+  }
+  // A game's augments from a Premade app, which read them from League's client: { g: its id (EUW1_123), ps: each of
+  // the 10 players' { c: champion, w: 1 if they won, a: augment ids } } for ARAM: Mayhem, or { g, s: the set, ps: each
+  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 30 an
+  // hour. 'ok', or why not.
+  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 30 an hour from each address
+  augIn(kind, text, ip) {
+    let b;
+    try { b = JSON.parse(text); } catch { return 'not JSON'; }
+    const ints = (a, max) => Array.isArray(a) && a.length <= 8 && a.every((x) => Number.isInteger(x) && x > 0 && x < max) && new Set(a).size === a.length;
+    const may = kind === 'mayhem', ps = b && Array.isArray(b.ps) ? b.ps : [];
+    if (!b || typeof b.g !== 'string' || !/^[A-Z0-9]{2,5}_\d{5,14}$/.test(b.g)) return 'no game id';
+    if (may ? !(ps.length === 10 && ps.every((p) => p && Number.isInteger(p.c) && p.c > 0 && p.c < 10000 && (p.w === 0 || p.w === 1) && ints(p.a, 1e6)) && ps.filter((p) => p.w).length === 5)
+      : !(Number.isInteger(b.s) && b.s > 0 && b.s < 100 && ps.length === 8 && ps.every((p) => p && Array.isArray(p.a) && p.a.length <= 4 && p.a.every((a) => typeof a === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(a)))
+        && ps.map((p) => p.p).sort((x, y) => x - y).join() === '1,2,3,4,5,6,7,8')) return 'not a game';
+    const now = Date.now(), mine = (this.sent.get(ip) || []).filter((t) => now - t < 3600000);
+    if (mine.length >= 30) return 'too many';
+    this.sent.set(ip, [...mine, now]);
+    if (this.sent.size > 500) for (const [k, t] of this.sent) if (now - t[t.length - 1] > 3600000) this.sent.delete(k);
+    if (this.sql.exec('SELECT 1 FROM augseen WHERE g = ?', b.g).toArray().length) return 'ok';
+    this.sql.exec('INSERT INTO augseen VALUES (?, ?)', b.g, Math.round(now / 1000));
+    for (const p of ps) {
+      if (may) for (const a of [0, ...p.a]) this.sql.exec('INSERT INTO mayhem VALUES (?, ?, 1, ?) ON CONFLICT (c, a) DO UPDATE SET n = n + 1, w = w + excluded.w', p.c, a, p.w);
+      else for (const a of new Set(p.a)) this.sql.exec('INSERT INTO tftaug VALUES (?, ?, 1, ?, ?) ON CONFLICT (s, a) DO UPDATE SET n = n + 1, p = p + excluded.p, t4 = t4 + excluded.t4', b.s, a, p.p, p.p <= 4 ? 1 : 0);
+    }
+    return 'ok';
+  }
+  mayhem(c) { // a champion's Mayhem games counted (n) and the games each augment was taken in (a: { id: games })
+    const out = { n: 0, a: {} };
+    if (Number.isInteger(c) && c > 0) for (const r of this.sql.exec('SELECT a, n FROM mayhem WHERE c = ?', c)) { if (r.a) out.a[r.a] = r.n; else out.n = r.n; }
+    return out;
+  }
+  tftaug() { // the newest set's augments: { s: the set, a: { id: [games, places added up, top 4s] } }
+    const [r] = this.sql.exec('SELECT MAX(s) AS s FROM tftaug').toArray(), out = { s: (r && r.s) || 0, a: {} };
+    for (const x of this.sql.exec('SELECT a, n, p, t4 FROM tftaug WHERE s = ?', out.s)) out.a[x.a] = [x.n, x.p, x.t4];
+    return out;
   }
   // a player lookup's call, passed through as Riot answers it: only the calls in LOOKUPS, 60 every 2 minutes from
   // one address, and while our key has room (90 every 2 minutes for each region)
