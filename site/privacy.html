@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premade Privacy Policy</title>
+<meta name="description" content="What Premade handles and where it goes.">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#010a13">
+<style>
+/* Premade's privacy policy (linked from Settings > App, and given to Riot for a production key). Keep it true to what
+   the app and our server do: a new thing our server keeps gets a line here. The same navy and gold as profile.html. */
+:root { --bg: #010a13; --panel: #0a1428; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45; --gold: #c8aa6e; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+header { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+header img { width: 28px; height: 28px; border-radius: 6px; }
+h1 { margin: 0; font-size: 28px; line-height: 1.2; }
+p, ol, ul { margin: 0; }
+ul { padding-left: 20px; }
+li + li { margin-top: 10px; }
+a { color: var(--gold); }
+.hint { color: var(--muted); font-size: 14px; }
+.panel { display: grid; gap: 12px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+footer { text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="icon-192.png" alt=""><span>Premade</span></header>
+  <h1>Privacy Policy</h1>
+  <p class="hint">Updated October 20, 2026</p>
+  <section class="panel">
+    <p>Premade has no accounts, no ads and no tracking, and sells nothing. Here's what it handles and where it goes.</p>
+    <ul>
+      <li><b>On your PC.</b> Your settings, LP history, game history, notes, clips and test recordings stay on your PC, in the app's storage and in Documents\Premade. Clips by voice listens with a speech model that runs on your PC; what you say isn't sent anywhere.</li>
+      <li><b>Your screen.</b> Premade reads your shared screen on your own PC to find your champion on the minimap. Only your spot on the map goes to the other players in your room. Your screen itself isn't sent anywhere.</li>
+      <li><b>Voice and room chat</b> go directly between the players in a room, encrypted. When a direct link isn't possible, they can pass through a relay run by PeerJS, which can't listen to them. Our server only introduces players to each other; it never hears voice or sees chat. The phone remote pairs the same way.</li>
+      <li><b>Our server</b> (on Cloudflare) counts rooms and players each day, for Settings > Our server. A player is counted as a code made from their internet address and a random value that's thrown away each day, so no address is kept. The counts are kept for 60 days.</li>
+      <li><b>Riot lookups.</b> When you open your profile or look up a Riot ID, our server asks Riot's API for that player's public account, rank, top champions, current game and match history, and passes it back. It keeps the rank it saw (Solo/Duo and Flex, the highest and latest each season) with the player's Riot account id, so profiles can show past seasons. Your internet address is used for a moment to limit lookups and isn't kept.</li>
+      <li><b>High elo statistics</b> come from Riot's match data for Korea's top ranked games and keep no names or account ids.</li>
+      <li><b>Other services.</b> The site and app updates are hosted by Netlify, fonts come from Google Fonts, the voice library from jsDelivr, and champion pictures from Riot's Data Dragon. Each sees your internet address when the app loads from it, under its own privacy policy.</li>
+      <li><b>Removing your data.</b> Everything on your PC goes when you uninstall Premade or clear its data. To have your saved ranks removed from our server, open an issue at <a href="https://github.com/Rayn16/Premade/issues">github.com/Rayn16/Premade</a>.</li>
+    </ul>
+  </section>
+  <footer class="hint"><a href="terms.html">Terms of Use</a></footer>
+</main>
+</body>
+</html>

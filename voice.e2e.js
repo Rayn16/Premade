@@ -221,6 +221,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Stats', 'Settings'], 'the menu in a browser: all of voice on one page');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
+    // Settings > App links Premade's Terms of Use and Privacy Policy (Riot wants both for a production key)
+    const legal = await ana.$$eval('a[href="/terms.html"], a[href="/privacy.html"]', (as) => Promise.all(as.map(async (a) => (await (await fetch(a.href)).text()).match(/<h1>(.*?)<\/h1>/)[1])));
+    assert.deepStrictEqual(legal, ['Terms of Use', 'Privacy Policy'], `the legal pages: ${legal}`);
     await ana.click('#proRoom');
     // the big join screen: Create room
     assert(await ana.isVisible('#createBtn') && await ana.isVisible('#code'), 'join screen');
