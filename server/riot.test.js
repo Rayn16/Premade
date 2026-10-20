@@ -36,10 +36,11 @@ const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR
 const EMERALD = [P(7)];
 // the ladder players' champions with the most mastery: Ahri (103), Zed (238), Lux (99) and Kassadin (38)
 const MASTERY = { [P(1)]: [103, 238, 38], [P(2)]: [103, 238], [P(3)]: [103, 99], [P(4)]: [103, 238, 99], [P(5)]: [238, 99] };
-// Leaguepedia's player list: Faker's Riot IDs (Hide on bush#KR1 is P(1), on Korea's ladder; Fakeeer#EUW is P(6), not on
-// Europe West's), and one that Riot doesn't know
-const LEAGUEPEDIA = [{ title: { Player: 'Faker', Team: 'T1', SoloqueueIds: "'''KR:''' Hide on bush#KR1, [[T1|T1]] Faker (old)<br>'''EUW:''' Fakeeer #EUW" } },
-  { title: { Player: 'Nobody', Team: 'X', SoloqueueIds: 'Gone#123' } }];
+// Leaguepedia's player list, as its Cargo export page sends it (line breaks escaped): Faker's Riot IDs (Hide on bush#KR1
+// is P(1), on Korea's ladder; Fakeeer#EUW is P(6), not on Europe West's), and one that Riot doesn't know, of a player
+// whose name comes as a number
+const LEAGUEPEDIA = [{ Player: 'Faker', Team: 'T1', SoloqueueIds: "'''KR:''' Hide on bush#KR1, [[T1|T1]] Faker (old)&lt;br&gt;'''EUW''': Fakeeer #EUW" },
+  { Player: 1116, Team: 'X', SoloqueueIds: 'Gone#123' }];
 const PROS = { 'Hide%20on%20bush/KR1': [P(1), 'kr'], 'Fakeeer/EUW': [P(6), 'euw1'] };
 // the games played that many days ago, which every ladder player was in; KR_1001 (the crawl's) too, for the sweep
 const DAYS = { 4: ['KR_1001', 'KR_2004'], 5: ['KR_2002'], 6: ['KR_2001'], 7: ['KR_2003'], 8: ['KR_2005'], 9: ['KR_2006'] };
@@ -76,7 +77,7 @@ const riot = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x'), [, host, ...rest] = u.pathname.split('/'), p = '/' + rest.join('/');
   calls.push({ host, p, q: u.search, key: req.headers['x-riot-token'] });
   const send = (code, body, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(body)); };
-  if (host === 'leaguepedia') return send(200, { cargoquery: u.searchParams.get('offset') === '0' ? LEAGUEPEDIA : [] });
+  if (host === 'leaguepedia') return send(200, u.searchParams.get('offset') === '0' ? LEAGUEPEDIA : []);
   if (req.headers['x-riot-token'] !== KEY) return send(401, { status: { message: 'Unauthorized' } });
   let m;
   if ((host === 'euw1' || host === 'na1') && (m = p.match(/^\/lol\/league\/v4\/entries\/RANKED_SOLO_5x5\/(EMERALD|DIAMOND)\/(I|II|III|IV)$/))) return send(200, host === 'euw1' && m[1] + m[2] === 'EMERALDI' ? EMERALD.map((puuid) => ({ puuid, tier: 'EMERALD', rank: 'I' })) : []);
@@ -256,7 +257,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
 
   // pro players from Leaguepedia: its player list asked for once, the Riot IDs in it looked up, the ones Riot knows kept
   const lp = calls.filter((c) => c.host === 'leaguepedia').map((c) => Object.fromEntries(new URLSearchParams(c.q)));
-  assert.deepEqual(lp, [{ action: 'cargoquery', format: 'json', tables: 'Players', fields: 'Player,Team,SoloqueueIds', limit: '100', offset: '0', where: 'SoloqueueIds LIKE "%#%" AND Team != ""' }]);
+  assert.deepEqual(lp, [{ tables: 'Players', fields: 'Player,Team,SoloqueueIds', where: 'Team != "" AND SoloqueueIds != ""', order_by: 'Players._pageName', limit: '100', offset: '0', format: 'json' }]);
   assert.deepEqual(calls.filter((c) => /by-riot-id\/(Hide|Fakeeer|Gone)/.test(c.p)).map((c) => c.p.split('/').slice(-2).join('/')).sort(), ['Fakeeer/EUW', 'Gone/123', 'Hide%20on%20bush/KR1'], 'each Riot ID in the list once');
   let more = await (await get('/riot/summary?more=1')).json();
   assert.equal(more.pros, 2, 'Hide on bush#KR1 and Fakeeer#EUW');

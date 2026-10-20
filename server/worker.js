@@ -214,8 +214,8 @@ const PLACES = [...['CHALLENGER', 'GRANDMASTER', 'MASTER'].map((t) => `${t} I`),
 const POOLS = ['kr', 'euw1', 'na1']; // the ladders /riot/alike asks about
 const hash = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 // the Riot IDs (Name#TAG) in a player's soloqueue ids on Leaguepedia, wiki text: bold server names, links, notes in
-// brackets, line breaks
-const riotIds = (s) => [...new Set(String(s || '').replace(/<[^>]*>|'''|\[\[[^\]|]*\||\[\[|\]\]|\([^)]*\)/g, ',').split(/[,;\n•|]|\b[A-Z]{2,4}\d?:/)
+// brackets, line breaks (escaped, as Cargo sends them)
+const riotIds = (s) => [...new Set(String(s || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/<[^>]*>|''':?|\[\[[^\]|]*\||\[\[|\]\]|\([^)]*\)/g, ',').split(/[,;\n•|]|\b[A-Z]{2,4}\d?:/)
   .map((x) => x.trim().replace(/\s*#\s*/, '#')).filter((x) => /^[^#]{3,16}#[\p{L}\p{N}]{2,5}$/u.test(x)))].slice(0, 5);
 const newer = (a, b) => { const [x, y] = a.split('.').map(Number), [u, v] = (b || '0.0').split('.').map(Number); return x > u || (x === u && y > v); };
 const runesOf = (pk) => { // [primary tree, secondary tree, its six runes, the offense, flex and defense shards]
@@ -621,10 +621,10 @@ export class Riot extends DurableObject {
     if (cs.length) this.sql.exec('INSERT INTO pools VALUES (?, ?, ?) ON CONFLICT (u) DO UPDATE SET c = excluded.c, at = excluded.at', await this.code(who), cs.join(), now);
   }
   // Pro players: the Riot IDs (Name#TAG) Leaguepedia's player list (lol.fandom.com, CC BY-SA) has for players on a
-  // team, read once a week, 100 players a step (more is too much to store in a turn's 10 ms of CPU time) and 2,000 at
-  // most; then one Riot ID a step becomes their account id and the server they play League on, so the crawl takes their
-  // games with the ladder's and keeps their name and team on their part of a game. An account Leaguepedia stops
-  // listing is let go two weeks later.
+  // team, read once a week, 100 players a step (more is too much to store in a turn's 10 ms of CPU time) and 5,000 at
+  // most (1,737 had a team and soloqueue ids in October 2026); then one Riot ID a step becomes their account id and the
+  // server they play League on, so the crawl takes their games with the ladder's and keeps their name and team on
+  // their part of a game. An account Leaguepedia stops listing is let go two weeks later.
   async pro() {
     const now = Date.now(), [q] = this.sql.exec('SELECT id, n, tm FROM proids LIMIT 1').toArray();
     if (q) {
@@ -637,19 +637,19 @@ export class Riot extends DurableObject {
       return;
     }
     const s = this.get('lp', { at: 0, off: 0 });
-    if (!s.off && now - s.at < 7 * 864e5) return;
+    if (!s.off && now - s.at < (s.ok ? 7 * 864e5 : 36e5)) return; // a week, or an hour once Leaguepedia didn't answer
     if (!s.off) s.from = now;
-    const qs = new URLSearchParams({ action: 'cargoquery', format: 'json', tables: 'Players', fields: 'Player,Team,SoloqueueIds', limit: '100', offset: String(s.off),
-      where: s.plain ? 'Team != ""' : 'SoloqueueIds LIKE "%#%" AND Team != ""' }); // plain: in case Leaguepedia refuses the #
-    const j = await fetch(`${this.env.LEAGUEPEDIA || 'https://lol.fandom.com/api.php'}?${qs}`, { headers: { 'user-agent': 'Premade/1.0 (https://github.com/Rayn16/Premade)' } })
+    // from its Cargo export page, as the API's cargoquery turns away askers who aren't logged in ("ratelimited"). The
+    // page doesn't take a # in where, so riotIds picks the Riot IDs out; an error comes back as plain text
+    const qs = new URLSearchParams({ tables: 'Players', fields: 'Player,Team,SoloqueueIds', where: 'Team != "" AND SoloqueueIds != ""', order_by: 'Players._pageName', limit: '100', offset: String(s.off), format: 'json' });
+    const j = await fetch(`${this.env.LEAGUEPEDIA || 'https://lol.fandom.com/wiki/Special:CargoExport'}?${qs}`, { headers: { 'user-agent': 'Premade/1.0 (https://github.com/Rayn16/Premade)' } })
       .then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const rows = j && Array.isArray(j.cargoquery) ? j.cargoquery.map((x) => x && x.title).filter((x) => x && typeof x.Player === 'string') : null;
-    for (const x of rows || []) for (const id of riotIds(x.SoloqueueIds)) this.sql.exec('INSERT OR IGNORE INTO proids VALUES (?, ?, ?)', id, x.Player.slice(0, 40), String(x.Team || '').slice(0, 40));
-    if (rows && rows.length >= 100 && s.off < 1900) s.off += 100;
-    else if (!rows && j && j.error && !s.plain) s.plain = true; // asked again without it on the next step
+    const rows = Array.isArray(j) ? j.filter((x) => x && x.Player != null) : null; // a name like 1116 comes as a number
+    for (const x of rows || []) for (const id of riotIds(x.SoloqueueIds)) this.sql.exec('INSERT OR IGNORE INTO proids VALUES (?, ?, ?)', id, String(x.Player).slice(0, 40), String(x.Team || '').slice(0, 40));
+    if (rows && rows.length >= 100 && s.off < 4900) s.off += 100;
     else {
       if (rows) this.sql.exec('DELETE FROM pros WHERE at < ?', Math.round(s.from / 1000) - 14 * DAY);
-      Object.assign(s, { at: rows ? now : now - 6 * 864e5, off: 0, ok: !!rows }); // not answering: again tomorrow
+      Object.assign(s, { at: now, off: 0, ok: !!rows });
     }
     this.put('lp', s);
   }
