@@ -1,7 +1,8 @@
 // Checks the phone remote's notifications (/push/..., push.js) under `wrangler dev` against a fake push service: each
 // code has its own key, only push services' addresses are taken, a ring reaches every phone with a signed token
 // (checked against the key), Apple's headers and nothing in it, at most once every 5 s, with the same token next
-// time; an address the push service says is gone (410) is dropped, and so is one a phone takes back.
+// time; an address the push service says is gone (410) is dropped, and so is one a phone takes back; a ring to a
+// code with no phones is nothing (no write, so no 5 s wait after it).
 // WRANGLER=<path to wrangler> node push.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
@@ -74,5 +75,7 @@ const post = (p, j) => fetch(BASE + p, { method: 'POST', ...(j && { body: JSON.s
   assert.equal(j.sent, 1);
   assert.deepEqual(got.map((g) => g.url), ['/b'], 'a was taken back');
   assert.equal((await (await post(B + '/ring')).json()).sent, 0, 'nobody on the other code');
+  assert.deepEqual(await (await post(B, { add: SVC + '/c' })).json(), { ok: true });
+  assert.equal((await (await post(B + '/ring')).json()).sent, 1, 'a ring to nobody kept nothing, so the next one goes out');
   console.log('push: a key for each code, push services only, a signed ring to every phone at most every 5 s with the same token, gone and dropped addresses left out');
 })().then(() => { process.kill(-wr.pid); process.exit(0); }, (e) => { console.error(e); process.kill(-wr.pid); process.exit(1); });

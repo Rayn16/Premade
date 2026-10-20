@@ -12,28 +12,31 @@ const EC = { name: 'ECDSA', namedCurve: 'P-256' };
 const b64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const utf8 = (s) => new TextEncoder().encode(s);
 
+// Storage writes are few (the free plan counts them): the key once, a phone's address when it changes, and a ring
+// only for a code with phones on it, as most PCs ring with none.
 export async function push(req, st, env) {
   const ring = new URL(req.url).pathname.endsWith('/ring'), json = (j, status = 200) => Response.json(j, { status, headers: CORS });
   let v = await st.get('vapid');
-  if (!v) {
-    const k = await crypto.subtle.generateKey(EC, true, ['sign', 'verify']);
-    v = { jwk: await crypto.subtle.exportKey('jwk', k.privateKey), pub: b64(await crypto.subtle.exportKey('raw', k.publicKey)) };
-    await st.put('vapid', v);
+  if (req.method === 'GET' && !ring) {
+    if (!v) {
+      const k = await crypto.subtle.generateKey(EC, true, ['sign', 'verify']);
+      v = { jwk: await crypto.subtle.exportKey('jwk', k.privateKey), pub: b64(await crypto.subtle.exportKey('raw', k.publicKey)) };
+      await st.put('vapid', v);
+    }
+    return json({ key: v.pub });
   }
-  if (req.method === 'GET' && !ring) return json({ key: v.pub });
   if (req.method !== 'POST') return json({ error: 'Not found' }, 404);
-  let subs = (await st.get('subs')) || [];
+  const subs = (await st.get('subs')) || [];
   if (!ring) {
     let m = null;
     try { m = JSON.parse(await req.text()); } catch {}
     const ep = m && (m.add || m.drop);
     if (typeof ep !== 'string' || ep.length > 1000 || !new RegExp(env.PUSH_OK || PUSH_OK).test(ep)) return json({ error: 'Not a push address' }, 400);
-    subs = subs.filter((s) => s !== ep);
-    if (m.add) subs = [...subs, ep].slice(-4); // ponytail: the newest 4 phones a code, plenty for one player
-    await st.put('subs', subs);
+    const next = [...subs.filter((s) => s !== ep), ...(m.add ? [ep] : [])].slice(-4); // ponytail: the newest 4 phones a code, plenty for one player
+    if (JSON.stringify(next) !== JSON.stringify(subs)) await st.put('subs', next); // a phone sends its address each time it opens
     return json({ ok: true });
   }
-  if (Date.now() - ((await st.get('rang')) || 0) < 5000) return json({ sent: 0 });
+  if (!subs.length || !v || Date.now() - ((await st.get('rang')) || 0) < 5000) return json({ sent: 0 });
   await st.put('rang', Date.now());
   // Apple asks for a new token at most once an hour: each push service's lasts 12 hours and is used for 11
   const tokens = (await st.get('jwts')) || {}, now = Math.floor(Date.now() / 1000), key = await crypto.subtle.importKey('jwk', v.jwk, EC, false, ['sign']);
