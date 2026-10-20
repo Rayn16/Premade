@@ -9479,7 +9479,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         augSend('tftaug', id, { s: +i.tft_set_number || 0, ps: i.participants.map((p) => ({ p: (p && p.placement) | 0, a: (p && Array.isArray(p.augments) ? p.augments : []).map(String) })) });
     }
   }
-  const augRates = {}; // 'mayhem?c=<champion number>' or 'tftaug' -> { at, d: our server's answer }, asked at most every 10 minutes
+  const augRates = {}; // 'mayhem?c=<champion number>' or 'tftaug?s=<the set of your newest TFT game>' -> { at, d: our server's answer }, asked at most every 10 minutes
   function augRatesOf(q) {
     const r = (augRates[q] ||= { at: -Infinity, d: null });
     if (performance.now() - r.at > 600000) {
@@ -9492,7 +9492,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ponytail: fixed cut-offs on the average place, tiers by share of augments if they bunch up
   const TFT_TIERS = [[3.9, 'S', 'good'], [4.2, 'A', 'good'], [4.5, 'B', ''], [4.8, 'C', 'bad'], [9, 'D', 'bad']];
   function tftTierOf(name) {
-    const d = augRatesOf('tftaug'), k = augKey(name), ids = new Set(((tftItems && tftItems.a) || []).filter(([, n]) => augKey(n) === k).map(([id]) => id));
+    const sn = tftGames && tftGames[0] && tftGames[0].sn, d = augRatesOf(sn ? `tftaug?s=${sn}` : 'tftaug'), k = augKey(name), ids = new Set(((tftItems && tftItems.a) || []).filter(([, n]) => augKey(n) === k).map(([id]) => id));
     let n = 0, p = 0;
     for (const [id, v] of Object.entries((d && d.a) || {})) if ((ids.has(id) || augKey(tftName(id)) === k) && Array.isArray(v)) { n += v[0] | 0; p += v[1] | 0; }
     if (n < 20) return null;

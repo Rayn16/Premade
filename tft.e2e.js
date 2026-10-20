@@ -100,7 +100,7 @@ const L = { calls: [], refused: [] };
 // our server's augment ratings (/riot/tftaug, /riot/mayhem), and what the app sent it: Rich Get Richer's two ids have 30
 // games of Set 18 at 3.33 on average, Cluster too few; Ahri (103) has 40 Mayhem games, 16 with Symphony of War's two ids
 // (Arena's and Mayhem's) and 2 with Mystic Punch. And CommunityDragon's Arena and Mayhem augments
-const RATES = { tftaug: { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } }, 'mayhem?c=103': { n: 40, a: { 79: 10, 1079: 6, 1058: 2 } } };
+const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } }, 'mayhem?c=103': { n: 40, a: { 79: 10, 1079: 6, 1058: 2 } } };
 const SENT = [];
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
 const ok = (data) => ({ status: 200, data });
