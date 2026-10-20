@@ -323,8 +323,8 @@ const game = (over = {}) => ({
       await page.evaluate((d) => lpcClient.emit('league', d), game());
       await page.click('.nav[data-view="overlay"]');
       const handles = () => page.$$eval('#ovHandles .ovhandle', (l) => l.map((b) => b.dataset.part));
-      await wait(page, () => document.querySelectorAll('#ovHandles .ovhandle').length === 8, null, 'a box over each part');
-      assert.deepStrictEqual(await handles(), ['', 'game', 'cs', 'me', 'talk', 'chat', 'toasts', 'after']);
+      await wait(page, () => document.querySelectorAll('#ovHandles .ovhandle').length === 11, null, 'a box over each part');
+      assert.deepStrictEqual(await handles(), ['', 'game', 'cs', 'me', 'talk', 'chat', 'toasts', 'buy', 'after', 'tips', 'screen']);
       const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')));
       const box = (k) => page.locator(`#ovHandles .ovhandle[data-part="${k}"]`).boundingBox();
       const stage = await page.evaluate(() => { const e = document.getElementById('ovStage'), r = e.getBoundingClientRect(); return { x: r.left + e.clientLeft, y: r.top + e.clientTop, w: e.clientWidth, h: e.clientHeight }; });
@@ -351,7 +351,7 @@ const game = (over = {}) => ({
       assert(o.overlayPos === 'custom' && Math.abs(o.overlayBox.x - (rest.x - stage.x + 200) / stage.w) < 0.01 && Math.abs(o.overlayBox.y - (rest.y - stage.y + 100) / stage.h) < 0.01 && (await page.inputValue('#optPos')) === 'custom', `the rest moved: ${JSON.stringify(o.overlayBox)}`);
       await page.check('#optMissList');
       await page.check('#optMissCall');
-      await wait(page, () => [...document.querySelectorAll('#ovHandles .ovhandle')].map((b) => b.dataset.part).join() === ',game,cs,me,talk,toasts,chat,missing,after,call', null, 'the callouts and who’s off the minimap on the Layout');
+      await wait(page, () => [...document.querySelectorAll('#ovHandles .ovhandle')].map((b) => b.dataset.part).join() === ',game,cs,me,talk,toasts,buy,chat,missing,after,tips,screen,call', null, 'the callouts and who’s off the minimap on the Layout');
       if (process.env.SHOTS) await page.waitForTimeout(500); // the line at the top fades in
       await shot(page, 'overlay-page', '.view[data-view="overlay"]');
       await page.click('#ovHandles .ovhandle[data-part="chat"]');

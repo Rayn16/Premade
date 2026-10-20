@@ -82,6 +82,14 @@ body.board { font-size: calc(1.25vh * var(--k, 1)); }
 #call { position: absolute; top: 2.5vh; left: 50%; transform: translateX(-50%) scale(var(--k, 1)); transform-origin: 50% 0; opacity: 0; transition: opacity 0.4s; }
 #call.on { opacity: 1; }
 body:not(.full) #call { display: none; }
+/* while you're dead: the tips for your lane (tips) and a teammate's screen (cam); and the next item to buy (buy) */
+.tips { font-size: 13px; }
+.tips ul { margin: 4px 0 0; padding-left: 18px; }
+.tips li { margin: 3px 0; }
+.buy { display: flex; align-items: center; gap: 8px; }
+.buy img { flex: none; width: 22px; height: 22px; border-radius: 3px; }
+.cam { display: grid; gap: 4px; padding: 6px; }
+.cam img, .cam .ph { display: block; width: 320px; aspect-ratio: 16 / 9; object-fit: contain; border-radius: 4px; background: #000; }
 button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; border: 1px solid var(--gold); border-radius: 4px; background: var(--accent); color: var(--accent-fg); font: 600 13px/1.2 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
 </style>
 </head>
@@ -93,7 +101,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what the Overlay page picks: the objective timers, kills and gold
   // difference (game), your CS a minute (cs) and your CS and gold against your lane opponent (lane), in ARAM: Mayhem
-  // what kind of augment suits your champion (aug), in TFT the item recipes (tft), your mic when it's
+  // what kind of augment suits your champion (aug), in TFT the item recipes (tft), in Practice Tool your key presses
+  // and combo times and your jungle clear's camps (practice, app 1.15), your mic when it's
   // muted or you're talking, who can hear you, the effects on your voice, who's talking (a teal glow, red for the other
   // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
   // you move it (edit), it shows a frame and a sample. With board (app 1.10) it covers the screen with everyone's rank,
@@ -103,9 +112,14 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // other team off your minimap (missing: [name, picture, how long, where]) and the card after a game (after).
   // It takes the app's theme colours (theme: Settings > Look, any but Light), else League's own.
   // Over the whole screen, parts (app 1.10) gives a part a place of its own (spot): the objective timers (game), your CS
-  // and your lane (cs), TFT's item recipes (tft), your mic (me), who's talking (talk), chat, popups (toasts), the line at the top (call), the other
+  // and your lane (cs), TFT's item recipes (tft), Practice Tool's combos and camps (practice), your mic (me), who's
+  // talking (talk), chat, popups (toasts), the line at the top (call), the other
   // team off your minimap (missing) and the card over League's end screen (after); the rest stay together. The Overlay
   // page shows this page in a frame, with what each part looks like (ovPreview), so you can place them.
+  // While you're dead or in your base it can also show the next item to buy (buy: { name, pic, why }), and while you're
+  // dead the tips for your lane (tips: { title, lines }) and a teammate's screen (screen: { name, img }, a JPEG picture
+  // of it several times a second; the Overlay page sends no img and gets an empty frame). Your team's chance to win
+  // comes at the end of the objective timers' line.
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const main = document.getElementById('main'), parts = document.getElementById('parts'), call = document.getElementById('call');
@@ -141,7 +155,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   function board(b, out) {
     const half = (head, list) => { const h = el('half'); h.append(el('team', head), ...(Array.isArray(list) ? list : []).map(card)); return h; };
     const side = el('side'), parts = [side];
-    side.append(half('Your team', b.us), half('Their team', b.them));
+    const heads = Array.isArray(b.heads) ? b.heads : ['Your team', 'Their team']; // with each team's average rank, and which is favored
+    side.append(half(String(heads[0]), b.us), half(String(heads[1]), b.them));
     if (b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length) {
       const col = el('tipcol'), ul = document.createElement('ul');
       ul.append(...b.tips.lines.map((t) => Object.assign(document.createElement('li'), { textContent: String(t) })));
@@ -185,6 +200,25 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     t.g.forEach((row, i) => box.append(pic(t.c[i]), ...(Array.isArray(row) ? row : []).map(pic)));
     return box;
   }
+  function buy(b) { // the next item, with its picture
+    const t = el('toast buy');
+    if (b.pic) t.append(Object.assign(new Image(), { src: String(b.pic), alt: '' }));
+    t.append(`Next: ${b.name}${b.why ? ` · ${b.why}` : ''}`);
+    return t;
+  }
+  function tips(t) {
+    const box = el('toast tips'), ul = document.createElement('ul');
+    ul.append(...t.lines.map((x) => Object.assign(document.createElement('li'), { textContent: String(x) })));
+    box.append(el('team', `Tips: ${t.title}`), ul);
+    return box;
+  }
+  const camImg = Object.assign(new Image(), { alt: '' }); // kept, so each new picture takes the last one's place without a blank between
+  function cam(c) {
+    if (c.img && camImg.getAttribute('src') !== c.img) camImg.src = String(c.img);
+    const box = el('toast cam');
+    box.append(el('team', `${c.name}’s screen`), c.img ? camImg : el('ph'));
+    return box;
+  }
   function after(a) { // { title, win, lines }
     const c = el('toast after' + (a.win === true ? ' win' : a.win === false ? ' loss' : ''));
     c.append(el('team', String(a.title || '')), ...(Array.isArray(a.lines) ? a.lines : []).map((t) => el('', String(t))));
@@ -224,6 +258,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if (s.cs) add('cs', el('toast game', String(s.cs)));
     if (s.lane) add('cs', el('toast game', String(s.lane)));
     if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
+    if (s.buy && typeof s.buy === 'object') add('buy', buy(s.buy));
+    for (const t of Array.isArray(s.practice) ? s.practice : []) add('practice', el('toast game', String(t)));
     if (s.muted) {
       const m = el('pill muted');
       m.innerHTML = MIC + '<path d="M4 4l16 16"/></svg>';
@@ -247,6 +283,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     for (const t of s.toasts || []) add('toasts', el('toast', String(t)));
     if (Array.isArray(s.missing) && s.missing.length) add('missing', missing(s.missing));
     if (s.after && typeof s.after === 'object') add('after', after(s.after));
+    if (s.tips && Array.isArray(s.tips.lines)) add('tips', tips(s.tips));
+    if (s.screen && typeof s.screen === 'object') add('screen', cam(s.screen));
     const own = [];
     for (const [g, list] of Object.entries(groups)) {
       const box = el('grp'), p = ok(spots[g]) && spots[g];
