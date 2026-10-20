@@ -911,7 +911,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 20: clips by voice'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 20: champ select helpers'], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);
