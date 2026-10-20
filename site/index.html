@@ -696,6 +696,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <canvas id="map" width="600" height="600" role="img" aria-label="Live map: each player's champion, your hearing range as a gold ring around you, and a glow on whoever is talking"></canvas>
                 <p id="offmap" class="hint"></p>
                 <div class="range"><span>Hearing range</span><button class="tip" type="button" popovertarget="t-range" aria-label="About the hearing range">?</button><input id="range" type="range" min="600" max="3000" step="50" aria-label="Hearing range"><output id="rangeOut"></output></div>
+                <div class="range"><span>Fade</span><button class="tip" type="button" popovertarget="t-fade" aria-label="About the fade">?</button><select id="optFade" aria-label="How voices fade"><option value="normal">Normal</option><option value="gentle">Gentle</option><option value="real">Realistic</option><option value="sharp">Sharp</option></select><span></span></div>
                 <p id="hearMe" class="hint" role="status"></p>
               </div>
             </div>
@@ -793,6 +794,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <div id="outRow" class="range" hidden><span>Voices play through</span><button class="tip" type="button" popovertarget="t-out" aria-label="About where voices play">?</button><select id="outSel" aria-label="Where voices play"></select><span></span></div>
                 <label class="range"><span>Your mic</span><span></span><meter id="micLevel" min="0" max="1" value="0"></meter><output id="gateState">Not tested</output></label>
                 <div class="range"><span>Noise gate</span><button class="tip" type="button" popovertarget="t-gate" aria-label="About the noise gate">?</button><input id="gate" type="range" min="0" max="0.5" step="0.01" aria-label="Noise gate"><output id="gateOut"></output></div>
+                <div class="toolbar"><button id="gateAuto" class="btn small" type="button">Set the gate for me</button></div>
+                <p id="coachNote" class="hint" role="status" hidden></p>
+                <p id="btNote" class="hint" hidden>This mic is in phone quality, as a Bluetooth headset’s mic is on Windows, and while it’s in use the headset plays everything in phone quality too. A separate mic, or the headset’s own USB dongle, sounds much better.</p>
                 <label class="check"><input id="optDenoise" type="checkbox"> Smart noise removal <button class="tip" type="button" popovertarget="t-denoise" aria-label="About smart noise removal">?</button></label>
                 <label class="check"><input id="optStudio" type="checkbox"> Studio voice <button class="tip" type="button" popovertarget="t-studio" aria-label="About studio voice">?</button></label>
                 <div class="toolbar"><label class="field">Voice connection <select id="optVoice"><option value="normal">Normal</option><option value="fast">Faster: less delay, for good internet</option><option value="low">Less data: for slow internet</option></select></label><button class="tip" type="button" popovertarget="t-voice" aria-label="About the voice connection">?</button></div>
@@ -813,6 +817,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optEcho" type="checkbox"> Far-away voices lose their bass</label>
             <label class="check"><input id="optSurround" type="checkbox"> 3D sound: voices from their direction, in front and behind too (headphones)</label>
             <label class="check"><input id="optMutedWarn" type="checkbox"> Tell me when I talk while muted</label>
+            <label class="check"><input id="optEchoCheck" type="checkbox"> Echo check: tell me, and that friend, when a friend’s mic sends my voice back</label>
             <div class="browser-only"><button id="notifyAllow" class="btn small" type="button" hidden>Also when this tab is in the background</button></div>
           </section>
           <section class="panel client-only">
@@ -1266,14 +1271,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 </dialog>
 
 <div id="t-code" class="tipbox" popover>Friends join by typing this code on the site or in the Windows client, or by opening your invite link. Everyone in the same game should be in the same room.</div>
-<div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Players are at full volume up to two thirds of it, then fade to silent at the edge. It only changes what you hear.</div>
+<div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Voices fade to silent at the edge, the way Fade says. It only changes what you hear.</div>
+<div id="t-fade" class="tipbox" popover>How voices fade as their champions move away; all of them reach silence at the edge of your hearing range. Normal: full volume up to two thirds of the range, then down to silent. Gentle: quieter little by little from close by. Realistic: like real sound, half as loud each time the distance doubles. Sharp: full volume until just before the edge. The dashed ring on the map shows where the fade starts.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
 <div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back.</div>
 <div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of about 32, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
-<div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't.</div>
+<div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't. Or press Set the gate for me and stay quiet for 3 seconds: it listens to your room and puts the gate just above its noise.</div>
 <div id="t-out" class="tipbox" popover>Where everyone's voices come out. Using Wave Link? Pick its Voice Chat channel here, the same way you would in Discord.</div>
 <div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
@@ -1296,7 +1302,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
-<div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment.</div>
+<div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-backup" class="tipbox" popover>Back up saves your settings, matchup notes, LP history, game history, reports and clip favorites in one file. Restore loads such a file, on this PC or another, and replaces what's here.</div>
 <div id="t-lp" class="tipbox" popover>Your LP after each ranked game you play with the app open, kept on this computer: today's wins, losses and LP, and a chart of your rank.</div>
@@ -1333,7 +1339,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    surround: true, voice: 'normal', mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
+    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, spawnSounds: true, record: false, shareLol: true, runeSrc: 'riot', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     ...load('lpc-opts', {}),
   };
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: '', ...load('lpc-keys', {}) };
@@ -1389,7 +1395,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const inGameNow = () => playing(myStatus());
   const playsNow = (p) => playing(p.st) || fresh(p.pos);
 
-  // ---- volume: full inside two thirds of the range, fading to silent at the range. On top of that, terrain.js
+  // ---- volume: fading to silent at the range, the way Fade says (fadeAt). On top of that, terrain.js
   // muffles voices through walls, across the river and out of a bush (quieter, and treble cut), players to your
   // left or right on the minimap sound from that side (with 3D sound, from their real direction, in front or behind:
   // up the minimap is in front of you), and far voices lose their bass.
@@ -1398,8 +1404,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // In the lobby nobody has a minimap, so everyone hears everyone at full volume. Once a game has started (yours or
   // theirs, loading screen included) only distance counts, and a voice whose spot isn't known is silent.
   function volumeFor(p, at) {
-    if (fresh(me) && fresh(at)) return clamp((range - dist(at)) / (range / 3));
+    if (fresh(me) && fresh(at)) return fadeAt(dist(at) / range);
     return inGameNow() || playsNow(p) ? 0 : 1;
+  }
+  // Fade (under Hearing range): how a voice fades on its way to the edge of your range, t being how far out (0..1).
+  // Normal: full to two thirds, then down to silent at the edge. Gentle: slowly from close by. Realistic: like real
+  // sound, half as loud each time the distance doubles. Sharp: full until just before the edge.
+  const FADES = { normal: 2 / 3, gentle: 0.15, real: 0.15, sharp: 0.9 }; // full volume inside this share of the range
+  function fadeAt(t) {
+    const f = FADES[opts.fade] || FADES.normal, e = clamp((1 - t) / (1 - f)); // 1 where the fade starts, 0 at the edge
+    return opts.fade === 'gentle' ? Math.sin((Math.PI / 2) * e) ** 2 : opts.fade === 'real' ? Math.min(1, f / t) * clamp((1 - t) / 0.15) : e;
   }
   function volumes() {
     for (const p of peers.values()) {
@@ -1432,7 +1446,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function rec(id) {
     let p = peers.get(id);
     if (p) return p;
-    p = { slot: +id.slice(prefix.length), name: '', conns: new Set(), call: null, audio: new Audio(), pos: null, muted: false, user: 1, vol: 1, out: 1, muffle: 0, pan: 0, health: '', talking: false, spokeAt: -Infinity, champ: '', team: '', dead: false, respawn: 0, face: '', fx: [], range: 1200, ready: null, scrambled: false, st: '', min: 0, vq: 'normal', rtt: null, loss: 0 };
+    p = { slot: +id.slice(prefix.length), name: '', conns: new Set(), call: null, audio: new Audio(), pos: null, muted: false, user: 1, vol: 1, out: 1, muffle: 0, pan: 0, health: '', talking: false, spokeAt: -Infinity, champ: '', team: '', dead: false, respawn: 0, face: '', fx: [], range: 1200, ready: null, scrambled: false, st: '', min: 0, vq: 'normal', rtt: null, loss: 0, weak: false, calm: 0 };
     p.audio.autoplay = true;
     p.audio.muted = true; // Chrome only feeds a call's sound to Web Audio while it plays in an element; we hear it through Web Audio
     p.lp = ac.createBiquadFilter();
@@ -1443,13 +1457,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     p.panner.rolloffFactor = 0; // the volume is ours (volumes)
     p.panner.positionZ.value = -1; // in front
     p.gain = ac.createGain();
-    p.lp.connect(p.hp).connect(p.panner).connect(p.gain).connect(ac.destination);
+    p.lp.connect(p.hp).connect(p.panner).connect(p.gain).connect(bus);
     p.clear = ac.createGain(); // their voice as it is, or for Gibberish scrambled (scrambler)
     p.scr = scrambler(ac);
     p.clear.connect(p.lp);
     p.scr.out.connect(p.lp);
     p.an = ac.createAnalyser(); // for the "talking now" glow
     p.an.fftSize = 2048; // the last 43 ms
+    p.echo = new AudioWorkletNode(ac, 'env', { numberOfInputs: 2, numberOfOutputs: 0 }); // echo check: your voice, and theirs
+    fx.out.connect(p.echo, 0, 0);
+    p.echo.port.onmessage = ({ data }) => echoCheck(p, data);
     const li = document.createElement('li');
     li.className = 'player';
     li.dataset.slot = p.slot;
@@ -1488,10 +1505,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (p.src) p.src.disconnect();
     p.scr.osc.stop();
     p.gain.disconnect();
+    fx.out.disconnect(p.echo);
+    p.echo.port.onmessage = null;
     p.row.remove();
     p.chip.remove();
     if (left && p.hello) gone(nameOf(p));
     else if (!quiet && p.hello) leftLater(nameOf(p));
+    if (!quiet && !left) { dropped.set(p.slot, performance.now()); dial(p.slot); } // the connection broke: dial them again now
     render();
   }
 
@@ -1669,7 +1689,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       g.beginPath(); g.arc(x, y, R, 0, 7); g.fill(); g.stroke();
       g.setLineDash([5 * k, 5 * k]);
       g.strokeStyle = 'rgba(200, 170, 110, 0.55)';
-      g.beginPath(); g.arc(x, y, (R * 2) / 3, 0, 7); g.stroke();
+      g.beginPath(); g.arc(x, y, R * (FADES[opts.fade] || FADES.normal), 0, 7); g.stroke(); // where the fade starts
       g.setLineDash([]);
     }
     for (const p of peers.values()) {
@@ -1727,6 +1747,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (t !== p.talking) { p.talking = t; changed = true; }
     }
     if (changed) render();
+    micCheck();
     pushOverlay();
   }, 100);
 
@@ -1736,7 +1757,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // for the ready check; rm and sw: the room's game mode and voice swap, passed on by everyone so newcomers get them),
   // vq: your voice connection setting, Normal, Faster or Less data (see callPeer),
   // {t:'face', img} when it changes, {t:'pos', x, y} on every tracked frame, {t:'talk', s, g} every 5 s,
-  // {t:'chat', text}, {t:'ready?'} for a ready check, and {t:'bye'} when leaving. The host sends {t:'lock', key,
+  // {t:'chat', text}, {t:'ready?'} for a ready check, {t:'echo'} when your speakers send their voice back (echo check)
+  // and {t:'bye'} when leaving. The host sends {t:'lock', key,
   // remove} and {t:'removed'}, and its 'me' adds the room games' teams (tm) and roles (ro); the quiz and the mock
   // draft have messages of their own (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
@@ -1764,6 +1786,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return;
     }
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
+    if (m.t === 'echo') return echoMine(p);
     if (/^(quiz|quizA|quizR|quizEnd|draft|draftA|draftEnd)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
@@ -1782,7 +1805,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.fx = Array.isArray(m.fx) ? m.fx.filter((n) => typeof n === 'string' && Object.hasOwn(FX, n)).slice(0, 8) : [];
       p.range = Number.isFinite(m.range) ? Math.max(600, Math.min(3000, m.range)) : 1200;
       const r = m.ready && typeof m.ready === 'object' ? m.ready : null;
-      p.ready = r && { mic: String(r.mic), share: r.share === true, map: r.map === true, app: String(r.app).slice(0, 12), win: String(r.win), ptt: r.ptt === true };
+      p.ready = r && { mic: String(r.mic), share: r.share === true, map: r.map === true, app: String(r.app).slice(0, 12), win: String(r.win), ptt: r.ptt === true, bt: r.bt === true, clip: r.clip === true };
       checkVersion(p);
       const vq = m.vq === 'fast' || m.vq === 'low' ? m.vq : 'normal';
       if (vq !== p.vq) { p.vq = vq; if (p.call && slot < p.slot) callPeer(id); useBitrate(p); } // a new call with their new setting
@@ -1833,6 +1856,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function adopt(conn) {
     if (!inRoom(conn.peer)) return conn.close();
     const owner = peer;
+    watchIce(conn);
     conn.on('open', async () => {
       if (peer !== owner) return conn.close(); // opened after you left
       const p = peers.get(conn.peer);
@@ -1871,6 +1895,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pending.delete(id);
     const p = rec(id);
     p.name = name.slice(0, 24);
+    dropped.delete(p.slot);
     for (const c of pd.conns) { p.conns.add(c); welcome(c); }
     hello(p);
     for (const m of pd.early) onData(id, m); // first, so the call is made with their settings
@@ -1909,13 +1934,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     notify(`You removed ${nameOf(p)}. The room has a new password.`, true);
     keyChanged();
   }
-  // A new call replaces the old one, which is how a player who rejoined gets voice again.
+  // A new call replaces the old one, which is how a player who rejoined gets voice again. A call that breaks is placed
+  // again a second later by whoever places calls (the lower slot), while you're still connected to that player.
   function useCall(call) {
     const p = rec(call.peer);
     const old = p.call;
     p.call = call;
     p.rate = null;
     if (old) old.close();
+    watchIce(call);
     call.on('stream', (s) => {
       if (p.call !== call) return;
       p.audio.srcObject = s;
@@ -1925,11 +1952,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.src.connect(p.clear);
       p.src.connect(p.scr.in);
       p.src.connect(p.an);
+      p.src.connect(p.echo, 0, 1);
       useBitrate(p);
       volumes();
     });
-    call.on('close', () => { if (p.call === call) { p.call = null; p.audio.srcObject = null; render(); } });
+    call.on('close', () => {
+      if (p.call !== call) return;
+      p.call = null;
+      p.audio.srcObject = null;
+      render();
+      setTimeout(() => { if (peers.get(call.peer) === p && !p.call && slot < p.slot && p.conns.size && peer && !peer.disconnected) callPeer(call.peer); }, 1000);
+    });
   }
+  // Faster reconnect: a connection whose path has stopped working for 3 s (a Wi-Fi blip, a new address after a
+  // router restart) is closed, so it's dialled or called again now. WebRTC itself waits about 30 s before giving up.
+  const watchIce = (c) => c.on('iceStateChanged', (s) => {
+    if (s === 'disconnected') setTimeout(() => { if (c.peerConnection && c.peerConnection.iceConnectionState === 'disconnected') c.close(); }, 3000);
+  });
 
   function openPeer(id) {
     return new Promise((resolve, reject) => {
@@ -1986,7 +2025,35 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return true;
     }
   });`;
-  let raw = null, ac = null, gateNode = null, micSrc = null, micTap = null, hurtDry = null, hurtWet = null, hurtDepth = null, hurtLevel = 0;
+  // No crackle: everyone's voices go through this limiter on their way to your speakers, so five people yelling at once
+  // (or a friend at 200%) can't go over full scale and distort. It turns the mix down at once when it would, and back
+  // up over about 0.1 s.
+  const LIMIT = `registerProcessor('limit', class extends AudioWorkletProcessor {
+    constructor() { super(); this.g = 1; }
+    process([inp], [out]) {
+      if (!inp.length) return true;
+      for (let i = 0; i < out[0].length; i++) {
+        let peak = 0;
+        for (const ch of inp) peak = Math.max(peak, Math.abs(ch[i]));
+        this.g = Math.min(peak > 0.9 ? 0.9 / peak : 1, this.g + (1 - this.g) * 0.0002);
+        for (let c = 0; c < out.length; c++) out[c][i] = (inp[c] || inp[0])[i] * this.g;
+      }
+      return true;
+    }
+  });`;
+  // echo check: how loud your voice (input 0) and a friend's (input 1) are, every 512 samples (about 94 times a second),
+  // posted about every half second
+  const ENV = `registerProcessor('env', class extends AudioWorkletProcessor {
+    constructor() { super(); this.e = [0, 0]; this.n = 0; this.out = [[], []]; }
+    process(ins) {
+      for (let k = 0; k < 2; k++) { const x = ins[k][0]; if (x) for (const v of x) this.e[k] += v * v; }
+      if (++this.n % 4) return true;
+      for (let k = 0; k < 2; k++) { this.out[k].push(Math.sqrt(this.e[k] / 512)); this.e[k] = 0; }
+      if (this.out[0].length >= 48) { this.port.postMessage(this.out); this.out = [[], []]; }
+      return true;
+    }
+  });`;
+  let raw = null, ac = null, gateNode = null, micSrc = null, micTap = null, micAn = null, bus = null, limiter = null, hurtDry = null, hurtWet = null, hurtDepth = null, hurtLevel = 0;
   const HEAT = 32; // talk map cells across the minimap
   let myTalk = 0;
   const myHeat = new Float32Array(HEAT * HEAT);
@@ -1998,12 +2065,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const next = await navigator.mediaDevices.getUserMedia({ audio: { ...(want && { deviceId: { ideal: want } }), ...studio } });
     if (raw) raw.getTracks().forEach((t) => t.stop());
     raw = next;
+    raw.getAudioTracks()[0].addEventListener('ended', micMoved); // unplugged
+    phone = [];
     if (!ac) {
       ac = new AudioContext({ sampleRate: 48000 }); // what the noise removal works at
       await ac.audioWorklet.addModule(WORKLETS);
       gateNode = new AudioWorkletNode(ac, 'gate', { outputChannelCount: [1] });
       gateNode.parameters.get('threshold').value = gate;
       gateNode.port.onmessage = ({ data: [level, open] }) => {
+        if (coach) coach.push(level);
         if (level > 0.02) micAt = performance.now();
         if (muted && opts.mutedWarn && level >= Math.max(gate, 0.08)) mutedTalk();
         // talk time: about 21 ms per message; counts while you're heard and louder than the gate (5% when it's off)
@@ -2031,6 +2101,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       fx = buildFx(dest);
       shaky.connect(fx.pitch);
       mic = dest.stream;
+      bus = ac.createGain(); // everyone's voices, through the limiter (no crackle) to your speakers
+      limiter = new AudioWorkletNode(ac, 'limit', { outputChannelCount: [2] });
+      bus.connect(limiter).connect(ac.destination);
+      micAn = ac.createAnalyser(); // the raw mic, for the mic coach and the Bluetooth warning (micCheck)
+      micAn.fftSize = 2048;
       applyMic();
       applyHurt();
       applyFx();
@@ -2040,6 +2115,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (micSrc) micSrc.disconnect();
     micSrc = ac.createMediaStreamSource(raw);
     wireMic();
+    await listDevices();
+    btCheck();
+    $('micTest').hidden = true;
+  }
+  // the mics and speakers to pick from, again when one is plugged in or out
+  async function listDevices() {
     const all = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.deviceId !== 'default' && d.deviceId !== 'communications');
     const devs = all.filter((d) => d.kind === 'audioinput'), outs = all.filter((d) => d.kind === 'audiooutput');
     const sel = $('micSel'), used = raw.getAudioTracks()[0].getSettings().deviceId;
@@ -2047,8 +2128,28 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     sel.hidden = devs.length < 2;
     $('outSel').replaceChildren(new Option('Default', ''), ...outs.map((d, i) => new Option(d.label || `Speakers ${i + 1}`, d.deviceId, false, d.deviceId === outId)));
     $('outRow').hidden = !outs.length || !ac.setSinkId;
-    $('micTest').hidden = true;
+    const sink = outs.some((d) => d.deviceId === outId) ? outId : ''; // the speakers you picked, or the default while they're unplugged
+    if (outId && ac.setSinkId && ac.sinkId !== sink) ac.setSinkId(sink).catch(() => {});
+    return devs;
   }
+  // ---- headset swap: when your mic goes away (unplugged, a headset switched off), the one you picked comes back, or
+  // Windows' default mic changes while you use the default, the mic opens again on the right one by itself. Only the
+  // raw mic is swapped, so calls keep going.
+  let micSwap = null, micAgain = false;
+  function micMoved() {
+    if (!raw) return;
+    if (micSwap) { micAgain = true; return; }
+    micSwap = swapMic().catch((err) => console.warn('mic swap:', err)).finally(() => { micSwap = null; if (micAgain) { micAgain = false; micMoved(); } });
+  }
+  async function swapMic() {
+    const t = raw.getAudioTracks()[0], s = t.getSettings(), want = store.get('lpc-mic');
+    const ins = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput'), def = ins.find((d) => d.deviceId === 'default');
+    const picked = !!want && ins.some((d) => d.deviceId === want);
+    if (t.readyState === 'live' && (picked ? s.deviceId === want : !def || def.label === t.label)) return listDevices();
+    try { await getMic(); } catch { return notify('Your mic was unplugged. Plug one in and Premade picks it up by itself.', true); }
+    if (raw.getAudioTracks()[0].label !== t.label) notify(`Your mic is now ${raw.getAudioTracks()[0].label || 'another one'}.`, true);
+  }
+  navigator.mediaDevices.addEventListener('devicechange', micMoved);
   // where voices play: another output than the default, like a Wave Link channel (Chrome and the client only)
   let outId = store.get('lpc-out') || '';
   function useOut(picked) {
@@ -2091,6 +2192,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!micSrc) return;
     micSrc.disconnect();
     micSrc.connect(node || gateNode);
+    micSrc.connect(micAn);
     if (node) node.connect(gateNode);
     if (micTap) micSrc.connect(micTap);
   }
@@ -2138,7 +2240,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return true;
     }
   });`;
-  const WORKLETS = URL.createObjectURL(new Blob([GATE, FXW, TAP], { type: 'text/javascript' }));
+  const WORKLETS = URL.createObjectURL(new Blob([GATE, FXW, TAP, LIMIT, ENV], { type: 'text/javascript' }));
   const FX = {
     ocean: { name: 'Ocean soul', lp: 2800, mod: [0.008, 0.004, 1.5, 0.3, 0.4, 0.8] },        // watery
     mountain: { name: 'Mountain soul', pitch: 0.9, lo: 10, ring: [35, 0.25] },              // rumbling
@@ -2283,7 +2385,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const p of peers.values()) useBitrate(p);
   }
   async function useBitrate(p) {
-    const want = lowCall(p) ? 16000 : opts.studio ? 96000 : 0, s = p.call && p.call.peerConnection && p.call.peerConnection.getSenders().find((x) => x.track && x.track.kind === 'audio');
+    const want = lowCall(p) || p.weak ? 16000 : opts.studio ? 96000 : 0, s = p.call && p.call.peerConnection && p.call.peerConnection.getSenders().find((x) => x.track && x.track.kind === 'audio');
     if (!s || p.rate === want) return;
     try {
       const q = s.getParameters();
@@ -2315,15 +2417,107 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   });
   $('micTest').addEventListener('click', () => getMic().catch(() => say('Could not open a microphone. Plug one in or allow it for this site.')));
   $('micSel').addEventListener('change', (e) => { store.set('lpc-mic', e.target.value); getMic().catch(() => say('Could not switch to that microphone.')); });
+  // ---- mic coach: Set the gate for me listens to your room for 3 s while you're quiet and puts the noise gate just
+  // above its background noise. A mic that clips again and again (its loudest sounds cut off at full scale, which
+  // crackles: 5 times in 10 s) gets a note here, a popup once while you're in a room, and a line in friends' Help.
+  let coach = null, clipped = [], clipAt = -Infinity, clipWarned = false;
+  const coachSay = (text) => { $('coachNote').textContent = text; $('coachNote').hidden = !text; };
+  $('gateAuto').addEventListener('click', async () => {
+    if (coach) return;
+    try { if (!raw) await getMic(); } catch { return say('Could not open a microphone. Plug one in or allow it for this site.'); }
+    coach = [];
+    coachSay('Listening to your room: stay quiet for 3 seconds…');
+    await sleep(3000);
+    const noise = coach.sort((a, b) => a - b)[Math.floor(coach.length * 0.95)] || 0; // the gate's levels, about 47 a second
+    coach = null;
+    if (noise > 0.2) return coachSay('That was too loud for background noise. Stay quiet and press it again; in a loud room, Smart noise removal helps more.');
+    $('gate').value = Math.max(0.02, Math.round((noise * 1.5 + 0.02) * 100) / 100);
+    $('gate').dispatchEvent(new Event('input'));
+    coachSay(`Noise gate set to ${pct(gate)}, just above your room’s background noise.`);
+  });
+  // ---- Bluetooth warning: on Windows a Bluetooth headset's mic works in phone quality, and while it's in use the
+  // headset plays everything in phone quality too. Spotted by the mic's name (Hands-Free) or by its sound: in 5 s of
+  // talking, not one moment with sound above 8.5 kHz ('s' and 't' always have some), as in micCheck. A note by the mic,
+  // a popup once for each mic, and a line in friends' Help.
+  let btMic = false, phone = [];
+  function btCheck() {
+    const label = raw.getAudioTracks()[0].label;
+    btMic = /hands-?free|bluetooth|\bAG Audio\b/i.test(label) || (phone.length >= 50 && Math.max(...phone) < -40);
+    $('btNote').hidden = !btMic;
+    const seen = load('lpc-btwarned', []);
+    if (!btMic || seen.includes(label)) return;
+    store.set('lpc-btwarned', JSON.stringify([...seen, label].slice(-20)));
+    notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely). A separate mic, or the headset’s own USB dongle, sounds much better.', true);
+  }
+  // the raw mic, ten times a second: clipping, and how much of your voice is above 8.5 kHz (dB against 300 to 3,400 Hz)
+  const spec = new Float32Array(1024);
+  function micCheck() {
+    if (!micAn || !raw) return;
+    micAn.getFloatTimeDomainData(wave);
+    let n = 0, e = 0;
+    for (const v of wave) { if (Math.abs(v) >= 0.99) n++; e += v * v; }
+    const now = performance.now();
+    if (n >= 4 && (clipped = clipped.filter((t) => now - t < 10000)).push(now) >= 5) {
+      clipAt = now;
+      coachSay('Your mic is too loud: its loudest sounds get cut off, which crackles. Turn it down in Windows’ sound settings (Recording, your mic, Levels) or move it further from your mouth.');
+      if (peer && !clipWarned) { clipWarned = true; notify('Your mic is too loud, so your voice crackles. Turn it down in Windows’ sound settings.', true); }
+    }
+    if (phone.length >= 50 || Math.sqrt(e / wave.length) < 0.02) return; // decided, or you're not talking
+    micAn.getFloatFrequencyData(spec);
+    const band = (lo, hi) => { let s = 0; for (let i = Math.round(lo / 23.4375); i < hi / 23.4375; i++) s += 10 ** (spec[i] / 10); return s; };
+    if (phone.push(10 * Math.log10((band(8500, 12000) + 1e-20) / (band(300, 3400) + 1e-20))) === 50) btCheck();
+  }
+  // ---- echo check: when a friend's mic sends your own voice back to you (their speakers, whose sound their echo
+  // cancelling takes out unless Studio voice turned it off), you're both told, at most every 10 minutes. It's an echo
+  // when their sound follows yours closely (the env worklet: both loudnesses, about 94 times a second) 30 ms to 1.2 s
+  // later, not the other way round, at a level you'd hear (-30 dB or more).
+  const corr = (x, y, lag) => { // how closely y follows x, lag steps later, and how loud y is for each bit of x
+    let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    for (let i = 0; i + lag < x.length; i++) { const u = x[i], v = y[i + lag]; n++; sx += u; sy += v; sxx += u * u; syy += v * v; sxy += u * v; }
+    const cxy = sxy - (sx * sy) / n, vx = sxx - (sx * sx) / n, vy = syy - (sy * sy) / n;
+    return vx > 0 && vy > 0 ? [cxy / Math.sqrt(vx * vy), cxy / vx] : [0, 0];
+  };
+  function follows(x, y) {
+    let best = [0, 0];
+    for (let lag = 3; lag <= 110; lag++) { const c = corr(x, y, lag); if (c[0] > best[0]) best = c; }
+    return best;
+  }
+  function echoCheck(p, [a, b]) {
+    if (!opts.echoCheck) return;
+    const e = p.env || (p.env = { a: [], b: [], n: 0, hits: 0 });
+    e.a.push(...a); e.b.push(...b);
+    e.a.splice(0, e.a.length - 750); e.b.splice(0, e.b.length - 750); // the last 8 s
+    if (++e.n % 4 || e.a.filter((v) => v > 0.01).length < 50) return; // every 2 s, once you've talked half a second of them
+    const [c, k] = follows(e.a, e.b), [back] = follows(e.b, e.a);
+    e.hits = c > 0.6 && back < c - 0.25 && k > 0.03 ? e.hits + 1 : 0; // twice in a row: an echo
+    if (e.hits < 2 || performance.now() - (p.echoes || -Infinity) < 600000) return;
+    p.echoes = performance.now();
+    const [conn] = p.conns;
+    if (conn) conn.send({ t: 'echo' });
+    notify(`You hear your own voice back from ${nameOf(p)}’s mic, so Premade told them how to fix it.`, true);
+  }
+  let echoedAt = -Infinity;
+  function echoMine(p) { // a friend hears themselves through your mic
+    if (performance.now() - echoedAt < 300000) return;
+    echoedAt = performance.now();
+    notify(`${nameOf(p)} hears their own voice back through your mic. Headphones fix it${opts.studio ? ', or turn off Studio voice, which turns off echo cancelling' : ''}.`, true);
+  }
 
-  // ---- connection health from the voice call's stats: round trip time and lost packets since the last look
+  // ---- connection health from the voice call's stats: round trip time and lost packets since the last look.
+  // Auto voice quality: when a friend says they lose 8% or more of your voice (their receiver reports), it goes to them
+  // at 16 kbps, as Less data does, until three looks in a row (15 s) lose under 2% (weak, useBitrate). The call stays.
   async function checkHealth(p) {
     if (!p.call || !p.call.peerConnection) { p.health = ''; return; }
-    let rtt = null, lost = 0, got = 0;
+    let rtt = null, lost = 0, got = 0, theirs = null;
     (await p.call.peerConnection.getStats()).forEach((r) => {
       if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime != null) rtt = r.currentRoundTripTime;
       if (r.type === 'inbound-rtp' && r.kind === 'audio') { lost = r.packetsLost || 0; got = r.packetsReceived || 0; }
+      if (r.type === 'remote-inbound-rtp' && r.kind === 'audio' && r.fractionLost != null) theirs = r.fractionLost;
     });
+    if (theirs != null) {
+      p.calm = theirs < 0.02 ? p.calm + 1 : 0;
+      p.weak = theirs >= 0.08 || (p.weak && p.calm < 3);
+    }
     const was = p.stats || { lost, got };
     p.stats = { lost, got };
     const dl = lost - was.lost, loss = dl / Math.max(1, dl + got - was.got);
@@ -2332,24 +2526,30 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     p.loss = loss;
   }
 
-  // ---- staying connected: every 5 s, reconnect to the room server if it dropped; every 15 s, dial every slot
-  // nobody is connected on (a player whose connection broke comes back this way) and redo voice calls that closed.
+  // ---- staying connected: a player whose connection broke is dialled again at once, then every 5 s for 2 minutes
+  // (dropped), and voice calls that closed are placed again; the room server is reconnected a second after it drops.
+  // Every 15 s, every slot nobody is connected on is dialled too.
   const dialing = new Set();
+  const dropped = new Map(); // slot -> when their connection broke
   function dial(s) {
     const id = idFor(s);
-    if (s === slot || dialing.has(id) || peers.has(id) || pending.has(id)) return;
+    if (!peer || peer.disconnected || s === slot || dialing.has(id) || peers.has(id) || pending.has(id)) return;
     dialing.add(id);
     const c = peer.connect(id);
     adopt(c);
+    c.on('open', () => dialing.delete(id)); // so a connection that breaks later is dialled again at once
     setTimeout(() => { dialing.delete(id); if (!c.open) c.close(); }, 10000); // nobody there
+  }
+  function redial() {
+    for (const [s, at] of dropped) if (performance.now() - at > 120000) dropped.delete(s); else dial(s);
+    for (const [id, p] of peers) if (!p.call && slot < p.slot && p.conns.size) callPeer(id);
   }
   let ticks = 0;
   setInterval(() => {
     if (!statsView.hidden) drawStats();
     if (!peer || peer.destroyed) return;
     if (peer.disconnected) { say('Lost the room server, reconnecting. Voice with the players already here keeps working.'); render(); return peer.reconnect(); }
-    Promise.all([...peers.values()].map((p) => checkHealth(p).catch(() => {}))).then(render);
-    for (const p of peers.values()) useBitrate(p);
+    Promise.all([...peers.values()].map((p) => checkHealth(p).then(() => useBitrate(p)).catch(() => {}))).then(render);
     const g = {};
     myHeat.forEach((v, i) => { if (v) g[i] = +v.toFixed(1); });
     send({ t: 'talk', s: +myTalk.toFixed(1), g });
@@ -2357,9 +2557,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     send({ t: 'hi', name: myName });
     send(meMsg());
     shareFace();
+    redial();
     if (++ticks % 3) return;
     for (let s = 0; s < SLOTS; s++) dial(s);
-    for (const [id, p] of peers) if (!p.call && slot < p.slot && p.conns.size) callPeer(id);
   }, 5000);
   // Your followed icon, small, for the others' cards and map, while League hasn't told us your champion.
   function shareFace() {
@@ -2412,7 +2612,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       pd.call = call; // answered once they're let in
     });
     peer.on('error', (err) => { if (err.type !== 'peer-unavailable') console.warn('PeerJS:', err.type, err.message); });
-    peer.on('open', () => { say(''); render(); });
+    peer.on('open', () => { say(''); render(); redial(); });
+    const owner = peer;
+    let quickAt = -Infinity;
+    peer.on('disconnected', () => { // the room server dropped: try again a second later (once a minute; the 5 s check keeps trying)
+      say('Lost the room server, reconnecting. Voice with the players already here keeps working.');
+      render();
+      if (performance.now() - quickAt < 60000) return;
+      quickAt = performance.now();
+      setTimeout(() => { if (peer === owner && owner.disconnected && !owner.destroyed) owner.reconnect(); }, 1000);
+    });
     for (let s = 0; s < SLOTS; s++) dial(s);
     say('');
     if (!auto) view('voice');
@@ -2438,6 +2647,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const pd of pending.values()) if (pd.call) pd.call.close();
     pending.clear();
     dialing.clear();
+    dropped.clear();
     $('chatLog').replaceChildren();
     old.removeAllListeners();
     old.disconnect(); // frees your slot on the room server now
@@ -2654,6 +2864,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const readyNow = () => ({
     mic: !mic ? 'off' : muted ? 'muted' : performance.now() - micAt < 30000 ? 'ok' : 'quiet',
     share: !!share, map: !!(share && share.sq), app: client ? client.version || 'old' : 'web', win: windowMode, ptt: !!keys.ptt,
+    bt: btMic, clip: performance.now() - clipAt < 60000,
   });
   async function checkWindow() {
     if (client && client.windowMode) try { windowMode = (await client.windowMode()) || ''; } catch {}
@@ -2719,10 +2930,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!p.call || !live) add('bad', 'No voice connection with you yet. It can take 15 seconds; if it stays like this, one of you should leave the room and join again.');
     else if (p.health === 'bad' || p.health === 'ok') add(p.health, `${p.health === 'bad' ? 'Bad' : 'Shaky'} connection between you: ${ms}${p.loss ? `, ${Math.round(p.loss * 100)}% of the sound lost` : ''}. Wi-Fi or a busy connection on either side does this; Less data (Voice settings, Microphone) helps.`);
     else add('good', `Voice connection is good${p.rtt != null ? ` (${ms})` : ''}.`);
+    if (p.weak) add('', 'They lose some of your voice on the way, so it goes to them in lower quality until that stops.');
+    if (p.echoes) add('bad', 'Their mic sends your voice back to you, from their speakers most likely. Headphones fix it.');
     if (!r) { add('', 'Their app hasn’t said how it’s set up yet. Press Check again.'); return out; }
     const mic = { off: ['bad', 'Their mic is off: they need to allow the microphone, or press Test mic in Voice settings.'], muted: ['bad', 'They’re muted.'],
       quiet: ['ok', 'Their mic hasn’t picked up any sound for 30 seconds: they should check the right mic is picked (Voice settings, Microphone) and that the noise gate isn’t too high.'], ok: ['good', 'Their mic picks up sound.'] }[r.mic];
     if (mic) add(...mic);
+    if (r.bt) add('ok', 'Their mic is in phone quality (a Bluetooth headset’s mic, most likely), which makes what they hear sound like a phone call too. A separate mic, or the headset’s own USB dongle, fixes it.');
+    if (r.clip) add('ok', 'Their mic is too loud, so their voice crackles: they should turn it down in Windows’ sound settings.');
     if (r.ptt) add('', 'They use push to talk, so they’re heard only while they hold their key.');
     if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen on the Voice page.');
     else if (!r.map) add('ok', 'Their minimap isn’t found: they should share the screen League is on, set League to Borderless, and be in a game, not the client.');
@@ -7230,7 +7445,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
-    ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'],
+    ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || pushOverlay)(); });
@@ -7259,7 +7474,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     send(meMsg());
     for (const [id, p] of peers) { if (p.call && slot < p.slot) callPeer(id); useBitrate(p); }
   }
-  for (const [id, k, num, done] of [['optVoice', 'voice', false, voiceChanged], ['optClipLen', 'clipLen', true, renderClips], ['optClipCap', 'clipCap', true, cleanClips],
+  for (const [id, k, num, done] of [['optVoice', 'voice', false, voiceChanged], ['optFade', 'fade', false, volumes], ['optClipLen', 'clipLen', true, renderClips], ['optClipCap', 'clipCap', true, cleanClips],
     ['optClipQ', 'clipQ', false, () => { if (recorder) stopRec(); clipsCheck(); }]]) { // a new quality starts the recording again
     $(id).value = String(opts[k]);
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
@@ -7341,6 +7556,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [19, 'October 20: voice fixes', [
+      'Unplug or switch your headset mid-game and Premade picks up the new mic by itself, so your friends keep hearing you.',
+      'Voice that drops after a Wi-Fi blip reconnects as soon as the connection breaks, instead of at a check up to 15 seconds later.',
+      'Big fights stay clear: everyone’s voices go through a limiter, so five people yelling at once no longer crackle.',
+      'When a friend’s connection gets bad, your voice goes to them in lower quality by itself, and back up once it recovers, without reconnecting.',
+      'Set the gate for me, by the noise gate in Voice settings, listens to your room for 3 seconds and sets the gate for you. Premade also tells you when your mic is so loud it crackles.',
+      'Premade spots a Bluetooth headset’s phone-quality mic and says how to fix it.',
+      'If a friend’s speakers send your voice back to you, you’re both told, with how to fix it.',
+      'Pick how voices fade with distance: Fade, under Hearing range on the Voice page, has Normal, Gentle, Realistic and Sharp.',
+    ]],
     [18, 'October 20: clips by voice', [
       'Say “Premade, clip that” in a game and Premade saves a clip, or record a phrase of your own. Turn it on in Clip settings, under your clips on the Clips page, where all the clip settings are now.',
       'The speech recognition runs on your computer, so nothing you say is sent anywhere. The first time, it downloads its English speech model, about 40 MB.',
@@ -7596,6 +7821,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return top;
     },
     kick: (id) => { for (const c of peers.get(id).conns) c.close(); }, // breaks the connection, as a network drop would
+    // the connections with a player stop working, as in a Wi-Fi blip: their path is 'disconnected' from here on
+    blip: (id) => {
+      const p = peers.get(id);
+      for (const c of [p.call, ...p.conns]) { Object.defineProperty(c.peerConnection, 'iceConnectionState', { value: 'disconnected', configurable: true }); c.peerConnection.oniceconnectionstatechange(); }
+    },
+    serverDrop: () => peer.socket._socket.close(), // the room server's connection drops
+    server: () => !!peer && peer.open,
+    raw: () => raw,
+    health: () => Promise.all([...peers.values()].map((p) => checkHealth(p).then(() => useBitrate(p)))), // the 5 s check, now
+    mix: async () => { // loudest sample going into the limiter and coming out of it, over 1.5 s
+      const ins = ac.createAnalyser(), outs = ac.createAnalyser(), d = new Float32Array(ins.fftSize), top = [0, 0];
+      bus.connect(ins);
+      limiter.connect(outs);
+      for (let i = 0; i < 30; i++) {
+        [ins, outs].forEach((a, k) => { a.getFloatTimeDomainData(d); for (const v of d) top[k] = Math.max(top[k], Math.abs(v)); });
+        await sleep(50);
+      }
+      bus.disconnect(ins);
+      limiter.disconnect(outs);
+      return top;
+    },
+    callId: (id) => { const p = peers.get(id); return p && p.call ? p.call.connectionId : ''; },
+    env: (id) => peers.get(id).env, // the echo check's last 8 s: your loudness (a) and theirs (b)
+    checks: () => ({ gate, coach: $('coachNote').hidden ? '' : $('coachNote').textContent, bt: btMic, btNote: !$('btNote').hidden, phone: phone.length,
+      clip: performance.now() - clipAt < 60000, weak: [...peers.values()].map((p) => [p.name, p.weak, p.rate]), echoes: [...peers.values()].filter((p) => p.echoes).map(nameOf) }),
     panner: (id) => { const n = peers.get(id).panner; return { model: n.panningModel, x: n.positionX.value, z: n.positionZ.value }; },
     audio: async (id) => {
       let out = { bytes: 0, energy: 0 };

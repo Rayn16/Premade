@@ -385,6 +385,7 @@ async function context(browser, { version = '', phone = false } = {}) {
       localStorage.setItem('lpc-setup', '1');
       localStorage.setItem('lpc-name', 'Rayan');
       localStorage.setItem('lpc-news', '9999'); // no What's new
+      localStorage.setItem('lpc-btwarned', JSON.stringify(['Fake Default Audio Input'])); // its 16 kHz recording is a phone-quality mic: no popup
       if (!localStorage.getItem('lpc-opts')) localStorage.setItem('lpc-opts', JSON.stringify({ denoise: false, compact: false, autoRoom: false }));
       // a ranked game two days ago, for the LP chart
       if (!localStorage.getItem('lpc-lp')) localStorage.setItem('lpc-lp', JSON.stringify([{ id: 1, at: Date.now() - 2 * 86400e3, q: 'RANKED_SOLO_5x5', tier: 'GOLD', div: 'III', lp: 80, delta: -15, win: false }]));
@@ -1210,6 +1211,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.inputValue('#optClipPhrase'), 'that was sick');
     await pc.check('#optClipVoice');
     await wait(pc, () => lpc.toasts().includes('Clip saved when you said “that was sick”: Clip 5.webm'), null, 'the clip by voice', 60000);
+    await wait(pc, () => lpc.checks().bt && lpc.checks().btNote, null, 'the mic (a 16 kHz recording) spotted as phone quality', 60000);
     assert.strictEqual(await text(pc, '#voiceNote'), 'Listening for “Premade, clip that” and “that was sick”.');
     await shot(pc, 'clip-settings');
     await pc.uncheck('#optClipVoice');
@@ -1493,7 +1495,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
