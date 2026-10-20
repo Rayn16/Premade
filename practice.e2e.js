@@ -248,7 +248,7 @@ const game = (over = {}, me = {}) => ({
       await page.evaluate((d) => lpcClient.emit('league', d), game({}, { gold: undefined }));
       await page.click('.nav[data-view="game"]');
       await wait(page, () => /^Restart the app to finish its update: version 1\.15 adds the combo trainer\.$/.test(document.getElementById('comboNow').textContent)
-        && /^Restart the app to finish its update: version 1\.14 times jungle clears\.$/.test(document.getElementById('jgNow').textContent), null, 'the notes for app 1.13');
+        && /^Restart the app to finish its update: version 1\.15 times jungle clears\.$/.test(document.getElementById('jgNow').textContent), null, 'the notes for app 1.13');
       for (const id of ['optCombo', 'optGameVideo']) assert(await page.evaluate((id) => document.getElementById(id).disabled && document.getElementById(id).parentElement.textContent.includes('(comes with the next app update)'), id), id);
       await c.close();
       console.log('app 1.13: the combo trainer, jungle clear and game videos come with the next app update');

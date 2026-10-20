@@ -146,7 +146,7 @@ function moments(d, all, me, game) {
   }
   return out;
 }
-let leagueWas = '';
+let leagueWas = '', practiceTool = false; // practiceTool: the combo trainer reads its keys only in a Practice Tool game
 // League's client API, while League's client runs: its port and password are in the lockfile it writes in its folder
 async function lcuAuth() {
   for (const dir of leagueDirs()) {
@@ -229,7 +229,8 @@ async function pollLeague() {
   const s = JSON.stringify({ ...summary(game), phase });
   if (s !== leagueWas && win && !win.isDestroyed()) { leagueWas = s; win.webContents.send('league', JSON.parse(s)); }
   recordTick(game, phase);
-  setTimeout(pollLeague, game && game.gameData && game.gameData.gameMode === 'PRACTICETOOL' ? 500 : 2000); // the jungle clear's camps to half a second
+  practiceTool = !!(game && game.gameData && game.gameData.gameMode === 'PRACTICETOOL');
+  setTimeout(pollLeague, practiceTool ? 500 : 2000); // the jungle clear's camps to half a second
 }
 
 // ---- test recordings (Settings, League): what League sends during your games, its game data every 10 s and what the
@@ -726,7 +727,7 @@ function saveBounds() {
 // ---- shortcuts that work while League is in front: mute, clip and show/hide are Windows hotkeys; push to talk asks
 // Windows every 15 ms whether its key is down (GetAsyncKeyState reads the key, it doesn't hook or block it), and so do
 // F2 to F5, League's keys for the camera on a teammate, so the page doesn't learn your champion from it meanwhile.
-// The combo trainer (app 1.15) asks the same of League's usual keys while the page wants it (in Practice Tool):
+// The combo trainer (app 1.15) asks the same of League's usual keys while the page wants it in a Practice Tool game:
 // abilities, summoner spells, items and right clicks, each press sent as { k, t } (t in ms), but not Ctrl+Q and the
 // like, which level up an ability.
 const VK = { Mouse3: 4, Mouse4: 5, Mouse5: 6, Tab: 9, CapsLock: 0x14, Space: 0x20, Backquote: 0xc0, ShiftLeft: 0xa0, ShiftRight: 0xa1, ControlLeft: 0xa2, ControlRight: 0xa3, AltLeft: 0xa4, AltRight: 0xa5 };
@@ -766,7 +767,7 @@ ipcMain.handle('keys', (e, k) => {
         if (now !== down) { down = now; win.webContents.send('key', now ? 'ptt-down' : 'ptt-up'); }
         const look = ally.some((c) => (keyState(c) & 0x8000) !== 0);
         if (look !== onAlly) { onAlly = look; win.webContents.send('key', look ? 'ally-down' : 'ally-up'); }
-        if (comboOn) for (const [name, c] of Object.entries(COMBO)) {
+        if (comboOn && practiceTool) for (const [name, c] of Object.entries(COMBO)) {
           if (!(keyState(c) & 0x8000)) { held.delete(name); continue; }
           if (!held.has(name) && !(keyState(0x11) & 0x8000)) win.webContents.send('press', { k: name, t: Math.round(performance.now()) }); // 0x11: Ctrl
           held.add(name);
