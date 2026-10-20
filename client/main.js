@@ -171,7 +171,7 @@ async function clientPhase() {
 // through, so the page can't do anything else with your account (deleting all your rune pages, buying, friends).
 const LCU_OK = [
   ['GET', /^\/lol-gameflow\/v1\/(gameflow-phase|session)$/],
-  ['GET', /^\/lol-champ-select\/v1\/(session|pickable-champion-ids|bannable-champion-ids)$/],
+  ['GET', /^\/lol-champ-select\/v1\/(session|pickable-champion-ids|bannable-champion-ids|skin-carousel-skins)$/], // skins: the phone remote's Skins tab
   ['PATCH', /^\/lol-champ-select\/v1\/session\/(actions\/\d+|my-selection)$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/actions\/\d+\/complete$/],
   ['POST', /^\/lol-champ-select\/v1\/session\/(champion-swaps|position-swaps|pick-order-swaps)\/\d+\/(request|accept|decline|cancel)$/], // trades
