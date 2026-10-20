@@ -316,7 +316,7 @@ ipcMain.on('overlay', async (e, s) => {
         if (win && !win.isDestroyed()) win.webContents.send('overlay-moved', { x: f((b.x - d.x) / d.width), y: f((b.y - d.y) / d.height) });
       }, 250);
     });
-    overlay.loadURL(SITE + 'overlay.html');
+    overlay.loadURL(base + 'overlay.html');
   }
   if (editing !== !!s.edit) {
     editing = !!s.edit;
@@ -513,6 +513,20 @@ const linkRoom = (argv) => {
 let linkWaiting = linkRoom(process.argv);
 const join = (r) => { if (r && win && !win.isDestroyed()) win.webContents.send('join', r); };
 
+// ---- Test version first (Settings > App): the site's test/ folder holds the next version of the page before everyone
+// gets it. The app opens the copy its window was on last time (test-version in the app's folder), and the overlay
+// comes from the same copy. With no test copy on the site, it's the normal page again.
+const testFile = () => path.join(app.getPath('userData'), 'test-version');
+let base = SITE;
+function navigated(e, url, code) {
+  const test = url.startsWith(SITE + 'test/');
+  if (test && code >= 400) return void win.loadURL(SITE);
+  if (!url.startsWith(SITE) || test === (base !== SITE)) return;
+  base = test ? SITE + 'test/' : SITE;
+  (test ? fs.promises.writeFile(testFile(), '') : fs.promises.rm(testFile(), { force: true })).catch(() => {});
+  if (overlay) overlay.loadURL(base + 'overlay.html');
+}
+
 // ---- the window opens where and how big you left it (window.json in the app's folder), if that's still on a screen
 const winFile = () => path.join(app.getPath('userData'), 'window.json');
 function lastBounds() {
@@ -589,13 +603,15 @@ app.whenReady().then(() => {
   for (const ev of ['resize', 'move']) win.on(ev, saveBounds);
   if (app.isPackaged) app.setAsDefaultProtocolClient('lolprox');
   win.removeMenu();
-  win.loadURL(SITE);
+  if (fs.existsSync(testFile())) base = SITE + 'test/';
+  win.loadURL(base);
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith(SITE)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true } }; // the tracker page
     openOut(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(SITE)) { e.preventDefault(); openOut(url); } });
+  win.webContents.on('did-navigate', navigated);
   win.webContents.on('did-finish-load', () => { // a reloaded page hears it all again
     leagueWas = '';
     if (updateReady) win.webContents.send('update', updateReady);

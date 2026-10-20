@@ -7,14 +7,18 @@
 // the clip gallery (pictures, rename, the Recycle Bin, the clean-up), the compact strip, the overlay window (the game's
 // objective timers and kills from the page, moved and resized, with chat, who hears you, your voice effects and voice
 // swap's countdown, and everyone's rank over the whole screen), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
-// pipe), the performance meter, app links, the window kept where you left it, and test recordings with names hidden.
+// pipe), the performance meter, app links, the window kept where you left it, test recordings with names hidden, and the
+// test version of the page (Settings > App).
 // Prints ok.
 const http = require('http'), https = require('https'), net = require('net'), fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
 const { execFileSync } = require('child_process');
 const SITE = path.join(__dirname, '..', 'site');
 const TYPES = { js: 'text/javascript', json: 'application/json', png: 'image/png', html: 'text/html' };
+let testCopy = true; // the site has a test/ copy of the page (Settings > App: the test version)
 const web = http.createServer((q, r) => {
-  const f = path.join(SITE, new URL(q.url, 'http://x').pathname.replace(/\/$/, '/index.html'));
+  let p = new URL(q.url, 'http://x').pathname;
+  if (p.startsWith('/test/')) { if (!testCopy) { r.writeHead(404); return r.end(); } p = p.slice(5); }
+  const f = path.join(SITE, p.replace(/\/$/, '/index.html'));
   if (!fs.existsSync(f)) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { 'Content-Type': TYPES[f.split('.').pop()] || 'application/octet-stream' });
   fs.createReadStream(f).pipe(r);
@@ -315,6 +319,25 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await js('lpcClient.recordingsFolder()');
     await until(() => opened.includes(recDir), 'the recordings folder opened');
     console.log(`test recording: ${recName}, ${take.frames.length} frames, names hidden`);
+
+    // Test version first (Settings > App): the test/ copy of the page, kept for next time (test-version in the app's
+    // folder) with the overlay from the same copy; the status bar's link goes back. No test copy: the normal page.
+    const flag = path.join(tmp, 'profile', 'test-version'), went = [];
+    win.webContents.on('did-navigate', (e, url, code) => went.push(`${code} ${url.slice(process.env.LPC_SITE.length - 1)}`));
+    const at = (where, what) => until(async () => win.webContents.getURL() === process.env.LPC_SITE + where && fs.existsSync(flag) === !!where
+      && ovWin().webContents.getURL() === process.env.LPC_SITE + where + 'overlay.html' && await win.webContents.executeJavaScript(`document.readyState === 'complete' && document.getElementById('optTest').checked === ${!!where}`).catch(() => false), what); // not while it loads
+    await js('setTimeout(() => document.getElementById("optTest").click())');
+    await at('test/', 'the test version');
+    assert(await js('getComputedStyle(document.getElementById("sbTest")).display !== "none"'), 'the status bar says it’s the test version');
+    await js('setTimeout(() => document.getElementById("sbTest").click())');
+    await at('', 'back to the normal page');
+    assert(await js('getComputedStyle(document.getElementById("sbTest")).display === "none"'));
+    testCopy = false;
+    await js('setTimeout(() => location.assign("/test/"))');
+    await until(() => went.length === 4, 'no test copy');
+    await at('', 'the normal page again');
+    assert.deepStrictEqual(went, ['200 /test/', '200 /', '404 /test/', '200 /'], 'the test version, back, and a missing test copy');
+    console.log(`test version: ${went.join(', ')}`);
     console.log('ok');
   } catch (err) { console.error(err); process.exitCode = 1; }
   web.close();

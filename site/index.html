@@ -13,6 +13,7 @@
 <script>
   if (window.lpcClient) document.documentElement.classList.add('in-client'); // the Windows client (client/preload.js)
   if (window.lpcClient && window.lpcClient.lcu) document.documentElement.classList.add('has-lcu'); // version 1.6+: League's own client
+  if (location.pathname.startsWith('/test/')) document.documentElement.classList.add('test-version'); // Test version first (Settings > App)
   try { document.documentElement.style.setProperty('--zoom', Math.min(2, Math.max(0.7, +JSON.parse(localStorage.getItem('lpc-opts')).zoom || 1))); } catch {} // App size (Settings > Look)
 </script>
 <style>
@@ -63,7 +64,7 @@
   --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   color-scheme: dark;
 }
-:root:not(.in-client) .client-only, :root:not(.has-lcu) .lcu-only, .in-client .browser-only, [hidden] { display: none !important; }
+:root:not(.in-client) .client-only, :root:not(.has-lcu) .lcu-only, .in-client .browser-only, :root:not(.test-version) .test-only, [hidden] { display: none !important; }
 * { box-sizing: border-box; scrollbar-width: none; } /* no scrollbars: the wheel, keys and touch still scroll */
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
@@ -598,7 +599,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="toolbar"><button id="profileCopy" class="btn small" type="button">Copy</button><a id="profileOpen" class="btn small" href="#" target="_blank" rel="noopener">Open it</a></div>
       </section>
       <p id="proNote" class="phase" role="status" hidden></p>
-      <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
+      <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="/Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
       <div id="proRanks" class="ranks"></div>
       <section id="proLiveBox" class="panel" aria-labelledby="h-prolive" hidden>
         <h2 id="h-prolive" class="ph">Live game</h2>
@@ -653,7 +654,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </form>
           <a id="appLink" class="btn browser-only" hidden>Open this room in the desktop app</a>
           <p id="autoNote" class="hint client-only">Or just start a game: you join your game's room by itself.</p>
-          <p class="hint browser-only">On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a> for the in-game overlay, push to talk and League's own game data.</p>
+          <p class="hint browser-only">On Windows? <a href="/Premade-Setup.exe" download>Get the desktop app</a> for the in-game overlay, push to talk and League's own game data.</p>
         </div>
       </div>
 
@@ -1160,8 +1161,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <section class="panel">
           <h2 class="ph">App</h2>
           <div class="toolbar"><button id="setupAgain" class="btn" type="button">Run setup again</button><button id="installBtn" class="btn browser-only" type="button" hidden>Install as an app</button></div>
-          <p class="hint browser-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
+          <p class="hint browser-only"><a href="/Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
           <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
+          <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
@@ -1186,7 +1188,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button id="sbTrack" class="sb" type="button" title="Your tracking"><span class="muted">Tracking:</span><span id="sbTrackText"></span></button>
     <span id="sbLeague" class="sb client-only"></span>
     <button id="sbVersion" class="sb" type="button" title="What's new"></button>
-    <a id="getNew" class="sb new" href="Premade-Setup.exe" download hidden>New app version: get the installer</a>
+    <a id="sbTest" class="sb new test-only" href="/">Test version: back to normal</a>
+    <a id="getNew" class="sb new" href="/Premade-Setup.exe" download hidden>New app version: get the installer</a>
     <button id="restartBtn" class="sb new" type="button" hidden>Update ready: restart</button>
     <span class="grow"></span>
     <button id="compactBtn" class="sb" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg><span>Compact</span></button>
@@ -2071,8 +2074,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     rn = rn || (async () => {
       const simd = WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]));
       const [wasmBinary] = await Promise.all([
-        fetch(`vendor/rnnoise/rnnoise${simd ? '_simd' : ''}.wasm`).then((r) => { if (!r.ok) throw new Error(`rnnoise.wasm: ${r.status}`); return r.arrayBuffer(); }),
-        ac.audioWorklet.addModule('vendor/rnnoise/workletProcessor.js'),
+        fetch(`/vendor/rnnoise/rnnoise${simd ? '_simd' : ''}.wasm`).then((r) => { if (!r.ok) throw new Error(`rnnoise.wasm: ${r.status}`); return r.arrayBuffer(); }),
+        ac.audioWorklet.addModule('/vendor/rnnoise/workletProcessor.js'),
       ]);
       await WebAssembly.compile(wasmBinary); // a bad download fails here, not as a silent mic inside the worklet
       return new AudioWorkletNode(ac, '@sapphi-red/web-noise-suppressor/rnnoise', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1], processorOptions: { maxChannels: 1, wasmBinary } });
@@ -2678,7 +2681,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Someone in the room with an older one gets a popup once, and the ready check shows it.
   const newer = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
   const oldApp = (v) => v === 'old' || (!!latest && /^\d+\.\d+\.\d+$/.test(v) && newer(latest, v));
-  fetch('latest.yml', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { latest = (/^version:\s*([\d.]+)\s*$/m.exec(t) || [])[1] || ''; render(); }).catch(() => {});
+  fetch('/latest.yml', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((t) => { latest = (/^version:\s*([\d.]+)\s*$/m.exec(t) || [])[1] || ''; render(); }).catch(() => {});
   const warnedOld = new Set();
   function checkVersion(p) {
     const v = p.ready && p.ready.app;
@@ -4291,7 +4294,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('remoteState').textContent = !remote ? '' : remoteConns.size ? 'Your phone is connected.' : remote.open ? 'Waiting for your phone.' : 'Connecting…';
   }
   async function drawQr() {
-    qrLib = qrLib || new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'vendor/qrcode/qrcode.js'; s.onload = () => res(window.qrcode); s.onerror = rej; document.head.append(s); });
+    qrLib = qrLib || new Promise((res, rej) => { const s = document.createElement('script'); s.src = '/vendor/qrcode/qrcode.js'; s.onload = () => res(window.qrcode); s.onerror = rej; document.head.append(s); });
     let q;
     try { q = (await qrLib)(0, 'M'); } catch { qrLib = null; return; }
     q.addData(remoteUrl());
@@ -4453,7 +4456,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
   const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
   const voiceWant = () => !!testing || recording || (opts.clipVoice && !voiceErr && !!recorder && !recorder.failed);
-  const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
+  const vendor = (f) => new URL('/vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
   async function voiceStart() {
     voiceErr = '';
@@ -5683,7 +5686,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       f: [(fame.pentas || []).length, (fame.quadras || []).length, Math.max(streak, (fame.streak && fame.streak.n) || 0)],
       best: [id(best.champ), champName(best.champ), best.k, best.d, best.a, best.win ? 1 : 0, best.at],
     };
-    const link = new URL(`profile.html#${await packLink(p)}`, location.href).href;
+    const link = new URL(`/profile.html#${await packLink(p)}`, location.href).href; // the normal page, also from the test version
     $('profileLink').value = $('profileOpen').href = link;
     $('profileOut').hidden = false;
   }
@@ -7247,6 +7250,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     client.on('update', () => { $('restartBtn').hidden = false; notify('An app update is ready. Restart the app to use it, or it installs when you quit.', true); });
     $('restartBtn').addEventListener('click', () => client.update());
   }
+  // Test version first: the site's test/ folder gets page changes before everyone else. The page's address is the
+  // switch, and the app (1.13 and later) opens the same copy next time.
+  $('optTest').checked = location.pathname.startsWith('/test/');
+  $('optTest').addEventListener('change', (e) => location.assign((e.target.checked ? '/test/' : '/') + location.hash));
   $('optFlash').value = opts.flash;
   $('optFlash').addEventListener('change', (e) => { opts.flash = e.target.value; saveOpts(); });
   $('optRuneSrc').value = opts.runeSrc;
@@ -7469,7 +7476,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   for (const p of document.querySelectorAll('.settings > *')) brick.observe(p);
 
   // ---- the room's own buttons
-  const inviteLink = () => location.origin + location.pathname + '#' + room + (roomKey ? '.' + roomKey : '');
+  const inviteLink = () => location.origin + location.pathname.replace(/^\/test\//, '/') + '#' + room + (roomKey ? '.' + roomKey : ''); // the normal page, also from the test version
   async function copyInvite() {
     try { await navigator.clipboard.writeText(inviteLink()); notify('Invite link copied', true); } catch { say('Copy this link: ' + inviteLink()); }
   }
