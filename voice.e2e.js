@@ -92,11 +92,14 @@ function fakeOutputs() {
 }
 
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
-// Data Dragon's champions: Test Champ and 21 more for the room games' quiz and draft
-const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 } } };
+// Data Dragon's champions: Test Champ and 21 more for the room games' quiz and draft, each with a story (blurb)
+const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
+const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
 ['Annie', 'Ashe', 'Garen', 'Lux', 'Darius', 'Jinx', 'Leona', 'Zed', 'Ahri', 'Thresh', 'Vayne', 'Malphite', 'Ezreal', 'Sona', 'Yasuo', 'Teemo', 'Caitlyn', 'Nasus', 'Morgana', 'Riven', 'Braum'].forEach((n, i) => {
-  CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i } };
+  CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i }, blurb: story(n) };
 });
+// Data Dragon's items: five finished ones, for the quiz's item pictures
+const ITEMS = Object.fromEntries(['Infinity Edge', 'Thornmail', 'Sunfire Aegis', 'Trinity Force', 'Rabadon\'s Deathcap'].map((name, i) => [String(3031 + i), { name, gold: { total: 2600 + 100 * i }, tags: [], maps: { 11: true } }]));
 const POS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Middle', BOTTOM: 'Bottom', UTILITY: 'Support' };
 async function player(browser, name, screen, { setup = true, client = false, denoise = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
@@ -107,8 +110,12 @@ async function player(browser, name, screen, { setup = true, client = false, den
     const u = r.request().url();
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.0'], headers: cors });
     if (u.endsWith('champion.json')) return r.fulfill({ json: { data: CHAMPS }, headers: cors });
+    if (u.endsWith('item.json')) return r.fulfill({ json: { data: ITEMS }, headers: cors });
+    const one = /champion\/(\w+)\.json$/.exec(u); // a champion's own file, with its abilities
+    if (one) return r.fulfill({ json: { data: { [one[1]]: { spells: ['Q', 'W', 'E', 'R'].map((k) => ({ name: `${one[1]} ${k}`, image: { full: `${one[1]}${k}.png` } })), passive: { name: `${one[1]} passive`, image: { full: `${one[1]}_P.png` } } } } }, headers: cors });
     r.fulfill({ body: Buffer.from(pic, 'base64'), contentType: 'image/png', headers: cors });
   });
+  if (process.env.PEER) await ctx.route(/\/riot\//, (r) => r.fulfill({ status: 404, headers: cors })); // no Riot data, as with a local PeerServer
   await ctx.addInitScript(fakeScreen, screen);
   if (setup) await ctx.addInitScript((n) => { localStorage.setItem('lpc-setup', '1'); localStorage.setItem('lpc-name', n); localStorage.setItem('lpc-news', '9999'); }, name);
   // smart noise removal takes the fake mic's beeps for noise, so it's off unless a test wants it
@@ -482,6 +489,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(/^[a-z]{6}$/.test(KEY) && (await ana.evaluate(() => location.hash)) === `#${ROOM}.${KEY}`, `a password, in the invite link: ${KEY}`);
     await waitFor(ben, (k) => lpc.key() === k && document.getElementById('lockNote').textContent.includes(k.toUpperCase()), KEY, 'Ben told the password');
     await waitFor(cat, (k) => lpc.key() === k, KEY, 'Cat told the password');
+    if (process.env.PEER) { // our server checks the password itself: a socket that sends none is turned away
+      const ws = new (require('ws'))(`ws://${PEER}/peerjs?key=peerjs&id=lolprox-${ROOM}-9&token=t9&version=1.5.4`), got = [];
+      ws.on('message', (m) => { got.push(JSON.parse(m).type); if (got.length === 1) ws.send(JSON.stringify({ type: 'LOCK', payload: { key: '' } })); });
+      await new Promise((ok) => ws.on('close', ok));
+      assert.deepStrictEqual(got, ['OPEN', 'INVALID-KEY'], 'a stranger turned away by our server');
+    }
     const fay = await player(browser, 'Fay', [1920, 1080], { denoise: true });
     await fay.goto(`${URL_}#${ROOM}`);
     await fay.click('#joinBtn');
@@ -513,6 +526,24 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ben.$eval('#modeSel', (el) => el.disabled) && !(await ana.$eval('#modeSel', (el) => el.disabled)), 'only the host picks the mode');
     await ana.selectOption('#modeSel', 'gibberish');
     for (const p of [ben, cat]) await waitFor(p, () => lpc.mode().mode === 'gibberish' && lpc.toasts().includes('Game mode: Gibberish'), null, 'the mode sent to everyone');
+    // only the host's mode, voice swap, mutes and crown count: what Ben's page sends, changed to send them, does nothing
+    const later = Date.now() + 1e6;
+    await ben.evaluate((n) => lpc.send({ t: 'me', rm: { n, mode: 'chaos' }, sw: { n, map: { 0: 1, 1: 0 } }, hm: { n, s: [0, 2] }, mv: { n, s: 1, name: 'Ben' } }), later);
+    await ana.waitForTimeout(1000);
+    for (const p of [ana, cat]) {
+      assert(await p.evaluate(() => lpc.mode().mode === 'gibberish' && !lpc.swap().n && !/host/.test(document.getElementById('muteBtn').textContent)
+        && document.querySelector('#players .player[data-slot="1"] .crown').hidden), 'nothing from Ben\'s page counted');
+    }
+    // the host mutes Ben's noisy mic for everyone: his mic goes off and he's told why, and nobody hears him
+    assert(await ben.$$eval('.hmute', (l) => l.every((b) => b.hidden)), 'only the host can');
+    await ana.click('#players .player[data-slot="1"] .hmute');
+    await waitFor(ben, () => !lpc.micOn() && /Muted by the host/.test(document.getElementById('muteBtn').textContent) && lpc.toasts().some((t) => t.startsWith('The host muted your mic for everyone')), null, 'Ben told the host muted him');
+    await waitFor(cat, () => lpc.peers().find((p) => p.name === 'Ben').volume === 0 && /Muted for everyone by the host/.test(document.querySelector('#players .player[data-slot="1"] .pstate').textContent), null, 'Ben silent for Cat');
+    assert.strictEqual(await ana.textContent('#players .player[data-slot="1"] .hmute'), 'Unmute for all');
+    await ana.click('#players .player[data-slot="1"] .hmute');
+    await waitFor(ben, () => lpc.micOn() && lpc.toasts().includes('The host unmuted your mic.'), null, 'Ben unmuted');
+    await waitFor(cat, () => lpc.peers().find((p) => p.name === 'Ben').volume > 0, null, 'Cat hears Ben again');
+    console.log('host only: modes, swaps, mutes and the crown; the host muted Ben\'s mic for everyone and unmuted it');
     // Gibberish: Ben on the other team comes out scrambled (speech inversion: a 500 Hz tone comes out at 2,900 Hz)
     for (const p of [ben, cat]) await p.$eval('#optCompact', (el) => { el.checked = false; el.dispatchEvent(new Event('change')); });
     // Cat shares a minimap next to Ana, Ben one across the map
@@ -533,6 +564,20 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // who can hear Ana: her teammate Cat, close by; Ben, on the other team, is left out
     assert.deepStrictEqual(await ana.evaluate(() => lpc.hearMe()), ['Cat'], 'Cat can hear Ana, Ben isn\'t listed');
     await waitFor(ana, () => document.getElementById('hearMe').textContent === 'Can hear you now: Cat.', null, 'who can hear Ana on her page');
+    // Showdown: Ben comes over to Ana and Cat walks off, so Ana and Ben, enemies, are alone together and Cat fades for both
+    const catSlot = (await others(ana)).find((p) => p.name === 'Cat').slot;
+    await ana.selectOption('#modeSel', 'showdown');
+    await ben.evaluate(() => setBox(0.4, 0.6));
+    await cat.evaluate(() => setBox(0.85, 0.15));
+    await waitFor(ana, (s) => { const ps = lpc.peers(), b = ps.find((p) => p.name === 'Ben'), c = ps.find((p) => p.name === 'Cat');
+      return !b.faded && b.vol > 0.9 && c.faded && c.volume === 0 && /showdown/.test(document.querySelector(`#players .player[data-slot="${s}"] .pstate`).textContent); }, catSlot, 'a showdown between Ana and Ben');
+    await waitFor(ben, () => lpc.peers().find((p) => p.name === 'Cat').faded, null, 'Cat faded for Ben too');
+    assert(await ana.evaluate(() => lpc.toasts().includes('Showdown: just you and Ben.')) && !(await cat.evaluate(() => lpc.peers().some((p) => p.faded))), 'Ana told; nothing fades for Cat');
+    // Cat comes back, so they're no longer alone
+    await cat.evaluate(() => setBox(0.4, 0.6));
+    await waitFor(ana, () => lpc.peers().every((p) => !p.faded), null, 'the showdown over once Cat came back');
+    await ben.evaluate(() => setBox(0.85, 0.15));
+    console.log('Showdown: Cat faded while Ana and Ben were alone together, back once she came near');
     for (const p of [ana, ben, cat]) await p.evaluate(() => lpc.league(null));
 
     // Voice swap: every voice comes from someone else's spot
@@ -544,6 +589,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const sw1 = await ana.evaluate(() => lpc.swap());
     assert(Object.entries(sw1.map).length === 3 && Object.entries(sw1.map).every(([k, v]) => +k !== v), `nobody keeps their own spot: ${JSON.stringify(sw1.map)}`);
     for (const p of [ben, cat]) assert.deepStrictEqual((await p.evaluate(() => lpc.swap())).map, sw1.map, 'the same shuffle for everyone');
+    // Guess the voice: Ben names who's behind each spot's voice (the spot with his own voice doesn't count); nobody else guesses
+    const behind = Object.fromEntries(Object.entries(sw1.map).map(([s, spot]) => [spot, +s]));
+    await waitFor(ben, () => !document.getElementById('guessBox').hidden && document.querySelectorAll('#guessRows select').length === 3, null, 'Guess the voice on Ben\'s page');
+    for (const spot of [0, 1, 2]) if (behind[spot] !== 1) await ben.selectOption(`#guessRows label:nth-child(${spot + 1}) select`, String(behind[spot]));
     // what each page should hear: each voice at the spot the shuffle gave it, full volume close by, silent far away
     const at = await Promise.all(pages.map((p) => p.evaluate(() => ({ slot: lpc.slot(), x: lpc.me().x, y: lpc.me().y }))));
     const posOf = (s) => at.find((a) => a.slot === s);
@@ -563,6 +612,8 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await cat.evaluate(() => lpc.league({ inGame: true, room: '', mode: 'CLASSIC', me: { champ: '', champName: '', team: '', dead: true } }));
     await waitFor(ben, (n) => lpc.swap().n > n, sw1.n, 'a reshuffle when Cat died', 20000);
     await waitFor(ben, () => lpc.toasts().some((t) => t.startsWith('Voice swap reveal:') && /spot was (Ana|Cat)/.test(t)), null, 'the reveal on Ben\'s page');
+    assert(await ben.evaluate(() => lpc.toasts().some((t) => t.startsWith('Voice swap reveal:') && t.endsWith('\nGuess the voice, right this round: you 2. You lead with 2 in all.'))), 'Ben\'s two right guesses at the reveal');
+    await waitFor(ana, () => lpc.toasts().some((t) => t.endsWith('\nGuess the voice, right this round: Ben 2. Ben leads with 2 in all.')), null, 'Ben\'s score on Ana\'s page');
     console.log(`swap on deaths: ${JSON.stringify((await ben.evaluate(() => lpc.toasts())).filter((t) => t.startsWith('Voice swap reveal')).pop())}`);
     await cat.evaluate(() => lpc.league(null));
     // the warning: a chime and a countdown 10 s before a timed reshuffle
@@ -646,6 +697,17 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.strictEqual(await ben.$eval('#quizScores li:last-child', (l) => l.textContent), 'Ben (you): 0');
     await waitFor(ben, () => lpc.toasts().some((t) => /^(Ana|Cat) won the queue quiz with \d+ points\.$/.test(t)), null, 'who won, on Ben\'s page');
     for (const p of trio) await p.click('#quizClose');
+    // the quiz's new questions: ability icons, splash art close-ups, item pictures, and stories with the name blanked out
+    const qs = await ana.evaluate(async () => lpc.quizQuestions(80, await lpc.champSpells(4)));
+    const ofKind = (re) => qs.filter((q) => re.test(q.q)), named = (q) => q.opts[q.right];
+    const [abQ, spQ, loQ, itQ] = [/^Whose ability is this\?$/, /^Whose splash art is this close-up from\?$/, /^Whose story is this\? “/, /^Which item is this\?$/].map(ofKind);
+    const idOf = (name) => Object.values(CHAMPS).find((c) => c.name === name).id; // the picture is of the answer's own ability
+    assert(abQ.length && abQ.every((q) => new RegExp(`/cdn/1\\.0/img/(spell|passive)/${idOf(named(q))}(Q|W|E|R|_P)\\.png$`).test(q.img)), `ability icons: ${JSON.stringify(abQ)}`);
+    assert(spQ.length && spQ.every((q) => /\/cdn\/img\/champion\/splash\/\w+_0\.jpg$/.test(q.img) && q.zoom[0] >= 0.25 && q.zoom[0] <= 0.75 && q.zoom[1] >= 0.3 && q.zoom[1] <= 0.7), `splash close-ups: ${JSON.stringify(spQ[0])}`);
+    assert(loQ.length && loQ.every((q) => q.q.includes('____') && !q.q.includes(named(q))), `stories without the name: ${JSON.stringify(loQ[0])}`);
+    assert(itQ.length && itQ.every((q) => /\/cdn\/1\.0\/img\/item\/\d+\.png$/.test(q.img) && Object.values(ITEMS).some((it) => it.name === named(q))), `item pictures: ${JSON.stringify(itQ[0])}`);
+    assert(qs.every((q) => q.opts.length === 4 && new Set(q.opts).size === 4 && q.right >= 0), 'four different answers, one right');
+    console.log(`queue quiz: ${qs.length} questions, with ${abQ.length} ability icons, ${spQ.length} splash close-ups, ${loQ.length} stories and ${itQ.length} items`);
     // the mock draft: blue and red are the balanced teams; whoever's turn it is chooses, the host's clock does the rest
     await ana.click('#draftBtn');
     for (const p of trio) await waitFor(p, () => lpc.dv() && document.querySelectorAll('#draftGrid button').length === 22, null, 'the draft with every champion');
@@ -674,6 +736,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ben, () => document.getElementById('draftHead').textContent === 'The host ended the draft.', null, 'the draft ended for Ben');
     assert(await ana.isHidden('#draftBox'), 'and closed for Ana');
     for (const p of [ben, cat]) await p.click('#draftStop');
+    // the MVP vote, here started by the host: Ana and Ben vote for Cat, Cat for Ben, so Cat wears the crown
+    await ana.click('#mvpBtn');
+    for (const p of trio) await waitFor(p, () => !document.getElementById('mvpBox').hidden && document.querySelectorAll('#mvpOpts button').length === 2, null, 'the vote on every page');
+    for (const [p, s] of [[ana, catSlot], [ben, catSlot], [cat, 1]]) await p.click(`#mvpOpts button[data-slot="${s}"]`);
+    for (const p of trio) await waitFor(p, () => /^MVP of the last game: (Cat|You), with 2 votes\./.test(document.getElementById('mvpHead').textContent), null, 'Cat the MVP on every page');
+    assert.strictEqual(await cat.textContent('#mvpHead'), 'MVP of the last game: You, with 2 votes. You wear the crown next game.');
+    for (const p of [ana, ben]) await waitFor(p, (s) => !document.querySelector(`#players .player[data-slot="${s}"] .crown`).hidden, catSlot, 'the crown on Cat\'s card');
+    assert(await cat.evaluate(() => lpc.toasts().includes('You’re the MVP of the last game! You wear the crown next game.')), 'Cat told');
+    for (const p of trio) { await p.click('#mvpClose'); assert(await p.isHidden('#mvpBox'), 'closed'); }
+    console.log('MVP vote: Cat won with 2 votes and wears the crown');
 
     // compact view, light theme and a help tip
     await ana.click('#compactBtn');
@@ -853,12 +925,19 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.evaluate((g) => lpc.league(g), legend({ t: 1010, events: [...big, ev('kill', 1005, { on: true })] }, { dead: true }));
     f = await fxOn(dee);
     assert.deepStrictEqual(f.on, ['ocean', 'steal', 'ghost'], `dead: ${JSON.stringify(f.on)}`);
+    // Herald and Voidgrubs for a while after the team took them; an enemy inhibitor and tower the team took, briefly
+    await dee.evaluate((g) => lpc.league(g), legend({ t: 1100, events: [ev('herald', 1050), ev('grubs', 1060), ev('inhib', 1090, { of: 'CHAOS' }), ev('tower', 1095, { of: 'CHAOS' })] }));
+    assert.deepStrictEqual((await fxOn(dee)).on, ['herald', 'grubs', 'speed', 'inhib', 'tower'], 'Herald, Voidgrubs, an inhibitor and a tower');
+    await waitFor(eve, () => /Herald \+ Voidgrubs \+ Speed \+ Inhibitor \+ Tower voice/.test(document.querySelector('.player .pstate').textContent), null, 'Dee\'s new voices on Eve\'s card');
+    // not for the other team's Herald or your own team's tower, nor once their time is up
+    await dee.evaluate((g) => lpc.league(g), legend({ t: 1160, events: [ev('herald', 1150, { team: 'CHAOS' }), ev('grubs', 1100), ev('inhib', 1130, { of: 'CHAOS' }), ev('tower', 1155, { of: 'ORDER' })] }));
+    assert.deepStrictEqual((await fxOn(dee)).on, ['grubs', 'speed'], 'only the Voidgrubs left');
     // the river, and the result after the game
     await dee.evaluate((g) => lpc.league(g), { ...game('Testchamp', 'ORDER'), t: 1500, events: [], result: 'Win' });
     await dee.evaluate(() => setBox(0.39, 0.375));
     await waitFor(dee, () => lpc.fx().on.includes('river') && lpc.fx().on.includes('win'), null, 'river and victory voices');
     await dee.evaluate(() => setBox(0.4, 0.6));
-    console.log('Legends and Immersive: Baron, soul, spree, steal, Ace, speed, multikill, ghost, river and victory voices');
+    console.log('Legends and Immersive: Baron, soul, spree, steal, Ace, speed, multikill, ghost, Herald, Voidgrubs, inhibitor, tower, river and victory voices');
 
     // the overlay: room chat, who can hear you and your voice's effects
     await eve.evaluate(() => { document.getElementById('chatText').value = 'gank top'; document.getElementById('chatForm').requestSubmit(); });
@@ -911,7 +990,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 20: clips by voice'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), [await gus.evaluate(() => lpc.news())], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);
