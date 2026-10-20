@@ -492,6 +492,50 @@ const leagueData = (over = {}) => ({
       console.log('Pregame and Game pages: only in the desktop app; an old app is told to restart for its update');
     }
 
+    // ---- Features: what the app can do and how to set it up, on the website and in the desktop app
+    {
+      const card = (p, name) => p.locator('.feat').filter({ has: p.locator('h3', { hasText: new RegExp(`^${name}`) }) });
+      const [ctx, page] = await context(browser);
+      await page.goto(URL_);
+      await page.click('.nav[data-view="features"]');
+      assert.deepStrictEqual(await texts(page, '#setupList h3'), ['Get the desktop app', 'Your name', 'Your mic', 'A room with your friends', 'Your League screen', 'League in Borderless']);
+      assert.deepStrictEqual(await texts(page, '#setupList .sstate'), ['You’re on the website', 'Rayan', 'Not tested yet', 'Not in a room', 'Not shared', 'The desktop app checks it']);
+      assert.strictEqual(await text(page, '#setupNote'), '1 of 6 done. Run setup again walks you through your name, mic and screen.');
+      assert(await page.locator('#setupList a[href="/Premade-Setup.exe"]').isVisible(), 'the installer, on the website');
+      assert.match(await card(page, 'Auto hover').innerText(), /Desktop app/);
+      assert.strictEqual(await card(page, 'Auto hover').locator('[data-go]').count(), 0, 'no Show me for what needs the desktop app');
+      await page.fill('#featFind', 'push talk');
+      assert.deepStrictEqual(await texts(page, '.feat:not([hidden]) h3'), ['Mute and push to talk']);
+      assert.deepStrictEqual(await page.$$eval('.fgroup:not([hidden]) h2', (l) => l.map((e) => e.textContent)), ['Voice']);
+      await page.fill('#featFind', 'qwerty');
+      assert(await page.locator('#featNone').isVisible(), 'nothing found');
+      await page.fill('#featFind', '');
+      await page.locator('#setupList li', { hasText: 'Your name' }).locator('[data-go]').click();
+      assert(await page.evaluate(() => !document.querySelector('.view[data-view="voice"]').hidden && document.getElementById('voiceSet').open && document.activeElement.id === 'name'
+        && document.getElementById('name').closest('label').classList.contains('flash')), 'Show me: your name, in Voice settings');
+      await ctx.close();
+      const [actx, app] = await context(browser, { version: '1.13.0' });
+      await actx.exposeFunction('fakeLcu', () => ({ status: 0, data: null })); // League isn't running
+      await app.goto(URL_);
+      await wait(app, () => window.lpc, null, 'the page');
+      await app.click('.nav[data-view="features"]');
+      assert.deepStrictEqual(await app.evaluate(() => [...document.querySelectorAll('[data-go]')].flatMap((b) => b.dataset.go.split(',')).filter((s) => !document.querySelector(s))), [], 'every Show me has a spot to go to');
+      assert.strictEqual(await app.locator('#featList .feat').count(), await app.locator('#featList [data-go]').count(), 'Show me on every feature in the desktop app');
+      assert.strictEqual(await card(app, 'Install as an app').count(), 0, 'website only');
+      assert.deepStrictEqual(await texts(app, '#setupList .sstate'), ['App 1.13.0: restart it to update', 'Rayan', 'Not tested yet', 'Not in a room', 'Not shared', 'Borderless']); // 2.0.0 is out here
+      await card(app, 'Champion pool').locator('[data-go]').click();
+      assert(await app.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden && document.querySelector('.tab[data-tab="champs"]').getAttribute('aria-selected') === 'true'
+        && document.getElementById('h-pool').closest('.panel').classList.contains('flash')), 'Show me: Champion pool, on Stats, Champions');
+      await app.click('.nav[data-view="features"]');
+      await card(app, 'Auto hover').locator('[data-go]').click();
+      assert(await app.evaluate(() => !document.querySelector('.view[data-view="pregame"]').hidden && document.getElementById('preSet').open && document.activeElement.id === 'optHoverPicks'), 'Show me: Auto hover, in Pregame settings');
+      await app.click('.nav[data-view="features"]');
+      await card(app, 'Tier list').locator('[data-go]').click();
+      assert(await app.evaluate(() => !document.querySelector('.view[data-view="pregame"]').hidden && document.querySelector('main').scrollTop === 0), 'Show me: the top of Pregame while the tier list isn’t showing');
+      await actx.close();
+      console.log('Features: Get set up with what’s done (website and app), the desktop app’s features marked on the website, find a feature, and Show me to a setting, a Stats tab and Pregame settings');
+    }
+
     // ---- Profile in a browser: from Riot, through our server, by Riot ID; the first one given is you
     {
       const [ctx, page] = await context(browser);
@@ -818,7 +862,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Stats', 'Clips', 'Settings'], 'the menu in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Stats', 'Clips', 'Settings', 'Features'], 'the menu in the app');
     await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
     await pc.click('.nav[data-view="pregame"]');
@@ -1641,7 +1685,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: minimap reminders and their jungler\s+New to League\? Settings > Overlay can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? Settings > Overlay can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');

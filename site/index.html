@@ -526,6 +526,25 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .feed li { display: flex; align-items: center; gap: 10px; }
 .feed .pic0, .feed .emb { width: 26px; height: 26px; }
 .feed .sub { display: inline; margin-left: 6px; }
+
+/* Features: Get set up's steps (a tick once done), then a card for each feature by page, with Show me at its foot;
+   Show me flashes the spot it takes you to */
+.featfind { max-width: 420px; }
+.featlist { display: grid; gap: 18px; }
+.feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.feat { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); font-size: 14px; }
+.feat h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font: 600 15px/1.3 var(--body); color: var(--gold-hi); }
+.feat > .btn { align-self: flex-start; margin-top: auto; text-decoration: none; }
+.setup { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.setup .feat { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.setup .feat > div { flex: 1 1 200px; display: grid; gap: 4px; }
+.setup .feat > .btn { margin-top: 0; }
+.setup .feat[data-h="good"] .hint { display: none; } /* done: just its name and how it stands */
+.sn { width: 28px; height: 28px; flex: none; display: grid; place-items: center; align-self: flex-start; border: 1px solid var(--gold-line); border-radius: 50%; font: 600 13px/1 var(--mono); color: var(--gold); }
+.feat[data-h="good"] .sn { border-color: var(--good); background: var(--good); color: var(--bg); }
+.sstate { display: flex; align-items: center; gap: 8px; }
+.flash { animation: flash 2.4s ease-out; }
+@keyframes flash { 0%, 50% { outline: 3px solid var(--gold); outline-offset: 3px; } 100% { outline: 3px solid transparent; outline-offset: 3px; } }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -584,6 +603,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
     <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
+    <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
   </nav>
 
   <main>
@@ -1295,6 +1315,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </section>
       </div>
     </section>
+
+    <section class="view" data-view="features" aria-label="Features" hidden>
+      <h1 class="title">Features</h1>
+      <p class="hint">Everything Premade can do, where it is and how to set it up. Show me takes you straight there.</p>
+      <p class="hint browser-only">Features marked Desktop app need the Windows app. <a href="/Premade-Setup.exe" download>Get the desktop app</a></p>
+      <label class="field featfind">Find a feature <input id="featFind" type="search" autocomplete="off" spellcheck="false" placeholder="Runes, clips, push to talk…"></label>
+      <nav id="featJump" class="toolbar" aria-label="Feature groups"></nav>
+      <section id="setupBox" class="panel fgroup" aria-labelledby="h-setup">
+        <h2 id="h-setup" class="ph">Get set up</h2>
+        <p id="setupNote" class="hint"></p>
+        <ol id="setupList" class="setup"></ol>
+        <div class="toolbar"><button id="setupRun" class="btn small" type="button">Run setup again</button></div>
+      </section>
+      <div id="featList" class="featlist"></div>
+      <p id="featNone" class="hint" hidden>Nothing matches that. Try another word, like mic, runes or overlay.</p>
+    </section>
   </main>
 
   <div id="chips" class="chips" aria-label="Players in the room" data-empty="No one else in the room"></div>
@@ -1342,6 +1378,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <span class="eyebrow">Step 4 of 4</span>
       <h2 class="title">You're all set</h2>
       <p>Create a room on the Voice page and send your friends its code, or join theirs. You can change your name and mic later in Voice settings, at the bottom of that page.</p>
+      <p class="hint">Features, at the bottom of the menu, shows everything else Premade can do and how to set it up.</p>
     </section>
     <footer><button id="wSkip" class="btn ghost" type="button">Skip setup</button><button id="wBack" class="btn" type="button" hidden>Back</button><button id="wNext" class="btn primary" type="button">Next</button></footer>
   </div>
@@ -3180,6 +3217,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     mic: { ok: ['good', 'Working'], quiet: ['ok', 'No sound yet'], muted: ['bad', 'Muted'], off: ['bad', 'Off'] },
     win: { borderless: ['good', 'Borderless'], windowed: ['ok', 'Windowed'], fullscreen: ['bad', 'Fullscreen: no overlay'] },
   };
+  const appCell = (a) => (a === 'web' ? ['', 'Browser'] : a === 'old' ? ['bad', 'Old app: get the installer'] : oldApp(a) ? ['ok', `App ${a}: restart it to update`] : ['good', `App ${a}`]);
   function cell([h, text]) { const td = document.createElement('td'), dot = document.createElement('span'); dot.className = 'dot'; dot.dataset.h = h; td.append(dot, text); return td; }
   function renderReady() {
     $('readyRows').replaceChildren(...[[`${myName || 'You'} (you)`, readyNow(), true], ...[...peers.values()].map((p) => [nameOf(p), p.ready])].map(([name, r, mine]) => {
@@ -3188,7 +3226,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       tr.append(who);
       if (!r) { const td = cell(['', 'Not known yet']); td.colSpan = 5; tr.append(td); return tr; }
       tr.append(cell(CELLS.mic[r.mic] || ['', '—']), cell(r.share ? ['good', 'Shared'] : ['bad', 'Not shared']), cell(r.map ? ['good', 'Found'] : ['bad', 'Not found']),
-        cell(r.app === 'web' ? ['', 'Browser'] : r.app === 'old' ? ['bad', 'Old app: get the installer'] : oldApp(r.app) ? ['ok', `App ${r.app}: restart it to update`] : ['good', `App ${r.app}`]), cell(CELLS.win[r.win] || ['', '—']));
+        cell(appCell(r.app)), cell(CELLS.win[r.win] || ['', '—']));
       if (mine && winFixable()) tr.lastChild.append(' ', winBtn);
       return tr;
     }));
@@ -3755,6 +3793,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'stats') renderStats();
     if (name === 'clips') loadClips();
     if (name === 'settings') { loadScreens(); serverStats(); }
+    if (name === 'features') renderFeatures();
     main.scrollTop = 0;
     render();
     if (name === 'game' || name === 'pregame') renderGame();
@@ -8871,6 +8910,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [28, 'October 20: the Features page', [
+      'Features, the new page at the bottom of the menu: everything Premade can do, where it is and how to set it up. Show me takes you straight to it.',
+      'Get set up, at the top of Features, shows what’s done and what’s left before a game with friends: the desktop app, your name, mic, room, screen and League in Borderless.',
+    ]],
     [27, 'October 20: minimap reminders and their jungler', [
       'New to League? Settings > Overlay can remind you to check your minimap, and call out when the other team’s jungler shows up on it. Both are off until you turn them on.',
       'Game reports show where their jungler was in the first 14 minutes, and which of your team’s deaths they were in on.',
@@ -9050,6 +9093,241 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('newsBtn').addEventListener('click', () => openNews(true));
   $('sbVersion').addEventListener('click', () => openNews(true));
   $('newsClose').addEventListener('click', () => $('newsDlg').close());
+
+  // ---- Features: what the app can do, by the page it's on, and how to set each part up. A feature: its name, what it
+  // does, how to set it up or use it, where Show me takes you (the first of those spots that shows; one that isn't
+  // showing now goes to the part of the page it's on), and 'app' when it needs the desktop app or 'web' when it's only
+  // on the website. Add a line here with every new feature.
+  const FEATURES = [
+    ['Profile', 'You in League, like a stats site. Premade opens on it.', [
+      ['Your League profile', 'Your icon, Riot ID, level and ranks, where you are in League right now, your recent games with their items, your roles, champions and mastery.',
+        'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
+      ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
+        'Type Name#TAG in the box beside your name. In a live game, click a name to open that player.', '#proId'],
+      ['Queues and older games', 'A tab for each queue (All, Solo/Duo, Flex, Normal, ARAM and TFT), each with its own record. Show more games goes back months, 20 games at a time.',
+        'Pick a tab above Recent games. TFT comes from League’s client, so it needs the desktop app.', '#proQueues'],
+      ['Rank cards', 'Each rank with Riot’s emblem, this season’s peak and your past seasons, and League’s warnings: placement games left, days until decay from Diamond up, and when one loss can drop you a division.',
+        'Nothing to set up. A goal you pick in Stats, You, shows on its card too.', '#proRanks'],
+      ['Live game', 'When you or a player you look up is in a game, all ten players in it with their rank.', 'Nothing to set up. Click a name to open their profile.', '#proLiveBox'],
+      ['Tags and roles', 'Tags from the last 20 games, like a win streak, a first game on a champion or a possible smurf, and gold ones just for fun. Roles shows the games and wins in each role.', 'Nothing to set up.', '#proTagsBox'],
+      ['Compare with me', 'Any player next to you: rank, top champions, CS a minute, KDA, vision and your record together.', 'Look a player up, then press Compare with me.', '#proCmp'],
+      ['Share my profile', 'A web page with your rank, record and top champions that anyone can open, without the app.', 'Share my profile, on your own profile while League is open, then Copy.', '#profileBtn', 'app'],
+      ['More than one account', 'Each League account keeps its own profile, LP history and games.',
+        'Sign in to each one in League once, then switch with Account, here or in Stats, Ranked. On someone else’s profile, Add to my accounts makes it one of yours.', '#proAcct'],
+      ['Your week', 'Every Monday, a card about the week before: your games, LP, best champion and the stat you improved most.', 'Nothing to set up. Got it puts it away until next week.', '#weekBox'],
+    ]],
+    ['Voice', 'Proximity voice for your game: your room, its games and every voice setting.', [
+      ['Proximity voice', 'Friends sound louder the closer their champions are to yours on the minimap, and fade to silent at the edge of your hearing range. Before a game starts, everyone hears everyone. The live map shows everyone, your range as a gold ring and who can hear you.',
+        'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
+      ['Rooms and invite links', 'A room is everyone you play with. Friends join with its 4-letter code or your invite link, and on the website an invite link can open the room in the desktop app.',
+        'Create room, then Copy invite link and send it. To join a friend, type their code under Join.', '#copyBtn, #createBtn'],
+      ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
+        'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
+      ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
+        'Under the live map in your room.', '#range, #createBtn'],
+      ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass.',
+        'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Voice settings, Popups and sounds.', '#optSurround'],
+      ['Player cards', 'Each friend’s champion, rank, record with you and connection. Turn one friend up or down (up to 200%), mute them just for you, Watch their game, or press Help to see what’s wrong with their setup.',
+        'In your room, beside the map.', '#cardBox, #createBtn'],
+      ['Ready check', 'Everyone’s mic, screen, minimap, app version and League window mode in one table, so you can fix problems before you queue.', 'Ready check, at the top of your room.', '#readyBtn, #createBtn'],
+      ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
+        'Lock room, at the top of your room. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #readyBtn, #createBtn'],
+      ['Game modes', 'The host picks one for the whole room: Classic, Legends (your voice changes with Baron, dragons, towers and sprees), Immersive, Gibberish, Voice swap (guess who’s really talking), Showdown and Chaos.',
+        'Game mode, at the top of your room. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],
+      ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
+      ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'In your room. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
+      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, a Queue quiz, a Mock draft and an MVP vote. Room awards come after each game with friends in voice.',
+        'Room games, in your room.', '#h-games, #createBtn'],
+      ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
+        'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
+      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling or Bluetooth mic.',
+        'Voice settings, Microphone, at the bottom of the Voice page: Test mic, then Set the gate for me.', '#micTest'],
+      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. When a friend’s connection gets bad, your voice goes to them in lower quality by itself, and a headset swap or a Wi-Fi blip reconnects by itself.',
+        'Voice connection, in Voice settings, Microphone.', '#optVoice'],
+      ['Mute and push to talk', 'Mute with Ctrl+Shift+M or the mic in the status bar, or set a push-to-talk key (mouse side buttons work too). The desktop app catches them while League is in front.',
+        'Voice settings, Talking: Change or Set key.', '#kMute'],
+      ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
+        'Voice settings, Popups and sounds.', '#optNotify'],
+      ['Hurt voice', 'Your voice turns shaky and rough while your champion is low on health.', 'On unless you turn it off: Voice settings, In a game.', '#optHurt', 'app'],
+    ]],
+    ['Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
+      ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online, Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox', 'app'],
+      ['Match found', 'Accept or decline right here, or let Premade accept every match for you. It can also come to the front and open Pregame when a match is found, and ring on your pick or ban turn.',
+        'Pregame settings, Match found and champ select. Accept matches for me is off until you tick it.', '#optAutoAccept', 'app'],
+      ['Best picks and bans', 'In champ select, the champions that suit you in your role: how they do in high elo and against their laner, your own games and what your team lacks. Bans for you starts with the champions you lose to most.',
+        'Nothing to set up: click a champion to hover it, and again on your turn to lock it in.', '#picksHead', 'app'],
+      ['The draft', 'Both teams by role with a score for each champion and each team, and every champion ranked for the role you pick by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
+        'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
+      ['Auto hover', 'Hovers your first free champion that fits your role as soon as champ select starts, and your ban on your ban turn. You still lock in yourself.',
+        'Pregame settings: type your champions, first choice first, then your bans.', '#optHoverPicks', 'app'],
+      ['Runes, spells and builds', 'When you lock in: a rune page (the most popular in high elo, Riot’s, or your own usual one), your summoner spells with Flash on your key, and the high elo build and yours in League’s shop. Another button puts on the page high elo players take against your laner.',
+        'On unless you turn it off: Pregame settings, Runes and items.', '#optRunes', 'app'],
+      ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, off-role, a possible smurf), and everyone’s from the loading screen on. Names Riot hides in Solo/Duo champ select stay hidden.',
+        'On unless you turn it off: Settings, League.', '#optScout', 'app'],
+      ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too.',
+        'In champ select and on the loading screen, once both champions are known. Riot’s rules keep tips out of the game itself.', '#csTips', 'app'],
+      ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
+      ['ARAM bench', 'In ARAM and ARAM: Mayhem, which bench champion suits you best, with Reroll.', 'In ARAM champ select: click one to take it.', '#bench', 'app'],
+      ['Tier list', 'The strongest champions in each role in high elo this patch, with arrows for the ones rising or falling and how often each is banned. Click a champion for its page.', 'Tier list, on Pregame.', '#tierBox', 'app'],
+      ['Matchup explorer', 'Pick any two champions to see how that matchup goes in high elo: the record, gold and CS at 10 minutes, runes, spells and items. It hides during a game.', 'Matchup explorer, on Pregame.', '#mxA', 'app'],
+      ['Clash', 'Your next Clash match’s other team: their ranks, recent games and tags.', 'On Pregame while you’re in Clash, once the bracket is out.', '#clashBox', 'app'],
+      ['Borderless in one click', 'When League is in Fullscreen, where the overlay can’t show, one button switches it to Borderless through League’s own settings.', 'Switch to Borderless, on Pregame or in your ready check, outside a game.', '#winFix', 'app'],
+    ]],
+    ['Game', 'What’s going on in your game, and how you played once it’s over.', [
+      ['In game', 'From the loading screen on: everyone’s rank and last 20 games, when the next Dragon, Elder and Baron come, inhibitors coming back, the gold difference, and your CS and lane against your opponent.',
+        'Nothing to set up: Game opens by itself when a game loads (Pregame settings).', '#liveBox', 'app'],
+      ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
+      ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
+      ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
+      ['How you played', 'After a game: you against your usual games, high elo players and your lane opponent, your gold and CS minute by minute, where you got kills and died, and the objectives each team took.',
+        'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
+    ]],
+    ['Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
+      ['LP tracker and rank goal', 'Your LP after each ranked game, today’s wins, losses and LP, a chart of your rank, and how many wins your goal takes at the LP you usually win.',
+        'Stats, You, Ranked: pick a Goal. It counts the games you play with the app open.', '#lpGoal', 'app'],
+      ['Trends', 'Your CS a minute, vision and deaths over your last 20 games, with Riot’s extra numbers: skillshots hit and dodged, allies saved and turret plates.', 'Stats, You.', '#h-trends', 'app'],
+      ['Comebacks, throws and game length', 'The games you won from 1,000 gold behind at 15 minutes or lost from 1,000 ahead, and your win rate in short and long games, overall and on each champion.', 'Stats, You.', '#h-swings', 'app'],
+      ['Hall of fame and best time to play', 'Your pentakills, best KDA, most kills and damage, longest win streak and longest game, and your win rate by time of day and day of the week.', 'Stats, You.', '#h-fame', 'app'],
+      ['Season recap', 'Your last 100 games on one picture to save and share: your record, top champions, best game and who you played with most.', 'Stats, You: Make my recap.', '#recapBtn', 'app'],
+      ['Champion pages', 'Your runes, build, skill order, matchups and notes on each champion, and how it does in high elo in each role.', 'Stats, Champions: pick a champion. Champions in the tier list open their page too.', '#h-mychamps', 'app'],
+      ['Champion pool', 'Which champions to keep, practice or drop, from your games and the high elo tiers in your role.', 'Stats, Champions.', '#h-pool', 'app'],
+      ['Nemeses, allies and duos', 'The champions you lose to most in your lane, the ones you win with, and which champions and roles win most with each friend.', 'Stats, Champions.', '#h-nem', 'app'],
+      ['Collection and patch changes', 'Every champion you’ve played and won with, and what the patch changed for yours, with a popup on patch day.', 'Stats, Champions.', '#h-patch', 'app'],
+      ['Match history and game reports', 'Your last 100 games, filtered by champion, role, result, friend or date. Each report scores every player (MVP and ACE), with the replay, laning, item timings, Riot’s extra numbers and where their jungler was in the first 14 minutes, and saves anyone’s runes or build in League.',
+        'Stats, Games: click a game. Export to a spreadsheet is there too.', '#mfFind', 'app'],
+      ['Talk time and voice games', 'How long everyone in your room talked, a talk map of where the room talked most, and each game with friends in voice, kept on this computer. Talk and win says whether you win more when the room talks more.',
+        'Stats, Games.', '#talkMap'],
+      ['Rank watch', 'Follow friends by Riot ID to see their rank and LP go up and down, with a feed of their games, rank-ups and pentakills and a popup when something changes.', 'Stats, Players: type their Riot ID and press Follow.', '#watchId', 'app'],
+    ]],
+    ['Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
+      ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade.',
+        'Ctrl+Shift+K in a game. Change the key, the length and the quality in Clip settings.', '#kClip', 'app'],
+      ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
+        'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
+      ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
+      ['Your clips', 'Play, cut, rename, star or bin your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+    ]],
+    ['Overlay', 'A see-through bubble on top of League, in the desktop app. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
+      ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'Settings, Overlay: tick what you want on it.', '#optOverlay', 'app'],
+      ['Loading screen board', 'On League’s loading screen, all ten players like Porofessor: your team at the top left and theirs below, with their rank, record on their champion and tags, and the tips for your lane on the right.',
+        'On unless you turn it off: Settings, Overlay. In a game, Ctrl+Shift+O shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
+      ['Move and size it', 'Top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'Settings, Overlay: Move it, then drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
+      ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
+      ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
+        'Off until you turn it on: Settings, Overlay, Remind me to check the minimap.', '#optMapNudge', 'app'],
+      ['Jungler callout', 'When the other team’s jungler shows up on your minimap after 10 seconds out of sight: “Jungler on topside”, botside or in mid, for 3 seconds. Text only, read from your own minimap.',
+        'Off until you turn it on: Settings, Overlay, Call out their jungler. It reads your shared League screen.', '#optJgCall', 'app'],
+    ]],
+    ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
+      ['Phone remote', 'Start the queue, accept matches, pick or ban champions, answer trades and use room chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
+        'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
+      ['Match found on a locked phone', 'A notification when a match is found, even with your phone’s screen off or the remote closed.', 'On the phone remote, tick “Tell me when a match is found”. On an iPhone, open the remote from its home screen icon first.', '#remoteBox, #optRemote', 'app'],
+    ]],
+    ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
+      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Ctrl+Shift+O). They work while League is in front.',
+        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift.', '#kShow', 'app'],
+      ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
+      ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
+      ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
+      ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
+      ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
+      ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
+      ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
+        'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
+      ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
+      ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
+      ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
+    ]],
+  ];
+  // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and
+  // what to press
+  const goBtn = (at) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Show me' }); b.dataset.go = at; return b; };
+  const SETUP = [
+    ['Get the desktop app', 'The Windows app shares your screen without asking, shows the overlay over League and reads League’s own data: your champion, champ select, ranks and timers. If Windows warns about it, press More info, then Run anyway.',
+      () => (client ? appCell(readyNow().app) : ['', 'You’re on the website']), () => !client && Object.assign(document.createElement('a'), { className: 'btn small primary', href: '/Premade-Setup.exe', download: '', textContent: 'Get the desktop app' })],
+    ['Your name', 'What friends see on your card and in the chat.', () => (myName ? ['good', myName] : ['bad', 'Not set yet']), () => goBtn('#name')],
+    ['Your mic', 'Press Test mic and talk: the bar moves. Then press Set the gate for me, so typing and fans stay out. Headphones keep friends from hearing themselves.',
+      () => { const m = readyNow().mic; return m === 'off' ? ['bad', 'Not tested yet'] : CELLS.mic[m]; }, () => goBtn('#micTest')],
+    ['A room with your friends', 'Create room on the Voice page and send your friends the invite link, or join theirs with its code. With the desktop app you can also just start a game: everyone in it with the app lands in its room.',
+      () => (room ? ['good', `In room ${room.toUpperCase()}`] : ['', 'Not in a room']), () => goBtn('#copyBtn, #createBtn')],
+    ['Your League screen', 'In your room, press Share League screen, so friends hear you by where your champion is. The desktop app shares the screen picked in Settings, Screen, without asking. Early in a game, hold Space for a moment while you walk.',
+      () => { const r = readyNow(); return r.map ? ['good', 'Minimap found'] : r.share ? ['ok', 'Looking for your minimap'] : ['bad', 'Not shared']; }, () => goBtn('#shareBtn, #createBtn')],
+    ['League in Borderless', 'In League: Settings, Video, Window Mode, Borderless. The overlay only shows over League in Borderless, and your screen share finds the minimap best in it.',
+      () => CELLS.win[windowMode] || ['', client ? 'Not known until League is open' : 'The desktop app checks it'],
+      () => winFixable() && Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Switch to Borderless', onclick: () => fixWindow().then(renderFeatures) })],
+  ];
+  const featView = main.querySelector('.view[data-view="features"]');
+  function renderFeatures() {
+    if (!$('featList').firstChild) { // the cards once: they only change with the app
+      $('featList').append(...FEATURES.map(([group, intro, list], i) => {
+        const s = document.createElement('section'), h = Object.assign(document.createElement('h2'), { id: `f-${i}`, className: 'ph', textContent: group }), cards = document.createElement('div');
+        s.className = 'panel fgroup';
+        s.setAttribute('aria-labelledby', h.id);
+        cards.className = 'feats';
+        cards.append(...list.filter(([, , , , need]) => !(need === 'web' && client)).map(([name, what, how, at, need]) => {
+          const a = document.createElement('article'), t = Object.assign(document.createElement('h3'), { textContent: name });
+          a.className = 'feat';
+          if (need === 'app' && !client) t.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Desktop app' }));
+          a.append(t, Object.assign(document.createElement('p'), { textContent: what }), Object.assign(document.createElement('p'), { className: 'hint', textContent: how }));
+          if (client || need !== 'app') a.append(goBtn(at));
+          return a;
+        }));
+        s.append(h, Object.assign(document.createElement('p'), { className: 'hint', textContent: intro }), cards);
+        return s;
+      }));
+      $('featJump').append(...[...featView.querySelectorAll('.fgroup')].map((s) => {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tab', textContent: s.querySelector('h2').textContent });
+        b.addEventListener('click', () => s.scrollIntoView());
+        return b;
+      }));
+    }
+    let done = 0;
+    $('setupList').replaceChildren(...SETUP.map(([name, how, now, act], i) => {
+      const [h, state] = now(), li = document.createElement('li'), body = document.createElement('div'), st = document.createElement('span'), dot = document.createElement('span'), b = act();
+      if (h === 'good') done++;
+      li.className = 'feat';
+      li.dataset.h = dot.dataset.h = h;
+      dot.className = 'dot';
+      st.className = 'sstate';
+      st.append(dot, state);
+      body.append(Object.assign(document.createElement('h3'), { textContent: name }), st, Object.assign(document.createElement('p'), { className: 'hint', textContent: how }));
+      li.append(Object.assign(document.createElement('span'), { className: 'sn', textContent: h === 'good' ? '✓' : String(i + 1) }), body);
+      if (b) li.append(b);
+      return li;
+    }));
+    $('setupNote').textContent = done === SETUP.length ? 'All set. Have a good game.' : `${done} of ${SETUP.length} done. Run setup again walks you through your name, mic and screen.`;
+    featFilter();
+  }
+  // Show me: the page a spot is on (and its Stats tab and settings box), then the spot itself with a flash, or the part
+  // of the page it's on while it isn't showing
+  function showMe(at) {
+    const all = [...document.querySelectorAll(at)], v = all.length ? all[0].closest('main > .view') : null;
+    if (!v) return;
+    const tab = all[0].closest('.panel[data-tab]');
+    if (tab) { statsTab = tab.dataset.tab; store.set('lpc-stats-tab', statsTab); }
+    view(v.dataset.view);
+    const open = (e) => { for (let d = e.closest('details'); d; d = d.parentElement.closest('details')) d.open = true; return e.checkVisibility(); };
+    let el = all.find((e) => e.checkVisibility()) || all.find(open) || all[0];
+    while (!el.checkVisibility()) el = el.parentElement;
+    if (el === v) return;
+    const spot = el.matches('h2, h3') ? el.closest('.panel') || el : el.closest('label, .keyrow, .range') || el;
+    spot.scrollIntoView({ block: spot.offsetHeight > main.clientHeight / 2 ? 'start' : 'center' });
+    spot.classList.remove('flash');
+    void spot.offsetWidth; // so the flash starts over
+    spot.classList.add('flash');
+    if (el.matches('input, select, button')) el.focus({ preventScroll: true });
+  }
+  // Find a feature: the cards and steps with every word typed, and the groups with any of them
+  function featFilter() {
+    const words = $('featFind').value.toLowerCase().split(/\s+/).filter(Boolean);
+    for (const f of featView.querySelectorAll('.feat')) f.hidden = !words.every((w) => f.textContent.toLowerCase().includes(w));
+    for (const g of featView.querySelectorAll('.fgroup')) g.hidden = !g.querySelector('.feat:not([hidden])');
+    $('featNone').hidden = !!featView.querySelector('.feat:not([hidden])');
+  }
+  $('featFind').addEventListener('input', featFilter);
+  featView.addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) showMe(b.dataset.go); });
+  $('setupRun').addEventListener('click', openSetup);
+  setup.addEventListener('close', () => { if (!featView.hidden) renderFeatures(); });
 
   // ---- help tips open next to their "?"
   for (const b of document.querySelectorAll('.tip')) b.addEventListener('click', () => {
