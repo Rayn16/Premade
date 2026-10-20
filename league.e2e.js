@@ -1326,6 +1326,7 @@ const leagueData = (over = {}) => ({
     await pc.check('#optOverlayBoard');
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().includes('Overlay hidden. Alt+V brings it back.'), null, 'the loading screen’s overlay hidden by its key');
+    await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => !!lpcClient.lastOverlay.board && lpc.toasts().includes('Overlay back on.'), null, 'and back');
     await pc.click('.nav[data-view="game"]');
@@ -1366,10 +1367,12 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpcClient.lastOverlay.opacity === 0.6 && document.getElementById('opacityOut').textContent === '60%', null, 'a see-through overlay');
     assert.strictEqual(await text(pc, '#kOverlay'), 'Alt+V');
     // its key: everyone's rank (no tips in a game), then hidden, then back
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await pc.evaluate(() => { lpcClient.emit('key', 'overlay'); lpcClient.emit('key', 'overlay'); }); // held: Windows repeats it
     await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Alt+V again hides the overlay.'); }, null, 'everyone’s rank on the overlay by its key');
+    await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().slice(-1)[0] === 'Overlay hidden. Alt+V brings it back.', null, 'the overlay hidden by its key');
+    await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => lpcClient.lastOverlay.visible && lpcClient.lastOverlay.cs && !lpcClient.lastOverlay.board, null, 'the overlay back');
     // the sound 30 seconds before Dragon (the last one was at 6:40, so the next at 11:40)
