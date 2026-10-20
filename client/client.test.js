@@ -130,8 +130,12 @@ assert(lcuOk('GET', '/lol-game-queues/v1/queues') && lcuOk('GET', '/lol-chat/v1/
   && !lcuOk('DELETE', '/lol-lobby/v2/lobby/members/abc') && !lcuOk('POST', '/lol-chat/v1/friends'), 'the lobby: games, friends, invites and leaving');
 assert(lcuOk('GET', '/lol-game-settings/v1/game-settings') && lcuOk('PATCH', '/lol-game-settings/v1/game-settings') && lcuOk('POST', '/lol-game-settings/v1/save')
   && !lcuOk('PUT', '/lol-game-settings/v1/game-settings') && !lcuOk('PATCH', '/lol-game-settings/v1/input-settings'), 'League’s window mode, and nothing else in its settings');
-assert(!lcuOk('DELETE', '/lol-perks/v1/pages') && !lcuOk('get', '/lol-gameflow/v1/session') && !lcuOk('GET', '/lol-chat/v1/me') && !lcuOk('POST', '/lol-store/v1/purchase')
-  && !lcuOk('GET', '/lol-ranked/v1/ranked-stats/../../lol-chat/v1/me') && !lcuOk('GET', '/lol-summoner/v1/current-summoner?x=1') && !lcuOk('GET', null), 'nothing else');
+assert(lcuOk('GET', '/lol-chat/v1/me') && lcuOk('PUT', '/lol-chat/v1/me') && lcuOk('GET', '/lol-chat/v1/conversations') && lcuOk('GET', '/lol-chat/v1/conversations/a1-b2@eu1.pvp.net/messages')
+  && lcuOk('POST', '/lol-chat/v1/conversations/a1-b2@eu1.pvp.net/messages') && lcuOk('GET', '/lol-lobby/v2/received-invitations') && lcuOk('POST', '/lol-lobby/v2/received-invitations/ab-12/accept')
+  && !lcuOk('GET', '/lol-chat/v1/conversations/../../lol-store/v1/messages') && !lcuOk('GET', '/lol-chat/v1/conversations/../messages') && !lcuOk('POST', '/lol-chat/v1/conversations/a%2F..%2Fb/messages')
+  && !lcuOk('DELETE', '/lol-chat/v1/conversations/a1@eu1.pvp.net') && !lcuOk('DELETE', '/lol-chat/v1/friends/a1@eu1.pvp.net') && !lcuOk('POST', '/lol-lobby/v2/received-invitations/ab-12/x'), 'League chat, and nothing else in it');
+assert(!lcuOk('DELETE', '/lol-perks/v1/pages') && !lcuOk('get', '/lol-gameflow/v1/session') && !lcuOk('POST', '/lol-chat/v1/friends/a1/groups') && !lcuOk('POST', '/lol-store/v1/purchase')
+  && !lcuOk('GET', '/lol-ranked/v1/ranked-stats/../../lol-store/v1/purchase') && !lcuOk('GET', '/lol-summoner/v1/current-summoner?x=1') && !lcuOk('GET', null), 'nothing else');
 assert.deepStrictEqual(summary(null), { inGame: false });
 assert.deepStrictEqual(summary({ allPlayers: GAME.allPlayers }), { inGame: false }, 'spectating is not playing');
 // app links: lolprox://join/<room>[.<password>] on the command line, nothing else
@@ -177,7 +181,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // the page's calls to League's client: those on the list go through with League's password; nothing else does
     assert.deepStrictEqual(await js(`lpcClient.lcu('GET', '/lol-summoner/v1/current-summoner')`), { status: 200, data: { puuid: 'p-1', gameName: 'Rayan', tagLine: 'EUW' } });
     assert.deepStrictEqual(await js(`lpcClient.lcu('PATCH', '/lol-champ-select/v1/session/my-selection', { spell1Id: 4, spell2Id: 14 })`), { status: 204, data: null });
-    for (const [m, p, b] of [['DELETE', '/lol-perks/v1/pages'], ['GET', '/lol-chat/v1/me'], ['get', '/lol-summoner/v1/current-summoner'], ['POST', '/lol-perks/v1/pages', 'x'.repeat(400000)],
+    for (const [m, p, b] of [['DELETE', '/lol-perks/v1/pages'], ['DELETE', '/lol-chat/v1/friends/a1@eu1.pvp.net'], ['get', '/lol-summoner/v1/current-summoner'], ['POST', '/lol-perks/v1/pages', 'x'.repeat(400000)],
       ['GET', '/lol-summoner/v1/alias/lookup?gameName=a\r\nX-Evil: 1&tagLine=b']]) {
       assert.deepStrictEqual(await js(`lpcClient.lcu(${JSON.stringify(m)}, ${JSON.stringify(p)}, ${JSON.stringify(b)})`), { status: 0, data: null }, `${m} ${p} refused`);
     }

@@ -12,8 +12,9 @@
 <meta name="theme-color" content="#010a13">
 <style>
 /* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone, enemy
-   timers and room chat (index.html's Pregame page shows the QR code that opens it). It can live on the home screen
-   (remote-manifest.json) and show a notification when a match is found (remote-sw.js). The same navy and gold as the app. */
+   timers, room chat and League chat (index.html's Pregame page shows the QR code that opens it). It can live on the home
+   screen (remote-manifest.json) and show a notification when a match is found or your squad calls (remote-sw.js). The
+   same navy and gold as the app. */
 :root {
   --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
   --gold: #c8aa6e; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --good: #3ccf8e; --bad: #ff6b6b;
@@ -43,7 +44,7 @@ p { margin: 0; }
 input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .row { display: flex; gap: 10px; }
 .row > * { flex: 1; min-width: 0; }
-:is(input[type="search"], #chatText) { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
+:is(input[type="search"], #chatText, #lolText) { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
 .ch { display: grid; justify-items: center; gap: 4px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
 .ch img { width: 52px; height: 52px; border-radius: 6px; background: var(--bg); }
@@ -60,7 +61,8 @@ input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); b
 .log:empty::before { content: attr(data-empty); color: var(--muted); }
 .log time { font: 500 12px/1 ui-monospace, Consolas, monospace; color: var(--muted); margin-right: 8px; }
 .log b { color: var(--gold); margin-right: 6px; }
-#chatForm .btn { flex: none; } /* the message gets the room */
+:is(#chatForm, #lolForm) .btn { flex: none; } /* the message gets the room */
+.wrap { display: flex; flex-wrap: wrap; gap: 8px; }
 input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: var(--gold); }
 :is(.btn, .ch, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
@@ -74,6 +76,11 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     <input id="link" type="url" autocomplete="off" spellcheck="false" placeholder="https://…/remote.html#…" aria-label="Phone remote link">
     <button class="btn primary">Connect</button>
   </form>
+  <section id="call" class="panel" aria-labelledby="h-call" hidden>
+    <h2 id="h-call">Your squad</h2>
+    <p id="callText" role="status"></p>
+    <div class="row"><button id="callIn" class="btn primary" type="button">In 10</button><button id="callNo" class="btn" type="button">Not tonight</button></div>
+  </section>
   <section id="queue" class="panel" aria-labelledby="h-queue" hidden>
     <h2 id="h-queue">Queue</h2>
     <p id="queueState" role="status"></p>
@@ -109,8 +116,15 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     <ol id="chatLog" class="log" data-empty="No messages yet."></ol>
     <form id="chatForm" class="row"><input id="chatText" maxlength="300" autocomplete="off" placeholder="Message the room" aria-label="Message"><button class="btn">Send</button></form>
   </section>
+  <section id="lol" class="panel" aria-labelledby="h-lol" hidden>
+    <h2 id="h-lol">League chat</h2>
+    <div id="lolInv"></div>
+    <div id="lolConvs" class="wrap"></div>
+    <ol id="lolLog" class="log" data-empty="No messages yet." hidden></ol>
+    <form id="lolForm" class="row" hidden><input id="lolText" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message"><button class="btn">Send</button></form>
+  </section>
   <label class="check"><input id="auto" type="checkbox"> Accept matches for me</label>
-  <label id="pushRow" class="check" hidden><input id="push" type="checkbox"> Tell me when a match is found, even with the screen off</label>
+  <label id="pushRow" class="check" hidden><input id="push" type="checkbox"> Tell me when a match is found or my squad calls, even with the screen off</label>
   <p id="pushNote" class="hint" role="status" hidden></p>
   <p id="sound" class="hint" hidden>Tap anywhere to turn on the ring when a match is found.</p>
   <label id="awakeRow" class="check" hidden><input id="awake" type="checkbox"> Keep the screen on while this page is open</label>
@@ -122,10 +136,10 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
 <script>
 (() => {
   // The PC's page is lolprox-r<code>-0 on our connection server; this phone takes the first free one of -1 to -9 and
-  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game, chat } (index.html remoteState)
+  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game, chat, lol } (index.html remoteState)
   // whenever it changes; this page sends hi (with whether it's on the screen), accept, decline, hover, lock, auto, queue,
-  // trade, chat and timer (an enemy timer: what, champ). The code is kept on the phone, so the home screen icon (which
-  // opens remote.html with no code) connects too.
+  // trade, chat, timer (an enemy timer: what, champ), and for League chat lolopen, lolsay and lolinv. The code is kept
+  // on the phone, so the home screen icon (which opens remote.html with no code) connects too.
   const $ = (id) => document.getElementById(id);
   const local = new URLSearchParams(location.search).get('peer'); // ?peer=127.0.0.1:9000 for tests, as in index.html
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
@@ -267,6 +281,8 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     }
     $('chat').hidden = !(s && Array.isArray(s.chat));
     if (!$('chat').hidden) renderChat(s.chat);
+    $('lol').hidden = !(s && s.lol);
+    if (s && s.lol) renderLol(s.lol);
     $('auto').checked = !!(s && s.auto);
     $('auto').disabled = !s;
   }
@@ -296,6 +312,33 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     }));
     $('chatLog').scrollTop = $('chatLog').scrollHeight;
   }
+  // League chat (app 1.14 on the PC): your invites to accept or decline, your conversations with friends, and the open
+  // one's messages to answer
+  let lolWas = '';
+  function renderLol(l) {
+    const j = JSON.stringify(l);
+    if (j === lolWas) return;
+    lolWas = j;
+    const btn = (text, cls, m) => Object.assign(document.createElement('button'), { type: 'button', className: cls, textContent: text, onclick: () => send(m) });
+    $('lolInv').replaceChildren(...l.inv.map((i) => {
+      const row = document.createElement('div'), t = document.createElement('span');
+      row.className = 'trade';
+      t.textContent = `${i.from} invited you to ${i.q}.`;
+      row.append(t, btn('Accept', 'btn small primary', { t: 'lolinv', id: i.id, yes: true }), btn('Decline', 'btn small', { t: 'lolinv', id: i.id, yes: false }));
+      return row;
+    }));
+    $('lolConvs').replaceChildren(...(l.convs.length ? l.convs.map((c) => btn(`${c.name}${c.unread ? ` (${c.unread})` : ''}`, `btn small${l.open && l.open.id === c.id ? ' primary' : ''}`, { t: 'lolopen', id: c.id }))
+      : [Object.assign(document.createElement('span'), { className: 'hint', textContent: 'No messages from friends yet.' })]));
+    $('lolLog').hidden = $('lolForm').hidden = !l.open;
+    if (!l.open) return;
+    $('lolLog').replaceChildren(...l.open.msgs.map((m) => { const li = document.createElement('li'), b = document.createElement('b'); b.textContent = m.me ? 'You' : l.open.name; li.append(b, String(m.text)); return li; }));
+    $('lolLog').scrollTop = $('lolLog').scrollHeight;
+  }
+  $('lolForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('lolText').value.trim();
+    if (text && conn && conn.open) { send({ t: 'lolsay', text }); $('lolText').value = ''; }
+  });
   function renderCs(cs) {
     const a = cs.action, ban = !!a && a.type === 'ban';
     $('turn').textContent = !a ? 'Waiting for the others.' : `${a.now ? `Your turn to ${a.type}` : 'Your pick comes later'}${a.champ ? `, hovering ${name(a.champ)}` : ''}.`;
@@ -360,7 +403,9 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
 
   // ---- a notification when a match is found, even with the screen off or this page closed: when no phone has the
   // remote on its screen, the PC has our server push one (server/push.js) to the phones that turned them on, and
-  // remote-sw.js shows it. lpc-remote-push: the code they were turned on for. On an iPhone, only from the home screen icon.
+  // remote-sw.js shows it. Your squad's calls and pings come the same way (server/squad.js), with their words
+  // encrypted with the keys this phone sends. lpc-remote-push: the code they were turned on for. On an iPhone, only from
+  // the home screen icon.
   const server = local ? `http://${local}` : `https://${peerOpts.host}`;
   let pushKey = ''; // our server's key for this code, once it has answered (so nothing shows before it has notifications)
   fetch(`${server}/push/${code}`).then((r) => (r.ok ? r.json() : {})).then((j) => { pushKey = typeof j.key === 'string' ? j.key : ''; pushShow(); }, () => {});
@@ -385,9 +430,9 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
         const reg = await sw, old = await reg.pushManager.getSubscription();
         if (old) await old.unsubscribe(); // it may be for another code, whose key is another
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64(pushKey) });
-        await pushTo(code, { add: sub.endpoint });
+        await pushTo(code, { add: sub.endpoint, keys: sub.toJSON().keys });
         store.set('lpc-remote-push', code);
-        note = 'On: your phone tells you when a match is found, even with its screen off.';
+        note = 'On: your phone tells you when a match is found or your squad calls, even with its screen off.';
       } else if (!on) {
         store.set('lpc-remote-push', '');
         const sub = await (await sw).pushManager.getSubscription();
@@ -399,12 +444,26 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   });
   if (sw) sw.then(async (reg) => {
     const sub = await reg.pushManager.getSubscription(), was = store.get('lpc-remote-push') || '';
-    if (sub && was === code && Notification.permission === 'granted') return pushTo(code, { add: sub.endpoint }); // still on: our server keeps it
+    if (sub && was === code && Notification.permission === 'granted') return pushTo(code, { add: sub.endpoint, keys: sub.toJSON().keys }); // still on: our server keeps it
     if (sub) { if (valid(was)) pushTo(was, { drop: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); } // for an old code
     store.set('lpc-remote-push', '');
     pushShow();
   }).catch((err) => console.warn('remote push:', err));
   pushShow();
+
+  // a squad's call: remote-sw.js opens this page with ?sq=<squad>&call=<its number>&to=<you in the squad> when its
+  // notification is tapped. Who's calling and the room, and In 10 or Not tonight (on Android, also on the notification)
+  const ask = new URLSearchParams(location.search), sq = ask.get('sq'), to = ask.get('to'), callN = +ask.get('call');
+  if (valid(sq) && valid(to) && callN > 0) fetch(`${server}/squad/${sq}`).then((r) => r.json()).then((s) => {
+    const c = s.call;
+    if (!c || c.n !== callN) return;
+    $('call').hidden = false;
+    $('callText').textContent = `${(s.m.find((x) => x.id === c.from) || {}).n || 'A friend'} wants to play: room ${String(c.room).toUpperCase()}.${c.ans[to] ? ` You said ${c.ans[to] === 'in10' ? 'In 10' : 'Not tonight'}.` : ''}`;
+  }).catch(() => {});
+  const answer = (a) => fetch(`${server}/squad/${sq}/answer`, { method: 'POST', body: JSON.stringify({ id: to, call: callN, a }) })
+    .then((r) => { $('callText').textContent = r.ok ? `Sent: ${a === 'in10' ? 'In 10' : 'Not tonight'}.` : 'That call is over.'; }, () => { $('callText').textContent = 'That didn’t send. Check your connection.'; });
+  $('callIn').addEventListener('click', () => answer('in10'));
+  $('callNo').addEventListener('click', () => answer('no'));
   claim(1);
 })();
 </script>
