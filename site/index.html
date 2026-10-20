@@ -979,6 +979,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="trendNote" class="hint"></p>
         <div id="trends" class="trends"></div>
       </section>
+      <section class="panel lcu-only" data-tab="you" aria-labelledby="h-swings">
+        <h2 id="h-swings" class="ph">Comebacks and throws</h2>
+        <p id="swingNote" class="hint"></p>
+        <h3 class="ph" id="h-comebacks" hidden>Won from behind</h3>
+        <ol id="comebacks" class="games" aria-labelledby="h-comebacks"></ol>
+        <h3 class="ph" id="h-throws" hidden>Lost from ahead</h3>
+        <ol id="throws" class="games" aria-labelledby="h-throws"></ol>
+      </section>
+      <section class="panel lcu-only" data-tab="you" aria-labelledby="h-lens">
+        <h2 id="h-lens" class="ph">Short or long games</h2>
+        <p id="lensNote" class="hint"></p>
+        <div class="tablewrap"><table id="lens" class="ready" hidden><thead><tr><th>Champion</th><th>Under 25 min</th><th>25 to 35 min</th><th>Over 35 min</th></tr></thead><tbody></tbody></table></div>
+      </section>
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-fame">
         <h2 id="h-fame" class="ph">Hall of fame</h2>
         <ul id="fame" class="fame"></ul>
@@ -1300,7 +1313,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-backup" class="tipbox" popover>Back up saves your settings, matchup notes, LP history, game history, reports and clip favorites in one file. Restore loads such a file, on this PC or another, and replaces what's here.</div>
 <div id="t-lp" class="tipbox" popover>Your LP after each ranked game you play with the app open, kept on this computer: today's wins, losses and LP, and a chart of your rank.</div>
-<div id="t-matches" class="tipbox" popover>Your last 100 games from Riot's match history, and a report for each game: a score out of 100 for every player from KDA, kill share, damage dealt or taken, CS or vision, and gold. MVP is the best on the winning team, ACE the best on the losing team. A report also has the game's replay, how you played against your usual, high elo players and your lane opponent, your laning at 10 and 15 minutes, and when everyone bought each item.</div>
+<div id="t-matches" class="tipbox" popover>Your last 100 games from Riot's match history, and a report for each game: a score out of 100 for every player from KDA, kill share, damage dealt or taken, CS or vision, and gold. MVP is the best on the winning team, ACE the best on the losing team. A report also has the game's replay, how you played against your usual, high elo players and your lane opponent, your laning at 10 and 15 minutes, and when everyone bought each item. Riot's extra numbers (skillshots hit and dodged, allies saved, turret plates, time dead, vision against their laner) come from Riot's copy of the game; High elo ranks each player's game against high elo games on the same champion in the same role, from 0 to 100 (50 is their middle); and Runes and Items save a player's runes or build in League.</div>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
 <script src="camera-box.js"></script>
@@ -3900,26 +3913,40 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         k: s.kills | 0, d: s.deaths | 0, a: s.assists | 0, dmg: s.totalDamageDealtToChampions | 0, gold: s.goldEarned | 0, vision: s.visionScore | 0,
         cs: (s.totalMinionsKilled | 0) + (s.neutralMinionsKilled | 0), tank: (s.totalDamageTaken | 0) + (s.damageSelfMitigated | 0),
         dmgs: [s.physicalDamageDealtToChampions | 0, s.magicDamageDealtToChampions | 0, s.trueDamageDealtToChampions | 0], wards: [s.wardsPlaced | 0, s.wardsKilled | 0, s.visionWardsBoughtInGame | 0],
-        tower: s.damageDealtToTurrets | 0, cc: s.timeCCingOthers | 0 };
+        tower: s.damageDealtToTurrets | 0, cc: s.timeCCingOthers | 0, it: [0, 1, 2, 3, 4, 5].map((i) => s['item' + i] | 0).filter(Boolean), rn: runesIn(s), x: extraIn(s) };
     });
     const kills = {}, ratio = (p) => Math.min(10, (p.k + p.a) / Math.max(1, p.d)), top = (f) => Math.max(1e-9, ...ps.map(f));
     for (const p of ps) kills[p.team] = (kills[p.team] || 0) + p.k;
     const [tk, td, tt, tc, tv, tg] = [ratio, (p) => p.dmg, (p) => p.tank, (p) => p.cs, (p) => p.vision, (p) => p.gold].map(top);
     for (const p of ps) p.score = Math.round(100 * (0.25 * (ratio(p) / tk) + 0.25 * Math.min(1, (p.k + p.a) / Math.max(1, kills[p.team])) + 0.25 * Math.max(p.dmg / td, p.tank / tt) + 0.15 * Math.max(p.cs / tc, p.vision / tv) + 0.1 * (p.gold / tg)));
     for (const [win, badge] of [[true, 'MVP'], [false, 'ACE']]) { const b = ps.filter((p) => p.win === win).sort((x, y) => y.score - x.score)[0]; if (b) b.badge = badge; }
-    return { id: m.gameId, at: +m.gameCreation || 0, len: +m.gameDuration || 0, queue: m.queueId, mode: String(m.gameMode || ''), players: ps, me: ps.findIndex((p) => !!who && p.puuid === who), gold };
+    return { id: m.gameId, at: +m.gameCreation || 0, len: +m.gameDuration || 0, queue: m.queueId, mode: String(m.gameMode || ''), plat: String(m.platformId || '').toLowerCase(), players: ps, me: ps.findIndex((p) => !!who && p.puuid === who), gold };
   }
+  // a player's rune page in a game: the two trees and six runes (League's client), with the three shards in Riot's copy
+  function runesIn(s) {
+    const st = s.perks && Array.isArray(s.perks.styles) ? s.perks.styles : null, sh = (s.perks && s.perks.statPerks) || {};
+    const r = st ? [(st[0] || {}).style, (st[1] || {}).style, ...st.slice(0, 2).flatMap((x) => (x.selections || []).map((y) => y.perk))] : [s.perkPrimaryStyle, s.perkSubStyle, ...[0, 1, 2, 3, 4, 5].map((i) => s['perk' + i])];
+    if (r.length !== 8 || !r.every((v) => v > 0)) return null;
+    const shards = [sh.offense, sh.flex, sh.defense];
+    return shards.every((v) => v > 0) ? [...r, ...shards] : r;
+  }
+  // Riot's extra numbers about a player in a game, which only Riot's copy has (match-v5's challenges): skillshots hit and
+  // dodged, allies saved from death, turret plates taken and seconds dead
+  const EXTRA = [['Skillshots hit', (c) => c.skillshotsHit], ['Skillshots dodged', (c) => c.skillshotsDodged], ['Allies saved', (c) => c.saveAllyFromDeath], ['Turret plates', (c) => c.turretPlatesTaken], ['Time dead', (c, s) => s.totalTimeSpentDead]];
+  const extraIn = (s) => (s.challenges && typeof s.challenges === 'object' ? EXTRA.map(([, f]) => f(s.challenges, s) | 0) : null);
   function reportEl(r) {
-    const box = document.createElement('div');
+    const box = document.createElement('div'), copy = lcuOn(); // the desktop app: anyone's runes and items into League
     box.className = 'report';
     for (const team of [...new Set(r.players.map((p) => p.team))]) {
       const ps = r.players.filter((p) => p.team === team), t = document.createElement('table');
       t.className = 'ready';
-      t.innerHTML = `<thead><tr><th>${ps[0].win ? 'Won' : 'Lost'}</th><th>KDA</th><th>Damage</th><th>Gold</th><th>Vision</th><th>CS</th><th>Score</th></tr></thead><tbody></tbody>`;
+      t.innerHTML = `<thead><tr><th>${ps[0].win ? 'Won' : 'Lost'}</th><th>KDA</th><th>Damage</th><th>Gold</th><th>Vision</th><th>CS</th><th>Score</th>${copy ? '<th title="Save a player’s runes or items in League">Copy</th>' : ''}</tr></thead><tbody></tbody>`;
       for (const p of ps) {
         const tr = document.createElement('tr');
         tr.innerHTML = '<td><div class="who"><img class="pic0" alt=""><b></b></div></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+        tr.dataset.i = r.players.indexOf(p);
         tr.toggleAttribute('data-me', r.players.indexOf(p) === r.me);
+        if (copy) tr.append(copyCell(r, p));
         tr.querySelector('img').src = champImg(p.champ);
         tr.querySelector('b').textContent = p.name.split('#')[0] || champName(p.champ);
         if (p.badge) tr.querySelector('.who').append(tag(p.badge === 'MVP' ? 'good' : '', p.badge));
@@ -3934,6 +3961,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (r.gold && r.gold.length > 1) box.append(goldGraph(r.gold));
     box.append(Object.assign(document.createElement('div'), { className: 'rmore' })); // the replay, laning and buys, once it's opened (reportOpen)
     return box;
+  }
+  function copyCell(r, p) {
+    const td = document.createElement('td'), who = p.name.split('#')[0] || champName(p.champ);
+    for (const [what, f, ok] of [['Runes', copyRunes, !!p.rn], ['Items', copyItems, has17() && !!(p.it && p.it.length)]]) {
+      if (!ok) continue;
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: what });
+      b.setAttribute('aria-label', `Save ${who}’s ${what.toLowerCase()} on ${champName(p.champ)} in League`);
+      b.addEventListener('click', () => f(r, p, b));
+      td.append(b);
+    }
+    return td;
   }
   // your team's gold lead over the game (from items), above the line ahead, below behind
   function goldGraph(pts) { return leadGraph(pts, 'Gold difference from items, your team above the line', goldText, 100); }
@@ -4194,6 +4232,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     history: ['match history', 'match history doesn’t look right since this patch, so the app may need an update.'],
     minimap: ['the minimap', 'your minimap wasn’t found this game. If League was on the screen the app shares, the app may need an update.'],
     follow: ['your champion on it', 'your champion wasn’t found on your minimap this game, so the app may need an update.'],
+    replay: ['replays', 'Riot didn’t let the app download a replay. From patch 26.21 Riot keeps replay downloads for League’s own match history, so download it there: Profile, Match History, then the game’s download button.'],
   };
   let patch = load('lpc-patch', null), patchAt = -Infinity, watch = null; // watch: this game's tracking, for the checks
   if (!patch || typeof patch !== 'object' || !patch.ok) patch = null;
@@ -4203,11 +4242,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const v = await lcuGet('/lol-patch/v1/game-version'), short = typeof v === 'string' ? (/^(\d+\.\d+)/.exec(v) || [])[1] : '';
     if (short && (!patch || patch.v !== short)) { patch = { v: short, ok: {} }; store.set('lpc-patch', JSON.stringify(patch)); renderPatch(); }
   }
-  function checked(k, ok) {
+  function checked(k, ok, quiet) { // quiet: no popup, as the caller says what went wrong
     if (!patch || patch.ok[k] === true || patch.ok[k] === ok) return;
     patch.ok[k] = ok;
     store.set('lpc-patch', JSON.stringify(patch));
-    if (!ok) notify(`League ${patch.v}: ${CHECKS[k][1]}`, true);
+    if (!ok && !quiet) notify(`League ${patch.v}: ${CHECKS[k][1]}`, true);
     renderPatch();
   }
   function patchWatch() { // once a second: what tracking did this game, judged when it ends
@@ -4822,7 +4861,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       itemsSoon();
       const r = await reportFor(x, who, plat).catch(() => null);
       body.replaceChildren(r ? reportEl(r) : 'Couldn’t load this game from Riot.');
-      if (r && lcu) reportOpen(body.firstChild, r);
+      if (r) (lcu ? reportOpen : riotMore)(body.firstChild, r);
     });
     return li;
   }
@@ -4846,7 +4885,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if ((!who || (me0 && who === me0.puuid)) && reports[x.id]) return reports[x.id];
     const m = lcuOn() && lcu ? await lcuGet(`/lol-match-history/v1/games/${x.id}`) : null;
     if (m) return makeReport(m, null, who);
-    return riotOn && PLATS[plat] ? makeReport(v4of(await riotGet(PLATS[plat][1], `/lol/match/v5/matches/${plat.toUpperCase()}_${x.id}`)), null, who) : null;
+    return riotOn && PLATS[plat] ? makeReport(v4of(await riotCopy(x.id, plat)), null, who) : null;
   }
 
   // ---- League stats (desktop app 1.6+, all of it with 1.7): your games in detail, your own runes, build and skill
@@ -4866,6 +4905,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     deep = Object.fromEntries(Object.entries(deep).sort((a, b) => b[1].at - a[1].at).slice(0, 150));
     deepVer++;
     store.set('lpc-deep', JSON.stringify(deep));
+    if (!statsView.hidden && statsTab === 'you') renderSwings();
   }
   function deepOf(m) {
     if (!m || !Array.isArray(m.participants) || m.participants.length < 2) return null;
@@ -4936,8 +4976,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const m = g.ps[g.me];
     if (!m) return null;
     fillLanes(g.ps, tl);
-    const o = m.l ? g.ps.find((p) => p.t !== m.t && p.l === m.l) : null;
-    return { buys: buysOf(tl, m.id).slice(0, 60), skills: skillsOf(tl, m.id).slice(0, 18), opp: o ? g.ps.indexOf(o) : -1, lane: o ? laneAt(tl, m.id, o.id) : [] };
+    const o = m.l ? g.ps.find((p) => p.t !== m.t && p.l === m.l) : null, f15 = (tl.frames || []).find((f) => Math.abs(f.timestamp - 900000) <= 45000);
+    return { buys: buysOf(tl, m.id).slice(0, 60), skills: skillsOf(tl, m.id).slice(0, 18), opp: o ? g.ps.indexOf(o) : -1, lane: o ? laneAt(tl, m.id, o.id) : [],
+      g15: f15 ? g.ps.reduce((n, p) => n + (p.t === m.t ? 1 : -1) * (((f15.participantFrames || {})[p.id] || {}).totalGold | 0), 0) : null }; // your team's gold lead at 15 minutes
   }
   const goodTl = (tl) => !!tl && Array.isArray(tl.frames) && tl.frames.length > 0;
   async function crawl() { // true when it asked League for something
@@ -4951,7 +4992,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (d) { deep[todo.id] = d; saveDeep(); } else crawlSkip.add(todo.id);
         return true;
       }
-      const t = has17() && myHist.filter((g) => g.mode === 'CLASSIC').slice(0, 40).find((g) => deep[g.id] && !deep[g.id].tl && !crawlSkip.has('t' + g.id));
+      const t = has17() && myHist.filter((g) => g.mode === 'CLASSIC').find((g) => deep[g.id] && !(deep[g.id].tl && 'g15' in deep[g.id].tl) && !crawlSkip.has('t' + g.id)); // read before g15 too
       if (!t) return false;
       const tl = await lcuGet(`/lol-match-history/v1/game-timelines/${t.id}`), d = deep[t.id];
       if (goodTl(tl) && d.me >= 0) { d.tl = deepTl(d, tl); saveDeep(); } else crawlSkip.add('t' + t.id);
@@ -5067,6 +5108,40 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     buildNote = !okStatus(r) ? 'Couldn’t add the build to League’s shop.' : !(t && t.core.length) ? `Items: your build on ${name} from ${b.n} of your games is in League’s shop as “${set.title}”.`
       : `Items: the high elo build on ${name} (from ${top.n} games)${b ? ` and yours (from ${b.n} of your games) are` : ' is'} in League’s shop as “${set.title}”.`;
     renderGame();
+  }
+  // A player's runes or items from a game report, copied into League (desktop app): the runes as a rune page of this
+  // app's own ("Copy: ...", one, reused), with the shards from Riot's copy of the game (League's client leaves them
+  // out, so without it the usual adaptive, adaptive and health); the items as an item set for that champion ("lpc-copy-"
+  // and its id, one a champion): their start and finished items in the order they bought them, from the timeline when
+  // League has it, and what they ended the game with
+  async function copyRunes(r, p, btn) {
+    if (!lcu) return notify('Open League to save runes in it.', true);
+    btn.disabled = true;
+    if (p.rn.length < 11) await Promise.race([extrasFor(r), sleep(4000)]);
+    const who = p.name.split('#')[0] || 'Their', name = champName(p.champ), rn = p.rn;
+    const page = { name: `Copy: ${who}’s ${name}`.slice(0, 25), primaryStyleId: rn[0], subStyleId: rn[1], selectedPerkIds: [...rn.slice(2, 8), ...(rn.length >= 11 ? rn.slice(8, 11) : [5008, 5008, 5011])], current: true };
+    const pages = await lcuGet('/lol-perks/v1/pages'), old = Array.isArray(pages) && pages.find((x) => x && String(x.name).startsWith('Copy: ') && x.isEditable);
+    const res = old ? await lcuAsk('PUT', `/lol-perks/v1/pages/${old.id}`, { ...old, ...page }) : await lcuAsk('POST', '/lol-perks/v1/pages', page);
+    if (okStatus(res) && old) await lcuAsk('PUT', '/lol-perks/v1/currentpage', old.id);
+    btn.disabled = false;
+    notify(okStatus(res) ? `${who}’s runes on ${name} are your rune page “${page.name}” in League.` : 'Couldn’t add a rune page: League may be out of room for pages. Delete one in League and try again.', true);
+  }
+  async function copyItems(r, p, btn) {
+    if (!lcu || !me0 || !me0.summonerId) return notify('Open League to save items in it.', true);
+    btn.disabled = true;
+    itemsSoon();
+    const tl = await Promise.race([timelineOf(r.id), sleep(5000)]), buys = goodTl(tl) ? buysOf(tl, p.pid || r.players.indexOf(p) + 1) : [];
+    for (let i = 0; i < 10 && !ddItems; i++) await sleep(500);
+    const it = (id) => (ddItems && ddItems[id]) || {}, who = p.name.split('#')[0] || champName(p.champ), name = champName(p.champ);
+    const block = (type, ids) => ids.length && { type, hideIfSummonerSpell: '', showIfSummonerSpell: '', items: ids.map((id) => ({ id: String(id), count: 1 })) };
+    const set = { uid: `lpc-copy-${p.champ}`, title: `${who}’s ${name}`.slice(0, 25), mode: 'any', map: 'any', type: 'custom', sortrank: 0, startedFrom: 'blank', associatedChampions: [p.champ],
+      associatedMaps: r.mode === 'CLASSIC' ? [11] : r.mode === 'ARAM' ? [12] : [], preferredItemSlots: [],
+      blocks: [block('Start', buys.filter(([t, id]) => t <= 90 && !it(id).done && !it(id).trinket).map(([, id]) => id)), block('Then, in order', [...new Set(buys.filter(([, id]) => it(id).done || it(id).boots).map(([, id]) => id))]),
+        block('Ended the game with', p.it)].filter(Boolean) };
+    const path = `/lol-item-sets/v1/item-sets/${me0.summonerId}/sets`, cur = await lcuGet(path);
+    const res = cur && Array.isArray(cur.itemSets) ? await lcuAsk('PUT', path, { accountId: cur.accountId, timestamp: Date.now(), itemSets: [...cur.itemSets.filter((s) => s && s.uid !== set.uid), set] }) : { status: 0 };
+    btn.disabled = false;
+    notify(okStatus(res) ? `${who}’s items on ${name} are in League’s shop as “${set.title}”.` : 'Couldn’t add the items to League’s shop.', true);
   }
   // the order you usually level your abilities: your most common first three, then which of Q, W and E you max first
   // (the order they get their fifth point)
@@ -5242,19 +5317,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- a game report's extras (desktop app 1.7), when it opens: League's replay, your laning at 10 and 15 minutes,
   // and when everyone bought each item, from the game's timeline
   const REPLAY = { incompatible: 'No replay: it’s from an older patch', missingOrExpired: 'No replay: Riot no longer keeps it', unsupported: 'No replay for this kind of game', lost: 'No replay right now', error: 'No replay right now' };
-  async function replayState(id, btn) {
-    const m = await lcuGet(`/lol-replays/v1/metadata/${id}`), st = (m && m.state) || 'error';
+  // From patch 26.21 (16.21 to League's client) Riot keeps replay downloads for League's own match history, and only
+  // of games you played in: when League won't give one then, the button says why. mine: you played in the game.
+  const REPLAY_RULE = ['No replay here: since patch 26.21, download it in League’s match history', 'No replay: since patch 26.21, Riot gives replays only of games you played in'];
+  const replayRule = () => !!patch && (([a, b]) => a > 16 || (a === 16 && b >= 21))(patch.v.split('.').map(Number));
+  async function replayState(id, btn, mine) {
+    const m = await lcuGet(`/lol-replays/v1/metadata/${id}`), st = (m && m.state) || 'error', busy = ['downloading', 'checking', 'found'].includes(st);
+    const ruled = replayRule() && !busy && !['watch', 'download', 'retryDownload', 'incompatible', 'missingOrExpired', 'unsupported'].includes(st);
     btn.dataset.st = st;
     btn.disabled = !['download', 'retryDownload', 'watch'].includes(st);
     btn.textContent = st === 'watch' ? 'Watch the replay' : st === 'download' || st === 'retryDownload' ? 'Download the replay' : st === 'downloading' ? `Downloading the replay: ${m.downloadProgress | 0}%`
-      : st === 'checking' || st === 'found' ? 'Looking for the replay…' : REPLAY[st] || 'No replay';
-    if (['downloading', 'checking', 'found'].includes(st)) setTimeout(() => { if (btn.isConnected) replayState(id, btn); }, 2000);
+      : st === 'checking' || st === 'found' ? 'Looking for the replay…' : ruled ? REPLAY_RULE[mine ? 0 : 1] : REPLAY[st] || 'No replay';
+    if (btn.dataset.asked && !busy && st !== 'download' && st !== 'retryDownload') { delete btn.dataset.asked; checked('replay', st === 'watch'); } // the patch check: a download of yours worked, or not
+    if (busy) setTimeout(() => { if (btn.isConnected) replayState(id, btn, mine); }, 2000);
   }
-  async function replayClick(id, btn) {
+  async function replayClick(id, btn, mine) {
     const watch = btn.dataset.st === 'watch', body = { componentType: 'replay-button_match-history' };
     btn.disabled = true;
-    if (!okStatus(await lcuAsk('POST', `/lol-replays/v1/rofls/${id}/${watch ? 'watch' : 'download'}`, body))) notify(`League didn’t ${watch ? 'start' : 'download'} the replay.`, true);
-    await replayState(id, btn);
+    const ok = okStatus(await lcuAsk('POST', `/lol-replays/v1/rofls/${id}/${watch ? 'watch' : 'download'}`, body));
+    if (!watch && mine) { if (ok) btn.dataset.asked = '1'; else checked('replay', false, true); }
+    if (!ok) notify(!watch && replayRule() ? CHECKS.replay[1] : `League didn’t ${watch ? 'start' : 'download'} the replay.`, true);
+    await replayState(id, btn, mine);
   }
   const timelines = new Map(); // game id -> Promise of its timeline, while the page is open
   const timelineOf = (id) => { // asked again next time when Riot has none yet
@@ -5263,26 +5346,104 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   };
   function reportOpen(box, r) {
     const more = box && box.querySelector('.rmore');
+    riotMore(box, r);
     if (!more || more.dataset.done || !lcuOn() || !has17()) return;
     more.dataset.done = '1';
-    const bar = document.createElement('div'), btn = document.createElement('button'), tlBox = document.createElement('div');
+    const bar = document.createElement('div'), btn = document.createElement('button'), tlBox = document.createElement('div'), mine = !!me0 && r.players.some((p) => p.puuid === me0.puuid);
     bar.className = 'toolbar';
     btn.type = 'button';
     btn.className = 'btn small replay';
     btn.textContent = 'Looking for the replay…';
     btn.disabled = true;
-    btn.addEventListener('click', () => replayClick(r.id, btn));
+    btn.addEventListener('click', () => replayClick(r.id, btn, mine));
     bar.append(btn);
     tlBox.className = 'rtl';
     tlBox.textContent = 'Loading the timeline…';
     more.append(bar, tlBox);
-    replayState(r.id, btn);
+    replayState(r.id, btn, mine);
     itemsSoon();
     timelineOf(r.id).then(async (tl) => {
       for (let i = 0; i < 10 && !ddItems; i++) await sleep(300);
       const ok = goodTl(tl), how = await analysisEl(r, ok ? tl : null).catch((e) => { console.error('analysis:', e); return null; });
       tlBox.replaceChildren(...[how, ...(ok ? [laningEl(r, tl), buysEl(r, tl)] : ['Riot has no timeline for this game.'])].filter(Boolean));
     });
+  }
+
+  // ---- a report's parts from Riot, when it opens (no League needed): Riot's extra numbers for all ten, from Riot's
+  // copy of the game (League's client leaves them out), and how each player's game ranks among high elo games on their
+  // champion in their role
+  const copies = new Map(); // game id -> Riot's copy of it (a promise), while the page is open; asked again when there was none
+  function riotCopy(id, plat) {
+    if (!PLATS[plat]) return Promise.resolve(null);
+    if (!copies.has(id)) copies.set(id, riotCheck().then(() => (riotOn ? riotGet(PLATS[plat][1], `/lol/match/v5/matches/${plat.toUpperCase()}_${id}`) : null)).catch(() => null)
+      .then((m) => (m && m.info && Array.isArray(m.info.participants) ? m : (copies.delete(id), null))));
+    return copies.get(id);
+  }
+  // your games' extra numbers, for Trends: game id -> [when, ...EXTRA's], newest 150 (lpc-extra)
+  let extras = load('lpc-extra', {});
+  if (!extras || typeof extras !== 'object' || Array.isArray(extras)) extras = {};
+  function keepExtra(id, at, x) {
+    extras = Object.fromEntries([...Object.entries(extras), [id, [at, ...(x || [])]]].sort((a, b) => b[1][0] - a[1][0]).slice(0, 150));
+    store.set('lpc-extra', JSON.stringify(extras));
+  }
+  // each player's extra numbers (x), and their whole rune page, from Riot's copy of the game; whether it had them
+  async function extrasFor(r) {
+    if (r.players.every((p) => p.x)) return true;
+    const m = await riotCopy(r.id, r.plat || myPlat), ps = m ? m.info.participants : [];
+    r.players.forEach((p, i) => {
+      const q = ps.find((x) => x.participantId === (p.pid || i + 1) && x.championId === p.champ) || ps.find((x) => x.championId === p.champ && x.teamId === p.team);
+      if (!q) return;
+      p.x = extraIn(q);
+      if (!p.rn || p.rn.length < 11) p.rn = runesIn(q) || p.rn;
+    });
+    const me = r.players[r.me];
+    if (me && me.x && me0 && me.puuid === me0.puuid) keepExtra(r.id, r.at, me.x);
+    if (reports[r.id] === r) store.set('lpc-reports', JSON.stringify(reports));
+    return r.players.some((p) => p.x);
+  }
+  // how a game ranks among high elo games on that champion in that role (our server keeps each game's length, gold,
+  // vision and damage since it was updated): where its KDA, kill participation, and damage, gold, CS and vision a minute
+  // fall among them, averaged, from 0 to 100 (50: their middle). x: [kills, deaths, assists, CS]; m: [seconds, gold,
+  // vision, damage, the team's kills, the team's damage], as our server keeps them. Null without 20 such games.
+  const hiOk = (g) => Array.isArray(g.x) && g.x.length === 4 && Array.isArray(g.m) && g.m.length === 6 && g.m[0] > 0;
+  const HI = [(x) => (x[0] + x[2]) / Math.max(1, x[1]), (x, m) => Math.min(1, (x[0] + x[2]) / Math.max(1, m[4])), (x, m) => (60 * m[3]) / m[0], (x, m) => (60 * m[1]) / m[0], (x, m) => (60 * x[3]) / m[0], (x, m) => (60 * m[2]) / m[0]];
+  function hiRank(t, x, m) {
+    const gs = t ? t.all.filter(hiOk) : [];
+    if (gs.length < 20) return null;
+    return Math.round(100 * avgOf(HI.map((f) => { const v = f(x, m); return gs.reduce((n, g) => { const w = f(g.x, g.m); return n + (w < v ? 1 : w === v ? 0.5 : 0); }, 0) / gs.length; })));
+  }
+  const hiShape = (r, p) => { const team = r.players.filter((q) => q.team === p.team); return [[p.k, p.d, p.a, p.cs], [r.len, p.gold, p.vision, p.dmg, team.reduce((n, q) => n + q.k, 0), team.reduce((n, q) => n + q.dmg, 0)]]; };
+  async function riotMore(box, r, tries = 0) {
+    if (!box || (!tries && box.dataset.riot)) return;
+    box.dataset.riot = '1';
+    const wraps = [...box.querySelectorAll(':scope > .tablewrap')]; // each team's table
+    if (!tries && r.mode === 'CLASSIC') Promise.all(r.players.map((p) => (POS[p.l] ? highOf(p.champ, p.l).then((t) => hiRank(t, ...hiShape(r, p))) : null))).then((hs) => {
+      if (!hs.some((v) => v != null)) return;
+      for (const t of wraps.map((w) => w.firstChild)) {
+        t.tHead.rows[0].append(Object.assign(document.createElement('th'), { textContent: 'High elo', title: 'How this game ranks among high elo games on the same champion in the same role, from 0 to 100: 50 is their middle' }));
+        for (const tr of t.tBodies[0].rows) tr.append(Object.assign(document.createElement('td'), { textContent: hs[+tr.dataset.i] ?? '—' }));
+      }
+    });
+    if (await extrasFor(r)) return void (box.isConnected && wraps.length && wraps[wraps.length - 1].after(extraEl(r)));
+    if (tries < 5 && Date.now() - r.at - r.len * 1000 < 3600e3) setTimeout(() => { if (box.isConnected) riotMore(box, r, tries + 1); }, 60000); // a game that just ended: Riot may not have it yet
+  }
+  // Riot's extra numbers for all ten, and each one's vision score against their lane opponent's
+  function extraEl(r) {
+    const t = document.createElement('table'), wrap = document.createElement('div');
+    t.className = 'ready';
+    t.innerHTML = `<thead><tr><th>More from Riot</th>${[...EXTRA.map(([n]) => n), 'Vision vs laner'].map((n) => `<th>${n}</th>`).join('')}</tr></thead><tbody></tbody>`;
+    r.players.forEach((p, i) => {
+      const tr = document.createElement('tr'), o = r.mode === 'CLASSIC' && p.l ? r.players.find((q) => q.team !== p.team && q.l === p.l) : null, d = o ? p.vision - o.vision : 0;
+      tr.innerHTML = '<td><div class="who"><img class="pic0" alt=""><b></b></div></td>';
+      tr.toggleAttribute('data-me', i === r.me);
+      tr.querySelector('img').src = champImg(p.champ);
+      tr.querySelector('b').textContent = p.name.split('#')[0] || champName(p.champ);
+      for (const v of [...(p.x ? p.x.map((v, k) => (k === 4 ? mmss(v) : String(v))) : EXTRA.map(() => '—')), o ? `${d < 0 ? '−' : '+'}${Math.abs(d)} (${p.vision} vs ${o.vision})` : '—']) tr.append(Object.assign(document.createElement('td'), { textContent: v }));
+      t.tBodies[0].append(tr);
+    });
+    wrap.className = 'tablewrap extra';
+    wrap.append(t);
+    return wrap;
   }
   const k1 = (v) => (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v));
   function laningEl(r, tl) {
@@ -5364,6 +5525,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   async function analysisEl(r, tl) {
     const m = r.players[r.me];
     if (!m || !(me0 ? m.puuid === me0.puuid : reports[r.id] === r)) return null; // your own games only
+    await Promise.race([extrasFor(r), sleep(5000)]); // Riot's extra numbers, if Riot answers soon
     const ps = r.players.map((p, i) => ({ ...p, id: p.pid || i + 1, t: p.team, c: p.champ, l: p.l || '' }));
     if (tl) fillLanes(ps, tl);
     const me = ps[r.me], sr = r.mode === 'CLASSIC', foe = sr && me.l ? ps.find((p) => p.t !== me.t && p.l === me.l) : null;
@@ -5376,6 +5538,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (us.length < 3) us = [];
     const usTl = us.length && sr ? Object.entries(deep).filter(([id, g]) => +id !== r.id && g.tl && g.ps && g.ps[g.me] && (byChamp ? g.ps[g.me].c === me.c : g.ps[g.me].l === me.l)).map(([, g]) => g.tl) : [];
     const hx = top ? top.all.filter((g) => Array.isArray(g.x) && g.x.length === 4) : [], hiAvg = (f) => avgOf(top ? top.all.map(f).filter(Number.isFinite) : []);
+    const hm = hx.filter(hiOk), hiPer = (f) => (hm.length >= 10 ? S(hm, f) / S(hm, (g) => g.m[0] / 60) : null), hiEach = (f) => (hm.length >= 10 ? avgOf(hm.map(f)) : null); // with each game's length (m)
+    const usX = (i) => { const l = us.map((g) => extras[g.id]).filter((e) => e && e.length === 6); return l.length >= 3 ? avgOf(l.map((e) => e[i + 1])) : null; }; // your usual extra numbers
     const l10 = tl && foe ? laneAt(tl, me.id, foe.id).find(([t]) => t === 10) : null, at10 = (i) => (l10 ? l10[1][i] - l10[2][i] : null);
     const us10 = usTl.map((t) => (t.lane || []).find(([x]) => x === 10)).filter(Boolean), usAt10 = (i) => avgOf(us10.map(([, a, b]) => a[i] - b[i]));
     const first = (p) => (tl ? firstDone(buysOf(tl, p.id)) : null), mine1 = first(me), hi1 = top ? midOf(top.buys.map(firstDone).filter(Boolean).map(([t]) => t)) : null;
@@ -5384,12 +5548,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const rows = [
       ['KDA', (p) => kd(p.k, p.d, p.a), us.length ? kd(S(us, (g) => g.k), S(us, (g) => g.d), S(us, (g) => g.a)) : null, hx.length ? kd(S(hx, (g) => g.x[0]), S(hx, (g) => g.x[1]), S(hx, (g) => g.x[2])) : null, one, 1, 0.5],
       ['Deaths', (p) => p.d, us.length ? S(us, (g) => g.d) / us.length : null, hx.length ? S(hx, (g) => g.x[1]) / hx.length : null, (v) => (Number.isInteger(v) ? String(v) : one(v)), -1, 1],
-      ['Kill participation', (p) => Math.min(1, (p.k + p.a) / Math.max(1, S(team(p), (q) => q.k))), null, null, pct, 1, 0.05],
-      ['Damage a minute', (p) => p.dmg / min, us.length ? per(us, (g) => g.dmg) : null, null, int, 1, 60],
-      ['Share of team damage', (p) => p.dmg / Math.max(1, S(team(p), (q) => q.dmg)), null, null, pct, 1, 0.03],
-      ['CS a minute', (p) => p.cs / min, us.length ? per(us, (g) => g.cs) : null, null, one, 1, 0.5],
-      ['Gold a minute', (p) => p.gold / min, us.length && us.every((g) => g.gold > 0) ? per(us, (g) => g.gold) : null, null, int, 1, 25],
-      ['Vision score a minute', (p) => p.vision / min, us.length ? per(us, (g) => g.vision) : null, null, (v) => v.toFixed(2), 1, 0.1],
+      ['Kill participation', (p) => Math.min(1, (p.k + p.a) / Math.max(1, S(team(p), (q) => q.k))), null, hiEach((g) => HI[1](g.x, g.m)), pct, 1, 0.05],
+      ['Damage a minute', (p) => p.dmg / min, us.length ? per(us, (g) => g.dmg) : null, hiPer((g) => g.m[3]), int, 1, 60],
+      ['Share of team damage', (p) => p.dmg / Math.max(1, S(team(p), (q) => q.dmg)), null, hiEach((g) => g.m[3] / Math.max(1, g.m[5])), pct, 1, 0.03],
+      ['CS a minute', (p) => p.cs / min, us.length ? per(us, (g) => g.cs) : null, hiPer((g) => g.x[3]), one, 1, 0.5],
+      ['Gold a minute', (p) => p.gold / min, us.length && us.every((g) => g.gold > 0) ? per(us, (g) => g.gold) : null, hiPer((g) => g.m[1]), int, 1, 25],
+      ['Vision score a minute', (p) => p.vision / min, us.length ? per(us, (g) => g.vision) : null, hiPer((g) => g.m[2]), (v) => v.toFixed(2), 1, 0.1],
+      ...EXTRA.map(([what], i) => [what, (p) => (p.x ? p.x[i] : NaN), usX(i), null, i === 4 ? mmss : (v) => (Number.isInteger(v) ? String(v) : one(v)), i === 4 ? -1 : 1, [5, 3, 1, 1, 30][i]]),
       ...(l10 ? [[`Gold at 10 minutes against ${foeName}`, at10(1), usAt10(1), hiAvg((g) => g.g), signed, 1, 150],
         [`CS at 10 minutes against ${foeName}`, at10(0), usAt10(0), hiAvg((g) => (g.l ? g.l[0] : NaN)), signed, 1, 5],
         [`XP at 10 minutes against ${foeName}`, at10(2), usAt10(2), hiAvg((g) => (g.l ? g.l[1] : NaN)), signed, 1, 150]] : []),
@@ -5516,7 +5681,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!lcuOn()) statsTab = 'games'; // the rest needs League's client
     for (const b of document.querySelectorAll('.tab[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === statsTab));
     for (const s of statsView.querySelectorAll('.panel[data-tab]')) s.hidden = s.dataset.tab !== statsTab;
-    if (statsTab === 'you') { renderRanked(); renderTrends(); renderFame(); renderTimes(); }
+    if (statsTab === 'you') { renderRanked(); renderTrends(); renderSwings(); renderLengths(); renderFame(); renderTimes(); }
     if (statsTab === 'champs' || statsTab === 'games') renderMatches();
     if (statsTab === 'champs') { renderNemeses(); renderCollection(); patchChanges(); }
     if (statsTab === 'games') { drawStats(); renderGames(); }
@@ -5526,11 +5691,81 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const dayText = (t) => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
 
   // trends: your CS a minute, vision score and deaths in your last 20 Summoner's Rift games, oldest on the left, with
-  // your average as a dashed line
+  // your average as a dashed line; and Riot's extra numbers for the games Riot's copy was read for (extraTick)
   function renderTrends() {
-    const g = (myHist || []).filter((x) => x.mode === 'CLASSIC' && x.len > 0).slice(0, 20).reverse();
+    const g = (myHist || []).filter((x) => x.mode === 'CLASSIC' && x.len > 0).slice(0, 20).reverse(), ex = g.map((x) => extras[x.id]).filter((e) => e && e.length === 6);
     $('trendNote').textContent = !myHist ? 'Your trends show up here once League is open.' : g.length < 3 ? 'Play a few games on Summoner’s Rift to see your trends.' : `Your last ${g.length} games on Summoner’s Rift, oldest on the left. The dashed line is your average.`;
-    $('trends').replaceChildren(...(g.length < 3 ? [] : [trendChart(g.map((x) => x.cs / (x.len / 60)), 'CS a minute', 1), trendChart(g.map((x) => x.vision), 'Vision score', 0), trendChart(g.map((x) => x.d), 'Deaths', 1)]));
+    $('trends').replaceChildren(...(g.length < 3 ? [] : [trendChart(g.map((x) => x.cs / (x.len / 60)), 'CS a minute', 1), trendChart(g.map((x) => x.vision), 'Vision score', 0), trendChart(g.map((x) => x.d), 'Deaths', 1),
+      ...(ex.length < 3 ? [] : EXTRA.map(([what], i) => trendChart(ex.map((e) => (i === 4 ? e[5] / 60 : e[i + 1])), i === 4 ? 'Minutes dead' : what, i === 4 ? 1 : 0)))]));
+    if (g.length >= 3) extraTick(g.slice().reverse());
+  }
+  // Riot's copies of your games, for their extra numbers: one every 4 s while Stats' You tab is open (our server lets
+  // one address make 60 calls every 2 minutes, so this leaves half for the rest), newest first; a game Riot's copy didn't come for is skipped until the
+  // app restarts, and it stops at the second such game, as Riot or our server may be down
+  let extraBusy = false;
+  const extraMiss = new Set();
+  async function extraTick(games) {
+    if (extraBusy || !PLATS[myPlat]) return;
+    extraBusy = true;
+    try {
+      let miss = 0;
+      for (const x of games) {
+        if (statsView.hidden || statsTab !== 'you') break;
+        if (extras[x.id] || extraMiss.has(x.id)) continue;
+        const m = await riotCopy(x.id, myPlat), q = m && m.info.participants.find((p) => p.championId === x.champ && p.teamId === x.team);
+        if (!m) { extraMiss.add(x.id); if (++miss === 2) break; continue; }
+        keepExtra(x.id, x.at, q && extraIn(q));
+        renderTrends();
+        await sleep(4000);
+      }
+    } finally { extraBusy = false; }
+  }
+  // comebacks and throws: your games won from 1,000 gold or more behind at 15 minutes, and lost from as far ahead, from
+  // the timelines of your games in detail (deep); the biggest first
+  function renderSwings() {
+    const hist = new Map((myHist || []).map((x) => [x.id, x])), sw = Object.entries(deep).map(([id, g]) => [hist.get(+id), g.tl && g.tl.g15]).filter(([x, g15]) => x && x.mode === 'CLASSIC' && Number.isFinite(g15));
+    const back = sw.filter(([x, g15]) => x.win && g15 <= -1000).sort((a, b) => a[1] - b[1]).slice(0, 5), lost = sw.filter(([x, g15]) => !x.win && g15 >= 1000).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const key = JSON.stringify([!myHist, ddVersion, sw.length, back, lost].flat(2).map((v) => (v && v.id) || v));
+    if ($('swingNote').dataset.key === key) return;
+    $('swingNote').dataset.key = key;
+    $('swingNote').textContent = !myHist ? 'Your comebacks and throws show up here once League is open.' : sw.length < 5 ? 'Your comebacks and throws show up once more of your games on Summoner’s Rift are read.'
+      : `Of your last ${sw.length} games on Summoner’s Rift: ${back.length ? `${back.length} won from 1k gold or more behind at 15 minutes` : 'none won from 1k gold or more behind at 15 minutes'}, and ${lost.length ? `${lost.length} lost from 1k or more ahead` : 'none lost from 1k or more ahead'}${back.length === 5 || lost.length === 5 ? ' (the biggest 5 of each)' : ''}.`;
+    for (const [id, list, how] of [['comebacks', back, 'behind'], ['throws', lost, 'ahead']]) {
+      $('h-' + id).hidden = !list.length;
+      $(id).replaceChildren(...list.map(([x, g15]) => { const li = gameLi(x); li.querySelector('.tags').prepend(tag(how === 'behind' ? 'good' : 'bad', `${k1(Math.abs(g15))} gold ${how} at 15 min`)); return li; }));
+    }
+  }
+  // short or long games: your win rate in your Summoner's Rift games under 25 minutes, 25 to 35 and over 35, overall and
+  // on each champion you played 5 times or more; with high elo players' on that champion in your role on it, once our
+  // server keeps each game's length (m)
+  const LENS = [[0, 1500], [1500, 2100], [2100, Infinity]];
+  function renderLengths() {
+    const g = (myHist || []).filter((x) => x.mode === 'CLASSIC' && x.len > 0), by = new Map(), inLen = (s, [lo, hi]) => s >= lo && s < hi;
+    for (const x of g) by.set(x.champ, [...(by.get(x.champ) || []), x]);
+    const champs = [...by].filter(([, l]) => l.length >= 5).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
+    const rec = (l) => LENS.map((b) => { const in_ = l.filter((x) => inLen(x.len, b)); return [in_.length, in_.filter((x) => x.win).length]; });
+    const rows = [[0, rec(g), null], ...champs.map(([c, l]) => {
+      const lanes = l.map((x) => x.lane).filter((v) => POS[v]), role = lanes.sort((a, b) => lanes.filter((v) => v === b).length - lanes.filter((v) => v === a).length)[0] || '';
+      const t = topNow(c, role, renderLengths), hm = t && (!role || t.role === role) ? t.all.filter(hiOk) : [];
+      return [c, rec(l), hm.length ? LENS.map((b) => { const in_ = hm.filter((h) => inLen(h.m[0], b)); return [in_.length, in_.filter((h) => h.w).length]; }) : null];
+    })];
+    const [short, , long] = rows[0][1], gap = short[0] >= 5 && long[0] >= 5 ? long[1] / long[0] - short[1] / short[0] : 0;
+    $('lensNote').textContent = !myHist ? 'Your win rate by game length shows up here once League is open.' : g.length < 5 ? 'Play a few games on Summoner’s Rift to see your win rate by game length.'
+      : `Your win rate by game length in your last ${g.length} games on Summoner’s Rift${Math.abs(gap) >= 0.1 ? `: you win more of your ${gap > 0 ? 'long' : 'short'} games` : ''}.${rows.some((r) => r[2]) ? ' Under yours, high elo players’ win rate on that champion in your role.' : ''}`;
+    $('lens').hidden = g.length < 5;
+    $('lens').tBodies[0].replaceChildren(...rows.map(([c, mine, hi]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><div class="who"><b></b></div></td>';
+      if (c) tr.querySelector('.who').prepend(Object.assign(new Image(), { src: champImg(c), alt: '', className: 'pic0' }));
+      tr.querySelector('b').textContent = c ? champName(c) : 'All champions';
+      mine.forEach(([n, w], i) => {
+        const td = document.createElement('td'), h = hi && hi[i];
+        td.textContent = n ? `${pct(w / n)} of ${n}` : '—';
+        if (h && h[0] >= 10) td.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: `High elo ${pct(h[1] / h[0])}` }));
+        tr.append(td);
+      });
+      return tr;
+    }));
   }
   function trendChart(vals, label, digits) {
     const W = 300, H = 100, lo = Math.min(...vals), span = Math.max(...vals) - lo || 1, avg = vals.reduce((a, b) => a + b, 0) / vals.length;
@@ -6124,7 +6359,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function v4of(m) {
     const i = m && m.info, ps = i && Array.isArray(i.participants) ? i.participants : [];
     if (ps.length < 2) return null;
-    return { gameId: i.gameId, gameCreation: i.gameCreation, gameDuration: i.gameEndTimestamp ? i.gameDuration : Math.round(i.gameDuration / 1000), queueId: i.queueId, gameMode: i.gameMode,
+    return { gameId: i.gameId, platformId: i.platformId, gameCreation: i.gameCreation, gameDuration: i.gameEndTimestamp ? i.gameDuration : Math.round(i.gameDuration / 1000), queueId: i.queueId, gameMode: i.gameMode,
       participantIdentities: ps.map((p, k) => ({ participantId: k + 1, player: { puuid: p.puuid, gameName: p.riotIdGameName, tagLine: p.riotIdTagline } })),
       participants: ps.map((p, k) => ({ participantId: k + 1, teamId: p.teamId, championId: p.championId, stats: p,
         timeline: { lane: p.teamPosition === 'UTILITY' ? 'BOTTOM' : p.teamPosition, role: p.teamPosition === 'UTILITY' ? 'SUPPORT' : 'SOLO' } })) };
@@ -7341,6 +7576,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [19, 'October 20: more in your game reports and trends', [
+      'Game reports have Riot’s extra numbers for everyone: skillshots hit and dodged, allies saved, turret plates, time spent dead and vision against their lane opponent. How you played and Stats > Trends have them too.',
+      'How you played compares your damage, gold, CS and vision a minute with high elo players, and each report ranks every player’s game against high elo games on the same champion in the same role. These fill in as our server counts new games.',
+      'Stats > You shows your comebacks and throws (games won from 1k gold behind at 15 minutes, or lost from 1k ahead) and your win rate in short and long games, overall and on each champion.',
+      'In any game report, Runes and Items save that player’s rune page or build in League, like a friend’s who carried.',
+      'From patch 26.21 Riot lets only League’s own match history download replays. If Premade can’t download one then, the report says so, and the patch check in Settings > App shows whether it still works.',
+    ]],
     [18, 'October 20: clips by voice', [
       'Say “Premade, clip that” in a game and Premade saves a clip, or record a phrase of your own. Turn it on in Clip settings, under your clips on the Clips page, where all the clip settings are now.',
       'The speech recognition runs on your computer, so nothing you say is sent anywhere. The first time, it downloads its English speech model, about 40 MB.',
@@ -7577,6 +7819,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now
     crawlAll: async () => { for (let i = 0; i < 400; i++) { if (crawling) { await sleep(20); continue; } crawlAt = -Infinity; if (!(await crawl())) break; } return Object.keys(deep).length; },
+    patchNow: () => { patchAt = -Infinity; return patchTick(); }, extras: () => extras, // League's version asked now, not in a minute
     watchNow: async () => { for (const w of watchList) await watchOne(w); renderWatch(); },
     teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
     quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },

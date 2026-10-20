@@ -21,7 +21,9 @@
 // one the desktop app lets through (client/main.js LCU_OK).
 // League stats: your games read in detail (one lane guessed from the timeline), Clash scouting, tags for players seen
 // before, premades, off-role and smurfs, ban ideas, matchup notes, your build as an item set and your skill order,
-// your own rune page, auto hover; the report's replay, laning and item timeline; Stats' tabs (trends, hall of fame,
+// your own rune page, auto hover; the report's replay, laning and item timeline, Riot's extra numbers (from Riot's copy
+// of the game) and High elo column, runes and items copied from it into League, and the replay rule from patch 26.21;
+// Stats' tabs (trends with Riot's extra numbers, comebacks and throws, win rates by game length, hall of fame,
 // best time, the recap picture, a champion's page, nemeses and allies, the collection, patch changes, player lookup,
 // rank watch, talk and win); and a friend's rank, your record together and Watch on their card in the room. Room games:
 // the balanced teams with ranks, and role roulette's role set in League's lobby.
@@ -77,13 +79,16 @@ const embs = (page, sel) => page.$$eval(sel, (l) => l.map((e) => e.src.replace(/
 
 // our server's high elo games (server/worker.js /riot/champ) of Ahri: 40 in the middle on patch 15.20, 22 won: the
 // most popular runes in 30 (19 won), Luden's, Rabadon's then Zhonya's in 30, Black Cleaver in 14, start Q, E, W and
-// max Q, E, W; against Zed (4 of 10 won, and 8 of 20 more in the last year: y), Lux (10 of 15) and Garen (8 of 15). And 3 at the top.
+// max Q, E, W; against Zed (4 of 10 won, and 8 of 20 more in the last year: y), Lux (10 of 15) and Garen (8 of 15); 10
+// of 23 minutes (4 won), 20 of 31 (15 won) and 10 of 40 (3 won), with 12,000 gold, 30 vision and 24,000 damage, their
+// team's 24 kills and 80,000 damage (m). And 3 at the top.
 function highElo(role) {
   const SEQ = [1, 3, 2, 1, 1, 4, 1, 3, 1, 3, 4, 3, 3, 2, 2, 4, 2, 2];
   const games = role === 'TOP' ? [0, 1, 2].map((i) => ({ p: '15.20', t: 1000 + i, w: i % 2, o: 86, g: 0, s: [4, 12], rn: null, b: [], k: SEQ, x: [1, 1, 1, 100], l: null }))
     : Array.from({ length: 40 }, (_, i) => ({ p: '15.20', t: 2000 + i, w: +(i < 4 || (i >= 10 && i < 20) || (i >= 25 && i < 33)), o: i < 10 ? 238 : i < 25 ? 99 : 86, g: i < 10 ? -200 : i < 25 ? 150 : 50, s: [14, 4],
       rn: i < 30 ? [8100, 8200, 8112, 8139, 8138, 8135, 8226, 8237, 5008, 5008, 5011] : [8100, 8200, 8112, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5002],
-      b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, i < 30 ? 3089 : 3157], [1500, i < 30 ? 3157 : 3089], ...(i % 3 ? [] : [[1800, 3071]])], k: SEQ, x: [6, 3, 8, 210], l: [5, 100] }));
+      b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, i < 30 ? 3089 : 3157], [1500, i < 30 ? 3157 : 3089], ...(i % 3 ? [] : [[1800, 3071]])], k: SEQ, x: [6, 3, 8, 210], l: [5, 100],
+      m: [i < 10 ? 1380 : i < 30 ? 1860 : 2400, 12000, 30, 24000, 24, 80000] }));
   return { patch: '15.20', role, roles: { MIDDLE: [40, 22], TOP: [3, 1] }, games, ...(role !== 'TOP' && { y: { n: 20, w: 8, vs: { 238: [20, 8] } } }) };
 }
 
@@ -99,8 +104,8 @@ const TEAM1 = [[ME, 'Rayan', 103, 'MIDDLE'], ['ally1', 'Friend', 86, 'TOP'], ['a
 const TEAM2 = [['enemy1', 'Axe', 122, 'TOP'], ['enemy2', 'Puncher', 254, 'JUNGLE'], ['enemy3', 'Shadow', 238, 'MIDDLE'], ['enemy4', 'Sniper', 51, 'BOTTOM'], ['', 'Singer', 37, 'UTILITY']];
 let t0 = Date.now() - 3600e3;
 // a match history: [champion, win, more] newest first, its games numbered from base; more: { id, lane, role, items,
-// perks (the trees, then six runes), penta, vision }
-const hist = (games, base = 9000) => ({ games: { games: games.map(([champ, win, x = {}], i) => ({ gameId: x.id || base + i, platformId: 'EUW1', gameCreation: t0 - i * 3600e3, gameDuration: 1800, queueId: 420, gameMode: 'CLASSIC',
+// perks (the trees, then six runes), penta, vision, len (seconds, else 30 minutes) }
+const hist = (games, base = 9000) => ({ games: { games: games.map(([champ, win, x = {}], i) => ({ gameId: x.id || base + i, platformId: 'EUW1', gameCreation: t0 - i * 3600e3, gameDuration: x.len || 1800, queueId: 420, gameMode: 'CLASSIC',
   participants: [{ championId: champ, teamId: 100, ...(x.lane && { timeline: { lane: x.lane, role: x.role || 'SOLO' } }), stats: { win, kills: 5, deaths: 3, assists: 7, totalMinionsKilled: 150, neutralMinionsKilled: 10,
     visionScore: x.vision || 20, totalDamageDealtToChampions: 20000, pentaKills: x.penta || 0, quadraKills: x.penta || 0, ...Object.fromEntries((x.items || []).map((id, k) => ['item' + k, id])),
     ...(x.perks && { perkPrimaryStyle: x.perks[0], perkSubStyle: x.perks[1], ...Object.fromEntries(x.perks.slice(2).map((id, k) => ['perk' + k, id])) }) } }] })) } });
@@ -116,9 +121,9 @@ const HIST = {
 const BASES = new Map(); // everyone else's games numbered apart, so nobody's a premade by chance
 const histOf = (who) => HIST[who] || hist(rep(20, 86, (i) => i % 2 === 1), BASES.get(who) || BASES.set(who, 40000 + 100 * BASES.size).get(who));
 const AHRI = { lane: 'MIDDLE', perks: [8100, 8200, 8112, 8139, 8138, 8135, 8226, 8210], items: [6655, 3157, 3089, 3020] };
-const LUX = { lane: 'MIDDLE', perks: [8200, 8100, 8229, 8226, 8210, 8237, 8139, 8135], items: [6655, 3020] };
+const LUX = { lane: 'MIDDLE', perks: [8200, 8100, 8229, 8226, 8210, 8237, 8139, 8135], items: [6655, 3020], len: 1300 };
 const MY_HIST = hist([[103, true, AHRI], ...rep(7, 103, (i) => i < 5, (i) => ({ ...AHRI, penta: i === 2 ? 1 : 0, vision: 15 + i })), ...rep(5, 99, (i) => i < 3, LUX),
-  ...rep(4, 86, (i) => i < 1, { lane: 'TOP', items: [3071, 3047] }), ...rep(3, 37, true, { lane: 'BOTTOM', role: 'DUO_SUPPORT' })]); // 13 won
+  ...rep(4, 86, (i) => i < 1, { lane: 'TOP', items: [3071, 3047] }), ...rep(3, 37, true, { lane: 'BOTTOM', role: 'DUO_SUPPORT', len: 2300 })]); // 13 won; Lux's games short, Sona's long
 MY_HIST.games.games[0].gameId = GAME;
 // your TFT games in League's client (products/tft), newest first: 1st, 3rd, 6th (Double Up), 4th (normal), 8th; the
 // same traits, units and augments each time
@@ -146,9 +151,23 @@ function report(id) {
         stats: { win, kills: 2 * star, deaths: win ? 2 : 5, assists: 3 * star, totalDamageDealtToChampions: 9000 * star, goldEarned: 8000 + 2000 * star,
           visionScore: 20, totalMinionsKilled: 120 * star, neutralMinionsKilled: 0, totalDamageTaken: 15000, damageSelfMitigated: 5000,
           physicalDamageDealtToChampions: 1000 * star, magicDamageDealtToChampions: 7000 * star, trueDamageDealtToChampions: 1000 * star,
-          wardsPlaced: 8 + star, wardsKilled: star, visionWardsBoughtInGame: 2, damageDealtToTurrets: 1500 * star, timeCCingOthers: 12 * star } };
+          wardsPlaced: 8 + star, wardsKilled: star, visionWardsBoughtInGame: 2, damageDealtToTurrets: 1500 * star, timeCCingOthers: 12 * star, item0: 3020, item1: 6655,
+          perkPrimaryStyle: 8100, perkSubStyle: 8200, ...Object.fromEntries([8112, 8139, 8138, 8135, 8226, 8237].map((id, k) => ['perk' + k, id])) } };
     }),
   };
+}
+// Riot's copy of a game (match-v5, through our server): League's client's numbers, with what only Riot's has, the
+// shards of everyone's rune page and the extra numbers (challenges). You hit 60 skillshots (10 fewer in each older
+// game), dodged 20, saved 2 allies, took 3 turret plates and were dead a minute; Zed hit 40, dodged 25, saved none, took
+// a plate and was dead 2:30; everyone else 30, 10, 1, none and 1:30.
+function copy5(id) {
+  const g = report(id), back = id === GAME ? 0 : id - 9000;
+  return { metadata: { matchId: `EUW1_${id}` }, info: { gameId: id, platformId: 'EUW1', gameCreation: g.gameCreation, gameDuration: g.gameDuration, gameEndTimestamp: g.gameCreation + g.gameDuration * 1000, queueId: 420, gameMode: 'CLASSIC',
+    participants: g.participants.map(({ participantId, teamId, championId, stats: s }, i) => {
+      const [hit, dodged, saved, plates, dead] = i === 0 ? [60 - 10 * back, 20, 2, 3, 60] : i === 7 ? [40, 25, 0, 1, 150] : [30, 10, 1, 0, 90];
+      return { ...s, participantId, teamId, championId, puuid: g.participantIdentities[i].player.puuid, totalTimeSpentDead: dead, challenges: { skillshotsHit: hit, skillshotsDodged: dodged, saveAllyFromDeath: saved, turretPlatesTaken: plates },
+        perks: { statPerks: { offense: 5005, flex: 5008, defense: 5011 }, styles: [{ style: s.perkPrimaryStyle, selections: [0, 1, 2, 3].map((k) => ({ perk: s['perk' + k] })) }, { style: s.perkSubStyle, selections: [4, 5].map((k) => ({ perk: s['perk' + k] })) }] } };
+    }) } };
 }
 // a game's timeline, a frame a minute: everyone in their lane's part of the map (you ahead of Zed in CS and gold, behind
 // in XP), your buys, the order you levelled Q, W, E and R, and the fights and objectives: you kill Zed in the middle
@@ -164,13 +183,15 @@ const FIGHTS = [[390, 'CHAMPION_KILL', 1, { victimId: 8, assistingParticipantIds
   [1600, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'TOWER_BUILDING' }], [1620, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'INHIBITOR_BUILDING' }]];
 const SPOT = { TOP: [2000, 12000], JUNGLE: [5000, 7000], MIDDLE: [7400, 7400], BOTTOM: [12500, 2500], UTILITY: [12000, 2300] };
 const SKILLS = [1, 2, 3, 1, 1, 4, 1, 2, 1, 2, 4, 2, 2, 3, 3, 4, 3, 3];
+const SWING = { 9002: -2000, 9006: 3000 }; // your gold from 15 minutes on: you won 9002 from 1.3k behind and lost 9006 from 3.8k ahead
 function timeline(id) {
   const g = MY_HIST.games.games.find((x) => x.gameId === id), champ = g ? g.participants[0].championId : 103;
   const buys = champ === 86 ? [[30, 1055], [30, 2003], [600, 3047], [900, 3071]] : [[25, 1056], [25, 2003], [26, 3340], [480, 3020], [720, 6655], [1200, 3157], [1680, 3089]];
   const ps = [...TEAM1, ...TEAM2];
   const frames = Array.from({ length: 31 }, (_, m) => ({ timestamp: m * 60000 + (m ? 300 : 0), events: [],
     participantFrames: Object.fromEntries(ps.map(([, , , pos], i) => [String(i + 1), { participantId: i + 1, position: { x: SPOT[pos][0], y: SPOT[pos][1] }, level: 1,
-      minionsKilled: (i === 0 ? 8 : pos === 'UTILITY' ? 1 : pos === 'JUNGLE' ? 0 : 7) * m, jungleMinionsKilled: pos === 'JUNGLE' ? 4 * m : 0, totalGold: (i === 0 ? 400 : 350) * m, currentGold: 0, xp: (i === 0 ? 500 : 520) * m }])) }));
+      minionsKilled: (i === 0 ? 8 : pos === 'UTILITY' ? 1 : pos === 'JUNGLE' ? 0 : 7) * m, jungleMinionsKilled: pos === 'JUNGLE' ? 4 * m : 0,
+      totalGold: (i === 0 ? 400 : 350) * m + (i === 0 && m >= 15 ? SWING[id] || 0 : 0), currentGold: 0, xp: (i === 0 ? 500 : 520) * m }])) }));
   for (const [t, itemId] of buys) frames[Math.ceil(t / 60)].events.push({ type: 'ITEM_PURCHASED', timestamp: t * 1000, participantId: 1, itemId });
   SKILLS.forEach((skillSlot, k) => frames[1 + k].events.push({ type: 'SKILL_LEVEL_UP', timestamp: (1 + k) * 60000, participantId: 1, skillSlot, levelUpType: 'NORMAL' }));
   for (const [t, type, killerId, e] of FIGHTS) frames[Math.ceil(t / 60)].events.push({ type, timestamp: t * 1000, killerId, ...e });
@@ -179,7 +200,7 @@ function timeline(id) {
 // Clash: your team's next match is against Night Owls, two of whom League names
 const CLASH_SUMS = { 501: { puuid: 'clash1', gameName: 'Owl', tagLine: 'NA1' }, 502: { puuid: 'clash2', gameName: 'Hoot', tagLine: 'NA1' } };
 const lcu = { phase: '', rc: null, cs: null, pages: [{ id: 1, name: 'My page', isEditable: true }], lpNote: null, lobby: null, search: null, calls: [], refused: [],
-  clash: true, lp: {}, replay: {}, itemSets: { accountId: 77, timestamp: 1, itemSets: [{ uid: 'mine-1', title: 'My set', blocks: [] }] } };
+  clash: true, lp: {}, replay: {}, version: '14.20.612.1234', replayBlocked: false, itemSets: { accountId: 77, timestamp: 1, itemSets: [{ uid: 'mine-1', title: 'My set', blocks: [] }] } };
 const flatActions = () => lcu.cs.actions.flat();
 function champSelect(gameId, me = {}) {
   const cell = (cellId, puuid, gameName, pos, extra) => ({ cellId, puuid, gameName, tagLine: gameName ? 'EUW' : '', nameVisibilityType: gameName ? 'VISIBLE' : 'HIDDEN', assignedPosition: pos, championId: 0, championPickIntent: 0, spell1Id: 4, spell2Id: 12, ...extra });
@@ -256,7 +277,7 @@ function fakeLcu(method, p, body) {
     return { status: 201, data: null };
   }
   if ((m = /^\/lol-replays\/v1\/metadata\/(\d+)$/.exec(p))) return ok({ gameId: +m[1], state: lcu.replay[m[1]] || 'download', downloadProgress: 0 });
-  if ((m = /^\/lol-replays\/v1\/rofls\/(\d+)\/(download|watch)$/.exec(p))) { lcu.replay[m[1]] = 'watch'; return { status: 204, data: null }; }
+  if ((m = /^\/lol-replays\/v1\/rofls\/(\d+)\/(download|watch)$/.exec(p))) { if (lcu.replayBlocked) return { status: 403, data: null }; lcu.replay[m[1]] = 'watch'; return { status: 204, data: null }; }
   if (p === '/lol-spectator/v3/buddy/spectate') return ok({ availableForWatching: body.filter((u) => u === 'ally1') });
   if (p === '/lol-spectator/v1/spectate/launch') return { status: 204, data: null };
   if (p === '/lol-clash/v1/tournament-summary') return ok(lcu.clash ? [{ state: 'LOCK_IN', tournamentId: 1, rosterId: 'r-ours', bracketId: 42 }] : []);
@@ -267,10 +288,10 @@ function fakeLcu(method, p, body) {
   if (p === '/lol-perks/v1/recommended-champion-positions') return ok(Object.fromEntries(Object.entries(POSITIONS).map(([k, v]) => [k, { recommendedPositions: v }])));
   if ((m = /^\/lol-perks\/v1\/recommended-pages\/champion\/(\d+)\/position\/([A-Z]+)\/map\/11$/.exec(p))) return ok((POSITIONS[m[1]] || []).includes(m[2]) ? [RUNES] : []);
   if (p === '/lol-perks/v1/pages' && method === 'GET') return ok(lcu.pages);
-  if (p === '/lol-perks/v1/pages') { const page = { ...body, id: 50, isEditable: true }; lcu.pages.push(page); return ok(page); }
+  if (p === '/lol-perks/v1/pages') { const page = { ...body, id: 49 + lcu.pages.length, isEditable: true }; lcu.pages.push(page); return ok(page); } // 50, then 51
   if ((m = /^\/lol-perks\/v1\/pages\/(\d+)$/.exec(p))) { Object.assign(lcu.pages.find((x) => x.id === +m[1]), body); return { status: 201, data: null }; }
   if (p === '/lol-perks/v1/currentpage') return { status: 204, data: null };
-  if (p === '/lol-patch/v1/game-version') return ok('14.20.612.1234');
+  if (p === '/lol-patch/v1/game-version') return ok(lcu.version);
   if (p === '/lol-lobby/v2/lobby' && method === 'GET') return lcu.lobby ? ok(lcu.lobby) : { status: 404, data: null };
   if (p === '/lol-lobby/v2/lobby' && method === 'DELETE') { lcu.lobby = null; return { status: 204, data: null }; }
   if (p === '/lol-lobby/v2/lobby') return ok({ ...body, localMember: { isLeader: true } });
@@ -512,6 +533,7 @@ const leagueData = (over = {}) => ({
         const u = r.request().url().replace(/^.*?\/riot/, '');
         if (u === '/summary') return r.fulfill({ json: { p: '16.20', c: {}, old: null, today: 5, total: 50, at: Date.now() }, headers: cors });
         if (u.startsWith('/past?')) return r.fulfill({ json: u.endsWith(ANA) ? ANA_PAST : { s: {} }, headers: cors });
+        if (u.startsWith('/champ?')) return r.fulfill({ json: { patch: '16.20', games: [] }, headers: cors }); // no high elo games, for the reports' High elo column
         const p = u.replace(/^\/api/, '');
         riotCalls.push(p);
         if (p.includes('/Busy/') || riotAt.filter((t) => Date.now() - t < 1000).length >= 15) return r.fulfill({ status: 429, body: 'Too many lookups for now', headers: cors });
@@ -641,7 +663,8 @@ const leagueData = (over = {}) => ({
     // and wins in each role), and each champion's games
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
-    const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, and Sniper in a game
+    const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, Sniper in a game, and Riot's copies of four of your games
+    const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$/.test(k)); // without the copies
     const MY_RIOT = 'riot-me-'.padEnd(78, '0'), SNIPER = 'riot-sniper-'.padEnd(78, '0'), FOE = 'riot-foe-'.padEnd(78, '0');
     const RIOT = {
       '/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW': { puuid: MY_RIOT, gameName: 'Rayan', tagLine: 'EUW' },
@@ -649,6 +672,7 @@ const leagueData = (over = {}) => ({
       [`/euw1/lol/spectator/v5/active-games/by-summoner/${SNIPER}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: SNIPER, riotId: 'Sniper#EUW', championId: 51, teamId: 200 },
         { puuid: FOE, riotId: 'Foe#EUW', championId: 86, teamId: 100 }] },
       [`/euw1/lol/league/v4/entries/by-puuid/${FOE}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'SILVER', rank: 'I', leaguePoints: 50, wins: 10, losses: 10 }],
+      ...Object.fromEntries([GAME, 9001, 9002, 9003].map((id) => [`/europe/lol/match/v5/matches/EUW1_${id}`, copy5(id)])),
     };
     await ctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past)/, (r) => {
       const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' }, k = u.pathname.slice(9) + u.search;
@@ -704,13 +728,20 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await pc.$$eval('#proRoles tr', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' ').trim())), ['Middle 13 9W 4L · 69%', 'Top 4 1W 3L · 25%', 'Support 3 3W 0L · 100%']);
     assert.deepStrictEqual(await pc.$$eval('#proGames > li:nth-child(-n+4) summary', (l) => l.map((e) => [...e.querySelectorAll('.tag')].map((t) => t.textContent).join())), ['', '', '', 'Pentakill']);
     assert.strictEqual(await pc.textContent('#h-proform'), 'Last 20 games');
-    assert.match(await pc.textContent('#proForm'), /^Record\s*13W 7L · 65%\s*KDA\s*5\.0 \/ 3\.0 \/ 7\.0 · 4\.0\s*CS a minute\s*5\.3\s*Main role\s*Middle, 13 of 20$/);
+    assert.match(await pc.textContent('#proForm'), /^Record\s*13W 7L · 65%\s*KDA\s*5\.0 \/ 3\.0 \/ 7\.0 · 4\.0\s*CS a minute\s*5\.7\s*Main role\s*Middle, 13 of 20$/);
     assert.deepStrictEqual(await pc.$$eval('#proChamps .champ', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' '))), ['Ahri 8 games · 75% won · 4.0 KDA', 'Lux 5 games · 60% won · 4.0 KDA', 'Garen 4 games · 25% won · 4.0 KDA']);
     assert.deepStrictEqual(await pc.$$eval('#proMastery .sub', (l) => l.map((e) => e.textContent)), ['Level 7 · 120k points', 'Level 6 · 50k points', 'Level 5 · 40k points', 'Level 4 · 20k points']);
     assert.strictEqual(await pc.locator('#proGames > li').count(), 20);
     assert.strictEqual(await pc.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 4);
     await pc.click('#proGames > li:first-child summary');
-    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap tbody tr').length === 10, null, 'a game’s report on your profile');
+    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report > .tablewrap:not(.extra) tbody tr').length === 10, null, 'a game’s report on your profile');
+    // Riot's extra numbers for all ten, from Riot's copy of the game, and how each game ranks among high elo games on
+    // that champion in that role (only Ahri's are counted with their length here: you're at 75 of 100)
+    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report .extra tbody tr').length === 10, null, 'Riot’s extra numbers in the report');
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report .extra tr', (trs) => [0, 1, 8].map((i) => [...trs[i].children].map((c) => c.textContent).join(' | '))), [
+      'More from Riot | Skillshots hit | Skillshots dodged | Allies saved | Turret plates | Time dead | Vision vs laner', 'Rayan | 60 | 20 | 2 | 3 | 1:00 | +0 (20 vs 20)', 'Shadow | 40 | 25 | 0 | 1 | 2:30 | +0 (20 vs 20)']);
+    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report th[title^="How this game ranks"]').length === 2, null, 'the High elo column');
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report > .tablewrap:not(.extra) tbody td:last-child', (l) => l.map((e) => e.textContent)), ['75', ...Array(9).fill('—')]);
     assert(await pc.locator('#profileBtn').isVisible() && await pc.locator('#proBack').isHidden() && await pc.locator('#proNote').isHidden(), 'Share, and nothing about it being old');
     const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-profile')));
     assert(kept.n === 'Rayan#EUW' && kept.plat === 'euw1' && kept.games.length === 20 && kept.icon === 4568 && kept.rk.RANKED_SOLO_5x5.tier === 'GOLD', 'kept for when League is closed');
@@ -725,7 +756,8 @@ const leagueData = (over = {}) => ({
     await pc.click('#proMore');
     await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
     assert.deepStrictEqual([callsTo(/\/enemy4\/matches\?begIndex=20&endIndex=39$/).length, callsTo(/\/enemy4\/matches\?begIndex=30&endIndex=49$/).length], [1, 1]);
-    assert.deepStrictEqual(riotAsked, ['/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW', `/euw1/lol/league/v4/entries/by-puuid/${MY_RIOT}`, '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW',
+    assert.deepStrictEqual(riotAsked.filter((k) => !asked().includes(k)), [`/europe/lol/match/v5/matches/EUW1_${GAME}`], 'Riot’s copy of the game in the report');
+    assert.deepStrictEqual(asked(), ['/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW', `/euw1/lol/league/v4/entries/by-puuid/${MY_RIOT}`, '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW',
       `/euw1/lol/spectator/v5/active-games/by-summoner/${SNIPER}`, `/euw1/lol/league/v4/entries/by-puuid/${FOE}`, `/europe/lol/match/v5/matches/by-puuid/${SNIPER}/ids?start=30&count=20`],
       'your puuid in Riot’s API (League’s client has its own kind) and your rank once, for our server to keep; Sniper’s puuid, game, his opponent’s rank and his older games');
     assert(pastAsked.includes(MY_RIOT) && !pastAsked.includes(ME), `our server’s record of your ranks asked for by Riot’s puuid: ${pastAsked}`);
@@ -744,7 +776,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 Solo/Duo games', null, 'your Solo/Duo games');
     await pc.click('#proQueues [data-q="flex"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Recent Flex games' && document.getElementById('proGames').textContent === 'No recent Flex games.' && document.getElementById('proMoreBar').hidden, null, 'no Flex games');
-    assert.deepStrictEqual(riotAsked.slice(6), [`/europe/lol/match/v5/matches/by-puuid/${MY_RIOT}/ids?start=0&count=20&queue=440`]);
+    assert.deepStrictEqual(asked().slice(6), [`/europe/lol/match/v5/matches/by-puuid/${MY_RIOT}/ids?start=0&count=20&queue=440`]);
     // TFT from League's client: your ranks and games, with the place, traits, units, items and augments
     await pc.click('#proQueues [data-q="tft"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 5 TFT games' && document.querySelectorAll('#proGames > li').length === 5, null, 'your TFT games');
@@ -1237,12 +1269,13 @@ const leagueData = (over = {}) => ({
     // map with your kill (a green dot) and deaths (red crosses), your deaths and the objectives
     assert.match(await text(pc, '#postHead'), /^Victory · Ahri · 6\/2\/9 · 28 min · Ranked Solo\/Duo · \+18 LP · score 100 \(MVP\) · /);
     const post = (sel) => pc.$$eval(`#postBox ${sel}`, (l) => l.map((e) => e.textContent));
-    assert.deepStrictEqual(await post('.analysis > .takeaways li'), ['Your best: CS a minute, 12.7 against your usual 5.3.', 'High elo Ahri players won 40% of 30 games against Zed: a hard matchup.',
+    assert.deepStrictEqual(await post('.analysis > .takeaways li'), ['Your best: CS a minute, 12.7 against your usual 5.3.', 'To work on: skillshots dodged, 20 against 25 for Zed.', 'High elo Ahri players won 40% of 30 games against Zed: a hard matchup.',
       'You died twice before 14 minutes, both in the river.', 'Your first item, Luden’s Companion, was done at 12:00: 2:00 later than high elo Ahri players (10:00).']);
     assert.deepStrictEqual(await pc.$$eval('#postBox .bench tr', (trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent + ({ good: ' ▲', bad: ' ▼' }[c.dataset.k] || '')).join(' | '))), [
       ' | This gameAhri, 28 min | Your usual7 games on Ahri | High eloAhri middle, 40 games | Zedtheir middle', 'KDA | 7.5 ▲ | 4.0 | 4.7 | 2.0', 'Deaths | 2 | 3 | 3 | 5',
-      'Kill participation | 100% ▲ | — | — | 83%', 'Damage a minute | 953 ▲ | 667 | — | 635', 'Share of team damage | 43% ▲ | — | — | 33%', 'CS a minute | 12.7 ▲ | 5.3 | — | 8.5',
-      'Gold a minute | 494 ▲ | — | — | 424', 'Vision score a minute | 0.71 ▲ | 0.60 | — | 0.71', 'Gold at 10 minutes against Zed | +500 | +500 | +25 | —',
+      'Kill participation | 100% ▲ | — | 58% | 83%', 'Damage a minute | 953 ▲ | 667 | 768 | 635', 'Share of team damage | 43% ▲ | — | 30% | 33%', 'CS a minute | 12.7 ▲ | 5.3 | 6.7 | 8.5',
+      'Gold a minute | 494 ▲ | — | 384 | 424', 'Vision score a minute | 0.71 ▲ | 0.60 | 0.96 | 0.71', 'Skillshots hit | 60 ▲ | — | — | 40', 'Skillshots dodged | 20 ▼ | — | — | 25',
+      'Allies saved | 2 ▲ | — | — | 0', 'Turret plates | 3 ▲ | — | — | 1', 'Time dead | 1:00 ▲ | — | — | 2:30', 'Gold at 10 minutes against Zed | +500 | +500 | +25 | —',
       'CS at 10 minutes against Zed | +10 | +10 | +5 | —', 'XP at 10 minutes against Zed | −200 | −200 | +100 | —', 'First item done | 12:00 | 12:00 | 10:00 | —']);
     assert.deepStrictEqual(await post('.analysis .timers span'), ['Your damage11% physical · 78% magic · 11% true', 'Wards11 placed · 3 destroyed · 2 control bought', 'Damage to towers4,500', 'Crowd control36 s']);
     assert.deepStrictEqual((await post('.analysis .trends figcaption')), ['Your gold against Zed, ahead above the line: up to 1.5k ahead, never behind.', 'Your CS against Zed: up to 30 CS ahead, never behind.']);
@@ -1258,9 +1291,20 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#lpToday'), 'Today: 1W 0L, +18 LP.');
     assert(await pc.locator('#lpChart polyline').isVisible(), 'the LP chart');
     assert.match((await pc.$$eval('#lpList li', (l) => l.map((x) => x.textContent)))[0], /Win · \+18 LP · Gold II · 63 LP/);
-    // the You tab: trends, hall of fame, best time to play and the season recap
-    assert.strictEqual(await pc.locator('#trends figure').count(), 3);
-    assert.match(await text(pc, '#trends'), /CS a minute: 5\.3 on average, 5\.3 in your last 5/);
+    // the You tab: trends, with Riot's extra numbers once Riot's copies of your games came in (one every 4 s: four
+    // here, as Riot has no copy of the next two, so it stops), comebacks and throws, short and long games, hall of
+    // fame, best time to play and the season recap
+    await wait(pc, () => /Skillshots hit: 45 on average, 45 in your last 4/.test(document.getElementById('trends').textContent), null, 'Riot’s extra numbers in your trends', 20000);
+    assert.deepStrictEqual(await pc.$$eval('#trends figcaption', (l) => l.map((e) => e.textContent)), ['CS a minute: 5.7 on average, 5.3 in your last 5', 'Vision score: 19 on average, 17 in your last 5',
+      'Deaths: 3.0 on average, 3.0 in your last 5', 'Skillshots hit: 45 on average, 45 in your last 4', 'Skillshots dodged: 20 on average, 20 in your last 4', 'Allies saved: 2 on average, 2 in your last 4',
+      'Turret plates: 3 on average, 3 in your last 4', 'Minutes dead: 1.0 on average, 1.0 in your last 4']);
+    assert.strictEqual(await text(pc, '#swingNote'), 'Of your last 20 games on Summoner’s Rift: 1 won from 1k gold or more behind at 15 minutes, and 1 lost from 1k or more ahead.');
+    assert.deepStrictEqual(await pc.$$eval('#comebacks > li, #throws > li', (l) => l.map((e) => `${e.querySelector('.tags').textContent}: ${e.querySelector('.gwhat').textContent}`)),
+      ['1.3k gold behind at 15 min: Ahri · 5/3/7 · 160 CS · 30 min · Ranked Solo/Duo', '3.8k gold ahead at 15 min: Ahri · 5/3/7 · 160 CS · 30 min · Ranked Solo/Duo']);
+    await wait(pc, () => /High elo 75%/.test(document.getElementById('lens').textContent), null, 'high elo players’ win rate by game length');
+    assert.strictEqual(await text(pc, '#lensNote'), 'Your win rate by game length in your last 20 games on Summoner’s Rift. Under yours, high elo players’ win rate on that champion in your role.');
+    assert.deepStrictEqual(await pc.$$eval('#lens tr', (trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent).join(' | '))), ['Champion | Under 25 min | 25 to 35 min | Over 35 min',
+      'All champions | 60% of 5 | 58% of 12 | 100% of 3', 'Ahri | —High elo 40% | 75% of 8High elo 75% | —High elo 30%', 'Lux | 60% of 5 | — | —']);
     assert.match((await text(pc, '#fame')).replace(/\s+/g, ' '), /Pentakills ?1: Ahri .*Best KDA ?5\/3\/7 \(4\.0\) on Ahri.*Longest win streak ?6 games in a row/);
     assert((await pc.locator('#times tbody tr').count()) >= 2, 'wins by time of day and day of the week');
     await pc.click('#recapBtn');
@@ -1338,6 +1382,22 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await pc.$$eval(`${first} .buyrow[data-me] .buy`, (bs) => bs.map((b) => `${b.querySelector('img').alt} ${b.querySelector('time').textContent}`)),
       ['Doran’s Ring 0:25', 'Sorcerer’s Shoes 8:00', 'Luden’s Companion 12:00', 'Zhonya’s Hourglass 20:00', 'Rabadon’s Deathcap 28:00']);
     assert.strictEqual(await pc.locator(`${first} .buyrow`).count(), 10);
+    // copied from a report into League: Zed's runes as the app's own page, with the shards from Riot's copy of the game,
+    // then yours over it; your items as an item set for Ahri, in the order you bought them
+    const copied = lcu.calls.length;
+    await pc.click(`${first} button[aria-label="Save Shadow’s runes on Zed in League"]`);
+    await wait(pc, () => lpc.toasts().includes('Shadow’s runes on Zed are your rune page “Copy: Shadow’s Zed” in League.'), null, 'Zed’s runes in League');
+    assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', copied).map((c) => c[2]), [{ name: 'Copy: Shadow’s Zed', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8112, 8139, 8138, 8135, 8226, 8237, 5005, 5008, 5011], current: true }]);
+    await pc.click(`${first} button[aria-label="Save Rayan’s runes on Ahri in League"]`);
+    await wait(pc, () => lpc.toasts().includes('Rayan’s runes on Ahri are your rune page “Copy: Rayan’s Ahri” in League.'), null, 'your runes over it');
+    assert.deepStrictEqual([callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', copied).length, callsTo(/^\/lol-perks\/v1\/pages\/51$/, 'PUT', copied).length, callsTo(/currentpage$/, 'PUT', copied).map((c) => c[2])], [1, 1, [51]]);
+    assert.strictEqual(lcu.pages.find((x) => x.id === 51).name, 'Copy: Rayan’s Ahri');
+    await pc.click(`${first} button[aria-label="Save Rayan’s items on Ahri in League"]`);
+    await wait(pc, () => lpc.toasts().includes('Rayan’s items on Ahri are in League’s shop as “Rayan’s Ahri”.'), null, 'your items in League');
+    const copySet = lcu.itemSets.itemSets.find((x) => x.uid === 'lpc-copy-103');
+    assert.deepStrictEqual([copySet.title, copySet.associatedChampions, copySet.associatedMaps, copySet.blocks.map((b) => [b.type, b.items.map((x) => +x.id)])],
+      ['Rayan’s Ahri', [103], [11], [['Start', [1056, 2003]], ['Then, in order', [3020, 6655, 3157, 3089]], ['Ended the game with', [3020, 6655]]]]);
+    assert(lcu.itemSets.itemSets.some((x) => x.uid === 'lpc-103'), 'the app’s own Ahri set kept');
     await pc.click('#matches li:nth-child(2) summary');
     await wait(pc, () => document.querySelector('#matches li:nth-child(2) .report tbody tr'), null, 'an older game’s report, from Riot');
     await wait(pc, () => document.querySelector('#matches li:nth-child(2) .laning h3'), null, 'laning in a game with no lanes');
@@ -1353,7 +1413,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.querySelector('#games li .report'), null, 'the report in the voice game history');
     assert.match(await pc.locator('#games li').first().innerText(), /\+18 LP/);
     assert.strictEqual(await text(pc, '#talkWin'), 'Talk and win: when the room talked more than usual, you won 2 of 2 games (100%). When it was quieter, 0 of 2 (0%).');
-    console.log(`after the game: +18 LP, the report (${badges.join(', ')}), how you played on the Game page, Stats with the LP chart, trends, hall of fame, the recap, champion pages, match history and reports with the replay, laning and buys`);
+    console.log(`after the game: +18 LP, the report (${badges.join(', ')}) with Riot's extra numbers and high elo, how you played on the Game page, Stats with the LP chart, trends, comebacks and throws, short or long games, hall of fame, the recap, champion pages, match history and reports with the replay, laning and buys, runes and items copied into League`);
     // the Players tab: look anyone up, and follow their rank
     await pc.click('.tab[data-tab="players"]');
     await pc.fill('#lookupId', 'Sniper#EUW');
@@ -1420,13 +1480,14 @@ const leagueData = (over = {}) => ({
     await preSettings();
     await pc.selectOption('#optFlash', 'F');
     lcu.lpNote = null;
+    const cs2 = lcu.calls.length;
     champSelect(778, { championId: 99 });
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
     await wait(pc, () => /Runes: Riot’s page for Lux/.test(document.getElementById('runesNote').textContent), null, 'the second runes', 20000);
-    assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST').length, 1, 'no second page');
-    assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT').length, 1);
-    assert.strictEqual(callsTo(/currentpage$/, 'PUT')[0][2], 50);
+    assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', cs2).length, 0, 'no second page');
+    assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT', cs2).length, 1);
+    assert.strictEqual(callsTo(/currentpage$/, 'PUT', cs2)[0][2], 50);
     assert.strictEqual(lcu.pages.find((x) => x.id === 50).name, 'LPC Lux');
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH').pop()[2], { spell1Id: 14, spell2Id: 4 });
     // your own usual rune page for Lux instead of Riot's, from its button
@@ -1493,10 +1554,29 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
+    // patch 26.21: Riot keeps replay downloads for League's own match history. A download League refuses says where to
+    // get it and marks the patch check; a replay League won't offer says so on its button
+    lcu.version = '16.21.612.1';
+    lcu.replayBlocked = true;
+    lcu.replay[9003] = 'error';
+    await pc.evaluate(() => lpc.patchNow());
+    await wait(pc, () => /^Patch check for League 16\.21: .*, replays \(not seen yet\)\.$/.test(document.getElementById('patchNote').textContent), null, 'the new patch');
+    await pc.click('.nav[data-view="stats"]');
+    await pc.click('.tab[data-tab="games"]');
+    await pc.click('#matches li:nth-child(3) summary');
+    await wait(pc, () => document.querySelector('#matches li:nth-child(3) .replay')?.textContent === 'Download the replay', null, 'a replay to download');
+    await pc.click('#matches li:nth-child(3) .replay');
+    await wait(pc, () => lpc.toasts().includes('Riot didn’t let the app download a replay. From patch 26.21 Riot keeps replay downloads for League’s own match history, so download it there: Profile, Match History, then the game’s download button.'), null, 'where to get the replay');
+    await pc.click('#matches li:nth-child(4) summary');
+    await wait(pc, () => document.querySelector('#matches li:nth-child(4) .replay')?.textContent === 'No replay here: since patch 26.21, download it in League’s match history', null, 'why there’s no replay');
+    assert(await pc.locator('#matches li:nth-child(4) .replay').isDisabled(), 'nothing to click');
+    await pc.click('.nav[data-view="settings"]');
+    assert.match(await text(pc, '#patchNote'), /, replays ✗\.$/);
+    console.log('patch 26.21: a replay League won’t download points to League’s match history, also in the patch check');
     // an app link: lolprox://join/<room> brings the app into that room, after asking to leave the one you're in
     pc.once('dialog', (d) => d.accept());
     await pc.evaluate(() => lpcClient.emit('join', 'wxyz'));
