@@ -1417,7 +1417,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <h2 id="h-server" class="ph">Our server</h2>
           <p id="serverToday"></p>
           <div><svg id="serverChart" class="chart" viewBox="0 0 600 114" role="img"></svg><div class="chartx"><span id="serverFrom"></span><span>Today</span></div></div>
-          <p class="hint">Players each day for the last two weeks, counted by our connection server (days in UTC). It keeps no names or internet addresses.</p>
+          <p class="hint">Players each day for the last two weeks, counted by our connection server (days in UTC), without names or internet addresses. Whoever runs Premade can also see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.</p>
           <p id="serverRiot" hidden></p>
           <p id="serverUse" class="hint" hidden></p>
         </section>
@@ -7138,6 +7138,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     store.set('lpc-lp', JSON.stringify(lpLog));
   }
   lpAdopt(proMine && acctOf(proMine.n));
+  // Who has Premade: when it opens, has another League account or voice name, and on each day it's used, it tells our
+  // server (server/worker.js /hello) this device's own random id (lpc-device), the app version ('web' on the website),
+  // your voice name and your accounts' Riot IDs, so whoever runs Premade can see who has it (who.html, with their key)
+  let myDevice = store.get('lpc-device'), checkedIn = '';
+  if (!myDevice) store.set('lpc-device', (myDevice = crypto.randomUUID()));
+  function checkIn() {
+    const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: Object.values(accounts).map((a) => a && a.n) });
+    const k = body + new Date().toISOString().slice(0, 10); // and again on a new day
+    if (k === checkedIn) return;
+    checkedIn = k;
+    fetch(`${serverUrl}/hello`, { method: 'POST', body }).catch(() => {}); // a plain text body, so no preflight
+  }
+  checkIn();
   const isLive = (p) => { const lm = liveMine(); return !!p && !!lm && acctOf(p.n) === acctOf(lm.n); };
   function shownMine() { // yours: the account picked, else League's, else the last one
     const lm = liveMine(), k = proAcct && accounts[proAcct] ? proAcct : '';
@@ -7152,6 +7165,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     store.set('lpc-profile', JSON.stringify(keep));
     accounts[acctOf(p.n)] = keep;
     store.set('lpc-accounts', JSON.stringify(accounts));
+    checkIn();
   }
   function pickAcct(k) {
     const lm = liveMine();
@@ -8046,6 +8060,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('proForget').addEventListener('click', () => { // Not you?: the shown account's profile goes (its LP stays), and the newest other one shows
     delete accounts[acctOf((shownMine() || {}).n)];
     store.set('lpc-accounts', JSON.stringify(accounts));
+    checkIn();
     proMine = Object.values(accounts).sort((a, b) => b.at - a.at)[0] || null;
     proSaved = '';
     proAcct = '';
@@ -9291,6 +9306,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     store.set('lpc-name', myName);
     $('name').value = myName;
     if (peer) send({ t: 'hi', name: myName });
+    checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
@@ -9372,7 +9388,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('installBtn').addEventListener('click', () => { if (installAsk) installAsk.prompt(); installAsk = null; $('installBtn').hidden = true; });
 
   // ---- backup: everything this app keeps on this computer (settings, your games, LP and reports, clip favorites) in
-  // one file, to load on another PC. The phone remote's code stays behind, so an old backup can't let a phone back in.
+  // one file, to load on another PC. The phone remote's code stays behind, so an old backup can't let a phone back in,
+  // and so does this device's own id (who has Premade), so the other PC keeps its own.
   function download(name, data, type) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([data], { type }));
@@ -9381,7 +9398,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   const today = () => new Date().toISOString().slice(0, 10);
-  const kept = (k) => /^lpc-[\w-]+$/.test(k) && k !== 'lpc-remote';
+  const kept = (k) => /^lpc-[\w-]+$/.test(k) && k !== 'lpc-remote' && k !== 'lpc-device';
   $('backupBtn').addEventListener('click', () => {
     const data = {};
     try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (kept(k)) data[k] = localStorage.getItem(k); } } catch {}
@@ -9414,6 +9431,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [31, 'October 20: who has Premade', [
+      'Our server now keeps a list of who has Premade, for whoever runs it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there. The Privacy Policy in Settings > App has the details.',
+    ]],
     [30, 'October 20: the Overlay page', [
       'The overlay has a page of its own, Overlay in the menu, with everything it can show and a Layout: drag each part anywhere on a picture of your screen and size it, and the rest stays together.',
       'Your lane: beside your CS counter, your CS and item gold against the player in your lane, like “vs Zed: CS +6 · gold +0.3k”.',
@@ -9771,6 +9791,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
+      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'Nothing to set up. The Privacy Policy says what’s kept.', '#serverBox'],
     ]],
   ];
   // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and

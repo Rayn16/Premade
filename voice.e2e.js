@@ -13,7 +13,7 @@
 // window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
 // Legends and Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown),
 // the compact view, the ready check with the app's window mode, room awards from the scoreboard, app updates and
-// Discord status.
+// Discord status. And who has Premade: the hello Ana's page sends our server, and who.html for whoever runs Premade.
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -161,6 +161,8 @@ async function player(browser, name, screen, { setup = true, client = false, den
     r.fulfill({ body: Buffer.from(pic, 'base64'), contentType: 'image/png', headers: cors });
   });
   if (process.env.PEER) await ctx.route(/\/riot\//, (r) => r.fulfill({ status: 404, headers: cors })); // no Riot data, as with a local PeerServer
+  ctx.hellos = []; // what the page tells our server about this device (/hello, who has Premade)
+  await ctx.route('**/hello', (r) => { ctx.hellos.push(JSON.parse(r.request().postData())); r.fulfill({ status: 204, headers: cors }); });
   await ctx.addInitScript(fakeScreen, screen);
   if (setup) await ctx.addInitScript((n) => { localStorage.setItem('lpc-setup', '1'); localStorage.setItem('lpc-name', n); localStorage.setItem('lpc-news', '9999'); }, name);
   // smart noise removal takes the fake mic's beeps for noise, so it's off unless a test wants it
@@ -235,6 +237,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await ana.evaluate(() => document.getElementById('setup').open)) && await ana.evaluate(() => localStorage.getItem('lpc-setup') === '1' && localStorage.getItem('lpc-name') === 'Ana'), 'wizard done and remembered');
     assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id === 'micHome' && el.closest('main > .view').dataset.view === 'voice'), 'mic settings back in Voice settings');
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
+    // who has Premade: Ana's page told our server when it opened, and again with the name she picked
+    const hi = ana.context().hellos;
+    assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [] }, { v: 'web', name: 'Ana', riot: [] }], 'a hello when Premade opens, and one with her name');
+    assert(/^[0-9a-f-]{36}$/.test(hi[0].id) && hi.every((h) => h.id === hi[0].id) && hi[0].id === await ana.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
     await ana.evaluate(() => document.getElementById('shareBtn').click()); // stop for now: no minimap is the lobby, where everyone hears everyone
 
     // smart noise removal: the RNNoise files on the site take out a fan-like hiss (pink noise) and keep a voiced
@@ -893,6 +899,31 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20, going back to October 20, 2025. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).');
     assert.deepStrictEqual(await ana.$$eval('#serverChart g', (g) => [g.length, g.filter((x) => x.querySelector('.bar')).length, g[11].querySelector('title').textContent.endsWith(': 7 players in 3 rooms')]), [14, 2, true], 'a bar for each day with players');
+    // who has Premade (who.html), for whoever runs it: a wrong key, then the owner's, kept in the browser; names as text
+    const whoAsked = [], now = Math.round(Date.now() / 1000);
+    await ana.context().route('**/who', (r) => {
+      const { key } = JSON.parse(r.request().postData() || '{}');
+      whoAsked.push(r.request().url());
+      if (key !== 'owner key') return r.fulfill({ status: 403, body: 'Not the owner key', headers: { 'access-control-allow-origin': '*' } });
+      r.fulfill({ json: { apps: [{ v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW', 'Smurf#EUW'], first: now - 30 * 86400, last: now - 60 },
+        { v: 'web', name: '<b>Kev</b>', riot: [], first: now - 20 * 86400, last: now - 10 * 86400 }] }, headers: { 'access-control-allow-origin': '*' } });
+    });
+    const wp = await ana.context().newPage();
+    await wp.goto(`http://127.0.0.1:8080/who.html?peer=${PEER}`);
+    await wp.waitForSelector('#keyForm', { state: 'visible' });
+    await wp.fill('#key', 'not it');
+    await wp.click('#keyForm button');
+    await wp.waitForFunction(() => /didn’t work/.test(document.getElementById('keyNote').textContent));
+    await wp.fill('#key', 'owner key');
+    await wp.click('#keyForm button');
+    await wp.waitForSelector('#rows tr');
+    assert.strictEqual(await wp.textContent('#sum'), '2 devices, 1 seen in the last 7 days.');
+    assert.deepStrictEqual(await wp.$$eval('#rows tr', (l) => l.map((tr) => [...tr.cells].slice(0, 3).map((c) => c.textContent))), [['Rayan#EUW, Smurf#EUW', 'Rayan', 'App 1.13.0'], ['Not known yet', '<b>Kev</b>', 'Website']]);
+    await wp.goto('http://127.0.0.1:8080/who.html?peer=evil.example:80'); // the key it kept, and only ever to our server
+    await wp.waitForSelector('#rows tr');
+    assert.deepStrictEqual(whoAsked.map((u) => new URL(u).host), [PEER, PEER, 'league-proxchat.league-proxchat-server.workers.dev']);
+    await wp.close();
+    console.log('who has Premade: a wrong key turned away, then the list with each device\'s accounts, name and app, the key kept and only sent to our server');
     // themes: red and black by default, Light, your own main colour, Custom, Light with the computer's light mode
     const look = (...ks) => ana.evaluate((ks) => { const c = getComputedStyle(document.documentElement); return ks.map((k) => c.getPropertyValue('--' + k).trim()); }, ks);
     assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'accent')], ['red', '#0b0809', '#d9202d'], 'red and black at first');
