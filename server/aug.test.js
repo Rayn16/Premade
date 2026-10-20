@@ -39,6 +39,7 @@ const tft = (g, s) => ({ g, s, ps: Array.from({ length: 8 }, (_, i) => ({ p: i +
     assert.equal(await send('tftaug', { ...tft('NA1_5005000', 18), ps: tft('x', 18).ps.map((p) => ({ ...p, p: [p.p] })) }), 'not a game', 'places that are not numbers');
     assert.equal(await send('tftaug', { ...tft('NA1_5006000', 18), pad: 'x'.repeat(9000) }), 'too big');
     assert.deepEqual(await get('tftaug'), { s: 18, a: { TFT18_Augment_Rich: [4, 6, 4], DA_18_Cluster: [16, 72, 8] } }, 'set 18 only: Rich 1st and 2nd twice');
+    assert.deepEqual(await get('tftaug?s=17'), { s: 17, a: { TFT18_Augment_Rich: [2, 3, 2], DA_18_Cluster: [8, 36, 4] } }, 'set 17 when asked');
     for (let i = 0; i < 30; i++) await send('mayhem', may('KR_' + (8000000 + i)), '203.0.113.7');
     assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.7'), 'too many', 'the 31st in an hour');
     assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.8'), 'ok', 'another address');

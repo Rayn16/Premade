@@ -321,7 +321,7 @@ export class Riot extends DurableObject {
         if (+req.headers.get('content-length') > 8192) return new Response('too big', { headers: cors });
         return new Response(this.augIn(url.pathname.slice(6), await req.text().catch(() => ''), req.headers.get('cf-connecting-ip') || ''), { headers: cors });
       }
-      return new Response(JSON.stringify(url.pathname === '/riot/mayhem' ? this.mayhem(+url.searchParams.get('c')) : this.tftaug()), { headers: { ...json, 'cache-control': 'public, max-age=600' } });
+      return new Response(JSON.stringify(url.pathname === '/riot/mayhem' ? this.mayhem(+url.searchParams.get('c')) : this.tftaug(+url.searchParams.get('s'))), { headers: { ...json, 'cache-control': 'public, max-age=600' } });
     }
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
     if (m && this.env.RIOT_KEY) return this.lookup(m[1], m[2], url.searchParams, req.headers.get('cf-connecting-ip') || '', cors);
@@ -358,9 +358,10 @@ export class Riot extends DurableObject {
     if (Number.isInteger(c) && c > 0) for (const r of this.sql.exec('SELECT a, n FROM mayhem WHERE c = ?', c)) { if (r.a) out.a[r.a] = r.n; else out.n = r.n; }
     return out;
   }
-  tftaug() { // the newest set's augments: { s: the set, a: { id: [games, places added up, top 4s] } }
-    const [r] = this.sql.exec('SELECT MAX(s) AS s FROM tftaug').toArray(), out = { s: (r && r.s) || 0, a: {} };
-    for (const x of this.sql.exec('SELECT a, n, p, t4 FROM tftaug WHERE s = ?', out.s)) out.a[x.a] = [x.n, x.p, x.t4];
+  tftaug(s) { // set s's augments, else the newest set's: { s: the set, a: { id: [games, places added up, top 4s] } }
+    if (!(Number.isInteger(s) && s > 0)) s = this.sql.exec('SELECT MAX(s) AS s FROM tftaug').one().s || 0;
+    const out = { s, a: {} };
+    for (const x of this.sql.exec('SELECT a, n, p, t4 FROM tftaug WHERE s = ?', s)) out.a[x.a] = [x.n, x.p, x.t4];
     return out;
   }
   // a player lookup's call, passed through as Riot answers it: only the calls in LOOKUPS, 60 every 2 minutes from
