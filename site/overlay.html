@@ -70,6 +70,10 @@ body.board { font-size: calc(1.25vh * var(--k, 1)); }
 .rec { display: grid; gap: 2px; padding: 6px; }
 .rec img { width: 20px; height: 20px; border-radius: 3px; }
 .rec img.want { outline: 2px solid var(--gold); outline-offset: -1px; box-shadow: 0 0 6px var(--gold); }
+/* on TFT's augment cards (cards): how you placed with each, at the foot of the card, sized by the screen like the cards */
+.augc { position: absolute; transform: translate(-50%, -50%); max-width: 17vw; padding: 0.35em 0.9em; border-radius: 999px; font-size: 1.6vh; text-align: center; }
+.augc.good { border-color: var(--good); }
+.augc.bad { border-color: var(--bad); }
 /* the card over League's end screen (after) */
 .after { min-width: 220px; padding: 10px 14px; font-size: 15px; display: grid; gap: 4px; }
 .after .team { font-size: 13px; }
@@ -119,7 +123,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // While you're dead or in your base it can also show the next item to buy (buy: { name, pic, why }), and while you're
   // dead the tips for your lane (tips: { title, lines }) and a teammate's screen (screen: { name, img }, a JPEG picture
   // of it several times a second; the Overlay page sends no img and gets an empty frame). Your team's chance to win
-  // comes at the end of the objective timers' line.
+  // comes at the end of the objective timers' line. While you pick an augment in TFT, cards puts on each augment card how
+  // you placed with it ({ x, y: the middle of its foot, as shares of the screen; t: the words; k: good or bad }).
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const main = document.getElementById('main'), parts = document.getElementById('parts'), call = document.getElementById('call');
@@ -293,7 +298,13 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       if (p && full) { box.classList.add('part'); box.style.cssText = spot(p, k); own.push(box); }
       else if (!(p && s.edit)) out.push(box); // while you move the rest, only the rest
     }
-    parts.replaceChildren(...own);
+    const cards = full && Array.isArray(s.cards) ? s.cards.filter(ok).map((c) => {
+      const b = el('toast augc' + (c.k === 'good' || c.k === 'bad' ? ' ' + c.k : ''), String(c.t || ''));
+      b.style.left = `${Math.min(1, Math.max(0, +c.x)) * 100}%`;
+      b.style.top = `${Math.min(1, Math.max(0, +c.y)) * 100}%`;
+      return b;
+    }) : [];
+    parts.replaceChildren(...own, ...cards);
     main.replaceChildren(...(players ? board(s.board, out) : out));
   });
 </script>
