@@ -2,10 +2,13 @@
 // Planner's champions (CommunityDragon's copy of League's game data, faked here), its traits, Riot's team code for it,
 // Copy team code onto the clipboard with where to paste it, a pasted code opened (and one from another set refused),
 // My comps saved, opened and deleted, Riot's shop odds, and a comp sent to a voice room, where the chat gives it a
-// Copy team code button; then with a stand-in for the desktop app 1.13 and a fake League client behind it: your TFT
-// ranks, your last games with your average place, top 4s and traits, each Set 18 board's team code (champions matched
-// by name when match history and the Team Planner name them differently), none for an older set's board, and only
-// calls the desktop app lets through (client/main.js LCU_OK).
+// Copy team code button; the roll calculator's odds, the item recipes (CommunityDragon's TFT data, faked here: this
+// set's items and every set's, an old item with a current one's recipe, another set's emblem) and My comps closest to
+// the board first with who's still needed; then with a stand-in for the desktop app 1.13 and a fake League client
+// behind it: your TFT ranks, your last games with your average place, top 4s, traits and augments, each Set 18 board's
+// team code (champions matched by name when match history and the Team Planner name them differently), none for an
+// older set's board, gold rings on the items you put on your comp's champions, the recipes on the overlay in a TFT
+// game, and only calls the desktop app lets through (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node tft.e2e.js        (SHOTS=folder saves screenshots)
 const fs = require('fs');
@@ -46,10 +49,22 @@ const PLAN = {
 const DD_TFT = {
   champion: Object.fromEntries([['DA_18_Xayah', 'Xayah'], ['DA_18_Rakan', 'Rakan'], ['DA_18_Ahri', 'Ahri'], ['TFT17_Ahri', 'Ahri']].map(([id, name]) => [`Maps/Shipping/Map22/Sets/TFTSet18/Shop/${id}`, { id, name, image: { full: id + '.png', group: 'tft-champion' } }])),
   trait: Object.fromEntries([['DA_18_Solar', 'Solar'], ['DA_18_Vanguard', 'Vanguard'], ['TFT17_Arcana', 'Arcana']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-trait' } }])),
+  item: Object.fromEntries([['TFT_Item_InfinityEdge', 'Infinity Edge'], ['TFT_Item_BlueBuff', 'Blue Buff']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-item' } }])),
+  augments: Object.fromEntries([['TFT18_Augment_Rich', 'Rich Get Richer'], ['TFT18_Augment_Cluster', 'Cluster']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-augment' } }])),
 };
+// CommunityDragon's TFT data (cdragon/tft/en_us.json): four components; Deathblade, Infinity Edge and Blue Buff, with
+// Seraph's Embrace (an old item with Blue Buff's recipe, which Data Dragon doesn't have), this set's Solar Emblem and
+// last set's Arcana Emblem from the same pair, a radiant item and an augment, which aren't recipes
+const cd = (apiName, name, composition = []) => ({ apiName, name, composition, desc: '', effects: {}, tags: composition.length ? [] : ['component'], icon: `ASSETS/Maps/TFT/Icons/Items/Hexcore/${apiName}.TFT_Set13.tex` });
+const CDRAGON = { sets: { 17: { champions: [] }, 18: { champions: [] } }, setData: [], items: [cd('TFT_Item_Spatula', 'Spatula'), cd('TFT_Item_SparringGloves', 'Sparring Gloves'), cd('TFT_Item_BFSword', 'B.F. Sword'),
+  cd('TFT_Item_TearOfTheGoddess', 'Tear of the Goddess'), cd('TFT_Item_Deathblade', 'Deathblade', ['TFT_Item_BFSword', 'TFT_Item_BFSword']), cd('TFT_Item_InfinityEdge', 'Infinity Edge', ['TFT_Item_SparringGloves', 'TFT_Item_BFSword']),
+  cd('TFT_Item_SeraphsEmbrace', 'Seraph’s Embrace', ['TFT_Item_TearOfTheGoddess', 'TFT_Item_TearOfTheGoddess']), cd('TFT_Item_BlueBuff', 'Blue Buff', ['TFT_Item_TearOfTheGoddess', 'TFT_Item_TearOfTheGoddess']),
+  cd('TFT17_Item_ArcanaEmblemItem', 'Arcana Emblem', ['TFT_Item_Spatula', 'TFT_Item_BFSword']), cd('TFT18_Item_SolarEmblemItem', 'Solar Emblem', ['TFT_Item_BFSword', 'TFT_Item_Spatula']),
+  cd('TFT5_Item_InfinityEdgeRadiant', 'Radiant Infinity Edge', ['TFT_Item_InfinityEdge']), cd('TFT18_Augment_Rich', 'Rich Get Richer'), { apiName: 'TFT_Item_EmptyBag', name: null, composition: [] }] };
 const ODDS = [[1, 100, 0, 0, 0, 0], [2, 100, 0, 0, 0, 0], [3, 75, 25, 0, 0, 0], [4, 55, 30, 15, 0, 0], [5, 45, 33, 20, 2, 0], [6, 30, 40, 25, 5, 0], [7, 19, 30, 40, 10, 1], [8, 15, 20, 32, 30, 3],
   [9, 10, 17, 25, 33, 15], [10, 5, 10, 20, 40, 25], [11, 1, 2, 12, 50, 35]].map(([level, ...r]) => ({ level, dropRatesByTier: r.map((rate, i) => ({ cost: i + 1, rate })) }));
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+let cdragonLoads = 0; // CommunityDragon's TFT data, fetched once a patch
 const CODE = (...hex) => '02' + hex.join('') + '000'.repeat(10 - hex.length) + 'TFTSet18'; // Riot's team code: 02, three hex digits a champion, the set
 
 // ---- the fake League client: Rayan, Gold II in TFT, unranked in Double Up, Blue in Hyper Roll; three Set 18 games
@@ -58,13 +73,14 @@ const CODE = (...hex) => '02' + hex.join('') + '000'.repeat(10 - hex.length) + '
 const ME = { puuid: 'me-puuid', gameName: 'Rayan', tagLine: 'EUW', summonerId: 1, summonerLevel: 300, profileIconId: 1 };
 const RANKS = { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'I', leaguePoints: 10, wins: 5, losses: 5 }, RANKED_TFT: { tier: 'GOLD', division: 'II', leaguePoints: 40, wins: 6, losses: 24 },
   RANKED_TFT_TURBO: { ratedTier: 'BLUE', ratedRating: 3200, wins: 2, losses: 8 } };
-const tftGame = (k, set, place, traits, units) => ({ metadata: { match_id: `EUW1_${7000 + k}`, timestamp: Date.now() - k * 36e5 },
+const tftGame = (k, set, place, traits, units, augments = []) => ({ metadata: { match_id: `EUW1_${7000 + k}`, timestamp: Date.now() - k * 36e5 },
   json: JSON.stringify({ game_datetime: Date.now() - k * 36e5, game_length: 1900, queue_id: 1100, tft_set_number: set, participants: [{ puuid: 'me-puuid', placement: place, level: 8,
-    traits: traits.map(([name, num_units, style]) => ({ name, num_units, style })), units: units.map(([character_id, tier]) => ({ character_id, tier, itemNames: [] })), augments: [] },
+    traits: traits.map(([name, num_units, style]) => ({ name, num_units, style })), units: units.map(([character_id, tier, itemNames = []]) => ({ character_id, tier, itemNames })), augments },
   { puuid: 'other', placement: 8, level: 5, traits: [], units: [], augments: [] }] }) });
-const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1], ['DA_18_Mage', 1, 0]], [['DA_18_Xayah', 2], ['DA_18_Rakan', 2], ['DA_18_Ahri', 1], ['DA_18_Summon', 1]]),
-  tftGame(2, 18, 5, [['DA_18_Solar', 2, 1]], [['DA_18_Xayah', 1], ['DA_18_Rakan', 1]]),
-  tftGame(3, 18, 1, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1]], [['DA_18_Rakan', 3], ['DA_18_Ahri', 2]]),
+const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1], ['DA_18_Mage', 1, 0]], [['DA_18_Xayah', 2, ['TFT_Item_InfinityEdge', 'TFT_Item_BlueBuff']], ['DA_18_Rakan', 2], ['DA_18_Ahri', 1], ['DA_18_Summon', 1]],
+    ['TFT18_Augment_Rich', 'TFT18_Augment_Cluster']),
+  tftGame(2, 18, 5, [['DA_18_Solar', 2, 1]], [['DA_18_Xayah', 1, ['TFT_Item_InfinityEdge']], ['DA_18_Rakan', 1]], ['TFT18_Augment_Cluster']),
+  tftGame(3, 18, 1, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1]], [['DA_18_Rakan', 3], ['DA_18_Ahri', 2]], ['TFT18_Augment_Rich']),
   tftGame(4, 17, 6, [['TFT17_Arcana', 2, 1]], [['TFT17_Ahri', 2]])];
 const L = { calls: [], refused: [] };
 const ok = (data) => ({ status: 200, data });
@@ -74,12 +90,13 @@ function fakeLcu(method, p) {
   if (p === '/lol-summoner/v1/current-summoner') return ok(ME);
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: RANKS });
   if (p === '/lol-match-history/v1/products/tft/me-puuid/matches?begin=0&count=20') return ok({ games: GAMES });
+  if (p === '/lol-gameflow/v1/session') return ok({ phase: 'InProgress', gameData: { gameId: 8001, queue: { id: 1100, gameMode: 'TFT', isRanked: true }, teamOne: [], teamTwo: [] }, map: { id: 22, gameMode: 'TFT' } });
   if (/^\/lol-match-history\/v1\/products\/lol\//.test(p)) return ok({ games: { games: [] } });
   return { status: 404, data: null };
 }
 function fakeApp() { // the desktop app 1.13 (client/preload.js), with League's client answering through fakeLcu
   const on = {};
-  window.lpcClient = { version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {}, overlay() {}, front() {},
+  window.lpcClient = { version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {}, overlay(s) { window.lastOverlay = s; }, front() {},
     on(name, fn) { (on[name] = on[name] || []).push(fn); }, emit(name, v) { for (const fn of on[name] || []) fn(v); }, lcu: (m, p, b) => window.fakeLcu(m, p, b === undefined ? null : b) };
 }
 
@@ -96,7 +113,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     let m;
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.1', '1.0'], headers: cors });
     if (u.endsWith('/champion.json')) return r.fulfill({ json: { data: {} }, headers: cors });
-    if ((m = /\/tft-(champion|trait)\.json$/.exec(u))) return r.fulfill({ json: { data: DD_TFT[m[1]] }, headers: cors });
+    if ((m = /\/tft-(champion|trait|item|augments)\.json$/.exec(u))) return r.fulfill({ json: { data: DD_TFT[m[1]] }, headers: cors });
     if (u.endsWith('/tft-shop-drop-rates-data.json')) return r.fulfill({ json: { type: 'tft-shop-drop-rates', version: '1.1', data: { Shop: ODDS } }, headers: cors });
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
@@ -104,6 +121,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
   await ctx.route(/raw\.communitydragon\.org/, (r) => {
     const u = r.request().url();
     if (u.endsWith('/plugins/rcp-be-lol-game-data/global/default/v1/tftchampions-teamplanner.json')) return r.fulfill({ json: PLAN, headers: cors });
+    if (u.endsWith('/latest/cdragon/tft/en_us.json')) { cdragonLoads++; return r.fulfill({ json: CDRAGON, headers: cors }); }
     r.fulfill({ status: /\/assets\/characters\/tft18_[a-z_]+\/hud\/tft18_[a-z_]+_square\.tft_set18\.png$/.test(u) ? 200 : 404, body: PNG, contentType: 'image/png', headers: cors });
   });
   await ctx.addInitScript((n) => {
@@ -211,6 +229,66 @@ async function join(page) { // a voice room by its invite link, which the page r
     await actx.close();
     console.log('room: a comp sent from TFT shows in a friend’s chat with Copy team code');
 
+    // ---- the roll calculator, the item recipes, and My comps closest to the board first
+    const [cctx, cam] = await context(browser, { name: 'Cam' });
+    cdragonLoads = 0;
+    await cam.click('.nav[data-view="tft"]');
+    await wait(cam, () => !document.getElementById('tftRollBox').hidden && !document.getElementById('tftItemsBox').hidden, null, 'the roll calculator and the item recipes');
+    assert.deepStrictEqual(await texts(cam, '#tftRollUnit option'), ['Ornn (1)', 'Rakan (1)', 'Xayah (1)', 'Hecarim (3)', 'Ahri (4)', 'Ashe (5)', 'Lux (Solar) (5)'], 'by cost, then name');
+    assert.deepStrictEqual([await cam.inputValue('#tftRollUnit'), await cam.inputValue('#tftRollLvl')], ['TFT18_Ornn', '8'], 'the first champion and level 8 to start');
+    await pool(cam, 'Xayah').click();
+    assert.strictEqual(await cam.inputValue('#tftRollUnit'), 'TFT18_Xayah', 'the first champion on your board');
+    await cam.selectOption('#tftRollLvl', '1');
+    await cam.fill('#tftRollGold', '3');
+    await cam.fill('#tftRollHave', '2');
+    const roll = async () => [...await texts(cam, '#tftRoll > span'), await text(cam, '#tftRollNote')];
+    // every slot a 1 cost at level 1, and 28 of the 88 1 cost copies left Xayah's: one roll (3 gold, 1 kept to buy) hits with 1 - (60/88)^5
+    assert.deepStrictEqual(await roll(), ['2 star85%', '3 star0%', '28 of 30 copies left. A 1 cost fills 100% of shop slots at level 1. The 2 star needs 1 more, with 1 roll. Not enough gold to roll for the 3 star.']);
+    await cam.fill('#tftRollTaken', '27');
+    assert.deepStrictEqual(await roll(), ['2 star8%', '3 star0%', '1 of 30 copies left. A 1 cost fills 100% of shop slots at level 1. The 2 star needs 1 more, with 1 roll. Not enough copies left for the 3 star.'], '1 - (60/61)^5');
+    await cam.fill('#tftRollTaken', '28');
+    assert.deepStrictEqual((await roll()).slice(0, 2), ['2 star0%', '3 star0%'], 'none left');
+    await cam.fill('#tftRollTaken', '0');
+    await cam.fill('#tftRollHave', '9');
+    assert.deepStrictEqual(await roll(), ['2 star100%', '3 star100%', '21 of 30 copies left. A 1 cost fills 100% of shop slots at level 1. You have the 2 star. You have the 3 star.']);
+    await cam.selectOption('#tftRollUnit', 'TFT18_Ahri');
+    await cam.selectOption('#tftRollLvl', '3');
+    await cam.fill('#tftRollHave', '0');
+    await cam.fill('#tftRollGold', '50');
+    assert.deepStrictEqual(await roll(), ['2 star0%', '3 star0%', '10 of 10 copies left. A 4 cost doesn’t show in shops at level 3. The 2 star needs 3 more, with 19 rolls. The 3 star needs 9 more, with 7 rolls.']);
+    await cam.selectOption('#tftRollLvl', '11');
+    await cam.fill('#tftRollGold', '44');
+    // Ahri is the only 4 cost here, so each slot is her half the time: 9 or more of 20 slots (4 rolls) is 74.8%
+    assert.deepStrictEqual(await roll(), ['2 star100%', '3 star75%', '10 of 10 copies left. A 4 cost fills 50% of shop slots at level 11. The 2 star needs 3 more, with 16 rolls. The 3 star needs 9 more, with 4 rolls.']);
+    // the item recipes: this set's and every set's items made of two components, in the game's order
+    const grid = () => cam.$$eval('#tftRec tr', (l) => l.map((tr) => [...tr.cells].map((c) => { const i = c.querySelector('img'); return i ? i.alt + (c.classList.contains('want') ? '*' : '') : '-'; }).join(',')));
+    assert.deepStrictEqual(await grid(), ['-,B.F. Sword,Tear of the Goddess,Sparring Gloves,Spatula', 'B.F. Sword,Deathblade,-,Infinity Edge,Solar Emblem', 'Tear of the Goddess,-,Blue Buff,-,-',
+      'Sparring Gloves,Infinity Edge,-,-,-', 'Spatula,Solar Emblem,-,-,-'], 'Blue Buff over Seraph’s Embrace (not in Data Dragon), and no Arcana Emblem from last set');
+    assert.deepStrictEqual(await cam.$$eval('#tftRec td img', (l) => ['Infinity Edge', 'Deathblade'].map((n) => l.find((i) => i.alt === n).src)),
+      ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-item/TFT_Item_InfinityEdge.png', 'https://raw.communitydragon.org/latest/game/assets/maps/tft/icons/items/hexcore/tft_item_deathblade.tft_set13.png'], 'Data Dragon’s picture, else CommunityDragon’s');
+    assert.strictEqual(await cam.locator('#tftWant li').count(), 0, 'no games on the website, so no gold rings');
+    await cam.reload();
+    await cam.click('.nav[data-view="tft"]');
+    await wait(cam, () => document.querySelectorAll('#tftRec img').length === 14, null, 'the recipes after a restart');
+    assert.strictEqual(cdragonLoads, 1, 'kept for the patch');
+    // My comps: with champions on the board, the comps sharing most of them first, with who's still needed
+    for (const n of ['Rakan', 'Lux (Solar)']) await pool(cam, n).click();
+    await cam.click('#tftSave');
+    await cam.click('#tftClear');
+    for (const n of ['Ahri', 'Ornn']) await pool(cam, n).click();
+    await cam.click('#tftSave');
+    await cam.click('#tftClear');
+    assert.deepStrictEqual(await texts(cam, '#tftMine li > b'), ['1 Mage, 1 Solar', '3 Solar, 1 Sniper'], 'newest first with nothing on the board');
+    assert.strictEqual(await cam.locator('#tftMine li .hint').count(), 0);
+    await pool(cam, 'Rakan').click();
+    assert.deepStrictEqual(await texts(cam, '#tftMine li > b'), ['3 Solar, 1 Sniper', '1 Mage, 1 Solar'], 'the closest first');
+    assert.deepStrictEqual(await texts(cam, '#tftMine li .hint'), ['You have 1 of 3. Still need Xayah, Lux (Solar).', 'You have 0 of 2. Still need Ahri, Ornn.']);
+    await cam.fill('#tftCode', CODE('413', '429', '801')); // a board's code, as the Team Planner's Snapshot gives it
+    assert.strictEqual(await text(cam, '#tftMine li:first-child .hint'), 'You have all 3.');
+    await shot(cam, 'tft-helpers');
+    await cctx.close();
+    console.log('website: roll odds for a 2 and 3 star, item recipes from CommunityDragon kept for the patch, My comps closest to your board first');
+
     // ---- the desktop app with League open: ranks, games, traits, and each Set 18 board's team code
     const [pctx, pc] = await context(browser, { app: true });
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
@@ -222,19 +300,41 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.strictEqual(await text(pc, '#h-tftgames'), 'Your last 4 TFT games');
     assert.deepStrictEqual(await texts(pc, '#tftForm > span'), ['Average place3.5', 'Top 42 of 4 · 50%', 'Firsts1']);
     assert.deepStrictEqual(await pc.$$eval('#tftTraitRows tr', (l) => l.map((r) => [...r.cells].map((c) => c.textContent).join(' '))), ['Solar 3 2.7 67%', 'Vanguard 2 1.5 100%'], 'the traits you played twice or more');
+    assert.deepStrictEqual(await pc.$$eval('#tftAugRows tr', (l) => l.map((r) => [...r.cells].map((c) => c.textContent).join(' '))), ['Rich Get Richer 2 1.5 100%', 'Cluster 2 3.5 50%'], 'and the augments');
     assert.deepStrictEqual(await pc.$$eval('#tftGames > li', (l) => l.map((li) => li.querySelector('.gbody button') ? 'code' : '')), ['code', 'code', 'code', ''], 'no code for the Set 17 game');
     await pc.click('#tftGames > li:first-child summary');
     await pc.click('#tftGames > li:first-child .gbody button');
     await wait(pc, () => lpc.toasts().includes('Team code copied. In League, open the Team Planner and press Paste.'), null, 'the board copied');
     assert.strictEqual(await pc.evaluate(() => navigator.clipboard.readText()), CODE('514', '413', '429'), 'Ahri first (4 cost), then Xayah and Rakan; the summon left out');
     await shot(pc, 'tft-app');
+    // gold rings on the items you put on your board's champions in your games: Xayah's Infinity Edges and Blue Buff
+    await pool(pc, 'Xayah').click();
+    await wait(pc, () => document.querySelectorAll('#tftRec td.want').length === 3, null, 'gold rings on Xayah’s items');
+    assert.deepStrictEqual(await pc.$$eval('#tftRec td.want img', (l) => l.map((i) => i.alt)), ['Infinity Edge', 'Blue Buff', 'Infinity Edge']);
+    assert.deepStrictEqual(await texts(pc, '#tftWant li b'), ['Xayah: Infinity Edge, Blue Buff']);
+    await pc.locator('#tftItemsBox').scrollIntoViewIfNeeded();
+    await shot(pc, 'tft-recipes');
+    // the recipes over a TFT game, when the Overlay page says so: the Layout's sample, then a game from League's client
+    await pc.click('.nav[data-view="overlay"]');
+    await pc.check('#optOverlayTft');
+    await wait(pc, () => [...document.querySelectorAll('#ovHandles .ovhandle')].some((b) => b.textContent === 'TFT items'), null, 'TFT items on the Layout');
+    assert.strictEqual(await pc.frameLocator('#ovFrame').locator('.rec img.want').count(), 3, 'drawn by overlay.html');
+    await shot(pc, 'tft-overlay');
+    assert(!(await pc.evaluate(() => window.lastOverlay && window.lastOverlay.tft)), 'not outside a TFT game');
+    await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'InProgress' }));
+    await wait(pc, () => window.lastOverlay && window.lastOverlay.tft, null, 'the recipes on the overlay in a TFT game');
+    const ov = await pc.evaluate(() => window.lastOverlay.tft);
+    assert.deepStrictEqual([ov.c.map(([n]) => n), ...ov.g.map((r) => r.map((x) => (x ? x[0] + (x[2] ? '*' : '') : '-')).join(','))], [['B.F. Sword', 'Tear of the Goddess', 'Sparring Gloves', 'Spatula'],
+      'Deathblade,-,Infinity Edge*,Solar Emblem', '-,Blue Buff*,-,-', 'Infinity Edge*,-,-,-', 'Solar Emblem,-,-,-']);
+    await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
+    await wait(pc, () => !window.lastOverlay.tft, null, 'gone after the game');
     // the same boards on Profile's TFT tab
     await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');
     await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await pctx.close();
-    console.log('desktop app: TFT ranks, your last games with your traits, a team code for each Set 18 board (here and on Profile), none for Set 17');
+    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games');
   } finally {
     await browser.close();
   }

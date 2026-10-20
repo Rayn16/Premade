@@ -65,6 +65,11 @@ body.board { font-size: calc(1.25vh * var(--k, 1)); }
 .miss .pic { width: 22px; height: 22px; border-color: #ff5c5c; box-shadow: none; font-size: 11px; }
 .mt { font-variant-numeric: tabular-nums; text-align: right; }
 .miss .sub { font-size: 13px; }
+/* TFT's item recipes (tft): the components along the top and side and what each pair makes, gold rings on the items
+   your comp wants */
+.rec { display: grid; gap: 2px; padding: 6px; }
+.rec img { width: 20px; height: 20px; border-radius: 3px; }
+.rec img.want { outline: 2px solid var(--gold); outline-offset: -1px; box-shadow: 0 0 6px var(--gold); }
 /* the card over League's end screen (after) */
 .after { min-width: 220px; padding: 10px 14px; font-size: 15px; display: grid; gap: 4px; }
 .after .team { font-size: 13px; }
@@ -88,7 +93,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what the Overlay page picks: the objective timers, kills and gold
   // difference (game), your CS a minute (cs) and your CS and gold against your lane opponent (lane), in ARAM: Mayhem
-  // what kind of augment suits your champion (aug), your mic when it's
+  // what kind of augment suits your champion (aug), in TFT the item recipes (tft), your mic when it's
   // muted or you're talking, who can hear you, the effects on your voice, who's talking (a teal glow, red for the other
   // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
   // you move it (edit), it shows a frame and a sample. With board (app 1.10) it covers the screen with everyone's rank,
@@ -98,7 +103,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // other team off your minimap (missing: [name, picture, how long, where]) and the card after a game (after).
   // It takes the app's theme colours (theme: Settings > Look, any but Light), else League's own.
   // Over the whole screen, parts (app 1.10) gives a part a place of its own (spot): the objective timers (game), your CS
-  // and your lane (cs), your mic (me), who's talking (talk), chat, popups (toasts), the line at the top (call), the other
+  // and your lane (cs), TFT's item recipes (tft), your mic (me), who's talking (talk), chat, popups (toasts), the line at the top (call), the other
   // team off your minimap (missing) and the card over League's end screen (after); the rest stay together. The Overlay
   // page shows this page in a frame, with what each part looks like (ovPreview), so you can place them.
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
@@ -173,6 +178,13 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     return box;
   }
+  function recipes(t) { // { c: [[name, picture]], g: a row for each, [name, picture, wanted] or 0 }
+    const box = el('toast rec'), pic = (x) => { if (!Array.isArray(x)) return el(''); const i = new Image(); i.alt = ''; i.title = String(x[0] || ''); i.src = String(x[1] || ''); if (x[2]) i.className = 'want'; return i; };
+    box.style.gridTemplateColumns = `repeat(${t.c.length + 1}, 20px)`;
+    box.append(el(''), ...t.c.map(pic));
+    t.g.forEach((row, i) => box.append(pic(t.c[i]), ...(Array.isArray(row) ? row : []).map(pic)));
+    return box;
+  }
   function after(a) { // { title, win, lines }
     const c = el('toast after' + (a.win === true ? ' win' : a.win === false ? ' loss' : ''));
     c.append(el('team', String(a.title || '')), ...(Array.isArray(a.lines) ? a.lines : []).map((t) => el('', String(t))));
@@ -211,6 +223,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if (s.aug) add('game', el('toast', String(s.aug)));
     if (s.cs) add('cs', el('toast game', String(s.cs)));
     if (s.lane) add('cs', el('toast game', String(s.lane)));
+    if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
     if (s.muted) {
       const m = el('pill muted');
       m.innerHTML = MIC + '<path d="M4 4l16 16"/></svg>';
