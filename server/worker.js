@@ -317,7 +317,10 @@ export class Riot extends DurableObject {
     if (url.pathname === '/riot/past') return new Response(this.past(url.searchParams.get('u') || ''), { headers: json });
     if (url.pathname === '/riot/places') { const p = url.searchParams.get('p') || ''; return new Response(JSON.stringify(Object.hasOwn(REGION, p) ? this.get(`places:${p}`, {}) : {}), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); }
     if (url.pathname === '/riot/mayhem' || url.pathname === '/riot/tftaug') {
-      if (req.method === 'POST') return new Response(this.augIn(url.pathname.slice(6), await req.text().catch(() => ''), req.headers.get('cf-connecting-ip') || ''), { headers: cors });
+      if (req.method === 'POST') { // a game is under 3 KB; a bigger body isn't read, as this object also does the counting
+        if (+req.headers.get('content-length') > 8192) return new Response('too big', { headers: cors });
+        return new Response(this.augIn(url.pathname.slice(6), await req.text().catch(() => ''), req.headers.get('cf-connecting-ip') || ''), { headers: cors });
+      }
       return new Response(JSON.stringify(url.pathname === '/riot/mayhem' ? this.mayhem(+url.searchParams.get('c')) : this.tftaug()), { headers: { ...json, 'cache-control': 'public, max-age=600' } });
     }
     const m = url.pathname.match(/^\/riot\/api\/([a-z0-9]+)(\/.+)$/);
@@ -336,7 +339,7 @@ export class Riot extends DurableObject {
     const may = kind === 'mayhem', ps = b && Array.isArray(b.ps) ? b.ps : [];
     if (!b || typeof b.g !== 'string' || !/^[A-Z0-9]{2,5}_\d{5,14}$/.test(b.g)) return 'no game id';
     if (may ? !(ps.length === 10 && ps.every((p) => p && Number.isInteger(p.c) && p.c > 0 && p.c < 10000 && (p.w === 0 || p.w === 1) && ints(p.a, 1e6)) && ps.filter((p) => p.w).length === 5)
-      : !(Number.isInteger(b.s) && b.s > 0 && b.s < 100 && ps.length === 8 && ps.every((p) => p && Array.isArray(p.a) && p.a.length <= 4 && p.a.every((a) => typeof a === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(a)))
+      : !(Number.isInteger(b.s) && b.s > 0 && b.s < 100 && ps.length === 8 && ps.every((p) => p && Number.isInteger(p.p) && Array.isArray(p.a) && p.a.length <= 4 && p.a.every((a) => typeof a === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(a)))
         && ps.map((p) => p.p).sort((x, y) => x - y).join() === '1,2,3,4,5,6,7,8')) return 'not a game';
     const now = Date.now(), mine = (this.sent.get(ip) || []).filter((t) => now - t < 3600000);
     if (mine.length >= 30) return 'too many';
