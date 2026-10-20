@@ -1,9 +1,10 @@
 // Premade desktop client: the live site in its own window, plus what a browser tab can't do: League's
 // own game data, League's client (scouting, runes, champ select, the queue, trades, ranked and match history), sharing
 // the screen picked in Settings without a picker, the in-game overlay, the compact strip, shortcuts that work while
-// League is in front, push to talk, clips (saving, the gallery, dragging into Discord, cleaning up), Discord status,
-// lolprox:// app links, test recordings, a performance meter and installing its own updates. It keeps tracking and
-// audio at full speed while League has focus, opens where you left it, and opens other sites in your browser.
+// League is in front, push to talk, clips (saving, the gallery, dragging into Discord, cleaning up), whole games on
+// video, the combo trainer's key presses, Discord status, lolprox:// app links, test recordings, a performance meter
+// and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
+// left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
 const { app, BrowserWindow, session, desktopCapturer, shell, ipcMain, screen, globalShortcut, nativeImage } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
@@ -228,7 +229,7 @@ async function pollLeague() {
   const s = JSON.stringify({ ...summary(game), phase });
   if (s !== leagueWas && win && !win.isDestroyed()) { leagueWas = s; win.webContents.send('league', JSON.parse(s)); }
   recordTick(game, phase);
-  setTimeout(pollLeague, 2000);
+  setTimeout(pollLeague, game && game.gameData && game.gameData.gameMode === 'PRACTICETOOL' ? 500 : 2000); // the jungle clear's camps to half a second
 }
 
 // ---- test recordings (Settings, League): what League sends during your games, its game data every 10 s and what the
@@ -508,6 +509,170 @@ ipcMain.on('clips-folder', async (e) => {
   shell.openPath(clipDir());
 });
 
+// ---- whole games on video (app 1.15): the page records each game at lower quality than clips and sends it here a few
+// seconds at a time, written to Videos\Premade\Games as it comes, so a crash keeps all but the last seconds. When the
+// game is over, its Duration and Cues (where each video key frame starts) go in (seekable), so a video player can skip
+// around in it. The page lists them, opens one in your video player or in its folder, bins one, and bins the ones
+// older than the days you pick (the Recycle Bin, as with clips).
+// ponytail: a game the app closed during keeps its recording as it was: it plays, but can't skip around
+const vidDir = () => path.join(clipDir(), 'Games'), vidAt = (n) => path.join(vidDir(), n);
+const vids = new Map(); // the one being recorded: its name -> { fh, q (its writes, in order) }
+async function vidEnd(n) {
+  const v = vids.get(n);
+  if (!v) return false;
+  vids.delete(n);
+  await v.q;
+  await v.fh.close().catch(() => {});
+  await seekable(vidAt(n)).catch((err) => console.error('game video:', err.message));
+  return true;
+}
+ipcMain.handle('game-video', async (e, what, a, b) => {
+  if (!fromSite(e)) return null;
+  if (what === 'start') { // a: your champion's name, for the file's
+    for (const n of [...vids.keys()]) await vidEnd(n); // one left open by a page that reloaded
+    const d = new Date(), two = (x) => String(x).padStart(2, '0'), champ = typeof a === 'string' && /^[\w .'&-]{1,30}$/.test(a) ? ' ' + a : '';
+    const stem = `Game ${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}${champ}`;
+    await fs.promises.mkdir(vidDir(), { recursive: true });
+    for (let n = 1; n < 10; n++) { // a new name each time, as with clips
+      const name = `${stem}${n > 1 ? ` (${n})` : ''}.webm`, fh = await fs.promises.open(vidAt(name), 'wx').catch(() => null);
+      if (fh) { vids.set(name, { fh, q: Promise.resolve() }); return name; }
+    }
+    return '';
+  }
+  if (what === 'add') { // a: its name, b: the next part
+    const v = vids.get(a), buf = bytes(b);
+    if (!v || !buf || buf.length > 100e6) return false;
+    await (v.q = v.q.then(() => v.fh.write(buf)).catch(() => {}));
+    return true;
+  }
+  if (what === 'end') return vidEnd(a);
+  const list = async () => { // newest first: { name, size, at, rec (being recorded) }
+    const out = [];
+    for (const name of (await fs.promises.readdir(vidDir()).catch(() => [])).filter(clipOk)) {
+      const st = await fs.promises.stat(vidAt(name)).catch(() => null);
+      if (st && st.isFile()) out.push({ name, size: st.size, at: st.mtimeMs, rec: vids.has(name) });
+    }
+    return out.sort((x, y) => y.at - x.at);
+  };
+  if (what === 'list') return list();
+  if (what === 'clean') { // the ones older than a days go to the bin; says which went
+    const out = [];
+    for (const v of await list()) if (a > 0 && !v.rec && Date.now() - v.at > a * 864e5 && (await shell.trashItem(vidAt(v.name)).then(() => true, () => false))) out.push(v.name);
+    return out;
+  }
+  if (what === 'folder') { await fs.promises.mkdir(vidDir(), { recursive: true }).catch(() => {}); return (await shell.openPath(vidDir())) === ''; }
+  if (!clipOk(a) || vids.has(a)) return false;
+  if (what === 'open') return (await shell.openPath(vidAt(a))) === ''; // in your video player
+  if (what === 'show') { shell.showItemInFolder(vidAt(a)); return true; }
+  if (what === 'trash') return shell.trashItem(vidAt(a)).then(() => true, () => false);
+  return null;
+});
+// A WebM from Chrome's MediaRecorder, made seekable: its EBML header, then a Segment of known size with a SeekHead (to
+// Info, Tracks and the Cues), Info with a Duration, Tracks, every Cluster as recorded up to the last whole one (with its
+// size, where Chrome left it unknown), and Cues with each cluster whose first video frame is a key frame. The sizes and
+// places it writes take 8 bytes each, so none of them moves another. Written to a .part file that then takes its place,
+// so a failure leaves the recording as it was.
+// ponytail: reads what Chrome writes (Info and Tracks before the clusters, which may be of unknown size, as cutClip in
+// index.html does); a file laid out otherwise is left as it was
+async function seekable(file) {
+  const fh = await fs.promises.open(file, 'r'), size = (await fh.stat()).size;
+  try {
+    let from = 0, buf = Buffer.alloc(0); // a window on the file, from byte from
+    const get = async (at, n) => {
+      n = Math.max(0, Math.min(n, size - at));
+      if (at < from || at + n > from + buf.length) { from = at; buf = Buffer.alloc(Math.min(size - at, Math.max(n, 4 << 20))); await fh.read(buf, 0, buf.length, at); }
+      return buf.subarray(at - from, at - from + n);
+    };
+    const vint = (b, o, id) => { // [value, length] of an ID (id: with its length bits) or a size (-1: unknown)
+      let n = 1;
+      while (n < 8 && !(b[o] & (0x80 >> (n - 1)))) n++;
+      let v = id ? b[o] : b[o] & (0xff >> n), ones = v === 0xff >> n;
+      for (let k = 1; k < n; k++) { v = v * 256 + b[o + k]; ones = ones && b[o + k] === 0xff; }
+      return [!id && ones ? -1 : v, n];
+    };
+    const el = async (at) => { // { id, at, data (where its insides start), len (-1: unknown), end }
+      const b = await get(at, 12);
+      if (b.length < 2) return null;
+      const [id, n] = vint(b, 0, true), [len, sn] = vint(b, n);
+      return { id, at, data: at + n + sn, len, end: len < 0 ? size : at + n + sn + len };
+    };
+    const kids = async (e) => { const out = []; for (let at = e.data; at < e.end;) { const k = await el(at); if (!k || k.len < 0 || k.end > e.end) break; out.push(k); at = k.end; } return out; };
+    const uint = async (e) => (await get(e.data, e.len)).reduce((v, x) => v * 256 + x, 0);
+    const ebml = await el(0), seg = ebml && ebml.id === 0x1a45dfa3 && (await el(ebml.end));
+    if (!seg || seg.id !== 0x18538067) return false;
+    let info = null, tracks = null, first = 0, last = 0, end = 0, video = 1, scale = 1e6;
+    const cues = [], fix = []; // [a cluster's timecode, where it is in the file]; [where a cluster's unknown size is, its size]
+    for (let at = seg.data; at < size;) {
+      const e = await el(at);
+      if (!e) break;
+      if (e.id !== 0x1f43b675) { // Info, Tracks and the like before the clusters; after them, the end
+        if (first || e.len < 0 || e.end > size) break;
+        if (e.id === 0x1549a966) info = e;
+        if (e.id === 0x1654ae6b) tracks = e;
+        at = e.end;
+        continue;
+      }
+      if (!info || !tracks) return false;
+      if (!first) {
+        first = e.at;
+        for (const t of (await kids(tracks)).filter((k) => k.id === 0xae)) {
+          const f = {};
+          for (const k of await kids(t)) if (k.id === 0x83 || k.id === 0xd7) f[k.id] = await uint(k);
+          if (f[0x83] === 1) video = f[0xd7]; // TrackType 1 is video; its TrackNumber
+        }
+      }
+      let tc = 0, key = null, k = e.data;
+      while (k < e.end) { // its Timecode, SimpleBlocks and BlockGroups, up to the next cluster (or a cut-off end)
+        const c = await el(k);
+        if (!c || ![0xe7, 0xa3, 0xa0, 0xa7, 0xab, 0xbf, 0xec].includes(c.id) || c.len < 0 || c.end > size) break;
+        let blk = c.id === 0xa3 ? c : null, isKey = true;
+        if (c.id === 0xe7) tc = await uint(c);
+        if (c.id === 0xa0) for (const g of await kids(c)) { if (g.id === 0xa1) blk = g; if (g.id === 0xfb) isKey = false; } // a Block, a key frame unless there's a ReferenceBlock
+        if (blk) {
+          const h = await get(blk.data, 4), [track, tn] = vint(h, 0);
+          end = Math.max(end, tc + h.readInt16BE(tn));
+          if (track === video && key === null) key = c.id === 0xa3 ? !!(h[tn + 2] & 0x80) : isKey;
+        }
+        k = c.end;
+      }
+      if (key) cues.push([tc, e.at]);
+      if (e.len < 0 && e.data - e.at === 12) fix.push([e.at + 4, k - e.data]); // Chrome's 8-byte unknown size: its own in its place
+      last = at = k;
+      if (k === e.data) break; // nothing whole in it
+    }
+    const after = last < size && (await el(last));
+    if (!first || !cues.length || (after && ![0x1c53bb6b, 0xec].includes(after.id))) return false; // something it doesn't know at the end
+    const parts = [];
+    for (const k of await kids(info)) {
+      if (k.id === 0x2ad7b1) scale = (await uint(k)) || 1e6;
+      if (k.id !== 0x4489) parts.push(Buffer.from(await get(k.at, k.end - k.at))); // all but any Duration
+    }
+    const u64 = (v) => { const b = Buffer.alloc(8); b.writeBigUInt64BE(BigInt(Math.max(0, Math.round(v)))); return b; };
+    const size8 = (n) => { const b = u64(n); b[0] = 0x01; return b; }; // an EBML size in 8 bytes
+    const elem = (id, ...body) => { const b = Buffer.concat(body); return Buffer.concat([Buffer.from(id), size8(b.length), b]); };
+    const num = (id, v) => Buffer.concat([Buffer.from(id), Buffer.of(0x88), u64(v)]);
+    const dur = Buffer.alloc(11);
+    dur.set([0x44, 0x89, 0x88]);
+    dur.writeDoubleBE(end + 33e6 / scale, 3); // to the end of its last frame, about
+    const head = Buffer.from(await get(0, ebml.end)), infoOut = elem([0x15, 0x49, 0xa9, 0x66], ...parts, dur), tracksOut = Buffer.from(await get(tracks.at, tracks.end - tracks.at));
+    const seek = (id, at) => elem([0x4d, 0xbb], Buffer.of(0x53, 0xab, 0x84, ...id), num([0x53, 0xac], at));
+    const seekLen = 12 + 3 * 28, infoAt = seekLen, tracksAt = infoAt + infoOut.length, clustersAt = tracksAt + tracksOut.length, cuesAt = clustersAt + last - first;
+    const seekHead = elem([0x11, 0x4d, 0x9b, 0x74], seek([0x15, 0x49, 0xa9, 0x66], infoAt), seek([0x16, 0x54, 0xae, 0x6b], tracksAt), seek([0x1c, 0x53, 0xbb, 0x6b], cuesAt));
+    const cuesOut = elem([0x1c, 0x53, 0xbb, 0x6b], ...cues.map(([t, at]) => elem([0xbb], num([0xb3], t), elem([0xb7], Buffer.of(0xf7, 0x81, video), num([0xf1], clustersAt + at - first)))));
+    const segHead = Buffer.concat([Buffer.of(0x18, 0x53, 0x80, 0x67), size8(cuesAt + cuesOut.length)]);
+    const out = await fs.promises.open(file + '.part', 'w');
+    try {
+      await out.write(Buffer.concat([head, segHead, seekHead, infoOut, tracksOut]));
+      for (let at = first; at < last; at += 4 << 20) { const b = Buffer.alloc(Math.min(4 << 20, last - at)); await fh.read(b, 0, b.length, at); await out.write(b); }
+      await out.write(cuesOut);
+      const to = head.length + segHead.length + clustersAt - first; // where a byte of the clusters goes
+      for (const [at, n] of fix) await out.write(size8(n), 0, 8, to + at);
+    } finally { await out.close(); }
+  } finally { await fh.close(); }
+  await fs.promises.rename(file + '.part', file);
+  return true;
+}
+
 // ---- the performance meter: how much of the computer this app uses now, all its parts together. CPU is a share of
 // the whole computer, as Task Manager shows it; memory in MB.
 ipcMain.handle('metrics', (e) => {
@@ -560,7 +725,10 @@ function saveBounds() {
 
 // ---- shortcuts that work while League is in front: mute, clip and show/hide are Windows hotkeys; push to talk asks
 // Windows every 15 ms whether its key is down (GetAsyncKeyState reads the key, it doesn't hook or block it), and so do
-// F2 to F5, League's keys for the camera on a teammate, so the page doesn't learn your champion from it meanwhile
+// F2 to F5, League's keys for the camera on a teammate, so the page doesn't learn your champion from it meanwhile.
+// The combo trainer (app 1.15) asks the same of League's usual keys while the page wants it (in Practice Tool):
+// abilities, summoner spells, items and right clicks, each press sent as { k, t } (t in ms), but not Ctrl+Q and the
+// like, which level up an ability.
 const VK = { Mouse3: 4, Mouse4: 5, Mouse5: 6, Tab: 9, CapsLock: 0x14, Space: 0x20, Backquote: 0xc0, ShiftLeft: 0xa0, ShiftRight: 0xa1, ControlLeft: 0xa2, ControlRight: 0xa3, AltLeft: 0xa4, AltRight: 0xa5 };
 function vk(code) {
   let m;
@@ -569,7 +737,9 @@ function vk(code) {
   if ((m = /^F(\d{1,2})$/.exec(code))) return 0x6f + +m[1];
   return VK[code] || 0;
 }
-let keyState = null, pttTimer = null;
+const COMBO = { Q: 0x51, W: 0x57, E: 0x45, R: 0x52, D: 0x44, F: 0x46, 1: 0x31, 2: 0x32, 3: 0x33, 4: 0x34, 5: 0x35, 6: 0x36, 7: 0x37, Click: 2 };
+let keyState = null, pttTimer = null, comboOn = false;
+ipcMain.on('combo', (e, on) => { if (fromSite(e)) comboOn = !!on; });
 ipcMain.handle('keys', (e, k) => {
   if (!fromSite(e) || !k) return {};
   globalShortcut.unregisterAll();
@@ -589,12 +759,18 @@ ipcMain.handle('keys', (e, k) => {
     try {
       keyState = keyState || require('koffi').load('user32.dll').func('short __stdcall GetAsyncKeyState(int vKey)');
       let down = false, onAlly = false;
+      const held = new Set();
       pttTimer = setInterval(() => {
         if (win.isDestroyed()) return; // closed, the app is quitting
         const now = !!code && (keyState(code) & 0x8000) !== 0;
         if (now !== down) { down = now; win.webContents.send('key', now ? 'ptt-down' : 'ptt-up'); }
         const look = ally.some((c) => (keyState(c) & 0x8000) !== 0);
         if (look !== onAlly) { onAlly = look; win.webContents.send('key', look ? 'ally-down' : 'ally-up'); }
+        if (comboOn) for (const [name, c] of Object.entries(COMBO)) {
+          if (!(keyState(c) & 0x8000)) { held.delete(name); continue; }
+          if (!held.has(name) && !(keyState(0x11) & 0x8000)) win.webContents.send('press', { k: name, t: Math.round(performance.now()) }); // 0x11: Ctrl
+          held.add(name);
+        }
       }, 15);
       ok.ptt = !!code;
     } catch (err) { console.error('push to talk:', err); }

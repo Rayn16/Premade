@@ -101,7 +101,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what the Overlay page picks: the objective timers, kills and gold
   // difference (game), your CS a minute (cs) and your CS and gold against your lane opponent (lane), in ARAM: Mayhem
-  // what kind of augment suits your champion (aug), in TFT the item recipes (tft), your mic when it's
+  // what kind of augment suits your champion (aug), in TFT the item recipes (tft), in Practice Tool your key presses
+  // and combo times and your jungle clear's camps (practice, app 1.15), your mic when it's
   // muted or you're talking, who can hear you, the effects on your voice, who's talking (a teal glow, red for the other
   // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
   // you move it (edit), it shows a frame and a sample. With board (app 1.10) it covers the screen with everyone's rank,
@@ -111,7 +112,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // other team off your minimap (missing: [name, picture, how long, where]) and the card after a game (after).
   // It takes the app's theme colours (theme: Settings > Look, any but Light), else League's own.
   // Over the whole screen, parts (app 1.10) gives a part a place of its own (spot): the objective timers (game), your CS
-  // and your lane (cs), TFT's item recipes (tft), your mic (me), who's talking (talk), chat, popups (toasts), the line at the top (call), the other
+  // and your lane (cs), TFT's item recipes (tft), Practice Tool's combos and camps (practice), your mic (me), who's
+  // talking (talk), chat, popups (toasts), the line at the top (call), the other
   // team off your minimap (missing) and the card over League's end screen (after); the rest stay together. The Overlay
   // page shows this page in a frame, with what each part looks like (ovPreview), so you can place them.
   // While you're dead or in your base it can also show the next item to buy (buy: { name, pic, why }), and while you're
@@ -257,6 +259,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if (s.lane) add('cs', el('toast game', String(s.lane)));
     if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
     if (s.buy && typeof s.buy === 'object') add('buy', buy(s.buy));
+    for (const t of Array.isArray(s.practice) ? s.practice : []) add('practice', el('toast game', String(t)));
     if (s.muted) {
       const m = el('pill muted');
       m.innerHTML = MIC + '<path d="M4 4l16 16"/></svg>';
