@@ -49,18 +49,25 @@ const PLAN = {
 const DD_TFT = {
   champion: Object.fromEntries([['DA_18_Xayah', 'Xayah'], ['DA_18_Rakan', 'Rakan'], ['DA_18_Ahri', 'Ahri'], ['TFT17_Ahri', 'Ahri']].map(([id, name]) => [`Maps/Shipping/Map22/Sets/TFTSet18/Shop/${id}`, { id, name, image: { full: id + '.png', group: 'tft-champion' } }])),
   trait: Object.fromEntries([['DA_18_Solar', 'Solar'], ['DA_18_Vanguard', 'Vanguard'], ['TFT17_Arcana', 'Arcana']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-trait' } }])),
-  item: Object.fromEntries([['TFT_Item_InfinityEdge', 'Infinity Edge'], ['TFT_Item_BlueBuff', 'Blue Buff']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-item' } }])),
+  item: Object.fromEntries([['DA_InfinityEdge', 'Infinity Edge'], ['DA_BlueBuff', 'Blue Buff']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-item' } }])),
   augments: Object.fromEntries([['TFT18_Augment_Rich', 'Rich Get Richer'], ['TFT18_Augment_Cluster', 'Cluster']].map(([id, name]) => [id, { id, name, image: { full: id + '.png', group: 'tft-augment' } }])),
 };
-// CommunityDragon's TFT data (cdragon/tft/en_us.json): four components; Deathblade, Infinity Edge and Blue Buff, with
-// Seraph's Embrace (an old item with Blue Buff's recipe, which Data Dragon doesn't have), this set's Solar Emblem and
-// last set's Arcana Emblem from the same pair, a radiant item and an augment, which aren't recipes
-const cd = (apiName, name, composition = []) => ({ apiName, name, composition, desc: '', effects: {}, tags: composition.length ? [] : ['component'], icon: `ASSETS/Maps/TFT/Icons/Items/Hexcore/${apiName}.TFT_Set13.tex` });
-const CDRAGON = { sets: { 17: { champions: [] }, 18: { champions: [] } }, setData: [], items: [cd('TFT_Item_Spatula', 'Spatula'), cd('TFT_Item_SparringGloves', 'Sparring Gloves'), cd('TFT_Item_BFSword', 'B.F. Sword'),
-  cd('TFT_Item_TearOfTheGoddess', 'Tear of the Goddess'), cd('TFT_Item_Deathblade', 'Deathblade', ['TFT_Item_BFSword', 'TFT_Item_BFSword']), cd('TFT_Item_InfinityEdge', 'Infinity Edge', ['TFT_Item_SparringGloves', 'TFT_Item_BFSword']),
-  cd('TFT_Item_SeraphsEmbrace', 'Seraph’s Embrace', ['TFT_Item_TearOfTheGoddess', 'TFT_Item_TearOfTheGoddess']), cd('TFT_Item_BlueBuff', 'Blue Buff', ['TFT_Item_TearOfTheGoddess', 'TFT_Item_TearOfTheGoddess']),
-  cd('TFT17_Item_ArcanaEmblemItem', 'Arcana Emblem', ['TFT_Item_Spatula', 'TFT_Item_BFSword']), cd('TFT18_Item_SolarEmblemItem', 'Solar Emblem', ['TFT_Item_BFSword', 'TFT_Item_Spatula']),
-  cd('TFT5_Item_InfinityEdgeRadiant', 'Radiant Infinity Edge', ['TFT_Item_InfinityEdge']), cd('TFT18_Augment_Rich', 'Rich Get Richer'), { apiName: 'TFT_Item_EmptyBag', name: null, composition: [] }] };
+// CommunityDragon's TFT data (cdragon/tft/en_us.json) as it comes: each set's own item list (setData), Set 18's with the
+// old engine's items (TFT_Item_...) beside the new ones (DA_...), which only combine among themselves. The new ones:
+// four components; Deathblade, Spear of Shojin, Infinity Edge and Blue Buff, with Seraph's Embrace (an old item with Blue Buff's recipe,
+// which Data Dragon doesn't have), this set's Fae Emblem, last set's Arcana Emblem from the same pair (only in Set 17's
+// list), a radiant item and an augment, which aren't recipes
+const cd = (apiName, name, composition = []) => ({ apiName, name, composition, desc: '', effects: {}, tags: [], icon: `ASSETS/Maps/TFT/Icons/Items/Hexcore/${apiName}.TFT_Set13.tex` });
+const CD_ITEMS = [cd('TFT_Item_BFSword', 'B.F. Sword'), cd('TFT_Item_SparringGloves', 'Sparring Gloves'), cd('TFT_Item_Deathblade', 'Deathblade', ['TFT_Item_BFSword', 'TFT_Item_BFSword']),
+  cd('TFT_Item_InfinityEdge', 'Infinity Edge', ['TFT_Item_SparringGloves', 'TFT_Item_BFSword']),
+  cd('DA_Component_Spatula', 'Spatula'), cd('DA_Component_SparringGloves', 'Sparring Gloves'), cd('DA_Component_BFSword', 'B.F. Sword'), cd('DA_Component_TearOfTheGoddess', 'Tear of the Goddess'),
+  cd('DA_Deathblade', 'Deathblade', ['DA_Component_BFSword', 'DA_Component_BFSword']), cd('DA_SpearOfShojin', 'Spear of Shojin', ['DA_Component_TearOfTheGoddess', 'DA_Component_BFSword']),
+  cd('DA_InfinityEdge', 'Infinity Edge', ['DA_Component_SparringGloves', 'DA_Component_BFSword']),
+  cd('DA_SeraphsEmbrace', 'Seraph’s Embrace', ['DA_Component_TearOfTheGoddess', 'DA_Component_TearOfTheGoddess']), cd('DA_BlueBuff', 'Blue Buff', ['DA_Component_TearOfTheGoddess', 'DA_Component_TearOfTheGoddess']),
+  cd('TFT17_Item_ArcanaEmblemItem', 'Arcana Emblem', ['DA_Component_Spatula', 'DA_Component_BFSword']), cd('DA_18_EmblemFae', 'Fae Emblem', ['DA_Component_BFSword', 'DA_Component_Spatula']),
+  cd('DA_InfinityEdgeRadiant', 'Radiant Infinity Edge', ['DA_InfinityEdge']), cd('DA_18_Augment_Rich', 'Rich Get Richer'), { apiName: 'DA_EmptyBag', name: null, composition: [] }];
+const CDRAGON = { sets: { 17: { champions: [] }, 18: { champions: [] } }, items: CD_ITEMS, setData: [{ mutator: 'TFTSet17', items: ['TFT17_Item_ArcanaEmblemItem', 'DA_Component_Spatula', 'DA_Component_BFSword'] },
+  { mutator: 'TFTSet18', items: CD_ITEMS.map((x) => x.apiName).filter((id) => !id.startsWith('TFT17_')) }] };
 const ODDS = [[1, 100, 0, 0, 0, 0], [2, 100, 0, 0, 0, 0], [3, 75, 25, 0, 0, 0], [4, 55, 30, 15, 0, 0], [5, 45, 33, 20, 2, 0], [6, 30, 40, 25, 5, 0], [7, 19, 30, 40, 10, 1], [8, 15, 20, 32, 30, 3],
   [9, 10, 17, 25, 33, 15], [10, 5, 10, 20, 40, 25], [11, 1, 2, 12, 50, 35]].map(([level, ...r]) => ({ level, dropRatesByTier: r.map((rate, i) => ({ cost: i + 1, rate })) }));
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
@@ -77,9 +84,9 @@ const tftGame = (k, set, place, traits, units, augments = []) => ({ metadata: { 
   json: JSON.stringify({ game_datetime: Date.now() - k * 36e5, game_length: 1900, queue_id: 1100, tft_set_number: set, participants: [{ puuid: 'me-puuid', placement: place, level: 8,
     traits: traits.map(([name, num_units, style]) => ({ name, num_units, style })), units: units.map(([character_id, tier, itemNames = []]) => ({ character_id, tier, itemNames })), augments },
   { puuid: 'other', placement: 8, level: 5, traits: [], units: [], augments: [] }] }) });
-const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1], ['DA_18_Mage', 1, 0]], [['DA_18_Xayah', 2, ['TFT_Item_InfinityEdge', 'TFT_Item_BlueBuff']], ['DA_18_Rakan', 2], ['DA_18_Ahri', 1], ['DA_18_Summon', 1]],
+const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1], ['DA_18_Mage', 1, 0]], [['DA_18_Xayah', 2, ['DA_InfinityEdge', 'DA_BlueBuff']], ['DA_18_Rakan', 2], ['DA_18_Ahri', 1], ['DA_18_Summon', 1]],
     ['TFT18_Augment_Rich', 'TFT18_Augment_Cluster']),
-  tftGame(2, 18, 5, [['DA_18_Solar', 2, 1]], [['DA_18_Xayah', 1, ['TFT_Item_InfinityEdge']], ['DA_18_Rakan', 1]], ['TFT18_Augment_Cluster']),
+  tftGame(2, 18, 5, [['DA_18_Solar', 2, 1]], [['DA_18_Xayah', 1, ['DA_InfinityEdge']], ['DA_18_Rakan', 1]], ['TFT18_Augment_Cluster']),
   tftGame(3, 18, 1, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1]], [['DA_18_Rakan', 3], ['DA_18_Ahri', 2]], ['TFT18_Augment_Rich']),
   tftGame(4, 17, 6, [['TFT17_Arcana', 2, 1]], [['TFT17_Ahri', 2]])];
 const L = { calls: [], refused: [] };
@@ -262,14 +269,14 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.deepStrictEqual(await roll(), ['2 star100%', '3 star75%', '10 of 10 copies left. A 4 cost fills 50% of shop slots at level 11. The 2 star needs 3 more, with 16 rolls. The 3 star needs 9 more, with 4 rolls.']);
     // the item recipes: this set's and every set's items made of two components, in the game's order
     const grid = () => cam.$$eval('#tftRec tr', (l) => l.map((tr) => [...tr.cells].map((c) => { const i = c.querySelector('img'); return i ? i.alt + (c.classList.contains('want') ? '*' : '') : '-'; }).join(',')));
-    assert.deepStrictEqual(await grid(), ['-,B.F. Sword,Tear of the Goddess,Sparring Gloves,Spatula', 'B.F. Sword,Deathblade,-,Infinity Edge,Solar Emblem', 'Tear of the Goddess,-,Blue Buff,-,-',
-      'Sparring Gloves,Infinity Edge,-,-,-', 'Spatula,Solar Emblem,-,-,-'], 'Blue Buff over Seraph’s Embrace (not in Data Dragon), and no Arcana Emblem from last set');
+    assert.deepStrictEqual(await grid(), ['-,B.F. Sword,Tear of the Goddess,Sparring Gloves,Spatula', 'B.F. Sword,Deathblade,Spear of Shojin,Infinity Edge,Fae Emblem', 'Tear of the Goddess,Spear of Shojin,Blue Buff,-,-',
+      'Sparring Gloves,Infinity Edge,-,-,-', 'Spatula,Fae Emblem,-,-,-'], 'this set’s items only: Blue Buff over Seraph’s Embrace (not in Data Dragon), no Arcana Emblem from last set');
     assert.deepStrictEqual(await cam.$$eval('#tftRec td img', (l) => ['Infinity Edge', 'Deathblade'].map((n) => l.find((i) => i.alt === n).src)),
-      ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-item/TFT_Item_InfinityEdge.png', 'https://raw.communitydragon.org/latest/game/assets/maps/tft/icons/items/hexcore/tft_item_deathblade.tft_set13.png'], 'Data Dragon’s picture, else CommunityDragon’s');
+      ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-item/DA_InfinityEdge.png', 'https://raw.communitydragon.org/latest/game/assets/maps/tft/icons/items/hexcore/da_deathblade.tft_set13.png'], 'Data Dragon’s picture, else CommunityDragon’s');
     assert.strictEqual(await cam.locator('#tftWant li').count(), 0, 'no games on the website, so no gold rings');
     await cam.reload();
     await cam.click('.nav[data-view="tft"]');
-    await wait(cam, () => document.querySelectorAll('#tftRec img').length === 14, null, 'the recipes after a restart');
+    await wait(cam, () => document.querySelectorAll('#tftRec img').length === 16, null, 'the recipes after a restart');
     assert.strictEqual(cdragonLoads, 1, 'kept for the patch');
     // My comps: with champions on the board, the comps sharing most of them first, with who's still needed
     for (const n of ['Rakan', 'Lux (Solar)']) await pool(cam, n).click();
@@ -325,7 +332,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     await wait(pc, () => window.lastOverlay && window.lastOverlay.tft, null, 'the recipes on the overlay in a TFT game');
     const ov = await pc.evaluate(() => window.lastOverlay.tft);
     assert.deepStrictEqual([ov.c.map(([n]) => n), ...ov.g.map((r) => r.map((x) => (x ? x[0] + (x[2] ? '*' : '') : '-')).join(','))], [['B.F. Sword', 'Tear of the Goddess', 'Sparring Gloves', 'Spatula'],
-      'Deathblade,-,Infinity Edge*,Solar Emblem', '-,Blue Buff*,-,-', 'Infinity Edge*,-,-,-', 'Solar Emblem,-,-,-']);
+      'Deathblade,Spear of Shojin,Infinity Edge*,Fae Emblem', 'Spear of Shojin,Blue Buff*,-,-', 'Infinity Edge*,-,-,-', 'Fae Emblem,-,-,-']);
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await wait(pc, () => !window.lastOverlay.tft, null, 'gone after the game');
     // the same boards on Profile's TFT tab
