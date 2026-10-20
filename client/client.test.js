@@ -301,7 +301,8 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // shortcuts: mute and show/hide register system-wide; push to talk needs Windows
     const keys = await js(`lpcClient.keys({ mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Alt+V', ptt: 'KeyV' })`);
     assert.deepStrictEqual(keys, { mute: true, clip: true, overlay: true, show: true, ptt: process.platform === 'win32' }, JSON.stringify(keys));
-    assert(['M', 'L', 'K', 'O'].every((k) => globalShortcut.isRegistered('Ctrl+Shift+' + k)));
+    assert(['M', 'L', 'K'].every((k) => globalShortcut.isRegistered('Ctrl+Shift+' + k)));
+    assert.strictEqual(globalShortcut.isRegistered('Alt+V'), process.platform !== 'win32', 'the overlay key: read like push to talk on Windows, a hotkey elsewhere');
     // a match found (Pregame settings): the window in front of League's client, on top for a moment only
     await js('lpcClient.front()');
     await until(() => win.isVisible() && win.isAlwaysOnTop(), 'the window in front');
