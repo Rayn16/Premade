@@ -3857,7 +3857,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const j = JSON.stringify(s);
     if (j !== overlayWas) { overlayWas = j; client.overlay(s); }
   }
+  let ovKeyAt = -Infinity;
   function toggleOverlay() {
+    // a held key repeats (Windows sends the shortcut again ~0.5 s in, then fast), which flipped the overlay twice and
+    // looked like nothing happened: presses within 0.6 s of the last one count as the same press
+    const t = performance.now(), again = t - ovKeyAt < 600;
+    ovKeyAt = t;
+    if (again) return;
     if (!overlayHide && !boardNow() && boardCan()) { boardKey = true; notify(`Everyone’s rank is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides the overlay.` : ''}`, true); }
     else {
       overlayHide = !overlayHide;
@@ -11314,7 +11320,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [44, 'October 20: righter callouts, and Alt+V for the overlay', [
-      'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts.',
+      'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts. Holding the overlay shortcut a moment too long no longer flips the overlay twice, which looked like the key didn’t work.',
       'Callouts are right more often: “heading your way” only when their jungler walks straight at you, not when you walk toward them or they pass by; no “Jungler in mid” for a jungler in a base; their jungler stays their jungler after selling the jungle pet, so they’re never called a missing laner; dead players come back on League’s own respawn timer; and a jungler or gank callout that waited more than 4 seconds behind another is dropped instead of showing late.',
     ]],
     [42, 'October 20: Premade moves to GitHub', [
