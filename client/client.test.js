@@ -1,4 +1,5 @@
-// xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream client.test.js (not --use-fake-ui-for-media-stream:
+// xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream --proxy-server=127.0.0.1:9 client.test.js (the dead
+// proxy keeps it off the internet and out of real voice rooms; not --use-fake-ui-for-media-stream:
 // it skips the client's own screen choice): opens the client on a local copy of site/ while a fake League
 // game runs (on a self-signed certificate, like League's), and checks what the client adds: screen sharing without a
 // picker, full speed in the background, the screen list, League's data on the page (with the game's big moments, the
@@ -248,12 +249,12 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     const wb = JSON.parse(fs.readFileSync(winJson, 'utf8'));
     assert(wb.height === 700 && wb.max === false && Number.isFinite(wb.x), `the window remembered: ${JSON.stringify(wb)}`);
 
-    // the page's own overlay in a game: the objective timers and kills (no gold here: Riot's item prices don't load)
+    // the page's own overlay in a game: the objective timers and kills, with the gold and win chance once Riot's item prices load
     const ovWin = () => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('overlay.html'));
     let ov;
-    await until(async () => (ov = ovWin()) && ov.isVisible() && /Dragon \d:\d\d · Baron \d+:\d\d · Kills 0–0\nCS 0 · 0\.0 a minute/.test(await ov.webContents.executeJavaScript('document.body.innerText')), 'the game line and CS counter on the overlay');
+    await until(async () => (ov = ovWin()) && ov.isVisible() && /Dragon \d:\d\d · Baron \d+:\d\d · Kills 0–0( · Gold even · Win chance 50%)?\nCS 0 · 0\.0 a minute/.test(await ov.webContents.executeJavaScript('document.body.innerText')), 'the game line and CS counter on the overlay');
     console.log(`the page's overlay: ${JSON.stringify(await ov.webContents.executeJavaScript('document.body.innerText'))}`);
-    await js('document.getElementById("optOverlayGame").click(); document.getElementById("optOverlayCs").click()'); // off in Settings: the page hides it, and the rest is set by hand
+    await js('for (const id of ["optOverlayGame", "optOverlayCs", "optOverlayWin"]) document.getElementById(id).click()'); // off in Settings: the page hides it, and the rest is set by hand
     await until(() => !ov.isVisible(), 'the overlay hidden with the game line off');
     // the overlay: on the right of the screen, see-through, showing who's talking and that you're muted
     await js(`lpcClient.overlay({ visible: true, pos: 'mr', muted: true, talkers: [{ name: 'Friend', pic: '', team: 'enemy' }], toasts: ['Friend joined the room'],
