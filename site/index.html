@@ -4055,11 +4055,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return t && { title: t.title, lines: t.lines.filter((x) => !/ players take /.test(x)).slice(0, 6) };
   }
   // What to buy next, while you're dead or in your base on Summoner's Rift: of the finished items and boots high elo
-  // players build on your champion in your role (our server's games), the one bought soonest after builds most like
-  // yours, weighed up for what the other team needs answering: armor against mostly physical damage (by their items,
-  // else their champion), magic resist against magic damage, Grievous Wounds against healers and penetration against
-  // two or more stacking armor or magic resist, each of them counted by their item gold and kills. Never an item high
-  // elo players never build with one you have (two of a kind, like two Lifeline items).
+  // players (or Emerald and Diamond's, as in champ select) build on your champion in your role (our server's games),
+  // the one bought soonest after builds most like yours, weighed up for what the other team needs answering: armor
+  // against mostly physical damage (by their items, else their champion), magic resist against magic damage, Grievous
+  // Wounds against healers and penetration against two or more stacking armor or magic resist, each of them counted by
+  // their item gold and kills. Never an item high elo players never build with one you have (two of a kind, like two
+  // Lifeline items).
   // Worked out again only when your items, the other team's items or kills, or the high elo games change (buyWas).
   // ponytail: hand-set weights and a hand list of healers; tune them once real games say otherwise
   const HEALERS = new Set(['Aatrox', 'Briar', 'DrMundo', 'Fiddlesticks', 'Illaoi', 'Maokai', 'Milio', 'Nami', 'Nasus', 'Olaf', 'Renata', 'Seraphine', 'Sona', 'Soraka', 'Swain', 'Sylas', 'Vladimir', 'Volibear', 'Warwick', 'Yuumi']);
@@ -4068,7 +4069,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const m = opts.overlayBuy && league && SR.test(league.mode) && (mine.dead || (fresh(me) && zoneOf(me) === 'your base')) ? meIn() : null, c = m && champOf(m.champ), role = m && posIn(m);
     if (!c || !POS[role]) return null;
     itemsSoon();
-    const top = topNow(+c.key, role, renderGame), it = (id) => (ddItems && ddItems[id]) || {}, fin = (id) => !!(it(id).done || it(id).boots);
+    const top = topMineNow(+c.key, role, renderGame), it = (id) => (ddItems && ddItems[id]) || {}, fin = (id) => !!(it(id).done || it(id).boots);
     if (!ddItems || !topOk(top)) return null;
     const key = JSON.stringify([c.key, role, m.items, league.players.filter((p) => p.team !== m.team).map((p) => [p.champ, p.items, p.k])]);
     if (buyWas.top === top && buyWas.key === key) return buyWas.out;
@@ -5316,10 +5317,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // lane opponent (once for each size of gap). I'm new adds why, and what to do.
   let coachSaid = { room: '', set: new Set() };
   const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
-  function nextBuy() { // the next item of your build (high elo, else yours) you haven't got: { id, name, left (its gold less the parts you have) }
+  function nextBuy() { // the next item of your build (champ select's, else yours) you haven't got: { id, name, left (its gold less the parts you have) }
     const m = meIn(), c = m && champOf(m.champ);
     if (!c || !ddItems) return null;
-    const pos = posIn(m), t = topNow(+c.key, pos, () => {}), b = topOk(t) ? buildFrom(t.buys) : buildOf(+c.key, pos), have = (m.items || []).map(([i]) => i);
+    const pos = posIn(m), t = topMineNow(+c.key, pos, () => {}), b = topOk(t) ? buildFrom(t.buys) : buildOf(+c.key, pos), have = (m.items || []).map(([i]) => i);
     const id = b && [...b.core, ...(b.boots ? [b.boots] : []), ...b.more].find((i) => ddItems[i] && !have.includes(i));
     return id ? { id, name: ddItems[id].name, left: ddItems[id].gold - ddItems[id].from.filter((f) => have.includes(f)).reduce((n, f) => n + ((ddItems[f] || {}).gold || 0), 0) } : null;
   }
@@ -11186,7 +11187,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ]],
     [35, 'October 20: help while you’re dead, and your chance to win', [
       'While you’re dead on Summoner’s Rift, the tips for your lane from champ select come back on the overlay and the Game page: your notes, how high elo players do in the matchup and Riot’s tips.',
-      'What to buy next: while you’re dead or in your base, the next item for this game, from what high elo players build on your champion and the other team’s damage and items, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
+      'What to buy next: while you’re dead or in your base, the next item for this game, from what players at your rank build on your champion and the other team’s damage and items, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
       'Your team’s chance to win, live at the end of the timers line on the overlay, from the gold, kills, towers, dragons, Baron, Elder and inhibitors.',
       'Watch a friend’s screen in a corner while you’re dead, if they let you in Voice settings, In a game. Only friends in your room on your team in the same game.',
     ]],
@@ -11575,7 +11576,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE) and the clips you saved that game.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayAfter', 'app'],
       ['Tips while you’re dead', 'While you wait to respawn on Summoner’s Rift, the tips for your lane from champ select on the left of your screen: your notes on the matchup, how high elo players do in it, your own games against them and Riot’s tips.',
         'On unless you turn it off: the Overlay page, What it shows. Drag it anywhere in Layout.', '#optDeadTips', 'app'],
-      ['What to buy next', 'While you’re dead or in your base, the next item for this game, from what high elo players build on your champion and the other team’s damage, healing, armor and magic resist, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
+      ['What to buy next', 'While you’re dead or in your base, the next item for this game, from what players at your rank build on your champion and the other team’s damage, healing, armor and magic resist, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
         'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayBuy', 'app'],
       ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time.',
         'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayWin', 'app'],
