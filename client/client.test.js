@@ -28,7 +28,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-'));
 execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=127.0.0.1', '-days', '1', '-keyout', `${tmp}/key.pem`, '-out', `${tmp}/cert.pem`], { stdio: 'ignore' });
 const player = (riotId, team, championName, raw, isDead = false, respawnTimer = 0) => ({ riotId, summonerName: riotId, team, championName, rawChampionName: `game_character_displayname_${raw}`, isDead, respawnTimer });
 const GAME = {
-  activePlayer: { riotId: 'Rayan#EUW', summonerName: 'Rayan#EUW', championStats: { currentHealth: 150, maxHealth: 600, moveSpeed: 345.6 } },
+  activePlayer: { riotId: 'Rayan#EUW', summonerName: 'Rayan#EUW', currentGold: 1234.7, championStats: { currentHealth: 150, maxHealth: 600, moveSpeed: 345.6 } },
   allPlayers: [player('Rayan#EUW', 'ORDER', 'Wukong', 'MonkeyKing', true, 12.4), player('Friend#EUW', 'CHAOS', 'Annie', 'Annie')],
   events: { Events: [{ EventID: 0, EventName: 'GameStart', EventTime: 0 }] },
   gameData: { gameMode: 'CLASSIC', gameTime: 100 },
@@ -91,7 +91,7 @@ shell.trashItem = async (p) => { binned.push(path.basename(p)); fs.rmSync(p); };
 
 // League's data, as the page gets it
 const s = summary(GAME);
-assert.deepStrictEqual(s.me, { champ: 'MonkeyKing', champName: 'Wukong', team: 'ORDER', dead: true, respawn: 12, hp: 0.25, speed: 346 });
+assert.deepStrictEqual(s.me, { champ: 'MonkeyKing', champName: 'Wukong', team: 'ORDER', dead: true, respawn: 12, hp: 0.25, speed: 346, gold: 1234 });
 assert(/^g[0-9a-f]{11}$/.test(s.room) && s.mode === 'CLASSIC' && s.result === '' && s.t === 100 && s.events.length === 0, JSON.stringify(s));
 // the big moments for the Legends voices: your kills and deaths, multikills, dragons and Baron with the team that took
 // them (by the killer's name), Aces. Rayan is dead, so what happened in the last 5 s happened to a dead Rayan.
@@ -113,8 +113,8 @@ assert.strictEqual(summary({ ...GAME, events: { Events: [{ EventName: 'GameEnd',
 // everyone's scoreboard, for the Game page and the gold difference
 const G2 = { ...GAME, allPlayers: [{ ...GAME.allPlayers[0], level: 9, position: 'MIDDLE', scores: { kills: 3, deaths: 1, assists: 4, creepScore: 120 }, items: [{ itemID: 3031, count: 1 }, { itemID: 2003, count: 2 }] }, GAME.allPlayers[1]] };
 assert.deepStrictEqual(summary(G2).players, [
-  { name: 'Rayan#EUW', team: 'ORDER', champ: 'MonkeyKing', champName: 'Wukong', pos: 'MIDDLE', lvl: 9, k: 3, d: 1, a: 4, cs: 120, items: [[3031, 1], [2003, 2]] },
-  { name: 'Friend#EUW', team: 'CHAOS', champ: 'Annie', champName: 'Annie', pos: '', lvl: 0, k: 0, d: 0, a: 0, cs: 0, items: [] }]);
+  { name: 'Rayan#EUW', team: 'ORDER', champ: 'MonkeyKing', champName: 'Wukong', pos: 'MIDDLE', lvl: 9, k: 3, d: 1, a: 4, cs: 120, items: [[3031, 1], [2003, 2]], dead: true, respawn: 12 },
+  { name: 'Friend#EUW', team: 'CHAOS', champ: 'Annie', champName: 'Annie', pos: '', lvl: 0, k: 0, d: 0, a: 0, cs: 0, items: [], dead: false, respawn: 0 }]);
 // towers and inhibitors with whose they were, Herald and Voidgrubs, for the objective timers
 const OBJ = { ...GAME, events: { Events: [ev(1, 'TurretKilled', 300, { TurretKilled: 'Turret_T2_L_03_A', KillerName: 'Rayan' }), ev(2, 'InhibKilled', 900, { InhibKilled: 'Barracks_T1_C1', KillerName: 'Friend' }),
   ev(3, 'InhibRespawned', 1200, { InhibRespawned: 'Barracks_T1_C1' }), ev(4, 'HordeKill', 400, { KillerName: 'Friend' }), ev(5, 'HeraldKill', 800, { KillerName: 'Rayan' })] } };

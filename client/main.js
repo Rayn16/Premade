@@ -83,10 +83,10 @@ function ask(method, url, headers, body, ms = 1500) {
   });
 }
 const getJson = async (url, headers) => { const r = await ask('GET', url, headers); return r.status === 200 ? r.data : null; };
-// What the page uses: your champion, team, deaths, health and speed, the game mode and clock, the big moments of the
-// game, the result once it's over, and a room code that's the same for everyone in this game, made from its players,
-// so no one has to send it around. Then everyone's scoreboard (what Tab shows: champion, level, score and items), for
-// the gold difference and the game report.
+// What the page uses: your champion, team, deaths, health, speed and gold, the game mode and clock, the big moments of
+// the game, the result once it's over, and a room code that's the same for everyone in this game, made from its
+// players, so no one has to send it around. Then everyone's scoreboard (what Tab shows: champion, level, score, items
+// and who's dead), for the gold difference, the game report and the coach.
 const health = (s) => (s && s.maxHealth > 0 ? Math.round(Math.min(1, Math.max(0, s.currentHealth / s.maxHealth)) * 100) / 100 : 1);
 function summary(d) {
   const all = d && Array.isArray(d.allPlayers) ? d.allPlayers : [];
@@ -104,14 +104,15 @@ function summary(d) {
     inGame: true,
     mode: String((d.gameData && d.gameData.gameMode) || ''),
     t: Math.round((+(d.gameData && d.gameData.gameTime) || 0) * 10) / 10,
-    me: { champ: champ(me), champName: String(me.championName || ''), team: me.team, dead: !!me.isDead, respawn: Math.round(+me.respawnTimer || 0), hp: health(stats), speed: Math.round(+stats.moveSpeed || 0) },
+    me: { champ: champ(me), champName: String(me.championName || ''), team: me.team, dead: !!me.isDead, respawn: Math.round(+me.respawnTimer || 0), hp: health(stats), speed: Math.round(+stats.moveSpeed || 0), gold: Math.floor(+d.activePlayer.currentGold || 0) },
     room,
     result: end ? String(end.Result || '') : '',
     events: moments(d, all, me, room + id(me)),
     players: all.map((p) => {
       const s = p.scores || {};
       return { name: id(p), team: String(p.team || ''), champ: champ(p), champName: String(p.championName || ''), pos: String(p.position || ''), lvl: +p.level || 0,
-        k: +s.kills || 0, d: +s.deaths || 0, a: +s.assists || 0, cs: +s.creepScore || 0, items: (Array.isArray(p.items) ? p.items : []).map((i) => [+i.itemID || 0, +i.count || 1]) };
+        k: +s.kills || 0, d: +s.deaths || 0, a: +s.assists || 0, cs: +s.creepScore || 0, items: (Array.isArray(p.items) ? p.items : []).map((i) => [+i.itemID || 0, +i.count || 1]),
+        dead: !!p.isDead, respawn: Math.round(+p.respawnTimer || 0) };
     }),
   };
 }

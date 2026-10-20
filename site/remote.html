@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-title" content="LPC Remote">
 <meta name="theme-color" content="#010a13">
 <style>
-/* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone, and
-   room chat (index.html's Pregame page shows the QR code that opens it). It can live on the home screen
+/* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone, enemy
+   timers and room chat (index.html's Pregame page shows the QR code that opens it). It can live on the home screen
    (remote-manifest.json) and show a notification when a match is found (remote-sw.js). The same navy and gold as the app. */
 :root {
   --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
@@ -54,6 +54,7 @@ input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); b
 .timers { display: flex; flex-wrap: wrap; gap: 8px; }
 .timers span { display: grid; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font: 500 16px/1.2 ui-monospace, Consolas, monospace; }
 .timers b { font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.foes { display: grid; gap: 10px; margin-top: 12px; }
 .check { display: flex; align-items: center; gap: 10px; }
 .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; overflow-wrap: anywhere; }
 .log:empty::before { content: attr(data-empty); color: var(--muted); }
@@ -101,6 +102,7 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   <section id="game" class="panel" aria-labelledby="h-game" hidden>
     <h2 id="h-game">In game</h2>
     <div id="timers" class="timers"></div>
+    <div id="foes" class="foes" hidden></div>
   </section>
   <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
     <h2 id="h-chat">Room chat</h2>
@@ -122,8 +124,8 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   // The PC's page is lolprox-r<code>-0 on our connection server; this phone takes the first free one of -1 to -9 and
   // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game, chat } (index.html remoteState)
   // whenever it changes; this page sends hi (with whether it's on the screen), accept, decline, hover, lock, auto, queue,
-  // trade and chat. The code is kept on the phone, so the home screen icon (which opens remote.html with no code)
-  // connects too.
+  // trade, chat and timer (an enemy timer: what, champ). The code is kept on the phone, so the home screen icon (which
+  // opens remote.html with no code) connects too.
   const $ = (id) => document.getElementById(id);
   const local = new URLSearchParams(location.search).get('peer'); // ?peer=127.0.0.1:9000 for tests, as in index.html
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
@@ -261,11 +263,24 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     if (s && s.game) {
       const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])];
       $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
+      renderFoes(g.foes);
     }
     $('chat').hidden = !(s && Array.isArray(s.chat));
     if (!$('chat').hidden) renderChat(s.chat);
     $('auto').checked = !!(s && s.auto);
     $('auto').disabled = !s;
+  }
+  // enemy timers (when the PC has them on): a tap starts one, or takes a running one off. Drawn again only when the
+  // champions change, so a button doesn't move under a finger
+  function renderFoes(foes) {
+    const list = Array.isArray(foes) ? foes : [], key = list.join() + (ddv ? '+' : '');
+    $('foes').hidden = !list.length;
+    if ($('foes').dataset.k === key) return;
+    $('foes').dataset.k = key;
+    const btn = (label, m) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = label; b.addEventListener('click', () => send({ t: 'timer', ...m })); return b; };
+    const row = (who, ...bs) => { const r = document.createElement('div'), s = document.createElement('span'); r.className = 'trade'; s.textContent = who; r.append(s, ...bs); return r; };
+    $('foes').replaceChildren(...list.map((k) => row(name(k), btn('Flash', { what: 'flash', champ: k }), btn('Ultimate', { what: 'r', champ: k }))),
+      ...(list.length ? [row('Their jungle', btn('Red buff', { what: 'red' }), btn('Blue buff', { what: 'blue' }))] : []));
   }
   let chatWas = '';
   function renderChat(lines) {
