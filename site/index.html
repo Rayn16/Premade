@@ -391,6 +391,9 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .clip .shot { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; display: block; cursor: grab; }
 .clip .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.vidlist { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.vidlist li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.vidlist .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; flex: 1 1 200px; }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 #clipKeyNote:empty { display: none; }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
@@ -608,7 +611,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // read well (4.5:1) on all of its backgrounds. Custom is your own background and text over red and black: panels a
   // step toward that white or black, the page moved the other way until it reads on its panels too, then your text
   // and the gold, green, amber and red text mixed toward it until they read, and dim text between yours and the page.
-  // Settings calls this again after a change, and for the Custom card's preview (el).
+  // Main colour from the champion I'm playing puts that champion's colour (champLook) in place of yours. Settings calls
+  // this again after a change, and for the Custom card's preview (el).
   function lpcLook(el = document.documentElement, t) {
     let o = {};
     try { t ??= localStorage.getItem('lpc-theme') || ''; o = JSON.parse(localStorage.getItem('lpc-opts')) || {}; } catch {}
@@ -617,7 +621,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const k of ['bg', 'panel', 'raised', 'fg', 'muted', 'line', 'gold', 'gold-hi', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'best', 'good', 'warn', 'bad']) el.style.removeProperty('--' + k);
     el.style.removeProperty('color-scheme'); // the theme's own colours, then yours over them
     const ok = (h) => /^#[0-9a-f]{6}$/i.test(h || ''), custom = el.dataset.theme === 'custom';
-    if (!custom && !ok(o.main)) return;
+    const main = o.champLook && o.champMain && ok(o.champMain.hex) ? o.champMain.hex : o.main; // your champion's, if you ticked that
+    if (!custom && !ok(main)) return;
     const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
     const lin = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4), lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
     const mix = (a, b, w) => a.map((v, i) => Math.round(v * w + b[i] * (1 - w)));
@@ -639,7 +644,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       for (const k of ['best', 'good', 'warn', 'bad']) own[k] = hex(readable(get(k), pole));
       el.style.colorScheme = light ? 'light' : 'dark';
     }
-    const m = ok(o.main) ? rgb(o.main) : get('accent'), text = hex(readable(m, pole)); // Custom without a main colour: red and black's
+    const m = ok(main) ? rgb(main) : get('accent'), text = hex(readable(m, pole)); // Custom without a main colour: red and black's
     Object.assign(own, { accent: hex(m), 'accent-fg': lum(m) > 0.179 ? '#000000' : '#ffffff', gold: text, link: text, 'gold-line': hex(mix(m, backs[1], 0.5)) });
     for (const k in own) el.style.setProperty('--' + k, own[k]);
   }
@@ -1182,6 +1187,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div id="drillTrend" class="trends"></div>
         <ol id="drillList" class="lplist"></ol>
       </section>
+      <section id="comboBox" class="panel" aria-labelledby="h-combo" hidden>
+        <h2 id="h-combo" class="ph">Combo trainer <button class="tip" type="button" popovertarget="t-combo" aria-label="About the combo trainer">?</button></h2>
+        <label class="check"><input id="optCombo" type="checkbox"> Show my key presses in Practice Tool, and time my combos</label>
+        <div class="toolbar"><label class="field">A combo ends after <select id="optComboGap"><option value="0.5">half a second without a key</option><option value="1">1 second without a key</option><option value="2">2 seconds without a key</option></select></label></div>
+        <p id="comboNow" class="phase" role="status"></p>
+        <div class="tablewrap" hidden><table class="ready"><thead><tr><th>Combo</th><th>Best</th><th>Last</th><th>Tries</th></tr></thead><tbody id="comboRows"></tbody></table></div>
+      </section>
+      <section id="jgBox" class="panel" aria-labelledby="h-jg" hidden>
+        <h2 id="h-jg" class="ph">Jungle clear <button class="tip" type="button" popovertarget="t-jg" aria-label="About the jungle clear timer">?</button></h2>
+        <div class="toolbar"><label class="field">Camps in my clear <select id="optJgCamps"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></label></div>
+        <p id="jgNow" class="phase" role="status"></p>
+        <div class="tablewrap" hidden><table class="ready"><thead><tr><th>Camp</th><th>Done at</th><th>Gold</th><th>Against your best</th></tr></thead><tbody id="jgRows"></tbody></table></div>
+        <ol id="jgList" class="lplist"></ol>
+      </section>
       <section id="postBox" class="panel" aria-labelledby="h-post" hidden>
         <h2 id="h-post" class="ph">Your last game <button class="tip" type="button" popovertarget="t-post" aria-label="About your last game">?</button></h2>
         <p id="postHead" class="phase" role="status"></p>
@@ -1407,6 +1426,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="clipList" class="cliplist" hidden></ul>
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
       </section>
+      <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
+        <h2 id="h-vids" class="ph">Whole games <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole games on video">?</button></h2>
+        <p id="vidNote" class="hint" role="status"></p>
+        <ul id="vidList" class="vidlist"></ul>
+        <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button></div>
+      </section>
       <details id="clipSet" class="voiceset">
         <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
         <div class="settings">
@@ -1417,6 +1442,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
               <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
             </div>
+            <label class="check"><input id="optGameVideo" type="checkbox"> Keep every game as a video too, at lower quality (about 300 MB for 30 minutes) <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole games on video">?</button></label>
+            <label class="field">Keep game videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
             <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
           </section>
           <section class="panel">
@@ -1552,6 +1579,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div id="customRow" class="toolbar" hidden><label class="check">Background <input id="optCustomBg" type="color"></label><label class="check">Text <input id="optCustomFg" type="color"></label></div>
           <div class="toolbar"><label class="check">Main colour <input id="optMain" type="color"></label><button id="mainReset" class="btn small" type="button">Use the theme’s colour</button></div>
           <label class="check"><input id="optThemeAuto" type="checkbox"> Light when my computer is in light mode</label>
+          <label class="check client-only"><input id="optChampLook" type="checkbox"> Main colour from the champion I’m playing, taken from its splash art</label>
         </section>
         <section class="panel">
           <h2 class="ph">App</h2>
@@ -1722,6 +1750,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
 <div id="t-mx" class="tipbox" popover>Pick a champion and the one it plays against to see how that matchup goes in high elo: the record, gold and CS at 10 minutes, the runes, spells and items players take in it, the rune page and build most of those games had, your own games and Riot's tips for both. The role is the one the first champion plays most in high elo, unless you pick one. Like the other tips, it hides during a game, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
+<div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.14, which tells the page your gold.</div>
+<div id="t-vids" class="tipbox" popover>With Keep every game as a video on (Clip settings), the app records each game you play, except Practice Tool, at 720p and lower quality than clips: about 300 MB for 30 minutes. It goes in Videos\Premade\Games as it records, and once the game is over you can skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
@@ -1783,6 +1814,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
+    combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -3747,7 +3779,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (JSON.stringify(next) === JSON.stringify(mine)) return;
     mine = next;
     send(meMsg());
-    if (mine.champ) ddSoon();
+    if (mine.champ) { ddSoon(); champLook(); }
   }
   function onLeague(d) {
     const was = league, phase = lcu;
@@ -3762,6 +3794,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (league && league.result && !(ended && ended.room === league.room)) { ended = { result: league.result, room: league.room, at: performance.now() }; customDone(); }
     refreshMine();
     drillTick();
+    jgTick();
+    comboCheck();
     applyHurt();
     applyFx();
     if (league && opts.autoRoom && GAME_ROOM.test(league.room)) autoRoom(league.room);
@@ -3789,7 +3823,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayOn = on(opts.overlayChat && voice); // room chat shows there, so it needs no popup
     const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
-    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board;
+    const practice = on(league && league.mode === 'PRACTICETOOL') ? [comboLine(), jgLine()].filter(Boolean) : [];
+    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
@@ -3799,7 +3834,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     // teammate's screen while you're dead, and parts with places of their own
     const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || (visible && Object.keys(opts.overlayParts).length > 0));
     const s = !visible && !full ? { visible: false } : {
-      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
       parts: boardOk() ? ovSpots() : null, missing, after, tips, buy, screen,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
@@ -4159,7 +4194,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // of their own need the whole screen, so app 1.10.
   const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, missing: { x: 0.99, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' },
     buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' } }; // under League's score, under the rest, over who's off your minimap
-  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', missing: 'Off my minimap', after: 'After the game',
+  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', practice: 'Practice Tool', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', missing: 'Off my minimap', after: 'After the game',
     buy: 'What to buy', tips: 'Tips while dead', screen: 'Teammate’s screen' };
   const ovSpots = () => ({ ...OV_SPOTS, ...opts.overlayParts });
   const ovFrame = $('ovFrame'), ovStage = $('ovStage'), ovView = document.querySelector('.view[data-view="overlay"]');
@@ -4169,6 +4204,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return {
       call: opts.mapNudge || opts.jgCall || opts.gankCall || opts.missCall || opts.invadeCall ? 'Zed missing from mid' : opts.spikeCall || opts.coach || opts.jgClock ? 'Zed is level 6' : '',
       game: [opts.overlayGame ? `Dragon 1:23 · Baron 12:00${opts.foeTimers ? ' · Zed Flash 4:12' : ''} · Kills 5–3 · Gold +1.2k` : '', opts.overlayWin ? 'Win chance 62%' : ''].filter(Boolean).join(' · '), cs: opts.overlayCs ? 'CS 64 · 7.1 a minute (usual 6.4)' : '', lane: opts.overlayLane ? 'vs Zed: CS +6 · gold +0.3k' : '',
+      practice: [opts.combo && 'E · Q +0.21 · click +0.12 · R +0.30 = 0.63 s, best 0.58', jgRuns.length && 'Camp 3 at 2:16 · 2 s faster than your best'].filter(Boolean), // Practice Tool's, for those who use them
       talking: !!opts.overlayMe, hear: opts.overlayMe ? ['Sam', 'Kai'] : null, talkers: opts.overlay ? [{ name: 'Sam', pic: '', team: 'ally' }] : [],
       chat: opts.overlayChat ? [{ name: 'Kai', text: 'dragon in a minute?' }] : [], toasts: opts.overlayToasts ? ['Popups show here'] : [],
       missing: opts.missList ? [['Zed', champImg('Zed'), '0:40', 'toward bot'], ['Lee Sin', champImg('LeeSin'), '0:12', 'in their jungle']] : null,
@@ -4458,7 +4494,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
-    if (name === 'clips') loadClips();
+    if (name === 'clips') { loadClips(); loadVids(); }
     if (name === 'settings') { loadScreens(); serverStats(); }
     if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
@@ -5409,6 +5445,129 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('drillCs').value = '';
     renderDrill();
   });
+  const trOf = (...cells) => { const tr = document.createElement('tr'); for (const v of cells) tr.append(Object.assign(document.createElement('td'), { textContent: String(v) })); return tr; };
+  // ---- combo trainer (app 1.15): in a Practice Tool game with it on, the app sends each press of League's usual keys
+  // (client/main.js COMBO): abilities, summoner spells, items and right clicks. Presses less than opts.comboGap seconds
+  // apart make a combo, named by its keys but not its clicks (moving between casts doesn't make it another combo) and
+  // timed from its first key to its last. Each champion's best for each combo is kept (lpc-combos: { champion:
+  // { 'E Q R': { best, last, n } } }, in ms). combo: the one going on or the last one, { champ, keys: [[key, t]], done,
+  // name, ms, best (before it) }.
+  let combos = load('lpc-combos', {}), combo = null, comboTimer = 0, comboWas = false;
+  if (!combos || typeof combos !== 'object' || Array.isArray(combos)) combos = {};
+  const comboOn = () => !!opts.combo && !!client && !!client.combo && !!league && league.mode === 'PRACTICETOOL';
+  const inSecs = (ms) => (ms / 1000).toFixed(2);
+  function comboCheck() { // the app reads the keys only while they're wanted
+    const on = comboOn();
+    if (on !== comboWas) { comboWas = on; client.combo(on); }
+    if (!on) combo = null;
+  }
+  if (client && client.combo) client.on('press', (p) => {
+    if (!comboOn() || !p || !/^([QWERDF1-7]|Click)$/.test(p.k) || !Number.isFinite(p.t)) return;
+    const last = combo && !combo.done && combo.keys[combo.keys.length - 1];
+    if (!last || p.t - last[1] > opts.comboGap * 1000) combo = { champ: mine.champ, keys: [], done: false };
+    combo.keys.push([p.k, p.t]);
+    clearTimeout(comboTimer);
+    comboTimer = setTimeout(comboEnd, opts.comboGap * 1000);
+    if (!gameViewEl.hidden) renderCombo();
+    pushOverlay();
+  });
+  function comboEnd() {
+    const c = combo, ks = c ? c.keys.filter(([k]) => k !== 'Click') : [];
+    if (!c || c.done) return;
+    c.done = true;
+    if (ks.length >= 2) {
+      const by = (combos[c.champ || '?'] ||= {}), name = ks.map(([k]) => k).join(' '), was = by[name], ms = ks[ks.length - 1][1] - ks[0][1];
+      Object.assign(c, { name, ms, best: was ? was.best : null });
+      by[name] = { best: Math.min(ms, was ? was.best : ms), last: ms, n: (was ? was.n : 0) + 1 };
+      store.set('lpc-combos', JSON.stringify(combos));
+    }
+    if (!gameViewEl.hidden) renderCombo();
+    pushOverlay();
+  }
+  function comboLine() { // the keys with the time since the one before, then the combo's time against its best
+    const c = combo;
+    if (!c || !comboOn()) return '';
+    const keys = c.keys.slice(-12).map(([k, t], i, all) => `${k === 'Click' ? 'click' : k}${i ? ` +${inSecs(t - all[i - 1][1])}` : ''}`).join(' · ');
+    return !c.name ? keys : `${keys} = ${inSecs(c.ms)} s${c.best == null ? '' : c.ms < c.best ? `, your best yet (was ${inSecs(c.best)})` : `, best ${inSecs(c.best)}`}`;
+  }
+  function renderCombo() {
+    const on = !!league && league.mode === 'PRACTICETOOL', all = Object.entries(on ? { [mine.champ]: combos[mine.champ] || {} } : combos);
+    const rows = all.flatMap(([ch, list]) => Object.entries(list).map(([name, r]) => [ch, name, r])).sort((a, b) => b[2].n - a[2].n).slice(0, 20);
+    $('comboBox').hidden = !client || !(on || rows.length);
+    if ($('comboBox').hidden) return;
+    $('comboNow').textContent = !client.combo ? 'Restart the app to finish its update: version 1.15 adds the combo trainer.'
+      : !on ? 'Your best combos. Start a Practice Tool game on Pregame to train them.'
+      : !opts.combo ? 'Tick the box to see your key presses on the overlay and time your combos.'
+      : comboLine() || `Press your keys: a combo is timed once you stop for ${opts.comboGap === 1 ? 'a second' : opts.comboGap === 2 ? '2 seconds' : 'half a second'}.`;
+    $('comboRows').closest('.tablewrap').hidden = !rows.length;
+    $('comboRows').replaceChildren(...rows.map(([ch, name, r]) => trOf(on ? name : `${(champOf(ch) || {}).name || ch}: ${name}`, `${inSecs(r.best)} s`, `${inSecs(r.last)} s`, r.n)));
+  }
+  $('optCombo').checked = !!opts.combo;
+  $('optCombo').addEventListener('change', (e) => { opts.combo = e.target.checked; saveOpts(); comboCheck(); renderCombo(); pushOverlay(); ovDraw(); });
+  $('optComboGap').value = String(opts.comboGap);
+  $('optComboGap').addEventListener('change', (e) => { opts.comboGap = +e.target.value; saveOpts(); renderCombo(); });
+
+  // ---- jungle clear (app 1.14, which passes your gold; 1.15 does it every half second in Practice Tool): in a Practice
+  // Tool game with a jungle pet, each camp is timed by League's clock from the gold it gives. Gold coming in faster than
+  // income (2 a second) is a monster's, and a camp is done at its last gold, once 4 s go by without more. A clear is done at the number of camps picked (opts.jgCamps)
+  // and kept with each camp's time and gold (lpc-jungle, the last 50); the fastest on a champion with that many camps is
+  // its best, and each camp is held against that clear's (vs, the best when this one began).
+  // jgRun: this Practice Tool game's, { room, t, gold, camps: [[t, gold]], cur (the camp being taken), done, vs }
+  let jgRuns = load('lpc-jungle', []), jgRun = null;
+  if (!Array.isArray(jgRuns)) jgRuns = [];
+  const jgEnd = (r) => r.camps[r.camps.length - 1][0];
+  const jgBest = (champ, n) => jgRuns.filter((r) => r.champ === champ && r.camps.length === n).reduce((b, r) => (!b || jgEnd(r) < jgEnd(b) ? r : b), null);
+  const hasPet = (p) => !!p && (p.items || []).some(([i]) => i >= 1101 && i <= 1103); // as theirJungler: the jungle pets
+  const jgVs = (d) => (Math.abs(d) < 0.5 ? 'as fast as your best' : `${Math.round(Math.abs(d))} s ${d < 0 ? 'faster' : 'slower'} than your best`);
+  function jgTick() {
+    const p = league && league.mode === 'PRACTICETOOL' && Number.isFinite(league.me.gold) ? meIn() : null;
+    if (!p) return;
+    const t = +league.t || 0, gold = league.me.gold;
+    if (!jgRun || jgRun.room !== league.room || t < jgRun.t - 5) jgRun = { room: league.room, t, gold, camps: [], cur: null, done: false }; // a new game, or Practice Tool's reset
+    const got = gold - jgRun.gold, dt = Math.max(0.5, t - jgRun.t);
+    jgRun.t = t;
+    jgRun.gold = gold;
+    if (jgRun.done || !hasPet(p)) return;
+    if (got > 2.5 * dt + 4 && got < 1000) { // a monster's (Practice Tool's gold buttons give thousands)
+      if (jgRun.cur && t - jgRun.cur[0] <= 4) return void (jgRun.cur = [t, jgRun.cur[1] + got]);
+      jgDone();
+      if (!jgRun.done) jgRun.cur = [t, got];
+    } else if (jgRun.cur && t - jgRun.cur[0] > 4) jgDone();
+  }
+  function jgDone() { // the camp being taken is done
+    const r = jgRun, n = opts.jgCamps;
+    if (!r.cur) return;
+    if (!r.camps.length) r.vs = jgBest(mine.champ, n);
+    r.camps.push(r.cur);
+    r.cur = null;
+    if (r.camps.length < n) return;
+    r.done = true;
+    jgRuns = [...jgRuns, { at: Date.now(), champ: mine.champ, camps: r.camps }].slice(-50);
+    store.set('lpc-jungle', JSON.stringify(jgRuns));
+    notify(`Jungle clear: ${n} camps at ${mmss(jgEnd(r))}${!r.vs ? '' : jgEnd(r) < jgEnd(r.vs) ? ', your best yet' : `, your best is ${mmss(jgEnd(r.vs))}`}.`, true);
+  }
+  function jgLine() { // the last camp done against your best, or the whole clear
+    const r = jgRun, i = r ? r.camps.length - 1 : -1, b = r && r.vs && r.vs.camps[i];
+    if (i < 0 || !league || r.room !== league.room) return '';
+    const vs = b ? ` · ${jgVs(r.camps[i][0] - b[0])}` : '';
+    return r.done ? `Clear: ${i + 1} camps at ${mmss(jgEnd(r))}${!r.vs ? '' : jgEnd(r) < jgEnd(r.vs) ? ' · your best yet' : vs}` : `Camp ${i + 1} at ${mmss(r.camps[i][0])}${vs}`;
+  }
+  function renderJg() {
+    const on = !!league && league.mode === 'PRACTICETOOL', r = on && jgRun && jgRun.room === league.room ? jgRun : null;
+    $('jgBox').hidden = !client || !(on || jgRuns.length);
+    if ($('jgBox').hidden) return;
+    $('jgNow').textContent = on && !Number.isFinite(league.me.gold) ? 'Restart the app to finish its update: version 1.14 times jungle clears.'
+      : r && r.camps.length ? jgLine() : on && !hasPet(meIn()) ? 'Buy a jungle pet in this Practice Tool game, then clear your camps: each one is timed.'
+      : on ? `Clear your camps: each one is timed by the game clock, and your clear is kept at ${opts.jgCamps} camps.`
+      : 'Your jungle clears in Practice Tool games. Start one on Pregame and buy a jungle pet.';
+    $('jgRows').closest('.tablewrap').hidden = !(r && r.camps.length);
+    if (r) $('jgRows').replaceChildren(...r.camps.map(([t, g], i) => trOf(i + 1, mmss(t), `+${Math.round(g)}`, r.vs && r.vs.camps[i] ? jgVs(t - r.vs.camps[i][0]).replace(' than your best', '') : '')));
+    $('jgList').replaceChildren(...jgRuns.slice(-10).reverse().map((x) => Object.assign(document.createElement('li'), {
+      textContent: `${whenText(x.at)} · ${(champOf(x.champ) || {}).name || x.champ} · ${x.camps.length} camps at ${mmss(jgEnd(x))}${x === jgBest(x.champ, x.camps.length) && jgRuns.filter((y) => y.champ === x.champ && y.camps.length === x.camps.length).length > 1 ? ' · your best' : ''}`,
+    })));
+  }
+  $('optJgCamps').value = String(opts.jgCamps);
+  $('optJgCamps').addEventListener('change', (e) => { opts.jgCamps = +e.target.value; saveOpts(); renderJg(); });
   // ARAM: Mayhem's augments: what kind suits your champion, from its class in Data Dragon. Riot's rules allow tips known
   // before the game, but no augment win rates and no "take this one", and League doesn't tell apps which cards you're
   // offered. On the overlay at the start, for a minute after levels 7, 11 and 15 and while you're dead; on the Game page.
@@ -5628,6 +5787,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('liveBox').hidden = !live;
     renderPost(live);
     renderDrill();
+    renderCombo();
+    renderJg();
     if (live) {
       const lane = laneText(), csLine = csText();
       $('laneStats').hidden = !lane && !csLine;
@@ -6151,16 +6312,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- clips (desktop app 1.6+): during a game the screen League is on (30 fps, 720p or up to 1080p), the sound you
   // hear and your mic are recorded, keeping the clip length you picked and 15 s more. The clip key, a double kill or
   // better, or a big moment (your team's steals and Aces, your pentakills) cuts the clip out of it (cutClip), and the
-  // app saves it in Videos\\Premade with a picture of the screen for the gallery.
+  // app saves it in Videos\\Premade with a picture of the screen for the gallery. Whole games on video (startVid) record
+  // the same screen and sound.
   let recorder = null, clipTimer = 0, momentT = -1, momentRoom = '';
   const clipNames = [];
   function clipsCheck() {
-    const want = !!(opts.clips && client && client.clip && league);
-    if (want && !recorder) startRec();
-    else if (!want && recorder) stopRec();
+    const vid = vidOn(), kind = `${!!opts.clips} ${vid}`, want = !!((opts.clips || vid) && client && client.clip && league);
+    if (recorder && (!want || recorder.kind !== kind)) stopRec(); // over, or a setting changed: again with it
+    if (want && !recorder) startRec(kind);
   }
-  async function startRec() {
-    const r = (recorder = { parts: [], pre: [], at: performance.now() }), hd = opts.clipQ !== '720';
+  async function startRec(kind) {
+    const r = (recorder = { parts: [], pre: [], at: performance.now(), kind }), hd = opts.clips && opts.clipQ !== '720';
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30, width: { max: hd ? 1920 : 1280 }, height: { max: hd ? 1080 : 720 } }, audio: true }); } catch (err) {
       console.warn('clips:', err);
@@ -6175,6 +6337,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       tracks.push(r.mix.stream.getAudioTracks()[0]);
     } else if (heard) tracks.push(heard);
     r.stream = s;
+    if (vidOn()) startVid(r, tracks);
+    if (!opts.clips) return;
     r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: hd ? 6e6 : 3.5e6, audioBitsPerSecond: 128000, videoKeyFrameIntervalDuration: 2000 });
     r.mr.ondataavailable = (e) => {
       if (e.data.size) {
@@ -6186,6 +6350,52 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     };
     r.mr.start(1000);
   }
+  // ---- whole games on video (app 1.15): with Keep every game as a video on, each game but Practice Tool is recorded
+  // again at 720p and about 300 MB for 30 minutes, sent to the app every 5 s; the app writes it in Videos\\Premade\\Games
+  // and, once the game is over, makes it a video you can skip around in. Then the ones older than opts.gameDays go to
+  // the Recycle Bin.
+  const vidOn = () => !!(opts.gameVideo && client && client.gameVideo && league && league.mode !== 'PRACTICETOOL');
+  function startVid(r, tracks) {
+    const v = tracks[0].clone(), g = (r.game = { v, name: '' });
+    v.applyConstraints({ width: { max: 1280 }, height: { max: 720 }, frameRate: { max: 30 } }).catch(() => {});
+    g.mr = new MediaRecorder(new MediaStream([v, ...tracks.slice(1)]), { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 1.25e6, audioBitsPerSecond: 64000, videoKeyFrameIntervalDuration: 4000 });
+    g.q = client.gameVideo('start', (league && league.me.champName) || '').then((n) => { g.name = n || ''; if (!n) notify('Couldn’t start this game’s video.', true); loadVids(); }, () => {}); // the parts, in order
+    g.mr.ondataavailable = (e) => { if (e.data.size) g.q = g.q.then(async () => g.name && client.gameVideo('add', g.name, await e.data.arrayBuffer())).catch(() => {}); };
+    g.mr.onstop = () => { g.q = g.q.then(() => g.name && client.gameVideo('end', g.name)).catch(() => {}).then(vidsDone); };
+    g.mr.start(5000);
+  }
+  async function vidsDone() {
+    const days = opts.gameDays, gone = (await client.gameVideo('clean', days).catch(() => [])) || [];
+    if (gone.length) notify(`Moved ${gone.length} game video${gone.length > 1 ? 's' : ''} older than ${days} day${days > 1 ? 's' : ''} to the Recycle Bin.`, true);
+    loadVids();
+  }
+  let vidsList = [];
+  async function loadVids() {
+    if (client && client.gameVideo) vidsList = (await client.gameVideo('list').catch(() => [])) || [];
+    renderVids();
+  }
+  function renderVids() {
+    $('vidBox').hidden = !(client && client.gameVideo) || !(opts.gameVideo || vidsList.length);
+    if ($('vidBox').hidden) return;
+    $('vidNote').textContent = !vidsList.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin.`;
+    $('vidList').replaceChildren(...vidsList.map((v) => {
+      const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), acts = document.createElement('span');
+      li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: label }),
+        Object.assign(document.createElement('span'), { className: 'sub', textContent: `${whenText(v.at)} · ${Math.round(v.size / 1e6)} MB${v.rec ? ' · recording now' : ''}` }), acts);
+      acts.className = 'cacts';
+      if (!v.rec) for (const [text, what, fail] of [['Watch', 'open', 'Couldn’t open that video. It may have been moved or deleted.'], ['Show in folder', 'show', ''], ['Bin', 'trash', 'Couldn’t move that video to the Recycle Bin.']]) {
+        const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text });
+        b.addEventListener('click', async () => {
+          if (what === 'trash' && !confirm(`Move “${label}” to the Recycle Bin?`)) return;
+          if (!(await client.gameVideo(what, v.name)) && fail) notify(fail, true);
+          if (what === 'trash') loadVids();
+        });
+        acts.append(b);
+      }
+      return li;
+    }));
+  }
+  $('vidsFolder').addEventListener('click', () => client && client.gameVideo && client.gameVideo('folder'));
   // the head is the recording's first chunks up to its first Cluster: on a busy PC Chrome can hand the WebM header over
   // in pieces (even its first byte alone), and every clip needs all of it
   function headChunk(r, blob) {
@@ -6201,6 +6411,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const r = recorder;
     recorder = null;
     if (r.mr && r.mr.state !== 'inactive') r.mr.stop();
+    if (r.game) { if (r.game.mr.state !== 'inactive') r.game.mr.stop(); r.game.v.stop(); }
     if (r.stream) r.stream.getTracks().forEach((t) => t.stop());
     for (const n of r.srcs || []) n.disconnect();
   }
@@ -6263,7 +6474,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
   const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
-  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
+  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && opts.clips && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
   const vendor = (f) => new URL('/vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
   async function voiceStart() {
@@ -10701,7 +10912,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(),
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
@@ -10712,12 +10923,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus']]) {
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -10746,7 +10957,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     send(meMsg());
     for (const [id, p] of peers) { if (p.call && slot < p.slot) callPeer(id); useBitrate(p); }
   }
-  for (const [id, k, num, done] of [['optVoice', 'voice', false, voiceChanged], ['optFade', 'fade', false, volumes], ['optClipLen', 'clipLen', true, renderClips], ['optClipCap', 'clipCap', true, cleanClips],
+  for (const [id, k, num, done] of [['optVoice', 'voice', false, voiceChanged], ['optFade', 'fade', false, volumes], ['optClipLen', 'clipLen', true, renderClips], ['optClipCap', 'clipCap', true, cleanClips], ['optGameDays', 'gameDays', true, renderVids],
     ['optClipQ', 'clipQ', false, () => { if (recorder) stopRec(); clipsCheck(); }]]) { // a new quality starts the recording again
     $(id).value = String(opts[k]);
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
@@ -10773,8 +10984,43 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   lookUi();
   for (const r of themeRadios) r.addEventListener('change', () => { store.set('lpc-theme', r.value); relook(); });
-  for (const [id, k] of [['optCustomBg', 'customBg'], ['optCustomFg', 'customFg'], ['optMain', 'main']]) $(id).addEventListener('input', (e) => { opts[k] = e.target.value; saveOpts(); relook(); });
+  for (const [id, k] of [['optCustomBg', 'customBg'], ['optCustomFg', 'customFg'], ['optMain', 'main']]) $(id).addEventListener('input', (e) => {
+    opts[k] = e.target.value;
+    if (k === 'main') opts.champLook = $('optChampLook').checked = false; // your own colour over your champion's
+    saveOpts();
+    relook();
+  });
   $('mainReset').addEventListener('click', () => { opts.main = ''; saveOpts(); relook(); });
+  // Champion colours: the champion you're playing gives the main colour, the most colourful hue in its splash art
+  // (Data Dragon; its square picture if the splash won't load), kept in opts.champMain until your next champion
+  async function champLook() {
+    const id = mine.champ;
+    if (!opts.champLook || !id || (opts.champMain && opts.champMain.c === id)) return;
+    const hex = await champColour(id);
+    if (!hex || !opts.champLook || mine.champ !== id) return;
+    opts.champMain = { c: id, hex };
+    saveOpts();
+    relook();
+  }
+  async function champColour(id) { // '#rrggbb': the average of the hue (24 of them) with the most colour, brighter and purer pixels counting more
+    const img = (await loadImg(`${DD}/cdn/img/champion/splash/${id}_0.jpg`)) || (await loadImg(champPic(id))), c = document.createElement('canvas').getContext('2d');
+    if (!img) return '';
+    c.canvas.width = c.canvas.height = 64;
+    c.drawImage(img, 0, 0, 64, 64);
+    let px;
+    try { px = c.getImageData(0, 0, 64, 64).data; } catch { return ''; }
+    const bins = Array.from({ length: 24 }, () => [0, 0, 0, 0]);
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i], g = px[i + 1], b = px[i + 2], max = Math.max(r, g, b), ch = max - Math.min(r, g, b);
+      if (max < 60 || ch < 40) continue; // too dark or too grey
+      const h = max === r ? ((g - b) / ch + 6) % 6 : max === g ? (b - r) / ch + 2 : (r - g) / ch + 4, bin = bins[Math.floor(h * 4) % 24], w = ch * ch;
+      bin[0] += r * w; bin[1] += g * w; bin[2] += b * w; bin[3] += w;
+    }
+    const top = bins.reduce((a, b) => (b[3] > a[3] ? b : a));
+    return top[3] ? '#' + top.slice(0, 3).map((v) => Math.round(v / top[3]).toString(16).padStart(2, '0')).join('') : '';
+  }
+  $('optChampLook').checked = !!opts.champLook;
+  $('optChampLook').addEventListener('change', (e) => { opts.champLook = e.target.checked; saveOpts(); relook(); champLook(); });
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (opts.themeAuto) relook(); });
   if (!client && window.Notification) {
     $('notifyAllow').hidden = Notification.permission !== 'default';
@@ -10829,6 +11075,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [38, 'October 20: practice tools, whole games on video and champion colours', [
+      'Combo trainer: in Practice Tool, tick it on Game and the overlay shows your key presses with the time between them, then each combo’s time against your best on that champion.',
+      'Jungle clear timer: in Practice Tool, buy a jungle pet and clear your camps. Each camp is timed against your best clear, and Game keeps your clears.',
+      'Keep every game as a video, in Clip settings: each game at 720p, about 300 MB for 30 minutes, for the days you pick. They’re on the Clips page, and you can skip around in them in any video player.',
+      'Settings > Look: Main colour from the champion I’m playing takes Premade’s colour from your champion’s splash art.',
+      'The combo trainer and game videos need app 1.15, which installs itself the next time you start the app.',
+    ]],
     [37, 'October 20: your group, League chat and Discord', [
       'Your group, on the Voice page: make a squad with your friends, and Call the squad tells all of them you want to play, with your room’s code, in Premade and on their phone. They answer In 10 or Not tonight, and phones can ping when one of you starts a game or ranks up.',
       'Pick’em: guess the winners of Worlds’ and the big leagues’ matches with your squad, a point for every right guess.',
@@ -11174,6 +11427,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
+      ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
+        'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
+      ['Jungle clear timer', 'In Practice Tool, your jungle clear timed camp by camp, from the gold each camp gives, against your best clear on that champion.',
+        'Start a Practice Tool game from Pregame, buy a jungle pet and clear your camps. Pick how many camps make a clear on Game.', '#jgBox', 'app'],
       ['How you played', 'After a game: you against your usual games, high elo players and your lane opponent, your gold and CS minute by minute, where you got kills and died, and the objectives each team took.',
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
     ]],
@@ -11218,6 +11475,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
       ['Your clips', 'Play, cut, rename, star or bin your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+      ['Whole games on video', 'Every game but Practice Tool kept as a video at 720p, about 300 MB for 30 minutes, with what you heard and your mic. Skip around in it in any video player. After the days you pick it goes to the Recycle Bin.',
+        'Off until you tick it: Clip settings, Recording, Keep every game as a video too. Your games are on the Clips page.', '#optGameVideo', 'app'],
     ]],
     ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
@@ -11265,6 +11524,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift.', '#kShow', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
+      ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
       ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
       ['Your Discord server', 'Your game results with your LP and rank-ups, and your clips under 10 MB, post themselves in a channel of your Discord server.', 'Settings, Your Discord server: paste a webhook link from Discord (Server Settings, Integrations, Webhooks).', '#optHook', 'app'],
       ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],

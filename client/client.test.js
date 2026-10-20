@@ -4,7 +4,8 @@
 // picker, full speed in the background, the screen list, League's data on the page (with the game's big moments, the
 // window mode from League's settings file and where you are in League's client, from a fake client API), the page's
 // calls to League's client (only those on the list, with League's password, and nothing else), saving clips in Videos,
-// the clip gallery (pictures, rename, the Recycle Bin, the clean-up), the compact strip, the overlay window (the game's
+// the clip gallery (pictures, rename, the Recycle Bin, the clean-up), whole games on video (made a video you can skip
+// around in once the game is over), the compact strip, the overlay window (the game's
 // objective timers and kills from the page, moved and resized, with chat, who hears you, your voice effects and voice
 // swap's countdown, and everyone's rank over the whole screen), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
 // pipe), the performance meter, app links, the window kept where you left it, test recordings with names hidden, and the
@@ -85,8 +86,9 @@ app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings 
 fs.mkdirSync(path.join(tmp, 'Videos', 'League Proximity Chat'), { recursive: true }); // clips from before the rename
 fs.writeFileSync(path.join(tmp, 'Videos', 'League Proximity Chat', 'Old clip.webm'), 'old');
 app.setPath('userData', path.join(tmp, 'profile')); // a first launch every time
-const opened = [], binned = [];
+const opened = [], binned = [], shown = [];
 shell.openPath = async (p) => { opened.push(p); return ''; }; // the clips folder, instead of a file window
+shell.showItemInFolder = (p) => shown.push(p);
 shell.trashItem = async (p) => { binned.push(path.basename(p)); fs.rmSync(p); }; // the Recycle Bin
 
 // League's data, as the page gets it
@@ -229,6 +231,8 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(perf.cpu >= 0 && perf.cpu <= 100 && perf.mb > 30 && perf.mb < 5000, `the app's CPU and memory: ${JSON.stringify(perf)}`);
     // test recordings: on from here until League closes
     await js('lpcClient.record(true)');
+    await js('document.getElementById("optGameVideo").click()'); // and the whole game on video
+    assert.strictEqual(await js('typeof lpcClient.combo'), 'function', 'the combo trainer’s keys (Windows only)');
 
     // the fake game reaches the page, and the window shrinks to the strip for it
     await until(() => js('document.getElementById("sbLeague").textContent === "League: Wukong, dead"'), 'League data on the page');
@@ -327,6 +331,53 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await js('lpcClient.recordingsFolder()');
     await until(() => opened.includes(recDir), 'the recordings folder opened');
     console.log(`test recording: ${recName}, ${take.frames.length} frames, names hidden`);
+    // whole games on video (app 1.15): the game went to Videos\Premade\Games as it was recorded, then became a video you
+    // can skip around in once it was over (a Segment of known size): Chromium gives its length and skips to its middle,
+    // and the Clips page lists it. Watch, Show in folder, the folder, the Recycle Bin and the days kept.
+    const gamesDir = path.join(tmp, 'Videos', 'Premade', 'Games');
+    const sized = (f) => { const b = fs.readFileSync(f).subarray(0, 64), i = b.indexOf(Buffer.of(0x18, 0x53, 0x80, 0x67)); return i > 0 && !b.subarray(i + 4, i + 12).equals(Buffer.of(1, 255, 255, 255, 255, 255, 255, 255)); };
+    let gv;
+    await until(async () => { [gv] = await js('lpcClient.gameVideo("list")'); return gv && !gv.rec && sized(path.join(gamesDir, gv.name)); }, 'the game’s video', 20000);
+    const file = path.join(gamesDir, gv.name);
+    assert(/^Game \d{4}-\d\d-\d\d \d\d-\d\d-\d\d Wukong\.webm$/.test(gv.name) && gv.size > 20000, `the game’s video: ${JSON.stringify(gv)}`);
+    const [len, mid] = await js(`(async () => {
+      const v = document.createElement('video'), b = Uint8Array.from(atob(${JSON.stringify(fs.readFileSync(file).toString('base64'))}), (c) => c.charCodeAt(0));
+      v.muted = true;
+      v.src = URL.createObjectURL(new Blob([b], { type: 'video/webm' }));
+      await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error('it doesn’t play')); });
+      const len = v.duration;
+      v.currentTime = len / 2;
+      await new Promise((res) => { v.onseeked = res; });
+      return [len, v.currentTime];
+    })()`);
+    assert(Number.isFinite(len) && len > 3 && Math.abs(mid - len / 2) < 1, `its length, and its middle: ${len} s, ${mid} s`);
+    const probe = require('child_process').spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
+    if (!probe.error) assert(!probe.stderr && Math.abs(+probe.stdout - len) < 0.5, `ffprobe agrees: ${probe.stdout} ${probe.stderr}`); // where it's installed
+    await js('document.querySelector(\'.nav[data-view="clips"]\').click()');
+    await until(() => js(`[...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(${JSON.stringify(gv.name.slice(0, -5))}) && li.querySelectorAll('button').length === 3)`), 'the game on the Clips page');
+    assert.strictEqual(await js(`lpcClient.gameVideo('open', ${JSON.stringify(gv.name)})`), true);
+    assert.strictEqual(await js(`lpcClient.gameVideo('show', ${JSON.stringify(gv.name)})`), true);
+    assert.strictEqual(await js('lpcClient.gameVideo("folder")'), true);
+    assert(opened.includes(file) && opened.includes(gamesDir) && shown.includes(file), `Watch, Show in folder and the folder: ${opened}, ${shown}`);
+    for (const bad of ['../Old clip.webm', 'Games/x.webm', 'x.txt', null]) assert.strictEqual(await js(`lpcClient.gameVideo('open', ${JSON.stringify(bad)})`), false, `not ${bad}`);
+    // one left open (the page reloaded) ends when the next starts, only the one being recorded takes parts, and a
+    // recording that isn't a WebM is left as it was
+    const v1 = await js(`lpcClient.gameVideo('start', ${JSON.stringify("Kai'Sa")})`), v2 = await js(`lpcClient.gameVideo('start', '../evil')`);
+    assert(/ Kai'Sa\.webm$/.test(v1) && /^Game \d{4}-\d\d-\d\d \d\d-\d\d-\d\d( \(\d\))?\.webm$/.test(v2), `names: ${v1}, ${v2}`);
+    assert.strictEqual(await js(`lpcClient.gameVideo('add', ${JSON.stringify(v1)}, new Uint8Array(3).buffer)`), false, 'ended by the next one');
+    assert.strictEqual(await js(`lpcClient.gameVideo('add', ${JSON.stringify(v2)}, new Uint8Array([1, 2, 3]).buffer)`), true);
+    assert.strictEqual(await js(`lpcClient.gameVideo('add', ${JSON.stringify(v2)}, 'not bytes')`), false);
+    assert.strictEqual((await js('lpcClient.gameVideo("list")')).find((v) => v.name === v2).rec, true, 'recording now');
+    assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(v2)})`), false, 'not while it records');
+    assert.strictEqual(await js(`lpcClient.gameVideo('end', ${JSON.stringify(v2)})`), true);
+    assert.deepStrictEqual([...fs.readFileSync(path.join(gamesDir, v2))], [1, 2, 3], 'not a WebM: left as it was');
+    assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(v2)})`), true);
+    const old = new Date(Date.now() - 10 * 864e5);
+    fs.utimesSync(file, old, old);
+    assert.deepStrictEqual(await js('lpcClient.gameVideo("clean", 14)'), [], 'kept for 14 days');
+    assert.deepStrictEqual(await js('lpcClient.gameVideo("clean", 7)'), [gv.name], 'binned after 7');
+    assert(binned.includes(v2) && binned.includes(gv.name) && fs.readdirSync(gamesDir).join() === v1, `the Recycle Bin: ${binned}`);
+    console.log(`whole game on video: ${gv.name}, ${(gv.size / 1e6).toFixed(1)} MB, ${len.toFixed(1)} s, skips to ${mid.toFixed(1)} s`);
 
     // Test version first (Settings > App): the test/ copy of the page, kept for next time (test-version in the app's
     // folder) with the overlay from the same copy; the status bar's link goes back. No test copy: the normal page.
