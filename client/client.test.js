@@ -299,7 +299,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await until(() => !ov.isVisible(), 'the overlay hidden');
 
     // shortcuts: mute and show/hide register system-wide; push to talk needs Windows
-    const keys = await js(`lpcClient.keys({ mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Ctrl+Shift+O', ptt: 'KeyV' })`);
+    const keys = await js(`lpcClient.keys({ mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Alt+V', ptt: 'KeyV' })`);
     assert.deepStrictEqual(keys, { mute: true, clip: true, overlay: true, show: true, ptt: process.platform === 'win32' }, JSON.stringify(keys));
     assert(['M', 'L', 'K', 'O'].every((k) => globalShortcut.isRegistered('Ctrl+Shift+' + k)));
     // a match found (Pregame settings): the window in front of League's client, on top for a moment only

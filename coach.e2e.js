@@ -56,7 +56,8 @@ function withIcons(icons) { // [[champion, x, y]] in minimap pixels
 }
 const SCREENS = { none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), // x + y past the minimap's width: the bottom side
   zedMid: withIcons([['Zed', 172, 109]]), leeJungle: withIcons([['LeeSin', 130, 215]]), // Zed in the middle lane on their side, Lee Sin in your jungle
-  g1: withIcons([['LeeSin', 165, 168]]), g2: withIcons([['LeeSin', 150, 168]]), g3: withIcons([['LeeSin', 135, 168]]) }; // Lee Sin coming toward you (ME)
+  g1: withIcons([['LeeSin', 165, 168]]), g2: withIcons([['LeeSin', 150, 168]]), g3: withIcons([['LeeSin', 135, 168]]), // Lee Sin coming toward you (ME)
+  p1: withIcons([['LeeSin', 150, 140]]), p2: withIcons([['LeeSin', 150, 155]]), p3: withIcons([['LeeSin', 150, 170]]) }; // Lee Sin walking past you, closer but not at you
 const yasuo = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'fixtures/ddragon-yasuo-128.rgba.gz')));
 
 http.createServer((req, res) => {
@@ -304,6 +305,9 @@ const game = (over = {}) => ({
       await page.evaluate(() => { window.screenNow = 'leeJungle'; });
       await said('Lee Sin in your jungle', 'Lee Sin in your jungle');
       await wait(page, () => lpc.me().fresh, null, 'your Yasuo found on the minimap');
+      for (const k of ['p1', 'p2', 'p3']) { await page.evaluate((k) => { window.screenNow = k; }, k); await page.waitForTimeout(700); }
+      await page.waitForTimeout(3500); // a warning would have shown by now, after the invade's 3 s
+      assert(!(await page.evaluate(() => spoken)).some((t) => /heading your way/.test(t)), 'no gank warning for a jungler walking past you');
       for (const k of ['g1', 'g2', 'g3']) { await page.evaluate((k) => { window.screenNow = k; }, k); await page.waitForTimeout(700); }
       await said('Lee Sin heading your way', 'Lee Sin heading your way');
       await page.evaluate((d) => lpcClient.emit('league', d), foesGame(1));
