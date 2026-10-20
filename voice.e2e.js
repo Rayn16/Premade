@@ -3,15 +3,17 @@
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node voice.e2e.js
 // Screen sharing is swapped for a canvas: Ana's screen holds Rayan's real minimap (fixtures/), Ben's a drawn
 // minimap whose camera box and champion icon the test moves. Checks the setup wizard and join screen, smart noise
-// removal, that everyone hears each other in the lobby, that volume follows the distance between champions (with
-// less bass far away), that a player whose minimap isn't tracked is silent once a game is on, the live map and player
-// cards (the other team hidden), shortcuts and their beeps, popups and chimes, room chat, locking the room, studio
-// voice, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room games (balanced teams,
-// role roulette, the queue quiz, a mock draft) and game history with its room awards. Dee and Eve get
-// a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status window
-// (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the Legends and
-// Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown), the compact
-// view, the ready check with the app's window mode, room awards from the scoreboard, app updates and Discord status.
+// removal, that everyone hears each other in the lobby, that volume follows the distance between champions (with less
+// bass far away, in each fade style), that a player whose minimap isn't tracked is silent once a game is on, the live
+// map and player cards (the other team hidden), shortcuts and their beeps, popups and chimes, room chat, quick
+// reconnects, locking the room, studio voice, the limiter, auto voice quality, a headset swap, the echo check, the mic
+// coach and the Bluetooth warning, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room
+// games (balanced teams, role roulette, the queue quiz, a mock draft) and game history with its room awards. Dee and
+// Eve get a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status
+// window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
+// Legends and Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown),
+// the compact view, the ready check with the app's window mode, room awards from the scoreboard, app updates and
+// Discord status.
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -95,6 +97,43 @@ function fakeOutputs() {
   const list = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
   navigator.mediaDevices.enumerateDevices = async () => [...await list(), ...['Voice Chat', 'Game'].map((n) => ({ kind: 'audiooutput', deviceId: n, label: `${n} (Elgato Virtual Audio)`, groupId: '' }))];
   AudioContext.prototype.setSinkId = async function (id) { window.sinkWas = id; };
+}
+
+// A mic that talks: noise in bursts of random length, so unlike the fake mic's beeps it never repeats; past full scale
+// (loud > 1) it clips
+function fakeVoice(loud) {
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = async (c) => {
+    (await gum(c)).getTracks().forEach((t) => t.stop()); // asked for as before, so the permission and devices are real
+    const ctx = new AudioContext(), rate = ctx.sampleRate, buf = ctx.createBuffer(1, rate * 30, rate), d = buf.getChannelData(0);
+    for (let i = 0, on = false, left = 0; i < d.length; i++) {
+      if (--left <= 0) { on = !on; left = rate * (on ? 0.08 + Math.random() * 0.3 : 0.1 + Math.random() * 0.4); }
+      d[i] = on ? loud * (Math.random() * 2 - 1) : 0;
+    }
+    const src = ctx.createBufferSource(), out = ctx.createMediaStreamDestination();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(out);
+    src.start();
+    await ctx.resume();
+    return out.stream;
+  };
+}
+// Speakers with no echo cancelling, right next to the mic: once window.loop is set, the next mic the page opens is
+// whatever it plays (what comes out of the limiter, the last node before the speakers)
+function fakeSpeakers() {
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (to, ...rest) {
+    if (to instanceof AudioDestinationNode && this instanceof AudioWorkletNode) window.speakers = this;
+    return connect.call(this, to, ...rest);
+  };
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = async (c) => {
+    if (!window.loop) return gum(c);
+    const out = window.speakers.context.createMediaStreamDestination();
+    window.speakers.connect(out);
+    return out.stream;
+  };
 }
 
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
@@ -307,6 +346,57 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await packetsAt(40, 60, 'normal voice again');
     console.log(`voice connection: ${normalRate} packets a second normally, ${fastRate} on Faster, ${lowRate} on Less data (16 kbps)`);
 
+    // no crackle: Ben at 200% on Ana's card would go past full scale, but the limiter keeps Ana's speakers under 0.9
+    await ana.$eval('#players .player .pvol input', (el) => { el.value = 200; el.dispatchEvent(new Event('input')); });
+    await ana.waitForTimeout(300);
+    const [mixIn, mixOut] = await ana.evaluate(() => lpc.mix());
+    await ana.$eval('#players .player .pvol input', (el) => { el.value = 100; el.dispatchEvent(new Event('input')); });
+    console.log(`limiter: Ben's beeps at 200% reach ${mixIn.toFixed(2)} on Ana's page, ${mixOut.toFixed(3)} out of Ana's speakers`);
+    assert(mixIn > 1 && mixOut <= 0.9001, 'the limiter keeps the mix under full scale');
+
+    // auto voice quality: Ben's end says it loses 20% of Ana's voice, so Ana sends Ben 16 kbps on the same call, and
+    // the full rate again after three clean checks
+    await ana.evaluate(() => {
+      const get = RTCPeerConnection.prototype.getStats;
+      RTCPeerConnection.prototype.getStats = async function (...a) { // Ben's receiver reports, as Ana's page reads them
+        const r = await get.apply(this, a);
+        return window.fakeLoss == null ? r : new Map([...r, ['fake', { type: 'remote-inbound-rtp', kind: 'audio', fractionLost: window.fakeLoss }]]);
+      };
+      window.fakeLoss = 0.2;
+    });
+    const callWas = await ana.evaluate((id) => lpc.callId(id), benId);
+    await ana.evaluate(() => lpc.health());
+    await bitrate((b) => b.max === 16000, 'Ana sending Ben 16 kbps while Ben loses some of Ana’s voice');
+    assert((await ana.evaluate(() => lpc.checks().weak)).some(([n, weak]) => n === 'Ben' && weak), 'Ben’s connection marked weak');
+    await ana.evaluate(() => { window.fakeLoss = 0; });
+    for (let i = 0; i < 3; i++) await ana.evaluate(() => lpc.health());
+    await bitrate((b) => b.max === 0, 'Ana back to the full rate for Ben');
+    assert.strictEqual(await ana.evaluate((id) => lpc.callId(id), benId), callWas, 'the same call all along');
+    await ana.evaluate(() => { window.fakeLoss = null; });
+    console.log('auto voice quality: 16 kbps to Ben while Ben lost 20% of Ana’s voice, the full rate after three clean checks, on the same call');
+
+    // headset swap: Ana's mic is unplugged, and Premade opens the next one by itself; Windows' default mic changing
+    // while Ana uses the default opens that one; any other device change leaves the mic as it is
+    const micOf = () => ana.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; return t.readyState === 'live' && t.id; });
+    const mic1 = await micOf();
+    await ana.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; t.stop(); t.dispatchEvent(new Event('ended')); });
+    await waitFor(ana, (was) => { const t = lpc.raw().getAudioTracks()[0]; return t.id !== was && t.readyState === 'live'; }, mic1, 'Ana’s mic open again after the unplug');
+    const heardAgain = (await ben.evaluate((id) => lpc.audio(id), anaId)).bytes;
+    await ben.waitForTimeout(1500);
+    assert((await ben.evaluate((id) => lpc.audio(id), anaId)).bytes > heardAgain, 'Ben still gets Ana’s voice');
+    const mic2 = await micOf();
+    await ana.evaluate(() => navigator.mediaDevices.dispatchEvent(new Event('devicechange'))); // nothing changed for Ana's mic
+    await ana.waitForTimeout(500);
+    assert.strictEqual(await micOf(), mic2, 'a device change that isn’t Ana’s mic leaves it be');
+    await ana.evaluate(() => {
+      const list = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+      navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'audioinput', deviceId: 'default', label: 'Default - USB Headset', groupId: '' }, ...await list()];
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
+    });
+    await waitFor(ana, (was) => { const t = lpc.raw().getAudioTracks()[0]; return t.id !== was && t.readyState === 'live'; }, mic2, 'Ana’s mic opened again on the new default');
+    await hears(ben, ['Ana'], 1, 'Ben hears Ana after the headset swaps');
+    console.log('headset swap: a new mic after the unplug and after Windows’ default changed, the call kept');
+
     // screen share: Ana shares again (her real minimap through the browser's video pipeline)
     await ana.click('#shareBtn');
     await ben.evaluate(() => setBox(0.4, 0.6));
@@ -348,6 +438,13 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const mid = (await volOf(ana, 'Ben')).vol, midB = (await volOf(ben, 'Ana')).vol;
     console.log(`Ben ${Math.round(RANGE * 5 / 6)} units away: Ana hears Ben at ${Math.round(mid * 100)}%, Ben hears Ana at ${Math.round(midB * 100)}%`);
     assert(Math.abs(mid - 0.5) < 0.15 && Math.abs(mid - midB) < 0.05, 'half volume, the same both ways');
+    // Fade: the same spot through each fade (Normal's volume says how far out Ben is: 3 times what's left of the range)
+    const out = 1 - mid / 3, fades = { gentle: Math.sin((Math.PI / 2) * Math.min(1, (1 - out) / 0.85)) ** 2, real: Math.min(1, 0.15 / out) * Math.min(1, (1 - out) / 0.15), sharp: Math.min(1, (1 - out) / 0.1), normal: mid };
+    for (const [f, want] of Object.entries(fades)) {
+      await ana.$eval('#optFade', (el, f) => { el.value = f; el.dispatchEvent(new Event('change')); }, f);
+      await waitFor(ana, (want) => Math.abs(lpc.peers()[0].vol - want) < 0.03, want, `Ben at ${want.toFixed(2)} with the ${f} fade`);
+    }
+    console.log(`fade: Ben ${Math.round(out * RANGE)} units away at ${Object.entries(fades).map(([f, v]) => `${Math.round(v * 100)}% ${f}`).join(', ')}`);
     const [pa, pb] = [(await volOf(ana, 'Ben')), (await volOf(ben, 'Ana'))];
     assert(Math.abs(pa.far - 5 / 6) < 0.05 && Math.abs(pb.far - 5 / 6) < 0.05, `far away, so less bass: ${pa.far}, ${pb.far}`);
     console.log(`stereo: Ana hears Ben at pan ${pa.pan.toFixed(2)}, Ben hears Ana at ${pb.pan.toFixed(2)}; terrain muffle ${pa.muffle.toFixed(2)} / ${pb.muffle.toFixed(2)}`);
@@ -489,11 +586,30 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // a broken connection comes back by itself, without join or leave popups
     const catId = (await others(ana)).find((p) => p.name === 'Cat').id;
+    // back: a new voice call with Cat (the broken one was closed), everyone live; Cat is gone for too short a time to catch
+    const callTo = () => ana.evaluate((id) => lpc.callId(id), catId);
+    const backOnNew = (was, what) => waitFor(ana, ([id, was]) => lpc.callId(id) && lpc.callId(id) !== was && lpc.peers().length === 2 && lpc.peers().every((p) => p.live), [catId, was], what);
+    let call = await callTo(), since = Date.now();
     await ana.evaluate((id) => lpc.kick(id), catId);
-    await waitFor(ana, () => lpc.peers().length === 1, null, 'Cat dropped');
-    await ana.waitForFunction(() => lpc.peers().length === 2 && lpc.peers().every((p) => p.live), null, { timeout: 30000 });
+    await backOnNew(call, 'Cat back after the broken connection');
+    const kickBack = (Date.now() - since) / 1000;
     await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both again');
-    console.log('auto reconnect: Cat came back after the connection broke');
+    // a Wi-Fi blip: the connections with Cat stop working, so after 3 s they're closed and dialled again, instead of
+    // WebRTC's own 30 s wait
+    call = await callTo();
+    since = Date.now();
+    await ana.evaluate((id) => lpc.blip(id), catId);
+    await backOnNew(call, 'Cat back after the blip');
+    const blipBack = (Date.now() - since) / 1000;
+    await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both after the blip');
+    // the room server drops: tried again a second later
+    since = Date.now();
+    await ana.evaluate(() => lpc.serverDrop());
+    await waitFor(ana, () => !lpc.server(), null, 'Ana off the room server');
+    await waitFor(ana, () => lpc.server(), null, 'Ana back on the room server');
+    const serverBack = (Date.now() - since) / 1000;
+    console.log(`auto reconnect: Cat back ${kickBack.toFixed(1)} s after the connection broke, ${blipBack.toFixed(1)} s after a Wi-Fi blip; the room server back in ${serverBack.toFixed(1)} s`);
+    assert(kickBack < 5 && blipBack < 9 && serverBack < 3, 'reconnects right away, not at the next check');
     const popups = await ana.evaluate(() => lpc.toasts());
     assert(popups.includes('Ben left the room') && popups.includes('Ben joined the room') && popups.filter((t) => t === 'Cat joined the room').length === 1 && !popups.includes('Cat left the room'), `popups when Ben left and came back, none for Cat's reconnect: ${JSON.stringify(popups)}`);
     const sounds = await ana.evaluate(() => lpc.played());
@@ -842,6 +958,51 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.strictEqual(await ana.$$eval('#games > li:first-child .awards li', (l) => l.length), aw.length, 'with its awards');
     await shot(ana, 'ana-stats');
     console.log(`game history: ${JSON.stringify({ ...games[0], map: games[0].map.length + ' bytes' })}`);
+
+    // the voice checks stay quiet for the fake mics' beeps: no echo (beeps that repeat follow each other both ways) and
+    // not phone quality (a beep's square wave reaches past 8.5 kHz)
+    for (const [p, n] of [[ana, 'Ana'], [ben, 'Ben'], [cat, 'Cat']]) {
+      const c = await p.evaluate(() => lpc.checks());
+      assert(!c.echoes.length && !c.bt && !c.btNote, `${n}: no echo, not phone quality: ${JSON.stringify(c)}`);
+    }
+    console.log(`voice checks on the beeps: no echo, not phone quality (Ana's mic judged from ${(await ana.evaluate(() => lpc.checks())).phone} moments of talking)`);
+
+    // the mic coach and the Bluetooth warning: Ivy's mic is a Bluetooth headset's, by its name, and talks so loud that
+    // it clips (noise bursts past full scale); in a quiet room Set the gate for me puts the gate at its lowest
+    const ivy = await player(browser, 'Ivy', [1280, 720]);
+    await ivy.context().addInitScript(fakeVoice, 1.2);
+    await ivy.context().addInitScript(() => Object.defineProperty(MediaStreamTrack.prototype, 'label', { get: () => 'Headset (WH-1000XM4 Hands-Free AG Audio)' }));
+    await ivy.goto(URL_);
+    await ivy.$eval('#micTest', (b) => b.click());
+    await waitFor(ivy, () => lpc.checks().bt && lpc.checks().btNote && lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')), null, 'Ivy’s Bluetooth mic spotted');
+    await waitFor(ivy, () => lpc.checks().clip && /^Your mic is too loud/.test(lpc.checks().coach), null, 'Ivy’s mic clipping');
+    assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is too loud')))), 'no clipping popup outside a room');
+    await ivy.evaluate(() => { lpc.raw().getAudioTracks()[0].enabled = false; }); // the room goes quiet
+    await ivy.$eval('#gateAuto', (b) => b.click());
+    await waitFor(ivy, () => /^Noise gate set to 2%/.test(lpc.checks().coach), null, 'the gate set from a quiet room');
+    assert.strictEqual(await ivy.inputValue('#gate'), '0.02');
+    await ivy.reload();
+    await ivy.$eval('#micTest', (b) => b.click());
+    await waitFor(ivy, () => lpc.checks().btNote, null, 'the note by Ivy’s mic again');
+    assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')))) && (await ivy.inputValue('#gate')) === '0.02', 'the popup only once for that mic; the gate kept');
+    await ivy.context().close();
+    console.log('mic coach and Bluetooth warning: phone-quality headset spotted (one popup), clipping noted, the gate set from a quiet room');
+
+    // echo check: Kit is on speakers with no echo cancelling (Kit's mic gets exactly what Kit's page plays), so Jo hears
+    // Jo's own voice back, and both are told; Jo's mic talks in bursts (fakeVoice)
+    const jo = await player(browser, 'Jo', [1280, 720]);
+    await jo.context().addInitScript(fakeVoice, 0.3);
+    const kit = await player(browser, 'Kit', [1280, 720]);
+    await kit.context().addInitScript(fakeSpeakers);
+    await join(jo, 'echoes');
+    await join(kit, 'echoes');
+    await hears(kit, ['Jo'], 1, 'Kit hears Jo');
+    await kit.evaluate(() => { window.loop = true; const t = lpc.raw().getAudioTracks()[0]; t.stop(); t.dispatchEvent(new Event('ended')); }); // Kit's mic picks up Kit's speakers from now on
+    await waitFor(jo, () => lpc.toasts().includes('You hear your own voice back from Kit’s mic, so Premade told them how to fix it.'), null, 'Jo told about the echo through Kit', 40000);
+    await waitFor(kit, () => lpc.toasts().includes('Jo hears their own voice back through your mic. Headphones fix it.'), null, 'Kit told how to fix it');
+    assert.deepStrictEqual(await kit.evaluate(() => lpc.checks().echoes), [], 'Kit doesn’t take Jo’s voice for an echo');
+    console.log('echo check: Jo heard Jo’s own voice back through Kit’s speakers, both were told, and Kit didn’t take Jo for an echo');
+    for (const p of [jo, kit]) await p.context().close();
 
     // League's own data (Windows client): it never moves you out of a room you joined yourself...
     await ana.evaluate((room) => lpc.league({ inGame: true, room, mode: 'CLASSIC', me: { champ: 'Testchamp', champName: 'Test Champ', team: 'ORDER' }, players: [] }), GAME_ROOM);
