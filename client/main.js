@@ -42,7 +42,11 @@ async function screens(thumbs) {
 }
 const chosen = (list) => list.find((s) => s.id === screenId) || list.find((s) => s.main) || list[0];
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
-ipcMain.on('screen', (e, id) => { if (fromSite(e) && typeof id === 'string') screenId = id; });
+ipcMain.on('screen', (e, id) => {
+  if (!fromSite(e) || typeof id !== 'string' || id === screenId) return;
+  screenId = id;
+  replaceOverlay(); // the overlay goes to the new screen now, not at its next change
+});
 
 // ---- League's window mode for the ready check, from its settings file (the overlay only shows over Borderless).
 // LPC_LEAGUE_DIR: a stand-in League folder, for client.test.js.
@@ -328,20 +332,28 @@ function hider() {
 // everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
 let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null;
 const display = async () => { const s = chosen(await screens(false)); return screen.getAllDisplays().find((d) => s && String(d.id) === s.display_id) || screen.getPrimaryDisplay(); };
-ipcMain.on('overlay', async (e, s) => {
+ipcMain.on('overlay', (e, s) => {
   if (!fromSite(e) || !s || typeof s !== 'object') return;
   overlayState = s;
   if (overlay) overlay.webContents.send('overlay', s);
   if (!s.visible) { if (overlay) overlay.hide(); placed = placedShape = ''; return; }
+  placeOverlay(s);
+});
+// where it goes again once the screens change (League switching resolution, a screen plugged in or out): Windows may
+// have moved or cut it
+const replaceOverlay = () => { if (overlay && overlayState.visible) { placed = placedShape = ''; placeOverlay(overlayState); } };
+async function placeOverlay(s) {
   if (!overlay) {
     overlay = new BrowserWindow({
       width: 300, height: 360, show: false, frame: false, transparent: true, resizable: false, focusable: false,
       skipTaskbar: true, hasShadow: false, alwaysOnTop: true, webPreferences,
     });
+    for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(ev, replaceOverlay);
     overlay.setAlwaysOnTop(true, 'screen-saver');
     overlay.setIgnoreMouseEvents(true);
     overlay.webContents.on('did-finish-load', () => overlay.webContents.send('overlay', overlayState));
     overlay.on('move', () => {
+      if (!editing) return; // only a drag in Move it: Windows moving it (a resolution change) mustn't make it "where I dragged it"
       clearTimeout(moveTimer);
       moveTimer = setTimeout(async () => {
         const b = overlay.getBounds(), d = (await display()).bounds, f = (v) => Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000;
@@ -371,7 +383,7 @@ ipcMain.on('overlay', async (e, s) => {
   placedAt = { x: Math.min(Math.max(at.x, x), x + width - w), y: Math.min(Math.max(at.y, y), y + height - h) };
   overlay.setBounds({ ...placedAt, width: w, height: h });
   overlay.showInactive();
-});
+}
 ipcMain.on('overlay-done', (e) => { if (fromSite(e) && win) win.webContents.send('overlay-moved', { done: true }); }); // its Done button
 
 // ---- Discord status, through Discord's local pipe (what games use for "Playing"). The page sends { clientId,

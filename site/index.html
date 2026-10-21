@@ -6276,7 +6276,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           autoDone.clear(); avoidSaid.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
-        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = false; }
+        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = overlayHide = false; } // hidden for that game, not the next one's loading screen
       }
       if (ph === 'ReadyCheck') await readyTick();
       if (ph === 'ChampSelect') await champTick();
@@ -11555,6 +11555,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [49, 'October 21: overlay fixes', [
+      'Hiding the overlay with Alt+V now lasts for that game only: it used to stay hidden in every game after, with no ranks on the loading screen and no card after the game.',
+      'With app 1.18: picking another screen in Settings moves the overlay there right away, and when League changes your screen’s resolution or a screen is plugged in or out, the overlay goes back where you put it instead of being moved for good.',
+    ]],
     [48, 'October 21: a voice for your callouts', [
       'Spoken callouts can use any voice your computer has, including a girl’s voice (on Windows, Zira). Pick it on the Overlay page, Callouts, under “Read callouts out loud”, and press Try it to hear it. It’s free and stays on your PC.',
       'Fixed: an enemy who died in your jungle was called out as an invader again when they came back to life in their base.',
