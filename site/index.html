@@ -721,6 +721,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <label class="field">Your link <input id="profileLink" readonly spellcheck="false"></label>
         <div class="toolbar"><button id="profileCopy" class="btn small" type="button">Copy</button><a id="profileOpen" class="btn small" href="#" target="_blank" rel="noopener">Open it</a></div>
       </section>
+      <section id="proFriends" class="panel" aria-labelledby="h-profr" hidden>
+        <h2 id="h-profr" class="ph">Friends</h2>
+        <div id="proFrList" class="toolbar"></div>
+      </section>
       <p id="proNote" class="phase" role="status" hidden></p>
       <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
       <div id="proRanks" class="ranks"></div>
@@ -11413,12 +11417,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return d;
     }));
   }
-  function renderFriends() {
+  function frRows() { // [{ riot, st (League status), has (2 Premade open now, 1 has it, 0 not), mine (added by hand) }]
     const now = Date.now() / 1000, mine = mineIds(), byId = new Map();
     for (const x of frLol) byId.set(acctOf(x.riot), { riot: x.riot, st: x.st, lol: true });
     for (const n of frMine) if (!byId.has(acctOf(n))) byId.set(acctOf(n), { riot: n, st: '', lol: false });
-    const rows = [...byId.values()].filter((x) => !mine.has(acctOf(x.riot))).map((x) => { const t = frHas[acctOf(x.riot)] || 0; return { ...x, has: t ? (now - t < 90 ? 2 : 1) : 0, mine: frMine.some((n) => acctOf(n) === acctOf(x.riot)) }; })
+    return [...byId.values()].filter((x) => !mine.has(acctOf(x.riot))).map((x) => { const t = frHas[acctOf(x.riot)] || 0; return { ...x, has: t ? (now - t < 90 ? 2 : 1) : 0, mine: frMine.some((n) => acctOf(n) === acctOf(x.riot)) }; })
       .sort((a, b) => b.has - a.has || !!b.st - !!a.st || a.riot.localeCompare(b.riot));
+  }
+  function renderProFriends() { // Profile's Friends: the same friends, each opening their profile (lookUp)
+    const rows = frRows(), k = JSON.stringify(rows.map((x) => [x.riot, x.st]));
+    $('proFriends').hidden = !rows.length || !!proOther || $('proFindBox').hidden; // lookups need League open or our Riot data
+    if ($('proFrList').dataset.key === k) return;
+    $('proFrList').dataset.key = k;
+    $('proFrList').replaceChildren(...rows.map((x) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: x.riot, title: x.st || 'Open their profile', onclick: () => lookUp(x.riot) })));
+  }
+  function renderFriends() {
+    const rows = frRows();
     $('frNote').textContent = (!rows.length ? (client ? 'Your League friends show here once League is open. Add other friends by their Riot ID.' : 'Add your friends by their Riot ID. In the desktop app, your League friends show here by themselves.') : '')
       + (opts.hello ? '' : ' “Let whoever runs Premade and my friends see I have it” is off in Settings > App, so friends can’t see you have Premade or invite you, and you can’t invite them.');
     const k = JSON.stringify([rows, !!peer && room]);
@@ -11529,6 +11543,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('peLeague').addEventListener('change', renderPickem);
   async function groupTick() { // once a second
     friendsLoop();
+    if (!profView.hidden) renderProFriends();
     const shown = !!$('groupBox').offsetParent;
     if (shown && gTab === 'pickem' && performance.now() - evAt > 60000) evLoad();
     if (shown) renderGroup();
@@ -11898,6 +11913,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Your group, on the Voice page, has a Friends tab: your League friends (in the desktop app) and anyone you add by Riot ID, with who has Premade and who has it open right now.',
       'Invite a friend who has Premade and their Premade pops up an invite to your voice room: one click and they’re in, no code to send. Not in a room yet? It makes one first.',
       'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and yours joins theirs when you join their lobby. Turn it off with the box under Friends.',
+      'Profile lists your friends too: click one to open their profile.',
     ]],
     [50, 'October 21: your League screen shared by itself', [
       'In the desktop app your League screen is now shared by itself in every game, even when you open Premade mid-game, so the minimap tracker, callouts and the surrender vote pop-up just work. No need to press Share League screen.',
@@ -12254,6 +12270,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in your room.', '#h-goals, #createBtn', 'app'],
       ['Friends and invites', 'Your League friends and friends you add by Riot ID, with who has Premade and who has it open now. Invite pops up in their Premade to join your voice room, no code needed.',
         'Your group, on the Voice page: Friends. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
+      ['Friends on Profile', 'Your friends under your profile: click one to see their profile, rank and games.', 'Profile, under your own profile. Your League friends show in the desktop app with League open; add others in Friends, on the Voice page.', '#proFriends'],
       ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
         'On unless you turn it off: Your group, on the Voice page, Friends, under the list.', '#optLobbyRoom', 'app'],
       ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
