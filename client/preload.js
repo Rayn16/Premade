@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   clipDrag: (name) => ipcRenderer.send('clip-drag', String(name)),
   clipsClean: (limit, keep) => ipcRenderer.invoke('clips-clean', +limit || 0, Array.isArray(keep) ? keep.map(String) : []),
   metrics: () => ipcRenderer.invoke('metrics'),
+  videoFolder: (what) => ipcRenderer.invoke('video-folder', String(what)),
   gameVideo: (what, name, data) => ipcRenderer.invoke('game-video', String(what), name, data),
   combo: (on) => ipcRenderer.send('combo', !!on),
   record: (on) => ipcRenderer.send('record', !!on),

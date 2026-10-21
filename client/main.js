@@ -6,7 +6,7 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, shell, ipcMain, screen, globalShortcut, nativeImage } = require('electron');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
@@ -456,7 +456,23 @@ ipcMain.on('compact', (e, h) => {
 // clip). Saved in Videos\Premade, each with a small picture for the gallery in the app's own folder.
 // The gallery plays, renames, drags (into Discord) and bins them, and the folder stays under the size you pick by
 // binning the oldest clips that aren't favorites. Bin: the Recycle Bin, so nothing is gone for good.
-const clipDir = () => appDir('videos');
+// The clips folder (games in its Games folder): Videos\Premade, or the one you picked (Clip settings, Change folder),
+// kept in Video folder.txt. Clips and games already saved stay where they were.
+const whereFile = () => path.join(app.getPath('userData'), 'Video folder.txt');
+let clipsAt = null; // read once: '' for Videos\Premade
+const clipDir = () => {
+  if (clipsAt === null) try { clipsAt = fs.readFileSync(whereFile(), 'utf8').trim(); } catch { clipsAt = ''; }
+  return clipsAt || appDir('videos');
+};
+ipcMain.handle('video-folder', async (e, what) => { // get, pick or reset; says the folder, or '' while a game records
+  if (!fromSite(e)) return '';
+  if (what !== 'get' && vids.size) return '';
+  if (what === 'pick') {
+    const r = await dialog.showOpenDialog(win, { title: 'Where Premade saves clips and games', defaultPath: clipDir(), properties: ['openDirectory', 'createDirectory'] });
+    if (!r.canceled && r.filePaths[0]) { clipsAt = r.filePaths[0]; await fs.promises.writeFile(whereFile(), clipsAt).catch(() => {}); }
+  } else if (what === 'reset') { clipsAt = ''; await fs.promises.rm(whereFile(), { force: true }).catch(() => {}); }
+  return clipDir();
+});
 const picDir = () => path.join(app.getPath('userData'), 'Clip pictures');
 const bytes = (d) => (d instanceof ArrayBuffer ? Buffer.from(d) : ArrayBuffer.isView(d) ? Buffer.from(d.buffer, d.byteOffset, d.byteLength) : null);
 const clipOk = (n) => typeof n === 'string' && n.length <= 120 && /^[^\\/:*?"<>|\x00-\x1f.][^\\/:*?"<>|\x00-\x1f]*\.webm$/i.test(n);
@@ -583,6 +599,8 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
   if (what === 'folder') { await fs.promises.mkdir(vidDir(), { recursive: true }).catch(() => {}); return (await shell.openPath(vidDir())) === ''; }
   if (!clipOk(a) || vids.has(a)) return false;
   if (what === 'open') return (await shell.openPath(vidAt(a))) === ''; // in your video player
+  // ponytail: the whole video (about 300 MB for 30 minutes) goes to the page at once; a stream if that's too much
+  if (what === 'read') return fs.promises.readFile(vidAt(a)).catch(() => null); // for its highlights in the page
   if (what === 'show') { shell.showItemInFolder(vidAt(a)); return true; }
   if (what === 'trash') return shell.trashItem(vidAt(a)).then(() => true, () => false);
   return null;
