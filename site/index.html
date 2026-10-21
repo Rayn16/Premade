@@ -1420,6 +1420,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
     <section class="view" data-view="clips" aria-label="Clips" hidden>
       <h1 class="title">Clips</h1>
+      <section id="savedBox" class="panel lcu-only" aria-labelledby="h-saved" hidden>
+        <h2 id="h-saved" class="ph">Saved</h2>
+        <p id="savedNote" class="hint"></p>
+        <div id="savedGrid" class="clips"></div>
+        <ul id="savedVids" class="vidlist"></ul>
+      </section>
       <section class="panel" aria-labelledby="h-clips">
         <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
         <p id="clipNote" class="hint"></p>
@@ -1767,7 +1773,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
-<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and star your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
+<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-group" class="tipbox" popover>A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
@@ -6502,8 +6508,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     vidMarks[g.name] = m;
     store.set('lpc-vid-marks', JSON.stringify(vidMarks));
   }
+  // after each game, the ones older than opts.gameDays go to the Recycle Bin, but not the saved ones (by the page, so
+  // every app since 1.15 keeps them)
+  let vidSaved = new Set(load('lpc-vid-saved', []));
+  const saveVidSaved = () => store.set('lpc-vid-saved', JSON.stringify([...vidSaved]));
   async function vidsDone() {
-    const days = opts.gameDays, gone = (await client.gameVideo('clean', days).catch(() => [])) || [];
+    const days = opts.gameDays, gone = [];
+    for (const v of (await client.gameVideo('list').catch(() => [])) || []) if (days > 0 && !v.rec && !vidSaved.has(v.name) && Date.now() - v.at > days * 864e5 && (await client.gameVideo('trash', v.name).catch(() => false))) gone.push(v.name);
     if (gone.length) notify(`Moved ${gone.length} game video${gone.length > 1 ? 's' : ''} older than ${days} day${days > 1 ? 's' : ''} to the Recycle Bin.`, true);
     loadVids();
   }
@@ -6512,40 +6523,57 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (client && client.gameVideo) vidsList = (await client.gameVideo('list').catch(() => [])) || [];
     const kept = Object.fromEntries(vidsList.filter((v) => vidMarks[v.name]).map((v) => [v.name, vidMarks[v.name]])); // not the binned ones'
     if (Object.keys(kept).length !== Object.keys(vidMarks).length) store.set('lpc-vid-marks', JSON.stringify((vidMarks = kept)));
+    if (client && client.gameVideo && [...vidSaved].some((n) => !vidsList.some((v) => v.name === n))) { vidSaved = new Set(vidsList.filter((v) => vidSaved.has(v.name)).map((v) => v.name)); saveVidSaved(); }
     renderVids();
   }
   function renderVids() {
     $('vidBox').hidden = !client;
     if ($('vidBox').hidden) return;
+    const rest = vidsList.filter((v) => !vidSaved.has(v.name));
     $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? 'Tick Record every match and each game you play is kept here, with its highlights.'
-      : !vidsList.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin.`;
-    $('vidList').replaceChildren(...vidsList.map((v) => {
-      const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), acts = document.createElement('span');
-      li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: label }),
-        Object.assign(document.createElement('span'), { className: 'sub', textContent: `${whenText(v.at)} · ${Math.round(v.size / 1e6)} MB${v.rec ? ' · recording now' : ''}` }), acts);
-      acts.className = 'cacts';
-      if (!v.rec) for (const [text, what, fail] of [['Watch', 'open', 'Couldn’t open that video. It may have been moved or deleted.'], ['Show in folder', 'show', ''], ['Bin', 'trash', 'Couldn’t move that video to the Recycle Bin.']]) {
-        const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text });
-        b.addEventListener('click', async () => {
-          if (what === 'trash' && !confirm(`Move “${label}” to the Recycle Bin?`)) return;
-          if (!(await client.gameVideo(what, v.name)) && fail) notify(fail, true);
-          if (what === 'trash') loadVids();
-        });
-        acts.append(b);
-      }
-      const marks = vidMarks[v.name] || [];
-      if (!v.rec && marks.length) {
-        const row = Object.assign(document.createElement('div'), { className: 'vmarks' }), all = Object.assign(document.createElement('button'), { className: 'btn small primary', type: 'button', textContent: 'Play highlights' });
-        all.addEventListener('click', () => playGame(v.name, marks));
-        row.append(all, ...marks.map((m) => {
-          const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: `${mmss(Math.floor(m.s))} ${m.text}` });
-          b.addEventListener('click', () => playGame(v.name, [m]));
-          return b;
-        }));
-        li.append(row);
-      }
-      return li;
-    }));
+      : !rest.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin. Save one to keep it.`;
+    $('vidList').replaceChildren(...rest.map(vidRow));
+    $('savedVids').replaceChildren(...vidsList.filter((v) => vidSaved.has(v.name)).map(vidRow));
+    renderSaved();
+  }
+  function vidRow(v) {
+    const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), acts = document.createElement('span'), kept = vidSaved.has(v.name);
+    li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: label }),
+      Object.assign(document.createElement('span'), { className: 'sub', textContent: `${whenText(v.at)} · ${Math.round(v.size / 1e6)} MB${v.rec ? ' · recording now' : ''}` }), acts);
+    acts.className = 'cacts';
+    if (!v.rec) {
+      const star = Object.assign(document.createElement('button'), { className: 'btn small star', type: 'button', textContent: kept ? '★ Saved' : '☆ Save' });
+      star.setAttribute('aria-pressed', String(kept));
+      star.addEventListener('click', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); });
+      acts.append(star);
+    }
+    if (!v.rec) for (const [text, what, fail] of [['Watch', 'open', 'Couldn’t open that video. It may have been moved or deleted.'], ['Show in folder', 'show', ''], ['Bin', 'trash', 'Couldn’t move that video to the Recycle Bin.']]) {
+      const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text });
+      b.addEventListener('click', async () => {
+        if (what === 'trash' && !confirm(`Move “${label}” to the Recycle Bin?`)) return;
+        if (!(await client.gameVideo(what, v.name)) && fail) notify(fail, true);
+        if (what === 'trash') { vidSaved.delete(v.name); saveVidSaved(); loadVids(); }
+      });
+      acts.append(b);
+    }
+    const marks = vidMarks[v.name] || [];
+    if (!v.rec && marks.length) {
+      const row = Object.assign(document.createElement('div'), { className: 'vmarks' }), all = Object.assign(document.createElement('button'), { className: 'btn small primary', type: 'button', textContent: 'Play highlights' });
+      all.addEventListener('click', () => playGame(v.name, marks));
+      row.append(all, ...marks.map((m) => {
+        const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: `${mmss(Math.floor(m.s))} ${m.text}` });
+        b.addEventListener('click', () => playGame(v.name, [m]));
+        return b;
+      }));
+      li.append(row);
+    }
+    return li;
+  }
+  // the Saved section, first on the Clips page: the clips and match videos you saved, which are never binned
+  function renderSaved() {
+    $('savedBox').hidden = !client;
+    const n = $('savedGrid').childElementCount + $('savedVids').childElementCount;
+    $('savedNote').textContent = n ? 'Never moved to the Recycle Bin. Press ★ Saved to put one back with the others.' : 'Press ☆ Save on a clip or a match video and it’s kept here, never moved to the Recycle Bin.';
   }
   // a match's highlights in the clips player: each from 10 s before to 5 s after (ones that overlap become one), one
   // after another, and Save the cut keeps the one on screen as a clip. Apps before 1.18 can't hand the page a game's
@@ -6868,7 +6896,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (hasGallery()) try { gallery = (await client.clips()) || []; } catch { gallery = []; }
     renderClips();
   }
-  // the clean-up: the oldest clips that aren't starred go to the Recycle Bin until the folder is under your limit
+  // the clean-up: the oldest clips that aren't saved go to the Recycle Bin until the folder is under your limit
   async function cleanClips() {
     if (!opts.clipCap || !client || !client.clipsClean) return;
     const gone = (await client.clipsClean(opts.clipCap * 1e9, [...favs]).catch(() => [])) || [];
@@ -6878,8 +6906,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const g = hasGallery(), n = g ? gallery.length : clipNames.length;
     $('clipGrid').hidden = !g;
     $('clipList').hidden = g;
-    if (g) $('clipGrid').replaceChildren(...gallery.map(clipCard));
+    if (g) $('clipGrid').replaceChildren(...gallery.filter((c) => !favs.has(c.name)).map(clipCard));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
+    $('savedGrid').replaceChildren(...(g ? gallery.filter((c) => favs.has(c.name)).map(clipCard) : []));
+    renderSaved();
     $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
   }
@@ -6897,8 +6927,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     el.querySelector('.cname').textContent = label;
     el.querySelector('.sub').textContent = `${new Date(c.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${(c.size / 1e6).toFixed(1)} MB`;
     star.setAttribute('aria-pressed', String(fav));
-    star.textContent = fav ? '★ Kept' : '☆ Keep';
-    star.setAttribute('aria-label', `${fav ? 'Stop keeping' : 'Keep'} ${label}`);
+    star.textContent = fav ? '★ Saved' : '☆ Save';
+    star.setAttribute('aria-label', `${fav ? 'Stop saving' : 'Save'} ${label}`);
     star.addEventListener('click', () => { if (!favs.delete(c.name)) favs.add(c.name); saveFavs(); renderClips(); });
     el.querySelector('.play').addEventListener('click', () => playClip(c.name));
     el.querySelector('.ren').addEventListener('click', () => renameClip(c.name, el));
@@ -11504,6 +11534,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     [45, 'October 21: every match recorded, with its highlights', [
       'The Clips page has Whole matches and highlights: tick Record every match and the app records each game you play by itself (not Practice Tool), at 720p, about 300 MB for 30 minutes.',
       'Each match lists its highlights from League’s own game events: your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors, with when they happened. Click one to watch it, or Play highlights to watch them one after another. Save the cut keeps one as a clip. Watching them in Premade needs app 1.18; older apps open the video in your video player.',
+      'Saved, at the top of the Clips page: press Save on a clip or a match video and it’s kept there, never moved to the Recycle Bin (match videos otherwise go after the days you pick).',
       'Clip settings, Recording, has Change folder: pick where clips and match videos are saved (app 1.18). What’s already saved stays where it was.',
     ]],
     [44, 'October 20: righter callouts, and Alt+V for the overlay', [
@@ -11934,7 +11965,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
-      ['Your clips', 'Play, cut, rename, star or bin your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+      ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Saved clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+      ['Saved clips and videos', 'Press Save on a clip or a match video and it goes in Saved, at the top of the Clips page, and is never moved to the Recycle Bin.', 'The Clips page, Saved.', '#h-saved', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself at 720p, about 300 MB for 30 minutes, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Watching highlights in Premade needs app 1.18.', '#optGameVideo', 'app'],
       ['Clips folder', 'Pick where clips and match videos are saved, instead of Videos\\Premade. What’s already saved stays where it was.', 'Clip settings, Recording, Change folder (app 1.18).', '#clipSet [data-where="pick"]', 'app'],
