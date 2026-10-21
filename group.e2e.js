@@ -60,7 +60,7 @@ function fakeServer(r) {
   }
   if (what === 'invite') {
     const b = JSON.parse(q.postData());
-    S.inv = [...S.inv.filter((v) => !(v.to === low(b.to) && v.src === b.id)), { to: low(b.to), src: b.id, room: b.room, key: b.key, at: now }];
+    S.inv = [...S.inv.filter((v) => !(v.to === low(b.to) && v.src === b.id)), { to: low(b.to), src: b.id, room: b.room, key: b.key, lob: b.lob, at: now }];
     return reply({ ok: true });
   }
   if (what === 'esports') return reply({ ev: EV });
@@ -240,8 +240,14 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await wait(duo, (c) => lpc.room() === c && lpc.slot() >= 0, code, 'Duo in Rayan’s room from the invite');
     await wait(duo, () => document.getElementById('frInvBox').hidden, null, 'the invite gone once in the room');
     await duo.click('#leaveBtn');
-    L.lobby = { members: [{ puuid: 'rayan-puuid', gameName: 'Rayan', gameTag: 'EUW' }, { puuid: 'duo-puuid', gameName: 'Duo', gameTag: 'EUW' }], invitations: [] };
-    for (const pg of [ray, duo]) await pg.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
+    L.lobby = { partyId: 'party-1234', members: [{ puuid: 'rayan-puuid', gameName: 'Rayan', gameTag: 'EUW' }, { puuid: 'duo-puuid', gameName: 'Duo', gameTag: 'EUW' }], invitations: [] };
+    // an invite that says it's from Rayan but not made in his lobby (someone else saying hello with his Riot ID): asked,
+    // not joined
+    await duo.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
+    S.inv.push({ to: 'duo#euw', src: await ray.evaluate(() => localStorage.getItem('lpc-device')), room: 'fake', key: '', lob: 'f'.repeat(64), at: Math.round(Date.now() / 1000) });
+    await until(async () => { await duo.evaluate(() => lpc.groupNow()); return (await duo.evaluate(() => lpc.toasts())).includes('Rayan invites you to their voice room, FAKE. Join from Friends, on the Voice page.'); }, 'the made-up invite asked about');
+    assert.strictEqual(await duo.evaluate(() => lpc.slot()), -1, 'and not joined');
+    await ray.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
     await until(async () => { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); return duo.evaluate((c) => lpc.room() === c && lpc.slot() >= 0, code); }, 'Duo in Rayan’s room from the lobby');
     await toast(duo, `Joined Rayan’s voice room, ${CODE}, as you’re in their League lobby`, 'why');
     // in the lobby before Rayan has a room: Duo joins as soon as he makes (here, joins again) one

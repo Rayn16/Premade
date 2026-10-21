@@ -721,10 +721,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <label class="field">Your link <input id="profileLink" readonly spellcheck="false"></label>
         <div class="toolbar"><button id="profileCopy" class="btn small" type="button">Copy</button><a id="profileOpen" class="btn small" href="#" target="_blank" rel="noopener">Open it</a></div>
       </section>
-      <section id="proFriends" class="panel" aria-labelledby="h-profr" hidden>
-        <h2 id="h-profr" class="ph">Friends</h2>
-        <div id="proFrList" class="toolbar"></div>
-      </section>
       <p id="proNote" class="phase" role="status" hidden></p>
       <p id="proApp" class="hint browser-only" hidden>On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
       <div id="proRanks" class="ranks"></div>
@@ -776,6 +772,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
         </div>
       </div>
+      <section id="proFriends" class="panel" aria-labelledby="h-profr" hidden>
+        <h2 id="h-profr" class="ph">Friends</h2>
+        <div id="proFrList" class="toolbar"></div>
+      </section>
     </section>
 
     <section class="view" data-view="voice" aria-label="Voice" hidden>
@@ -11353,7 +11353,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // kept 10 minutes); each page asks /friends every 30 s (10 s in a League lobby), which also brings its invites.
   // opts.lobbyRoom: friends with Premade in your League lobby get invited by themselves, once each time you join a room
   // (so also when you make one after they joined the lobby, and not again after they leave it), and an invite from
-  // someone in your lobby is joined by itself when you aren't in a room you joined yourself. With Who has Premade off
+  // someone in your lobby is joined by itself when you aren't in a room you joined yourself. Such an invite carries lob,
+  // a hash of League's party id for the lobby and the room (lobHash), which only someone really in your lobby can make:
+  // the Riot ID on an invite is only what its sender's hello said, so it's joined by itself only when lob matches. With Who has Premade off
   // (opts.hello) the page sends no device id, so it gets no invites and friends don't see it.
   let frMine = load('lpc-friends', []), frLol = [], frHas = {}, frInv = [], frAt = -Infinity, frLolAt = -Infinity, frBusy = false;
   if (!Array.isArray(frMine)) frMine = [];
@@ -11361,6 +11363,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const riotOf = (x) => (x && x.gameName ? `${x.gameName}#${x.gameTag || ''}` : '');
   const lobbyIds = () => (lobby && Array.isArray(lobby.members) ? lobby.members.map(riotOf).filter((n) => RIOT_ID.test(n)) : []);
   const mineIds = () => new Set(Object.values(accounts).map((a) => acctOf(a && a.n)));
+  const lobHash = async (room) => (lobby && typeof lobby.partyId === 'string' && lobby.partyId ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`premade ${lobby.partyId} ${room}`)))].map((b) => b.toString(16).padStart(2, '0')).join('') : '');
   async function friendsLoop() {
     if (frBusy) return;
     frBusy = true;
@@ -11382,21 +11385,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const k = `${v.riot}|${v.room}|${v.at}`;
         if (frSeen.has(k) || room === v.room) { frSeen.add(k); continue; }
         frSeen.add(k);
-        if (opts.lobbyRoom && inLobby.has(acctOf(v.riot)) && (!peer || autoJoined) && !joining) { // a friend in your lobby: their room
+        if (opts.lobbyRoom && inLobby.has(acctOf(v.riot)) && v.lob && v.lob === (await lobHash(v.room)) && (!peer || autoJoined) && !joining) { // a friend in your lobby: their room
           if (peer) leaveRoom();
           await joinRoom(v.room, false, v.key);
           if (peer && room === v.room) notify(`Joined ${v.n || v.riot}’s voice room, ${v.room.toUpperCase()}, as you’re in their League lobby`, true);
         } else { notify(`${v.n || v.riot} invites you to their voice room, ${v.room.toUpperCase()}. Join from Friends, on the Voice page.`, true); if (opts.chimes) chime('call'); }
       }
       if (opts.lobbyRoom && peer && room && !GAME_ROOM.test(room)) for (const n of lobbyIds()) // your lobby's friends with Premade, once a room
-        if (!mineIds().has(acctOf(n)) && frHas[acctOf(n)] && frAsked.get(acctOf(n)) !== room + joinedAt) { frAsked.set(acctOf(n), room + joinedAt); frInvite(n, true); }
+        if (!mineIds().has(acctOf(n)) && frHas[acctOf(n)] && frAsked.get(acctOf(n)) !== room + joinedAt) { frAsked.set(acctOf(n), room + joinedAt); frInvite(n, await lobHash(room)); }
       renderGroup();
     } finally { frBusy = false; }
   }
-  async function frInvite(n, quiet) {
+  async function frInvite(n, lob) { // lob: for a friend in your lobby (lobHash), else none
+    const quiet = lob !== undefined;
     if (!peer) await joinRoom(newCode());
     if (!peer) return;
-    const r = await fetch(`${serverUrl}/invite`, { method: 'POST', body: JSON.stringify({ id: myDevice, to: n, room, key: roomKey }) }).then((x) => x.json()).catch(() => ({ error: 'Our server didn’t answer' }));
+    const r = await fetch(`${serverUrl}/invite`, { method: 'POST', body: JSON.stringify({ id: myDevice, to: n, room, key: roomKey, lob: lob || '' }) }).then((x) => x.json()).catch(() => ({ error: 'Our server didn’t answer' }));
     if (r.error) notify(`Couldn’t invite ${n}: ${r.error}.`, true);
     else if (!quiet) notify(`Invited ${n} to room ${room.toUpperCase()}: it pops up in their Premade.`, true);
     else notify(`${n} is in your League lobby, so their Premade is joining your voice room.`);
