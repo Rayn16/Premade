@@ -2,7 +2,7 @@
 // own game data, League's client (scouting, runes, champ select, the queue, trades, ranked and match history), sharing
 // the screen picked in Settings without a picker, the in-game overlay, the compact strip, shortcuts that work while
 // League is in front, push to talk, clips (saving, the gallery, dragging into Discord, cleaning up), whole games on
-// video, the combo trainer's key presses, Discord status, lolprox:// app links, test recordings, a performance meter
+// video, starting with League, the combo trainer's key presses, Discord status, lolprox:// app links, test recordings, a performance meter
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
@@ -229,10 +229,28 @@ async function pollLeague() {
   const game = await getJson(LEAGUE + '/liveclientdata/allgamedata'), phase = await clientPhase();
   const s = JSON.stringify({ ...summary(game), phase });
   if (s !== leagueWas && win && !win.isDestroyed()) { leagueWas = s; win.webContents.send('league', JSON.parse(s)); }
+  if (phase && !clientWas) withLeagueOpen();
+  clientWas = phase;
   recordTick(game, phase);
   practiceTool = !!(game && game.gameData && game.gameData.gameMode === 'PRACTICETOOL');
   setTimeout(pollLeague, practiceTool ? 500 : 2000); // the jungle clear's camps to half a second
 }
+
+// ---- start with League (Settings > App): Windows starts the app hidden when you sign in (--with-league), and the
+// window opens when League's client does, or comes back from the taskbar if it was already open. Off: neither.
+const WITH_LEAGUE = { args: ['--with-league'] }, waiting = process.argv.includes('--with-league');
+let clientWas = '';
+const withLeague = () => app.getLoginItemSettings(WITH_LEAGUE).openAtLogin;
+function withLeagueOpen() {
+  if (!win || win.isDestroyed() || !withLeague()) return;
+  if (win.isMinimized()) win.restore();
+  else if (!win.isVisible()) { const last = lastBounds(); if (last && last.max) win.maximize(); win.show(); }
+}
+ipcMain.handle('with-league', (e, on) => {
+  if (!fromSite(e)) return false;
+  if (typeof on === 'boolean') app.setLoginItemSettings({ openAtLogin: on, ...WITH_LEAGUE });
+  return withLeague();
+});
 
 // ---- test recordings (Settings, League): what League sends during your games, its game data every 10 s and what the
 // page asked League's client, so new features can be tried on real games. Every name and account id in it becomes a
@@ -802,9 +820,9 @@ app.whenReady().then(async () => {
   const last = lastBounds();
   win = new BrowserWindow({
     width: 1180, height: 800, ...(last && { x: last.x, y: last.y, width: last.width, height: last.height }), minWidth: 420, minHeight: 480,
-    title: 'Premade', icon: path.join(__dirname, 'icon.png'), backgroundColor: '#010a13', webPreferences,
+    title: 'Premade', icon: path.join(__dirname, 'icon.png'), backgroundColor: '#010a13', webPreferences, show: !waiting,
   });
-  if (last && last.max) win.maximize();
+  if (last && last.max && !waiting) win.maximize();
   for (const ev of ['resize', 'move']) win.on(ev, saveBounds);
   if (app.isPackaged) app.setAsDefaultProtocolClient('lolprox');
   win.removeMenu();
@@ -825,7 +843,7 @@ app.whenReady().then(async () => {
     linkWaiting = '';
   });
   win.on('closed', () => app.quit());
-  app.on('second-instance', (e, argv) => { if (win.isMinimized()) win.restore(); win.focus(); join(linkRoom(argv)); });
+  app.on('second-instance', (e, argv) => { if (win.isMinimized()) win.restore(); win.show(); win.focus(); join(linkRoom(argv)); });
   pollLeague();
   checkUpdates();
 });

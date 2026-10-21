@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   gameVideo: (what, name, data) => ipcRenderer.invoke('game-video', String(what), name, data),
   combo: (on) => ipcRenderer.send('combo', !!on),
   record: (on) => ipcRenderer.send('record', !!on),
+  withLeague: (on) => ipcRenderer.invoke('with-league', typeof on === 'boolean' ? on : undefined),
   recordingsFolder: () => ipcRenderer.send('recordings-folder'),
   on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });
