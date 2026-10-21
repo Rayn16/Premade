@@ -189,7 +189,7 @@ const game = (over = {}, me = {}) => ({
     // ---- whole games on video: recorded with the app (not in Practice Tool), sent in parts, the old ones binned, and
     // on the Clips page
     {
-      const [c, page] = await context(browser, { gameVideo: true, gameDays: 7 });
+      const [c, page] = await context(browser, { gameVideo: true, gameDays: 7, autoShare: false });
       const emit = (d) => page.evaluate((d) => lpcClient.emit('league', d), d);
       const NAME = 'Game 2026-10-20 15-00-00 Ahri.webm';
       await emit(game());

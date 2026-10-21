@@ -1014,6 +1014,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
           <section class="panel client-only">
             <h2 class="ph">In a game</h2>
+            <label class="check"><input id="optAutoShare" type="checkbox"> Share my League screen by itself in every game (for the minimap, callouts and the surrender pop-up; it doesn’t join a room or turn voice on)</label>
             <label class="check"><input id="optAutoRoom" type="checkbox"> Join my game's room by itself <button class="tip" type="button" popovertarget="t-auto" aria-label="About joining your game's room">?</button></label>
             <label class="check"><input id="optHurt" type="checkbox"> Shaky, rough voice when my champion is low on health</label>
             <label class="check"><input id="optLendScreen" type="checkbox"> Let teammates in my room watch my screen while they’re dead</label>
@@ -1834,7 +1835,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
-    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false,
+    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameDays: 7, champLook: false, champMain: null,
@@ -4095,9 +4096,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // any game in a room when you let teammates watch your screen), and stops once the game ends if it started it; it
   // tries again 30 s after a share that didn't start
   let autoShareAt = -Infinity;
+  let shareOff = ''; // the game you stopped sharing in yourself: not shared again until the next one
   function autoShare() {
     if (share && share.auto && !league) stopShare();
-    if (!client || share || !(foesOn() || (opts.lendScreen && !!league && !!peer)) || performance.now() - autoShareAt < 30000) return;
+    // with Share my League screen by itself (opts.autoShare, on) every game is shared, from launch if Premade opens mid-game;
+    // sharing only reads the minimap and sends where you are to a room you're already in, it never joins one
+    if (!client || share || !(foesOn() || (opts.lendScreen && !!league && !!peer) || (opts.autoShare && !!league && league.room !== shareOff)) || performance.now() - autoShareAt < 30000) return;
     autoShareAt = performance.now();
     startShare().then(() => { if (share) share.auto = true; });
   }
@@ -11504,7 +11508,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(),
-    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); } }; // what else to redo; pushOverlay for the rest
+    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
@@ -11512,7 +11516,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
-    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'],
+    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
@@ -11673,6 +11677,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [50, 'October 21: your League screen shared by itself', [
+      'In the desktop app your League screen is now shared by itself in every game, even when you open Premade mid-game, so the minimap tracker, callouts and the surrender vote pop-up just work. No need to press Share League screen.',
+      'It doesn’t turn voice on: you’re heard only in a room you joined or Join my game’s room picked. Turn it off in Voice settings, In a game, or press Stop sharing to leave that game unshared.',
+    ]],
     [49, 'October 21: overlay fixes', [
       'Hiding the overlay with Alt+V now lasts for that game only: it used to stay hidden in every game after, with no ranks on the loading screen and no card after the game.',
       'With app 1.18: picking another screen in Settings moves the overlay there right away, and when League changes your screen’s resolution or a screen is plugged in or out, the overlay goes back where you put it instead of being moved for good.',
@@ -11995,6 +12003,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Friends join with its 4-letter code or your invite link, and on the website an invite link can open the room in the desktop app.',
         'Create room, then Copy invite link and send it. To join a friend, type their code under Join.', '#copyBtn, #createBtn'],
+      ['Your screen shared by itself', 'In every game the desktop app shares the screen League is on by itself, from the moment Premade opens, so the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
+        'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that game stays unshared.', '#optAutoShare', 'app'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
@@ -12303,7 +12313,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('copyBtn').addEventListener('click', copyInvite);
   $('sbRoom').addEventListener('click', copyInvite);
-  $('shareBtn').addEventListener('click', () => (share ? stopShare() : startShare()));
+  $('shareBtn').addEventListener('click', () => { if (share && league) shareOff = league.room; share ? stopShare() : startShare(); });
   const showRange = () => { $('rangeOut').textContent = `${range.toLocaleString('en-US')} units`; };
   $('range').value = range;
   $('range').addEventListener('input', (e) => { range = +e.target.value; store.set('lpc-range', range); showRange(); volumes(); });
