@@ -1588,6 +1588,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div class="toolbar"><button id="setupAgain" class="btn" type="button">Run setup again</button><button id="installBtn" class="btn browser-only" type="button" hidden>Install as an app</button></div>
           <p class="hint browser-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
           <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
+          <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade see I have it: my League accounts, voice name and app version</label>
           <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
@@ -11279,6 +11280,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   // Test version first: the site's test/ folder gets page changes before everyone else. The page's address is the
   // switch, and the app (1.13 and later) opens the same copy next time.
+  // Start with League (app 1.18): Windows keeps the setting, so the app is asked, not opts
+  if (client && client.withLeague) {
+    client.withLeague().then((on) => { $('optWithLeague').checked = !!on; });
+    $('optWithLeague').addEventListener('change', async (e) => { e.target.checked = !!(await client.withLeague(e.target.checked)); });
+  } else if (client) {
+    $('optWithLeague').disabled = true;
+    $('optWithLeague').parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' }));
+  }
   $('optTest').checked = TEST;
   $('optTest').addEventListener('change', (e) => location.assign((e.target.checked ? ROOT + 'test/' : ROOT) + location.hash));
   $('optFlash').value = opts.flash;
@@ -11413,6 +11422,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [46, 'October 21: Premade starts with League', [
+      'Tick “Start with League” in Settings, App: Premade waits in the background from when Windows starts, and its window opens by itself when League’s client does. If Premade was already open behind other windows or in the taskbar, it comes back. Comes with app 1.18, which installs itself.',
+    ]],
     [44, 'October 20: righter callouts, and Alt+V for the overlay', [
       'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts. App 1.17 makes the overlay shortcut work every time: Windows used to skip it while you also held Shift or Ctrl (attack move, levelling an ability) or when another app had taken it, and holding it a moment too long flipped the overlay twice.',
       'Callouts are right more often: “heading your way” only when their jungler walks straight at you, not when you walk toward them or they pass by; no “Jungler in mid” for a jungler in a base; their jungler stays their jungler after selling the jungle pet, so they’re never called a missing laner; dead players come back on League’s own respawn timer; and a jungler or gank callout that waited more than 4 seconds behind another is dropped instead of showing late.',
@@ -11896,6 +11908,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
       ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
       ['Your Discord server', 'Your game results with your LP and rank-ups, and your clips under 10 MB, post themselves in a channel of your Discord server.', 'Settings, Your Discord server: paste a webhook link from Discord (Server Settings, Integrations, Webhooks).', '#optHook', 'app'],
+      ['Start with League', 'Premade waits in the background from when Windows starts and opens when League’s client does.', 'Off until you tick it: Settings, App: Start with League.', '#optWithLeague', 'app'],
       ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
       ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
       ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
