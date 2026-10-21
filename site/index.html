@@ -393,6 +393,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .vidlist { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .vidlist li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.vidlist .vmarks { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; }
 .vidlist .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; flex: 1 1 200px; }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 #clipKeyNote:empty { display: none; }
@@ -1427,10 +1428,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
       </section>
       <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
-        <h2 id="h-vids" class="ph">Whole games <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole games on video">?</button></h2>
+        <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
+        <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at lower quality (about 300 MB for 30 minutes), with its highlights</label>
+        <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
         <p id="vidNote" class="hint" role="status"></p>
         <ul id="vidList" class="vidlist"></ul>
-        <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button></div>
+        <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button><button class="btn small where" type="button" data-where="pick" hidden>Change folder</button></div>
       </section>
       <details id="clipSet" class="voiceset">
         <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
@@ -1442,8 +1445,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
               <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
             </div>
-            <label class="check"><input id="optGameVideo" type="checkbox"> Keep every game as a video too, at lower quality (about 300 MB for 30 minutes) <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole games on video">?</button></label>
-            <label class="field">Keep game videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
+            <p class="hint where" hidden><span class="whereAt"></span> <button class="btn small" type="button" data-where="pick">Change folder</button> <button class="btn small" type="button" data-where="reset">Back to Videos\Premade</button></p>
             <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
           </section>
           <section class="panel">
@@ -1754,7 +1756,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
-<div id="t-vids" class="tipbox" popover>With Keep every game as a video on (Clip settings), the app records each game you play, except Practice Tool, at 720p and lower quality than clips: about 300 MB for 30 minutes. It goes in Videos\Premade\Games as it records, and once the game is over you can skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
+<div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at 720p and lower quality than clips: about 300 MB for 30 minutes. It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
@@ -6458,7 +6460,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     };
     r.mr.start(1000);
   }
-  // ---- whole games on video (app 1.15): with Keep every game as a video on, each game but Practice Tool is recorded
+  // ---- whole games on video (app 1.15): with Record every match on, each game but Practice Tool is recorded
   // again at 720p and about 300 MB for 30 minutes, sent to the app every 5 s; the app writes it in Videos\\Premade\\Games
   // and, once the game is over, makes it a video you can skip around in. Then the ones older than opts.gameDays go to
   // the Recycle Bin.
@@ -6471,6 +6473,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     g.mr.ondataavailable = (e) => { if (e.data.size) g.q = g.q.then(async () => g.name && client.gameVideo('add', g.name, await e.data.arrayBuffer())).catch(() => {}); };
     g.mr.onstop = () => { g.q = g.q.then(() => g.name && client.gameVideo('end', g.name)).catch(() => {}).then(vidsDone); };
     g.mr.start(5000);
+    g.wall = performance.now();
+  }
+  // a match's highlights, from League's game events (league.events, as client/main.js's moments reads them), read
+  // every second (clipMoments) while it records: s is
+  // seconds into its video, from the game clock less how long the video had been recording when it was first read
+  // ponytail: lands within a second or two of the moment; a pause in a custom game moves the later ones
+  const OBJ = { dragon: 'Dragon', elder: 'Elder Dragon', baron: 'Baron', herald: 'Rift Herald', grubs: 'Voidgrubs' };
+  let vidMarks = load('lpc-vid-marks', {});
+  function marksOf(ev, t0, team) {
+    const multis = ev.filter((e) => e.e === 'multi'), out = [];
+    for (const e of ev) {
+      const ours = !!team && e.team === team;
+      const text = e.e === 'multi' ? MULTI[Math.min(5, e.n)]
+        : e.e === 'kill' ? (e.on ? 'You died' : multis.some((m) => m.t >= e.t && m.t - e.t < 11) ? '' : 'Your kill') // a multikill's kills are in it
+        : e.e === 'ace' ? (ours ? 'Your team’s Ace' : 'Your team was aced')
+        : OBJ[e.e] ? `${ours ? 'Your team' : 'The enemy'} ${e.stolen ? 'stole' : 'took'} ${OBJ[e.e]}`
+        : e.e === 'tower' || e.e === 'inhib' ? `${e.of === team ? 'Lost' : 'Took'} ${e.e === 'tower' ? 'a tower' : 'an inhibitor'}` : '';
+      if (text && e.t >= t0) out.push({ s: Math.round((e.t - t0) * 10) / 10, text });
+    }
+    return out;
+  }
+  function keepMarks(g) {
+    if (!g.name || !league || !Array.isArray(league.events)) return;
+    if (g.t0 == null) g.t0 = Math.max(0, gameNow() - (performance.now() - g.wall) / 1000);
+    const m = marksOf(league.events, g.t0, mine.team);
+    if (m.length === (vidMarks[g.name] || []).length) return;
+    vidMarks[g.name] = m;
+    store.set('lpc-vid-marks', JSON.stringify(vidMarks));
   }
   async function vidsDone() {
     const days = opts.gameDays, gone = (await client.gameVideo('clean', days).catch(() => [])) || [];
@@ -6480,12 +6510,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let vidsList = [];
   async function loadVids() {
     if (client && client.gameVideo) vidsList = (await client.gameVideo('list').catch(() => [])) || [];
+    const kept = Object.fromEntries(vidsList.filter((v) => vidMarks[v.name]).map((v) => [v.name, vidMarks[v.name]])); // not the binned ones'
+    if (Object.keys(kept).length !== Object.keys(vidMarks).length) store.set('lpc-vid-marks', JSON.stringify((vidMarks = kept)));
     renderVids();
   }
   function renderVids() {
-    $('vidBox').hidden = !(client && client.gameVideo) || !(opts.gameVideo || vidsList.length);
+    $('vidBox').hidden = !client;
     if ($('vidBox').hidden) return;
-    $('vidNote').textContent = !vidsList.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin.`;
+    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? 'Tick Record every match and each game you play is kept here, with its highlights.'
+      : !vidsList.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin.`;
     $('vidList').replaceChildren(...vidsList.map((v) => {
       const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), acts = document.createElement('span');
       li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: label }),
@@ -6500,10 +6533,63 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         });
         acts.append(b);
       }
+      const marks = vidMarks[v.name] || [];
+      if (!v.rec && marks.length) {
+        const row = Object.assign(document.createElement('div'), { className: 'vmarks' }), all = Object.assign(document.createElement('button'), { className: 'btn small primary', type: 'button', textContent: 'Play highlights' });
+        all.addEventListener('click', () => playGame(v.name, marks));
+        row.append(all, ...marks.map((m) => {
+          const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: `${mmss(Math.floor(m.s))} ${m.text}` });
+          b.addEventListener('click', () => playGame(v.name, [m]));
+          return b;
+        }));
+        li.append(row);
+      }
       return li;
     }));
   }
+  // a match's highlights in the clips player: each from 10 s before to 5 s after (ones that overlap become one), one
+  // after another, and Save the cut keeps the one on screen as a clip. Apps before 1.18 can't hand the page a game's
+  // video, so it opens in your video player instead.
+  // ponytail: the whole video (about 300 MB for 30 minutes) is read into memory; ranges by a stream if that's too much
+  let reel = [];
+  async function playGame(name, marks) {
+    const b = await client.gameVideo('read', name).catch(() => null);
+    if (!b) {
+      if (!(await client.gameVideo('open', name))) return notify('Couldn’t open that video. It may have been moved or deleted.', true);
+      return notify(marks.length === 1 ? `Opened in your video player: skip to ${mmss(Math.floor(Math.max(0, marks[0].s - 10)))}.` : 'Opened in your video player. Update the app to watch highlights here.', true);
+    }
+    reel = [];
+    for (const m of marks) { const last = reel[reel.length - 1], a = Math.max(0, m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = z; else reel.push([a, z]); }
+    viewing = name;
+    clipBytes = new Uint8Array(b);
+    URL.revokeObjectURL(clipUrl);
+    clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/webm' }));
+    vid.addEventListener('loadedmetadata', () => nextMark(), { once: true }); // after the trimmer's own, which takes the whole video
+    vid.src = clipUrl;
+    $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}: ${marks.length === 1 ? marks[0].text : 'highlights'}`;
+    $('trimNote').textContent = 'Save the cut keeps this highlight as a clip. Move Start and End to change it.';
+    clipDlg.showModal();
+  }
+  function nextMark() {
+    const r = reel.shift(), d = Number.isFinite(vid.duration) ? vid.duration : 0;
+    if (!r) return;
+    $('trimFrom').value = Math.min(r[0], d);
+    $('trimTo').value = Math.min(r[1], d);
+    showTrim();
+    vid.currentTime = +$('trimFrom').value;
+    vid.play().catch(() => {});
+  }
   $('vidsFolder').addEventListener('click', () => client && client.gameVideo && client.gameVideo('folder'));
+  // where clips and games are saved (app 1.18): Change folder picks another; what's saved stays where it was
+  const showWhere = (p) => { for (const el of document.querySelectorAll('.where')) el.hidden = !p; for (const el of document.querySelectorAll('.whereAt')) el.textContent = `Clips are saved in ${p}, games in its Games folder.`; };
+  if (client && client.videoFolder) client.videoFolder('get').then(showWhere, () => {});
+  for (const b of document.querySelectorAll('[data-where]')) b.addEventListener('click', async () => {
+    const p = await client.videoFolder(b.dataset.where).catch(() => '');
+    if (!p) return notify('A game is being recorded: change the folder once it’s over.', true);
+    showWhere(p);
+    loadClips();
+    loadVids();
+  });
   // the head is the recording's first chunks up to its first Cluster: on a busy PC Chrome can hand the WebM header over
   // in pieces (even its first byte alone), and every clip needs all of it
   function headChunk(r, blob) {
@@ -6557,6 +6643,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the moments that save a clip by themselves: your double kill or better (5 s later, waiting for more kills), and
   // with big moments on your pentakills and your team's steals of Dragon, Elder or Baron and Aces (3 s later)
   function clipMoments() {
+    if (recorder && recorder.game) keepMarks(recorder.game); // every second, with the game's video's highlights
     if (!league || !Array.isArray(league.events)) return;
     if (momentRoom !== league.room) { momentRoom = league.room; momentT = -1; }
     const team = mine.team, big = (e) => opts.clipBig && !!team && e.team === team && (e.e === 'ace' || (e.stolen && ['dragon', 'elder', 'baron'].includes(e.e)));
@@ -6850,6 +6937,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   async function playClip(name) {
     const b = await client.clipRead(name);
     if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
+    reel = [];
     viewing = name;
     clipBytes = new Uint8Array(b);
     URL.revokeObjectURL(clipUrl);
@@ -6867,7 +6955,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   });
   $('trimFrom').addEventListener('input', () => { $('trimFrom').value = Math.min(+$('trimFrom').value, +$('trimTo').value - 1); vid.currentTime = +$('trimFrom').value; showTrim(); });
   $('trimTo').addEventListener('input', () => { $('trimTo').value = Math.max(+$('trimTo').value, +$('trimFrom').value + 1); vid.currentTime = +$('trimTo').value; showTrim(); });
-  vid.addEventListener('timeupdate', () => { if (!vid.paused && +$('trimTo').value < vid.duration - 0.5 && vid.currentTime >= +$('trimTo').value) vid.pause(); });
+  vid.addEventListener('timeupdate', () => { if (!vid.paused && +$('trimTo').value < vid.duration - 0.5 && vid.currentTime >= +$('trimTo').value) { vid.pause(); nextMark(); } });
   $('trimSave').addEventListener('click', async () => {
     const from = +$('trimFrom').value, to = +$('trimTo').value, out = clipBytes && cutClip(clipBytes, clipBytes, 0, [from, to]);
     if (!out) return void ($('trimNote').textContent = 'Couldn’t cut this clip.');
@@ -6879,7 +6967,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name) { await cleanClips(); loadClips(); }
   });
   $('clipClose').addEventListener('click', () => clipDlg.close());
-  clipDlg.addEventListener('close', () => { vid.pause(); vid.removeAttribute('src'); vid.load(); URL.revokeObjectURL(clipUrl); clipUrl = ''; clipBytes = null; });
+  clipDlg.addEventListener('close', () => { reel = []; vid.pause(); vid.removeAttribute('src'); vid.load(); URL.revokeObjectURL(clipUrl); clipUrl = ''; clipBytes = null; });
   $('clipsFolder').addEventListener('click', () => client && client.clipsFolder && client.clipsFolder());
 
   // ---- Stats: your rank and LP after each ranked game, and your match history with a report for every game
@@ -11413,6 +11501,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [45, 'October 21: every match recorded, with its highlights', [
+      'The Clips page has Whole matches and highlights: tick Record every match and the app records each game you play by itself (not Practice Tool), at 720p, about 300 MB for 30 minutes.',
+      'Each match lists its highlights from League’s own game events: your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors, with when they happened. Click one to watch it, or Play highlights to watch them one after another. Save the cut keeps one as a clip. Watching them in Premade needs app 1.18; older apps open the video in your video player.',
+      'Clip settings, Recording, has Change folder: pick where clips and match videos are saved (app 1.18). What’s already saved stays where it was.',
+    ]],
     [44, 'October 20: righter callouts, and Alt+V for the overlay', [
       'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts. App 1.17 makes the overlay shortcut work every time: Windows used to skip it while you also held Shift or Ctrl (attack move, levelling an ability) or when another app had taken it, and holding it a moment too long flipped the overlay twice.',
       'Callouts are right more often: “heading your way” only when their jungler walks straight at you, not when you walk toward them or they pass by; no “Jungler in mid” for a jungler in a base; their jungler stays their jungler after selling the jungle pet, so they’re never called a missing laner; dead players come back on League’s own respawn timer; and a jungler or gank callout that waited more than 4 seconds behind another is dropped instead of showing late.',
@@ -11842,8 +11935,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
       ['Your clips', 'Play, cut, rename, star or bin your clips, or drag one straight into Discord. Starred clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
-      ['Whole games on video', 'Every game but Practice Tool kept as a video at 720p, about 300 MB for 30 minutes, with what you heard and your mic. Skip around in it in any video player. After the days you pick it goes to the Recycle Bin.',
-        'Off until you tick it: Clip settings, Recording, Keep every game as a video too. Your games are on the Clips page.', '#optGameVideo', 'app'],
+      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself at 720p, about 300 MB for 30 minutes, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
+        'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Watching highlights in Premade needs app 1.18.', '#optGameVideo', 'app'],
+      ['Clips folder', 'Pick where clips and match videos are saved, instead of Videos\\Premade. What’s already saved stays where it was.', 'Clip settings, Recording, Change folder (app 1.18).', '#clipSet [data-where="pick"]', 'app'],
     ]],
     ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],

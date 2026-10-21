@@ -36,7 +36,7 @@ let SPLASH = null;
 // The desktop app as the page sees it (client/preload.js); app 1.15 (fresh) adds the combo trainer's keys and game
 // videos, kept here in a list of their own. The shared screen is a canvas that keeps changing, for the recordings.
 function fakeApp(fresh) {
-  const on = {}, calls = [], vids = new Map([['Game 2026-10-10 20-00-00 Zed.webm', { size: 280e6, at: Date.now() - 10 * 864e5, rec: false }]]);
+  const on = {}, calls = [], parts = new Map(), vids = new Map([['Game 2026-10-10 20-00-00 Zed.webm', { size: 280e6, at: Date.now() - 10 * 864e5, rec: false }]]);
   window.lpcClient = {
     version: fresh ? '1.15.0' : '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
     lcu: async () => ({ status: 0, data: null }), clip: async () => '', clips: async () => [], clipsClean: async () => [],
@@ -46,11 +46,13 @@ function fakeApp(fresh) {
   };
   if (fresh) Object.assign(window.lpcClient, {
     combo(v) { calls.push('combo ' + v); },
+    async videoFolder(what) { calls.push('folder ' + what); return what === 'pick' ? 'D:\\Clips' : 'C:\\Users\\Rayan\\Videos\\Premade'; },
     async gameVideo(what, a, b) {
       calls.push(`video ${what}${a == null ? '' : ' ' + a}${b instanceof ArrayBuffer ? ' ' + b.byteLength : ''}`);
       const v = vids.get(a);
       if (what === 'start') { const name = `Game 2026-10-20 15-00-00${a ? ' ' + a : ''}.webm`; vids.set(name, { size: 0, at: Date.now(), rec: true }); return name; }
-      if (what === 'add') return !!(v && v.rec && b instanceof ArrayBuffer && (v.size += b.byteLength));
+      if (what === 'add') return !!(v && v.rec && b instanceof ArrayBuffer && parts.set(a, [...(parts.get(a) || []), b]) && (v.size += b.byteLength));
+      if (what === 'read') return v && !v.rec && parts.has(a) ? new Blob(parts.get(a)).arrayBuffer() : null;
       if (what === 'end') return !!(v && v.rec && !(v.rec = false));
       if (what === 'list') return [...vids].map(([name, x]) => ({ name, ...x })).sort((x, y) => y.at - x.at);
       if (what === 'clean') { const out = [...vids].filter(([, x]) => !x.rec && Date.now() - x.at > a * 864e5).map(([n]) => n); out.forEach((n) => vids.delete(n)); return out; }
@@ -194,7 +196,9 @@ const game = (over = {}, me = {}) => ({
       assert(!(await page.evaluate(() => lpcClient.shared || lpcClient.calls.some((x) => x.startsWith('video start')))), 'not in Practice Tool');
       await page.click('.nav[data-view="clips"]');
       await wait(page, () => !document.getElementById('vidBox').hidden && document.querySelectorAll('#vidList li').length === 1, null, 'the old game on the Clips page');
-      await emit(game({ mode: 'CLASSIC', room: 'g00000000001' }));
+      const events = [{ t: 61, e: 'kill', me: true, team: 'ORDER' }, { t: 62, e: 'kill', me: true, team: 'ORDER' }, { t: 62, e: 'multi', n: 2, me: true, team: 'ORDER' },
+        { t: 65, e: 'kill', on: true, team: 'CHAOS' }, { t: 66, e: 'dragon', team: 'ORDER', type: 'Fire' }, { t: 67, e: 'baron', team: 'CHAOS', stolen: true }, { t: 68, e: 'tower', of: 'CHAOS', team: 'ORDER' }];
+      await emit(game({ mode: 'CLASSIC', room: 'g00000000001', events }));
       await wait(page, () => lpcClient.calls.includes('video start Ahri'), null, 'the game recorded');
       await wait(page, (n) => [...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(n.slice(0, -5)) && li.textContent.includes('recording now') && !li.querySelector('button')), NAME, 'recording now, on the Clips page');
       await page.waitForTimeout(1500);
@@ -205,7 +209,17 @@ const game = (over = {}, me = {}) => ({
       assert(adds.length && adds.every((x) => +x.split(' ').pop() > 0), `its parts: ${calls}`);
       assert.deepStrictEqual(calls.filter((x) => !adds.includes(x)), ['video start Ahri', `video end ${NAME}`, 'video clean 7'], 'started, ended, then the old ones binned');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Moved 1 game video older than 7 days to the Recycle Bin.'), null, 'the old one binned');
-      await wait(page, (n) => document.querySelectorAll('#vidList li').length === 1 && document.querySelector('#vidList li').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#vidList li button').length === 3, NAME, 'the game, ready to watch');
+      await wait(page, (n) => document.querySelectorAll('#vidList li').length === 1 && document.querySelector('#vidList li').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#vidList li .cacts button').length === 3, NAME, 'the game, ready to watch');
+      assert.deepStrictEqual((await page.$$eval('#vidList .vmarks button', (bs) => bs.map((b) => b.textContent.replace(/^\d+:\d\d /, '')))),
+        ['Play highlights', 'Double kill', 'You died', 'Your team took Dragon', 'The enemy stole Baron', 'Took a tower'], 'its highlights, a double kill’s kills in it');
+      await page.click('#vidList .vmarks button:has-text("You died")');
+      await wait(page, () => document.getElementById('clipDlg').open && /: You died$/.test(document.getElementById('clipTitle').textContent) && document.getElementById('clipVideo').src.startsWith('blob:'), null, 'a highlight in the player');
+      await page.click('#clipClose');
+      await page.click('#vidBox button:text-is("Change folder")');
+      await wait(page, () => document.querySelector('.whereAt').textContent === 'Clips are saved in D:\\Clips, games in its Games folder.', null, 'another folder');
+      await page.evaluate(() => { lpcClient.gameVideo = ((f) => async (what, ...x) => (what === 'read' ? null : f.call(lpcClient, what, ...x)))(lpcClient.gameVideo); }); // an app before 1.18
+      await page.click('#vidList .vmarks button:has-text("Play highlights")');
+      await wait(page, () => document.getElementById('toasts').textContent.includes('Update the app to watch highlights here.'), null, 'older apps: the video player');
       assert.match(await text(page, '#vidNote'), /^Each one is kept for 7 days, then it goes to the Recycle Bin\.$/);
       await shot(page, 'game-videos', '#vidBox');
       for (const b of ['Watch', 'Show in folder']) await page.click(`#vidList li button:text-is("${b}")`);
@@ -213,10 +227,10 @@ const game = (over = {}, me = {}) => ({
       await page.click('#vidList li button:text-is("Bin")');
       await wait(page, () => !document.querySelectorAll('#vidList li').length && /^No game videos yet/.test(document.getElementById('vidNote').textContent), null, 'binned');
       const acts = await page.evaluate(() => lpcClient.calls.filter((x) => /^video (open|show|folder|trash)/.test(x)));
-      assert.deepStrictEqual(acts, [`video open ${NAME}`, `video show ${NAME}`, 'video folder', `video trash ${NAME}`]);
+      assert.deepStrictEqual(acts, [`video open ${NAME}`, `video open ${NAME}`, `video show ${NAME}`, 'video folder', `video trash ${NAME}`]);
       assert.strictEqual(await page.evaluate(() => lpcClient.shared), 1, 'one share of the screen for the game');
       await c.close();
-      console.log('whole games on video: recorded in parts, not in Practice Tool, the old ones binned, and on the Clips page');
+      console.log('whole games on video: recorded in parts, not in Practice Tool, the old ones binned, and on the Clips page with their highlights');
     }
 
     // ---- champion colours: Ahri's pink from her splash art, before the page shows after a reload, and your own colour
