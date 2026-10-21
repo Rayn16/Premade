@@ -9829,7 +9829,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const avg = l.reduce((t, g) => t + g.place, 0) / l.length;
     return { t: `Your average: ${avg.toFixed(1)} in ${l.length} game${l.length === 1 ? '' : 's'}`, k: l.length < 2 ? '' : avg <= 4 ? 'good' : 'bad' };
   }
-  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot (Mayhem: above its name), as shares of the screen; t: what to say; k: good, bad or ''; Mayhem's bars: v, the bar's length 0-1, p the pick rate, s what's under it }]
+  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot, as shares of the screen; t: what to say; k: good, bad or ''; Mayhem's bars: v, the bar's length 0-1, p the pick rate, s what's under it }]
     if (augs && augs.may) { // Mayhem: bars as long as each card's pick rate against the most picked of them, which is k good
       const l = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) })), top = Math.max(0, ...l.map((c) => c.r || 0));
       return l.length ? l.map(({ r, ...c }) => (r == null ? c : { ...c, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' })) : null;
@@ -9911,7 +9911,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- ARAM: Mayhem's augment cards: three cards in the middle of the screen at the start and after levels 7, 11 and
   // 15 (augNow's times). Their size goes with the UI scale, so Tesseract reads the whole middle of the screen (light text
   // made dark) every 2 seconds then, and each line that's an augment's name (CommunityDragon's list of Arena and Mayhem
-  // augments, 0.85 alike or better) gets how many of your champion's games took it. Nothing read leaves your PC.
+  // augments, 0.85 alike or better) gets how many of your champion's games took it, at the foot of its card (found by its
+  // light frame under the name). Nothing read leaves your PC.
   let mayNames = null, mayNamesAt = -Infinity; // [[id, name]]
   function mayNamesSoon() {
     if (mayNames || performance.now() - mayNamesAt < 60000) return;
@@ -9924,7 +9925,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (a.busy || a.failed || !mayNames || performance.now() - (a.at || 0) < 2000) return;
     if (!augNow()) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
     a.at = performance.now();
-    const sx = w * 0.1, sy = h * 0.1, sw = w * 0.8, sh = h * 0.65, k = 1280 / sw; // the middle of the screen, 1280 wide
+    const sx = w * 0.1, sy = h * 0.1, sw = w * 0.8, sh = h * 0.8, k = 1280 / sw; // the middle of the screen with the cards' feet, 1280 wide
     mayCv.width = 1280;
     mayCv.height = Math.round(sh * k);
     const g = mayCv.getContext('2d', { willReadFrequently: true });
@@ -9936,7 +9937,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     (augOcr = augOcr || augLoad('11')).then((ocr) => ocr.recognize(mayCv, {}, { blocks: true })).then((r) => {
       if (augs !== a) return;
       const lines = ((r && r.data && r.data.blocks) || []).flatMap((b) => b.paragraphs || []).flatMap((q) => q.lines || []);
-      a.cards = lines.map((l) => { const name = mayMatch(l.text), b = l.bbox; return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + (b.y0 - 1.6 * (b.y1 - b.y0)) / k) / h).toFixed(4) }; }).filter(Boolean).slice(0, 4);
+      const foot = (b) => { // the card's frame under its name: the first row from 3 names' heights down whose middle 80 px are nearly all light (dark here), else -1
+        const cx = Math.round((b.x0 + b.x1) / 2), W = mayCv.width;
+        for (let y = Math.round(b.y1 + 3 * (b.y1 - b.y0)); y < mayCv.height; y++) {
+          let n = 0;
+          for (let x = cx - 40; x < cx + 40; x += 2) n += d[(y * W + x) * 4] < 105;
+          if (n >= 36) return y;
+        }
+        return -1;
+      };
+      a.cards = lines.map((l) => {
+        const name = mayMatch(l.text), b = l.bbox, f = name ? foot(b) : -1, y = f > 0 ? f - 0.16 * (f - b.y0) : b.y1 + 9 * (b.y1 - b.y0); // near the card's foot, above its frame
+        return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4) };
+      }).filter(Boolean).slice(0, 4);
       pushOverlay();
     }).catch((e) => { a.failed = true; console.warn('augment cards:', e); }).finally(() => { a.busy = false; });
   }

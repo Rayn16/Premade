@@ -191,6 +191,7 @@ function drawMayhem(names) { // an ARAM: Mayhem pick on screenPic: three dark ca
   g.fillStyle = '#1a2a3a';
   g.fillRect(0, 0, 1280, 720);
   [290, 640, 990].forEach((x, i) => {
+    g.fillStyle = '#d8c8f0'; g.fillRect(x - 150, 50, 300, 460); // the light frame
     g.fillStyle = '#05101a'; g.fillRect(x - 140, 60, 280, 440);
     Object.assign(g, { fillStyle: '#f4ecd8', font: '22px sans-serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 300);
     Object.assign(g, { font: '13px sans-serif' }).fillText('Gain the Lethal Tempo rune.', x, 360);
@@ -412,8 +413,8 @@ async function join(page) { // a voice room by its invite link, which the page r
     await wait(pc, () => window.shares === 2, null, 'the screen shared in the Mayhem game (30 s after the last share at most)', 45000);
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y * 720 > 240 && c.y * 720 < 290])), // the name's middle is at y 300
-      [['Picked in 40% of Ahri games (40)', true, true], ['Picked in 5% of Ahri games (40)', true, true], ['Picked in 0% of Ahri games (40)', true, true]], 'Symphony of War’s two ids, above each name');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, Math.abs(c.y * 720 - 466) <= 6])), // the frame's foot is at y 500, the name at y 300: 16% of the way up
+      [['Picked in 40% of Ahri games (40)', true, true], ['Picked in 5% of Ahri games (40)', true, true], ['Picked in 0% of Ahri games (40)', true, true]], 'Symphony of War’s two ids, at the foot of each card');
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s])), [['40%', 1, 'good', 'picked · 40 Ahri games'], ['5%', 0.125, '', 'picked · 40 Ahri games'], ['0%', 0, '', 'picked · 40 Ahri games']],
       'a bar for each, as long as its pick rate against the most picked, which is marked');
     await shot(pc, 'mayhem-augment-cards');
