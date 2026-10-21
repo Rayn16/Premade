@@ -182,6 +182,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 #mini { width: 160px; height: 160px; flex: none; border-radius: 6px; background: #000; }
 .me-text { display: grid; gap: 12px; justify-items: start; min-width: 0; flex: 1 1 260px; }
 .facerow { display: flex; align-items: center; gap: 12px; }
+.screenvid { width: 100%; max-height: calc(70vh / var(--zoom, 1)); background: #000; border-radius: 8px; }
 #face { width: 64px; height: 64px; border-radius: 50%; border: 2px solid #f2b630; background: #000; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pick label { display: grid; gap: 4px; font-size: 14px; }
@@ -825,6 +826,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <div class="tablewrap"><table class="ready"><thead><tr><th>Player</th><th>Mic</th><th>Screen</th><th>Minimap</th><th>App</th><th>League window</th></tr></thead><tbody id="readyRows"></tbody></table></div>
             <div><button id="readyClose" class="btn small" type="button">Close</button></div>
           </section>
+          <section id="screenBox" class="panel" aria-labelledby="h-screen" hidden>
+            <h2 id="h-screen" class="ph"></h2>
+            <video id="screenVid" class="screenvid" autoplay muted playsinline controls></video>
+            <div><button id="screenClose" class="btn small" type="button">Stop watching</button></div>
+          </section>
           <div class="dash">
             <div id="roomMap">
               <div id="mapBox" class="mapbox">
@@ -840,6 +846,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <h2 class="ph">Players</h2>
                 <ul id="players" class="players"></ul>
                 <p id="empty" class="hint"></p>
+                <label class="check"><input id="optRoomScreen" type="checkbox"> Screens in the room: show mine while I share it, and watch theirs <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
               </div>
             </div>
           </div>
@@ -1747,6 +1754,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-fade" class="tipbox" popover>How voices fade as their champions move away; all of them reach silence at the edge of your hearing range. Normal: full volume up to two thirds of the range, then down to silent. Gentle: quieter little by little from close by. Realistic: like real sound, half as loud each time the distance doubles. Sharp: full volume until just before the edge. The dashed ring on the map shows where the fade starts.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
+<div id="t-screens" class="tipbox" popover>While you share your screen, anyone in the room can press Watch screen on your card and see it here, straight from your PC. In a game only your own team can, never the other team. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone, and you don’t see Watch screen on theirs.</div>
 <div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
 <div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of about 32, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
@@ -1835,7 +1843,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
-    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true,
+    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameDays: 7, champLook: false, champMain: null,
@@ -1990,7 +1998,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const li = document.createElement('li');
     li.className = 'player';
     li.dataset.slot = p.slot;
-    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="200" step="5" value="100"><output>100%</output></label>';
+    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small screen" type="button" aria-pressed="false" hidden>Watch screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="200" step="5" value="100"><output>100%</output></label>';
     li.querySelector('.mute').addEventListener('click', (e) => {
       p.muted = !p.muted;
       e.currentTarget.setAttribute('aria-pressed', String(p.muted));
@@ -2000,6 +2008,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     li.querySelector('.hmute').addEventListener('click', () => hostMute(p));
     li.querySelector('.help').addEventListener('click', () => openHelp(id));
     li.querySelector('.watch').addEventListener('click', () => watchFriend(p));
+    li.querySelector('.screen').addEventListener('click', () => (seen && seen.p === p ? seeOff() : seeOn(p)));
     li.querySelector('.pvol input').addEventListener('input', (e) => {
       p.user = +e.target.value / 100;
       e.target.nextElementSibling.textContent = e.target.value + '%';
@@ -2117,6 +2126,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const pl = r.querySelector('.plol'), lt = lolText(p), tier = p.lol && p.lol.rk ? p.lol.rk[0] : '', pk = (emblems[tier] || '') + lt;
     if (pl.dataset.key !== pk) { pl.dataset.key = pk; pl.textContent = lt; if (lt) pl.prepend(emblem(tier)); }
     r.querySelector('.watch').hidden = !canWatch(p);
+    const sb = r.querySelector('.screen'), on = !!seen && seen.p === p;
+    sb.hidden = !canSee(p);
+    sb.textContent = on ? 'Stop watching' : 'Watch screen';
+    sb.setAttribute('aria-pressed', String(on));
+    sb.setAttribute('aria-label', `${on ? 'Stop watching' : 'Watch'} ${name}’s screen`);
     r.querySelector('.watch').setAttribute('aria-label', `Watch ${name}’s game`);
     r.querySelector('.pstate').textContent = stateText(p) + (teamOf(p) !== 'enemy' && p.fx.length ? ` · ${[...new Set(p.fx.map((n) => FX[n].name))].join(' + ')} voice` : '');
     r.dataset.vol = p.vol.toFixed(2);
@@ -2138,6 +2152,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('lockNote').hidden = !roomKey;
     $('lockNote').textContent = `Locked. Password: ${roomKey.toUpperCase()}. The invite link includes it.`;
     $('autoNote').hidden = !opts.autoRoom;
+    $('screenBox').hidden = !seen;
+    if (seen) $('h-screen').textContent = seen.call ? `${nameOf(seen.p)}’s screen` : `${nameOf(seen.p)}’s screen: connecting…`;
     for (const p of peers.values()) renderPlayer(p);
     renderMode();
     if (!$('readyBox').hidden) renderReady();
@@ -2305,7 +2321,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
   const meMsg = () => ({
-    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share, sq: squad ? squad.code : '',
+    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share, see: opts.roomScreen && !!share, sq: squad ? squad.code : '',
     ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
     ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }),
@@ -2331,6 +2347,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
+    if (m.t === 'see') { p.wantSee = m.on === true; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(quiz|quizA|quizR|quizEnd|draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
@@ -2365,6 +2382,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.min = Number.isFinite(m.min) ? Math.max(0, Math.min(300, Math.floor(m.min))) : 0;
       p.lol = lolOf(m.lol);
       p.lend = m.lend === true;
+      p.see = m.see === true;
       p.sq = typeof m.sq === 'string' && /^[a-z0-9]{12}$/.test(m.sq) ? m.sq : '';
       takeMode(m.rm, p.slot);
       takeSwap(m.sw, p.slot);
@@ -3205,7 +3223,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     peer.on('connection', adopt);
     peer.on('call', (call) => {
       if (!inRoom(call.peer)) return call.close();
-      if (call.metadata && call.metadata.screen) return camCall(call); // a teammate's screen, not their voice
+      if (call.metadata && call.metadata.screen) return screenIn(call); // a screen, not their voice
       if (peers.has(call.peer)) return answer(call);
       const pd = pending.get(call.peer);
       if (!pd) return call.close(); // someone who hasn't said hi
@@ -3619,6 +3637,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     render();
   });
   $('readyClose').addEventListener('click', () => { $('readyBox').hidden = true; });
+  $('screenClose').addEventListener('click', () => seeOff());
 
   // ---- help a friend: what's wrong with someone's setup, from what their app tells everyone (the ready check's mic,
   // screen and minimap, push to talk, their app and League's window mode) and how your voice connection with them is
@@ -4219,14 +4238,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!c) return;
     tell(c.p, { t: 'watch', on: false });
     if (c.stop) c.stop();
-    if (c.call) c.call.close();
+    if (c.call && !(seen && seen.call === c.call)) c.call.close();
   }
-  function camCall(call) { // their screen coming in: taken only from the one you asked
-    const c = cam;
-    if (!c || peers.get(call.peer) !== c.p) return call.close();
-    if (c.call) c.call.close();
-    c.call = call;
+  function screenIn(call) { // a screen coming in: taken only from the one you asked, for the overlay, the Voice page or both
+    const p = peers.get(call.peer), forCam = !!cam && cam.p === p, forSee = !!seen && seen.p === p;
+    if (!forCam && !forSee) return call.close();
     call.answer(); // nothing goes back
+    if (forCam) camCall(call);
+    if (forSee) seeCall(call);
+  }
+  function camCall(call) {
+    const c = cam;
+    if (c.call && c.call !== call) c.call.close();
+    c.call = call;
     call.on('stream', (s) => {
       if (cam !== c || c.call !== call) return;
       if (c.stop) c.stop();
@@ -4243,7 +4267,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // lending yours: to each teammate who asked and is dead, while you share your screen; you're told once a game who
   const lends = new Map(), lendSaid = new Set(); // a teammate -> { call, track }: the call carrying your screen to them
   function lendTick() { // every second, and when a teammate asks
-    const ok = (p) => opts.lendScreen && !!share && !!peer && !!p.watch && p.dead && mate(p) && peers.get(idFor(p.slot)) === p;
+    const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
     for (const [p, l] of lends) if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); }
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
@@ -4255,8 +4279,43 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (st === 'connected') for (const x of call.peerConnection.getSenders()) { const q = x.getParameters(); if (q.encodings && q.encodings[0]) { q.encodings[0].maxBitrate = 1200000; x.setParameters(q).catch(() => {}); } }
       });
       call.on('close', () => { track.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
-      if (!lendSaid.has(league.room + p.slot)) { lendSaid.add(league.room + p.slot); notify(`${nameOf(p)} is watching your screen while they’re dead.`, true); }
+      const k = (league ? league.room : room) + p.slot + !!p.wantSee;
+      if (!lendSaid.has(k)) { lendSaid.add(k); notify(p.wantSee ? `${nameOf(p)} is watching your screen.` : `${nameOf(p)} is watching your screen while they’re dead.`, true); }
     }
+  }
+  // Screens in the room (opts.roomScreen, on, the toggle under Players on the Voice page): while you share your screen
+  // ('me' says see), anyone in the room can press Watch screen on your row and see it on their Voice page (#screenBox),
+  // sent the same way as lending above, only to whoever asks ({t:'see', on}). In a game only your own team, so the other
+  // team never sees your screen (the same ponytail as lending: each app's own word on its team). Off: yours isn't shown
+  // and you can't watch theirs. ponytail: one 1.2 Mbps call per watcher; a room of 10 all watching one PC is ~11 Mbps up
+  const sameSide = (p) => (league ? mate(p) : !p.team);
+  const canSee = (p) => opts.roomScreen && !!p.see && sameSide(p) && peers.get(idFor(p.slot)) === p;
+  let seen = null; // the screen you watch on the Voice page: { p, call, asked }
+  function seeTick() { // every second
+    if (seen && !canSee(seen.p)) seeOff();
+    if (seen && !seen.call && performance.now() - seen.asked >= 5000) { seen.asked = performance.now(); tell(seen.p, { t: 'see', on: true }); }
+  }
+  function seeOn(p) {
+    seeOff();
+    seen = { p, call: null, asked: -Infinity };
+    seeTick();
+    render();
+  }
+  function seeOff() {
+    const v = seen;
+    seen = null;
+    $('screenVid').srcObject = null;
+    if (!v) return render();
+    tell(v.p, { t: 'see', on: false });
+    if (v.call && !(cam && cam.call === v.call)) v.call.close();
+    render();
+  }
+  function seeCall(call) {
+    const v = seen;
+    if (v.call && v.call !== call && !(cam && cam.call === v.call)) v.call.close();
+    v.call = call;
+    call.on('stream', (s) => { if (seen === v && v.call === call) $('screenVid').srcObject = s; });
+    call.on('close', () => { if (seen === v && v.call === call) { v.call = null; $('screenVid').srcObject = null; } });
   }
   // ---- the Overlay page's Layout: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
   // part that's on looks like in a game (ovSample). A box over each part: drag it, or pick it and use the arrow keys
@@ -11508,7 +11567,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(),
-    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
+    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
@@ -11516,7 +11575,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
-    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'],
+    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
@@ -11677,6 +11736,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [52, 'October 21: watch each other’s screens in the room', [
+      'While you share your screen, anyone in your room can press Watch screen on your card and see it on their Voice page. In a game only your own team can, never the other team, and you’re told who’s watching.',
+      'On unless you turn it off: Screens in the room, under Players on the Voice page. Off, your screen isn’t shown to anyone and you don’t watch theirs.',
+    ]],
     [50, 'October 21: your League screen shared by itself', [
       'In the desktop app your League screen is now shared by itself in every game, even when you open Premade mid-game, so the minimap tracker, callouts and the surrender vote pop-up just work. No need to press Share League screen.',
       'It doesn’t turn voice on: you’re heard only in a room you joined or Join my game’s room picked. Turn it off in Voice settings, In a game, or press Stop sharing to leave that game unshared.',
@@ -12003,6 +12066,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Friends join with its 4-letter code or your invite link, and on the website an invite link can open the room in the desktop app.',
         'Create room, then Copy invite link and send it. To join a friend, type their code under Join.', '#copyBtn, #createBtn'],
+      ['Screens in the room', 'While you share your screen, anyone in your room can watch it on their Voice page, straight from your PC. In a game only your own team can, never the other team, and you’re told who’s watching.',
+        'Press Watch screen on a friend’s card on the Voice page. On unless you turn it off: Screens in the room, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
       ['Your screen shared by itself', 'In every game the desktop app shares the screen League is on by itself, from the moment Premade opens, so the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that game stays unshared.', '#optAutoShare', 'app'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
@@ -12351,7 +12416,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); camTick(); lendTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -12417,7 +12482,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), // the in-game helpers
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => seen && { name: nameOf(seen.p), call: !!seen.call, video: $('screenVid').videoWidth }, // the in-game helpers
     augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, mayhemSend, // what's read off TFT's augment cards; a Mayhem game's augments sent
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
