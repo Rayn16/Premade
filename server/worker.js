@@ -244,6 +244,7 @@ const LOOKUPS = [ // [path, on a region (else a platform), the query parameters 
 // Cloudflare's free plan, each UTC day: Durable Object requests, SQLite rows read and written, and running time
 // (13,000 GB-s at 128 MB is 101,562.5 s). They're for the whole account: the voice rooms use a little too.
 const FREE = { req: 1e5, read: 5e6, write: 1e5, ms: 101562500 };
+const AUG_DAY = 400; // augment games counted a day (augIn): about 20k rows, so with the crawl's 30k the day stays well under FREE.write
 const LADDER = (p) => (p === 'kr' ? 'ladder' : `ladder:${p}`); // where a server's ladder is kept (Korea's from before the others)
 const KEEP = 500; // games kept for each champion and role: a new one takes a random place, so older ones thin out
 const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
@@ -370,7 +371,7 @@ export class Riot extends DurableObject {
   // A game's augments from a Premade app, which read them from League's client: { g: its id (EUW1_123), ps: each of
   // the 10 players' { c: champion, w: 1 if they won, a: augment ids } } for ARAM: Mayhem, or { g, s: the set, ps: each
   // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 200 an
-  // hour. 'ok', or why not.
+  // hour. 'ok', or why not: 'later' once AUG_DAY new games are in today (UTC), so a game to send again another day.
   // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 200 an hour from each address
   augIn(kind, text, ip) {
     let b;
@@ -386,6 +387,11 @@ export class Riot extends DurableObject {
     this.sent.set(ip, [...mine, now]);
     if (this.sent.size > 500) for (const [k, t] of this.sent) if (now - t[t.length - 1] > 3600000) this.sent.delete(k);
     if (this.sql.exec('SELECT 1 FROM augseen WHERE g = ?', b.g).toArray().length) return 'ok';
+    const d = this.get('augday', {}); // histories sent at once mustn't use up the day's rows written
+    if (d.day !== day()) Object.assign(d, { day: day(), n: 0 });
+    if (d.n >= AUG_DAY) return 'later';
+    d.n++;
+    this.put('augday', d);
     this.sql.exec('INSERT INTO augseen VALUES (?, ?)', b.g, Math.round(now / 1000));
     for (const p of ps) {
       if (may) for (const a of [0, ...p.a]) this.sql.exec('INSERT INTO mayhem VALUES (?, ?, 1, ?) ON CONFLICT (c, a) DO UPDATE SET n = n + 1, w = w + excluded.w', p.c, a, p.w);
