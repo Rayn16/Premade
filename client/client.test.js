@@ -281,6 +281,13 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await until(() => js('moved.some((m) => m.done)'), 'Done on the overlay itself');
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.y === d.y + Math.round(0.5 * d.height) && o.width === 300 && !ov.isFocusable(); }, 'the overlay where it was dragged');
+    // moved by Windows, not dragged in Move it (a resolution change): the page keeps its place
+    await js('moved = []');
+    ov.setPosition(d.x + 40, d.y + 60);
+    await new Promise((r) => setTimeout(r, 600));
+    assert.deepStrictEqual(await js('moved'), [], 'a move outside Move it isn’t a new place');
+    screen.emit('display-metrics-changed', {}, screen.getPrimaryDisplay(), ['bounds']); // and once the screens settle, it goes back
+    await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.y === d.y + Math.round(0.5 * d.height); }, 'the overlay back in its place after a screen change');
     console.log(`overlay moved and resized: ${JSON.stringify(ov.getBounds())}`);
     // everyone's rank (board, app 1.10): over the whole screen, still click-through, then back where it was
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: {
