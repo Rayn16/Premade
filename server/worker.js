@@ -369,9 +369,9 @@ export class Riot extends DurableObject {
   }
   // A game's augments from a Premade app, which read them from League's client: { g: its id (EUW1_123), ps: each of
   // the 10 players' { c: champion, w: 1 if they won, a: augment ids } } for ARAM: Mayhem, or { g, s: the set, ps: each
-  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 30 an
+  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 200 an
   // hour. 'ok', or why not.
-  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 30 an hour from each address
+  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 200 an hour from each address
   augIn(kind, text, ip) {
     let b;
     try { b = JSON.parse(text); } catch { return 'not JSON'; }
@@ -382,7 +382,7 @@ export class Riot extends DurableObject {
       : !(Number.isInteger(b.s) && b.s > 0 && b.s < 100 && ps.length === 8 && ps.every((p) => p && Number.isInteger(p.p) && Array.isArray(p.a) && p.a.length <= 4 && p.a.every((a) => typeof a === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(a)))
         && ps.map((p) => p.p).sort((x, y) => x - y).join() === '1,2,3,4,5,6,7,8')) return 'not a game';
     const now = Date.now(), mine = (this.sent.get(ip) || []).filter((t) => now - t < 3600000);
-    if (mine.length >= 30) return 'too many';
+    if (mine.length >= 200) return 'too many';
     this.sent.set(ip, [...mine, now]);
     if (this.sent.size > 500) for (const [k, t] of this.sent) if (now - t[t.length - 1] > 3600000) this.sent.delete(k);
     if (this.sql.exec('SELECT 1 FROM augseen WHERE g = ?', b.g).toArray().length) return 'ok';
