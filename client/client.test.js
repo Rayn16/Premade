@@ -365,7 +365,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     const probe = require('child_process').spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
     if (!probe.error) assert(!probe.stderr && Math.abs(+probe.stdout - len) < 0.5, `ffprobe agrees: ${probe.stdout} ${probe.stderr}`); // where it's installed
     await js('document.querySelector(\'.nav[data-view="clips"]\').click()');
-    await until(() => js(`[...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(${JSON.stringify(gv.name.slice(0, -5))}) && li.querySelectorAll('button').length === 3)`), 'the game on the Clips page');
+    await until(() => js(`[...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(${JSON.stringify(gv.name.slice(0, -5))}) && li.querySelectorAll('button').length === 4)`), 'the game on the Clips page');
     assert.strictEqual(await js(`lpcClient.gameVideo('open', ${JSON.stringify(gv.name)})`), true);
     assert.strictEqual(await js(`lpcClient.gameVideo('show', ${JSON.stringify(gv.name)})`), true);
     assert.strictEqual(await js('lpcClient.gameVideo("folder")'), true);
