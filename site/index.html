@@ -450,6 +450,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .blist li[data-k="next"] span:not(.sub) { color: var(--gold); font-weight: 600; }
 .noteedit summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .noteedit form { margin-top: 8px; }
+#whoForm { align-items: end; }
+#whoBox { min-width: 0; } /* so the list scrolls sideways in its panel instead of widening it */
+#serverBox:has(#whoBox[open]) { grid-column: 1 / -1; } /* and the whole width of Settings while it's open */
+#whoBox > p, #whoBox > div { margin-top: 8px; }
 .noteedit textarea { font: 14px/1.4 var(--body); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); width: min(32em, 100%); }
 .laning, .rtl, .buylist, .rmore { display: grid; gap: 10px; }
 .buyrow { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px; border-radius: 6px; }
@@ -1643,6 +1647,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <p id="serverRiot" hidden></p>
           <p id="serverMore" hidden></p>
           <p id="serverUse" class="hint" hidden></p>
+          <details id="whoBox" class="noteedit">
+            <summary>Who has Premade, for whoever runs it</summary>
+            <form id="whoForm" class="toolbar"><label class="field">Owner key <input id="whoKey" type="password" autocomplete="current-password" required></label><button class="btn small" type="submit">Show</button></form>
+            <p id="whoNote" class="hint" role="status"></p>
+            <div class="tablewrap" hidden><table class="ready"><thead><tr><th>League accounts</th><th>Voice name</th><th>App</th><th>First opened</th><th>Last seen</th></tr></thead><tbody id="whoRows"></tbody></table></div>
+          </details>
         </section>
       </div>
     </section>
@@ -8565,6 +8575,29 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('serverUse').hidden = !(u && u.day && ['write', 'req', 'read', 'ms'].every((k) => lim[k] > 0));
     if (!$('serverUse').hidden) $('serverUse').textContent = `Cloudflare's free plan today (UTC): the Riot data used ${pc('write')} of its writes, ${pc('req')} of its requests, ${pc('read')} of its reads and ${pc('ms')} of its running time. Past 100% our server stops until the next day; voice rooms use a little more.`;
   }
+  // Who has Premade, as on who.html, at the end of Our server: only for the owner's key (the server's secret OWNER_KEY),
+  // which this computer keeps as premade-owner, shared with who.html (not lpc-, so backups leave it out)
+  async function whoShow(key) {
+    // ?peer (tests) only to a server on this computer, as on who.html: a link can't send the key anywhere else
+    const at = local && !/^127\.0\.0\.1:\d+$/.test(local) ? 'https://league-proxchat.league-proxchat-server.workers.dev' : serverUrl;
+    let r = null;
+    try { r = await fetch(`${at}/who`, { method: 'POST', body: JSON.stringify({ key }) }); } catch {} // a plain text body, so no preflight
+    const apps = r && r.ok ? (await r.json().catch(() => ({}))).apps : null, ok = Array.isArray(apps), week = Date.now() / 1000 - 7 * 86400;
+    if (ok || (r && r.status === 403)) store.set('premade-owner', ok ? key : '');
+    $('whoForm').hidden = ok;
+    $('whoRows').closest('.tablewrap').hidden = !ok;
+    $('whoNote').textContent = r && r.status === 403 ? 'That key didn’t work. It’s the OWNER_KEY you gave our server.' : !ok ? 'Our server didn’t answer. Try again in a moment.'
+      : `${apps.length} device${apps.length === 1 ? '' : 's'}, ${apps.filter((a) => a.last > week).length} seen in the last 7 days, the last seen first. A device without League accounts yet hasn’t opened League with Premade, or given its Riot ID on the website.`;
+    if (!ok) return;
+    const when = (t) => new Date(t * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    $('whoRows').replaceChildren(...apps.map((a) => {
+      const tr = document.createElement('tr'), riot = Array.isArray(a.riot) ? a.riot.join(', ') : '';
+      for (const t of [riot || 'Not known yet', a.name || '—', a.v === 'web' ? 'Website' : a.v === 'old' ? 'App 1.2 or older' : `App ${a.v}`, when(a.first), when(a.last)]) tr.insertCell().textContent = t;
+      return tr;
+    }));
+  }
+  $('whoForm').addEventListener('submit', (e) => { e.preventDefault(); whoShow($('whoKey').value); });
+  $('whoBox').addEventListener('toggle', () => { if ($('whoBox').open && store.get('premade-owner')) whoShow(store.get('premade-owner')); }); // fresh each time it opens
   $('profileCopy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('profileLink').value); notify('Profile link copied', true); } catch { $('profileLink').select(); }
   });
@@ -11905,6 +11938,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [54, 'October 21: who has Premade, in Settings', [
+      'Whoever runs Premade can now see who has it right in Settings, at the end of Our server, with the owner key. Nobody else can open it.',
+    ]],
     [53, 'October 21: more ARAM: Mayhem games for the augment pick rates', [
       'Premade now also sends the ARAM: Mayhem games already in your League match history, as far back as League keeps them, not only new ones. Each game counts once, with every player’s champion and augments and no names, so the pick rates on Mayhem’s augment cards fill in much sooner.',
       'It runs once a day while you’re not in a game, slowly, so League stays quick.',
@@ -12450,6 +12486,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
+      ['See who has Premade', 'For whoever runs Premade: each device that has it, with its League accounts, voice name and app version, and when Premade was first and last opened there.', 'Settings, Our server, Who has Premade, with the owner key. This computer remembers it.', '#whoKey'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
       ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept.', '#optHello'],
     ]],
