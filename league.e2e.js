@@ -876,6 +876,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await pc.$$eval('#proGames .place', (l) => l.map((e) => e.textContent + (e.dataset.r ? ' ' + e.dataset.r : ''))), ['1st first', '3rd top', '6th', '4th top', '8th']);
     assert.strictEqual(await pc.textContent('#proGames > li:first-child .gwhat'), 'Ranked TFT · Level 8 · 32 min · 4 Sniper · 3 Rebel');
     await pc.click('#proGames > li:first-child summary');
+    await pc.waitForFunction(() => [...document.querySelectorAll('#proGames > li:first-child .talk li')].map((e) => e.innerText.replace(/\s+/g, ' ')).join('|') === 'Traits 4 Sniper, 3 Rebel|Augments Cybernetic Bulk, Ascension|Jinx ★★ Infinity Edge, Guinsoos Rageblade|Vi ★ no items', null, { timeout: 5000 }).catch(() => {}); // innerText needs the opened game laid out
     assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .talk li', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' '))),
       ['Traits 4 Sniper, 3 Rebel', 'Augments Cybernetic Bulk, Ascension', 'Jinx ★★ Infinity Edge, Guinsoos Rageblade', 'Vi ★ no items']);
     await pc.click('#proMore');
