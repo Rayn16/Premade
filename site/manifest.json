@@ -2,7 +2,7 @@
   "name": "Premade",
   "short_name": "Premade",
   "description": "Proximity voice chat and game tools for League of Legends: friends get louder the closer their champions are on the minimap.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#010a13",
   "theme_color": "#010a13",

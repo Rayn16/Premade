@@ -7,7 +7,7 @@ const assert = require('assert');
 
 const ctx = vm.createContext({});
 vm.runInContext(fs.readFileSync(__dirname + '/site/camera-box.js', 'utf8'), ctx);
-const { Tracker, Follower, RING, findIcons, findMinimap } = ctx.CameraBox;
+const { Tracker, Follower, RING, VOTE, findIcons, findMinimap, findVote, iconLike, picLook } = ctx.CameraBox;
 
 let seed = 7;
 const rand = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
@@ -106,9 +106,9 @@ assert(Math.abs(large.res.cx - small.res.cx) < 0.01 && Math.abs(large.res.cy - s
 
 // Screen-share video can keep colour at half resolution (4:2:0): each 2x2 block shares one colour and
 // only brightness stays per pixel. Rebuild the corner that way, with blocks that straddle the 1px gold line.
-function videoColours(src, w, off) {
+function videoColours(src, w, off, h = w) {
   const out = new Uint8ClampedArray(src);
-  for (let y = off; y < w - 1; y += 2) for (let x = off; x < w - 1; x += 2) {
+  for (let y = off; y < h - 1; y += 2) for (let x = off; x < w - 1; x += 2) {
     const ids = [y * w + x, y * w + x + 1, (y + 1) * w + x, (y + 1) * w + x + 1];
     const lum = ids.map((i) => 0.299 * src[i * 4] + 0.587 * src[i * 4 + 1] + 0.114 * src[i * 4 + 2]);
     const u = ids.reduce((a, i, k) => a + (src[i * 4 + 2] - lum[k]) * 0.564, 0) / 4;
@@ -120,6 +120,21 @@ function videoColours(src, w, off) {
 const video = videoColours(corner, R, 1);
 const fromVideo = boxOnMinimap(video);
 assert(Math.abs(fromVideo.res.cx - small.res.cx) < 0.01 && Math.abs(fromVideo.res.cy - small.res.cy) < 0.01, 'video colours must not move the position');
+
+// Show Minimap on left: the bottom-left corner of the screen, with the minimap's frame the mirror image (its gold edge
+// on its right). Here the whole corner is mirrored, so the camera box lands mirrored too.
+const leftCorner = new Uint8ClampedArray(corner.length);
+for (let y = 0; y < R; y++) for (let x = 0; x < R; x++) leftCorner.set(corner.subarray((y * R + R - 1 - x) * 4, (y * R + R - x) * 4), (y * R + x) * 4);
+const onLeft = findMinimap(leftCorner, R, true);
+assert(onLeft && onLeft.x === 0 && onLeft.y === small.m.y && onLeft.s === small.m.s, `the minimap on the left: ${JSON.stringify(onLeft)}`);
+assert(!findMinimap(leftCorner, R) && !findMinimap(corner, R, true), 'each side only finds its own frame');
+{
+  const s2 = onLeft.s, crop = new Uint8ClampedArray(s2 * s2 * 4);
+  for (let y = 0; y < s2; y++) crop.set(leftCorner.subarray(((onLeft.y + y) * R) * 4, ((onLeft.y + y) * R + s2) * 4), y * s2 * 4);
+  const res = new Tracker().update(crop, s2, s2);
+  assert(res.found && Math.abs(res.cx - (1 - small.res.cx)) < 0.01 && Math.abs(res.cy - small.res.cy) < 0.01, `camera box on the left minimap: ${res.cx}, ${res.cy}`);
+  console.log(`minimap on the left: ${s2}px, camera box ${(res.cx * 100).toFixed(1)}% across`);
+}
 
 // ---- Following your champion icon instead of the camera (Follower), on Rayan's minimap.
 // The player's icon is Rayan's, cut from the screenshot; teammates wear the same blue ring around other art from
@@ -213,7 +228,7 @@ function play(name, { f = 1, video = false, boxOver = true }, moments) {
     if (st.me) stamp(px, st.sprite || player, ...sc(st.me));
     if (boxOver) box(px, ...sc(st.cam));
     if (video) px = videoColours(px, t, 1);
-    const res = follower.update(px, t, now);
+    const res = follower.update(px, t, now, st.ally);
     // distances are on the screenshot's scale, in pixels
     const off = (p) => Math.hypot(res.x * S - p[0], res.y * S - p[1]);
     const say = `${name}, ${m.name}, frame ${k}: ${JSON.stringify({ by: res.by, learned: res.learned, x: +(res.x * S).toFixed(1), y: +(res.y * S).toFixed(1), me: st.me && st.me.map(Math.round) })}`;
@@ -253,6 +268,32 @@ function lockedThenFree(name, opts) {
 lockedThenFree('locked then free', {});
 lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, video: true });
 
+// Recall: the camera stays in the lane while the player's icon lands in the fountain, and it must follow the player
+// there at once, not after the 3 s it keeps a hidden icon's spot. A teammate stands in the other fountain all along
+// and is never taken for the player, also while the player's icon is hidden for a second before.
+// Then F2 held for 20 s on a teammate walking a long way, the camera on them: with the Windows app saying so (ally),
+// it learns nothing from the camera meanwhile and stays on the player, before and after F2 is let go.
+{
+  const walk = along([[60, 200], [110, 150]]), end = walk(30), out = along([[27, 256], [70, 215]]), mates = [[230, 240, 0], [256, 26, 1]];
+  const locked = { name: 'camera locked on the player', frames: 30, at: (k) => ({ me: walk(k), mates, cam: lockedOn(walk(k)) }),
+    check: (res, st, k, off, say) => (k >= 20 || res.by === 'icon' ? onMe(res, st, off, say) : onCamera(res, st, off, say)) };
+  play('recall', {}, [
+    locked,
+    { name: 'icon hidden for a second', frames: 5, at: () => ({ me: null, mates, cam: lockedOn(end) }),
+      check: (res, st, k, off, say) => assert(res.by === 'icon' && res.held && off(end) <= 2.5, say) },
+    { name: 'recalled, camera left in the lane', frames: 20, at: (k) => ({ me: out(k), mates, cam: lockedOn(end) }),
+      check: (res, st, k, off, say) => onMe(res, st, off, say) },
+  ]);
+  const mate = along([[150, 230], [250, 130], [250, 40]]);
+  play('F2 held', {}, [
+    locked,
+    { name: 'F2 on a walking teammate', frames: 100, at: (k) => ({ me: end, mates: [mates[0], [...mate(k), 2]], cam: lockedOn(mate(k)), ally: true }),
+      check: (res, st, k, off, say) => onMe(res, st, off, say) },
+    { name: 'F2 let go, camera back on the player', frames: 10, at: (k) => ({ me: end, mates: [mates[0], [...mate(100 + k), 2]], cam: lockedOn(end) }),
+      check: (res, st, k, off, say) => onMe(res, st, off, say) },
+  ]);
+}
+
 // Camera free from the start and never on the player; it pans over to a standing teammate and rests there: it must
 // not learn anyone. Then one tap of Space (camera jumps onto the player and stays there) and it follows the player.
 {
@@ -269,10 +310,10 @@ lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, vid
 // of Rayan's icon and six teammates wearing other HUD art, Follower.pick must choose Rayan's.
 {
   const px = new Uint8ClampedArray(bare), spots = [[60, 60], [200, 60], [60, 220], [200, 200], [150, 110], [230, 140]];
-  const put = (sp, x, y) => {
+  const put = (sp, x, y, to = px) => {
     for (let Y = Math.floor(y - 14); Y <= y + 14; Y++) for (let X = Math.floor(x - 14); X <= x + 14; X++) {
       const a = Math.max(0, Math.min(1, 13 - Math.hypot(X - x, Y - y)));
-      if (a) for (let c = 0; c < 3; c++) px[(Y * S + X) * 4 + c] = px[(Y * S + X) * 4 + c] * (1 - a) + sp(X - x, Y - y, c) * a;
+      if (a) for (let c = 0; c < 3; c++) to[(Y * S + X) * 4 + c] = to[(Y * S + X) * 4 + c] * (1 - a) + sp(X - x, Y - y, c) * a;
     }
   };
   put(player, ...ME);
@@ -284,6 +325,80 @@ lockedThenFree('locked then free, 1080p screen in video colours', { f: 0.75, vid
   const res = f.update(px, S, 100);
   assert(res.by === 'icon' && res.learned && Math.hypot(res.x * S - ME[0], res.y * S - ME[1]) < 2, 'and follows it');
   console.log('pick by name: found Rayan\'s icon among 7');
+
+  // Their jungler (index.html seeJungler): the other team's icons wear a red ring, the red of the towers on Rayan's
+  // minimap. Yasuo in red, among three red and three blue icons with other art, is found by the same picture in red
+  // only, also on a 1080p screen in video colours; the bare minimap's red towers and inhibitors are no icons.
+  const red = (sp) => (u, v, c) => {
+    const [r, g, b] = [0, 1, 2].map((k) => sp(u, v, k));
+    return Math.hypot(u, v) > 10.3 && b > 140 && b - r > 50 && g > 80 && g < b ? [b * 0.91, r * 0.6, r * 0.55][c] : sp(u, v, c);
+  };
+  const foes = new Uint8ClampedArray(bare), look = picLook(yasuo, 128), at = [110, 170];
+  put(red(player), ...at, foes);
+  [0, 1, 2].forEach((k, i) => put(red(mate[k]), ...spots[i], foes));
+  [3, 4, 6].forEach((k, i) => put(mate[k], ...spots[i + 3], foes));
+  assert.strictEqual(findIcons(bare, S, true).length, 0, 'a red icon on the bare minimap');
+  assert.strictEqual(findIcons(foes, S, true).length, 4, 'all four red icons, and no blue one');
+  const jg = iconLike(foes, S, look, true);
+  assert(jg && Math.hypot(jg.x - at[0], jg.y - at[1]) < 2, `found red Yasuo: ${JSON.stringify(jg)}`);
+  assert.strictEqual(iconLike(foes, S, look), null, 'no blue Yasuo');
+  const t = Math.round(S * 0.75), small = videoColours(shrink(foes, 0.75), t, 1), jg2 = iconLike(small, t, look, true);
+  assert(jg2 && Math.hypot(jg2.x - at[0] * 0.75, jg2.y - at[1] * 0.75) < 2, `found red Yasuo at 1080p in video colours: ${JSON.stringify(jg2)}`);
+  console.log('their jungler: found red Yasuo among 7, at both sizes');
+}
+
+// ---- League's surrender vote box (findVote), drawn from League's own layout with the colours of a real 1080p capture
+// (the League wiki's): the panel, the votes' boxes (green yes, red no, grey not yet, black between) and the teal timer.
+// It's put on a screen 720 to 2160 px high and read back as seeVote does, also in video colours: found with 4 or 5
+// votes, any time left and the panel after disruptive behavior. Never found without a yes, nor anywhere on Rayan's screen.
+{
+  const VW = VOTE.w, VH = VOTE.h;
+  function voteBox(votes, left, panel = [22, 28, 30]) { // votes: y, n or - each; left: the share of time left
+    const px = new Uint8ClampedArray(VW * VH * 4);
+    const fill = (x0, y0, x1, y1, c) => { for (let y = y0; y < y1; y++) for (let x = Math.round(x0); x < Math.round(x1); x++) px.set([...c, 255], (y * VW + x) * 4); };
+    fill(0, 0, VW, VH, [90, 81, 57]); // the gold frame
+    fill(2, 2, VW - 2, VH - 2, panel);
+    fill(60, 12, 163, 24, [90, 210, 170]); // the title
+    fill(13, 42, 210, 58, [0, 0, 0]); fill(13, 61, 210, 70, [0, 0, 0]); // the slots for the votes and the timer
+    const w = 194 / votes.length;
+    [...votes].forEach((v, i) => fill(14 + i * w + 1, 44, 14 + (i + 1) * w - 1, 56, { y: [0, 142, 37], n: [116, 22, 22], '-': [50, 50, 50] }[v]));
+    for (let x = 13; x < 13 + 196 * left; x++) fill(x, 62, x + 1, 67, [0, 98 + (117 * (x - 13)) / 196, 96 + (118 * (x - 13)) / 196]);
+    fill(13, 78, 103, 101, [28, 48, 46]); fill(119, 78, 209, 101, [28, 48, 46]); // Yes and No
+    return px;
+  }
+  // the (x, y, bw, bh) part of a w x h picture at ow x oh, each pixel the average of what it covers, as a canvas draws it
+  function resize(img, w, h, x0, y0, bw, bh, ow, oh) {
+    const out = new Uint8ClampedArray(ow * oh * 4), fx = bw / ow, fy = bh / oh;
+    for (let v = 0; v < oh; v++) for (let u = 0; u < ow; u++) {
+      const ax = x0 + u * fx, bx = ax + fx, ay = y0 + v * fy, by = ay + fy, acc = [0, 0, 0];
+      let n = 0;
+      for (let yy = Math.floor(ay); yy < Math.min(h, Math.ceil(by)); yy++) for (let xx = Math.floor(ax); xx < Math.min(w, Math.ceil(bx)); xx++) {
+        const a = (Math.min(bx, xx + 1) - Math.max(ax, xx)) * (Math.min(by, yy + 1) - Math.max(ay, yy));
+        for (let c = 0; c < 3; c++) acc[c] += img[(yy * w + xx) * 4 + c] * a;
+        n += a;
+      }
+      out.set([acc[0] / n, acc[1] / n, acc[2] / n, 255], (v * ow + u) * 4);
+    }
+    return out;
+  }
+  const seen = (box, k, video) => { // on a screen k * 1200 px high
+    const bw = Math.round(VW * k), bh = Math.round(VH * k);
+    let on = resize(box, VW, VH, 0, 0, VW, VH, bw, bh);
+    if (video) on = videoColours(on, bw, 1, bh);
+    return findVote(resize(on, bw, bh, 0, 0, bw, bh, VW, VH));
+  };
+  for (const [votes, left, panel] of [['y----', 1], ['yn---', 0.6], ['yyynn', 0], ['y---', 0.3], ['y----', 0.8, [40, 23, 24]]]) {
+    for (const k of [0.6, 0.9, 1.2, 1.8]) for (const video of [false, true]) assert(seen(voteBox(votes, left, panel), k, video), `vote box ${votes} at ${k}${video ? ', video colours' : ''}`);
+  }
+  assert(!seen(voteBox('-----', 1), 0.9) && !seen(voteBox('nnnnn', 1), 0.9), 'a vote always has a yes');
+  assert(!seen(voteBox('y----', 1, [150, 150, 150]), 0.9), 'only on League’s dark panel');
+  let hits = 0;
+  for (const k of [1.2, 0.9, 0.6]) {
+    const bw = VW * k, bh = VH * k;
+    for (let y = 0; y + bh <= R; y += 29) for (let x = 0; x + bw <= R; x += 29) if (findVote(resize(corner, R, R, x, y, bw, bh, VW, VH))) hits++;
+  }
+  assert.strictEqual(hits, 0, 'a vote box on Rayan’s screen');
+  console.log('surrender vote box: found on screens 720 to 2160 px high, in video colours too; never without a yes or on Rayan’s screen');
 }
 
 console.log('ok');

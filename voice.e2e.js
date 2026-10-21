@@ -3,15 +3,17 @@
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node voice.e2e.js
 // Screen sharing is swapped for a canvas: Ana's screen holds Rayan's real minimap (fixtures/), Ben's a drawn
 // minimap whose camera box and champion icon the test moves. Checks the setup wizard and join screen, smart noise
-// removal, that everyone hears each other in the lobby, that volume follows the distance between champions (with
-// less bass far away), that a player whose minimap isn't tracked is silent once a game is on, the live map and player
-// cards (the other team hidden), shortcuts and their beeps, popups and chimes, room chat, locking the room, studio
-// voice, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room games (balanced teams,
-// role roulette, the queue quiz, a mock draft) and game history with its room awards. Dee and Eve get
-// a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status window
-// (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the Legends and
-// Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown), the compact
-// view, the ready check with the app's window mode, room awards from the scoreboard, app updates and Discord status.
+// removal, that everyone hears each other in the lobby, that volume follows the distance between champions (with less
+// bass far away, in each fade style), that a player whose minimap isn't tracked is silent once a game is on, the live
+// map and player cards (the other team hidden), shortcuts and their beeps, popups and chimes, room chat, quick
+// reconnects, locking the room, studio voice, the limiter, auto voice quality, a headset swap, the echo check, the mic
+// coach and the Bluetooth warning, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room
+// games (balanced teams, role roulette, the queue quiz, a mock draft) and game history with its room awards. Dee and
+// Eve get a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status
+// window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
+// Legends and Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown),
+// the compact view, the ready check with the app's window mode, room awards from the scoreboard, app updates and
+// Discord status. And who has Premade: the hello Ana's page sends our server, and who.html for whoever runs Premade.
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -47,10 +49,16 @@ function fakeScreen([w, h]) {
   navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(10);
   let tick = 0;
   setInterval(() => { g.fillStyle = tick++ % 2 ? '#1b2a22' : '#1c2a22'; g.fillRect(0, 0, 1, 1); }, 100); // canvas capture only sends changed frames
-  // Rayan's 646px screen corner, at the bottom-right of a 2548x1435 screen like the one it came from
-  window.paintCorner = (b64) => {
+  // Rayan's 646px screen corner, at the bottom-right of a 2548x1435 screen like the one it came from; left: mirrored
+  // at the bottom-left, like a minimap shown on the left (League's Interface settings)
+  window.paintCorner = (b64, left) => {
     const bytes = Uint8ClampedArray.from(atob(b64), (c) => c.charCodeAt(0));
-    g.putImageData(new ImageData(bytes, 646, 646), w - 646, h - 646);
+    if (left) for (let y = 0; y < 646; y++) for (let x = 0; x < 323; x++) for (let c = 0; c < 4; c++) {
+      const a = (y * 646 + x) * 4 + c, b = (y * 646 + 645 - x) * 4 + c;
+      [bytes[a], bytes[b]] = [bytes[b], bytes[a]];
+    }
+    g.fillStyle = '#1b2a22'; g.fillRect(0, 0, w, h);
+    g.putImageData(new ImageData(bytes, 646, 646), left ? 0 : w - 646, h - 646);
   };
   // A 300px minimap with the real frame's gold edge, a white 70x40 camera box centred at (fx, fy) of it, and a
   // champion icon with the team's blue ring at icon (by default where it sits when the camera is on it)
@@ -91,12 +99,52 @@ function fakeOutputs() {
   AudioContext.prototype.setSinkId = async function (id) { window.sinkWas = id; };
 }
 
+// A mic that talks: noise in bursts of random length, so unlike the fake mic's beeps it never repeats; past full scale
+// (loud > 1) it clips
+function fakeVoice(loud) {
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = async (c) => {
+    (await gum(c)).getTracks().forEach((t) => t.stop()); // asked for as before, so the permission and devices are real
+    const ctx = new AudioContext(), rate = ctx.sampleRate, buf = ctx.createBuffer(1, rate * 30, rate), d = buf.getChannelData(0);
+    for (let i = 0, on = false, left = 0; i < d.length; i++) {
+      if (--left <= 0) { on = !on; left = rate * (on ? 0.08 + Math.random() * 0.3 : 0.1 + Math.random() * 0.4); }
+      d[i] = on ? loud * (Math.random() * 2 - 1) : 0;
+    }
+    const src = ctx.createBufferSource(), out = ctx.createMediaStreamDestination();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(out);
+    src.start();
+    await ctx.resume();
+    return out.stream;
+  };
+}
+// Speakers with no echo cancelling, right next to the mic: once window.loop is set, the next mic the page opens is
+// whatever it plays (what comes out of the limiter, the last node before the speakers)
+function fakeSpeakers() {
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (to, ...rest) {
+    if (to instanceof AudioDestinationNode && this instanceof AudioWorkletNode) window.speakers = this;
+    return connect.call(this, to, ...rest);
+  };
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = async (c) => {
+    if (!window.loop) return gum(c);
+    const out = window.speakers.context.createMediaStreamDestination();
+    window.speakers.connect(out);
+    return out.stream;
+  };
+}
+
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
-// Data Dragon's champions: Test Champ and 21 more for the room games' quiz and draft
-const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 } } };
+// Data Dragon's champions: Test Champ and 21 more for the room games' quiz and draft, each with a story (blurb)
+const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
+const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
 ['Annie', 'Ashe', 'Garen', 'Lux', 'Darius', 'Jinx', 'Leona', 'Zed', 'Ahri', 'Thresh', 'Vayne', 'Malphite', 'Ezreal', 'Sona', 'Yasuo', 'Teemo', 'Caitlyn', 'Nasus', 'Morgana', 'Riven', 'Braum'].forEach((n, i) => {
-  CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i } };
+  CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i }, blurb: story(n) };
 });
+// Data Dragon's items: five finished ones, for the quiz's item pictures
+const ITEMS = Object.fromEntries(['Infinity Edge', 'Thornmail', 'Sunfire Aegis', 'Trinity Force', 'Rabadon\'s Deathcap'].map((name, i) => [String(3031 + i), { name, gold: { total: 2600 + 100 * i }, tags: [], maps: { 11: true } }]));
 const POS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Middle', BOTTOM: 'Bottom', UTILITY: 'Support' };
 async function player(browser, name, screen, { setup = true, client = false, denoise = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
@@ -107,8 +155,14 @@ async function player(browser, name, screen, { setup = true, client = false, den
     const u = r.request().url();
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.0'], headers: cors });
     if (u.endsWith('champion.json')) return r.fulfill({ json: { data: CHAMPS }, headers: cors });
+    if (u.endsWith('item.json')) return r.fulfill({ json: { data: ITEMS }, headers: cors });
+    const one = /champion\/(\w+)\.json$/.exec(u); // a champion's own file, with its abilities
+    if (one) return r.fulfill({ json: { data: { [one[1]]: { spells: ['Q', 'W', 'E', 'R'].map((k) => ({ name: `${one[1]} ${k}`, image: { full: `${one[1]}${k}.png` } })), passive: { name: `${one[1]} passive`, image: { full: `${one[1]}_P.png` } } } } }, headers: cors });
     r.fulfill({ body: Buffer.from(pic, 'base64'), contentType: 'image/png', headers: cors });
   });
+  if (process.env.PEER) await ctx.route(/\/riot\//, (r) => r.fulfill({ status: 404, headers: cors })); // no Riot data, as with a local PeerServer
+  ctx.hellos = []; // what the page tells our server about this device (/hello, who has Premade)
+  await ctx.route('**/hello', (r) => { ctx.hellos.push(JSON.parse(r.request().postData())); r.fulfill({ status: 204, headers: cors }); });
   await ctx.addInitScript(fakeScreen, screen);
   if (setup) await ctx.addInitScript((n) => { localStorage.setItem('lpc-setup', '1'); localStorage.setItem('lpc-name', n); localStorage.setItem('lpc-news', '9999'); }, name);
   // smart noise removal takes the fake mic's beeps for noise, so it's off unless a test wants it
@@ -183,6 +237,19 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await ana.evaluate(() => document.getElementById('setup').open)) && await ana.evaluate(() => localStorage.getItem('lpc-setup') === '1' && localStorage.getItem('lpc-name') === 'Ana'), 'wizard done and remembered');
     assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id === 'micHome' && el.closest('main > .view').dataset.view === 'voice'), 'mic settings back in Voice settings');
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
+    // who has Premade: Ana's page told our server when it opened, and again with the name she picked
+    const hi = ana.context().hellos;
+    assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [] }, { v: 'web', name: 'Ana', riot: [] }], 'a hello when Premade opens, and one with her name');
+    assert(/^[0-9a-f-]{36}$/.test(hi[0].id) && hi.every((h) => h.id === hi[0].id) && hi[0].id === await ana.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
+    // turned off in Settings > App, a new name sends nothing; turned on again, a hello at once
+    const rename = (n) => ana.evaluate((n) => { const el = document.getElementById('name'); el.value = n; el.dispatchEvent(new Event('change')); }, n);
+    await ana.evaluate(() => document.getElementById('optHello').click());
+    await rename('Ana B');
+    await rename('Ana');
+    await ana.evaluate(() => document.getElementById('optHello').click());
+    for (let i = 0; i < 50 && hi.length < 3; i++) await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300)); // and nothing more after it
+    assert.deepStrictEqual(hi.map((h) => h.name), ['', 'Ana', 'Ana'], 'no hello while it was off, one when it came back on');
     await ana.evaluate(() => document.getElementById('shareBtn').click()); // stop for now: no minimap is the lobby, where everyone hears everyone
 
     // smart noise removal: the RNNoise files on the site take out a fan-like hiss (pink noise) and keep a voiced
@@ -212,9 +279,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // the first page is your League profile; in a browser, with no League and no Riot data, it says where it comes from
     assert(await ana.isVisible('.view[data-view="profile"]') && await ana.isHidden('#createBtn'), 'Profile first');
-    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Stats', 'Settings'], 'the menu in a browser: all of voice on one page');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Stats', 'TFT', 'Settings', 'Features'], 'the menu in a browser: all of voice on one page');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
+    // Settings > App links Premade's Terms of Use and Privacy Policy (Riot wants both for a production key)
+    const legal = await ana.$$eval('a[href="terms.html"], a[href="privacy.html"]', (as) => Promise.all(as.map(async (a) => (await (await fetch(a.href)).text()).match(/<h1>(.*?)<\/h1>/)[1])));
+    assert.deepStrictEqual(legal, ['Terms of Use', 'Privacy Policy'], `the legal pages: ${legal}`);
     await ana.click('#proRoom');
     // the big join screen: Create room
     assert(await ana.isVisible('#createBtn') && await ana.isVisible('#code'), 'join screen');
@@ -291,6 +361,57 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await packetsAt(40, 60, 'normal voice again');
     console.log(`voice connection: ${normalRate} packets a second normally, ${fastRate} on Faster, ${lowRate} on Less data (16 kbps)`);
 
+    // no crackle: Ben at 200% on Ana's card would go past full scale, but the limiter keeps Ana's speakers under 0.9
+    await ana.$eval('#players .player .pvol input', (el) => { el.value = 200; el.dispatchEvent(new Event('input')); });
+    await ana.waitForTimeout(300);
+    const [mixIn, mixOut] = await ana.evaluate(() => lpc.mix());
+    await ana.$eval('#players .player .pvol input', (el) => { el.value = 100; el.dispatchEvent(new Event('input')); });
+    console.log(`limiter: Ben's beeps at 200% reach ${mixIn.toFixed(2)} on Ana's page, ${mixOut.toFixed(3)} out of Ana's speakers`);
+    assert(mixIn > 1 && mixOut <= 0.9001, 'the limiter keeps the mix under full scale');
+
+    // auto voice quality: Ben's end says it loses 20% of Ana's voice, so Ana sends Ben 16 kbps on the same call, and
+    // the full rate again after three clean checks
+    await ana.evaluate(() => {
+      const get = RTCPeerConnection.prototype.getStats;
+      RTCPeerConnection.prototype.getStats = async function (...a) { // Ben's receiver reports, as Ana's page reads them
+        const r = await get.apply(this, a);
+        return window.fakeLoss == null ? r : new Map([...r, ['fake', { type: 'remote-inbound-rtp', kind: 'audio', fractionLost: window.fakeLoss }]]);
+      };
+      window.fakeLoss = 0.2;
+    });
+    const callWas = await ana.evaluate((id) => lpc.callId(id), benId);
+    await ana.evaluate(() => lpc.health());
+    await bitrate((b) => b.max === 16000, 'Ana sending Ben 16 kbps while Ben loses some of Ana’s voice');
+    assert((await ana.evaluate(() => lpc.checks().weak)).some(([n, weak]) => n === 'Ben' && weak), 'Ben’s connection marked weak');
+    await ana.evaluate(() => { window.fakeLoss = 0; });
+    for (let i = 0; i < 3; i++) await ana.evaluate(() => lpc.health());
+    await bitrate((b) => b.max === 0, 'Ana back to the full rate for Ben');
+    assert.strictEqual(await ana.evaluate((id) => lpc.callId(id), benId), callWas, 'the same call all along');
+    await ana.evaluate(() => { window.fakeLoss = null; });
+    console.log('auto voice quality: 16 kbps to Ben while Ben lost 20% of Ana’s voice, the full rate after three clean checks, on the same call');
+
+    // headset swap: Ana's mic is unplugged, and Premade opens the next one by itself; Windows' default mic changing
+    // while Ana uses the default opens that one; any other device change leaves the mic as it is
+    const micOf = () => ana.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; return t.readyState === 'live' && t.id; });
+    const mic1 = await micOf();
+    await ana.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; t.stop(); t.dispatchEvent(new Event('ended')); });
+    await waitFor(ana, (was) => { const t = lpc.raw().getAudioTracks()[0]; return t.id !== was && t.readyState === 'live'; }, mic1, 'Ana’s mic open again after the unplug');
+    const heardAgain = (await ben.evaluate((id) => lpc.audio(id), anaId)).bytes;
+    await ben.waitForTimeout(1500);
+    assert((await ben.evaluate((id) => lpc.audio(id), anaId)).bytes > heardAgain, 'Ben still gets Ana’s voice');
+    const mic2 = await micOf();
+    await ana.evaluate(() => navigator.mediaDevices.dispatchEvent(new Event('devicechange'))); // nothing changed for Ana's mic
+    await ana.waitForTimeout(500);
+    assert.strictEqual(await micOf(), mic2, 'a device change that isn’t Ana’s mic leaves it be');
+    await ana.evaluate(() => {
+      const list = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+      navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'audioinput', deviceId: 'default', label: 'Default - USB Headset', groupId: '' }, ...await list()];
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
+    });
+    await waitFor(ana, (was) => { const t = lpc.raw().getAudioTracks()[0]; return t.id !== was && t.readyState === 'live'; }, mic2, 'Ana’s mic opened again on the new default');
+    await hears(ben, ['Ana'], 1, 'Ben hears Ana after the headset swaps');
+    console.log('headset swap: a new mic after the unplug and after Windows’ default changed, the call kept');
+
     // screen share: Ana shares again (her real minimap through the browser's video pipeline)
     await ana.click('#shareBtn');
     await ben.evaluate(() => setBox(0.4, 0.6));
@@ -302,6 +423,14 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // Ana's screen never moves, so the page can't tell which icon is Ana's yet: camera box, moved down to the champion
     assert(Math.abs(me.minimap.s - 278) <= 3 && me.by === 'camera' && Math.abs(me.x - 0.387) < 0.01 && Math.abs(me.y - 0.605) < 0.01, 'same minimap and box as the screenshot test');
     assert(me.icons.length === 1 && Math.abs(me.icons[0].x - 105) <= 1 && Math.abs(me.icons[0].y - 168) <= 1, 'Ana\'s icon found as on the screenshot');
+    // the same minimap shown on the left: found there (the page looks again every 5 s), then back on the right
+    await ana.evaluate((b64) => paintCorner(b64, true), CORNER);
+    await waitFor(ana, () => lpc.me().minimap && lpc.me().minimap.x === 0, null, 'Ana\'s minimap found on the left', 20000);
+    const left = await ana.evaluate(() => lpc.me());
+    assert(Math.abs(left.minimap.s - 278) <= 3 && left.minimap.y === 1435 - left.minimap.s && Math.abs(left.x - (1 - me.x)) < 0.015 && Math.abs(left.y - me.y) < 0.01, `the minimap on the left: ${JSON.stringify(left.minimap)} at ${left.x}, ${left.y}`);
+    await ana.evaluate((b64) => paintCorner(b64), CORNER);
+    await waitFor(ana, () => lpc.me().minimap && lpc.me().minimap.x > 0 && Math.abs(lpc.me().x - 0.387) < 0.01, null, 'Ana\'s minimap back on the right', 20000);
+    console.log(`minimap on the left too: ${left.minimap.s}px at the bottom left, ${(left.x * 100).toFixed(1)}% across`);
 
     await hears(ana, ['Ben'], 1, 'Ben close by: full volume');
     await hears(ben, ['Ana'], 1, 'Ana close by: full volume');
@@ -324,6 +453,13 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const mid = (await volOf(ana, 'Ben')).vol, midB = (await volOf(ben, 'Ana')).vol;
     console.log(`Ben ${Math.round(RANGE * 5 / 6)} units away: Ana hears Ben at ${Math.round(mid * 100)}%, Ben hears Ana at ${Math.round(midB * 100)}%`);
     assert(Math.abs(mid - 0.5) < 0.15 && Math.abs(mid - midB) < 0.05, 'half volume, the same both ways');
+    // Fade: the same spot through each fade (Normal's volume says how far out Ben is: 3 times what's left of the range)
+    const out = 1 - mid / 3, fades = { gentle: Math.sin((Math.PI / 2) * Math.min(1, (1 - out) / 0.85)) ** 2, real: Math.min(1, 0.15 / out) * Math.min(1, (1 - out) / 0.15), sharp: Math.min(1, (1 - out) / 0.1), normal: mid };
+    for (const [f, want] of Object.entries(fades)) {
+      await ana.$eval('#optFade', (el, f) => { el.value = f; el.dispatchEvent(new Event('change')); }, f);
+      await waitFor(ana, (want) => Math.abs(lpc.peers()[0].vol - want) < 0.03, want, `Ben at ${want.toFixed(2)} with the ${f} fade`);
+    }
+    console.log(`fade: Ben ${Math.round(out * RANGE)} units away at ${Object.entries(fades).map(([f, v]) => `${Math.round(v * 100)}% ${f}`).join(', ')}`);
     const [pa, pb] = [(await volOf(ana, 'Ben')), (await volOf(ben, 'Ana'))];
     assert(Math.abs(pa.far - 5 / 6) < 0.05 && Math.abs(pb.far - 5 / 6) < 0.05, `far away, so less bass: ${pa.far}, ${pb.far}`);
     console.log(`stereo: Ana hears Ben at pan ${pa.pan.toFixed(2)}, Ben hears Ana at ${pb.pan.toFixed(2)}; terrain muffle ${pa.muffle.toFixed(2)} / ${pb.muffle.toFixed(2)}`);
@@ -465,11 +601,30 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // a broken connection comes back by itself, without join or leave popups
     const catId = (await others(ana)).find((p) => p.name === 'Cat').id;
+    // back: a new voice call with Cat (the broken one was closed), everyone live; Cat is gone for too short a time to catch
+    const callTo = () => ana.evaluate((id) => lpc.callId(id), catId);
+    const backOnNew = (was, what) => waitFor(ana, ([id, was]) => lpc.callId(id) && lpc.callId(id) !== was && lpc.peers().length === 2 && lpc.peers().every((p) => p.live), [catId, was], what);
+    let call = await callTo(), since = Date.now();
     await ana.evaluate((id) => lpc.kick(id), catId);
-    await waitFor(ana, () => lpc.peers().length === 1, null, 'Cat dropped');
-    await ana.waitForFunction(() => lpc.peers().length === 2 && lpc.peers().every((p) => p.live), null, { timeout: 30000 });
+    await backOnNew(call, 'Cat back after the broken connection');
+    const kickBack = (Date.now() - since) / 1000;
     await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both again');
-    console.log('auto reconnect: Cat came back after the connection broke');
+    // a Wi-Fi blip: the connections with Cat stop working, so after 3 s they're closed and dialled again, instead of
+    // WebRTC's own 30 s wait
+    call = await callTo();
+    since = Date.now();
+    await ana.evaluate((id) => lpc.blip(id), catId);
+    await backOnNew(call, 'Cat back after the blip');
+    const blipBack = (Date.now() - since) / 1000;
+    await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both after the blip');
+    // the room server drops: tried again a second later
+    since = Date.now();
+    await ana.evaluate(() => lpc.serverDrop());
+    await waitFor(ana, () => !lpc.server(), null, 'Ana off the room server');
+    await waitFor(ana, () => lpc.server(), null, 'Ana back on the room server');
+    const serverBack = (Date.now() - since) / 1000;
+    console.log(`auto reconnect: Cat back ${kickBack.toFixed(1)} s after the connection broke, ${blipBack.toFixed(1)} s after a Wi-Fi blip; the room server back in ${serverBack.toFixed(1)} s`);
+    assert(kickBack < 5 && blipBack < 9 && serverBack < 3, 'reconnects right away, not at the next check');
     const popups = await ana.evaluate(() => lpc.toasts());
     assert(popups.includes('Ben left the room') && popups.includes('Ben joined the room') && popups.filter((t) => t === 'Cat joined the room').length === 1 && !popups.includes('Cat left the room'), `popups when Ben left and came back, none for Cat's reconnect: ${JSON.stringify(popups)}`);
     const sounds = await ana.evaluate(() => lpc.played());
@@ -482,6 +637,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(/^[a-z]{6}$/.test(KEY) && (await ana.evaluate(() => location.hash)) === `#${ROOM}.${KEY}`, `a password, in the invite link: ${KEY}`);
     await waitFor(ben, (k) => lpc.key() === k && document.getElementById('lockNote').textContent.includes(k.toUpperCase()), KEY, 'Ben told the password');
     await waitFor(cat, (k) => lpc.key() === k, KEY, 'Cat told the password');
+    if (process.env.PEER) { // our server checks the password itself: a socket that sends none is turned away
+      const ws = new (require('ws'))(`ws://${PEER}/peerjs?key=peerjs&id=lolprox-${ROOM}-9&token=t9&version=1.5.4`), got = [];
+      ws.on('message', (m) => { got.push(JSON.parse(m).type); if (got.length === 1) ws.send(JSON.stringify({ type: 'LOCK', payload: { key: '' } })); });
+      await new Promise((ok) => ws.on('close', ok));
+      assert.deepStrictEqual(got, ['OPEN', 'INVALID-KEY'], 'a stranger turned away by our server');
+    }
     const fay = await player(browser, 'Fay', [1920, 1080], { denoise: true });
     await fay.goto(`${URL_}#${ROOM}`);
     await fay.click('#joinBtn');
@@ -513,6 +674,24 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ben.$eval('#modeSel', (el) => el.disabled) && !(await ana.$eval('#modeSel', (el) => el.disabled)), 'only the host picks the mode');
     await ana.selectOption('#modeSel', 'gibberish');
     for (const p of [ben, cat]) await waitFor(p, () => lpc.mode().mode === 'gibberish' && lpc.toasts().includes('Game mode: Gibberish'), null, 'the mode sent to everyone');
+    // only the host's mode, voice swap, mutes and crown count: what Ben's page sends, changed to send them, does nothing
+    const later = Date.now() + 1e6;
+    await ben.evaluate((n) => lpc.send({ t: 'me', rm: { n, mode: 'chaos' }, sw: { n, map: { 0: 1, 1: 0 } }, hm: { n, s: [0, 2] }, mv: { n, s: 1, name: 'Ben' } }), later);
+    await ana.waitForTimeout(1000);
+    for (const p of [ana, cat]) {
+      assert(await p.evaluate(() => lpc.mode().mode === 'gibberish' && !lpc.swap().n && !/host/.test(document.getElementById('muteBtn').textContent)
+        && document.querySelector('#players .player[data-slot="1"] .crown').hidden), 'nothing from Ben\'s page counted');
+    }
+    // the host mutes Ben's noisy mic for everyone: his mic goes off and he's told why, and nobody hears him
+    assert(await ben.$$eval('.hmute', (l) => l.every((b) => b.hidden)), 'only the host can');
+    await ana.click('#players .player[data-slot="1"] .hmute');
+    await waitFor(ben, () => !lpc.micOn() && /Muted by the host/.test(document.getElementById('muteBtn').textContent) && lpc.toasts().some((t) => t.startsWith('The host muted your mic for everyone')), null, 'Ben told the host muted him');
+    await waitFor(cat, () => lpc.peers().find((p) => p.name === 'Ben').volume === 0 && /Muted for everyone by the host/.test(document.querySelector('#players .player[data-slot="1"] .pstate').textContent), null, 'Ben silent for Cat');
+    assert.strictEqual(await ana.textContent('#players .player[data-slot="1"] .hmute'), 'Unmute for all');
+    await ana.click('#players .player[data-slot="1"] .hmute');
+    await waitFor(ben, () => lpc.micOn() && lpc.toasts().includes('The host unmuted your mic.'), null, 'Ben unmuted');
+    await waitFor(cat, () => lpc.peers().find((p) => p.name === 'Ben').volume > 0, null, 'Cat hears Ben again');
+    console.log('host only: modes, swaps, mutes and the crown; the host muted Ben\'s mic for everyone and unmuted it');
     // Gibberish: Ben on the other team comes out scrambled (speech inversion: a 500 Hz tone comes out at 2,900 Hz)
     for (const p of [ben, cat]) await p.$eval('#optCompact', (el) => { el.checked = false; el.dispatchEvent(new Event('change')); });
     // Cat shares a minimap next to Ana, Ben one across the map
@@ -533,6 +712,20 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // who can hear Ana: her teammate Cat, close by; Ben, on the other team, is left out
     assert.deepStrictEqual(await ana.evaluate(() => lpc.hearMe()), ['Cat'], 'Cat can hear Ana, Ben isn\'t listed');
     await waitFor(ana, () => document.getElementById('hearMe').textContent === 'Can hear you now: Cat.', null, 'who can hear Ana on her page');
+    // Showdown: Ben comes over to Ana and Cat walks off, so Ana and Ben, enemies, are alone together and Cat fades for both
+    const catSlot = (await others(ana)).find((p) => p.name === 'Cat').slot;
+    await ana.selectOption('#modeSel', 'showdown');
+    await ben.evaluate(() => setBox(0.4, 0.6));
+    await cat.evaluate(() => setBox(0.85, 0.15));
+    await waitFor(ana, (s) => { const ps = lpc.peers(), b = ps.find((p) => p.name === 'Ben'), c = ps.find((p) => p.name === 'Cat');
+      return !b.faded && b.vol > 0.9 && c.faded && c.volume === 0 && /showdown/.test(document.querySelector(`#players .player[data-slot="${s}"] .pstate`).textContent); }, catSlot, 'a showdown between Ana and Ben');
+    await waitFor(ben, () => lpc.peers().find((p) => p.name === 'Cat').faded, null, 'Cat faded for Ben too');
+    assert(await ana.evaluate(() => lpc.toasts().includes('Showdown: just you and Ben.')) && !(await cat.evaluate(() => lpc.peers().some((p) => p.faded))), 'Ana told; nothing fades for Cat');
+    // Cat comes back, so they're no longer alone
+    await cat.evaluate(() => setBox(0.4, 0.6));
+    await waitFor(ana, () => lpc.peers().every((p) => !p.faded), null, 'the showdown over once Cat came back');
+    await ben.evaluate(() => setBox(0.85, 0.15));
+    console.log('Showdown: Cat faded while Ana and Ben were alone together, back once she came near');
     for (const p of [ana, ben, cat]) await p.evaluate(() => lpc.league(null));
 
     // Voice swap: every voice comes from someone else's spot
@@ -544,6 +737,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const sw1 = await ana.evaluate(() => lpc.swap());
     assert(Object.entries(sw1.map).length === 3 && Object.entries(sw1.map).every(([k, v]) => +k !== v), `nobody keeps their own spot: ${JSON.stringify(sw1.map)}`);
     for (const p of [ben, cat]) assert.deepStrictEqual((await p.evaluate(() => lpc.swap())).map, sw1.map, 'the same shuffle for everyone');
+    // Guess the voice: Ben names who's behind each spot's voice (the spot with his own voice doesn't count); nobody else guesses
+    const behind = Object.fromEntries(Object.entries(sw1.map).map(([s, spot]) => [spot, +s]));
+    await waitFor(ben, () => !document.getElementById('guessBox').hidden && document.querySelectorAll('#guessRows select').length === 3, null, 'Guess the voice on Ben\'s page');
+    for (const spot of [0, 1, 2]) if (behind[spot] !== 1) await ben.selectOption(`#guessRows label:nth-child(${spot + 1}) select`, String(behind[spot]));
     // what each page should hear: each voice at the spot the shuffle gave it, full volume close by, silent far away
     const at = await Promise.all(pages.map((p) => p.evaluate(() => ({ slot: lpc.slot(), x: lpc.me().x, y: lpc.me().y }))));
     const posOf = (s) => at.find((a) => a.slot === s);
@@ -563,6 +760,8 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await cat.evaluate(() => lpc.league({ inGame: true, room: '', mode: 'CLASSIC', me: { champ: '', champName: '', team: '', dead: true } }));
     await waitFor(ben, (n) => lpc.swap().n > n, sw1.n, 'a reshuffle when Cat died', 20000);
     await waitFor(ben, () => lpc.toasts().some((t) => t.startsWith('Voice swap reveal:') && /spot was (Ana|Cat)/.test(t)), null, 'the reveal on Ben\'s page');
+    assert(await ben.evaluate(() => lpc.toasts().some((t) => t.startsWith('Voice swap reveal:') && t.endsWith('\nGuess the voice, right this round: you 2. You lead with 2 in all.'))), 'Ben\'s two right guesses at the reveal');
+    await waitFor(ana, () => lpc.toasts().some((t) => t.endsWith('\nGuess the voice, right this round: Ben 2. Ben leads with 2 in all.')), null, 'Ben\'s score on Ana\'s page');
     console.log(`swap on deaths: ${JSON.stringify((await ben.evaluate(() => lpc.toasts())).filter((t) => t.startsWith('Voice swap reveal')).pop())}`);
     await cat.evaluate(() => lpc.league(null));
     // the warning: a chime and a countdown 10 s before a timed reshuffle
@@ -646,6 +845,17 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.strictEqual(await ben.$eval('#quizScores li:last-child', (l) => l.textContent), 'Ben (you): 0');
     await waitFor(ben, () => lpc.toasts().some((t) => /^(Ana|Cat) won the queue quiz with \d+ points\.$/.test(t)), null, 'who won, on Ben\'s page');
     for (const p of trio) await p.click('#quizClose');
+    // the quiz's new questions: ability icons, splash art close-ups, item pictures, and stories with the name blanked out
+    const qs = await ana.evaluate(async () => lpc.quizQuestions(80, await lpc.champSpells(4)));
+    const ofKind = (re) => qs.filter((q) => re.test(q.q)), named = (q) => q.opts[q.right];
+    const [abQ, spQ, loQ, itQ] = [/^Whose ability is this\?$/, /^Whose splash art is this close-up from\?$/, /^Whose story is this\? “/, /^Which item is this\?$/].map(ofKind);
+    const idOf = (name) => Object.values(CHAMPS).find((c) => c.name === name).id; // the picture is of the answer's own ability
+    assert(abQ.length && abQ.every((q) => new RegExp(`/cdn/1\\.0/img/(spell|passive)/${idOf(named(q))}(Q|W|E|R|_P)\\.png$`).test(q.img)), `ability icons: ${JSON.stringify(abQ)}`);
+    assert(spQ.length && spQ.every((q) => /\/cdn\/img\/champion\/splash\/\w+_0\.jpg$/.test(q.img) && q.zoom[0] >= 0.25 && q.zoom[0] <= 0.75 && q.zoom[1] >= 0.3 && q.zoom[1] <= 0.7), `splash close-ups: ${JSON.stringify(spQ[0])}`);
+    assert(loQ.length && loQ.every((q) => q.q.includes('____') && !q.q.includes(named(q))), `stories without the name: ${JSON.stringify(loQ[0])}`);
+    assert(itQ.length && itQ.every((q) => /\/cdn\/1\.0\/img\/item\/\d+\.png$/.test(q.img) && Object.values(ITEMS).some((it) => it.name === named(q))), `item pictures: ${JSON.stringify(itQ[0])}`);
+    assert(qs.every((q) => q.opts.length === 4 && new Set(q.opts).size === 4 && q.right >= 0), 'four different answers, one right');
+    console.log(`queue quiz: ${qs.length} questions, with ${abQ.length} ability icons, ${spQ.length} splash close-ups, ${loQ.length} stories and ${itQ.length} items`);
     // the mock draft: blue and red are the balanced teams; whoever's turn it is chooses, the host's clock does the rest
     await ana.click('#draftBtn');
     for (const p of trio) await waitFor(p, () => lpc.dv() && document.querySelectorAll('#draftGrid button').length === 22, null, 'the draft with every champion');
@@ -674,6 +884,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ben, () => document.getElementById('draftHead').textContent === 'The host ended the draft.', null, 'the draft ended for Ben');
     assert(await ana.isHidden('#draftBox'), 'and closed for Ana');
     for (const p of [ben, cat]) await p.click('#draftStop');
+    // the MVP vote, here started by the host: Ana and Ben vote for Cat, Cat for Ben, so Cat wears the crown
+    await ana.click('#mvpBtn');
+    for (const p of trio) await waitFor(p, () => !document.getElementById('mvpBox').hidden && document.querySelectorAll('#mvpOpts button').length === 2, null, 'the vote on every page');
+    for (const [p, s] of [[ana, catSlot], [ben, catSlot], [cat, 1]]) await p.click(`#mvpOpts button[data-slot="${s}"]`);
+    for (const p of trio) await waitFor(p, () => /^MVP of the last game: (Cat|You), with 2 votes\./.test(document.getElementById('mvpHead').textContent), null, 'Cat the MVP on every page');
+    assert.strictEqual(await cat.textContent('#mvpHead'), 'MVP of the last game: You, with 2 votes. You wear the crown next game.');
+    for (const p of [ana, ben]) await waitFor(p, (s) => !document.querySelector(`#players .player[data-slot="${s}"] .crown`).hidden, catSlot, 'the crown on Cat\'s card');
+    assert(await cat.evaluate(() => lpc.toasts().includes('You’re the MVP of the last game! You wear the crown next game.')), 'Cat told');
+    for (const p of trio) { await p.click('#mvpClose'); assert(await p.isHidden('#mvpBox'), 'closed'); }
+    console.log('MVP vote: Cat won with 2 votes and wears the crown');
 
     // compact view, light theme and a help tip
     await ana.click('#compactBtn');
@@ -681,13 +901,38 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await shot(ana, 'ana-compact');
     await ana.click('#compactBtn');
     assert(await ana.isVisible('main'), 'full view again');
-    await ana.context().route('**/riot/summary', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
+    await ana.context().route('**/riot/summary*', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
     await ana.click('.nav[data-view="settings"]');
     await ana.waitForSelector('#serverBox', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverToday'), 'Today: 3 players in 2 rooms. Busiest day of the last two weeks: 7 players.');
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverRiot'), 'High elo games counted from Riot: 3,456, 12 games today, patch 25.20, going back to October 20, 2025. Matchups use all of them, and runes, builds and skill orders the recent ones (older ones are out of date).');
     assert.deepStrictEqual(await ana.$$eval('#serverChart g', (g) => [g.length, g.filter((x) => x.querySelector('.bar')).length, g[11].querySelector('title').textContent.endsWith(': 7 players in 3 rooms')]), [14, 2, true], 'a bar for each day with players');
+    // who has Premade (who.html), for whoever runs it: a wrong key, then the owner's, kept in the browser; names as text
+    const whoAsked = [], now = Math.round(Date.now() / 1000);
+    await ana.context().route('**/who', (r) => {
+      const { key } = JSON.parse(r.request().postData() || '{}');
+      whoAsked.push(r.request().url());
+      if (key !== 'owner key') return r.fulfill({ status: 403, body: 'Not the owner key', headers: { 'access-control-allow-origin': '*' } });
+      r.fulfill({ json: { apps: [{ v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW', 'Smurf#EUW'], first: now - 30 * 86400, last: now - 60 },
+        { v: 'web', name: '<b>Kev</b>', riot: [], first: now - 20 * 86400, last: now - 10 * 86400 }] }, headers: { 'access-control-allow-origin': '*' } });
+    });
+    const wp = await ana.context().newPage();
+    await wp.goto(`http://127.0.0.1:8080/who.html?peer=${PEER}`);
+    await wp.waitForSelector('#keyForm', { state: 'visible' });
+    await wp.fill('#key', 'not it');
+    await wp.click('#keyForm button');
+    await wp.waitForFunction(() => /didn’t work/.test(document.getElementById('keyNote').textContent));
+    await wp.fill('#key', 'owner key');
+    await wp.click('#keyForm button');
+    await wp.waitForSelector('#rows tr');
+    assert.strictEqual(await wp.textContent('#sum'), '2 devices, 1 seen in the last 7 days.');
+    assert.deepStrictEqual(await wp.$$eval('#rows tr', (l) => l.map((tr) => [...tr.cells].slice(0, 3).map((c) => c.textContent))), [['Rayan#EUW, Smurf#EUW', 'Rayan', 'App 1.13.0'], ['Not known yet', '<b>Kev</b>', 'Website']]);
+    await wp.goto('http://127.0.0.1:8080/who.html?peer=evil.example:80'); // the key it kept, and only ever to our server
+    await wp.waitForSelector('#rows tr');
+    assert.deepStrictEqual(whoAsked.map((u) => new URL(u).host), [PEER, PEER, 'league-proxchat.league-proxchat-server.workers.dev']);
+    await wp.close();
+    console.log('who has Premade: a wrong key turned away, then the list with each device\'s accounts, name and app, the key kept and only sent to our server');
     // themes: red and black by default, Light, your own main colour, Custom, Light with the computer's light mode
     const look = (...ks) => ana.evaluate((ks) => { const c = getComputedStyle(document.documentElement); return ks.map((k) => c.getPropertyValue('--' + k).trim()); }, ks);
     assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'accent')], ['red', '#0b0809', '#d9202d'], 'red and black at first');
@@ -753,6 +998,51 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.strictEqual(await ana.$$eval('#games > li:first-child .awards li', (l) => l.length), aw.length, 'with its awards');
     await shot(ana, 'ana-stats');
     console.log(`game history: ${JSON.stringify({ ...games[0], map: games[0].map.length + ' bytes' })}`);
+
+    // the voice checks stay quiet for the fake mics' beeps: no echo (beeps that repeat follow each other both ways) and
+    // not phone quality (a beep's square wave reaches past 8.5 kHz)
+    for (const [p, n] of [[ana, 'Ana'], [ben, 'Ben'], [cat, 'Cat']]) {
+      const c = await p.evaluate(() => lpc.checks());
+      assert(!c.echoes.length && !c.bt && !c.btNote, `${n}: no echo, not phone quality: ${JSON.stringify(c)}`);
+    }
+    console.log(`voice checks on the beeps: no echo, not phone quality (Ana's mic judged from ${(await ana.evaluate(() => lpc.checks())).phone} moments of talking)`);
+
+    // the mic coach and the Bluetooth warning: Ivy's mic is a Bluetooth headset's, by its name, and talks so loud that
+    // it clips (noise bursts past full scale); in a quiet room Set the gate for me puts the gate at its lowest
+    const ivy = await player(browser, 'Ivy', [1280, 720]);
+    await ivy.context().addInitScript(fakeVoice, 1.2);
+    await ivy.context().addInitScript(() => Object.defineProperty(MediaStreamTrack.prototype, 'label', { get: () => 'Headset (WH-1000XM4 Hands-Free AG Audio)' }));
+    await ivy.goto(URL_);
+    await ivy.$eval('#micTest', (b) => b.click());
+    await waitFor(ivy, () => lpc.checks().bt && lpc.checks().btNote && lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')), null, 'Ivy’s Bluetooth mic spotted');
+    await waitFor(ivy, () => lpc.checks().clip && /^Your mic is too loud/.test(lpc.checks().coach), null, 'Ivy’s mic clipping');
+    assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is too loud')))), 'no clipping popup outside a room');
+    await ivy.evaluate(() => { lpc.raw().getAudioTracks()[0].enabled = false; }); // the room goes quiet
+    await ivy.$eval('#gateAuto', (b) => b.click());
+    await waitFor(ivy, () => /^Noise gate set to 2%/.test(lpc.checks().coach), null, 'the gate set from a quiet room');
+    assert.strictEqual(await ivy.inputValue('#gate'), '0.02');
+    await ivy.reload();
+    await ivy.$eval('#micTest', (b) => b.click());
+    await waitFor(ivy, () => lpc.checks().btNote, null, 'the note by Ivy’s mic again');
+    assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')))) && (await ivy.inputValue('#gate')) === '0.02', 'the popup only once for that mic; the gate kept');
+    await ivy.context().close();
+    console.log('mic coach and Bluetooth warning: phone-quality headset spotted (one popup), clipping noted, the gate set from a quiet room');
+
+    // echo check: Kit is on speakers with no echo cancelling (Kit's mic gets exactly what Kit's page plays), so Jo hears
+    // Jo's own voice back, and both are told; Jo's mic talks in bursts (fakeVoice)
+    const jo = await player(browser, 'Jo', [1280, 720]);
+    await jo.context().addInitScript(fakeVoice, 0.3);
+    const kit = await player(browser, 'Kit', [1280, 720]);
+    await kit.context().addInitScript(fakeSpeakers);
+    await join(jo, 'echoes');
+    await join(kit, 'echoes');
+    await hears(kit, ['Jo'], 1, 'Kit hears Jo');
+    await kit.evaluate(() => { window.loop = true; const t = lpc.raw().getAudioTracks()[0]; t.stop(); t.dispatchEvent(new Event('ended')); }); // Kit's mic picks up Kit's speakers from now on
+    await waitFor(jo, () => lpc.toasts().includes('You hear your own voice back from Kit’s mic, so Premade told them how to fix it.'), null, 'Jo told about the echo through Kit', 40000);
+    await waitFor(kit, () => lpc.toasts().includes('Jo hears their own voice back through your mic. Headphones fix it.'), null, 'Kit told how to fix it');
+    assert.deepStrictEqual(await kit.evaluate(() => lpc.checks().echoes), [], 'Kit doesn’t take Jo’s voice for an echo');
+    console.log('echo check: Jo heard Jo’s own voice back through Kit’s speakers, both were told, and Kit didn’t take Jo for an echo');
+    for (const p of [jo, kit]) await p.context().close();
 
     // League's own data (Windows client): it never moves you out of a room you joined yourself...
     await ana.evaluate((room) => lpc.league({ inGame: true, room, mode: 'CLASSIC', me: { champ: 'Testchamp', champName: 'Test Champ', team: 'ORDER' }, players: [] }), GAME_ROOM);
@@ -853,12 +1143,19 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.evaluate((g) => lpc.league(g), legend({ t: 1010, events: [...big, ev('kill', 1005, { on: true })] }, { dead: true }));
     f = await fxOn(dee);
     assert.deepStrictEqual(f.on, ['ocean', 'steal', 'ghost'], `dead: ${JSON.stringify(f.on)}`);
+    // Herald and Voidgrubs for a while after the team took them; an enemy inhibitor and tower the team took, briefly
+    await dee.evaluate((g) => lpc.league(g), legend({ t: 1100, events: [ev('herald', 1050), ev('grubs', 1060), ev('inhib', 1090, { of: 'CHAOS' }), ev('tower', 1095, { of: 'CHAOS' })] }));
+    assert.deepStrictEqual((await fxOn(dee)).on, ['herald', 'grubs', 'speed', 'inhib', 'tower'], 'Herald, Voidgrubs, an inhibitor and a tower');
+    await waitFor(eve, () => /Herald \+ Voidgrubs \+ Speed \+ Inhibitor \+ Tower voice/.test(document.querySelector('.player .pstate').textContent), null, 'Dee\'s new voices on Eve\'s card');
+    // not for the other team's Herald or your own team's tower, nor once their time is up
+    await dee.evaluate((g) => lpc.league(g), legend({ t: 1160, events: [ev('herald', 1150, { team: 'CHAOS' }), ev('grubs', 1100), ev('inhib', 1130, { of: 'CHAOS' }), ev('tower', 1155, { of: 'ORDER' })] }));
+    assert.deepStrictEqual((await fxOn(dee)).on, ['grubs', 'speed'], 'only the Voidgrubs left');
     // the river, and the result after the game
     await dee.evaluate((g) => lpc.league(g), { ...game('Testchamp', 'ORDER'), t: 1500, events: [], result: 'Win' });
     await dee.evaluate(() => setBox(0.39, 0.375));
     await waitFor(dee, () => lpc.fx().on.includes('river') && lpc.fx().on.includes('win'), null, 'river and victory voices');
     await dee.evaluate(() => setBox(0.4, 0.6));
-    console.log('Legends and Immersive: Baron, soul, spree, steal, Ace, speed, multikill, ghost, river and victory voices');
+    console.log('Legends and Immersive: Baron, soul, spree, steal, Ace, speed, multikill, ghost, Herald, Voidgrubs, inhibitor, tower, river and victory voices');
 
     // the overlay: room chat, who can hear you and your voice's effects
     await eve.evaluate(() => { document.getElementById('chatText').value = 'gank top'; document.getElementById('chatForm').requestSubmit(); });
@@ -911,7 +1208,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
     await gus.reload();
     await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), ['October 20: clips by voice'], 'only what’s new since');
+    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), [await gus.evaluate(() => lpc.news())], 'only what’s new since');
     await gus.click('#newsClose');
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);

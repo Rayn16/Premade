@@ -11,9 +11,11 @@
 <meta name="apple-mobile-web-app-title" content="LPC Remote">
 <meta name="theme-color" content="#010a13">
 <style>
-/* The phone remote for the desktop app: queue, accept matches, trade and pick or ban champions from your phone
-   (index.html's Pregame page shows the QR code that opens it). It can live on the home screen (remote-manifest.json).
-   The same navy and gold as the app. */
+/* The phone remote for the desktop app: queue, accept matches, champ select as in League's client (both teams, the
+   bans and the clock; pick or ban, trades, runes, spells, skins, ARAM's bench and dodge), enemy timers, room chat and
+   League chat (index.html's Pregame page shows the QR code that opens it). It can live on the home screen
+   (remote-manifest.json) and show a notification when a match is found or your squad calls (remote-sw.js). The same
+   navy and gold as the app. */
 :root {
   --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
   --gold: #c8aa6e; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --good: #3ccf8e; --bad: #ff6b6b;
@@ -43,20 +45,84 @@ p { margin: 0; }
 input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .row { display: flex; gap: 10px; }
 .row > * { flex: 1; min-width: 0; }
-input[type="search"] { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
+:is(input[type="search"], #chatText, #lolText) { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
 .ch { display: grid; justify-items: center; gap: 4px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
 .ch img { width: 52px; height: 52px; border-radius: 6px; background: var(--bg); }
 .ch[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
-.team { display: flex; flex-wrap: wrap; gap: 6px; }
-.team img, .team span { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--gold-line); background: var(--raised); }
-.team [data-me] { border-color: var(--gold); }
+.ch:disabled { opacity: 0.35; filter: grayscale(1); cursor: default; }
+.grid.all { max-height: 60vh; overflow-y: auto; }
+.cshead { display: flex; align-items: center; gap: 8px; }
+.cshead h2 { flex: 1; }
+#stage { color: var(--muted); font-size: 13px; }
+#clock { min-width: 2ch; text-align: right; font: 600 24px/1 ui-monospace, Consolas, monospace; }
+#clock[data-low] { color: var(--bad); }
+.bans { display: flex; justify-content: space-between; gap: 8px; }
+.bans { align-items: center; }
+.bans div { display: flex; gap: 4px; }
+.bans div > * { width: 24px; height: 24px; border-radius: 4px; background: var(--raised); filter: grayscale(1); opacity: 0.75; }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.side { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.side li { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px; border: 1px solid transparent; border-radius: 8px; }
+.side.them li { flex-direction: row-reverse; text-align: right; }
+.side li[data-now] { border-color: var(--gold); background: var(--raised); }
+.face { flex: none; width: 40px; height: 40px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); }
+.side li:not([data-locked]) img.face { opacity: 0.5; } /* a hover, not a pick yet */
+.side .txt { flex: 1; display: grid; min-width: 0; }
+.side :is(b, small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side b { font-size: 14px; }
+.side li[data-me] b { color: var(--gold); }
+.side small { color: var(--muted); font-size: 12px; }
+.sp { flex: none; display: grid; gap: 2px; }
+.sp img { display: block; width: 17px; height: 17px; border-radius: 3px; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; padding: 10px 2px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+.tabs [aria-pressed="true"] { border-bottom-color: var(--gold); color: var(--gold); }
+.tab { display: grid; gap: 12px; }
+select, #pageName { padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
+#find #role { flex: none; }
+.recs { display: flex; flex-wrap: wrap; gap: 8px; }
+.recs:empty { display: none; }
+.editor { display: grid; gap: 10px; }
+.editor h3 { margin: 4px 0 0; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.trees, .runerow { display: flex; justify-content: space-evenly; }
+.rune { padding: 2px; border: 2px solid transparent; border-radius: 50%; background: none; cursor: pointer; }
+.rune img { display: block; width: 36px; height: 36px; filter: grayscale(1); opacity: 0.45; }
+.rune.key img { width: 46px; height: 46px; }
+.rune[aria-pressed="true"] { border-color: var(--gold); }
+.rune[aria-pressed="true"] img { filter: none; opacity: 1; }
+.chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.chip { padding: 8px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--muted); font: 500 13px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--gold); color: var(--fg); }
+.slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.slot { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: left; cursor: pointer; }
+.slot :is(img, .face) { flex: none; width: 36px; height: 36px; border-radius: 6px; }
+.slot b { color: var(--gold); font-family: ui-monospace, Consolas, monospace; }
+.slot[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.skins { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; }
+.skin { flex: none; width: 108px; display: grid; gap: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; scroll-snap-align: start; cursor: pointer; }
+.skin img { width: 100%; aspect-ratio: 308 / 560; object-fit: cover; border-radius: 6px; background: var(--bg); }
+.skin[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.chromas { display: flex; flex-wrap: wrap; gap: 10px; }
+.chromas:empty { display: none; }
+.chroma { width: 36px; height: 36px; padding: 0; border: 2px solid var(--line); border-radius: 50%; background: var(--raised); cursor: pointer; }
+.chroma[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--gold); }
+.btn.bad { border-color: var(--bad); color: var(--bad); }
+#dodge { justify-self: end; }
+.lockbar { position: sticky; bottom: 12px; z-index: 1; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); } /* Lock in stays in reach */
 .timers { display: flex; flex-wrap: wrap; gap: 8px; }
 .timers span { display: grid; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font: 500 16px/1.2 ui-monospace, Consolas, monospace; }
 .timers b { font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.foes { display: grid; gap: 10px; margin-top: 12px; }
 .check { display: flex; align-items: center; gap: 10px; }
-input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
-:is(.btn, .ch, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; overflow-wrap: anywhere; }
+.log:empty::before { content: attr(data-empty); color: var(--muted); }
+.log time { font: 500 12px/1 ui-monospace, Consolas, monospace; color: var(--muted); margin-right: 8px; }
+.log b { color: var(--gold); margin-right: 6px; }
+:is(#chatForm, #lolForm) .btn { flex: none; } /* the message gets the room */
+.wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: var(--gold); }
+:is(button, input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -68,6 +134,11 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     <input id="link" type="url" autocomplete="off" spellcheck="false" placeholder="https://…/remote.html#…" aria-label="Phone remote link">
     <button class="btn primary">Connect</button>
   </form>
+  <section id="call" class="panel" aria-labelledby="h-call" hidden>
+    <h2 id="h-call">Your squad</h2>
+    <p id="callText" role="status"></p>
+    <div class="row"><button id="callIn" class="btn primary" type="button">In 10</button><button id="callNo" class="btn" type="button">Not tonight</button></div>
+  </section>
   <section id="queue" class="panel" aria-labelledby="h-queue" hidden>
     <h2 id="h-queue">Queue</h2>
     <p id="queueState" role="status"></p>
@@ -79,38 +150,82 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     <div class="row"><button id="accept" class="btn primary" type="button">Accept</button><button id="decline" class="btn" type="button">Decline</button></div>
   </section>
   <section id="cs" class="panel" aria-labelledby="h-cs" hidden>
-    <h2 id="h-cs">Champ select</h2>
+    <div class="cshead"><h2 id="h-cs">Champ select</h2><span id="stage"></span><span id="clock" role="timer" aria-label="Seconds left"></span></div>
     <p id="turn" role="status"></p>
-    <div id="team" class="team" aria-label="Your team"></div>
+    <div id="bans" class="bans" hidden><div id="ourBans" aria-label="Your team’s bans"></div><span class="hint">Bans</span><div id="theirBans" aria-label="Their bans"></div></div>
+    <div class="teams"><ol id="team" class="side" aria-label="Your team"></ol><ol id="them" class="side them" aria-label="Their team"></ol></div>
     <div id="trades"></div>
-    <p id="theirs" class="hint"></p>
-    <p id="picksHead" class="hint">Best picks for you: tap to hover, tap again on your turn to lock in.</p>
-    <div id="picks" class="grid"></div>
-    <form id="find" class="row">
-      <input id="q" type="search" list="names" autocomplete="off" spellcheck="false" placeholder="Any champion" aria-label="Champion name">
-      <button id="hover" class="btn">Hover</button>
-    </form>
-    <datalist id="names"></datalist>
-    <button id="lock" class="btn primary" type="button">Lock in</button>
+    <p id="csNote" class="hint" role="status" hidden></p>
+    <div id="tabBar" class="tabs">
+      <button id="tab-champs" type="button" aria-pressed="true">Champions</button>
+      <button id="tab-runes" type="button" aria-pressed="false">Runes</button>
+      <button id="tab-spells" type="button" aria-pressed="false">Spells</button>
+      <button id="tab-skins" type="button" aria-pressed="false">Skins</button>
+    </div>
+    <div id="champsTab" class="tab">
+      <div id="benchBox" class="tab" hidden><p class="hint">The bench: tap a champion to take it.</p><div id="bench" class="grid"></div><button id="reroll" class="btn small" type="button">Reroll</button></div>
+      <p id="picksHead" class="hint"></p>
+      <div id="picks" class="grid"></div>
+      <form id="find" class="row">
+        <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search champions" aria-label="Search champions">
+        <select id="role" aria-label="Role"><option value="">All roles</option><option value="t">Top</option><option value="j">Jungle</option><option value="m">Middle</option><option value="b">Bottom</option><option value="s">Support</option></select>
+      </form>
+      <div id="grid" class="grid all"></div>
+    </div>
+    <div id="runesTab" class="tab" hidden>
+      <select id="pageSel" aria-label="Your rune page"></select>
+      <div id="recs" class="recs"></div>
+      <div id="editor" class="editor"></div>
+      <input id="pageName" type="text" maxlength="25" autocomplete="off" spellcheck="false" aria-label="The page’s name">
+      <div class="row"><button id="pageSave" class="btn primary" type="button">Save</button><button id="pageNew" class="btn" type="button">Save as a new page</button></div>
+    </div>
+    <div id="spellsTab" class="tab" hidden>
+      <div class="slots"><button id="slotD" class="slot" type="button" aria-pressed="true"></button><button id="slotF" class="slot" type="button" aria-pressed="false"></button></div>
+      <p class="hint">Tap D or F, then the spell for it.</p>
+      <div id="spellGrid" class="grid"></div>
+    </div>
+    <div id="skinsTab" class="tab" hidden>
+      <div id="skins" class="skins"></div>
+      <div id="chromas" class="chromas"></div>
+    </div>
+    <button id="dodge" class="btn small" type="button" hidden>Dodge</button>
+    <button id="lock" class="btn primary lockbar" type="button">Lock in</button>
   </section>
   <section id="game" class="panel" aria-labelledby="h-game" hidden>
     <h2 id="h-game">In game</h2>
     <div id="timers" class="timers"></div>
+    <div id="foes" class="foes" hidden></div>
+  </section>
+  <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
+    <h2 id="h-chat">Room chat</h2>
+    <ol id="chatLog" class="log" data-empty="No messages yet."></ol>
+    <form id="chatForm" class="row"><input id="chatText" maxlength="300" autocomplete="off" placeholder="Message the room" aria-label="Message"><button class="btn">Send</button></form>
+  </section>
+  <section id="lol" class="panel" aria-labelledby="h-lol" hidden>
+    <h2 id="h-lol">League chat</h2>
+    <div id="lolInv"></div>
+    <div id="lolConvs" class="wrap"></div>
+    <ol id="lolLog" class="log" data-empty="No messages yet." hidden></ol>
+    <form id="lolForm" class="row" hidden><input id="lolText" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message"><button class="btn">Send</button></form>
   </section>
   <label class="check"><input id="auto" type="checkbox"> Accept matches for me</label>
+  <label id="pushRow" class="check" hidden><input id="push" type="checkbox"> Tell me when a match is found or my squad calls, even with the screen off</label>
+  <p id="pushNote" class="hint" role="status" hidden></p>
   <p id="sound" class="hint" hidden>Tap anywhere to turn on the ring when a match is found.</p>
   <label id="awakeRow" class="check" hidden><input id="awake" type="checkbox"> Keep the screen on while this page is open</label>
   <p id="install" class="hint" hidden>Put the remote on your home screen: in Chrome, the ⋮ menu, Add to Home screen; on an iPhone, Safari’s Share button, Add to Home Screen. <button id="installBtn" class="btn small" type="button" hidden>Add it now</button></p>
-  <p class="hint">This page talks to Premade on your PC, which talks to League. Keep the link to yourself: anyone with it can accept and pick for you while the app is open.</p>
+  <p class="hint">This page talks to Premade on your PC, which talks to League. Keep the link to yourself: anyone with it can accept, pick and chat for you while the app is open.</p>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
 <script>
 (() => {
   // The PC's page is lolprox-r<code>-0 on our connection server; this phone takes the first free one of -1 to -9 and
-  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game } (index.html remoteState) whenever it
-  // changes; this page sends accept, decline, hover, lock, auto, queue and trade. The code is kept on the phone, so the
-  // home screen icon (which opens remote.html with no code) connects too.
+  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game, chat, lol, now } (index.html
+  // remoteState) whenever it changes; this page sends hi (with whether it's on the screen), accept, decline, hover,
+  // lock, auto, queue, trade, spells, skin, page (the rune page to use), runes (a page to save), bench, reroll, dodge,
+  // chat, timer (an enemy timer: what, champ), and for League chat lolopen, lolsay and lolinv. The code is kept on
+  // the phone, so the home screen icon (which opens remote.html with no code) connects too.
   const $ = (id) => document.getElementById(id);
   const local = new URLSearchParams(location.search).get('peer'); // ?peer=127.0.0.1:9000 for tests, as in index.html
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
@@ -123,8 +238,10 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
   const PHASE = { '': 'League isn’t running on your PC.', None: 'In League’s client.', Lobby: 'In a lobby.', Matchmaking: 'Finding a match…', ReadyCheck: 'Match found!',
     ChampSelect: 'In champ select.', GameStart: 'Loading into the game.', InProgress: 'In game.', Reconnect: 'In game.', WaitingForStats: 'Game over.', PreEndOfGame: 'Game over.', EndOfGame: 'Game over.' };
   let peer = null, conn = null, state = null, redial = 0, ddv = '';
-  const champs = {}; // number -> Data Dragon's champion
+  const champs = {}, spells = {}, runes = {}; // number -> Data Dragon's champion, summoner spell or rune (with its tree and row)
+  let trees = []; // Data Dragon's rune trees, each a keystone row and three more
   const send = (m) => { if (conn && conn.open) conn.send(m); };
+  const hi = () => ({ t: 'hi', seen: document.visibilityState === 'visible' }); // the PC only has our server push a match found to a phone that isn't looking
   const name = (k) => (champs[k] || {}).name || 'a champion';
   const pic = (k) => (champs[k] && ddv ? `https://ddragon.leagueoflegends.com/cdn/${ddv}/img/champion/${champs[k].id}.png` : '');
   const mmss = (s) => (s <= 0 ? 'up' : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
@@ -191,8 +308,13 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('awake').checked) keepAwake(true); });
   }
 
-  fetch('https://ddragon.leagueoflegends.com/api/versions.json').then((r) => r.json()).then((v) => { ddv = v[0]; return fetch(`https://ddragon.leagueoflegends.com/cdn/${ddv}/data/en_US/champion.json`); })
-    .then((r) => r.json()).then((j) => { for (const c of Object.values(j.data)) champs[c.key] = c; render(); }).catch(() => {});
+  fetch('https://ddragon.leagueoflegends.com/api/versions.json').then((r) => r.json()).then((v) => {
+    ddv = v[0];
+    const get = (file, use) => fetch(`https://ddragon.leagueoflegends.com/cdn/${ddv}/data/en_US/${file}.json`).then((r) => r.json()).then(use).then(() => { drawn = {}; render(); }, () => {});
+    get('champion', (j) => { for (const c of Object.values(j.data)) champs[c.key] = c; });
+    get('summoner', (j) => { for (const x of Object.values(j.data)) spells[x.key] = x; });
+    get('runesReforged', (j) => { trees = j; for (const t of j) t.slots.forEach((row, i) => { for (const r of row.runes) runes[r.id] = { ...r, tree: t.id, row: i }; }); });
+  }).catch(() => {});
 
   function claim(n) {
     const p = (peer = new Peer(`lolprox-r${code}-${n}`, peerOpts));
@@ -212,8 +334,8 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     conn = null;
     if (old) old.close(); // a try that never opened
     const c = (conn = peer.connect(pc, { reliable: true }));
-    c.on('open', () => { if (conn !== c) return; c.send({ t: 'hi' }); render(); }); // any message has the PC send its state again: its first one can get lost
-    c.on('data', (m) => { if (conn === c && m && m.t === 'state') { state = m; render(); } });
+    c.on('open', () => { if (conn !== c) return; c.send(hi()); render(); }); // any message has the PC send its state again: its first one can get lost
+    c.on('data', (m) => { if (conn === c && m && m.t === 'state') { state = m; if (m.now > 0) skew = Date.now() - m.now; render(); } });
     c.on('close', () => { if (conn !== c) return; conn = null; state = null; down('Lost the app on your PC. Trying again…'); later(); });
   }
   function down(text) { $('phase').textContent = text; render(); }
@@ -243,27 +365,139 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
     if (s && s.rc) $('rcLeft').textContent = s.rc.response === 'Accepted' ? 'You accepted. Waiting for the others…' : s.rc.response === 'Declined' ? 'You declined.' : `${s.rc.left} s left`;
     $('cs').hidden = !(s && s.cs);
     if (s && s.cs) renderCs(s.cs);
+    else if (s) ed = null; // champ select is over: a page left half changed goes
     $('game').hidden = !(s && s.game);
     if (s && s.game) {
       const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])];
       $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
+      renderFoes(g.foes);
     }
+    $('chat').hidden = !(s && Array.isArray(s.chat));
+    if (!$('chat').hidden) renderChat(s.chat);
+    $('lol').hidden = !(s && s.lol);
+    if (s && s.lol) renderLol(s.lol);
     $('auto').checked = !!(s && s.auto);
     $('auto').disabled = !s;
   }
-  function renderCs(cs) {
-    const a = cs.action, ban = !!a && a.type === 'ban';
-    $('turn').textContent = !a ? 'Waiting for the others.' : `${a.now ? `Your turn to ${a.type}` : 'Your pick comes later'}${a.champ ? `, hovering ${name(a.champ)}` : ''}.`;
-    $('team').replaceChildren(...cs.team.map((p) => {
-      const el = p.champ && pic(p.champ) ? Object.assign(new Image(), { src: pic(p.champ), alt: name(p.champ) }) : document.createElement('span');
-      el.toggleAttribute('data-me', !!p.me);
-      return el;
+  // enemy timers (when the PC has them on): a tap starts one, or takes a running one off. Drawn again only when the
+  // champions change, so a button doesn't move under a finger
+  function renderFoes(foes) {
+    const list = Array.isArray(foes) ? foes : [], key = list.join() + (ddv ? '+' : '');
+    $('foes').hidden = !list.length;
+    if ($('foes').dataset.k === key) return;
+    $('foes').dataset.k = key;
+    const btn = (label, m) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = label; b.addEventListener('click', () => send({ t: 'timer', ...m })); return b; };
+    const row = (who, ...bs) => { const r = document.createElement('div'), s = document.createElement('span'); r.className = 'trade'; s.textContent = who; r.append(s, ...bs); return r; };
+    $('foes').replaceChildren(...list.map((k) => row(name(k), btn('Flash', { what: 'flash', champ: k }), btn('Ultimate', { what: 'r', champ: k }))),
+      ...(list.length ? [row('Their jungle', btn('Red buff', { what: 'red' }), btn('Blue buff', { what: 'blue' }))] : []));
+  }
+  let chatWas = '';
+  function renderChat(lines) {
+    const j = JSON.stringify(lines);
+    if (j === chatWas) return;
+    chatWas = j;
+    $('chatLog').replaceChildren(...lines.map((l) => {
+      const li = document.createElement('li'), t = document.createElement('time'), b = document.createElement('b');
+      t.textContent = new Date(l.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      b.textContent = l.who;
+      li.append(t, b, String(l.text));
+      return li;
     }));
+    $('chatLog').scrollTop = $('chatLog').scrollHeight;
+  }
+  // League chat (app 1.14 on the PC): your invites to accept or decline, your conversations with friends, and the open
+  // one's messages to answer
+  let lolWas = '';
+  function renderLol(l) {
+    const j = JSON.stringify(l);
+    if (j === lolWas) return;
+    lolWas = j;
+    const btn = (text, cls, m) => Object.assign(document.createElement('button'), { type: 'button', className: cls, textContent: text, onclick: () => send(m) });
+    $('lolInv').replaceChildren(...l.inv.map((i) => {
+      const row = document.createElement('div'), t = document.createElement('span');
+      row.className = 'trade';
+      t.textContent = `${i.from} invited you to ${i.q}.`;
+      row.append(t, btn('Accept', 'btn small primary', { t: 'lolinv', id: i.id, yes: true }), btn('Decline', 'btn small', { t: 'lolinv', id: i.id, yes: false }));
+      return row;
+    }));
+    $('lolConvs').replaceChildren(...(l.convs.length ? l.convs.map((c) => btn(`${c.name}${c.unread ? ` (${c.unread})` : ''}`, `btn small${l.open && l.open.id === c.id ? ' primary' : ''}`, { t: 'lolopen', id: c.id }))
+      : [Object.assign(document.createElement('span'), { className: 'hint', textContent: 'No messages from friends yet.' })]));
+    $('lolLog').hidden = $('lolForm').hidden = !l.open;
+    if (!l.open) return;
+    $('lolLog').replaceChildren(...l.open.msgs.map((m) => { const li = document.createElement('li'), b = document.createElement('b'); b.textContent = m.me ? 'You' : l.open.name; li.append(b, String(m.text)); return li; }));
+    $('lolLog').scrollTop = $('lolLog').scrollHeight;
+  }
+  $('lolForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('lolText').value.trim();
+    if (text && conn && conn.open) { send({ t: 'lolsay', text }); $('lolText').value = ''; }
+  });
+  // ---- champ select, as in League's client: whose turn it is and until when, both teams and their bans, then tabs to
+  // pick or ban (or take a champion from ARAM's bench), and for your runes, summoner spells and skin. Each part is drawn
+  // again only when what it shows changes (drawn), so a tap's button stays put.
+  let drawn = {}, skew = 0, tab = 'champs', turnTab = -1, slot = 0, ed = null; // skew: this phone's clock less the PC's; turnTab: the turn that last brought up Champions; slot: D (0) or F (1); ed: the rune page as changed here
+  const changed = (k, v) => { const j = JSON.stringify(v); if (drawn[k] === j) return false; drawn[k] = j; return true; };
+  // ponytail: the stat shards as League has had them since 2024, by hand as Data Dragon hasn't got them; change them
+  // here when Riot does
+  const SHARDS = [[[5008, 'Adaptive force'], [5005, 'Attack speed'], [5007, 'Ability haste']], [[5008, 'Adaptive force'], [5010, 'Move speed'], [5001, 'Health scaling']], [[5011, 'Health'], [5013, 'Tenacity'], [5001, 'Health scaling']]];
+  const DD = 'https://ddragon.leagueoflegends.com/cdn';
+  const spellPic = (k) => (spells[k] && ddv ? `${DD}/${ddv}/img/spell/${spells[k].image.full}` : '');
+  const spellName = (k) => (spells[k] || {}).name || '';
+  function el(tag, cls, ...kids) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    e.append(...kids);
+    return e;
+  }
+  const img = (src, alt, cls = '') => Object.assign(new Image(), { src, alt, className: cls, loading: 'lazy' });
+  const face = (k, cls = 'face') => (pic(k) ? img(pic(k), name(k), cls) : el('span', cls));
+  function btn(cls, kids, on, pressed) {
+    const b = el('button', cls, ...kids);
+    b.type = 'button';
+    if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+    b.addEventListener('click', on);
+    return b;
+  }
+  // a champion's button: hovers it, then locks it in (or bans it) on your turn
+  const champBtn = (k, a, off) => Object.assign(btn('ch', [img(pic(k), ''), name(k)], () => tap(k), !!a && a.champ === k), { disabled: !!off });
+  function tap(k) {
+    const a = state && state.cs && state.cs.action;
+    if (a) send(a.now && a.champ === k ? { t: 'lock', champ: k } : { t: 'hover', champ: k });
+  }
+  // a teammate or an opponent: their name where League shows it, else their champion; their role, whether it's their
+  // turn, their champion (dimmed while it's a hover) and an ally's summoner spells
+  function seat(p, ally) {
+    const li = document.createElement('li'), c = p.champ ? name(p.champ) : '', who = p.me ? 'You' : p.name || c || (ally ? 'Teammate' : 'Opponent');
+    const sub = [POS[p.pos], p.now && `${p.now === 'ban' ? 'banning' : 'picking'}…`, c && !p.locked ? `hovering ${c}` : c !== who && c].filter(Boolean).join(' · ');
+    li.toggleAttribute('data-me', !!p.me);
+    li.toggleAttribute('data-now', !!p.now);
+    li.toggleAttribute('data-locked', !!p.locked);
+    li.append(p.champ ? face(p.champ) : el('span', 'face'), el('span', 'txt', el('b', '', who), el('small', '', sub || '\u00a0')));
+    if (Array.isArray(p.spells)) li.append(el('span', 'sp', ...p.spells.filter(spellPic).map((k) => img(spellPic(k), spellName(k)))));
+    return li;
+  }
+  function renderCs(cs) {
+    const a = cs.action, ban = !!a && a.type === 'ban', me = cs.team.find((p) => p.me) || {};
+    const them = cs.them || (cs.theirs || []).map((champ) => ({ champ, locked: champ > 0 })); // from a PC page still on the last version
+    $('stage').textContent = cs.stage || '';
+    $('turn').textContent = a ? `${a.now ? `Your turn to ${a.type}` : 'Your pick comes later'}${a.champ ? `, hovering ${name(a.champ)}` : ''}.` : me.locked ? `You’re playing ${name(me.champ)}.` : 'Waiting for the others.';
+    $('csNote').textContent = cs.note || '';
+    $('csNote').hidden = !cs.note;
+    const bans = cs.bans || [[], []];
+    if (changed('bans', bans)) {
+      $('bans').hidden = !bans[0].length && !bans[1].length;
+      $('ourBans').replaceChildren(...bans[0].map((k) => face(k, '')));
+      $('theirBans').replaceChildren(...bans[1].map((k) => face(k, '')));
+    }
+    if (changed('teams', [cs.team.map(({ trades, ...p }) => p), them])) {
+      $('team').replaceChildren(...cs.team.map((p) => seat(p, true)));
+      $('them').replaceChildren(...them.map((p) => seat(p, false)));
+    }
     // trades League offers with each teammate (index.html tradesWith): ask, or answer what they asked
-    $('trades').replaceChildren(...cs.team.filter((p) => Array.isArray(p.trades) && p.trades.length).map((p) => {
+    if (changed('trades', cs.team.map((p) => [p.trades, p.name, p.champ, p.pos]))) $('trades').replaceChildren(...cs.team.filter((p) => Array.isArray(p.trades) && p.trades.length).map((p) => {
       const row = document.createElement('div'), who = document.createElement('span');
       row.className = 'trade';
-      who.textContent = `${p.champ ? name(p.champ) : 'A teammate'}${POS[p.pos] ? `, ${POS[p.pos]}` : ''}`;
+      who.textContent = `${p.name || (p.champ ? name(p.champ) : 'A teammate')}${POS[p.pos] ? `, ${POS[p.pos]}` : ''}`;
       row.append(who);
       for (const t of p.trades) {
         const acts = t.state === 'AVAILABLE' ? [['request', `Ask to swap ${t.what}`]] : t.state === 'RECEIVED' ? [['accept', `Swap ${t.what}`], ['decline', 'No thanks']] : [['cancel', `Cancel the ${t.what} swap`]];
@@ -278,34 +512,221 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
       }
       return row;
     }));
-    $('theirs').textContent = cs.theirs.filter(Boolean).length ? `Their picks: ${cs.theirs.filter(Boolean).map(name).join(', ')}.` : '';
-    $('picksHead').hidden = $('picks').hidden = !a || ban || !cs.picks.length;
-    $('find').hidden = $('lock').hidden = !a; // nothing left to pick or ban
-    $('picks').replaceChildren(...cs.picks.map((k) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'ch';
-      b.setAttribute('aria-pressed', String(!!a && a.champ === k));
-      b.append(Object.assign(new Image(), { src: pic(k), alt: '' }), name(k));
-      b.addEventListener('click', () => send(a && a.now && a.champ === k ? { t: 'lock', champ: k } : { t: 'hover', champ: k }));
-      return b;
-    }));
-    const can = cs.can.filter((k) => champs[k]).map((k) => name(k)).sort();
-    if ($('names').childElementCount !== can.length) $('names').replaceChildren(...can.map((n) => new Option(n)));
-    $('hover').textContent = ban ? 'Hover ban' : 'Hover';
-    $('lock').textContent = ban ? 'Ban' : 'Lock in';
+    // the tabs there's something for (Champions while there's a pick, a ban or ARAM's bench); your turn brings up Champions
+    const modeSpells = Object.values(spells).filter((x) => (x.modes || []).includes(cs.mode || 'CLASSIC')).sort((x, y) => x.name.localeCompare(y.name));
+    const tabs = { champs: !!(a || cs.bench || cs.rerolls), runes: !!(cs.pages && cs.pages.length && trees.length), spells: !!(cs.spells && modeSpells.length), skins: !!(cs.skins && cs.skins.length) };
+    if (a && a.now && a.id !== turnTab) { turnTab = a.id; tab = 'champs'; }
+    if (!tabs[tab]) tab = Object.keys(tabs).find((k) => tabs[k]) || tab;
+    $('tabBar').hidden = !tabs[tab];
+    for (const [k, on] of Object.entries(tabs)) {
+      $(`tab-${k}`).hidden = !on;
+      $(`tab-${k}`).setAttribute('aria-pressed', String(k === tab));
+      $(`${k}Tab`).hidden = !on || k !== tab;
+    }
+    // Champions: ARAM's bench and rerolls, the best picks (or bans) for you, then every champion you may pick or ban,
+    // by name or role; banned and taken ones can't be
+    $('benchBox').hidden = !cs.bench && !cs.rerolls;
+    if (changed('bench', [cs.bench, cs.rerolls])) {
+      $('bench').replaceChildren(...(cs.bench || []).map((k) => btn('ch', [img(pic(k), ''), name(k)], () => send({ t: 'bench', champ: k }))));
+      $('bench').hidden = !(cs.bench || []).length;
+      $('reroll').hidden = !cs.rerolls;
+      $('reroll').textContent = `Reroll (${cs.rerolls} left)`;
+    }
+    $('picksHead').textContent = ban ? 'Bans for you: tap to hover, tap again on your turn to ban.' : 'Best picks for you: tap to hover, tap again on your turn to lock in.';
+    $('picksHead').hidden = $('picks').hidden = !a || !(cs.picks || []).length;
+    if (changed('picks', [cs.picks, a && a.champ])) $('picks').replaceChildren(...(cs.picks || []).map((k) => champBtn(k, a)));
+    $('find').hidden = $('grid').hidden = !a; // nothing left to pick or ban
+    $('role').hidden = !(cs.roles || []).some(Boolean);
+    const q = $('q').value.trim().toLowerCase(), role = $('role').hidden ? '' : $('role').value;
+    const gone = new Set([...bans.flat(), ...cs.team.filter((p) => p.locked && !p.me).map((p) => p.champ), ...them.filter((p) => p.locked).map((p) => p.champ)]);
+    if (a && changed('grid', [cs.can, cs.roles, [...gone], a.champ, q, role])) {
+      const list = (cs.can || []).map((k, i) => [k, (cs.roles || [])[i] || '']).filter(([k, r]) => champs[k] && (!q || name(k).toLowerCase().includes(q)) && (!role || r.includes(role)))
+        .sort(([x], [y]) => name(x).localeCompare(name(y)));
+      $('grid').replaceChildren(...list.map(([k]) => champBtn(k, a, gone.has(k))), ...(list.length || !(q || role) ? [] : [el('p', 'hint', 'No champion by that name or role.')]));
+    }
+    $('dodge').hidden = !cs.dodge;
+    $('lock').hidden = !a;
+    $('lock').textContent = `${ban ? 'Ban' : 'Lock in'}${a && a.champ ? ` ${name(a.champ)}` : ''}`;
     $('lock').disabled = !(a && a.now && a.champ);
+    if (tabs.runes) runesTab(cs);
+    if (tabs.spells && changed('spells', [cs.spells, slot, modeSpells.map((x) => x.key)])) {
+      ['slotD', 'slotF'].forEach((id, i) => {
+        $(id).replaceChildren(spellPic(cs.spells[i]) ? img(spellPic(cs.spells[i]), '') : el('span', 'face'), el('b', '', 'DF'[i]), spellName(cs.spells[i]));
+        $(id).setAttribute('aria-pressed', String(slot === i));
+      });
+      $('spellGrid').replaceChildren(...modeSpells.map((x) => btn('ch', [img(spellPic(x.key), ''), x.name], () => pickSpell(+x.key), cs.spells[slot] === +x.key)));
+    }
+    if (tabs.skins && changed('skins', [cs.skins, cs.skin, me.champ])) {
+      const c = champs[me.champ], sel = cs.skins.find((x) => x.id === cs.skin || x.ch.some(([id]) => id === cs.skin));
+      $('skins').replaceChildren(...cs.skins.map((x) => btn('skin', [img(c ? `${DD}/img/champion/loading/${c.id}_${x.id % 1000}.jpg` : '', ''), x.name], () => send({ t: 'skin', id: x.id }), x === sel)));
+      $('chromas').replaceChildren(...(sel ? sel.ch : []).map(([id, n, color]) => {
+        const b = btn('chroma', [], () => send({ t: 'skin', id }), id === cs.skin);
+        b.setAttribute('aria-label', n || 'A chroma');
+        b.title = n;
+        if (/^#[0-9a-f]{3,8}$/i.test(color)) b.style.background = color;
+        return b;
+      }));
+    }
   }
-  $('accept').addEventListener('click', () => send({ t: 'accept' }));
-  $('decline').addEventListener('click', () => send({ t: 'decline' }));
+  // Spells: the one tapped goes on the key picked (D or F); if it's on the other one already, they swap, as in League
+  function pickSpell(k) {
+    const was = state.cs.spells, next = [...was];
+    next[slot] = k;
+    if (was[1 - slot] === k) next[1 - slot] = was[slot];
+    send({ t: 'spells', d: next[0], f: next[1] });
+  }
+  // Runes: the page League uses (or pick another), Riot's and high elo's pages for your champion to start from, and the
+  // page as League's editor has it, saved over that page (when it's yours to change) or as a new one. ed is the page as
+  // changed here, which the PC's pages take over from again once saved or untouched
+  const rowOf = (id) => (runes[id] ? runes[id].row : -1);
+  function runesOk(p) {
+    const pri = trees.find((t) => t.id === p[0]), sec = trees.find((t) => t.id === p[1]);
+    return !!pri && !!sec && pri !== sec && pri.slots.every((row, i) => row.runes.some((r) => r.id === p[2 + i]))
+      && [p[6], p[7]].every((k) => runes[k] && runes[k].tree === sec.id && runes[k].row > 0) && rowOf(p[6]) !== rowOf(p[7]) && p.slice(8).every((k) => k > 0);
+  }
+  function runesTab(cs) {
+    const cur = cs.pages.find((x) => x.cur) || cs.pages[0], base = JSON.stringify(cur);
+    if (changed('pageSel', cs.pages.map((x) => [x.id, x.name, x === cur]))) $('pageSel').replaceChildren(...cs.pages.map((x) => new Option(x.name || 'A rune page', x.id, false, x === cur)));
+    if (!ed || (ed.base !== base && !ed.dirty)) {
+      ed = { id: cur.id, edit: cur.edit, base, dirty: false, p: [...cur.p, ...Array(11).fill(0)].slice(0, 11) };
+      $('pageName').value = cur.name;
+    }
+    if (changed('recs', cs.recs)) $('recs').replaceChildren(...(cs.recs || []).map((r) => btn('btn small', [r.name], () => edit((p) => p.splice(0, 11, ...r.p)))));
+    if (changed('editor', ed.p)) {
+      const p = ed.p, pri = trees.find((t) => t.id === p[0]), sec = trees.find((t) => t.id === p[1]);
+      // a row of trees or runes to tap: on(page, id) changes the page, has(id) is whether it's picked
+      const row = (list, on, has, cls = 'runerow', key = false) => el('div', cls, ...list.map((r) => btn(key ? 'rune key' : 'rune', [img(`${DD}/img/${r.icon}`, r.name)], () => edit((q) => on(q, r.id)), has(r.id))));
+      $('editor').replaceChildren(
+        el('h3', '', 'Primary'), row(trees, primaryTree, (id) => id === p[0], 'trees'),
+        ...(pri ? pri.slots.map((r, i) => row(r.runes, (q, id) => { q[2 + i] = id; }, (id) => id === p[2 + i], 'runerow', !i)) : []),
+        el('h3', '', 'Secondary'), row(trees.filter((t) => t.id !== p[0]), (q, id) => { if (q[1] !== id) { q[1] = id; q.fill(0, 6, 8); } }, (id) => id === p[1], 'trees'),
+        ...(sec ? sec.slots.slice(1).map((r) => row(r.runes, secondaryRune, (id) => id === p[6] || id === p[7])) : []),
+        el('h3', '', 'Stat shards'), ...SHARDS.map((r, i) => el('div', 'chips', ...r.map(([id, label]) => btn('chip', [label], () => edit((q) => { q[8 + i] = id; }), p[8 + i] === id)))));
+    }
+    $('pageSave').disabled = !ed.edit || !runesOk(ed.p);
+    $('pageNew').disabled = !runesOk(ed.p);
+  }
+  function edit(change) { change(ed.p); ed.dirty = true; render(); }
+  function primaryTree(q, id) {
+    if (q[0] === id) return;
+    if (q[1] === id) { q[1] = 0; q.fill(0, 6, 8); } // it was the secondary tree
+    q[0] = id;
+    q.fill(0, 2, 6);
+  }
+  function secondaryRune(q, id) { // two from different rows: a third row drops the one picked first
+    const two = [...[q[6], q[7]].filter((k) => k && rowOf(k) !== rowOf(id)), id].slice(-2);
+    [q[6], q[7]] = [two[0], two[1] || 0];
+  }
+  function savePage(asNew) {
+    const p = [...ed.p];
+    if (rowOf(p[6]) > rowOf(p[7])) [p[6], p[7]] = [p[7], p[6]]; // in row order
+    send({ t: 'runes', id: asNew ? 0 : ed.id, name: $('pageName').value.trim() || 'Premade', p });
+    ed.dirty = false; // the PC's pages, with this one, take over again
+  }
+  setInterval(() => { // the clock, by this phone's own
+    const cs = state && conn && conn.open && state.cs, left = cs && cs.ends > 0 ? Math.max(0, Math.ceil((cs.ends + skew - Date.now()) / 1000)) : -1;
+    $('clock').textContent = left < 0 ? '' : String(left);
+    $('clock').toggleAttribute('data-low', left >= 0 && left <= 10);
+  }, 250);
+  for (const k of ['champs', 'runes', 'spells', 'skins']) $(`tab-${k}`).addEventListener('click', () => { tab = k; render(); });
+  $('q').addEventListener('input', render);
+  $('role').addEventListener('change', render);
   $('find').addEventListener('submit', (e) => {
     e.preventDefault();
-    const v = $('q').value.trim().toLowerCase(), c = Object.values(champs).find((x) => x.name.toLowerCase() === v);
-    if (c) { send({ t: 'hover', champ: +c.key }); $('q').value = ''; }
+    const b = $('grid').querySelector('button:not(:disabled)');
+    if (b) b.click(); // the first one shown
   });
+  $('reroll').addEventListener('click', () => send({ t: 'reroll' }));
+  // Dodge leaves champ select without closing League, which League counts as a dodge (LP and a wait), so it takes a
+  // second tap within 4 s
+  let dodgeAt = 0;
+  const dodgeSet = (armed) => { dodgeAt = armed ? Date.now() : 0; $('dodge').textContent = armed ? 'Tap again to dodge' : 'Dodge'; $('dodge').classList.toggle('bad', armed); };
+  $('dodge').addEventListener('click', () => {
+    if (Date.now() - dodgeAt > 4000) { dodgeSet(true); setTimeout(() => { if (dodgeAt && Date.now() - dodgeAt >= 4000) dodgeSet(false); }, 4100); return; }
+    dodgeSet(false);
+    send({ t: 'dodge' });
+  });
+  $('slotD').addEventListener('click', () => { slot = 0; render(); });
+  $('slotF').addEventListener('click', () => { slot = 1; render(); });
+  $('pageSel').addEventListener('change', () => { send({ t: 'page', id: +$('pageSel').value }); ed = null; });
+  $('pageName').addEventListener('input', () => { if (ed) ed.dirty = true; });
+  $('pageSave').addEventListener('click', () => savePage(false));
+  $('pageNew').addEventListener('click', () => savePage(true));
+  $('accept').addEventListener('click', () => send({ t: 'accept' }));
+  $('decline').addEventListener('click', () => send({ t: 'decline' }));
   $('lock').addEventListener('click', () => send({ t: 'lock' }));
   $('auto').addEventListener('change', (e) => send({ t: 'auto', on: e.target.checked }));
   $('queueBtn').addEventListener('click', () => send({ t: 'queue', on: !(state && state.phase === 'Matchmaking') }));
+  $('chatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('chatText').value.trim();
+    if (text && conn && conn.open) { send({ t: 'chat', text }); $('chatText').value = ''; }
+  });
+  document.addEventListener('visibilitychange', () => send(hi()));
+
+  // ---- a notification when a match is found, even with the screen off or this page closed: when no phone has the
+  // remote on its screen, the PC has our server push one (server/push.js) to the phones that turned them on, and
+  // remote-sw.js shows it. Your squad's calls and pings come the same way (server/squad.js), with their words
+  // encrypted with the keys this phone sends. lpc-remote-push: the code they were turned on for. On an iPhone, only from
+  // the home screen icon.
+  const server = local ? `http://${local}` : `https://${peerOpts.host}`;
+  let pushKey = ''; // our server's key for this code, once it has answered (so nothing shows before it has notifications)
+  fetch(`${server}/push/${code}`).then((r) => (r.ok ? r.json() : {})).then((j) => { pushKey = typeof j.key === 'string' ? j.key : ''; pushShow(); }, () => {});
+  const pushTo = (c, j) => fetch(`${server}/push/${c}`, { method: 'POST', body: JSON.stringify(j) }).then((r) => { if (!r.ok) throw new Error(`our server: ${r.status}`); });
+  const unb64 = (k) => Uint8Array.from(atob(k.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0));
+  const sw = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+    ? navigator.serviceWorker.register('remote-sw.js', { scope: 'remote.html' }).then(() => navigator.serviceWorker.ready) : null; // ready: once it runs
+  function pushShow(note = '') {
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    $('pushRow').hidden = !sw || !pushKey;
+    $('push').checked = !!sw && store.get('lpc-remote-push') === code && Notification.permission === 'granted';
+    $('pushNote').textContent = note || (!pushKey ? '' : !sw && iphone && !standalone ? 'For a notification when a match is found, even with the screen off, put the remote on your Home Screen (below) and turn it on there.'
+      : sw && Notification.permission === 'denied' ? 'Your phone blocks notifications from this page. Allow them in its settings to hear about a match with the screen off.' : '');
+    $('pushNote').hidden = !$('pushNote').textContent;
+  }
+  $('push').addEventListener('change', async () => {
+    const on = $('push').checked;
+    let note = '';
+    $('push').disabled = true;
+    try {
+      if (on && (await Notification.requestPermission()) === 'granted') { // asked straight from the tap, as iPhones want
+        const reg = await sw, old = await reg.pushManager.getSubscription();
+        if (old) await old.unsubscribe(); // it may be for another code, whose key is another
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64(pushKey) });
+        await pushTo(code, { add: sub.endpoint, keys: sub.toJSON().keys });
+        store.set('lpc-remote-push', code);
+        note = 'On: your phone tells you when a match is found or your squad calls, even with its screen off.';
+      } else if (!on) {
+        store.set('lpc-remote-push', '');
+        const sub = await (await sw).pushManager.getSubscription();
+        if (sub) { pushTo(code, { drop: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); }
+      }
+    } catch (err) { console.warn('remote push:', err); note = 'That didn’t work. Check your connection and try again.'; }
+    $('push').disabled = false;
+    pushShow(note);
+  });
+  if (sw) sw.then(async (reg) => {
+    const sub = await reg.pushManager.getSubscription(), was = store.get('lpc-remote-push') || '';
+    if (sub && was === code && Notification.permission === 'granted') return pushTo(code, { add: sub.endpoint, keys: sub.toJSON().keys }); // still on: our server keeps it
+    if (sub) { if (valid(was)) pushTo(was, { drop: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); } // for an old code
+    store.set('lpc-remote-push', '');
+    pushShow();
+  }).catch((err) => console.warn('remote push:', err));
+  pushShow();
+
+  // a squad's call: remote-sw.js opens this page with ?sq=<squad>&call=<its number>&to=<you in the squad> when its
+  // notification is tapped. Who's calling and the room, and In 10 or Not tonight (on Android, also on the notification)
+  const ask = new URLSearchParams(location.search), sq = ask.get('sq'), to = ask.get('to'), callN = +ask.get('call');
+  if (valid(sq) && valid(to) && callN > 0) fetch(`${server}/squad/${sq}`).then((r) => r.json()).then((s) => {
+    const c = s.call;
+    if (!c || c.n !== callN) return;
+    $('call').hidden = false;
+    $('callText').textContent = `${(s.m.find((x) => x.id === c.from) || {}).n || 'A friend'} wants to play: room ${String(c.room).toUpperCase()}.${c.ans[to] ? ` You said ${c.ans[to] === 'in10' ? 'In 10' : 'Not tonight'}.` : ''}`;
+  }).catch(() => {});
+  const answer = (a) => fetch(`${server}/squad/${sq}/answer`, { method: 'POST', body: JSON.stringify({ id: to, call: callN, a }) })
+    .then((r) => { $('callText').textContent = r.ok ? `Sent: ${a === 'in10' ? 'In 10' : 'Not tonight'}.` : 'That call is over.'; }, () => { $('callText').textContent = 'That didn’t send. Check your connection.'; });
+  $('callIn').addEventListener('click', () => answer('in10'));
+  $('callNo').addEventListener('click', () => answer('no'));
   claim(1);
 })();
 </script>

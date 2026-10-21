@@ -4,7 +4,7 @@ Proximity voice chat and game tools for League of Legends. Friends in the same g
 
 It was called League Proximity Chat before version 1.8.0.
 
-**Get it:** [Windows app](https://league-proxchat.netlify.app/Premade-Setup.exe) or [in your browser](https://league-proxchat.netlify.app).
+**Get it:** [Windows app](https://rayn16.github.io/Premade/Premade-Setup.exe) or [in your browser](https://rayn16.github.io/Premade/).
 
 ## How it works
 
@@ -26,7 +26,7 @@ It was called League Proximity Chat before version 1.8.0.
 ## Working on it
 
 - **Site:** serve `site/` with any static server (`npx serve site`). Add `?peer=127.0.0.1:9000` to the address to use a local PeerJS server instead of ours.
-- **Tests:** `npm install`, `npx playwright install chromium`, then `npm test`. The Windows app's test: `cd client && npm ci && xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream client.test.js`. The server's tests: `cd server && node stats.test.js && node riot.test.js` (they start `wrangler dev`; set `WRANGLER` to wrangler's path if it isn't on your PATH).
+- **Tests:** `npm install`, `npx playwright install chromium`, then `npm test`. The Windows app's test: `cd client && npm ci && xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream --proxy-server=127.0.0.1:9 client.test.js` (the dead proxy keeps it offline). The server's tests: `cd server && node stats.test.js && node riot.test.js` (they start `wrangler dev`; set `WRANGLER` to wrangler's path if it isn't on your PATH).
 - **Windows app:** `cd client && npm ci && npm run build` makes `dist/Premade-Setup.exe`, its `.blockmap` and `latest.yml`. GitHub Actions builds the same files: Actions tab, "Build the Windows app". Installed apps update themselves from `latest.yml` on the site, so the three files go up together.
 - **Server:** `cd server && npx wrangler@4 deploy` (the free Cloudflare plan is enough). For Riot data, add your key with `npx wrangler@4 secret put RIOT_KEY`.
 

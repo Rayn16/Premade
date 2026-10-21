@@ -1,0 +1,69 @@
+# Puts Premade's site on GitHub Pages (https://rayn16.github.io/Premade/) on every push to the branch it lives on.
+# The top is everyone's: site/ and the app (installer, blockmap, latest.yml) of the commit named in .github/live,
+# which changes only on Rayan's go. test/ is the test version (Settings > App): site/ as the branch has it now.
+name: Put the site on GitHub Pages
+on:
+  push:
+    branches: [claude/voice-clips-6a9va7]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the live commit
+        id: live
+        run: |
+          sha=$(grep -m1 -xE '[0-9a-f]{40}' .github/live)
+          git fetch -q --depth=1 origin "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "client=$(git rev-parse "$sha:client")" >> "$GITHUB_OUTPUT"
+      # the app is built again only when the live commit's client/ changes
+      - uses: actions/cache@v4
+        id: app
+        with:
+          path: app
+          key: app-${{ steps.live.outputs.client }}
+      - if: steps.app.outputs.cache-hit != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the app from the live commit (client/build.js, no wine)
+        if: steps.app.outputs.cache-hit != 'true'
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+        run: |
+          mkdir -p live app
+          git archive ${{ steps.live.outputs.sha }} client | tar -x -C live
+          cd live/client
+          npm ci
+          node build.js
+          cp dist/Premade-Setup.exe dist/Premade-Setup.exe.blockmap dist/latest.yml ../../app/
+      - name: Put the site together
+        run: |
+          mkdir -p out/test
+          git archive ${{ steps.live.outputs.sha }} site | tar -x --strip-components=1 -C out
+          git archive HEAD site | tar -x --strip-components=1 -C out/test
+          rm -f out/_redirects out/test/_redirects
+          cp app/* out/
+          cat out/latest.yml
+          du -sh out out/test
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: out
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

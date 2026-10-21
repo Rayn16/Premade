@@ -4,7 +4,7 @@
   "description": "Tests for Premade: the site in headless Chromium, the minimap tracker and the terrain map",
   "license": "MIT",
   "scripts": {
-    "test": "node terrain.test.js && node camera-box.test.js && node voice.e2e.js && node league.e2e.js"
+    "test": "node terrain.test.js && node camera-box.test.js && node voice.e2e.js && node league.e2e.js && node profile.e2e.js && node coach.e2e.js && node tft.e2e.js && node customs.e2e.js && node ranks.e2e.js && node ingame.e2e.js && node group.e2e.js && node practice.e2e.js"
   },
   "devDependencies": {
     "peer": "1.0.2",

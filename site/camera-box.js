@@ -97,18 +97,21 @@ globalThis.CameraBox = (() => {
   const PICK_LOOK = 24;   // largest difference between a champion's Data Dragon picture and its minimap icon (Yasuo: 15, others 28+)
   const HOLD = 3000;      // ms your last spot is kept while your icon is hidden, e.g. under a teammate's icon
   const PACE = 0.1;       // fastest a champion crosses the minimap, in minimap widths a second, dashes and Flash included
+  const BASES = [[0.093, 0.927], [0.925, 0.085]]; // the two fountains, where a recall lands (measured on Rayan's minimap)
+  const BASE = 0.08;      // how far from a fountain's centre an icon counts as just recalled, as a share of the minimap width
 
-  // Finds champion icons with your team's blue ring (yours included). Returns centres in minimap pixels, best first.
-  function findIcons(rgba, s) {
+  // Finds champion icons with your team's blue ring (yours included), or with foe the other team's red one. Returns
+  // centres in minimap pixels, best first.
+  function findIcons(rgba, s, foe) {
     const R = RING * s, N = 32;
-    const blue = new Uint8Array(s * s), ring = new Uint8Array(s * s);
+    const tint = new Uint8Array(s * s), ring = new Uint8Array(s * s);
     for (let i = 0, p = 0; i < s * s; i++, p += 4) {
       const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
-      if (b > 140 && b - r > 50 && g > 80 && g < b) blue[i] = 1; // loose enough for screen-share video colours
+      if (foe ? r > 90 && r > 1.5 * g && r > 1.3 * b : b > 140 && b - r > 50 && g > 80 && g < b) tint[i] = 1; // loose enough for screen-share video colours
     }
     for (let y = 1; y < s - 1; y++) for (let x = 1; x < s - 1; x++) { // grown by 1px, so a ring a pixel off the radius counts
       const i = y * s + x;
-      ring[i] = blue[i - s - 1] | blue[i - s] | blue[i - s + 1] | blue[i - 1] | blue[i] | blue[i + 1] | blue[i + s - 1] | blue[i + s] | blue[i + s + 1];
+      ring[i] = tint[i - s - 1] | tint[i - s] | tint[i - s + 1] | tint[i - 1] | tint[i] | tint[i + 1] | tint[i + s - 1] | tint[i + s] | tint[i + s + 1];
     }
     const offs = [];
     for (let k = 0; k < N; k++) offs.push(Math.round(R * Math.sin((2 * Math.PI * k) / N)) * s + Math.round(R * Math.cos((2 * Math.PI * k) / N)));
@@ -184,6 +187,8 @@ globalThis.CameraBox = (() => {
     for (const it of items) { const d = diff(it); if (d < bd) { bd = d; best = it; } }
     return best;
   }
+  // The icon (blue ring, or red with foe) that looks most like a champion's picture (look: picLook), or null.
+  const iconLike = (rgba, s, look, foe) => closest(findIcons(rgba, s, foe), (i) => lookDiff(iconLook(rgba, s, i.x, i.y), look), PICK_LOOK);
 
   // Follows your champion icon, so your camera can look elsewhere. Your icon has the same blue ring as your
   // teammates', so it learns which one is yours from the camera: each time the camera box carries one lone icon
@@ -193,20 +198,23 @@ globalThis.CameraBox = (() => {
   // icon has been gone for HOLD (dead), it follows the camera box, moved down to where your champion stands
   // when the camera is on it.
   // update() returns {found, by: 'icon' | 'camera', learned, held (icon not seen this frame), x, y (0..1 of the minimap), cam (camera box result),
-  // icons (findIcons)}.
+  // icons (findIcons)}. ally: the camera is on a teammate (F2 to F5 held), so it learns nothing from it.
   class Follower {
     constructor() { this.camera = new Tracker(); this.looks = []; this.seen = -Infinity; this.at = null; this.streak = null; this.box = null; }
-    update(rgba, s, now) {
+    update(rgba, s, now, ally) {
       const cam = this.camera.update(rgba, s, s), icons = findIcons(rgba, s);
-      if (cam.found) this.learn(rgba, s, icons, cam.cx * s, (cam.cy + LOCK_DY) * s);
+      if (cam.found && !ally) this.learn(rgba, s, icons, cam.cx * s, (cam.cy + LOCK_DY) * s);
       else this.streak = this.box = null;
       const me = this.looks.reduce((b, l) => (!b || l.n > b.n ? l : b), null);
       if (me) {
         // While it has you, only icons you could have walked to count, so a teammate whose icon looks a bit like
-        // yours can't take over when yours is hidden for a moment. Once you're gone, it wants a closer look.
+        // yours can't take over when yours is hidden for a moment. Once you're gone, it wants a closer look, and so
+        // does a fountain at once, as a recall lands there.
         const lost = now - this.seen >= HOLD, reach = (2 * RING + (PACE * (now - this.seen)) / 1000) * s;
         const nearby = lost ? icons : icons.filter((i) => Math.hypot(i.x - this.at.x * s, i.y - this.at.y * s) < reach);
-        const mine = closest(nearby, (i) => iconDiff(rgba, s, i.x, i.y, me.look), lost ? SURE_LOOK : SAME_LOOK);
+        const diff = (i) => iconDiff(rgba, s, i.x, i.y, me.look);
+        const mine = closest(nearby, diff, lost ? SURE_LOOK : SAME_LOOK)
+          || (!lost && closest(icons.filter((i) => BASES.some(([x, y]) => Math.hypot(i.x / s - x, i.y / s - y) < BASE)), diff, SURE_LOOK));
         if (mine) { this.seen = now; this.at = { x: mine.x / s, y: mine.y / s }; }
         if (now - this.seen < HOLD) return { found: true, by: 'icon', learned: true, held: this.seen !== now, x: this.at.x, y: this.at.y, cam, icons };
       }
@@ -215,7 +223,7 @@ globalThis.CameraBox = (() => {
     // You picked your champion by name: the blue-ringed icon that looks most like its picture becomes you, with
     // its look on your screen, as if the camera had taught it. Returns that icon, or null when none looks like it.
     pick(rgba, s, pic, w, now) {
-      const look = picLook(pic, w), best = closest(findIcons(rgba, s), (i) => lookDiff(iconLook(rgba, s, i.x, i.y), look), PICK_LOOK);
+      const best = iconLike(rgba, s, picLook(pic, w));
       if (!best) return null;
       this.looks = [{ look: iconLook(rgba, s, best.x, best.y), n: 5 }];
       this.seen = now;
@@ -248,15 +256,17 @@ globalThis.CameraBox = (() => {
   // are a thin gold line, so we try every size s and keep the one whose left column and top row are
   // both gold. Colour is judged over 2x2 pixels because screen-share video can store colour at half
   // resolution, which greys out a 1px gold line but leaves its 2x2 average gold.
+  // left: rgba is the bottom-left corner instead, for players who show the minimap on the left (League's Interface
+  // settings). That minimap is taken to be the mirror image, its gold edge on its right, so the gold is mirrored too.
   // Returns {x, y, s} in that square's pixels, or null when no such frame shows.
-  function findMinimap(rgba, r) {
+  function findMinimap(rgba, r, left) {
     const gold = new Uint8Array(r * r);
     for (let y = 0; y < r - 1; y++) for (let x = 0; x < r - 1; x++) {
       const p = (y * r + x) * 4, q = p + r * 4; // sums over the pixel, its right, below and below-right
       const R = rgba[p] + rgba[p + 4] + rgba[q] + rgba[q + 4];
       const G = rgba[p + 1] + rgba[p + 5] + rgba[q + 1] + rgba[q + 5];
       const B = rgba[p + 2] + rgba[p + 6] + rgba[q + 2] + rgba[q + 6];
-      if (R > 400 && G > 300 && R - B > 140 && G <= R + 40) gold[y * r + x] = 1;
+      if (R > 400 && G > 300 && R - B > 140 && G <= R + 40) gold[y * r + (left ? r - 2 - x : x)] = 1;
     }
     let best = 0, bs = 0;
     for (let s = Math.round(r * 0.3); s <= r; s++) {
@@ -265,22 +275,51 @@ globalThis.CameraBox = (() => {
       for (let i = e; i < r; i++) { col += gold[i * r + e]; row += gold[e * r + i]; }
       if (min(col, row) / s > best) { best = min(col, row) / s; bs = s; }
     }
-    return best >= 0.5 ? { x: r - bs, y: r - bs, s: bs } : null; // the real frame scores 0.75+, other screen areas 0.11 or less
+    return best >= 0.5 ? { x: left ? 0 : r - bs, y: r - bs, s: bs } : null; // the real frame scores 0.75+, other screen areas 0.11 or less
   }
 
   // Browser only. ctx is a scratch 2D canvas context; src is anything drawImage takes (image, video, VideoFrame).
-  // locateMinimap returns the minimap square on the whole frame, minimapPixels its RGBA pixels.
+  // locateMinimap returns the minimap square on the whole frame (bottom right, else bottom left), minimapPixels its RGBA pixels.
   function locateMinimap(ctx, src, w, h) {
     const r = min(Math.round(h * 0.45), w);
     ctx.canvas.width = r; ctx.canvas.height = r;
-    ctx.drawImage(src, w - r, h - r, r, r, 0, 0, r, r);
-    const m = findMinimap(ctx.getImageData(0, 0, r, r).data, r);
-    return m && { x: w - r + m.x, y: h - r + m.y, s: m.s };
+    for (const left of [false, true]) {
+      ctx.drawImage(src, left ? 0 : w - r, h - r, r, r, 0, 0, r, r);
+      const m = findMinimap(ctx.getImageData(0, 0, r, r).data, r, left);
+      if (m) return { x: (left ? 0 : w - r) + m.x, y: h - r + m.y, s: m.s };
+    }
+    return null;
   }
   function minimapPixels(ctx, src, sq) {
     ctx.canvas.width = sq.s; ctx.canvas.height = sq.s; // resizing also clears it
     ctx.drawImage(src, sq.x, sq.y, sq.s, sq.s, 0, 0, sq.s, sq.s);
     return ctx.getImageData(0, 0, sq.s, sq.s).data;
+  }
+
+  // League's surrender vote box (also an early or AFK surrender, a remake and the vote after disruptive behavior), as
+  // League's own layout has it (clientstates/gameplay/ux/lol/surrender, CommunityDragon's copy): 223 x 113 at
+  // (1357, 602) on a 1600 x 1200 screen, hung from the bottom-right corner and sized by the screen's height alone (the
+  // HUD scale leaves it be). In it the votes are a row of boxes at y 44-56 (green yes, red no, grey not yet, black
+  // between), the timer a bar at y 62-67 (teal while it runs, black once run down), the rest a dark panel. rgba is
+  // that box scaled to 223 x 113; true when it shows with a yes in it, which every vote starts with (whoever called it).
+  // ponytail: only where League puts it; a box dragged elsewhere isn't seen
+  const VOTE = { x: 1357, y: 602, w: 223, h: 113 };
+  function findVote(rgba) {
+    const part = (y, x0, x1, ok) => { let n = 0; for (let x = x0; x < x1; x++) { const i = (y * VOTE.w + x) * 4; if (ok(rgba[i], rgba[i + 1], rgba[i + 2])) n++; } return n / (x1 - x0); };
+    const dark = (r, g, b) => min(r, g, b) >= 8 && max(r, g, b) <= 60 && max(r, g, b) - min(r, g, b) <= 26;
+    const yes = (r, g, b) => g > 90 && r < 60 && g - b > 45, no = (r, g, b) => r > 80 && g < 50 && b < 50;
+    const grey = (r, g, b) => r > 32 && r < 72 && max(r, g, b) - min(r, g, b) < 14, gap = (r, g, b) => max(r, g, b) < 32;
+    const timer = (r, g, b) => (r < 60 && g > 70 && b > 70) || max(r, g, b) < 24;
+    return [28, 73, 106].every((y) => part(y, 8, 216, dark) >= 0.8)
+      && part(50, 16, 206, (r, g, b) => yes(r, g, b) || no(r, g, b) || grey(r, g, b) || gap(r, g, b)) >= 0.85
+      && part(50, 16, 206, yes) >= 0.1 && part(50, 16, 206, gap) <= 0.2 && part(65, 16, 206, timer) >= 0.85;
+  }
+  // Browser only: whether the vote box shows on a w x h frame, read through the scratch context ctx
+  function seeVote(ctx, src, w, h) {
+    const s = h / 1200;
+    ctx.canvas.width = VOTE.w; ctx.canvas.height = VOTE.h;
+    ctx.drawImage(src, w - (1600 - VOTE.x) * s, VOTE.y * s, VOTE.w * s, VOTE.h * s, 0, 0, VOTE.w, VOTE.h);
+    return findVote(ctx.getImageData(0, 0, VOTE.w, VOTE.h).data);
   }
 
   // Browser only. Calls onFrame(src, w, h) with a frame of a screen share at most every ms milliseconds, until the
@@ -314,5 +353,5 @@ globalThis.CameraBox = (() => {
     return () => { on = false; };
   }
 
-  return { Tracker, Follower, RING, findIcons, iconLook, picLook, lookDiff, iconDiff, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, watch };
+  return { Tracker, Follower, RING, PICK_LOOK, VOTE, findIcons, iconLook, picLook, lookDiff, iconDiff, iconLike, whiteMask, longestRuns, placeBox, findMinimap, locateMinimap, minimapPixels, findVote, seeVote, watch };
 })();
