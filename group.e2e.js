@@ -221,6 +221,11 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
     await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | Premade open now · Online in League | Invite,Sleepy#EUW | No Premade yet | '; }, 'Rayan’s friends');
     if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
+    await ray.click('.nav[data-view="profile"]'); // Profile's friends, each opening their profile
+    await wait(ray, () => [...document.querySelectorAll('#proFrList button')].map((b) => b.textContent).join() === 'Duo#EUW,Sleepy#EUW', null, 'friends on Profile');
+    await ray.click('#proFrList button');
+    await wait(ray, () => /Duo#EUW/.test(document.getElementById('proFindNote').textContent) || document.getElementById('proName').textContent === 'Duo', null, 'Duo’s profile looked up');
+    await ray.click('.nav[data-view="voice"]');
     await ray.fill('#frId', 'Kev # NA1');
     await ray.click('#frAdd button');
     assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Premade open now · Online in League | Invite', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
