@@ -276,6 +276,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       }
       const [ana, ben, cat] = ps.map(([, p]) => p);
       for (const p of [ana, ben, cat]) await wait(p, () => lpc.peers().length === 2 && lpc.peers().every((x) => x.name), null, 'everyone in the room');
+      await ana.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); }); // screens in the room come later
       const players = [['Ana', 'ORDER', 'Ahri', 'MIDDLE'], ['Ben', 'ORDER', 'Garen', 'TOP'], ['Cat', 'CHAOS', 'Zed', 'MIDDLE']];
       const lol = (p, me) => p.evaluate((g) => lpcClient.emit('league', g), game(me, players));
       await lol(ana, { champ: 'Ahri', team: 'ORDER' });
@@ -305,24 +306,32 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ben, () => !lpcClient.lastOverlay.screen && !lpc.cam(), null, 'gone from Ben’s overlay');
       await wait(ana, () => !lpc.lends().length, null, 'Ana stops sending it');
 
-      // screens in the room (What's new 52): Ben, on Ana's team, watches Ana's screen on his Voice page; Cat on the
-      // other team gets no Watch screen button and nothing by asking; Ana turning it off ends it
-      const btn = (p, who) => p.evaluate((who) => { const b = [...document.querySelectorAll('#players li')].find((li) => li.querySelector('.nm').textContent.startsWith(who)).querySelector('.screen'); return b.hidden ? null : b.textContent; }, who);
-      await wait(ben, () => !document.querySelector('#players li .screen').hidden, null, 'Watch screen on Ana’s card');
-      assert.deepStrictEqual([await btn(ben, 'Ana'), await btn(cat, 'Ana')], ['Watch screen', null], 'only Ana’s own team sees the button');
-      await ben.evaluate(() => [...document.querySelectorAll('#players li')].find((li) => li.querySelector('.nm').textContent.startsWith('Ana')).querySelector('.screen').click());
-      await wait(ben, () => { const s = lpc.seen(); return !!s && s.call && s.video > 0; }, null, 'Ana’s screen playing on Ben’s Voice page', 30000);
-      assert.strictEqual(await ben.$eval('#h-screen', (e) => e.textContent), 'Ana’s screen');
+      // screens in the room (What's new 52): Ben, on Ana's team, sees Ana's screen on his Voice page by itself, even with
+      // his own hidden; Hide stops it until Show screen; Cat on the other team never gets it, not even by asking; Ana
+      // turning it off ends it
+      await ana.$eval('#optRoomScreen', (e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
+      await ben.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
+      const screens = (p) => p.evaluate(() => lpc.seen().map((s) => s.name));
+      await wait(ben, () => { const s = lpc.seen(); return s.length === 1 && s[0].name === 'Ana' && s[0].call && s[0].video > 0; }, null, 'Ana’s screen playing on Ben’s Voice page', 30000);
+      await wait(ben, () => document.querySelector('#screenGrid figcaption span').textContent === 'Ana’s screen', null, 'named on its tile');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');
       await shot(ben, 'room-screen');
+      await cat.waitForTimeout(2000);
+      assert.deepStrictEqual(await screens(cat), [], 'Cat sees no screen from the other team');
       await cat.evaluate(() => lpc.send({ t: 'see', on: true }));
       await cat.waitForTimeout(3000);
       assert.deepStrictEqual(await ana.evaluate(() => lpc.lends()), ['Ben'], 'never to the other team');
+      await ben.click('#screenGrid figcaption button'); // Hide
+      await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'hidden on Ben’s page');
+      await wait(ana, () => !lpc.lends().length, null, 'and Ana stops sending it');
+      await wait(ben, () => !!document.querySelector('#players li .screen:not([hidden])'), null, 'Show screen on Ana’s card');
+      await ben.click('#players li .screen:not([hidden])');
+      await wait(ben, () => lpc.seen().length === 1 && lpc.seen()[0].call, null, 'back after Show screen', 30000);
       await ana.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
       await wait(ana, () => !lpc.lends().length, null, 'turned off, Ana stops sending it');
-      await wait(ben, () => !lpc.seen() && document.getElementById('screenBox').hidden, null, 'and Ben’s screen box closes');
+      await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'and Ben’s screens box closes');
       for (const [c] of ps) await c.close();
-      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben watches Ana’s on the Voice page, Cat can’t, off ends it');
+      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat never does, Ana turning hers off ends it');
     }
     console.log('ok');
   } finally {
