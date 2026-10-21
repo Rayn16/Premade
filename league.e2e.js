@@ -1443,9 +1443,10 @@ const leagueData = (over = {}) => ({
     await pc.click('.nav[data-view="clips"]');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip .cname')].map((e) => e.textContent).join() === 'Clip 3,Clip 2,Clip 1', null, 'the gallery');
     assert(await pc.$$eval('#clipGrid .shot', (imgs) => imgs.every((i) => i.src.startsWith('data:image/jpeg;base64,') && i.naturalWidth === 320)), 'a picture of the screen with each clip');
-    const card = (n) => `#clipGrid .clip:has(.cname:text-is("${n}"))`;
+    const card = (n) => `:is(#clipGrid, #savedGrid) .clip:has(.cname:text-is("${n}"))`;
     await pc.click(`${card('Clip 1')} .star`);
-    assert(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-clip-favs')).includes('Clip 1.webm')) && (await text(pc, `${card('Clip 1')} .star`)) === '★ Kept', 'kept');
+    assert(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-clip-favs')).includes('Clip 1.webm')) && (await text(pc, `${card('Clip 1')} .star`)) === '★ Saved', 'saved');
+    await wait(pc, () => [...document.querySelectorAll('#savedGrid .cname')].map((e) => e.textContent).join() === 'Clip 1' && [...document.querySelectorAll('#clipGrid .cname')].map((e) => e.textContent).join() === 'Clip 3,Clip 2', null, 'Clip 1 in Saved');
     await pc.click(`${card('Clip 2')} .ren`);
     await pc.fill(`#clipGrid form input`, 'Baron steal');
     await pc.press(`#clipGrid form input`, 'Enter');

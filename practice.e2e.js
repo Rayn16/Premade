@@ -36,7 +36,7 @@ let SPLASH = null;
 // The desktop app as the page sees it (client/preload.js); app 1.15 (fresh) adds the combo trainer's keys and game
 // videos, kept here in a list of their own. The shared screen is a canvas that keeps changing, for the recordings.
 function fakeApp(fresh) {
-  const on = {}, calls = [], parts = new Map(), vids = new Map([['Game 2026-10-10 20-00-00 Zed.webm', { size: 280e6, at: Date.now() - 10 * 864e5, rec: false }]]);
+  const on = {}, calls = [], parts = new Map(), vids = new Map([['Game 2026-10-10 20-00-00 Zed.webm', { size: 280e6, at: Date.now() - 10 * 864e5, rec: false }], ['Game 2026-10-09 20-00-00 Lux.webm', { size: 250e6, at: Date.now() - 11 * 864e5, rec: false }]]);
   window.lpcClient = {
     version: fresh ? '1.15.0' : '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
     lcu: async () => ({ status: 0, data: null }), clip: async () => '', clips: async () => [], clipsClean: async () => [],
@@ -61,6 +61,7 @@ function fakeApp(fresh) {
     },
   });
   localStorage.setItem('lpc-setup', '1');
+  localStorage.setItem('lpc-vid-saved', JSON.stringify(['Game 2026-10-09 20-00-00 Lux.webm'])); // never binned
   localStorage.setItem('lpc-name', 'Rayan');
   localStorage.setItem('lpc-news', '9999'); // no What's new
   const cv = document.createElement('canvas'), g = cv.getContext('2d');
@@ -203,13 +204,14 @@ const game = (over = {}, me = {}) => ({
       await wait(page, (n) => [...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(n.slice(0, -5)) && li.textContent.includes('recording now') && !li.querySelector('button')), NAME, 'recording now, on the Clips page');
       await page.waitForTimeout(1500);
       await emit({ inGame: false });
-      await wait(page, () => lpcClient.calls.includes('video clean 7'), null, 'the game over');
+      await wait(page, () => lpcClient.calls.some((x) => x.startsWith('video trash')), null, 'the game over');
       const calls = await page.evaluate(() => lpcClient.calls.filter((x) => x.startsWith('video') && !x.startsWith('video list')));
       const adds = calls.filter((x) => x.startsWith(`video add ${NAME} `));
       assert(adds.length && adds.every((x) => +x.split(' ').pop() > 0), `its parts: ${calls}`);
-      assert.deepStrictEqual(calls.filter((x) => !adds.includes(x)), ['video start Ahri', `video end ${NAME}`, 'video clean 7'], 'started, ended, then the old ones binned');
+      assert.deepStrictEqual(calls.filter((x) => !adds.includes(x)), ['video start Ahri', `video end ${NAME}`, 'video trash Game 2026-10-10 20-00-00 Zed.webm'], 'started, ended, then the old one binned, not the saved one');
+      assert.deepStrictEqual(await page.$$eval('#savedVids .cname', (l) => l.map((e) => e.textContent)), ['Game 2026-10-09 20-00-00 Lux'], 'the saved one in Saved');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Moved 1 game video older than 7 days to the Recycle Bin.'), null, 'the old one binned');
-      await wait(page, (n) => document.querySelectorAll('#vidList li').length === 1 && document.querySelector('#vidList li').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#vidList li .cacts button').length === 3, NAME, 'the game, ready to watch');
+      await wait(page, (n) => document.querySelectorAll('#vidList li').length === 1 && document.querySelector('#vidList li').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#vidList li .cacts button').length === 4, NAME, 'the game, ready to watch');
       assert.deepStrictEqual((await page.$$eval('#vidList .vmarks button', (bs) => bs.map((b) => b.textContent.replace(/^\d+:\d\d /, '')))),
         ['Play highlights', 'Double kill', 'You died', 'Your team took Dragon', 'The enemy stole Baron', 'Took a tower'], 'its highlights, a double kill’s kills in it');
       await page.click('#vidList .vmarks button:has-text("You died")');
@@ -220,14 +222,17 @@ const game = (over = {}, me = {}) => ({
       await page.evaluate(() => { lpcClient.gameVideo = ((f) => async (what, ...x) => (what === 'read' ? null : f.call(lpcClient, what, ...x)))(lpcClient.gameVideo); }); // an app before 1.18
       await page.click('#vidList .vmarks button:has-text("Play highlights")');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Update the app to watch highlights here.'), null, 'older apps: the video player');
-      assert.match(await text(page, '#vidNote'), /^Each one is kept for 7 days, then it goes to the Recycle Bin\.$/);
+      assert.match(await text(page, '#vidNote'), /^Each one is kept for 7 days, then it goes to the Recycle Bin\. Save one to keep it\.$/);
       await shot(page, 'game-videos', '#vidBox');
       for (const b of ['Watch', 'Show in folder']) await page.click(`#vidList li button:text-is("${b}")`);
       await page.click('#vidsFolder');
-      await page.click('#vidList li button:text-is("Bin")');
+      await page.click('#vidList li button:text-is("☆ Save")');
+      await wait(page, () => !document.querySelectorAll('#vidList li').length && document.querySelectorAll('#savedVids li').length === 2 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 2, null, 'the game saved');
+      await page.click(`#savedVids li:has-text("${NAME.slice(0, -5)}") button:text-is("Bin")`);
+      await wait(page, () => document.querySelectorAll('#savedVids li').length === 1 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 1, null, 'the saved game binned');
       await wait(page, () => !document.querySelectorAll('#vidList li').length && /^No game videos yet/.test(document.getElementById('vidNote').textContent), null, 'binned');
       const acts = await page.evaluate(() => lpcClient.calls.filter((x) => /^video (open|show|folder|trash)/.test(x)));
-      assert.deepStrictEqual(acts, [`video open ${NAME}`, `video open ${NAME}`, `video show ${NAME}`, 'video folder', `video trash ${NAME}`]);
+      assert.deepStrictEqual(acts, ['video trash Game 2026-10-10 20-00-00 Zed.webm', `video open ${NAME}`, `video open ${NAME}`, `video show ${NAME}`, 'video folder', `video trash ${NAME}`]);
       assert.strictEqual(await page.evaluate(() => lpcClient.shared), 1, 'one share of the screen for the game');
       await c.close();
       console.log('whole games on video: recorded in parts, not in Practice Tool, the old ones binned, and on the Clips page with their highlights');
