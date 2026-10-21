@@ -283,6 +283,10 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await lol(cat, { champ: 'Zed', team: 'CHAOS', dead: true, respawn: 40 });
       await ana.waitForTimeout(3000);
       assert.deepStrictEqual(await Promise.all([ana, ben, cat].map((p) => p.evaluate(() => [lpc.cam(), lpc.lends(), !!lpcClient.lastOverlay.screen]))), [[null, [], false], [null, [], false], [null, [], false]], 'nothing until Ana lets teammates watch');
+      assert.deepStrictEqual(await Promise.all([ana, ben, cat].map((p) => p.$eval('#shareBtn', (e) => e.textContent))), ['Stop sharing', 'Stop sharing', 'Stop sharing'], 'the app shares League’s screen by itself in a game (What’s new 50)');
+      await cat.$eval('#optAutoShare', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
+      await wait(cat, () => document.querySelector('#shareBtn').textContent === 'Share League screen', null, 'turned off, it stops');
+      await cat.$eval('#optAutoShare', (e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
 
       await ana.$eval('#optLendScreen', (e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
       await wait(ben, () => { const s = lpcClient.lastOverlay.screen; return !!s && s.name === 'Ana' && /^data:image\/jpeg/.test(s.img); }, null, 'Ana’s screen on Ben’s overlay', 30000);
