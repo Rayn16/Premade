@@ -13,7 +13,8 @@
 // window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
 // Legends and Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown),
 // the compact view, the ready check with the app's window mode, room awards from the scoreboard, app updates and
-// Discord status. And who has Premade: the hello Ana's page sends our server, and who.html for whoever runs Premade.
+// Discord status. And who has Premade: the hello Ana's page sends our server, and its list for whoever runs Premade,
+// on who.html and in Settings.
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -932,7 +933,25 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await wp.waitForSelector('#rows tr');
     assert.deepStrictEqual(whoAsked.map((u) => new URL(u).host), [PEER, PEER, 'league-proxchat.league-proxchat-server.workers.dev']);
     await wp.close();
-    console.log('who has Premade: a wrong key turned away, then the list with each device\'s accounts, name and app, the key kept and only sent to our server');
+    // and in Settings, at the end of Our server: a kept key that no longer works, then the owner's
+    await ana.evaluate(() => localStorage.setItem('premade-owner', 'old key'));
+    await ana.click('#whoBox summary');
+    await ana.waitForFunction(() => /didn’t work/.test(document.getElementById('whoNote').textContent) && !localStorage.getItem('premade-owner'));
+    await ana.fill('#whoKey', 'owner key');
+    await ana.click('#whoForm button');
+    await ana.waitForSelector('#whoRows tr');
+    assert.match(await ana.textContent('#whoNote'), /^2 devices, 1 seen in the last 7 days/);
+    assert.deepStrictEqual(await ana.$$eval('#whoRows tr', (l) => l.map((tr) => [...tr.cells].slice(0, 3).map((c) => c.textContent))), [['Rayan#EUW, Smurf#EUW', 'Rayan', 'App 1.13.0'], ['Not known yet', '<b>Kev</b>', 'Website']]);
+    assert(await ana.isHidden('#whoForm') && (await ana.evaluate(() => localStorage.getItem('premade-owner'))) === 'owner key' && whoAsked.length === 5 && new URL(whoAsked[4]).host === PEER, 'the key kept, and sent to our server');
+    const op = await player(browser, 'Owner', [1920, 1080]), opAsked = []; // a link with another server can't send the kept key there
+    await op.context().route('**/who', (r) => { opAsked.push(new URL(r.request().url()).host); r.fulfill({ status: 403, headers: { 'access-control-allow-origin': '*' } }); });
+    await op.addInitScript(() => localStorage.setItem('premade-owner', 'owner key'));
+    await op.goto('http://127.0.0.1:8080/index.html?peer=evil.example:80&debug');
+    await op.evaluate(() => { document.getElementById('whoBox').open = true; });
+    await op.waitForFunction(() => /didn’t work/.test(document.getElementById('whoNote').textContent));
+    assert.deepStrictEqual(opAsked, ['league-proxchat.league-proxchat-server.workers.dev'], 'the kept key only ever to our server');
+    await op.context().close();
+    console.log('who has Premade: a wrong key turned away, then the list with each device\'s accounts, name and app, the key kept and only sent to our server, on who.html and in Settings');
     // themes: red and black by default, Light, your own main colour, Custom, Light with the computer's light mode
     const look = (...ks) => ana.evaluate((ks) => { const c = getComputedStyle(document.documentElement); return ks.map((k) => c.getPropertyValue('--' + k).trim()); }, ks);
     assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'accent')], ['red', '#0b0809', '#d9202d'], 'red and black at first');
