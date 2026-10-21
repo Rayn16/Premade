@@ -9909,7 +9909,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- ARAM: Mayhem's augment cards: three cards in the middle of the screen at the start and after levels 7, 11 and
-  // 15 (augNow's times). Their size goes with the UI scale, so Tesseract reads the whole middle of the screen (light text
+  // 15 (mayOpen's times). Their size goes with the UI scale, so Tesseract reads the whole middle of the screen (light text
   // made dark) every 2 seconds then, and each line that's an augment's name (CommunityDragon's list of Arena and Mayhem
   // augments, 0.85 alike or better) gets how many of your champion's games took it, at the foot of its card (found by its
   // light frame under the name). Nothing read leaves your PC.
@@ -9923,7 +9923,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const mayCv = document.createElement('canvas');
   function mayFrame(a, src, w, h) {
     if (a.busy || a.failed || !mayNames || performance.now() - (a.at || 0) < 2000) return;
-    if (!augNow()) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
+    if (!mayOpen()) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
     a.at = performance.now();
     const sx = w * 0.1, sy = h * 0.1, sw = w * 0.8, sh = h * 0.8, k = 1280 / sw; // the middle of the screen with the cards' feet, 1280 wide
     mayCv.width = 1280;
@@ -9946,12 +9946,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         }
         return -1;
       };
+      const had = a.cards.some(Boolean);
       a.cards = lines.map((l) => {
         const name = mayMatch(l.text), b = l.bbox, f = name ? foot(b) : -1, y = f > 0 ? f - 0.16 * (f - b.y0) : b.y1 + 9 * (b.y1 - b.y0); // near the card's foot, above its frame
         return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4) };
       }).filter(Boolean).slice(0, 4);
+      if (had && !a.cards.length) mayUntil = 0; // picked: no more till the next level
       pushOverlay();
     }).catch((e) => { a.failed = true; console.warn('augment cards:', e); }).finally(() => { a.busy = false; });
+  }
+  // whether a pick may be up: the first 3 minutes, while dead, and from reaching level 7, 11 or 15 until a pick was read
+  // and has gone (5 minutes at most)
+  let mayLvl = 0, mayUntil = 0;
+  function mayOpen() {
+    const m = mayhem() && meIn();
+    if (!m) return false;
+    if (m.lvl !== mayLvl) { if (mayLvl && [7, 11, 15].some((l) => mayLvl < l && m.lvl >= l)) mayUntil = performance.now() + 300000; mayLvl = m.lvl; }
+    return gameNow() < 180 || !!league.me.dead || performance.now() < mayUntil;
   }
   function mayMatch(text) { // the Mayhem or Arena augment whose name is closest to a line read, if it's close
     const k = augKey(String(text).trim());
@@ -9963,9 +9974,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function mayRate(name) { // how many of your champion's games counted took this augment (any id with its name)
     const c = champOf(league && league.me && league.me.champ), d = c && augRatesOf(`mayhem?c=${c.key}`);
     if (!c) return { t: name, k: '' };
-    if (!d || !(d.n >= 5)) return { t: `Few ${c.name} games counted yet${d ? ` (${d.n | 0})` : ''}`, k: '' };
+    if (!d || !(d.n >= 1)) return { t: `No ${c.name} games counted yet`, k: '' };
     const ids = new Set((mayNames || []).filter(([, n]) => n === name).map(([id]) => String(id))), n = Object.entries(d.a || {}).reduce((t, [id, v]) => t + (ids.has(id) ? v | 0 : 0), 0);
-    return { t: `Picked in ${pct(n / d.n)} of ${c.name} games (${d.n})`, k: '', r: n / d.n, p: pct(n / d.n), s: `picked · ${d.n} ${c.name} games` };
+    return { t: `Picked in ${pct(n / d.n)} of ${c.name} games (${d.n})`, k: '', r: n / d.n, p: pct(n / d.n), s: `picked · ${d.n} ${c.name} game${d.n === 1 ? '' : 's'}` };
   }
 
   function renderTft() {

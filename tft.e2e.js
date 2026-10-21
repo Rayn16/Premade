@@ -190,7 +190,7 @@ function drawMayhem(names) { // an ARAM: Mayhem pick on screenPic: three dark ca
   const g = window.screenPic.getContext('2d');
   g.fillStyle = '#1a2a3a';
   g.fillRect(0, 0, 1280, 720);
-  [290, 640, 990].forEach((x, i) => {
+  if (names) [290, 640, 990].forEach((x, i) => {
     g.fillStyle = '#d8c8f0'; g.fillRect(x - 150, 50, 300, 460); // the light frame
     g.fillStyle = '#05101a'; g.fillRect(x - 140, 60, 280, 440);
     Object.assign(g, { fillStyle: '#f4ecd8', font: '22px sans-serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 300);
@@ -406,8 +406,8 @@ async function join(page) { // a voice room by its invite link, which the page r
     // ARAM: Mayhem's cards: with its box ticked the app shares the screen in a Mayhem game, Tesseract reads the names
     // anywhere in the middle while a pick may be up (the start, levels 7, 11 and 15, while dead), and each card says how
     // many of Ahri's games took it, above its name; none between picks
-    const mayhemAt = (t, dead = false) => pc.evaluate(([t, dead]) => lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'KIWI', t, room: 'g0123456789b', result: '', events: [],
-      me: { champ: 'Ahri', champName: 'Ahri', team: 'ORDER', dead, respawn: 0, hp: 1, speed: 330 }, players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl: 3, k: 0, d: 0, a: 0, cs: 0, items: [] }] }), [t, dead]);
+    const mayhemAt = (t, dead = false, lvl = 3) => pc.evaluate(([t, dead, lvl]) => lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'KIWI', t, room: 'g0123456789b', result: '', events: [],
+      me: { champ: 'Ahri', champName: 'Ahri', team: 'ORDER', dead, respawn: 0, hp: 1, speed: 330 }, players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl, k: 0, d: 0, a: 0, cs: 0, items: [] }] }), [t, dead, lvl]);
     await pc.check('#optMayhemAugs');
     await mayhemAt(20);
     await wait(pc, () => window.shares === 2, null, 'the screen shared in the Mayhem game (30 s after the last share at most)', 45000);
@@ -420,6 +420,14 @@ async function join(page) { // a voice room by its invite link, which the page r
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(300);
     await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
+    // reaching level 7 alive: read again until the pick has gone, then not till the next level
+    await mayhemAt(400, false, 7);
+    await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the level 7 pick read', 30000);
+    await pc.evaluate(drawMayhem, null);
+    await wait(pc, () => !window.lastOverlay.cards, null, 'gone once picked', 30000);
+    await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
+    await new Promise((r) => setTimeout(r, 5000));
+    assert(!(await pc.evaluate(() => window.lastOverlay.cards)), 'not read again after the pick');
     await pc.evaluate(() => lpc.mayhemSend({ gameId: 9001, platformId: 'EUW1', queueId: 2400, participants: Array.from({ length: 10 }, (_, i) => ({ championId: i ? i : 103, stats: { win: i < 5, playerAugment1: i ? 58 : 1079, playerAugment2: i ? 0 : 1205, playerAugment3: 0 } })) }));
     await new Promise((r) => setTimeout(r, 300));
     assert.deepStrictEqual(SENT.find(([, b]) => b.g === 'EUW1_9001'), ['mayhem', { g: 'EUW1_9001', ps: Array.from({ length: 10 }, (_, i) => ({ c: i ? i : 103, w: i < 5 ? 1 : 0, a: i ? [58] : [1079, 1205] })) }], 'a Mayhem game’s champions, wins and augments');
