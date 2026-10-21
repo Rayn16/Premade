@@ -37,7 +37,7 @@ const ITEM = (name, total, x = {}) => ({ name, gold: { total }, tags: [], maps: 
 const ITEMS = { data: {
   1056: ITEM('Doran’s Ring', 400), 2003: ITEM('Health Potion', 50, { tags: ['Consumable'] }), 9001: ITEM('A thousand gold', 1000),
   6655: ITEM('Luden’s Companion', 2750, { stats: { FlatMagicDamageMod: 90 }, tags: ['SpellDamage', 'MagicPenetration'] }),
-  3020: ITEM('Sorcerer’s Shoes', 1100, { tags: ['Boots', 'MagicPenetration'] }),
+  3020: ITEM('Sorcerer’s Shoes', 1100, { tags: ['Boots', 'MagicPenetration'] }), 3175: ITEM('Spellslinger’s Shoes', 1100, { from: ['3020'], tags: ['MagicPenetration'] }), // tier 3, with no Boots tag (as Gunmetal Greaves)
   3089: ITEM('Rabadon’s Deathcap', 3600, { stats: { FlatMagicDamageMod: 130 }, tags: ['SpellDamage'] }),
   3157: ITEM('Zhonya’s Hourglass', 3250, { stats: { FlatMagicDamageMod: 105, FlatArmorMod: 50 }, tags: ['SpellDamage', 'Armor', 'Active'] }),
   3102: ITEM('Banshee’s Veil', 3000, { stats: { FlatMagicDamageMod: 105, FlatSpellBlockMod: 40 }, tags: ['SpellDamage', 'SpellBlock'] }),
@@ -191,6 +191,27 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert.strictEqual(await buyVs(MAGIC, four), 'Banshee’s Veil: magic resist against Syndra and Lux');
       assert.strictEqual(await buyVs(HEAL, four), 'Morellonomicon: Grievous Wounds against Vladimir and Aatrox');
       assert.strictEqual(await buyVs(EVEN, [...four, [3102, 1], [3165, 1]]), null, 'nothing left that high elo players build');
+      assert.strictEqual(await buyVs(EVEN, [[6655, 1], [3175, 1]]), 'Rabadon’s Deathcap: usual next on Ahri', 'tier 3 boots count as your boots: no Sorcerer’s Shoes again');
+      // ---- your build on the Game page: Premade's, why, which you have and which is next; then changed, and back
+      const build = () => page.evaluate(() => { const b = document.getElementById('liveBuild'); return { hidden: b.hidden, head: b.querySelector('h3').textContent, why: b.querySelector('.bwhy').textContent, rows: [...b.querySelectorAll('li')].map((l) => `${l.dataset.k}:${l.innerText.split('\n')[0]}`) }; });
+      await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, EVEN));
+      await wait(page, () => !document.getElementById('liveBuild').hidden, null, 'your build on the Game page');
+      let b = await build();
+      assert.strictEqual(b.head, 'Premade’s build on Ahri');
+      assert(/high elo players buy on Ahri middle \(40 games this patch.*Games with all three first items: won 50% of 40\./.test(b.why), b.why);
+      assert.deepStrictEqual(b.rows, ['have:Luden’s Companion', 'next:Rabadon’s Deathcap', ':Zhonya’s Hourglass', 'have:Sorcerer’s Shoes', ':Morellonomicon', ':Banshee’s Veil'], JSON.stringify(b.rows));
+      await page.click('#liveBuild li:nth-child(2) button[aria-label^="Take out"]');
+      await page.click('#liveBuild li:nth-child(4) button[aria-label^="Move up"]');
+      await page.fill('#liveBuild input', 'Youmuu’s Ghostblade');
+      await page.click('#liveBuild .badd button[type="submit"]');
+      await wait(page, () => document.querySelectorAll('#liveBuild li').length === 6 && /^Your build/.test(document.querySelector('#liveBuild h3').textContent), null, 'your changed build');
+      b = await build();
+      assert.deepStrictEqual(b.rows, ['have:Luden’s Companion', 'next:Zhonya’s Hourglass', ':Morellonomicon', 'have:Sorcerer’s Shoes', ':Banshee’s Veil', ':Youmuu’s Ghostblade'], JSON.stringify(b.rows));
+      assert.strictEqual(await page.evaluate(() => { const x = lpc.buyNext(); return `${x.name}: ${x.why}`; }), 'Zhonya’s Hourglass: next in your build', 'what to buy next goes by your build');
+      assert.strictEqual(await page.evaluate(() => localStorage.getItem('lpc-builds')), '{"103/MIDDLE":[6655,3157,3165,3020,3102,3142]}');
+      await page.click('#liveBuild .breset');
+      await wait(page, () => document.querySelector('#liveBuild h3').textContent === 'Premade’s build on Ahri', null, 'back to Premade’s build');
+      console.log('your build: tier 3 boots count; Premade’s build with why, which you have and next; moved, taken out and added, and what to buy goes by it; back to Premade’s');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
       await wait(page, () => !lpcClient.lastOverlay.tips && !lpcClient.lastOverlay.buy && document.getElementById('gameTips').hidden, null, 'all gone when you’re back');
       console.log('while dead: the tips for your lane on the overlay and the Game page; what to buy: Zhonya’s against Zed and Talon, Banshee’s against magic, Morellonomicon against healers');
