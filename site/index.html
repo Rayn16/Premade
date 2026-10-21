@@ -9829,8 +9829,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const avg = l.reduce((t, g) => t + g.place, 0) / l.length;
     return { t: `Your average: ${avg.toFixed(1)} in ${l.length} game${l.length === 1 ? '' : 's'}`, k: l.length < 2 ? '' : avg <= 4 ? 'good' : 'bad' };
   }
-  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot (Mayhem: above its name), as shares of the screen; t: what to say; k: good, bad or '' }]
-    if (augs && augs.may) return augs.cards.some(Boolean) ? augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) })) : null;
+  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot (Mayhem: above its name), as shares of the screen; t: what to say; k: good, bad or ''; Mayhem's bars: v, the bar's length 0-1, p the pick rate, s what's under it }]
+    if (augs && augs.may) { // Mayhem: bars as long as each card's pick rate against the most picked of them, which is k good
+      const l = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) })), top = Math.max(0, ...l.map((c) => c.r || 0));
+      return l.length ? l.map(({ r, ...c }) => (r == null ? c : { ...c, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' })) : null;
+    }
     if (!augs || !augs.box || !augs.cards.some((c) => c && c.name)) return null;
     const [x0, y0, bw, bh] = augs.box;
     return augs.cards.map((c, i) => c && c.name && { x: +(x0 + (AUG_X[i] / 1280) * bw).toFixed(4), y: +(y0 + 0.73 * bh).toFixed(4), ...(tftTierOf(c.name) || augYou(c.name)) }).filter(Boolean);
@@ -9949,7 +9952,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!c) return { t: name, k: '' };
     if (!d || !(d.n >= 5)) return { t: `Few ${c.name} games counted yet${d ? ` (${d.n | 0})` : ''}`, k: '' };
     const ids = new Set((mayNames || []).filter(([, n]) => n === name).map(([id]) => String(id))), n = Object.entries(d.a || {}).reduce((t, [id, v]) => t + (ids.has(id) ? v | 0 : 0), 0);
-    return { t: `Picked in ${pct(n / d.n)} of ${c.name} games (${d.n})`, k: '' };
+    return { t: `Picked in ${pct(n / d.n)} of ${c.name} games (${d.n})`, k: '', r: n / d.n, p: pct(n / d.n), s: `picked · ${d.n} ${c.name} games` };
   }
 
   function renderTft() {
@@ -11944,6 +11947,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     [53, 'October 21: more ARAM: Mayhem games for the augment pick rates', [
       'Premade now also sends the ARAM: Mayhem games already in your League match history, as far back as League keeps them, not only new ones. Each game counts once, with every player’s champion and augments and no names, so the pick rates on Mayhem’s augment cards fill in much sooner.',
       'It runs once a day while you’re not in a game, slowly, so League stays quick.',
+      'Each Mayhem card now shows its pick rate over a bar, longest for the most picked augment, which glows gold, so the favourite stands out at a glance.',
     ]],
     [52, 'October 21: watch each other’s screens in the room', [
       'While you share your screen, everyone in your room sees it on their Voice page by itself. In a game only your own team does, never the other team, and you’re told who’s watching. Hide on a screen hides that person’s until you press Show screen on their card.',

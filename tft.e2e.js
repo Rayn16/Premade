@@ -414,6 +414,8 @@ async function join(page) { // a voice room by its invite link, which the page r
     await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y * 720 > 240 && c.y * 720 < 290])), // the name's middle is at y 300
       [['Picked in 40% of Ahri games (40)', true, true], ['Picked in 5% of Ahri games (40)', true, true], ['Picked in 0% of Ahri games (40)', true, true]], 'Symphony of War’s two ids, above each name');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s])), [['40%', 1, 'good', 'picked · 40 Ahri games'], ['5%', 0.125, '', 'picked · 40 Ahri games'], ['0%', 0, '', 'picked · 40 Ahri games']],
+      'a bar for each, as long as its pick rate against the most picked, which is marked');
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(300);
     await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
