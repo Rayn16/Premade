@@ -1515,6 +1515,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optInvadeCall" type="checkbox"> Call out enemies in my jungle</label>
             <label class="check"><input id="optMissList" type="checkbox"> List who’s off my minimap</label>
             <label class="check"><input id="optSpeakCalls" type="checkbox"> Read callouts out loud</label>
+            <div class="toolbar"><label class="field">Voice <select id="optCallVoice"><option value="">My computer’s usual voice</option><option value="girl">A girl’s voice</option></select></label><button id="callVoiceTry" type="button">Try it</button></div>
           </section>
           <section class="panel" aria-labelledby="h-ovcoach">
             <h2 id="h-ovcoach" class="ph">Timers and coach <button class="tip" type="button" popovertarget="t-coach" aria-label="About timers and coach">?</button></h2>
@@ -1814,7 +1815,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
-    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false,
+    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
@@ -3983,7 +3984,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         picPixels(c.id).then((px) => { f.look = CameraBox.picLook(px, 128); }).catch(() => {});
       }
       if (p.d > f.d) Object.assign(f, { d: p.d, dead: now + (p.dead && p.respawn > 0 ? p.respawn : deadFor(p.lvl, gameNow())) * 1000, lane: '', called: false }); // League's own timer when the app passes it
-      if (f.dead && (now >= f.dead || p.dead === false)) Object.assign(f, { dead: 0, seen: now, where: 'in their base' }); // back in their fountain
+      if (f.dead && (now >= f.dead || p.dead === false)) Object.assign(f, { dead: 0, seen: now, zone: 'their base', where: 'in their base' }); // back in their fountain, not where they died
     }
     const n = s.sq.s, pairs = [], got = new Map(), used = new Set();
     for (const i of CameraBox.findIcons(s.px, n, true)) {
@@ -4014,7 +4015,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (is < 0.25 && closer > 0.015 && closer > 0.7 * far) { F.gank = now; sayCall(`${champName(f.id)} heading your way`, 4, f.name); } // 220+ units toward you, within 3,700
       }
     }
-    const inv = F.list.filter((f) => now - f.seen < 1000 && f.zone === 'your jungle');
+    const inv = F.list.filter((f) => !f.dead && now - f.seen < 1000 && f.zone === 'your jungle');
     if (opts.invadeCall && inv.length) {
       if (now - F.inv > 20000) sayCall(inv.length > 1 ? `${inv.length} enemies in your jungle` : `${champName(inv[0].id)} in your jungle`, 3, inv.length > 1 ? '' : inv[0].name);
       F.inv = now;
@@ -4025,11 +4026,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       sayCall(`${champName(f.id)} missing from ${f.lane}`, 1, f.name);
     }
   }
-  function speak(text) { // a callout read out loud, in the computer's own voice
-    if (!window.speechSynthesis) return;
-    speechSynthesis.cancel();
-    speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(text), { lang: 'en-US', rate: 1.1 }));
+  // a callout read out loud in one of the computer's own voices (Settings: opts.callVoice, '' for its usual one, 'girl'
+  // for the first woman's voice it has, like Windows' Zira, or a voice's voiceURI); free and on the PC, nothing sent
+  // ponytail: a woman's voice is known by its name; one not in GIRL is still in the list by name
+  const GIRL = /female|woman|zira|hazel|susan|catherine|linda|heera|aria|jenny|sonia|libby|michelle|emma|ava\b|samantha|karen|moira|tessa|fiona|victoria|allison|serena|kate\b|eva\b|heather|natasha|clara|salli|joanna|kendra|kimberly|ivy/i;
+  const enVoices = () => (window.speechSynthesis ? speechSynthesis.getVoices() : []).filter((v) => /^en/i.test(v.lang));
+  function callVoice() {
+    const all = enVoices(), k = opts.callVoice;
+    if (k === 'girl') return all.find((v) => GIRL.test(v.name) && /en.US/i.test(v.lang)) || all.find((v) => GIRL.test(v.name)) || null;
+    return (k && all.find((v) => v.voiceURI === k)) || null;
   }
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    const voice = callVoice(), u = Object.assign(new SpeechSynthesisUtterance(text), { lang: voice ? voice.lang : 'en-US', rate: 1.1 });
+    if (voice) u.voice = voice;
+    else if (opts.callVoice === 'girl') u.pitch = 1.6; // no woman's voice on this PC: the usual one, higher
+    if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); // the newest call cuts the last one off
+    speechSynthesis.speak(u);
+  }
+  function voiceList() { // the voices to pick from, once the computer has listed them
+    const sel = $('optCallVoice'), had = [...sel.options].slice(2).map((o) => o.value).join();
+    const all = enVoices();
+    if (all.map((v) => v.voiceURI).join() !== had) sel.replaceChildren(...[...sel.options].slice(0, 2), ...all.map((v) => new Option(`${v.name.replace(/^Microsoft /, '').replace(/ - English.*| Online.*/, '')}${GIRL.test(v.name) ? ' (woman)' : ''}`, v.voiceURI)));
+    sel.value = opts.callVoice;
+    if (sel.value !== opts.callVoice) sel.value = ''; // a voice that's gone: the usual one until it's back
+  }
+  if (window.speechSynthesis) { voiceList(); speechSynthesis.addEventListener('voiceschanged', voiceList); }
+  $('optCallVoice').addEventListener('change', (e) => { opts.callVoice = e.target.value; saveOpts(); speak('Jungler on topside'); });
+  $('callVoiceTry').addEventListener('click', () => speak('Zed missing from mid'));
   // the callouts that aren't from your minimap: power spikes, the coach, the jungle clock and the 1v1 referee
   const callsOn = () => !!league && boardOk() && (opts.spikeCall || opts.coach || opts.jgClock || duelOn());
   function callNow() { // the line at the top of the screen: null with no reminder or callouts this game, else what it says now, or ''
@@ -4040,7 +4064,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       calls = calls.filter((c) => now - c.at < (c.pri >= 2 ? 4000 : 8000)).sort((a, b) => b.pri - a.pri || a.at - b.at);
       const next = calls.shift();
       callCur = next ? { text: next.text, from: now } : null;
-      if (next && opts.speakCalls && !overlayHide) speak(next.text);
+      if (next && opts.speakCalls && !overlayHide && !overlayEdit) speak(next.text);
     }
     return callCur ? callCur.text : n ? 'Check your minimap' : '';
   }
@@ -11266,7 +11290,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
-  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
@@ -11413,6 +11437,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [48, 'October 21: a voice for your callouts', [
+      'Spoken callouts can use any voice your computer has, including a girl’s voice (on Windows, Zira). Pick it on the Overlay page, Callouts, under “Read callouts out loud”, and press Try it to hear it. It’s free and stays on your PC.',
+      'Fixed: an enemy who died in your jungle was called out as an invader again when they came back to life in their base.',
+    ]],
     [44, 'October 20: righter callouts, and Alt+V for the overlay', [
       'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts. App 1.17 makes the overlay shortcut work every time: Windows used to skip it while you also held Shift or Ctrl (attack move, levelling an ability) or when another app had taken it, and holding it a moment too long flipped the overlay twice.',
       'Callouts are right more often: “heading your way” only when their jungler walks straight at you, not when you walk toward them or they pass by; no “Jungler in mid” for a jungler in a base; their jungler stays their jungler after selling the jungle pet, so they’re never called a missing laner; dead players come back on League’s own respawn timer; and a jungler or gank callout that waited more than 4 seconds behind another is dropped instead of showing late.',
@@ -11873,6 +11901,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Who’s off your minimap', 'A list by your minimap of everyone on their team you can’t see, how long since you saw them and where they were heading, like “Lee Sin 0:40 toward bot”, and about when a dead one is back.',
         'Off until you turn it on: the Overlay page, Callouts. Drag it anywhere in Layout.', '#optMissList', 'app'],
       ['Spoken callouts', 'The callouts read out loud in your computer’s own voice, as well as shown.', 'Off until you turn it on: the Overlay page, Callouts, Read callouts out loud.', '#optSpeakCalls', 'app'],
+      ['Callout voice', 'Pick the voice that reads callouts out loud: your computer’s usual one, a girl’s voice, or any other voice it has.', 'The Overlay page, Callouts, Voice. Try it plays one.', '#optCallVoice', 'app'],
       ['Enemy timers', 'Say “Premade, mid flash”, “Premade, top ultimate” or “Premade, their red” in a game, or tap them on your phone remote: the countdown shows with the objective timers for everyone in your room who has them on, from their level and items.',
         'Off until you turn it on: the Overlay page, Timers and coach.', '#optFoeTimers', 'app'],
       ['Power spikes', '“Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”, from League’s scoreboard.', 'Off until you turn it on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
