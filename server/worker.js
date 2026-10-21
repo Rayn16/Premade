@@ -144,8 +144,10 @@ export class Room extends DurableObject {
 // what its last hello said (helloOf) and when it first and last opened Premade (seconds); kept a year from the last.
 // ponytail: anyone can add a line, fine for a friends' app; a limit for each address if it ever gets spammed
 // Friends (the Voice page's Friends): /friends says which of the Riot IDs asked about a device opened Premade with in
-// the last 90 days and when it was last open (each /friends call counts as open, so a page asking every 30 s shows as
-// open now), and gives that device the invites to its own Riot IDs. /invite keeps an invite to a Riot ID's apps for
+// the last 90 days and when it was last open, only for devices that asked /friends themselves (friendly), so ones
+// whose page has Friends and whose Settings say friends can see them. Each /friends call counts as open (kept at most
+// every 45 s, so a page asking every 30 s, or 10 s in a lobby, shows as open now: under 90 s), and it gives that device
+// the invites to its own Riot IDs. /invite keeps an invite to a Riot ID's apps for
 // 10 minutes, from a device that has said hello, one from each device to each Riot ID (a new one replaces it).
 // ponytail: anyone can say hello with anyone's Riot ID and so get their invites, room password included; fine among
 // friends, a sign-in through League's client if strangers ever use it
@@ -157,16 +159,18 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, PRIMARY KEY (dest, src))');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
   }
   friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, at }] }
     const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
     sql.exec('DELETE FROM invites WHERE at < ?', now - 600);
     // ponytail: reads every app each time, fine for hundreds; a table of Riot IDs if it's ever thousands
-    for (const r of sql.exec('SELECT id, riot, last FROM apps WHERE last > ?', now - 90 * 86400))
+    for (const r of sql.exec('SELECT a.id, a.riot, a.last FROM apps a JOIN friendly f ON f.id = a.id WHERE a.last > ?', now - 90 * 86400))
       if (r.id !== id) for (const n of JSON.parse(r.riot).map(low)) if (want.has(n)) has[n] = Math.max(has[n] || 0, r.last);
-    const me = id && sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    const me = id && sql.exec('SELECT riot, last FROM apps WHERE id = ?', id).toArray()[0];
     if (!me) return { has, inv: [] };
-    sql.exec('UPDATE apps SET last = ? WHERE id = ?', now, id);
+    sql.exec('INSERT OR IGNORE INTO friendly VALUES (?)', id);
+    if (now - me.last >= 45) sql.exec('UPDATE apps SET last = ? WHERE id = ?', now, id);
     const mine = JSON.parse(me.riot).map(low);
     const inv = mine.length ? sql.exec(`SELECT a.name AS n, a.riot, i.room, i.key, i.at FROM invites i JOIN apps a ON a.id = i.src WHERE i.dest IN (${mine.map(() => '?').join()})`, ...mine).toArray() : [];
     return { has, inv: inv.map((x) => ({ ...x, riot: JSON.parse(x.riot)[0] || '' })) };

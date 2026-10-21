@@ -70,6 +70,8 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert(apps.every((a) => Math.abs(a.last - now) < 30 && a.first <= a.last), JSON.stringify(apps));
   assert(apps[0].first < apps[0].last, 'the first opening is kept');
   const C = '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e', fr = async (b) => (await post('/friends', b)).json();
+  assert.deepEqual((await fr({ riot: ['Kev#NA1'] })).has, {}, 'not until Kev’s own page asks /friends');
+  await fr({ id: A, riot: [] });
   const kev = (await fr({ riot: ['Kev#NA1'] })).has['kev#na1'];
   assert(Math.abs(kev - now) < 30, 'Kev has Premade');
   assert.deepEqual(await fr({ id: B, riot: ['kev#na1', 'rayan#euw', 'Nobody#EUW', 'bad'] }), { has: { 'kev#na1': kev }, inv: [] }); // not your own
