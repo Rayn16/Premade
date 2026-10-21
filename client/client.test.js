@@ -181,6 +181,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert.strictEqual(await js('lpcClient.windowMode()'), 'windowed');
     fs.writeFileSync(path.join(tmp, 'Config', 'game.cfg'), '[General]\r\nCfgVersion=1\r\nWindowMode=2\r\n');
     assert.strictEqual(await js('lpcClient.windowMode()'), 'borderless');
+    assert.strictEqual(typeof await js('lpcClient.withLeague()'), 'boolean', 'Start with League: Windows says whether it is on');
 
     // the page's calls to League's client: those on the list go through with League's password; nothing else does
     assert.deepStrictEqual(await js(`lpcClient.lcu('GET', '/lol-summoner/v1/current-summoner')`), { status: 200, data: { puuid: 'p-1', gameName: 'Rayan', tagLine: 'EUW' } });
