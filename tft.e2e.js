@@ -102,6 +102,7 @@ const L = { calls: [], refused: [] };
 // (Arena's and Mayhem's) and 2 with Mystic Punch. And CommunityDragon's Arena and Mayhem augments
 const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } }, 'mayhem?c=103': { n: 40, a: { 79: 10, 1079: 6, 1058: 2 } } };
 const SENT = [];
+const MAYHEM_GAME = (gameId) => ({ gameId, platformId: 'EUW1', queueId: 2400, participants: Array.from({ length: 10 }, (_, i) => ({ championId: i ? i : 103, stats: { win: i < 5, playerAugment1: i ? 58 : 1079, playerAugment2: 0 } })) });
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(method, p) {
@@ -111,6 +112,9 @@ function fakeLcu(method, p) {
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: RANKS });
   if (p === '/lol-match-history/v1/products/tft/me-puuid/matches?begin=0&count=20') return ok({ games: GAMES });
   if (p === '/lol-gameflow/v1/session') return ok({ phase: 'InProgress', gameData: { gameId: 8001, queue: { id: 1100, gameMode: 'TFT', isRanked: true }, teamOne: [], teamTwo: [] }, map: { id: 22, gameMode: 'TFT' } });
+  // your match history, with two Mayhem games and an ARAM one; every page has the same games (nothing older)
+  if (/^\/lol-match-history\/v1\/products\/lol\/current-summoner\/matches\?begIndex=\d+&endIndex=\d+$/.test(p)) return ok({ games: { games: [6001, 6002, 6003].map((gameId) => ({ gameId, queueId: gameId === 6002 ? 450 : 2400 })) } });
+  if (/^\/lol-match-history\/v1\/games\/600[13]$/.test(p)) return ok(MAYHEM_GAME(+p.split('/').pop()));
   if (/^\/lol-match-history\/v1\/products\/lol\//.test(p)) return ok({ games: { games: [] } });
   return { status: 404, data: null };
 }
@@ -137,7 +141,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
   await ctx.route('**/latest.yml', (r) => r.fulfill({ status: 404, body: '' }));
   await ctx.route(/127\.0\.0\.1:9004\/(riot|stats)/, (r) => {
     const q = r.request().url().split('/riot/')[1];
-    if (r.request().method() === 'POST') { SENT.push([q, JSON.parse(r.request().postData())]); return r.fulfill({ body: 'ok', headers: cors }); }
+    if (r.request().method() === 'POST') { const b = JSON.parse(r.request().postData()); SENT.push([q, b]); return r.fulfill({ body: b.g === 'EUW1_6003' ? 'later' : 'ok', headers: cors }); } // full for today
     r.fulfill(q && RATES[q] ? { json: RATES[q], headers: cors } : { status: 404, json: {}, headers: cors });
   });
   await ctx.route(/ddragon\.leagueoflegends\.com/, (r) => {
@@ -390,7 +394,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.deepStrictEqual(await pc.evaluate(() => lpc.augCards().names), ['Rich Get Richer', 'Cluster', 'Gold Destiny'], 'Cluster, not Cluster+, and the gold Gold Destiny');
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards), [{ x: 0.2859, y: 0.73, t: 'Tier S · 3.33 average place · 30 games', k: 'good' },
       { x: 0.5, y: 0.73, t: 'Your average: 3.5 in 2 games', k: 'good' }, { x: 0.7133, y: 0.73, t: 'Not in your last 4 games', k: '' }], 'its tier from Premade players’ games, else how you placed with it, at the foot of its card');
-    assert.deepStrictEqual(SENT.map(([q, b]) => [q, b.g, b.s, b.ps.map((p) => p.p).join(''), b.ps[0].a]), // you first, then the others
+    assert.deepStrictEqual(SENT.filter(([q]) => q === 'tftaug').map(([q, b]) => [q, b.g, b.s, b.ps.map((p) => p.p).join(''), b.ps[0].a]), // you first, then the others
       [['tftaug', 'EUW1_7001', 18, '21345678', ['TFT18_Augment_Rich', 'TFT18_Augment_Cluster']], ['tftaug', 'EUW1_7002', 18, '51234678', ['TFT18_Augment_Cluster']], ['tftaug', 'EUW1_7003', 18, '12345678', ['TFT18_Augment_Rich']],
         ['tftaug', 'EUW1_7004', 17, '61234578', []]], 'each ranked game’s places and augments sent to our server once');
     assert.strictEqual(await pc.evaluate(() => window.lastOverlay.board), true, 'over the whole screen');
@@ -415,8 +419,12 @@ async function join(page) { // a voice room by its invite link, which the page r
     await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
     await pc.evaluate(() => lpc.mayhemSend({ gameId: 9001, platformId: 'EUW1', queueId: 2400, participants: Array.from({ length: 10 }, (_, i) => ({ championId: i ? i : 103, stats: { win: i < 5, playerAugment1: i ? 58 : 1079, playerAugment2: i ? 0 : 1205, playerAugment3: 0 } })) }));
     await new Promise((r) => setTimeout(r, 300));
-    assert.deepStrictEqual(SENT.slice(-1)[0], ['mayhem', { g: 'EUW1_9001', ps: Array.from({ length: 10 }, (_, i) => ({ c: i ? i : 103, w: i < 5 ? 1 : 0, a: i ? [58] : [1079, 1205] })) }], 'a Mayhem game’s champions, wins and augments');
+    assert.deepStrictEqual(SENT.find(([, b]) => b.g === 'EUW1_9001'), ['mayhem', { g: 'EUW1_9001', ps: Array.from({ length: 10 }, (_, i) => ({ c: i ? i : 103, w: i < 5 ? 1 : 0, a: i ? [58] : [1079, 1205] })) }], 'a Mayhem game’s champions, wins and augments');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
+    // out of games, the Mayhem games already in your match history are sent too, each once (not the ARAM one)
+    for (let i = 0; i < 600 && SENT.filter(([q]) => q === 'mayhem').length < 3; i++) await new Promise((r) => setTimeout(r, 100));
+    assert.deepStrictEqual(SENT.filter(([q, b]) => q === 'mayhem' && b.g !== 'EUW1_9001').map(([, b]) => [b.g, b.ps[0].a]), [['EUW1_6001', [1079]], ['EUW1_6003', [1079]]], 'your history’s Mayhem games');
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-aug-sent')).filter((g) => g.startsWith('EUW1_600'))), ['EUW1_6001'], 'one our server said later for kept to send again');
     // the same boards on Profile's TFT tab
     await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');

@@ -9680,6 +9680,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (augs && !want) augStop();
     else if (!augs && want && performance.now() - augsAt > 30000) augStart();
     if (augs) { if (!ddVersion) ddSoon(); if (augs.may) mayNamesSoon(); else tftItemsSoon(); } // the augments' names, once Data Dragon says the patch
+    mayhemDig();
   }
   async function augStart() {
     augsAt = performance.now();
@@ -9803,15 +9804,41 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // augments to our server once, and the server adds them up: /riot/mayhem, how many of a champion's games took each
   // augment; /riot/tftaug, each augment's games and places in this set's ranked and normal games
   let augSent = load('lpc-aug-sent', []);
-  function augSend(kind, g, body) {
-    if (!g || augSent.includes(g)) return;
-    augSent = [...augSent, g].slice(-300);
+  async function augSend(kind, g, body) { // our server's answer: 'ok'; 'later' or 'too many' (it's full for today or this hour: kept to send again); or why it refused the game
+    if (!g || augSent.includes(g)) return 'ok';
+    const a = await fetch(`${serverUrl}/riot/${kind}`, { method: 'POST', body: JSON.stringify({ g, ...body }) }).then((r) => (r.ok ? r.text() : 'later')).catch(() => 'later'); // plain text: no preflight
+    if (a === 'later' || a === 'too many' || augSent.includes(g)) return a;
+    augSent = [...augSent, g].slice(-3000);
     store.set('lpc-aug-sent', JSON.stringify(augSent));
-    fetch(`${serverUrl}/riot/${kind}`, { method: 'POST', body: JSON.stringify({ g, ...body }) }).catch(() => {}); // plain text: no preflight
+    return a;
   }
-  function mayhemSend(m) { // a game from League's client: each player's champion, win and augments
-    if (!m || m.queueId !== 2400 || !Array.isArray(m.participants)) return;
-    augSend('mayhem', `${m.platformId}_${m.gameId}`, { ps: m.participants.map((p) => { const s = p.stats || {}; return { c: p.championId | 0, w: s.win ? 1 : 0, a: Object.keys(s).filter((k) => /^playerAugment\d$/.test(k) && s[k] > 0).map((k) => s[k] | 0) }; }) });
+  function mayhemSend(m) { // a game from League's client: each player's champion, win and augments (augSend's answer)
+    if (!m || m.queueId !== 2400 || !Array.isArray(m.participants)) return Promise.resolve('ok');
+    return augSend('mayhem', `${m.platformId}_${m.gameId}`, { ps: m.participants.map((p) => { const s = p.stats || {}; return { c: p.championId | 0, w: s.win ? 1 : 0, a: Object.keys(s).filter((k) => /^playerAugment\d$/.test(k) && s[k] > 0).map((k) => s[k] | 0) }; }) });
+  }
+  // and the Mayhem games already in your match history, as far back as League's client keeps them (up to 1,000 games):
+  // once a day and never during a game, a page of 20 at a time, then each game not sent yet, 20 s apart (our server
+  // takes 200 games an hour from an address)
+  let digAt = load('lpc-aug-dig', 0), digging = false;
+  async function mayhemDig() {
+    if (digging || !lcuOn() || !lcu || !me0 || curGame || Date.now() - digAt < 864e5) return;
+    digging = true;
+    try {
+      const ids = [], seen = new Set();
+      for (let b = 0; b < 1000; b += 20) {
+        const h = await lcuGet(`/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=${b}&endIndex=${b + 19}`), list = ((h && h.games && Array.isArray(h.games.games) && h.games.games) || []).filter((g) => g && !seen.has(g.gameId));
+        if (!list.length) break; // League's client has no more
+        for (const g of list) { seen.add(g.gameId); if (g.queueId === 2400 && !augSent.some((x) => x.endsWith('_' + g.gameId))) ids.push(g.gameId); }
+        await sleep(1000);
+      }
+      for (const id of ids) {
+        if (curGame) return; // a game started: the rest next time
+        const a = await mayhemSend(await lcuGet(`/lol-match-history/v1/games/${id}`));
+        if (a === 'later' || a === 'too many') break; // our server is full: the rest tomorrow
+        await sleep(20000);
+      }
+      store.set('lpc-aug-dig', JSON.stringify((digAt = Date.now())));
+    } catch (err) { console.warn('mayhem games:', err); } finally { digging = false; }
   }
   function tftSend(list) { // TFT games from League's client: each player's place and augments, in ranked and normal games
     for (const g of list || []) {
@@ -11859,6 +11886,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [53, 'October 21: more ARAM: Mayhem games for the augment pick rates', [
+      'Premade now also sends the ARAM: Mayhem games already in your League match history, as far back as League keeps them, not only new ones. Each game counts once, with every player’s champion and augments and no names, so the pick rates on Mayhem’s augment cards fill in much sooner.',
+      'It runs once a day while you’re not in a game, slowly, so League stays quick.',
+    ]],
     [52, 'October 21: watch each other’s screens in the room', [
       'While you share your screen, everyone in your room sees it on their Voice page by itself. In a game only your own team does, never the other team, and you’re told who’s watching. Hide on a screen hides that person’s until you press Show screen on their card.',
       'On unless you turn it off: Let the room watch my screen, under Players on the Voice page. Off, your screen isn’t shown to anyone, and you still see theirs.',
