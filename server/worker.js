@@ -3,7 +3,8 @@
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
 // Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only those with its
 // password. /stats counts rooms and players each day for the voice page (Settings > Our server), and /hello and /who
-// are who has Premade (both in the Stats object). /push/... is the phone remote's notifications (push.js), /squad/...
+// are who has Premade, and /friends and /invite which of your friends have it and invites to your room (all in the Stats
+// object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
 // own. /riot/... is Riot data (the Riot object, at the end).
 import { DurableObject } from 'cloudflare:workers';
@@ -18,10 +19,11 @@ const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: 
 const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(0, 10); // UTC
 // what a page says when Premade opens (/hello): its device's own random id, the app version ('web' on the website,
 // 'old' before 1.3), its voice name and its League accounts' Riot IDs; null for anything else
+const DEVICE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const riotIdList = (a, n) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(x)).slice(0, n) : []);
 const helloOf = (b) => {
-  if (!b || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
-  const riot = Array.isArray(b.riot) ? b.riot.filter((n) => typeof n === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(n)).slice(0, 10) : [];
-  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot };
+  if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10) };
 };
 // the owner's key (the secret OWNER_KEY), checked in constant time; nobody is the owner without one
 const owner = (env, key) => {
@@ -45,6 +47,13 @@ export default {
       if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
       await stats(env).hello(h);
       return new Response(null, { status: 204, headers: CORS });
+    }
+    if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) { // a plain text body too
+      const b = await req.json().catch(() => null), id = b && DEVICE.test(b.id) ? b.id : '';
+      if (url.pathname === '/friends') return Response.json(await stats(env).friends(id, riotIdList(b && b.riot, 300)), { headers: CORS });
+      const [to] = riotIdList(b && [b.to], 1), room = b && /^[a-z0-9]{1,20}$/.test(b.room) ? b.room : '', key = (b && b.key) ?? '';
+      if (!id || !to || !room || typeof key !== 'string' || !/^[a-z]{0,12}$/.test(key)) return Response.json({ error: 'Not an invite' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).invite(id, to, room, key), { headers: CORS });
     }
     const code = /^\/push\/([a-z0-9]{12})(\/ring)?$/.exec(url.pathname); // the phone remote's notifications (push.js)
     if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
@@ -134,12 +143,39 @@ export class Room extends DurableObject {
 // Who has Premade (apps), for its owner only (/who): each device that opened it, by the random id it made itself, with
 // what its last hello said (helloOf) and when it first and last opened Premade (seconds); kept a year from the last.
 // ponytail: anyone can add a line, fine for a friends' app; a limit for each address if it ever gets spammed
+// Friends (the Voice page's Friends): /friends says which of the Riot IDs asked about a device opened Premade with in
+// the last 90 days and when it was last open (each /friends call counts as open, so a page asking every 30 s shows as
+// open now), and gives that device the invites to its own Riot IDs. /invite keeps an invite to a Riot ID's apps for
+// 10 minutes, from a device that has said hello, one from each device to each Riot ID (a new one replaces it).
+// ponytail: anyone can say hello with anyone's Riot ID and so get their invites, room password included; fine among
+// friends, a sign-in through League's client if strangers ever use it
+const low = (n) => n.toLowerCase();
 export class Stats extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, PRIMARY KEY (dest, src))');
+  }
+  friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, at }] }
+    const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
+    sql.exec('DELETE FROM invites WHERE at < ?', now - 600);
+    // ponytail: reads every app each time, fine for hundreds; a table of Riot IDs if it's ever thousands
+    for (const r of sql.exec('SELECT id, riot, last FROM apps WHERE last > ?', now - 90 * 86400))
+      if (r.id !== id) for (const n of JSON.parse(r.riot).map(low)) if (want.has(n)) has[n] = Math.max(has[n] || 0, r.last);
+    const me = id && sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    if (!me) return { has, inv: [] };
+    sql.exec('UPDATE apps SET last = ? WHERE id = ?', now, id);
+    const mine = JSON.parse(me.riot).map(low);
+    const inv = mine.length ? sql.exec(`SELECT a.name AS n, a.riot, i.room, i.key, i.at FROM invites i JOIN apps a ON a.id = i.src WHERE i.dest IN (${mine.map(() => '?').join()})`, ...mine).toArray() : [];
+    return { has, inv: inv.map((x) => ({ ...x, riot: JSON.parse(x.riot)[0] || '' })) };
+  }
+  invite(id, to, room, key) {
+    const sql = this.ctx.storage.sql;
+    if (!sql.exec('SELECT 1 FROM apps WHERE id = ?', id).toArray().length) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Settings > App first' };
+    sql.exec('INSERT OR REPLACE INTO invites VALUES (?, ?, ?, ?, ?)', low(to), id, room, key, Math.round(Date.now() / 1000));
+    return { ok: true };
   }
   hello({ id, v, name, riot }) {
     const now = Math.round(Date.now() / 1000);
