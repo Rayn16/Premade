@@ -1,6 +1,9 @@
 // Checks the daily counter (/stats) under `wrangler dev`: rooms and players are counted once a day, a taken slot and
 // phone remotes aren't counted, and the same address in two rooms is one player. And who has Premade: /hello keeps
-// each device's version, name and Riot IDs with when it first and last opened, and only the owner's key gets /who.
+// each device's version, name and Riot IDs with when it first and last opened, and only the owner's key gets /who, with
+// no line for a page on the same computer (our tests) or like the ones they made before. And
+// Friends: /friends says which Riot IDs have Premade (any case, not your own device) and gives a device the invites to
+// its Riot IDs; /invite needs a device that said hello, and a new invite from the same device replaces the last; lob, a lobby's hash, comes back as it was sent.
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -55,6 +58,10 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan the very long voice name', riot: ['Rayan#EUW', 'no tag', 'Smurf#1234', 42] })).status, 204);
   await sleep(1100);
   assert.equal((await post('/hello', { id: A, v: 'web', name: 'Kev', riot: ['Kev#NA1'] })).status, 204); // the same device again, now with a name
+  const T = '3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f', U = '4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f8a';
+  const local = await fetch(BASE + '/hello', { method: 'POST', headers: { origin: 'http://127.0.0.1:8083' }, body: JSON.stringify({ id: T, v: '1.15.0', name: 'Ana', riot: [] }) });
+  assert.equal(local.status, 204); // a page on the same computer, one of our tests: not kept
+  assert.equal((await post('/hello', { id: U, v: '1.13.0', name: 'Rayan', riot: [] })).status, 204); // like our tests' pages made before: gone at /who
   for (const key of [undefined, '', 'the owner kez', 'the owner key!']) assert.equal((await post('/who', { key })).status, 403, String(key));
   assert.equal((await fetch(BASE + '/who')).status, 404); // only POST
   const w = await post('/who', { key: OWNER });
@@ -67,5 +74,21 @@ function join(id, token, ip) { // resolves with the server's first message type:
   ]);
   assert(apps.every((a) => Math.abs(a.last - now) < 30 && a.first <= a.last), JSON.stringify(apps));
   assert(apps[0].first < apps[0].last, 'the first opening is kept');
+  const C = '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e', fr = async (b) => (await post('/friends', b)).json();
+  assert.deepEqual((await fr({ riot: ['Kev#NA1'] })).has, {}, 'not until Kev’s own page asks /friends');
+  await fr({ id: A, riot: [] });
+  const kev = (await fr({ riot: ['Kev#NA1'] })).has['kev#na1'];
+  assert(Math.abs(kev - now) < 30, 'Kev has Premade');
+  assert.deepEqual(await fr({ id: B, riot: ['kev#na1', 'rayan#euw', 'Nobody#EUW', 'bad'] }), { has: { 'kev#na1': kev }, inv: [] }); // not your own
+  assert.deepEqual(await fr({ id: 'nope', riot: 'x' }), { has: {}, inv: [] });
+  for (const bad of [{}, { id: B, to: 'Kev', room: 'abcd' }, { id: B, to: 'Kev#NA1', room: 'AB CD' }, { id: B, to: 'Kev#NA1', room: 'abcd', key: 'NO1' }, { id: B, to: 'Kev#NA1', room: 'abcd', key: ['a'] }, { id: B, to: 'Kev#NA1', room: 'abcd', lob: 'abc' }, { id: B, to: 'Kev#NA1', room: 'abcd', lob: 'A'.repeat(64) }])
+    assert.equal((await post('/invite', bad)).status, 400, JSON.stringify(bad));
+  assert.match((await (await post('/invite', { id: C, to: 'Kev#NA1', room: 'abcd' })).json()).error || '', /^Turn on/); // a device that never said hello
+  assert.deepEqual(await (await post('/invite', { id: B, to: 'KEV#na1', room: 'abcd', key: '' })).json(), { ok: true });
+  assert.deepEqual(await (await post('/invite', { id: B, to: 'Kev#NA1', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) })).json(), { ok: true }); // replaces it
+  const { inv } = await fr({ id: A, riot: [] });
+  assert.deepEqual(inv.map(({ at, ...v }) => v), [{ n: 'Rayan the very long voic', riot: 'Rayan#EUW', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) }]);
+  assert.deepEqual((await fr({ id: B, riot: [] })).inv, []);
+  assert.deepEqual((await fr({ id: '', riot: [] })).inv, [], 'no device, no invites');
   console.log('stats ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} fs.rmSync(persist, { recursive: true, force: true }); });

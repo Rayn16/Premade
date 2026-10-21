@@ -3,7 +3,8 @@
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
 // Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only those with its
 // password. /stats counts rooms and players each day for the voice page (Settings > Our server), and /hello and /who
-// are who has Premade (both in the Stats object). /push/... is the phone remote's notifications (push.js), /squad/...
+// are who has Premade, and /friends and /invite which of your friends have it and invites to your room (all in the Stats
+// object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
 // own. /riot/... is Riot data (the Riot object, at the end).
 import { DurableObject } from 'cloudflare:workers';
@@ -18,10 +19,13 @@ const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: 
 const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(0, 10); // UTC
 // what a page says when Premade opens (/hello): its device's own random id, the app version ('web' on the website,
 // 'old' before 1.3), its voice name and its League accounts' Riot IDs; null for anything else
+const DEVICE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const riotIdList = (a, n) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(x)).slice(0, n) : []);
+// a page served from the same computer: one of our tests, not anyone's Premade, so its hello isn't kept
+const LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
 const helloOf = (b) => {
-  if (!b || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
-  const riot = Array.isArray(b.riot) ? b.riot.filter((n) => typeof n === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(n)).slice(0, 10) : [];
-  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot };
+  if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10) };
 };
 // the owner's key (the secret OWNER_KEY), checked in constant time; nobody is the owner without one
 const owner = (env, key) => {
@@ -43,8 +47,15 @@ export default {
       if (url.pathname === '/who') return owner(env, b && b.key) ? Response.json({ apps: await stats(env).who() }, { headers: CORS }) : new Response('Not the owner key', { status: 403, headers: CORS });
       const h = helloOf(b);
       if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
-      await stats(env).hello(h);
+      if (!LOCAL.test(req.headers.get('origin') || '')) await stats(env).hello(h);
       return new Response(null, { status: 204, headers: CORS });
+    }
+    if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) { // a plain text body too
+      const b = await req.json().catch(() => null), id = b && DEVICE.test(b.id) ? b.id : '';
+      if (url.pathname === '/friends') return Response.json(await stats(env).friends(id, riotIdList(b && b.riot, 300)), { headers: CORS });
+      const [to] = riotIdList(b && [b.to], 1), room = b && /^[a-z0-9]{1,20}$/.test(b.room) ? b.room : '', key = (b && b.key) ?? '', lob = (b && b.lob) ?? '';
+      if (!id || !to || !room || typeof key !== 'string' || !/^[a-z]{0,12}$/.test(key) || typeof lob !== 'string' || !/^([0-9a-f]{64})?$/.test(lob)) return Response.json({ error: 'Not an invite' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).invite(id, to, room, key, lob), { headers: CORS });
     }
     const code = /^\/push\/([a-z0-9]{12})(\/ring)?$/.exec(url.pathname); // the phone remote's notifications (push.js)
     if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
@@ -134,12 +145,45 @@ export class Room extends DurableObject {
 // Who has Premade (apps), for its owner only (/who): each device that opened it, by the random id it made itself, with
 // what its last hello said (helloOf) and when it first and last opened Premade (seconds); kept a year from the last.
 // ponytail: anyone can add a line, fine for a friends' app; a limit for each address if it ever gets spammed
+// Friends (the Voice page's Friends): /friends says which of the Riot IDs asked about a device opened Premade with in
+// the last 90 days and when it was last open, only for devices that asked /friends themselves (friendly), so ones
+// whose page has Friends and whose Settings say friends can see them. Each /friends call counts as open (kept at most
+// every 45 s, so a page asking every 30 s, or 10 s in a lobby, shows as open now: under 90 s), and it gives that device
+// the invites to its own Riot IDs. /invite keeps an invite to a Riot ID's apps for
+// 10 minutes, from a device that has said hello, one from each device to each Riot ID (a new one replaces it). lob: for
+// an invite to a League lobby's member, a hash of the lobby's party id and the room, which only someone really in that
+// lobby can make, so the invited page joins by itself only when it matches its own lobby ('' for none).
+// ponytail: anyone can say hello with anyone's Riot ID and so get their invites, room password included; fine among
+// friends, a sign-in through League's client if strangers ever use it
+const low = (n) => n.toLowerCase();
 export class Stats extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
+    ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, lob TEXT NOT NULL DEFAULT '', PRIMARY KEY (dest, src))");
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
+  }
+  friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, lob, at }] }
+    const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
+    sql.exec('DELETE FROM invites WHERE at < ?', now - 600);
+    // ponytail: reads every app each time, fine for hundreds; a table of Riot IDs if it's ever thousands
+    for (const r of sql.exec('SELECT a.id, a.riot, a.last FROM apps a JOIN friendly f ON f.id = a.id WHERE a.last > ?', now - 90 * 86400))
+      if (r.id !== id) for (const n of JSON.parse(r.riot).map(low)) if (want.has(n)) has[n] = Math.max(has[n] || 0, r.last);
+    const me = id && sql.exec('SELECT riot, last FROM apps WHERE id = ?', id).toArray()[0];
+    if (!me) return { has, inv: [] };
+    sql.exec('INSERT OR IGNORE INTO friendly VALUES (?)', id);
+    if (now - me.last >= 45) sql.exec('UPDATE apps SET last = ? WHERE id = ?', now, id);
+    const mine = JSON.parse(me.riot).map(low);
+    const inv = mine.length ? sql.exec(`SELECT a.name AS n, a.riot, i.room, i.key, i.lob, i.at FROM invites i JOIN apps a ON a.id = i.src WHERE i.dest IN (${mine.map(() => '?').join()})`, ...mine).toArray() : [];
+    return { has, inv: inv.map((x) => ({ ...x, riot: JSON.parse(x.riot)[0] || '' })) };
+  }
+  invite(id, to, room, key, lob) {
+    const sql = this.ctx.storage.sql;
+    if (!sql.exec('SELECT 1 FROM apps WHERE id = ?', id).toArray().length) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Settings > App first' };
+    sql.exec('INSERT OR REPLACE INTO invites (dest, src, room, key, at, lob) VALUES (?, ?, ?, ?, ?, ?)', low(to), id, room, key, Math.round(Date.now() / 1000), lob);
+    return { ok: true };
   }
   hello({ id, v, name, riot }) {
     const now = Math.round(Date.now() / 1000);
@@ -148,7 +192,10 @@ export class Stats extends DurableObject {
   }
   who() { // [{ v, name, riot: [Riot ID], first, last }], the last opened first
     const sql = this.ctx.storage.sql;
-    sql.exec('DELETE FROM apps WHERE last < ?', Math.round(Date.now() / 1000) - 365 * 86400);
+    // a year after the last opening, and the lines our tests' pages made before /hello turned away pages on the same
+    // computer: app 1.13 or 1.15, voice name Rayan, no League account, all within 10 minutes (ponytail: drop that half
+    // once who.html shows none)
+    sql.exec("DELETE FROM apps WHERE last < ? OR (name = 'Rayan' AND riot = '[]' AND v IN ('1.13.0', '1.15.0') AND last - first < 600)", Math.round(Date.now() / 1000) - 365 * 86400);
     return sql.exec('SELECT v, name, riot, first, last FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot) }));
   }
   prune() {
@@ -204,6 +251,7 @@ const LOOKUPS = [ // [path, on a region (else a platform), the query parameters 
 // Cloudflare's free plan, each UTC day: Durable Object requests, SQLite rows read and written, and running time
 // (13,000 GB-s at 128 MB is 101,562.5 s). They're for the whole account: the voice rooms use a little too.
 const FREE = { req: 1e5, read: 5e6, write: 1e5, ms: 101562500 };
+const AUG_DAY = 20000; // rows a day the augment games may write (augIn), about 400 real Mayhem games, so with the crawl's ~57k the day stays under FREE.write
 const LADDER = (p) => (p === 'kr' ? 'ladder' : `ladder:${p}`); // where a server's ladder is kept (Korea's from before the others)
 const KEEP = 500; // games kept for each champion and role: a new one takes a random place, so older ones thin out
 const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
@@ -329,9 +377,10 @@ export class Riot extends DurableObject {
   }
   // A game's augments from a Premade app, which read them from League's client: { g: its id (EUW1_123), ps: each of
   // the 10 players' { c: champion, w: 1 if they won, a: augment ids } } for ARAM: Mayhem, or { g, s: the set, ps: each
-  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 30 an
-  // hour. 'ok', or why not.
-  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 30 an hour from each address
+  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 200 an
+  // hour. 'ok', or why not: 'later' once today's (UTC) new games would write more than AUG_DAY rows, so a game to send
+  // again another day. Rows, not games: a made-up game with 8 augments for everyone writes twice a real one's.
+  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 200 an hour from each address
   augIn(kind, text, ip) {
     let b;
     try { b = JSON.parse(text); } catch { return 'not JSON'; }
@@ -342,10 +391,16 @@ export class Riot extends DurableObject {
       : !(Number.isInteger(b.s) && b.s > 0 && b.s < 100 && ps.length === 8 && ps.every((p) => p && Number.isInteger(p.p) && Array.isArray(p.a) && p.a.length <= 4 && p.a.every((a) => typeof a === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(a)))
         && ps.map((p) => p.p).sort((x, y) => x - y).join() === '1,2,3,4,5,6,7,8')) return 'not a game';
     const now = Date.now(), mine = (this.sent.get(ip) || []).filter((t) => now - t < 3600000);
-    if (mine.length >= 30) return 'too many';
+    if (mine.length >= 200) return 'too many';
     this.sent.set(ip, [...mine, now]);
     if (this.sent.size > 500) for (const [k, t] of this.sent) if (now - t[t.length - 1] > 3600000) this.sent.delete(k);
     if (this.sql.exec('SELECT 1 FROM augseen WHERE g = ?', b.g).toArray().length) return 'ok';
+    const d = this.get('augday', {}); // histories sent at once mustn't use up the day's rows written
+    if (d.day !== day()) Object.assign(d, { day: day(), n: 0 });
+    const rows = 2 + ps.reduce((n, p) => n + (may ? 1 + p.a.length : new Set(p.a).size), 0); // with augseen's and augday's
+    if (d.n + rows > AUG_DAY) return 'later';
+    d.n += rows;
+    this.put('augday', d);
     this.sql.exec('INSERT INTO augseen VALUES (?, ?)', b.g, Math.round(now / 1000));
     for (const p of ps) {
       if (may) for (const a of [0, ...p.a]) this.sql.exec('INSERT INTO mayhem VALUES (?, ?, 1, ?) ON CONFLICT (c, a) DO UPDATE SET n = n + 1, w = w + excluded.w', p.c, a, p.w);
