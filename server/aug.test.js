@@ -1,6 +1,6 @@
 // Checks the augment ratings (/riot/mayhem and /riot/tftaug) under `wrangler dev`: Premade apps send their games'
-// augments, each game counts once, bad games, an address's 201st game in an hour and the day's 401st are refused, and the counts come
-// back by champion (Mayhem) and for the newest set (TFT).
+// augments, each game counts once, bad games, an address's 201st game in an hour and games past the day's 20,000
+// rows written are refused, and the counts come back by champion (Mayhem) and for the newest set (TFT).
 // WRANGLER=<path to wrangler> node aug.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -43,9 +43,13 @@ const tft = (g, s) => ({ g, s, ps: Array.from({ length: 8 }, (_, i) => ({ p: i +
     for (let i = 0; i < 200; i++) await send('mayhem', may('KR_' + (8000000 + i)), '203.0.113.7');
     assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.7'), 'too many', 'the 201st in an hour');
     assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.8'), 'ok', 'another address');
-    for (let i = 0; i < 194; i++) assert.equal(await send('mayhem', may('KR_' + (9000000 + i)), '203.0.113.9'), 'ok'); // 206 games were in, the day takes 400
-    assert.equal(await send('mayhem', may('KR_9999999'), '203.0.113.10'), 'later', 'the 401st new game today');
+    const heavy = (g) => ({ g, ps: may(g).ps.map((p) => ({ ...p, a: [1, 2, 3, 4, 5, 6, 7, 8] })) }); // 92 rows, a real Mayhem game about 52
+    // 4,704 rows so far today: Mayhem games of 23 and 22 rows, 3 TFT games of 12, then 201 games of 23
+    for (let i = 0; i < 166; i++) assert.equal(await send('mayhem', heavy('KR_' + (9000000 + i)), '203.0.113.9'), 'ok'); // 19,976 rows
+    assert.equal(await send('mayhem', heavy('KR_9999998'), '203.0.113.9'), 'later', 'past the day\'s 20,000 rows');
+    assert.equal(await send('mayhem', may('KR_9999999'), '203.0.113.10'), 'ok', 'a light game still fits');
+    assert.equal(await send('mayhem', may('KR_9999997'), '203.0.113.10'), 'later', 'and then the day is full');
     assert.equal(await send('mayhem', may('KR_8000000'), '203.0.113.10'), 'ok', 'a game already in still answers ok');
-    console.log('augment ratings: games counted once, bad ones refused, 200 an hour from an address (a history sent at once) and 400 a day, counts by champion and for the newest set');
+    console.log('augment ratings: games counted once, bad ones refused, 200 an hour from an address (a history sent at once) and 20,000 rows a day, counts by champion and for the newest set');
   } finally { process.kill(-wr.pid); }
 })().catch((e) => { console.error(e); process.exitCode = 1; });
