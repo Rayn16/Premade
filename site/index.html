@@ -437,6 +437,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .note b { color: var(--gold); }
 .tipsbox ul { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
 .tipsbox li { margin: 4px 0; }
+.blist { margin: 6px 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.blist li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto auto; gap: 6px; align-items: center; }
+.blist img { width: 24px; height: 24px; border-radius: 3px; }
+.blist .sub { font-size: 12px; }
+.blist li[data-k="have"] { opacity: 0.6; }
+.blist li[data-k="next"] span:not(.sub) { color: var(--gold); font-weight: 600; }
 .noteedit summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .noteedit form { margin-top: 8px; }
 .noteedit textarea { font: 14px/1.4 var(--body); padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); width: min(32em, 100%); }
@@ -930,7 +936,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <form id="pickForm" class="pick" hidden>
                   <label>Or tell it your champion <input id="champ" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
                   <button class="btn" type="submit">Find me</button>
-                  <datalist id="champs"></datalist>
+                  <datalist id="champs"></datalist><datalist id="itemList"></datalist>
                 </form>
               </div>
             </div>
@@ -1076,6 +1082,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="runesNote" class="hint" role="status"></p>
         <div class="toolbar"><button id="runesOther" class="btn small" type="button" hidden></button><button id="runesVs" class="btn small" type="button" hidden></button></div>
         <p id="buildNote" class="hint" role="status"></p>
+        <div id="csBuild" class="buildbox" hidden><h3 class="ph"></h3><p class="hint bwhy"></p><ol class="blist"></ol><form class="pick badd"><label>Add an item <input list="itemList" autocomplete="off" spellcheck="false" placeholder="Item name"></label><button class="btn small" type="submit">Add</button><button class="btn small breset" type="button" hidden>Back to Premade’s build</button></form></div>
         <p id="skillNote" class="hint"></p>
         <p id="topNote" class="hint"></p>
         <div id="csTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
@@ -1176,6 +1183,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="laneStats" class="phase" role="status" hidden></p>
         <p id="augTips" class="phase" hidden></p>
         <div id="gameTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
+        <div id="liveBuild" class="buildbox" hidden><h3 class="ph"></h3><p class="hint bwhy"></p><ol class="blist"></ol><form class="pick badd"><label>Add an item <input list="itemList" autocomplete="off" spellcheck="false" placeholder="Item name"></label><button class="btn small" type="submit">Add</button><button class="btn small breset" type="button" hidden>Back to Premade’s build</button></form></div>
         <p id="liveAvg" class="hint" hidden></p>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
@@ -4088,15 +4096,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!c || !POS[role]) return null;
     itemsSoon();
     const top = topMineNow(+c.key, role, renderGame), it = (id) => (ddItems && ddItems[id]) || {}, fin = (id) => !!(it(id).done || it(id).boots);
-    if (!ddItems || !topOk(top)) return null;
-    const key = JSON.stringify([c.key, role, m.items, league.players.filter((p) => p.team !== m.team).map((p) => [p.champ, p.items, p.k])]);
+    if (!ddItems || !(topOk(top) || myBuild(+c.key, role))) return null;
+    const mb = myBuild(+c.key, role), key = JSON.stringify([c.key, role, m.items, mb, league.players.filter((p) => p.team !== m.team).map((p) => [p.champ, p.items, p.k])]);
     if (buyWas.top === top && buyWas.key === key) return buyWas.out;
     buyWas = { top, key, out: null };
-    const have = new Set((m.items || []).map(([id]) => id).filter(fin)), shod = [...have].some((id) => it(id).boots), n = new Map(), paired = new Set(), score = new Map();
+    const have = new Set([...owned(m.items)].filter(fin)), shod = [...have].some((id) => it(id).boots), n = new Map(), paired = new Set(), score = new Map();
+    if (mb) { const id = nextOf(mb, have); return (buyWas.out = id ? { name: it(id).name, pic: itemPic(id), why: 'next in your build' } : null); } // the build you changed, in your order
+    const up = (x) => !(shod && it(x).boots && !it(x).from.some((f) => have.has(f))); // boots only as an upgrade of yours
     for (const s of top.buys.map((b) => [...new Set(b.map(([, id]) => id).filter(fin))])) {
       for (const x of s) { n.set(x, (n.get(x) || 0) + 1); for (const y of s) if (have.has(y)) paired.add(`${x},${y}`); }
       const like = (s.filter((x) => have.has(x)).length + 1) / (have.size + 1); // how much of your build this game's has
-      s.filter((x) => !have.has(x) && !(shod && it(x).boots)).forEach((x, i) => score.set(x, (score.get(x) || 0) + like / (i + 1)));
+      s.filter((x) => !have.has(x) && up(x)).forEach((x, i) => score.set(x, (score.get(x) || 0) + like / (i + 1)));
     }
     for (const x of score.keys()) if (n.get(x) >= 3 && [...have].some((y) => n.get(y) >= 3 && !paired.has(`${x},${y}`))) score.delete(x);
     if (!score.size) return null;
@@ -5341,12 +5351,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // lane opponent (once for each size of gap). I'm new adds why, and what to do.
   let coachSaid = { room: '', set: new Set() };
   const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
-  function nextBuy() { // the next item of your build (champ select's, else yours) you haven't got: { id, name, left (its gold less the parts you have) }
+  // What you have, for what to buy next: your items, what they're built from (so tier 3 boots have their tier 2 boots)
+  // and the item a transformed one was (Muramana was Manamune), so none of them comes up again once bought.
+  // ponytail: a hand list of the Rift's items that transform; Data Dragon doesn't link them, so add new ones here
+  const GREW = { 3042: 3004, 3040: 3003, 3121: 3119 };
+  function owned(items) {
+    const out = new Set(), add = (id) => { if (!id || out.has(id)) return; out.add(id); add(GREW[id]); for (const f of ((ddItems && ddItems[id]) || {}).from || []) add(f); };
+    for (const [id] of items || []) add(+id);
+    return out;
+  }
+  function nextBuy() { // the next item of your build (yours as you changed it, else champ select's, else your own) you haven't got: { id, name, left (its gold less the parts you have) }
     const m = meIn(), c = m && champOf(m.champ);
     if (!c || !ddItems) return null;
-    const pos = posIn(m), t = topMineNow(+c.key, pos, () => {}), b = topOk(t) ? buildFrom(t.buys) : buildOf(+c.key, pos), have = (m.items || []).map(([i]) => i);
-    const id = b && [...b.core, ...(b.boots ? [b.boots] : []), ...b.more].find((i) => ddItems[i] && !have.includes(i));
-    return id ? { id, name: ddItems[id].name, left: ddItems[id].gold - ddItems[id].from.filter((f) => have.includes(f)).reduce((n, f) => n + ((ddItems[f] || {}).gold || 0), 0) } : null;
+    const pos = posIn(m), mb = myBuild(+c.key, pos), t = mb ? null : topMineNow(+c.key, pos, () => {}), b = mb ? null : topOk(t) ? buildFrom(t.buys) : buildOf(+c.key, pos), have = owned(m.items);
+    const id = nextOf(mb || (b ? [...b.core, b.boots, ...b.more].filter(Boolean) : []), have);
+    return id ? { id, name: ddItems[id].name, left: ddItems[id].gold - ddItems[id].from.filter((f) => have.has(f)).reduce((n, f) => n + ((ddItems[f] || {}).gold || 0), 0) } : null;
   }
   function coachTick() {
     if (!opts.coach || !callsOn() || !SR.test(league.mode)) return;
@@ -5836,6 +5855,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       $('liveAvg').hidden = !lb;
       $('liveAvg').textContent = lb ? lb.text : '';
       renderNotes($('liveNotes'), myChampNow(), rows.filter((p) => !p.ally).map((p) => p.champ).filter(Boolean));
+      const mi = meIn();
+      renderBuild($('liveBuild'), myChampNow(), mi ? posIn(mi) : (livePlayers.find((p) => me0 && p.puuid === me0.puuid) || {}).pos || '');
       const g = teamGold(), tm = timers();
       $('timers').replaceChildren(...[...tm.map(([n, s]) => [n, clock(s)]), ...(g ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`], ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])] : [])]
         .map(([n, v]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, v); return s; }));
@@ -5905,6 +5926,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const duo = DUO[myPos()] ? laneFoe(DUO[myPos()]) : 0; // and their other bot laner, for an ADC or a support
     renderTips($('csTips'), mineC && (foe || duo) && POS[myPos()] ? tipsFor(mineC, foe, myPos(), duo) : null);
     renderNotes($('csNotes'), mineC, theirs);
+    renderBuild($('csBuild'), mineC, myPos());
   }
   // a champion button: click to hover it, and on your turn click it again to lock it in (or ban it); or click does what's given
   function champBtn(id, sub, a, click) {
@@ -7198,6 +7220,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           st: { ar: +s.FlatArmorMod || 0, mr: +s.FlatSpellBlockMod || 0, ad: +s.FlatPhysicalDamageMod || 0, ap: +s.FlatMagicDamageMod || 0 },
           pen: tags.includes('ArmorPenetration') ? 'ar' : tags.includes('MagicPenetration') ? 'mr' : '', gw: /Grievous Wounds/i.test(d) }];
       }));
+      for (const it of Object.values(ddItems)) if (!it.boots && it.from.some((f) => ddItems[f] && ddItems[f].boots)) it.boots = true; // tier 3 boots, tagged or not
       itemGold = Object.fromEntries(Object.entries(ddItems).map(([id, it]) => [id, it.gold]));
     }).catch(() => {});
   }
@@ -7262,9 +7285,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const top = await topMine(champ, pos);
     for (let i = 0; i < 10 && !ddItems; i++) await sleep(500);
     const b = buildOf(champ, pos), t = topOk(top) && ddItems ? buildFrom(top.buys) : null, name = champName(champ);
-    if (!b && !(t && t.core.length)) { buildNote = ddItems ? `No build of yours on ${name} yet: it comes from your games on it.` : ''; return renderGame(); }
+    if (!b && !(t && t.core.length) && !myBuild(champ, pos)) { buildNote = ddItems ? `No build of yours on ${name} yet: it comes from your games on it.` : ''; return renderGame(); }
     const block = (type, ids) => ({ type, hideIfSummonerSpell: '', showIfSummonerSpell: '', items: ids.map((id) => ({ id: String(id), count: 1 })) });
-    const E = top && eloIn(top.elo, true), blocks = [...(t && t.core.length ? [t.start.length && block(`${E} start`, t.start), block(`${E} first items, in order`, t.core), t.boots && block(`${E} boots`, [t.boots]), t.more.length && block(`${E} also build`, t.more)] : []),
+    const mb = myBuild(champ, pos), E = top && eloIn(top.elo, true), blocks = [...(mb ? [block('Your build, as you changed it', mb)] : []), ...(t && t.core.length ? [t.start.length && block(`${E} start`, t.start), block(`${E} first items, in order`, t.core), t.boots && block(`${E} boots`, [t.boots]), t.more.length && block(`${E} also build`, t.more)] : []),
       ...(b ? [b.start.length && block('Your start', b.start), b.core.length && block(b.timed ? 'Your first items, in order' : 'Your usual items', b.core), b.boots && block('Your boots', [b.boots]), b.more.length && block('You also build', b.more)] : [])].filter(Boolean);
     const set = { uid: `lpc-${champ}`, title: `LPC ${name}`.slice(0, 25), mode: 'any', map: 'any', type: 'custom', sortrank: 0, startedFrom: 'blank', associatedChampions: [champ], associatedMaps: [11], blocks, preferredItemSlots: [] };
     const path = `/lol-item-sets/v1/item-sets/${me0.summonerId}/sets`, cur = await lcuGet(path);
@@ -7272,6 +7295,92 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     buildNote = !okStatus(r) ? 'Couldn’t add the build to League’s shop.' : !(t && t.core.length) ? `Items: your build on ${name} from ${b.n} of your games is in League’s shop as “${set.title}”.`
       : `Items: the ${eloIn(top.elo)} build on ${name} (from ${top.n} games)${b ? ` and yours (from ${b.n} of your games) are` : ' is'} in League’s shop as “${set.title}”.`;
     renderGame();
+  }
+  // ---- the build you can change (What's new 47): the whole build what to buy next goes by, on the Pregame page once
+  // you've a champion and on the Game page in a game, with why Premade picked it: the most popular build at your rank
+  // (buildFrom over topMineNow's games, with how many games had each item and what the games with all three first
+  // items won), else your own usual build. Move items up and down, take them out or add others; your build is kept for
+  // that champion and role (lpc-builds: { "champion/role": [item ids] }) and then what to buy next (the overlay, the
+  // coach and League's shop item set) goes by it, in your order.
+  let myBuilds = load('lpc-builds', {});
+  if (!myBuilds || typeof myBuilds !== 'object' || Array.isArray(myBuilds)) myBuilds = {};
+  const buildKey = (c, pos) => `${c}/${pos || ''}`;
+  const myBuild = (c, pos) => { const l = myBuilds[buildKey(c, pos)]; return Array.isArray(l) && l.length ? l.filter(Number.isInteger) : null; };
+  // Premade's build for a champion and role: { ids, why, of (item -> how many games had it), n (games) } or null
+  function pickedBuild(c, pos, redraw) {
+    if (!ddItems || !c) return null;
+    const top = topMineNow(c, pos, redraw), name = champName(c);
+    if (topOk(top)) {
+      const b = buildFrom(top.buys), ids = [...b.core, b.boots, ...b.more].filter(Boolean), of = new Map();
+      for (const s of top.buys) for (const id of new Set(s.map(([, x]) => x))) of.set(id, (of.get(id) || 0) + 1);
+      const with3 = (top.bw || []).filter((w, i) => b.core.length && b.core.every((x) => top.buys[i].some(([, y]) => y === x))), won = with3.filter(Boolean).length;
+      return { ids, of, n: top.buys.length, why: `Premade’s build: what ${eloIn(top.elo)} players buy on ${name}${POS[top.role] ? ' ' + POS[top.role].toLowerCase() : ''} (${top.buys.length} games${top.patch ? ' this patch' : ''}, counted by our server from Riot’s games). The three items they finish first most, in their usual order, then their boots and what they build after.${with3.length >= 5 ? ` Games with all three first items: won ${pct(won / with3.length)} of ${with3.length}.` : ''}` };
+    }
+    const b = buildOf(c, pos);
+    return b ? { ids: [...b.core, b.boots, ...b.more].filter(Boolean), of: new Map(), n: 0, why: `Your own usual build on ${name}, from ${b.n} of your games: not enough games at your rank yet.` } : null;
+  }
+  // the next item of a build you haven't got: boots only when you've none, or they're an upgrade of yours
+  function nextOf(ids, have) {
+    const it = (id) => (ddItems && ddItems[id]) || {}, shod = [...have].some((id) => it(id).boots);
+    return ids.find((id) => ddItems[id] && !have.has(id) && !(shod && it(id).boots && !it(id).from.some((f) => have.has(f)))) || 0;
+  }
+  const buildWas = new WeakMap();
+  function renderBuild(box, c, pos) {
+    itemsSoon();
+    const picked = pickedBuild(c, pos, renderGame), mineB = c ? myBuild(c, pos) : null, ids = mineB || (picked && picked.ids) || [];
+    box.hidden = !ids.length;
+    if (box.hidden) return;
+    const m = league && meIn(), have = owned(m && +(champOf(m.champ) || {}).key === c ? m.items : []), next = nextOf(ids, have);
+    const key = JSON.stringify([c, pos, ids, [...have], next, picked && picked.why]);
+    if (buildWas.get(box) === key) return;
+    buildWas.set(box, key);
+    box.dataset.c = c;
+    box.dataset.pos = pos || '';
+    box.querySelector('h3').textContent = `${mineB ? 'Your build' : 'Premade’s build'} on ${champName(c)}`;
+    box.querySelector('.bwhy').textContent = mineB ? `You changed this build, so what to buy next goes by it, in this order.${picked ? ' Premade’s is a click away.' : ''}` : picked.why;
+    box.querySelector('.breset').hidden = !mineB;
+    box.querySelector('.blist').replaceChildren(...ids.map((id, i) => {
+      const li = document.createElement('li'), img = Object.assign(new Image(), { src: itemPic(id), alt: '' }), name = document.createElement('span'), sub = document.createElement('span');
+      name.textContent = itemName(id);
+      sub.className = 'sub';
+      name.append(sub);
+      const n = picked && picked.n && picked.of.get(id);
+      sub.textContent = [have.has(id) ? 'You have it' : id === next ? 'Next' : '', n ? `in ${pct(n / picked.n)} of games` : mineB && !(picked && picked.ids.includes(id)) ? 'you added it' : ''].filter(Boolean).join(' · ');
+      li.dataset.k = have.has(id) ? 'have' : id === next ? 'next' : '';
+      const btn = (t, label, f) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: t, ariaLabel: `${label} ${itemName(id)}`, onclick: f });
+      li.append(img, name, btn('↑', 'Move up', () => editBuild(box, (l) => { if (i) l.splice(i - 1, 0, l.splice(i, 1)[0]); })),
+        btn('↓', 'Move down', () => editBuild(box, (l) => { if (i < l.length - 1) l.splice(i + 1, 0, l.splice(i, 1)[0]); })), btn('✕', 'Take out', () => editBuild(box, (l) => l.splice(i, 1))));
+      return li;
+    }));
+  }
+  function editBuild(box, f) {
+    const c = +box.dataset.c, pos = box.dataset.pos, picked = pickedBuild(c, pos, renderGame), l = [...(myBuild(c, pos) || (picked && picked.ids) || [])];
+    f(l);
+    myBuilds[buildKey(c, pos)] = l.slice(0, 12);
+    store.set('lpc-builds', JSON.stringify(myBuilds));
+    if (itemsFor === buildKey(c, pos)) { itemsFor = ''; setItems(c, pos); } // League's shop item set too
+    renderGame();
+  }
+  for (const box of document.querySelectorAll('.buildbox')) {
+    const input = box.querySelector('input');
+    box.querySelector('.badd').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = input.value.trim().toLowerCase(), hit = ddItems && Object.entries(ddItems).find(([, it]) => (it.done || it.boots) && it.rift && it.name.toLowerCase() === v);
+      if (!hit) return notify('Pick an item from the list.', true);
+      input.value = '';
+      editBuild(box, (l) => { if (!l.includes(+hit[0])) l.push(+hit[0]); });
+    });
+    input.addEventListener('focus', () => { // the Rift's finished items and boots, once
+      const dl = $('itemList');
+      if (ddItems && !dl.children.length) dl.append(...[...new Set(Object.values(ddItems).filter((it) => (it.done || it.boots) && it.rift && it.name).map((it) => it.name))].sort().map((n) => Object.assign(document.createElement('option'), { value: n })));
+    });
+    box.querySelector('.breset').addEventListener('click', () => {
+      const c = +box.dataset.c, pos = box.dataset.pos;
+      delete myBuilds[buildKey(c, pos)];
+      store.set('lpc-builds', JSON.stringify(myBuilds));
+      if (itemsFor === buildKey(c, pos)) { itemsFor = ''; setItems(c, pos); }
+      renderGame();
+    });
   }
   // A player's runes or items from a game report, copied into League (desktop app): the runes as a rune page of this
   // app's own ("Copy: ...", one, reused), with the shards from Riot's copy of the game (League's client leaves them
@@ -8783,7 +8892,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       .map((g) => ({ name: g.pro[0], team: String(g.pro[1] || ''), at: (+g.t || 0) * 1000, w: g.w, o: Number.isInteger(g.o) ? g.o : 0, rn: ok(g.rn, 11) ? g.rn : null, s: ok(g.s, 2) ? g.s : null, b: bOf(g) }));
     return { elo: j.t === 'ed' ? 'ed' : '', role: POS[j.role] ? j.role : '', roles: j.roles && typeof j.roles === 'object' ? j.roles : {}, patch: now.length >= 30 ? String(j.patch) : '', n: games.length, w: games.filter((g) => g.w).length, all, yvs: (j.y && j.y.vs) || {},
       runes: rn ? { perks: rn[0].split(',').map(Number), n: rn[1][0], w: rn[1][1] } : null, spells: sp ? sp[0].split(',').map(Number) : null,
-      buys: games.map(bOf).filter((b) => b.length), skills: games.map((g) => g.k).filter(skOk), ones, pros,
+      buys: games.map(bOf).filter((b) => b.length), bw: games.filter((g) => bOf(g).length).map((g) => g.w), skills: games.map((g) => g.k).filter(skOk), ones, pros,
       vs: [...vs.values()].map((v) => ({ c: v.c, n: v.n, w: v.w, gold: v.gold.length ? Math.round(v.gold.reduce((a, b) => a + b, 0) / v.gold.length) : null })).sort((a, b) => b.n - a.n) };
   }
   const topOk = (t) => !!t && t.n >= 10; // enough games to go by
@@ -11413,6 +11522,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [47, 'October 21: see and change your build', [
+      'What to buy next no longer suggests an item you already have: tier 3 boots like Gunmetal Greaves count as boots, and Muramana, Seraph’s Embrace and Fimbulwinter count as the Manamune, Archangel’s Staff and Winter’s Approach they grew from.',
+      'Your whole build now shows in champ select once you have a champion, and on the Game page in a game: the items in order, which you have and which is next, how many games had each one, and why Premade picked it (what players at your rank buy, and what the games with its first three items won).',
+      'Change it to your liking: move items up or down, take them out or add others. Your build is kept for that champion and role, and what to buy next, the coach and League’s shop go by it. Back to Premade’s build undoes it.',
+    ]],
     [44, 'October 20: righter callouts, and Alt+V for the overlay', [
       'Alt+V now shows everyone’s rank in a game and hides or brings back the overlay (it was Ctrl+Shift+O). You can still change it in Settings, Keyboard shortcuts. App 1.17 makes the overlay shortcut work every time: Windows used to skip it while you also held Shift or Ctrl (attack move, levelling an ability) or when another app had taken it, and holding it a moment too long flipped the overlay twice.',
       'Callouts are right more often: “heading your way” only when their jungler walks straight at you, not when you walk toward them or they pass by; no “Jungler in mid” for a jungler in a base; their jungler stays their jungler after selling the jungle pet, so they’re never called a missing laner; dead players come back on League’s own respawn timer; and a jungler or gank callout that waited more than 4 seconds behind another is dropped instead of showing late.',
@@ -11857,6 +11971,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'On unless you turn it off: the Overlay page, What it shows. Drag it anywhere in Layout.', '#optDeadTips', 'app'],
       ['What to buy next', 'While you’re dead or in your base, the next item for this game, from what players at your rank build on your champion and the other team’s damage, healing, armor and magic resist, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
         'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayBuy', 'app'],
+      ['Your build', 'The whole build what to buy next goes by, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion and what those games won. Move items, take them out or add others; it’s kept for that champion and role.',
+        'In champ select once you have a champion, and on the Game page in a game.', '#csBuild', 'app'],
       ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',
         'On unless you turn it off: the Overlay page, What it shows. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
