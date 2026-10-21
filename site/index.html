@@ -946,8 +946,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </div>
       <section id="groupBox" class="panel" aria-labelledby="h-group">
         <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
-        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="squad">Squad</button><button class="tab" type="button" role="tab" data-gt="pickem">Pick’em</button></div>
-        <div class="stack" data-gt="squad">
+        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button><button class="tab" type="button" role="tab" data-gt="pickem">Pick’em</button></div>
+        <div class="stack" data-gt="friends">
+          <div id="frInvBox" class="stack" hidden></div>
+          <p id="frNote" class="hint" role="status"></p>
+          <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
+          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn" type="submit">Add</button></form>
+          <label class="check"><input id="optLobbyRoom" type="checkbox"> Friends in my League lobby who have Premade join my voice room by themselves, and I join theirs</label>
+        </div>
+        <div class="stack" data-gt="squad" hidden>
           <p id="sqNote" class="hint" role="status"></p>
           <ul id="sqList" class="plain"></ul>
           <div id="sqCallBox" class="stack" hidden>
@@ -1607,7 +1614,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
-          <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade see I have it: my League accounts, voice name and app version</label>
+          <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, voice name and app version</label>
           <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
@@ -1786,7 +1793,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover>A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
+<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who has it open now. Invite puts a popup in their Premade to join your voice room, no code needed; it lasts 10 minutes. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -1828,7 +1835,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // Settings kept in this browser. keys: shortcuts as "Ctrl+Shift+M", push to talk as a KeyboardEvent code ("KeyV") or "Mouse4".
   const opts = {
-    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true, zoom: 1,
+    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, lobbyRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
@@ -11233,12 +11240,114 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (r.error) notify(`Couldn’t answer: ${r.error.toLowerCase()}.`, true);
     sqAt = -Infinity;
   }
-  let gTab = store.get('lpc-group-tab') === 'pickem' ? 'pickem' : 'squad';
+  // ---- Friends (Your group's first tab): your League friends (desktop app, from League's client) and friends added by
+  // Riot ID (lpc-friends), with who has Premade and who has it open now, from our server (server/worker.js /friends:
+  // the Riot IDs each device's hello gave). Invite leaves an invite to your room for that Riot ID's Premade (/invite,
+  // kept 10 minutes); each page asks /friends every 30 s (10 s in a League lobby), which also brings its invites.
+  // opts.lobbyRoom: friends with Premade in your League lobby get invited by themselves, once each time you join a room
+  // (so also when you make one after they joined the lobby, and not again after they leave it), and an invite from
+  // someone in your lobby is joined by itself when you aren't in a room you joined yourself. With Who has Premade off
+  // (opts.hello) the page sends no device id, so it gets no invites and friends don't see it.
+  let frMine = load('lpc-friends', []), frLol = [], frHas = {}, frInv = [], frAt = -Infinity, frLolAt = -Infinity, frBusy = false;
+  if (!Array.isArray(frMine)) frMine = [];
+  const frSeen = new Set(), frAsked = new Map(), RIOT_ID = /^[^#]{1,32}#[^#]{1,8}$/; // invites shown; Riot ID -> the room (and when you joined it) it was last invited to
+  const riotOf = (x) => (x && x.gameName ? `${x.gameName}#${x.gameTag || ''}` : '');
+  const lobbyIds = () => (lobby && Array.isArray(lobby.members) ? lobby.members.map(riotOf).filter((n) => RIOT_ID.test(n)) : []);
+  const mineIds = () => new Set(Object.values(accounts).map((a) => acctOf(a && a.n)));
+  async function friendsLoop() {
+    if (frBusy) return;
+    frBusy = true;
+    try {
+      if (client && performance.now() - frLolAt > 60000) {
+        frLolAt = performance.now();
+        const f = await lcuGet('/lol-chat/v1/friends');
+        if (Array.isArray(f)) frLol = f.map((x) => ({ riot: riotOf(x), st: x.product === 'league_of_legends' && !['offline', 'mobile'].includes(x.availability) ? (x.lol && GAME_STATUS[x.lol.gameStatus]) || (x.availability === 'away' ? 'Away' : 'Online in League') : '' })).filter((x) => RIOT_ID.test(x.riot));
+      }
+      if (performance.now() - frAt < (lobby ? 10000 : 30000)) return;
+      frAt = performance.now();
+      const ids = [...new Set([...frMine, ...frLol.map((x) => x.riot), ...lobbyIds()])];
+      const r = await fetch(`${serverUrl}/friends`, { method: 'POST', body: JSON.stringify({ id: opts.hello ? myDevice : '', riot: ids }) }).then((x) => x.json()).catch(() => null);
+      if (!r || typeof r.has !== 'object' || !Array.isArray(r.inv)) return;
+      frHas = r.has;
+      frInv = r.inv;
+      const inLobby = new Set(lobbyIds().map(acctOf));
+      for (const v of frInv) { // invites new to this page
+        const k = `${v.riot}|${v.room}|${v.at}`;
+        if (frSeen.has(k) || room === v.room) { frSeen.add(k); continue; }
+        frSeen.add(k);
+        if (opts.lobbyRoom && inLobby.has(acctOf(v.riot)) && (!peer || autoJoined) && !joining) { // a friend in your lobby: their room
+          if (peer) leaveRoom();
+          await joinRoom(v.room, false, v.key);
+          if (peer && room === v.room) notify(`Joined ${v.n || v.riot}’s voice room, ${v.room.toUpperCase()}, as you’re in their League lobby`, true);
+        } else { notify(`${v.n || v.riot} invites you to their voice room, ${v.room.toUpperCase()}. Join from Friends, on the Voice page.`, true); if (opts.chimes) chime('call'); }
+      }
+      if (opts.lobbyRoom && peer && room && !GAME_ROOM.test(room)) for (const n of lobbyIds()) // your lobby's friends with Premade, once a room
+        if (!mineIds().has(acctOf(n)) && frHas[acctOf(n)] && frAsked.get(acctOf(n)) !== room + joinedAt) { frAsked.set(acctOf(n), room + joinedAt); frInvite(n, true); }
+      renderGroup();
+    } finally { frBusy = false; }
+  }
+  async function frInvite(n, quiet) {
+    if (!peer) await joinRoom(newCode());
+    if (!peer) return;
+    const r = await fetch(`${serverUrl}/invite`, { method: 'POST', body: JSON.stringify({ id: myDevice, to: n, room, key: roomKey }) }).then((x) => x.json()).catch(() => ({ error: 'Our server didn’t answer' }));
+    if (r.error) notify(`Couldn’t invite ${n}: ${r.error}.`, true);
+    else if (!quiet) notify(`Invited ${n} to room ${room.toUpperCase()}: it pops up in their Premade.`, true);
+    else notify(`${n} is in your League lobby, so their Premade is joining your voice room.`);
+  }
+  function renderInvites() {
+    const now = Date.now() / 1000, list = frInv.filter((v) => room !== v.room && now - v.at < 600 && !frSeen.has('x' + v.riot + v.at));
+    const k = JSON.stringify([list, room]);
+    if ($('frInvBox').dataset.key === k) return;
+    $('frInvBox').dataset.key = k;
+    $('frInvBox').hidden = !list.length;
+    $('frInvBox').replaceChildren(...list.map((v) => {
+      const d = document.createElement('div'), p = Object.assign(document.createElement('p'), { className: 'phase', textContent: `${v.n || v.riot} invites you to their voice room, ${v.room.toUpperCase()}.` });
+      const yes = Object.assign(document.createElement('button'), { type: 'button', className: 'btn primary small', textContent: 'Join now', onclick: () => { if (peer) leaveRoom(); joinRoom(v.room, false, v.key); } });
+      const no = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Not now', onclick: () => { frSeen.add('x' + v.riot + v.at); renderInvites(); } });
+      d.className = 'stack';
+      d.append(p, Object.assign(document.createElement('div'), { className: 'toolbar' }));
+      d.lastChild.append(yes, no);
+      return d;
+    }));
+  }
+  function renderFriends() {
+    const now = Date.now() / 1000, mine = mineIds(), byId = new Map();
+    for (const x of frLol) byId.set(acctOf(x.riot), { riot: x.riot, st: x.st, lol: true });
+    for (const n of frMine) if (!byId.has(acctOf(n))) byId.set(acctOf(n), { riot: n, st: '', lol: false });
+    const rows = [...byId.values()].filter((x) => !mine.has(acctOf(x.riot))).map((x) => { const t = frHas[acctOf(x.riot)] || 0; return { ...x, has: t ? (now - t < 90 ? 2 : 1) : 0, mine: frMine.some((n) => acctOf(n) === acctOf(x.riot)) }; })
+      .sort((a, b) => b.has - a.has || !!b.st - !!a.st || a.riot.localeCompare(b.riot));
+    $('frNote').textContent = (!rows.length ? (client ? 'Your League friends show here once League is open. Add other friends by their Riot ID.' : 'Add your friends by their Riot ID. In the desktop app, your League friends show here by themselves.') : '')
+      + (opts.hello ? '' : ' “Let whoever runs Premade and my friends see I have it” is off in Settings > App, so friends can’t see you have Premade or invite you, and you can’t invite them.');
+    const k = JSON.stringify([rows, !!peer && room]);
+    if ($('frRows').dataset.key === k) return;
+    $('frRows').dataset.key = k;
+    $('frRows').replaceChildren(...rows.map((x) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><b></b></td><td class="hint"></td><td></td>';
+      tr.querySelector('b').textContent = x.riot;
+      tr.children[1].textContent = [x.has === 2 ? 'Premade open now' : x.has ? 'Has Premade' : 'No Premade yet', x.st].filter(Boolean).join(' · ');
+      if (x.has) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small' + (x.has === 2 ? ' primary' : ''), textContent: peer ? 'Invite' : 'Make a room and invite', onclick: () => frInvite(x.riot) }));
+      if (x.mine) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Remove', onclick: () => { frMine = frMine.filter((n) => acctOf(n) !== acctOf(x.riot)); store.set('lpc-friends', JSON.stringify(frMine)); renderFriends(); } }));
+      return tr;
+    }));
+  }
+  $('frAdd').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const n = $('frId').value.trim().replace(/\s*#\s*/, '#');
+    if (!RIOT_ID.test(n)) return notify('Type their Riot ID with its tag, like Name#EUW.', true);
+    if (!frMine.some((x) => acctOf(x) === acctOf(n))) { frMine.push(n); store.set('lpc-friends', JSON.stringify(frMine)); }
+    $('frId').value = '';
+    frAt = -Infinity;
+    renderFriends();
+  });
+
+  let gTab = ['squad', 'pickem'].includes(store.get('lpc-group-tab')) ? store.get('lpc-group-tab') : 'friends';
   function renderGroup() {
     if (document.hidden) return;
     for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.setAttribute('aria-selected', String(b.dataset.gt === gTab));
     for (const d of $('groupBox').querySelectorAll('div[data-gt]')) d.hidden = d.dataset.gt !== gTab;
-    if (gTab === 'squad') renderSquad(); else renderPickem();
+    renderInvites();
+    if (gTab === 'friends') renderFriends(); else if (gTab === 'squad') renderSquad(); else renderPickem();
   }
   function renderSquad() {
     const c = squad && sq && sq.call, theirs = !!c && c.from !== squad.id, others = new Map(); // the squads friends in your room are in: code -> their names
@@ -11316,6 +11425,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('peLeague').addEventListener('change', renderPickem);
   async function groupTick() { // once a second
+    friendsLoop();
     const shown = !!$('groupBox').offsetParent;
     if (shown && gTab === 'pickem' && performance.now() - evAt > 60000) evLoad();
     if (shown) renderGroup();
@@ -11505,7 +11615,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(),
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); } }; // what else to redo; pushOverlay for the rest
-  for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
+  for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
@@ -11673,6 +11783,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [51, 'October 21: your friends, and invites to your room', [
+      'Your group, on the Voice page, has a Friends tab: your League friends (in the desktop app) and anyone you add by Riot ID, with who has Premade and who has it open right now.',
+      'Invite a friend who has Premade and their Premade pops up an invite to your voice room: one click and they’re in, no code to send. Not in a room yet? It makes one first.',
+      'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and yours joins theirs when you join their lobby. Turn it off with the box under Friends.',
+    ]],
     [49, 'October 21: overlay fixes', [
       'Hiding the overlay with Alt+V now lasts for that game only: it used to stay hidden in every game after, with no ranks on the loading screen and no card after the game.',
       'With app 1.18: picking another screen in Settings moves the overlay there right away, and when League changes your screen’s resolution or a screen is plugged in or out, the overlay goes back where you put it instead of being moved for good.',
@@ -12018,6 +12133,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Fearless series', 'Custom games where nobody picks a champion already played in the series. Champ select shows the ones used up.', 'The host presses Fearless series in Room games, and again to end it.', '#fsBtn, #createBtn', 'app'],
       ['1v1 referee', 'In a custom game of one player a side, Premade calls the winner by the rules you tick (first blood, 100 CS, first tower) and keeps everyone’s 1v1 record.', 'Customs, in your room: tick the rules.', '#optDuelFb, #createBtn', 'app'],
       ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in your room.', '#h-goals, #createBtn', 'app'],
+      ['Friends and invites', 'Your League friends and friends you add by Riot ID, with who has Premade and who has it open now. Invite pops up in their Premade to join your voice room, no code needed.',
+        'Your group, on the Voice page: Friends. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
+      ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
+        'On unless you turn it off: Your group, on the Voice page, Friends, under the list.', '#optLobbyRoom', 'app'],
       ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
         'Your group, on the Voice page: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
       ['Pick’em', 'Guess the winners of Worlds’ and the big leagues’ matches with your squad: a point for every right guess, with live scores and the last results.', 'Your group, on the Voice page: Pick’em. It needs a squad.', '#groupBox'],
@@ -12192,7 +12311,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
-      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'On unless you turn it off: Settings, App, Let whoever runs Premade see I have it. The Privacy Policy says what’s kept.', '#optHello'],
+      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept.', '#optHello'],
     ]],
   ];
   // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and
@@ -12416,7 +12535,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     patchNow: () => { patchAt = -Infinity; return patchTick(); }, extras: () => extras, // League's version asked now, not in a minute
     watchNow: async () => { for (const w of watchList) await watchOne(w); renderWatch(); },
     teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
-    groupNow: () => { sqAt = evAt = -Infinity; }, // your squad and pick'em's matches asked for now, not in a minute
+    groupNow: () => { sqAt = evAt = frAt = -Infinity; }, // your squad and pick'em's matches asked for now, not in a minute
     quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
     quizQuestions, champSpells,
