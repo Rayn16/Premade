@@ -1,6 +1,7 @@
 // Checks the daily counter (/stats) under `wrangler dev`: rooms and players are counted once a day, a taken slot and
 // phone remotes aren't counted, and the same address in two rooms is one player. And who has Premade: /hello keeps
-// each device's version, name and Riot IDs with when it first and last opened, and only the owner's key gets /who. And
+// each device's version, name and Riot IDs with when it first and last opened, and only the owner's key gets /who, with
+// no line for a page on the same computer (our tests) or like the ones they made before. And
 // Friends: /friends says which Riot IDs have Premade (any case, not your own device) and gives a device the invites to
 // its Riot IDs; /invite needs a device that said hello, and a new invite from the same device replaces the last.
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
@@ -57,6 +58,10 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan the very long voice name', riot: ['Rayan#EUW', 'no tag', 'Smurf#1234', 42] })).status, 204);
   await sleep(1100);
   assert.equal((await post('/hello', { id: A, v: 'web', name: 'Kev', riot: ['Kev#NA1'] })).status, 204); // the same device again, now with a name
+  const T = '3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f', U = '4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f8a';
+  const local = await fetch(BASE + '/hello', { method: 'POST', headers: { origin: 'http://127.0.0.1:8083' }, body: JSON.stringify({ id: T, v: '1.15.0', name: 'Ana', riot: [] }) });
+  assert.equal(local.status, 204); // a page on the same computer, one of our tests: not kept
+  assert.equal((await post('/hello', { id: U, v: '1.13.0', name: 'Rayan', riot: [] })).status, 204); // like our tests' pages made before: gone at /who
   for (const key of [undefined, '', 'the owner kez', 'the owner key!']) assert.equal((await post('/who', { key })).status, 403, String(key));
   assert.equal((await fetch(BASE + '/who')).status, 404); // only POST
   const w = await post('/who', { key: OWNER });

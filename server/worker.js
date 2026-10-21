@@ -21,6 +21,8 @@ const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(
 // 'old' before 1.3), its voice name and its League accounts' Riot IDs; null for anything else
 const DEVICE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const riotIdList = (a, n) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(x)).slice(0, n) : []);
+// a page served from the same computer: one of our tests, not anyone's Premade, so its hello isn't kept
+const LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
 const helloOf = (b) => {
   if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
   return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10) };
@@ -45,7 +47,7 @@ export default {
       if (url.pathname === '/who') return owner(env, b && b.key) ? Response.json({ apps: await stats(env).who() }, { headers: CORS }) : new Response('Not the owner key', { status: 403, headers: CORS });
       const h = helloOf(b);
       if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
-      await stats(env).hello(h);
+      if (!LOCAL.test(req.headers.get('origin') || '')) await stats(env).hello(h);
       return new Response(null, { status: 204, headers: CORS });
     }
     if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) { // a plain text body too
@@ -188,7 +190,10 @@ export class Stats extends DurableObject {
   }
   who() { // [{ v, name, riot: [Riot ID], first, last }], the last opened first
     const sql = this.ctx.storage.sql;
-    sql.exec('DELETE FROM apps WHERE last < ?', Math.round(Date.now() / 1000) - 365 * 86400);
+    // a year after the last opening, and the lines our tests' pages made before /hello turned away pages on the same
+    // computer: app 1.13 or 1.15, voice name Rayan, no League account, all within 10 minutes (ponytail: drop that half
+    // once who.html shows none)
+    sql.exec("DELETE FROM apps WHERE last < ? OR (name = 'Rayan' AND riot = '[]' AND v IN ('1.13.0', '1.15.0') AND last - first < 600)", Math.round(Date.now() / 1000) - 365 * 86400);
     return sql.exec('SELECT v, name, riot, first, last FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot) }));
   }
   prune() {
