@@ -320,6 +320,31 @@ const game = (over = {}) => ({
       console.log('callouts: Zed missing from mid 10 s after leaving the minimap, Lee Sin in your jungle, then heading your way, all read out loud; who’s off the minimap and Garen dead');
     }
 
+    // ---- the voice that reads callouts: the computer's English voices by name, a girl's voice (Zira here), one picked
+    // by name, and a higher usual voice when there's no woman's voice
+    {
+      const [c, page] = await context(browser, { speakCalls: true, callVoice: 'girl' });
+      await page.evaluate(() => {
+        const v = (name, lang) => ({ name, lang, voiceURI: name });
+        Object.assign(window, { spoken: [], voices: [v('Microsoft David - English (United States)', 'en-US'), v('Microsoft Zira - English (United States)', 'en-US'), v('Microsoft Hortense - French (France)', 'fr-FR')] });
+        window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } }; // a real one only takes the browser's own voices
+        Object.assign(speechSynthesis, { getVoices: () => voices, speak: (u) => spoken.push([u.text, u.voice ? u.voice.name : '', u.pitch || 1]), cancel: () => {} });
+        speechSynthesis.dispatchEvent(new Event('voiceschanged'));
+      });
+      await page.click('.nav[data-view="overlay"]');
+      assert.deepStrictEqual(await page.$$eval('#optCallVoice option', (l) => l.map((o) => o.textContent)), ['My computer’s usual voice', 'A girl’s voice', 'David', 'Zira (woman)']);
+      assert.strictEqual(await page.inputValue('#optCallVoice'), 'girl');
+      await page.click('#callVoiceTry');
+      await page.selectOption('#optCallVoice', 'Microsoft David - English (United States)');
+      await page.evaluate(() => { voices = []; speechSynthesis.dispatchEvent(new Event('voiceschanged')); });
+      assert.strictEqual(await page.inputValue('#optCallVoice'), '', 'a voice that is gone: the usual one');
+      await page.selectOption('#optCallVoice', 'girl');
+      assert.deepStrictEqual(await page.evaluate(() => spoken), [['Zed missing from mid', 'Microsoft Zira - English (United States)', 1], ['Jungler on topside', 'Microsoft David - English (United States)', 1], ['Jungler on topside', '', 1.6]]);
+      assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')).callVoice), 'girl');
+      await c.close();
+      console.log('callout voice: Zira for a girl’s voice, David by name, the usual voice higher with no woman’s voice');
+    }
+
     // ---- the Overlay page's Layout: Room chat dragged to the top right, nudged down with the arrow keys and made
     // bigger; the rest dragged; each put back. The overlay in the game gets the places.
     {
