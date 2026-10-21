@@ -46,9 +46,23 @@ const match = (id, lg, st, at, bo, [a, b], [wa, wb] = [0, 0]) => ({ id, at, st, 
   t: [[a, wa, wb], [b, wb, wa]].map(([c, w, them]) => ({ c, n: `${c} Esports`, w, o: st === 'completed' ? (w > them ? 'win' : 'loss') : '' })) });
 const EV = [match('m1', 'LCK', 'unstarted', T + 2 * H, 3, ['T1', 'GEN']), match('m2', 'LEC', 'unstarted', T + 3 * H, 1, ['G2', 'FNC']), match('m3', 'Worlds', 'unstarted', T + 5 * H, 5, ['TBD', 'TBD']),
   match('m4', 'LCK', 'inProgress', T - H / 2, 3, ['HLE', 'KT'], [1, 0]), match('m5', 'LEC', 'completed', T - 24 * H, 3, ['FNC', 'G2'], [1, 2])];
-const S = { squads: {}, pings: [] };
+const S = { squads: {}, pings: [], apps: {}, inv: [] };
 function fakeServer(r) {
   const q = r.request(), [, what, code, act = ''] = new URL(q.url()).pathname.split('/'), reply = (json, status = 200) => r.fulfill({ status, json, headers: cors });
+  // who has Premade and Friends, as server/worker.js's Stats object keeps them (server/stats.test.js tests the real ones)
+  const now = Math.round(Date.now() / 1000), low = (n) => n.toLowerCase();
+  if (what === 'hello') { const b = JSON.parse(q.postData()); S.apps[b.id] = { name: b.name, riot: b.riot, last: now }; return r.fulfill({ status: 204, headers: cors }); }
+  if (what === 'friends') {
+    const b = JSON.parse(q.postData()), has = {}, me = S.apps[b.id];
+    for (const [id, a] of Object.entries(S.apps)) if (id !== b.id) for (const n of a.riot) if (b.riot.map(low).includes(low(n))) has[low(n)] = a.last;
+    if (me) me.last = now;
+    return reply({ has, inv: me ? S.inv.filter((v) => me.riot.map(low).includes(v.to)).map(({ to, src, ...v }) => ({ ...v, n: S.apps[src].name, riot: S.apps[src].riot[0] })) : [] });
+  }
+  if (what === 'invite') {
+    const b = JSON.parse(q.postData());
+    S.inv = [...S.inv.filter((v) => !(v.to === low(b.to) && v.src === b.id)), { to: low(b.to), src: b.id, room: b.room, key: b.key, at: now }];
+    return reply({ ok: true });
+  }
   if (what === 'esports') return reply({ ev: EV });
   const s = (S.squads[code] ||= { m: {}, call: null, picks: {} });
   if (q.method() === 'GET') {
@@ -83,7 +97,7 @@ const DUO = 'duo@eu1.pvp.net', ME = 'rayan@eu1.pvp.net', iso = (ago) => new Date
 const chat = { me: { pid: ME, id: ME, statusMessage: 'ranked grind' }, puts: [], unread: 1, msgs: [{ body: 'gg wp', type: 'chat', fromPid: DUO, timestamp: iso(60e3) }], inv: [] };
 const FRIENDS = [['duo-puuid', DUO, 31, 'Duo', 'chat'], ['off-puuid', 'off@eu1.pvp.net', 32, 'Sleepy', 'offline']]
   .map(([puuid, pid, summonerId, gameName, availability]) => ({ puuid, pid, id: pid, summonerId, gameName, gameTag: 'EUW', availability, product: 'league_of_legends' }));
-const L = { calls: [], refused: [], lp: null };
+const L = { calls: [], refused: [], lp: null, lobby: null };
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(who, method, p, body) {
   const P = PLAYERS[who];
@@ -97,6 +111,7 @@ function fakeLcu(who, method, p, body) {
     teamTwo: [{ puuid: 'zed-puuid', gameName: 'Shadow', tagLine: 'EUW', championId: 238, selectedPosition: 'MIDDLE' }] } });
   if (p === '/lol-ranked/v1/current-lp-change-notification') return L.lp ? ok(L.lp) : { status: 404, data: null };
   if (p === '/lol-match-history/v1/games/77') return ok(GAME);
+  if (p === '/lol-lobby/v2/lobby' && L.lobby) return ok(L.lobby);
   if (who !== 'Rayan') return { status: 404, data: null };
   if (p === '/lol-chat/v1/friends') return ok(FRIENDS);
   if (p === '/lol-chat/v1/me' && method === 'GET') return ok(chat.me);
@@ -121,8 +136,8 @@ const DDATA = Object.fromEntries([['Ahri', 103, 'Mage'], ['Zed', 238, 'Assassin'
 async function routes(ctx) {
   await ctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', ...cors } }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|communitydragon\.org/, (r) => r.abort());
-  await ctx.route(/127\.0\.0\.1:9006\/(squad|esports)/, fakeServer);
-  await ctx.route(/127\.0\.0\.1:9006\/(riot|stats|push|hello)/, (r) => r.fulfill({ status: 404, json: {}, headers: cors }));
+  await ctx.route(/127\.0\.0\.1:9006\/(squad|esports|hello|friends|invite)/, fakeServer);
+  await ctx.route(/127\.0\.0\.1:9006\/(riot|stats|push)/, (r) => r.fulfill({ status: 404, json: {}, headers: cors }));
 }
 async function context(browser, who, version, store) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -200,7 +215,42 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await shot(ray, 'group-room');
     console.log('room: the goal board (110 and 410 LP to go) and Best roles, Rayan in the middle and Duo in the jungle');
 
+    // ---- Friends: Rayan's League friends, Duo with Premade open and Sleepy without; Duo invited to Rayan's room and
+    // joining from the invite; then Duo joining Rayan's League lobby and so his voice room, by itself
+    await duo.click('#leaveBtn');
+    const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
+    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | Premade open now · Online in League | Invite,Sleepy#EUW | No Premade yet | '; }, 'Rayan’s friends');
+    if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
+    await ray.fill('#frId', 'Kev # NA1');
+    await ray.click('#frAdd button');
+    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Premade open now · Online in League | Invite', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
+    await ray.click('#frRows tr:nth-child(2) button');
+    assert.strictEqual((await frRows(ray)).length, 2, 'Kev removed');
+    await ray.click('#frRows tr:first-child button');
+    await toast(ray, `Invited Duo#EUW to room ${CODE}: it pops up in their Premade.`, 'the invite sent');
+    await until(async () => { await duo.evaluate(() => lpc.groupNow()); return (await duo.evaluate(() => lpc.toasts())).includes(`Rayan invites you to their voice room, ${CODE}. Join from Friends, on the Voice page.`); }, 'the invite on Duo’s page');
+    assert.strictEqual(await text(duo, '#frInvBox p'), `Rayan invites you to their voice room, ${CODE}.`);
+    if (process.env.SHOTS) await duo.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-invite.png') });
+    await duo.click('#frInvBox .btn.primary');
+    await wait(duo, (c) => lpc.room() === c && lpc.slot() >= 0, code, 'Duo in Rayan’s room from the invite');
+    await wait(duo, () => document.getElementById('frInvBox').hidden, null, 'the invite gone once in the room');
+    await duo.click('#leaveBtn');
+    L.lobby = { members: [{ puuid: 'rayan-puuid', gameName: 'Rayan', gameTag: 'EUW' }, { puuid: 'duo-puuid', gameName: 'Duo', gameTag: 'EUW' }], invitations: [] };
+    for (const pg of [ray, duo]) await pg.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
+    await until(async () => { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); return duo.evaluate((c) => lpc.room() === c && lpc.slot() >= 0, code); }, 'Duo in Rayan’s room from the lobby');
+    await toast(duo, `Joined Rayan’s voice room, ${CODE}, as you’re in their League lobby`, 'why');
+    // in the lobby before Rayan has a room: Duo joins as soon as he makes (here, joins again) one
+    for (const pg of [duo, ray]) await pg.click('#leaveBtn');
+    await ray.fill('#code', code);
+    await ray.click('#joinBtn');
+    await until(async () => { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); return duo.evaluate((c) => lpc.room() === c && lpc.slot() >= 0, code); }, 'Duo in Rayan’s new room from the lobby');
+    L.lobby = null;
+    for (const pg of [ray, duo]) await pg.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
+    await wait(ray, () => lpc.peers().some((p) => p.name === 'Duo'), null, 'Duo back in Rayan’s room', 30000);
+    console.log('Friends: who has Premade, one added and removed, an invite joined, and a friend in the lobby joining the room by itself');
+
     // ---- a squad: Rayan makes one, Duo joins it from the room and turns off pings for rank-ups
+    for (const pg of [ray, duo]) await pg.click('#groupBox .tab[data-gt="squad"]');
     assert.match(await text(ray, '#sqNote'), /^A squad is your group of friends/);
     await ray.click('#sqMake');
     await wait(ray, () => document.getElementById('sqList').textContent === 'Rayan (you) · phone remote on', null, 'Rayan’s squad');
@@ -319,7 +369,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await duo.click('.nav[data-view="pregame"]');
     await wait(duo, () => !document.getElementById('lolChatBox').hidden, null, 'League chat on Duo’s Pregame');
     assert(await duo.locator('#lolChatNote').isVisible() && await duo.locator('#lolChatMain').isHidden(), 'app 1.13 is told to update');
-    assert(!L.calls.some(([who, , p]) => who === 'Duo' && /^\/lol-(chat|lobby\/v2\/received)/.test(p)), 'and doesn’t try');
+    assert(!L.calls.some(([who, , p]) => who === 'Duo' && /^\/lol-(chat|lobby\/v2\/received)/.test(p) && p !== '/lol-chat/v1/friends'), 'and doesn’t try'); // Friends reads the friends list (app 1.11)
     console.log('League chat: a message answered, a new one and an invite popped up, accepted, the room in the status; app 1.13 told to update');
 
     // ---- the phone remote: League chat, answered from the phone; a squad call's notification with In 10 and Not tonight
