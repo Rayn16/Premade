@@ -402,9 +402,44 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 #clipKeyNote:empty { display: none; }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
-#clipVideo { width: 100%; max-height: calc(62vh / var(--zoom, 1)); background: #000; border-radius: 6px; }
-.trim { display: grid; grid-template-columns: auto minmax(0, 1fr) 4.5em; gap: 8px 12px; align-items: center; font-size: 14px; }
-.trim output { font: 500 13px/1 var(--mono); color: var(--muted); text-align: right; }
+.vplayer { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
+#clipVideo { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: calc(62vh / var(--zoom, 1)); background: #000; cursor: pointer; }
+.vplayer:fullscreen { border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
+.vplayer:fullscreen #clipVideo { max-height: none; height: 100%; }
+.pbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); color: #fff; opacity: 0; transition: opacity .15s; }
+.vplayer:hover .pbar, .vplayer:focus-within .pbar, .vplayer[data-paused] .pbar { opacity: 1; }
+.pline { position: absolute; left: 0; right: 0; top: 0; height: 4px; background: rgba(255, 255, 255, .3); cursor: pointer; }
+.pline i { display: block; height: 100%; width: 0; background: #fff; }
+.pbtn { background: none; border: 0; color: #fff; font: 600 14px/1 var(--body); padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.pbtn:hover, .pbtn:focus-visible { background: rgba(255, 255, 255, .15); }
+#pTime { font: 600 13px/1 var(--mono); }
+.pbar .grow { flex: 1; }
+#pSpeed { margin: 0; inset: auto; position: fixed; padding: 6px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; }
+#pSpeed:popover-open, #pAudio:popover-open { display: grid; gap: 4px; }
+#pAudio { margin: 0; inset: auto; position: fixed; padding: 10px 12px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; color: var(--fg); font-size: 13px; }
+.tl { position: relative; user-select: none; touch-action: none; padding: 0 2px; }
+.tlmarks { position: relative; height: 18px; }
+.tlmarks .mk { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; padding: 0; border: 2px solid var(--panel); background: var(--good); transform: rotate(45deg); cursor: pointer; }
+.tlmarks .mk.bad { background: var(--bad); }
+.tlmarks .mk:hover, .tlmarks .mk:focus-visible { outline: 2px solid var(--fg); }
+.tlruler { position: relative; height: 30px; font: 500 12px/1 var(--mono); color: var(--muted); }
+.tlruler .tk { position: absolute; bottom: 0; width: 1px; height: 5px; background: var(--muted); }
+.tlruler .tk.big { height: 9px; }
+.tlruler .tk[data-t]::before { content: attr(data-t); position: absolute; bottom: 14px; transform: translateX(-50%); white-space: nowrap; }
+.tlruler .tk:first-child[data-t]::before { transform: none; }
+.tlstrip { position: relative; height: 56px; margin-top: 4px; border-radius: 6px; overflow: hidden; background: var(--raised); cursor: pointer; }
+#tlShots { display: block; width: 100%; height: 100%; }
+.tlsel { position: absolute; top: 0; bottom: 0; border: 3px solid #fff; border-width: 3px 0; box-shadow: 0 0 0 2000px rgba(0, 0, 0, .55); pointer-events: none; }
+.tlsel .h { position: absolute; top: -3px; bottom: -3px; width: 12px; background: #fff; border-radius: 4px; cursor: ew-resize; pointer-events: auto; }
+.tlsel .h::after { content: ""; position: absolute; left: 5px; top: 35%; bottom: 35%; width: 2px; background: #444; border-radius: 1px; }
+.tlsel .h.a { left: -6px; }
+.tlsel .h.b { right: -6px; }
+.tlhead { position: absolute; top: 14px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.tlhead::before { content: ""; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+.pacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pacts output { font: 500 13px/1 var(--mono); color: var(--muted); margin-left: auto; }
+.trim { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.trim:focus-within { position: static; width: auto; height: auto; clip-path: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; font-size: 14px; }
 .helplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 14px; }
 .helplist li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
 .news { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
@@ -857,6 +892,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <ul id="players" class="players"></ul>
                 <p id="empty" class="hint"></p>
                 <label class="check"><input id="optRoomScreen" type="checkbox"> Let the room watch my screen while I share it <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
+                <div class="toolbar"><label class="field">Screen share quality <select id="optShareQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label><label class="field">Frame rate <select id="optShareFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
               </div>
             </div>
           </div>
@@ -1468,7 +1504,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
       <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
         <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
-        <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at lower quality (about 300 MB for 30 minutes), with its highlights</label>
+        <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Clip settings, with its highlights</label>
         <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
         <p id="vidNote" class="hint" role="status"></p>
         <ul id="vidList" class="vidlist"></ul>
@@ -1482,8 +1518,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optClips" type="checkbox"> Keep the last part of each game, for the clip key</label>
             <div class="toolbar">
               <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
-              <label class="field">Quality <select id="optClipQ"><option value="720">720p, for slower PCs</option><option value="1080">1080p</option></select></label>
+              <label class="field">Quality <select id="optClipQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label>
+              <label class="field">Frame rate <select id="optClipFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label>
             </div>
+            <p id="clipQNote" class="hint"></p>
             <p class="hint where" hidden><span class="whereAt"></span> <button class="btn small" type="button" data-where="pick">Change folder</button> <button class="btn small" type="button" data-where="reset">Back to Videos\Premade</button></p>
             <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
           </section>
@@ -1728,10 +1766,32 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <dialog id="clipDlg" class="wizard viewer" aria-labelledby="clipTitle">
   <div class="wz">
     <h2 id="clipTitle" class="ph"></h2>
-    <video id="clipVideo" controls playsinline></video>
+    <div id="player" class="vplayer" data-paused>
+      <video id="clipVideo" playsinline crossorigin="anonymous"></video>
+      <div class="pbar">
+        <div id="pLine" class="pline"><i id="pFill"></i></div>
+        <button id="pPlay" class="pbtn" type="button" aria-label="Play">▶</button><span id="pTime">00:00</span>
+        <button id="pMute" class="pbtn" type="button" aria-label="Mute">🔊</button>
+        <span class="grow"></span>
+        <button id="pSet" class="pbtn" type="button" popovertarget="pSpeed" aria-label="Playback speed">⚙</button>
+        <button id="pFull" class="pbtn" type="button" aria-label="Full screen">⛶</button>
+      </div>
+      <div id="pSpeed" popover><button class="pbtn" type="button" data-rate="0.25">0.25×</button><button class="pbtn" type="button" data-rate="0.5">0.5×</button><button class="pbtn" type="button" data-rate="1">Normal</button><button class="pbtn" type="button" data-rate="1.5">1.5×</button><button class="pbtn" type="button" data-rate="2">2×</button></div>
+    </div>
+    <div id="tl" class="tl" hidden>
+      <div id="tlMarks" class="tlmarks"></div>
+      <div id="tlRuler" class="tlruler"></div>
+      <div id="tlStrip" class="tlstrip"><canvas id="tlShots" width="1280" height="72"></canvas><div id="tlSel" class="tlsel"><span class="h a" title="Drag: where the cut starts"></span><span class="h b" title="Drag: where the cut ends"></span></div></div>
+      <div id="tlHead" class="tlhead"></div>
+    </div>
     <div class="trim">
-      <span>Start</span><input id="trimFrom" type="range" min="0" max="1" step="0.5" value="0" aria-label="Where the cut starts"><output id="trimFromOut"></output>
-      <span>End</span><input id="trimTo" type="range" min="0" max="1" step="0.5" value="1" aria-label="Where the cut ends"><output id="trimToOut"></output>
+      <span>Start</span><input id="trimFrom" type="range" min="0" max="1" step="0.5" value="0" aria-label="Where the cut starts">
+      <span>End</span><input id="trimTo" type="range" min="0" max="1" step="0.5" value="1" aria-label="Where the cut ends">
+    </div>
+    <div class="pacts">
+      <button id="clipEdit" class="btn small" type="button">🎬 Open in Editor</button><button id="clipAudio" class="btn small" type="button" popovertarget="pAudio">🔊 Audio</button>
+      <div id="pAudio" popover><label class="field">Volume <input id="pVol" type="range" min="0" max="1" step="0.05" value="1"></label></div>
+      <output>Cut <span id="trimFromOut"></span> to <span id="trimToOut"></span></output>
     </div>
     <p id="trimNote" class="hint" role="status">Move Start and End, then save the cut as a new clip. Cuts land on the nearest second or two.</p>
     <footer><button id="trimSave" class="btn primary" type="button">Save the cut</button><button id="clipClose" class="btn" type="button">Close</button></footer>
@@ -1804,7 +1864,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
-<div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at 720p and lower quality than clips: about 300 MB for 30 minutes. It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
+<div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
@@ -1815,7 +1875,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
-<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p or turning clips off helps if League stutters.</div>
+<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who has it open now. Invite puts a popup in their Premade to join your voice room, no code needed; it lasts 10 minutes. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
@@ -1863,7 +1923,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, lobbyRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
-    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipLen: 30, clipCap: 0,
+    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true,
@@ -3718,7 +3778,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   async function startShare() {
     let stream;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 10, displaySurface: 'monitor' }, audio: false });
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: false });
     } catch { return; } // picker cancelled
     const s = share = { track: stream.getVideoTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0 };
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
@@ -4290,10 +4350,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (lends.has(p) || !ok(p)) continue;
       const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track]), { metadata: { screen: true } });
       if (!call) { track.stop(); continue; }
-      track.applyConstraints({ width: { max: 1280 }, height: { max: 720 }, frameRate: { max: 10 } }).catch(() => {});
+      // scaled by the call, not the track: a track's constraints would change the one capture the recording uses too
+      const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), [h, fps, rate] = room ? [+opts.shareQ, opts.shareFps, Math.round(vRate(opts.shareQ, opts.shareFps) / 3)] : [720, 10, 1200000]; // a dead teammate's is small: they're in a game
+      if (room) track.contentHint = 'motion'; // keeps the frame rate you picked; WebRTC's default for a screen drops it to keep text sharp
       lends.set(p, { call, track });
       call.on('iceStateChanged', (st) => {
-        if (st === 'connected') for (const x of call.peerConnection.getSenders()) { const q = x.getParameters(); if (q.encodings && q.encodings[0]) { q.encodings[0].maxBitrate = 1200000; x.setParameters(q).catch(() => {}); } }
+        if (st === 'connected') for (const x of call.peerConnection.getSenders()) {
+          const q = x.getParameters();
+          if (q.encodings && q.encodings[0]) Object.assign(q.encodings[0], { maxBitrate: rate, maxFramerate: fps, scaleResolutionDownBy: Math.max(1, (track.getSettings().height || h) / h) });
+          if (q.encodings && q.encodings[0]) x.setParameters(q).catch(() => {});
+        }
       });
       call.on('close', () => { track.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
       const k = (league ? league.room : room) + p.slot + !!p.wantSee;
@@ -4305,7 +4371,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // way as lending above, to each one who asks ({t:'see', on}). Hide on a tile stops theirs and puts Show screen on
   // their card; hidden names are kept (lpc-screens-hidden). In a game only your own team, so the other team never sees
   // your screen (the same ponytail as lending: each app's own word on its team). Off: yours isn't shown; you still see
-  // theirs. ponytail: one 1.2 Mbps call per watcher; a room of 10 all watching one PC is ~11 Mbps up
+  // theirs. Sent at the Screen share quality under Players (a third of the recording rate: 1080p 30 fps is ~2.8 Mbps).
+  // ponytail: one call per watcher; a room of 10 all watching one PC at 1080p 30 fps is ~25 Mbps up
   const sameSide = (p) => (league ? mate(p) : !p.team);
   const canSee = (p) => !!p.see && sameSide(p) && peers.get(idFor(p.slot)) === p;
   const screensHidden = new Set(load('lpc-screens-hidden', []));
@@ -6581,10 +6648,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (recorder && (!want || recorder.kind !== kind)) stopRec(); // over, or a setting changed: again with it
     if (want && !recorder) startRec(kind);
   }
+  // The quality you pick (Clip settings > Recording for clips and whole matches, Voice settings for your screen share):
+  // the size (no bigger than your screen), the frame rate, and a bit rate to match. Recorded in H.264 when the app's
+  // Chromium has it, which your graphics card encodes; VP8 was the CPU's, so with League running Chromium cut the size
+  // and frame rate. One recording now makes both the clips and the match's video.
+  const VQ = { 720: 8e6, 1080: 14e6, 1440: 24e6 }, FPS = { 30: 0.6, 60: 1, 120: 1.5 }; // bits a second at 60 fps
+  const vRate = (q, fps) => Math.round((VQ[q] || VQ[1080]) * (FPS[fps] || 1));
+  const capOf = (q, fps) => ({ width: { max: Math.round(((+q || 1080) * 16) / 9) }, height: { max: +q || 1080 }, frameRate: { ideal: +fps || 60, max: +fps || 60 } });
+  const MIME = ['video/webm;codecs=h264,opus', 'video/webm;codecs=vp8,opus'].find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+  // Chromium captures a screen once for everything that asks for it, at whatever the first one asked (the screen share
+  // used to ask 10 fps, so every recording made while it ran was 10 fps). So both ask for the higher of the two
+  // settings, the recording takes it as it is, and each watcher's call is scaled down to the share's (lendTick).
+  // ponytail: a recording is at the higher of the two when the share's is higher; one capture per process
+  const capNow = () => capOf(Math.max(+opts.clipQ, +opts.shareQ), Math.max(opts.clipFps, opts.shareFps));
   async function startRec(kind) {
-    const r = (recorder = { parts: [], pre: [], at: performance.now(), kind }), hd = opts.clips && opts.clipQ !== '720';
+    const r = (recorder = { parts: [], pre: [], at: performance.now(), kind });
     let s;
-    try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30, width: { max: hd ? 1920 : 1280 }, height: { max: hd ? 1080 : 720 } }, audio: true }); } catch (err) {
+    try { s = await navigator.mediaDevices.getDisplayMedia({ video: capNow(), audio: true }); } catch (err) {
       console.warn('clips:', err);
       if (recorder === r) r.failed = true; // not again until the next game
       return;
@@ -6597,11 +6677,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       tracks.push(r.mix.stream.getAudioTracks()[0]);
     } else if (heard) tracks.push(heard);
     r.stream = s;
-    if (vidOn()) startVid(r, tracks);
-    if (!opts.clips) return;
-    r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: hd ? 6e6 : 3.5e6, audioBitsPerSecond: 128000, videoKeyFrameIntervalDuration: 2000 });
+    r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: MIME, videoBitsPerSecond: vRate(opts.clipQ, opts.clipFps), audioBitsPerSecond: 128000, videoKeyFrameIntervalDuration: 2000 });
+    if (vidOn()) startVid(r);
+    r.mr.onstop = () => r.game && r.game.end();
     r.mr.ondataavailable = (e) => {
-      if (e.data.size) {
+      if (e.data.size && r.game) r.game.add(e.data);
+      if (e.data.size && opts.clips) {
         if (r.head) r.parts.push({ at: performance.now(), blob: e.data });
         else headChunk(r, e.data);
         while (r.parts.length && performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000) { r.parts.shift(); r.trimmed = true; }
@@ -6610,19 +6691,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     };
     r.mr.start(1000);
   }
-  // ---- whole games on video (app 1.15): with Record every match on, each game but Practice Tool is recorded
-  // again at 720p and about 300 MB for 30 minutes, sent to the app every 5 s; the app writes it in Videos\\Premade\\Games
-  // and, once the game is over, makes it a video you can skip around in. Then the ones older than opts.gameDays go to
-  // the Recycle Bin.
+  // ---- whole games on video (app 1.15): with Record every match on, each game but Practice Tool is recorded at the
+  // quality picked in Clip settings (the same recording as clips), sent to the app every second; the app writes it in
+  // Videos\\Premade\\Games and, once the game is over, makes it a video you can skip around in. Then the ones older
+  // than opts.gameDays go to the Recycle Bin.
   const vidOn = () => !!(opts.gameVideo && client && client.gameVideo && league && league.mode !== 'PRACTICETOOL');
-  function startVid(r, tracks) {
-    const v = tracks[0].clone(), g = (r.game = { v, name: '' });
-    v.applyConstraints({ width: { max: 1280 }, height: { max: 720 }, frameRate: { max: 30 } }).catch(() => {});
-    g.mr = new MediaRecorder(new MediaStream([v, ...tracks.slice(1)]), { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 1.25e6, audioBitsPerSecond: 64000, videoKeyFrameIntervalDuration: 4000 });
+  function startVid(r) {
+    const g = (r.game = { name: '' });
     g.q = client.gameVideo('start', (league && league.me.champName) || '').then((n) => { g.name = n || ''; if (!n) notify('Couldn’t start this game’s video.', true); loadVids(); }, () => {}); // the parts, in order
-    g.mr.ondataavailable = (e) => { if (e.data.size) g.q = g.q.then(async () => g.name && client.gameVideo('add', g.name, await e.data.arrayBuffer())).catch(() => {}); };
-    g.mr.onstop = () => { g.q = g.q.then(() => g.name && client.gameVideo('end', g.name)).catch(() => {}).then(vidsDone); };
-    g.mr.start(5000);
+    g.add = (b) => { g.q = g.q.then(async () => g.name && client.gameVideo('add', g.name, await b.arrayBuffer())).catch(() => {}); };
+    g.end = () => { g.q = g.q.then(() => g.name && client.gameVideo('end', g.name)).catch(() => {}).then(vidsDone); };
     g.wall = performance.now();
   }
   // a match's highlights, from League's game events (league.events, as client/main.js's moments reads them), read
@@ -6694,6 +6772,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!v.rec) for (const [text, what, fail] of [['Watch', 'open', 'Couldn’t open that video. It may have been moved or deleted.'], ['Show in folder', 'show', ''], ['Bin', 'trash', 'Couldn’t move that video to the Recycle Bin.']]) {
       const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text });
       b.addEventListener('click', async () => {
+        if (what === 'open' && client.media) return playGame(v.name); // in Premade's player (app 1.19)
         if (what === 'trash' && !confirm(`Move “${label}” to the Recycle Bin?`)) return;
         if (!(await client.gameVideo(what, v.name)) && fail) notify(fail, true);
         if (what === 'trash') { vidSaved.delete(v.name); saveVidSaved(); loadVids(); }
@@ -6722,25 +6801,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // a match's highlights in the clips player: each from 10 s before to 5 s after (ones that overlap become one), one
   // after another, and Save the cut keeps the one on screen as a clip. Apps before 1.18 can't hand the page a game's
   // video, so it opens in your video player instead.
-  // ponytail: the whole video (about 300 MB for 30 minutes) is read into memory; ranges by a stream if that's too much
+  // Watch (no marks) plays the whole video with its highlights on the timeline.
+  // ponytail: apps before 1.19 read the whole video into memory (clipBytes); 1.19 streams it (client.media)
   let reel = [];
-  async function playGame(name, marks) {
-    const b = await client.gameVideo('read', name).catch(() => null);
-    if (!b) {
+  async function playGame(name, marks = []) {
+    if (!(await openPlayer('game', name, vidMarks[name] || marks))) {
       if (!(await client.gameVideo('open', name))) return notify('Couldn’t open that video. It may have been moved or deleted.', true);
       return notify(marks.length === 1 ? `Opened in your video player: skip to ${mmss(Math.floor(Math.max(0, marks[0].s - 10)))}.` : 'Opened in your video player. Update the app to watch highlights here.', true);
     }
     reel = [];
     for (const m of marks) { const last = reel[reel.length - 1], a = Math.max(0, m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = z; else reel.push([a, z]); }
-    viewing = name;
-    clipBytes = new Uint8Array(b);
-    URL.revokeObjectURL(clipUrl);
-    clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/webm' }));
-    vid.addEventListener('loadedmetadata', () => nextMark(), { once: true }); // after the trimmer's own, which takes the whole video
-    vid.src = clipUrl;
-    $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}: ${marks.length === 1 ? marks[0].text : 'highlights'}`;
-    $('trimNote').textContent = 'Save the cut keeps this highlight as a clip. Move Start and End to change it.';
-    clipDlg.showModal();
+    if (reel.length) vid.addEventListener('playerready', () => nextMark(), { once: true }); // after the trimmer takes the whole video
+    else vid.play().catch(() => {});
+    $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}${marks.length ? `: ${marks.length === 1 ? marks[0].text : 'highlights'}` : ''}`;
+    $('trimNote').textContent = marks.length ? 'Save the cut keeps this highlight as a clip. Drag the white handles to change it.' : 'Drag the white handles under the video, then save the cut as a clip. Click a highlight over the timestamps to jump to it.';
   }
   function nextMark() {
     const r = reel.shift(), d = Number.isFinite(vid.duration) ? vid.duration : 0;
@@ -6777,7 +6851,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const r = recorder;
     recorder = null;
     if (r.mr && r.mr.state !== 'inactive') r.mr.stop();
-    if (r.game) { if (r.game.mr.state !== 'inactive') r.game.mr.stop(); r.game.v.stop(); }
     if (r.stream) r.stream.getTracks().forEach((t) => t.stop());
     for (const n of r.srcs || []) n.disconnect();
   }
@@ -6795,7 +6868,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const CLIP_WHY = { multi: ' of your multikill', penta: ' of your pentakill', steal: ' of the steal', ace: ' of the Ace' };
   async function saveClip(why, secs = opts.clipLen, said = '') {
     const r = recorder;
-    if (!r || !r.mr || !r.head || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Clip settings, on the Clips page.', true));
+    if (!r || !r.mr || !r.head || !opts.clips || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Clip settings, on the Clips page.', true));
     r.saving = true;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
@@ -6968,7 +7041,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // cluster at or before from, up to the first cluster at to.
   // ponytail: reads what Chrome's MediaRecorder writes (clusters of unknown size, millisecond timecodes, no SeekHead or
   // Cues); a recorder that writes otherwise just gets "Couldn't save that clip"
-  function cutClip(head, body, secs, range) {
+  function cutClip(head, body, secs, range, part) { // part: body is a slice from the middle, so times count from the video's start
     const idAt = (b, i) => { let n = 1; while (n < 5 && !(b[i] & (0x80 >> (n - 1)))) n++; let v = 0; for (let k = 0; k < n; k++) v = v * 256 + b[i + k]; return [v, n]; };
     const sizeAt = (b, i) => { let n = 1; while (n < 9 && !(b[i] & (0x80 >> (n - 1)))) n++; let v = b[i] & (0xff >> n); for (let k = 1; k < n; k++) v = v * 256 + b[i + k]; return [v, n]; };
     const kids = (b, from, to) => { const out = []; for (let k = from; k < to;) { const [id, n] = idAt(b, k), [size, sn] = sizeAt(b, k + n); out.push([id, k + n + sn, size, k]); k += n + sn + size; } return out; }; // [id, payload, size, start]
@@ -7008,7 +7081,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     const starts = clusters.filter((c) => c.key);
     if (!starts.length) return null;
-    const last = clusters[clusters.length - 1], t0 = clusters[0].tc;
+    const last = clusters[clusters.length - 1], t0 = part ? 0 : clusters[0].tc;
     const from = range ? starts.filter((c) => c.tc - t0 <= range[0] * 1000).pop() || starts[0] : starts.filter((c) => c.tc <= last.tc + last.end - secs * 1000).pop() || starts[0];
     const stop = range ? clusters.find((c) => c.at > from.at && c.tc - t0 >= range[1] * 1000) : null, until = stop ? stop.tc - 33 : last.tc + last.end;
     const out = body.slice(from.at, stop ? stop.at : body.length);
@@ -7105,33 +7178,167 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       loadClips();
     });
   }
-  // the player, with the trimmer: Start and End, then Save the cut makes a new clip ("... cut") next to it
+  // the player (Rayan's layout, 2026-10-21): the video with its own bar (play, time, sound, speed, full screen), then
+  // the timeline: the video's highlights over the timestamps, the playhead, and a strip of pictures whose white
+  // handles are the cut (Start and End, also the two sliders, for the keyboard). Save the cut makes a new clip
+  // ("... cut") next to it; Open in Editor opens the file in Windows' own app. App 1.19 streams the video
+  // (client.media, premade://); older apps hand the page the whole file (clipBytes).
   const clipDlg = $('clipDlg'), vid = $('clipVideo');
   const secsText = (v) => `${Math.floor(v / 60)}:${(v % 60).toFixed(1).padStart(4, '0')}`;
-  async function playClip(name) {
-    const b = await client.clipRead(name);
-    if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
+  const two = (v) => String(Math.floor(v)).padStart(2, '0');
+  let viewKind = 'clip', shownMarks = [];
+  async function openPlayer(kind, name, marks) {
     reel = [];
     viewing = name;
-    clipBytes = new Uint8Array(b);
+    viewKind = kind;
+    shownMarks = marks || [];
     URL.revokeObjectURL(clipUrl);
-    clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/webm' }));
-    vid.src = clipUrl;
-    $('clipTitle').textContent = name.replace(/\.webm$/i, '');
-    $('trimNote').textContent = 'Move Start and End, then save the cut as a new clip. Cuts land on the nearest second or two.';
+    clipUrl = '';
+    clipBytes = null;
+    if (client.media) vid.src = client.media(kind, name);
+    else {
+      const b = await (kind === 'game' ? client.gameVideo('read', name) : client.clipRead(name)).catch(() => null);
+      if (!b) return false;
+      clipBytes = new Uint8Array(b);
+      clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/webm' }));
+      vid.src = clipUrl;
+    }
+    $('clipEdit').hidden = kind === 'clip' && !client.clipOpen;
     clipDlg.showModal();
+    return true;
   }
-  const showTrim = () => { $('trimFromOut').textContent = secsText(+$('trimFrom').value); $('trimToOut').textContent = secsText(+$('trimTo').value); };
-  vid.addEventListener('loadedmetadata', () => {
-    const d = Number.isFinite(vid.duration) ? vid.duration : 0;
+  async function playClip(name) {
+    if (!(await openPlayer('clip', name, []))) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
+    $('clipTitle').textContent = name.replace(/\.webm$/i, '');
+    $('trimNote').textContent = 'Drag the white handles under the video, then save the cut as a new clip. Cuts land on the nearest second or two.';
+  }
+  vid.addEventListener('error', () => { if (clipDlg.open && vid.getAttribute('src')) $('trimNote').textContent = 'Couldn’t open that video. It may have been moved or deleted.'; });
+  const dur = () => (Number.isFinite(vid.duration) ? vid.duration : 0), atPct = (t) => `${(100 * Math.min(t, dur())) / (dur() || 1)}%`;
+  const showTrim = () => {
+    $('trimFromOut').textContent = secsText(+$('trimFrom').value);
+    $('trimToOut').textContent = secsText(+$('trimTo').value);
+    Object.assign($('tlSel').style, { left: atPct(+$('trimFrom').value), right: `calc(100% - ${atPct(+$('trimTo').value)})` });
+  };
+  function playerReady() {
+    const d = dur();
     for (const [id, v] of [['trimFrom', 0], ['trimTo', d]]) { $(id).max = d; $(id).value = v; }
     showTrim();
+    drawRuler();
+    drawStrip();
+    vid.dispatchEvent(new Event('playerready'));
+  }
+  vid.addEventListener('loadedmetadata', () => {
+    if (vid.duration !== Infinity) return playerReady();
+    // a recording with no length in it (a game the app closed during): Chromium finds it at the end
+    vid.addEventListener('durationchange', () => { vid.currentTime = 0; playerReady(); }, { once: true });
+    vid.currentTime = 1e101;
   });
+  // the timestamps (about ten, each a round number of seconds) and the highlights over them
+  function drawRuler() {
+    const d = dur();
+    $('tl').hidden = !d;
+    if (!d) return;
+    const step = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800].find((x) => d / x <= 11) || 3600, ticks = [];
+    for (let k = 0; (k * step) / 2 <= d; k++) {
+      const tk = Object.assign(document.createElement('span'), { className: k % 2 ? 'tk' : 'tk big' });
+      tk.style.left = atPct((k * step) / 2);
+      if (!(k % 2)) tk.dataset.t = mmss((k * step) / 2);
+      ticks.push(tk);
+    }
+    $('tlRuler').replaceChildren(...ticks);
+    $('tlMarks').replaceChildren(...shownMarks.filter((m) => m.s <= d).map((m) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: /died|aced|Lost|enemy/.test(m.text) ? 'mk bad' : 'mk', title: `${mmss(m.s)} ${m.text}` });
+      b.setAttribute('aria-label', b.title);
+      b.style.left = atPct(m.s);
+      b.addEventListener('click', () => { vid.currentTime = Math.max(0, m.s - 5); vid.play().catch(() => {}); });
+      return b;
+    }));
+    drawHead();
+  }
+  // ten pictures along the strip, from a second copy of the video
+  const strip = Object.assign(document.createElement('video'), { muted: true, crossOrigin: 'anonymous', preload: 'auto' });
+  let stripRun = 0;
+  async function drawStrip() {
+    const run = ++stripRun, cv = $('tlShots'), g = cv.getContext('2d'), d = dur(), n = 10, src = vid.currentSrc;
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (!d) return;
+    strip.src = src;
+    await new Promise((res) => { strip.addEventListener('loadeddata', res, { once: true }); strip.addEventListener('error', res, { once: true }); setTimeout(res, 5000); });
+    for (let i = 0; i < n && run === stripRun && strip.readyState >= 1; i++) {
+      strip.currentTime = ((i + 0.5) * d) / n;
+      await new Promise((res) => { strip.addEventListener('seeked', res, { once: true }); setTimeout(res, 3000); });
+      if (run !== stripRun) return;
+      try { g.drawImage(strip, (i * cv.width) / n, 0, cv.width / n, cv.height); } catch { break; }
+    }
+    if (run === stripRun) { strip.removeAttribute('src'); strip.load(); }
+  }
+  function drawHead() {
+    const t = vid.currentTime || 0;
+    $('tlHead').style.left = atPct(t);
+    $('pFill').style.width = atPct(t);
+    $('pTime').textContent = `${two(t / 60)}:${two(t % 60)}`;
+    $('pPlay').textContent = vid.paused ? '▶' : '❚❚';
+    $('pPlay').setAttribute('aria-label', vid.paused ? 'Play' : 'Pause');
+    $('player').toggleAttribute('data-paused', vid.paused);
+  }
+  let headLoop = 0;
+  const headTick = () => { drawHead(); headLoop = !vid.paused && clipDlg.open ? requestAnimationFrame(headTick) : 0; };
+  vid.addEventListener('play', () => { if (!headLoop) headTick(); });
+  for (const ev of ['pause', 'seeked', 'timeupdate']) vid.addEventListener(ev, drawHead);
+  const playPause = () => (vid.paused ? vid.play().catch(() => {}) : vid.pause());
+  $('pPlay').addEventListener('click', playPause);
+  vid.addEventListener('click', playPause);
+  const showVol = () => { $('pMute').textContent = vid.muted || !vid.volume ? '🔇' : '🔊'; $('pMute').setAttribute('aria-label', vid.muted ? 'Unmute' : 'Mute'); };
+  $('pMute').addEventListener('click', () => { vid.muted = !vid.muted; showVol(); });
+  $('pVol').addEventListener('input', (e) => { vid.volume = +e.target.value; vid.muted = false; showVol(); });
+  for (const b of document.querySelectorAll('#pSpeed [data-rate]')) b.addEventListener('click', () => { vid.playbackRate = +b.dataset.rate; $('pSpeed').hidePopover(); });
+  $('pFull').addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : $('player').requestFullscreen()).catch(() => {}));
+  $('clipEdit').addEventListener('click', async () => {
+    vid.pause();
+    if (!(await (viewKind === 'game' ? client.gameVideo('open', viewing) : client.clipOpen(viewing)).catch(() => false))) notify('Couldn’t open that video. It may have been moved or deleted.', true);
+  });
+  for (const [pop, btn] of [['pSpeed', 'pSet'], ['pAudio', 'clipAudio']]) $(pop).addEventListener('toggle', (e) => { // over its button
+    if (e.newState !== 'open') return;
+    const r = $(btn).getBoundingClientRect(), el = $(pop);
+    Object.assign(el.style, { left: `${Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8))}px`, top: `${Math.max(8, r.top - el.offsetHeight - 6)}px` });
+  });
+  // dragging on the timeline moves the playhead; dragging a white handle moves that end of the cut
+  const timeAt = (e) => { const r = $('tlStrip').getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur(); };
+  const setEnd = (id, t) => { $(id).value = t; $(id).dispatchEvent(new Event('input')); };
+  function drag(el, fn) {
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button || !dur() || e.target.closest('.mk')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.setPointerCapture(e.pointerId);
+      fn(e);
+      const move = (m) => fn(m), up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    });
+  }
+  drag($('tl'), (e) => { vid.currentTime = timeAt(e); drawHead(); });
+  drag($('pLine'), (e) => { const r = $('pLine').getBoundingClientRect(); vid.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur(); drawHead(); });
+  drag($('tlSel').querySelector('.a'), (e) => setEnd('trimFrom', timeAt(e)));
+  drag($('tlSel').querySelector('.b'), (e) => setEnd('trimTo', timeAt(e)));
   $('trimFrom').addEventListener('input', () => { $('trimFrom').value = Math.min(+$('trimFrom').value, +$('trimTo').value - 1); vid.currentTime = +$('trimFrom').value; showTrim(); });
   $('trimTo').addEventListener('input', () => { $('trimTo').value = Math.max(+$('trimTo').value, +$('trimFrom').value + 1); vid.currentTime = +$('trimTo').value; showTrim(); });
   vid.addEventListener('timeupdate', () => { if (!vid.paused && +$('trimTo').value < vid.duration - 0.5 && vid.currentTime >= +$('trimTo').value) { vid.pause(); nextMark(); } });
+  // the cut, from the bytes in memory, or (streamed) from the video's first MB and the part around the cut
+  // ponytail: guesses where the cut is in a streamed file from its share of the length (the bit rate barely moves),
+  // with 20 s to spare on each side
+  async function cutNow(from, to) {
+    if (clipBytes) return cutClip(clipBytes, clipBytes, 0, [from, to]);
+    const part = async (a, z) => { const r = await fetch(vid.currentSrc, { headers: { Range: `bytes=${a}-${z}` } }); return [new Uint8Array(await r.arrayBuffer()), +((r.headers.get('content-range') || '').split('/')[1] || 0)]; };
+    const [head, size] = await part(0, 2 ** 20 - 1), d = dur();
+    if (size <= head.length) return cutClip(head, head, 0, [from, to]);
+    if (!d) return null;
+    const a = Math.max(0, Math.floor((size * (from - 20)) / d)), [body] = await part(a, Math.min(size - 1, Math.ceil((size * (to + 20)) / d)));
+    return cutClip(head, body, 0, [from, to], true);
+  }
   $('trimSave').addEventListener('click', async () => {
-    const from = +$('trimFrom').value, to = +$('trimTo').value, out = clipBytes && cutClip(clipBytes, clipBytes, 0, [from, to]);
+    const from = +$('trimFrom').value, to = +$('trimTo').value, out = await cutNow(from, to).catch(() => null);
     if (!out) return void ($('trimNote').textContent = 'Couldn’t cut this clip.');
     vid.pause();
     vid.currentTime = from;
@@ -7141,7 +7348,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name) { await cleanClips(); loadClips(); }
   });
   $('clipClose').addEventListener('click', () => clipDlg.close());
-  clipDlg.addEventListener('close', () => { reel = []; vid.pause(); vid.removeAttribute('src'); vid.load(); URL.revokeObjectURL(clipUrl); clipUrl = ''; clipBytes = null; });
+  clipDlg.addEventListener('close', () => {
+    reel = [];
+    stripRun++;
+    strip.removeAttribute('src');
+    strip.load();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    vid.pause(); vid.removeAttribute('src'); vid.load(); URL.revokeObjectURL(clipUrl); clipUrl = ''; clipBytes = null;
+  });
   $('clipsFolder').addEventListener('click', () => client && client.clipsFolder && client.clipsFolder());
 
   // ---- Stats: your rank and LP after each ranked game, and your match history with a report for every game
@@ -11847,8 +12061,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     send(meMsg());
     for (const [id, p] of peers) { if (p.call && slot < p.slot) callPeer(id); useBitrate(p); }
   }
+  // a new quality starts the recording and your screen share again, together, so the one capture is made anew
+  async function recAgain() {
+    clipQText();
+    const auto = share && share.auto, again = !!share;
+    if (recorder) stopRec();
+    stopShare();
+    if (again) await startShare();
+    if (share) share.auto = auto;
+    clipsCheck();
+  }
+  const clipQText = () => { $('clipQNote').textContent = `About ${(vRate(opts.clipQ, opts.clipFps) * 1800 / 8e9).toFixed(1)} GB for 30 minutes of match video.`; };
+  clipQText();
   for (const [id, k, num, done] of [['optVoice', 'voice', false, voiceChanged], ['optFade', 'fade', false, volumes], ['optClipLen', 'clipLen', true, renderClips], ['optClipCap', 'clipCap', true, cleanClips], ['optGameDays', 'gameDays', true, renderVids],
-    ['optClipQ', 'clipQ', false, () => { if (recorder) stopRec(); clipsCheck(); }]]) { // a new quality starts the recording again
+    ['optClipQ', 'clipQ', false, recAgain], ['optClipFps', 'clipFps', true, recAgain], ['optShareQ', 'shareQ', false, recAgain], ['optShareFps', 'shareFps', true, recAgain]]) {
     $(id).value = String(opts[k]);
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
   }
@@ -11965,6 +12191,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [55, 'October 21: a new video player, and sharper, smoother recordings', [
+      'Clips and match videos now play in a new player: play, time, sound, speed and full screen on the video, and under it a timeline with timestamps, your highlights marked just above them (click one to jump there), and a strip of pictures with white handles to cut it. Open in Editor and Audio sit underneath. Watch on a match video opens it here too.',
+      'Recordings were blurry and choppy because they were made twice over by your processor while League ran, so the app lowered them. Now one recording makes both clips and match videos, by your graphics card when it can, at the quality you pick: 720p, 1080p or 1440p, at 30, 60 or 120 fps (Clip settings, Recording). Match videos use it too, so they’re much sharper, and bigger: the setting says how big 30 minutes is.',
+      'Your screen share has the same choice, under Players on the Voice page, for everyone watching your screen in the room.',
+      'Needs app 1.19, which installs itself the next time you start Premade.',
+    ]],
     [54, 'October 21: who has Premade, in Settings', [
       'Whoever runs Premade can now see who has it right in Settings, at the end of Our server, with the owner key. Nobody else can open it.',
     ]],
@@ -12309,6 +12541,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Friends join with its 4-letter code or your invite link, and on the website an invite link can open the room in the desktop app.',
         'Create room, then Copy invite link and send it. To join a friend, type their code under Join.', '#copyBtn, #createBtn'],
+      ['Screen share quality', 'Your shared screen at 720p, 1080p or 1440p and 30, 60 or 120 fps, for everyone watching it in the room.', 'Under Players on the Voice page: Screen share quality and Frame rate. A change takes effect at once.', '#optShareQ'],
       ['Screens in the room', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team, and you’re told who’s watching.',
         'Screens show at the top of the Voice page; Hide one, and Show screen on their card brings it back. On unless you turn it off: Let the room watch my screen, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
       ['Your screen shared by itself', 'In every game the desktop app shares the screen League is on by itself, from the moment Premade opens, so the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
@@ -12447,8 +12680,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
       ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Saved clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+      ['The clip player', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen on the video, then a timeline with the highlights over the timestamps and a strip of pictures whose white handles are the cut. Open in Editor opens it in Windows’ own app; Audio sets the volume.',
+        'Play or cut on a clip, or Watch on a match video (app 1.19). Drag the handles, then Save the cut.', '#h-clips', 'app'],
+      ['Recording quality', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate.',
+        'Clip settings, Recording: Quality and Frame rate. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Saved clips and videos', 'Press Save on a clip or a match video and it goes in Saved, at the top of the Clips page, and is never moved to the Recycle Bin.', 'The Clips page, Saved.', '#h-saved', 'app'],
-      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself at 720p, about 300 MB for 30 minutes, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
+      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself at the quality in Clip settings, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Watching highlights in Premade needs app 1.18.', '#optGameVideo', 'app'],
       ['Clips folder', 'Pick where clips and match videos are saved, instead of Videos\\Premade. What’s already saved stays where it was.', 'Clip settings, Recording, Change folder (app 1.18).', '#clipSet [data-where="pick"]', 'app'],
     ]],

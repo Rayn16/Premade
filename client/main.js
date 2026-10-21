@@ -6,7 +6,7 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage } = require('electron');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, protocol } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
@@ -27,6 +27,7 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // voice plays in a room joined for your game
 
 if (!app.requestSingleInstanceLock()) return app.quit();
+protocol.registerSchemesAsPrivileged([{ scheme: 'premade', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, additionalArguments: ['--lpc-version=' + app.getVersion()] };
 const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
@@ -532,6 +533,7 @@ async function binClip(n) {
   await fs.promises.unlink(picAt(n)).catch(() => {});
   return true;
 }
+ipcMain.handle('clip-open', async (e, n) => fromSite(e) && clipOk(n) && (await shell.openPath(clipAt(n))) === ''); // in Windows' own app, to edit it
 ipcMain.handle('clip-trash', (e, n) => (fromSite(e) && clipOk(n) ? binClip(n) : false));
 // the oldest clips that aren't favorites (keep) go to the bin until the folder is under limit bytes; says which went
 ipcMain.handle('clips-clean', async (e, limit, keep) => {
@@ -573,6 +575,20 @@ async function vidEnd(n) {
   await v.fh.close().catch(() => {});
   await seekable(vidAt(n)).catch((err) => console.error('game video:', err.message));
   return true;
+}
+// premade://clip/<name> and premade://game/<name>: a clip or game video for the page's player (app 1.19), in parts
+// (Range), so a long 1440p game is streamed, not read into memory
+async function mediaFile(req) {
+  const u = new URL(req.url), n = decodeURIComponent(u.pathname.slice(1)), at = u.host === 'clip' ? clipAt : u.host === 'game' ? vidAt : null;
+  const cors = { 'Access-Control-Allow-Origin': new URL(SITE).origin, 'Access-Control-Expose-Headers': 'Content-Range, Content-Length', 'Accept-Ranges': 'bytes' };
+  const st = at && clipOk(n) ? await fs.promises.stat(at(n)).catch(() => null) : null;
+  if (!st || !st.isFile()) return new Response(null, { status: 404, headers: cors });
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('range') || ''), size = st.size;
+  let a = 0, z = size - 1;
+  if (m && m[1]) { a = +m[1]; if (m[2]) z = Math.min(+m[2], size - 1); } else if (m && m[2]) a = Math.max(0, size - +m[2]);
+  if (a > z) return new Response(null, { status: 416, headers: { ...cors, 'Content-Range': `bytes */${size}` } });
+  const body = require('stream').Readable.toWeb(fs.createReadStream(at(n), { start: a, end: z }));
+  return new Response(body, { status: m ? 206 : 200, headers: { ...cors, 'Content-Type': 'video/webm', 'Content-Length': String(z - a + 1), ...(m && { 'Content-Range': `bytes ${a}-${z}/${size}` }) } });
 }
 ipcMain.handle('game-video', async (e, what, a, b) => {
   if (!fromSite(e)) return null;
@@ -845,6 +861,7 @@ app.whenReady().then(async () => {
     const s = chosen(await screens(false));
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // a clip's sound: what you hear
   });
+  protocol.handle('premade', mediaFile);
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write'].includes(perm)));
 
   const last = lastBounds();

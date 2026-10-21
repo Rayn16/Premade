@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('lpcClient', {
   clips: () => ipcRenderer.invoke('clips'),
   clipRead: (name) => ipcRenderer.invoke('clip-read', String(name)),
   clipRename: (name, to) => ipcRenderer.invoke('clip-rename', String(name), String(to)),
+  clipOpen: (name) => ipcRenderer.invoke('clip-open', String(name)),
+  media: (kind, name) => `premade://${kind === 'game' ? 'game' : 'clip'}/${encodeURIComponent(String(name))}`,
   clipTrash: (name) => ipcRenderer.invoke('clip-trash', String(name)),
   clipDrag: (name) => ipcRenderer.send('clip-drag', String(name)),
   clipsClean: (limit, keep) => ipcRenderer.invoke('clips-clean', +limit || 0, Array.isArray(keep) ? keep.map(String) : []),

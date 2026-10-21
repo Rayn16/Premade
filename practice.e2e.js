@@ -216,6 +216,8 @@ const game = (over = {}, me = {}) => ({
         ['Play highlights', 'Double kill', 'You died', 'Your team took Dragon', 'The enemy stole Baron', 'Took a tower'], 'its highlights, a double kill’s kills in it');
       await page.click('#vidList .vmarks button:has-text("You died")');
       await wait(page, () => document.getElementById('clipDlg').open && /: You died$/.test(document.getElementById('clipTitle').textContent) && document.getElementById('clipVideo').src.startsWith('blob:'), null, 'a highlight in the player');
+      await wait(page, () => !document.getElementById('tl').hidden && document.getElementById('clipVideo').duration > 1, null, 'the timeline, on a recording with no length in it');
+      await shot(page, 'clip-player-highlights', '#clipDlg');
       await page.click('#clipClose');
       await page.click('#vidBox button:text-is("Change folder")');
       await wait(page, () => document.querySelector('.whereAt').textContent === 'Clips are saved in D:\\Clips, games in its Games folder.', null, 'another folder');
