@@ -414,7 +414,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, Math.abs(c.y * 720 - 466) <= 6])), // the frame's foot is at y 500, the name at y 300: 16% of the way up
       [['Symphony of War: picked 40% of the time on all champions (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on all champions (arammayhem.com)', true, true], ['Sneakerhead: no pick rate yet', true, true]], 'arammayhem.com’s pick rates, at the foot of each card');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'all champions · arammayhem.com', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'all champions · arammayhem.com', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'all champions', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'all champions', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
       'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(300);
