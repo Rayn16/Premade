@@ -62,7 +62,7 @@ Old host: Netlify (`league-proxchat.netlify.app`). Apps installed before the mov
 ## 6. The server
 
 - https://league-proxchat.league-proxchat-server.workers.dev, Worker `league-proxchat` on Rayan's free Cloudflare account.
-- **Only Rayan deploys it**, from their PC: `Documents\league-proxchat-server`, `npx wrangler@4 deploy`. Give him the changed files and ask them to deploy; never deploy it yourself. Keep a backup of the old `worker.js` (they keep `worker.oldN.js`).
+- **Only Rayan deploys it**, from their PC: `Documents\league-proxchat-server`, `npx wrangler@4 deploy`. Give them the changed files and ask them to deploy; never deploy it yourself. Keep a backup of the old `worker.js` (they keep `worker.oldN.js`).
 - Free plan limit: 100k Durable Object rows written per day; past that, everything (voice rooms too) stops until 00:00 UTC. Watch row writes in any server change. Augment POSTs are capped 200/h per address and 400 new games/day.
 - It counts a year of high-elo Riot matches in small saved steps (builds, runes, skill orders, matchups, ranks, draft pairs, ladder places, squads, esports; pro players from Leaguepedia's export). `/riot/mayhem` is unused and can be dropped.
 - Server tests: `cd server && node stats.test.js && node riot.test.js` (they start `wrangler dev`).
