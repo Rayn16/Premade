@@ -1577,7 +1577,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
             <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"> TFT item recipes in TFT games</label>
             <label class="check lcu-only"><input id="optTftAugs" type="checkbox"> Each augment’s tier on TFT’s augment cards (reads my screen)</label>
-            <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"> How often players take each augment on my champion, on ARAM: Mayhem’s augment cards (reads my screen)</label>
+            <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"> <span>How often players take each augment, and combos with my champion, on ARAM: Mayhem’s augment cards (reads my screen; data from <a href="https://arammayhem.com/data/" target="_blank" rel="noopener">arammayhem.com</a>)</span></label>
             <label class="check lcu-only"><input id="optDeadTips" type="checkbox"> Tips for my lane while I’m dead</label>
             <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"> What to buy next, while I’m dead or in my base</label>
             <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"> My team’s chance to win</label>
@@ -5910,7 +5910,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const m = await lcuGet(`/lol-match-history/v1/games/${g.id}`), r = m && makeReport(m, gold);
       if (r) {
         keepDeep(g.id, m);
-        mayhemSend(m); // its augments, for the ratings on ARAM: Mayhem's cards
         reports = Object.fromEntries([...Object.entries(reports), [g.id, r]].slice(-40));
         store.set('lpc-reports', JSON.stringify(reports));
         const mePl = r.players[r.me];
@@ -9930,8 +9929,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const want = !!client && boardOk() && ((!!opts.tftAugs && tftPlaying()) || (!!opts.mayhemAugs && mayhem()));
     if (augs && !want) augStop();
     else if (!augs && want && performance.now() - augsAt > 30000) augStart();
-    if (augs) { if (!ddVersion) ddSoon(); if (augs.may) mayNamesSoon(); else tftItemsSoon(); } // the augments' names, once Data Dragon says the patch
-    mayhemDig();
+    if (augs) { if (!ddVersion) ddSoon(); if (augs.may) { mayNamesSoon(); mayDataSoon(); } else tftItemsSoon(); } // the augments' names, once Data Dragon says the patch
   }
   async function augStart() {
     augsAt = performance.now();
@@ -10053,10 +10051,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return augs.cards.map((c, i) => c && c.name && { x: +(x0 + (AUG_X[i] / 1280) * bw).toFixed(4), y: +(y0 + 0.73 * bh).toFixed(4), ...(tftTierOf(c.name) || augYou(c.name)) }).filter(Boolean);
   }
 
-  // ---- the numbers on the cards come from Premade players' own games: League's client has every player's augments in
-  // a game it played (Riot's API hides ARAM: Mayhem games, and TFT's needs a key of its own), so each app sends its games'
-  // augments to our server once, and the server adds them up: /riot/mayhem, how many of a champion's games took each
-  // augment; /riot/tftaug, each augment's games and places in this set's ranked and normal games
+  // ---- TFT's numbers on the cards come from Premade players' own games: League's client has every player's augments in
+  // a game it played (Riot's TFT API needs a key of its own), so each app sends its games' augments to our server once,
+  // and the server adds them up in /riot/tftaug: each augment's games and places in this set's ranked and normal games
   let augSent = load('lpc-aug-sent', []);
   async function augSend(kind, g, body) { // our server's answer: 'ok'; 'later' or 'too many' (it's full for today or this hour: kept to send again); or why it refused the game
     if (!g || augSent.includes(g)) return 'ok';
@@ -10066,34 +10063,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     store.set('lpc-aug-sent', JSON.stringify(augSent));
     return a;
   }
-  function mayhemSend(m) { // a game from League's client: each player's champion, win and augments (augSend's answer)
-    if (!m || m.queueId !== 2400 || !Array.isArray(m.participants)) return Promise.resolve('ok');
-    return augSend('mayhem', `${m.platformId}_${m.gameId}`, { ps: m.participants.map((p) => { const s = p.stats || {}; return { c: p.championId | 0, w: s.win ? 1 : 0, a: Object.keys(s).filter((k) => /^playerAugment\d$/.test(k) && s[k] > 0).map((k) => s[k] | 0) }; }) });
-  }
-  // and the Mayhem games already in your match history, as far back as League's client keeps them (up to 1,000 games):
-  // once a day and never during a game, a page of 20 at a time, then each game not sent yet, 20 s apart (our server
-  // takes 200 games an hour from an address)
-  let digAt = load('lpc-aug-dig', 0), digging = false;
-  async function mayhemDig() {
-    if (digging || !lcuOn() || !lcu || !me0 || curGame || Date.now() - digAt < 864e5) return;
-    digging = true;
-    try {
-      const ids = [], seen = new Set();
-      for (let b = 0; b < 1000; b += 20) {
-        const h = await lcuGet(`/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=${b}&endIndex=${b + 19}`), list = ((h && h.games && Array.isArray(h.games.games) && h.games.games) || []).filter((g) => g && !seen.has(g.gameId));
-        if (!list.length) break; // League's client has no more
-        for (const g of list) { seen.add(g.gameId); if (g.queueId === 2400 && !augSent.some((x) => x.endsWith('_' + g.gameId))) ids.push(g.gameId); }
-        await sleep(1000);
-      }
-      for (const id of ids) {
-        if (curGame) return; // a game started: the rest next time
-        const a = await mayhemSend(await lcuGet(`/lol-match-history/v1/games/${id}`));
-        if (a === 'later' || a === 'too many') break; // our server is full: the rest tomorrow
-        await sleep(20000);
-      }
-      store.set('lpc-aug-dig', JSON.stringify((digAt = Date.now())));
-    } catch (err) { console.warn('mayhem games:', err); } finally { digging = false; }
-  }
   function tftSend(list) { // TFT games from League's client: each player's place and augments, in ranked and normal games
     for (const g of list || []) {
       const j = g && (typeof g.json === 'string' ? jsonOr(g.json) : g.json), i = j && (j.info || j), id = String(((g && g.metadata) || {}).match_id || '');
@@ -10101,7 +10070,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         augSend('tftaug', id, { s: +i.tft_set_number || 0, ps: i.participants.map((p) => ({ p: (p && p.placement) | 0, a: (p && Array.isArray(p.augments) ? p.augments : []).map(String) })) });
     }
   }
-  const augRates = {}; // 'mayhem?c=<champion number>' or 'tftaug?s=<the set of your newest TFT game>' -> { at, d: our server's answer }, asked at most every 10 minutes
+  const augRates = {}; // 'tftaug?s=<the set of your newest TFT game>' -> { at, d: our server's answer }, asked at most every 10 minutes
   function augRatesOf(q) {
     const r = (augRates[q] ||= { at: -Infinity, d: null });
     if (performance.now() - r.at > 600000) {
@@ -10125,7 +10094,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- ARAM: Mayhem's augment cards: three cards in the middle of the screen at the start and after levels 7, 11 and
   // 15 (mayOpen's times). Their size goes with the UI scale, so Tesseract reads the whole middle of the screen (light text
   // made dark) every 2 seconds then, and each line that's an augment's name (CommunityDragon's list of Arena and Mayhem
-  // augments, 0.85 alike or better) gets how many of your champion's games took it, at the foot of its card (found by its
+  // augments, 0.85 alike or better) gets its pick rate and any combo with your champion (mayDataSoon), at the foot of its card (found by its
   // light frame under the name). Nothing read leaves your PC.
   let mayNames = null, mayNamesAt = -Infinity; // [[id, name]]
   function mayNamesSoon() {
@@ -10185,12 +10154,29 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const [, name] of mayNames || []) { const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1); if (s > top) { top = s; best = name; } }
     return best;
   }
-  function mayRate(name) { // how many of your champion's games counted took this augment (any id with its name)
-    const c = champOf(league && league.me && league.me.champ), d = c && augRatesOf(`mayhem?c=${c.key}`);
-    if (!c) return { t: name, k: '' };
-    if (!d || !(d.n >= 1)) return { t: `No ${c.name} games counted yet`, k: '' };
-    const ids = new Set((mayNames || []).filter(([, n]) => n === name).map(([id]) => String(id))), n = Object.entries(d.a || {}).reduce((t, [id, v]) => t + (ids.has(id) ? v | 0 : 0), 0);
-    return { t: `Picked in ${pct(n / d.n)} of ${c.name} games (${d.n})`, k: '', r: n / d.n, p: pct(n / d.n), s: `picked · ${d.n} ${c.name} game${d.n === 1 ? '' : 's'}` };
+  // ARAM: Mayhem's pick rates (all champions) and champion + augment combos, from arammayhem.com's free data (CC BY 4.0,
+  // credited on the cards, the Overlay page and Features); once a game with the cards on, again after 10 minutes if it failed
+  const COMBO = { god: ['God combo', 'good'], strong: ['Strong combo', 'good'], blackTech: ['Hidden tech', 'good'], entertainment: ['Fun combo', ''], trap: ['Trap', 'bad'], bug: ['Bugged', 'bad'] };
+  let mayData = null, mayDataAt = -Infinity; // { a: Map(name key -> pick rate %), c: { Data Dragon champion id: Map(name key -> COMBO's kind) } }
+  function mayDataSoon() {
+    if (mayData || performance.now() - mayDataAt < 600000) return;
+    mayDataAt = performance.now();
+    const get = (f) => fetch(`https://arammayhem.com/data/v1/latest/${f}.json`).then((r) => r.json()).then((j) => (Array.isArray(j.rows) ? j.rows : []));
+    Promise.all([get('augments'), get('combos')]).then(([a, cs]) => {
+      const c = {}, en = (n) => augKey((n && n.en) || n || '');
+      for (const r of cs) {
+        const t = Object.keys(COMBO).find((k) => (r.types || []).includes(k)), m = (c[r.championId] ||= new Map());
+        if (t) for (const n of r.augmentNames || []) if (!m.has(en(n))) m.set(en(n), t); // the first, strongest kind wins
+      }
+      mayData = { a: new Map(a.map((r) => [en(r.name), +r.pickRate])), c };
+      pushOverlay();
+    }).catch(() => {});
+  }
+  function mayRate(name) { // the augment's pick rate on all champions, and its combo with your champion if it's one
+    const c = champOf(league && league.me && league.me.champ), k = augKey(name), r = mayData && mayData.a.get(k), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k);
+    const tag = g ? { g: `${COMBO[g][0]} with ${c.name}`, gk: COMBO[g][1] } : {};
+    if (!(r >= 0)) return { t: g ? `${name}: ${tag.g}` : `${name}: no pick rate yet`, k: '', ...tag };
+    return { t: `${name}: picked ${pct(r / 100)} of the time on all champions (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: 'all champions · arammayhem.com', ...tag };
   }
 
   function renderTft() {
@@ -12191,6 +12177,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [56, 'October 22: ARAM: Mayhem pick rates from arammayhem.com', [
+      'The bars on ARAM: Mayhem’s augment cards now show each augment’s pick rate across all champions, from arammayhem.com’s free data, so every card has a number from your first game instead of “few games”.',
+      'A card that’s a known combo with your champion says so under its bar: God combo, Strong combo, Hidden tech or Fun combo, or Trap in red.',
+      'Premade no longer sends your Mayhem games to our server.',
+    ]],
     [55, 'October 21: a new video player, and sharper, smoother recordings', [
       'Clips and match videos now play in a new player: play, time, sound, speed and full screen on the video, and under it a timeline with timestamps, your highlights marked just above them (click one to jump there), and a strip of pictures with white handles to cut it. Open in Editor and Audio sit underneath. Watch on a match video opens it here too.',
       'Recordings were blurry and choppy because they were made twice over by your processor while League ran, so the app lowered them. Now one recording makes both clips and match videos, by your graphics card when it can, at the quality you pick: 720p, 1080p or 1440p, at 30, 60 or 120 fps (Clip settings, Recording). Match videos use it too, so they’re much sharper, and bigger: the setting says how big 30 minutes is.',
@@ -12627,7 +12618,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Lobby rank', 'Each team’s average rank and which team is favored, in your game from the loading screen on and in any live game you look up.', 'Nothing to set up: on Game, on the loading screen overlay and in Live game on Profile.', '#liveAvg', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
-      ['Pick rates on Mayhem augment cards', 'When you pick an augment in ARAM: Mayhem, each card shows how often Premade players took it on your champion.',
+      ['Pick rates on Mayhem augment cards', 'When you pick an augment in ARAM: Mayhem, each card shows its pick rate across all champions and any combo with your champion. Data: arammayhem.com (CC BY 4.0).',
         'Tick “How often players take each augment” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text), with League in Borderless mode.', '#optMayhemAugs', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
@@ -12969,7 +12960,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth })), // the in-game helpers
-    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, mayhemSend, // what's read off TFT's augment cards; a Mayhem game's augments sent
+    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, // what's read off TFT's augment cards
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now

@@ -97,12 +97,13 @@ const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1
   tftGame(3, 18, 1, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1]], [['DA_18_Rakan', 3], ['DA_18_Ahri', 2]], ['TFT18_Augment_Rich']),
   tftGame(4, 17, 6, [['TFT17_Arcana', 2, 1]], [['TFT17_Ahri', 2]])];
 const L = { calls: [], refused: [] };
-// our server's augment ratings (/riot/tftaug, /riot/mayhem), and what the app sent it: Rich Get Richer's two ids have 30
-// games of Set 18 at 3.33 on average, Cluster too few; Ahri (103) has 40 Mayhem games, 16 with Symphony of War's two ids
-// (Arena's and Mayhem's) and 2 with Mystic Punch. And CommunityDragon's Arena and Mayhem augments
-const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } }, 'mayhem?c=103': { n: 40, a: { 79: 10, 1079: 6, 1058: 2 } } };
+// our server's augment ratings (/riot/tftaug), and what the app sent it: Rich Get Richer's two ids have 30
+// games of Set 18 at 3.33 on average, Cluster too few. And CommunityDragon's Arena and Mayhem augments; arammayhem.com's
+// Mayhem pick rates (Sneakerhead has none) and Ahri's combos: Symphony of War a god combo, Mystic Punch a trap
+const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } } };
 const SENT = [];
-const MAYHEM_GAME = (gameId) => ({ gameId, platformId: 'EUW1', queueId: 2400, participants: Array.from({ length: 10 }, (_, i) => ({ championId: i ? i : 103, stats: { win: i < 5, playerAugment1: i ? 58 : 1079, playerAugment2: 0 } })) });
+const AMD = { augments: { rows: [['Symphony of War', 40], ['Mystic Punch', 5]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
+  combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(method, p) {
@@ -112,9 +113,6 @@ function fakeLcu(method, p) {
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: RANKS });
   if (p === '/lol-match-history/v1/products/tft/me-puuid/matches?begin=0&count=20') return ok({ games: GAMES });
   if (p === '/lol-gameflow/v1/session') return ok({ phase: 'InProgress', gameData: { gameId: 8001, queue: { id: 1100, gameMode: 'TFT', isRanked: true }, teamOne: [], teamTwo: [] }, map: { id: 22, gameMode: 'TFT' } });
-  // your match history, with two Mayhem games and an ARAM one; every page has the same games (nothing older)
-  if (/^\/lol-match-history\/v1\/products\/lol\/current-summoner\/matches\?begIndex=\d+&endIndex=\d+$/.test(p)) return ok({ games: { games: [6001, 6002, 6003].map((gameId) => ({ gameId, queueId: gameId === 6002 ? 450 : 2400 })) } });
-  if (/^\/lol-match-history\/v1\/games\/600[13]$/.test(p)) return ok(MAYHEM_GAME(+p.split('/').pop()));
   if (/^\/lol-match-history\/v1\/products\/lol\//.test(p)) return ok({ games: { games: [] } });
   return { status: 404, data: null };
 }
@@ -141,7 +139,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
   await ctx.route('**/latest.yml', (r) => r.fulfill({ status: 404, body: '' }));
   await ctx.route(/127\.0\.0\.1:9004\/(riot|stats)/, (r) => {
     const q = r.request().url().split('/riot/')[1];
-    if (r.request().method() === 'POST') { const b = JSON.parse(r.request().postData()); SENT.push([q, b]); return r.fulfill({ body: b.g === 'EUW1_6003' ? 'later' : 'ok', headers: cors }); } // full for today
+    if (r.request().method() === 'POST') { const b = JSON.parse(r.request().postData()); SENT.push([q, b]); return r.fulfill({ body: 'ok', headers: cors }); }
     r.fulfill(q && RATES[q] ? { json: RATES[q], headers: cors } : { status: 404, json: {}, headers: cors });
   });
   await ctx.route(/ddragon\.leagueoflegends\.com/, (r) => {
@@ -154,6 +152,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
+  await ctx.route(/arammayhem\.com\/data\/v1\/latest\/(augments|combos)\.json$/, (r) => r.fulfill({ json: AMD[/(augments|combos)\.json$/.exec(r.request().url())[1]], headers: cors }));
   await ctx.route(/raw\.communitydragon\.org/, (r) => {
     const u = r.request().url();
     if (u.endsWith('/plugins/rcp-be-lol-game-data/global/default/v1/tftchampions-teamplanner.json')) return r.fulfill({ json: PLAN, headers: cors });
@@ -414,9 +413,9 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, Math.abs(c.y * 720 - 466) <= 6])), // the frame's foot is at y 500, the name at y 300: 16% of the way up
-      [['Picked in 40% of Ahri games (40)', true, true], ['Picked in 5% of Ahri games (40)', true, true], ['Picked in 0% of Ahri games (40)', true, true]], 'Symphony of War’s two ids, at the foot of each card');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s])), [['40%', 1, 'good', 'picked · 40 Ahri games'], ['5%', 0.125, '', 'picked · 40 Ahri games'], ['0%', 0, '', 'picked · 40 Ahri games']],
-      'a bar for each, as long as its pick rate against the most picked, which is marked');
+      [['Symphony of War: picked 40% of the time on all champions (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on all champions (arammayhem.com)', true, true], ['Sneakerhead: no pick rate yet', true, true]], 'arammayhem.com’s pick rates, at the foot of each card');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'all champions · arammayhem.com', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'all champions · arammayhem.com', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
+      'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(300);
     await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
@@ -428,21 +427,16 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await new Promise((r) => setTimeout(r, 5000));
     assert(!(await pc.evaluate(() => window.lastOverlay.cards)), 'not read again after the pick');
-    await pc.evaluate(() => lpc.mayhemSend({ gameId: 9001, platformId: 'EUW1', queueId: 2400, participants: Array.from({ length: 10 }, (_, i) => ({ championId: i ? i : 103, stats: { win: i < 5, playerAugment1: i ? 58 : 1079, playerAugment2: i ? 0 : 1205, playerAugment3: 0 } })) }));
-    await new Promise((r) => setTimeout(r, 300));
-    assert.deepStrictEqual(SENT.find(([, b]) => b.g === 'EUW1_9001'), ['mayhem', { g: 'EUW1_9001', ps: Array.from({ length: 10 }, (_, i) => ({ c: i ? i : 103, w: i < 5 ? 1 : 0, a: i ? [58] : [1079, 1205] })) }], 'a Mayhem game’s champions, wins and augments');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
-    // out of games, the Mayhem games already in your match history are sent too, each once (not the ARAM one)
-    for (let i = 0; i < 600 && SENT.filter(([q]) => q === 'mayhem').length < 3; i++) await new Promise((r) => setTimeout(r, 100));
-    assert.deepStrictEqual(SENT.filter(([q, b]) => q === 'mayhem' && b.g !== 'EUW1_9001').map(([, b]) => [b.g, b.ps[0].a]), [['EUW1_6001', [1079]], ['EUW1_6003', [1079]]], 'your history’s Mayhem games');
-    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-aug-sent')).filter((g) => g.startsWith('EUW1_600'))), ['EUW1_6001'], 'one our server said later for kept to send again');
+    await new Promise((r) => setTimeout(r, 2000));
+    assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');
     // the same boards on Profile's TFT tab
     await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');
     await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await pctx.close();
-    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games, ratings on TFT’s and ARAM: Mayhem’s augment cards, games sent for them');
+    console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games, ratings on TFT’s and ARAM: Mayhem’s augment cards (arammayhem.com’s for Mayhem), TFT games sent for them');
 
     // ---- overlay.html puts each card's words at the foot of the card, as shares of the screen
     const ovp = await browser.newPage({ viewport: { width: 1280, height: 720 } });
