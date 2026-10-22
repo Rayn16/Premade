@@ -1033,6 +1033,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div id="frInvBox" class="stack" hidden></div>
           <p id="frNote" class="hint" role="status"></p>
           <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
+          <div class="toolbar"><button id="frOffBtn" class="btn small" type="button" hidden></button></div>
           <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn" type="submit">Add</button></form>
           <label class="check"><input id="optLobbyRoom" type="checkbox"> Friends in my League lobby who have Premade join my voice room by themselves, and I join theirs</label>
         </div>
@@ -1907,7 +1908,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢) or offline and since when (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; it lasts 10 minutes. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
+<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; it lasts 10 minutes. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -1982,7 +1983,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // Each player takes the first free slot: peer id lolprox-<room>-<slot>. A newcomer dials every other slot.
   let room = '', prefix = '', slot = -1, peer = null, mic = null, myName = store.get('lpc-name') || '';
-  let joining = false, autoJoined = false, joinedAt = 0;
+  let joining = false, autoJoined = false, joinedAt = 0, left = { room: '', at: 0 }; // left: the room you last left with Leave, and when (our server's invites are in whole seconds)
   let me = { x: 0, y: 0, t: -Infinity }; // my champion's spot (0..1 of the minimap), when it was last seen, and how (by)
   let share = null;                      // { track, stop, follower, frames, sq, last (the follower's last answer) }
   let range = +store.get('lpc-range') || 1200;
@@ -3387,7 +3388,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('createBtn').addEventListener('click', () => joinRoom(newCode()));
   $('joinForm').addEventListener('submit', (e) => { e.preventDefault(); joinRoom($('code').value, false, $('key').hidden ? '' : $('key').value); });
-  $('leaveBtn').addEventListener('click', leaveRoom);
+  $('leaveBtn').addEventListener('click', () => { left = { room, at: Math.round(Date.now() / 1000) }; leaveRoom(); });
 
   // ---- popups: in the window, on the in-game overlay, and as a system notification while a browser tab is hidden.
   // Join and leave popups skip players who were here when you came in and quick reconnects.
@@ -11902,7 +11903,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // a hash of League's party id for the lobby and the room (lobHash), which only someone really in your lobby can make:
   // the Riot ID on an invite is only what its sender's hello said, so it's joined by itself only when lob matches. With Who has Premade off
   // (opts.hello) the page sends no device id, so it gets no invites and friends don't see it.
-  let frMine = load('lpc-friends', []), frLol = load('lpc-lolfriends', []), frHas = {}, frInv = [], frAt = -Infinity, frLolAt = -Infinity, frBusy = false;
+  let frMine = load('lpc-friends', []), frLol = load('lpc-lolfriends', []), frHas = {}, frInv = [], frAt = -Infinity, frLolAt = -Infinity, frBusy = false, frShowOff = false; // frShowOff: offline friends listed too
   if (!Array.isArray(frMine)) frMine = [];
   if (!Array.isArray(frLol)) frLol = []; // your League friends as League last listed them, so they show with League closed
   const frSeen = new Set(), frAsked = new Map(), RIOT_ID = /^[^#]{1,32}#[^#]{1,8}$/; // invites shown; Riot ID -> the room (and when you joined it) it was last invited to
@@ -11932,7 +11933,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const k = `${v.riot}|${v.room}|${v.at}`;
         if (frSeen.has(k) || room === v.room) { frSeen.add(k); continue; }
         frSeen.add(k);
-        if (opts.lobbyRoom && inLobby.has(acctOf(v.riot)) && v.lob && v.lob === (await lobHash(v.room)) && (!peer || autoJoined) && !joining) { // a friend in your lobby: their room
+        if (opts.lobbyRoom && inLobby.has(acctOf(v.riot)) && v.lob && v.lob === (await lobHash(v.room)) && (!peer || autoJoined) && !joining && !(v.room === left.room && v.at <= left.at)) { // a friend in your lobby: their room (not an invite to the room you left made before you left: in that second it's asked instead)
           if (peer) leaveRoom();
           await joinRoom(v.room, false, v.key);
           if (peer && room === v.room) notify(`Joined ${v.n || v.riot}’s voice room, ${v.room.toUpperCase()}, as you’re in their League lobby`, true);
@@ -11983,8 +11984,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('proFrList').replaceChildren(...rows.map((x) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: x.riot, title: x.st || 'Open their profile', onclick: () => lookUp(x.riot) })));
   }
   function renderFriends() {
-    const rows = frRows();
-    $('frNote').textContent = (!rows.length ? (client ? 'Your League friends show here once League is open. Add other friends by their Riot ID.' : 'Add your friends by their Riot ID. In the desktop app, your League friends show here by themselves.') : '')
+    const all = frRows(), off = all.filter((x) => x.has !== 2).length, rows = frShowOff ? all : all.filter((x) => x.has === 2);
+    $('frOffBtn').hidden = !off;
+    $('frOffBtn').textContent = frShowOff ? 'Hide offline friends' : `Show offline friends (${off})`;
+    $('frNote').textContent = (!all.length ? (client ? 'Your League friends show here once League is open. Add other friends by their Riot ID.' : 'Add your friends by their Riot ID. In the desktop app, your League friends show here by themselves.') : !rows.length ? 'None of your friends are online in Premade right now.' : '')
       + (opts.hello ? '' : ' “Let whoever runs Premade and my friends see I have it” is off in Settings > App, so friends can’t see you have Premade or invite you, and you can’t invite them.');
     const k = JSON.stringify([rows.map((x) => ({ ...x, ago: x.has === 1 ? Math.round(x.ago / 60) : 0 })), !!peer && room]);
     if ($('frRows').dataset.key === k) return;
@@ -11999,6 +12002,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return tr;
     }));
   }
+  $('frOffBtn').addEventListener('click', () => { frShowOff = !frShowOff; renderFriends(); });
   $('frAdd').addEventListener('submit', (e) => {
     e.preventDefault();
     const n = $('frId').value.trim().replace(/\s*#\s*/, '#');
@@ -12006,6 +12010,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!frMine.some((x) => acctOf(x) === acctOf(n))) { frMine.push(n); store.set('lpc-friends', JSON.stringify(frMine)); }
     $('frId').value = '';
     frAt = -Infinity;
+    frShowOff = true; // so the friend just added shows, online or not
     renderFriends();
   });
 
@@ -12464,6 +12469,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [59, 'October 22: only friends who are online', [
+      'Friends on the Voice page lists only friends with Premade online now. Show offline friends, under the list, shows the rest.',
+      'Leaving a room no longer pulls you back into it when a friend in your League lobby had just invited you.',
+    ]],
     [58, 'October 22: room chat like Discord', [
       'Send pictures, GIFs and videos in the room chat: paste them, drop them on the chat or press +. They go straight from your PC to your friends’, never through our server, up to 50 MB each. Send to room on the Clips page sends a clip.',
       'Point at a message to reply to it, react with an emoji, or edit or delete your own. Up arrow edits your last message.',
@@ -12859,7 +12868,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Fearless series', 'Custom games where nobody picks a champion already played in the series. Champ select shows the ones used up.', 'The host presses Fearless series in Room games, and again to end it.', '#fsBtn, #createBtn', 'app'],
       ['1v1 referee', 'In a custom game of one player a side, Premade calls the winner by the rules you tick (first blood, 100 CS, first tower) and keeps everyone’s 1v1 record.', 'Customs, in your room: tick the rules.', '#optDuelFb, #createBtn', 'app'],
       ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in your room.', '#h-goals, #createBtn', 'app'],
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢) or offline and since when (⚪). Invite pops up in their Premade to join your voice room, no code needed.',
+      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade to join your voice room, no code needed.',
         'Your group, on the Voice page: Friends. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
       ['Friends on Profile', 'Your friends under your profile: click one to see their profile, rank and games.', 'Profile, under your own profile. Your League friends show in the desktop app with League open; add others in Friends, on the Voice page.', '#proFriends'],
       ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
