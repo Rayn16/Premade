@@ -421,10 +421,12 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .clip .shot { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; display: block; cursor: grab; }
 .clip .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
-.vidlist { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.vidlist li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
-.vidlist .vmarks { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; }
-.vidlist .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; flex: 1 1 200px; }
+.vidlist { margin: 0; padding: 0; list-style: none; }
+.vidlist:empty { display: none; }
+.vcard .thumb { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 4px; }
+.vcard .thumb .shot { cursor: inherit; }
+.vcard .vlen { position: absolute; right: 8px; bottom: 8px; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 700 13px/1.2 var(--body); }
+.vcard .thumb:hover .shot, .vcard .thumb:focus-visible .shot { filter: brightness(1.15); }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 #clipKeyNote:empty { display: none; }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
@@ -444,10 +446,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 #pSpeed:popover-open, #pAudio:popover-open { display: grid; gap: 4px; }
 #pAudio { margin: 0; inset: auto; position: fixed; padding: 10px 12px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; color: var(--fg); font-size: 13px; }
 .tl { position: relative; user-select: none; touch-action: none; padding: 0 2px; }
-.tlmarks { position: relative; height: 18px; }
-.tlmarks .mk { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; padding: 0; border: 2px solid var(--panel); background: var(--good); transform: rotate(45deg); cursor: pointer; }
-.tlmarks .mk.bad { background: var(--bad); }
-.tlmarks .mk:hover, .tlmarks .mk:focus-visible { outline: 2px solid var(--fg); }
+.tlmarks { position: relative; height: 28px; }
+.tlmarks .mk { --c: var(--best); position: absolute; top: 2px; width: 24px; height: 24px; margin-left: -12px; padding: 0; display: grid; place-items: center; border: 2px solid var(--c); border-radius: 50%; background: var(--panel); color: var(--c); cursor: pointer; }
+.tlmarks .mk svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tlmarks .mk b { position: absolute; right: -5px; bottom: -5px; min-width: 13px; height: 13px; border-radius: 7px; background: var(--c); color: #000; font: 700 10px/13px var(--body); }
+.tlmarks .mk.assist { --c: #4aa8ff; }
+.tlmarks .mk:is(.dragon, .herald, .grubs) { --c: #ff8a3d; }
+.tlmarks .mk.baron { --c: #b07cff; }
+.tlmarks .mk:is(.tower, .inhib) { --c: var(--good); }
+.tlmarks .mk.bad { --c: var(--bad); }
+.tlmarks .mk:hover, .tlmarks .mk:focus-visible { z-index: 1; outline: 2px solid var(--fg); outline-offset: 1px; }
 .tlruler { position: relative; height: 30px; font: 500 12px/1 var(--mono); color: var(--muted); }
 .tlruler .tk { position: absolute; bottom: 0; width: 1px; height: 5px; background: var(--muted); }
 .tlruler .tk.big { height: 9px; }
@@ -460,7 +468,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .tlsel .h::after { content: ""; position: absolute; left: 5px; top: 35%; bottom: 35%; width: 2px; background: #444; border-radius: 1px; }
 .tlsel .h.a { left: -6px; }
 .tlsel .h.b { right: -6px; }
-.tlhead { position: absolute; top: 14px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.tlhead { position: absolute; top: 24px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
 .tlhead::before { content: ""; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
 .pacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .pacts output { font: 500 13px/1 var(--mono); color: var(--muted); margin-left: auto; }
@@ -1523,7 +1531,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <h2 id="h-saved" class="ph">Saved</h2>
         <p id="savedNote" class="hint"></p>
         <div id="savedGrid" class="clips"></div>
-        <ul id="savedVids" class="vidlist"></ul>
+        <ul id="savedVids" class="clips vidlist"></ul>
       </section>
       <section class="panel" aria-labelledby="h-clips">
         <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
@@ -1537,7 +1545,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Clip settings, with its highlights</label>
         <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
         <p id="vidNote" class="hint" role="status"></p>
-        <ul id="vidList" class="vidlist"></ul>
+        <ul id="vidList" class="clips vidlist"></ul>
         <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button><button class="btn small where" type="button" data-where="pick" hidden>Change folder</button></div>
       </section>
       <details id="clipSet" class="voiceset">
@@ -6987,6 +6995,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const ours = !!team && e.team === team;
       const text = e.e === 'multi' ? MULTI[Math.min(5, e.n)]
         : e.e === 'kill' ? (e.on ? 'You died' : multis.some((m) => m.t >= e.t && m.t - e.t < 11) ? '' : 'Your kill') // a multikill's kills are in it
+        : e.e === 'assist' ? 'Your assist' // app 1.20
         : e.e === 'ace' ? (ours ? 'Your team’s Ace' : 'Your team was aced')
         : OBJ[e.e] ? `${ours ? 'Your team' : 'The enemy'} ${e.stolen ? 'stole' : 'took'} ${OBJ[e.e]}`
         : e.e === 'tower' || e.e === 'inhib' ? `${e.of === team ? 'Lost' : 'Took'} ${e.e === 'tower' ? 'a tower' : 'an inhibitor'}` : '';
@@ -7012,11 +7021,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (gone.length) notify(`Moved ${gone.length} game video${gone.length > 1 ? 's' : ''} older than ${days} day${days > 1 ? 's' : ''} to the Recycle Bin.`, true);
     loadVids();
   }
-  let vidsList = [];
+  let vidsList = [], vidPics = load('lpc-vid-pics', {}), picBusy = false; // vidPics: nextPic's
+  const picFailed = new Set();
   async function loadVids() {
     if (client && client.gameVideo) vidsList = (await client.gameVideo('list').catch(() => [])) || [];
     const kept = Object.fromEntries(vidsList.filter((v) => vidMarks[v.name]).map((v) => [v.name, vidMarks[v.name]])); // not the binned ones'
     if (Object.keys(kept).length !== Object.keys(vidMarks).length) store.set('lpc-vid-marks', JSON.stringify((vidMarks = kept)));
+    const pics = Object.fromEntries(vidsList.filter((v) => vidPics[v.name]).map((v) => [v.name, vidPics[v.name]]));
+    if (Object.keys(pics).length !== Object.keys(vidPics).length) store.set('lpc-vid-pics', JSON.stringify((vidPics = pics)));
     if (client && client.gameVideo && [...vidSaved].some((n) => !vidsList.some((v) => v.name === n))) { vidSaved = new Set(vidsList.filter((v) => vidSaved.has(v.name)).map((v) => v.name)); saveVidSaved(); }
     renderVids();
   }
@@ -7029,40 +7041,61 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('vidList').replaceChildren(...rest.map(vidRow));
     $('savedVids').replaceChildren(...vidsList.filter((v) => vidSaved.has(v.name)).map(vidRow));
     renderSaved();
+    nextPic();
   }
+  // each match video as a card (Rayan's Medal screenshot, 2026-10-22): its picture with the length in the corner (click
+  // to watch, highlights on the timeline), the name, then when, size and how many highlights, then the buttons
   function vidRow(v) {
-    const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), acts = document.createElement('span'), kept = vidSaved.has(v.name);
-    li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: label }),
-      Object.assign(document.createElement('span'), { className: 'sub', textContent: `${whenText(v.at)} · ${Math.round(v.size / 1e6)} MB${v.rec ? ' · recording now' : ''}` }), acts);
-    acts.className = 'cacts';
-    if (!v.rec) {
-      const star = Object.assign(document.createElement('button'), { className: 'btn small star', type: 'button', textContent: kept ? '★ Saved' : '☆ Save' });
-      star.setAttribute('aria-pressed', String(kept));
-      star.addEventListener('click', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); });
-      acts.append(star);
-    }
-    if (!v.rec) for (const [text, what, fail] of [['Watch', 'open', 'Couldn’t open that video. It may have been moved or deleted.'], ['Show in folder', 'show', ''], ['Bin', 'trash', 'Couldn’t move that video to the Recycle Bin.']]) {
-      const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text });
-      b.addEventListener('click', async () => {
-        if (what === 'open' && client.media) return playGame(v.name); // in Premade's player (app 1.19)
-        if (what === 'trash' && !confirm(`Move “${label}” to the Recycle Bin?`)) return;
-        if (!(await client.gameVideo(what, v.name)) && fail) notify(fail, true);
-        if (what === 'trash') { vidSaved.delete(v.name); saveVidSaved(); loadVids(); }
-      });
-      acts.append(b);
-    }
-    const marks = vidMarks[v.name] || [];
-    if (!v.rec && marks.length) {
-      const row = Object.assign(document.createElement('div'), { className: 'vmarks' }), all = Object.assign(document.createElement('button'), { className: 'btn small primary', type: 'button', textContent: 'Play highlights' });
-      all.addEventListener('click', () => playGame(v.name, marks));
-      row.append(all, ...marks.map((m) => {
-        const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: `${mmss(Math.floor(m.s))} ${m.text}` });
-        b.addEventListener('click', () => playGame(v.name, [m]));
-        return b;
-      }));
-      li.append(row);
-    }
+    const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), kept = vidSaved.has(v.name), marks = vidMarks[v.name] || [], pic = vidPics[v.name];
+    li.className = 'clip vcard';
+    li.toggleAttribute('data-fav', kept);
+    li.innerHTML = '<span class="thumb"><img class="shot" alt=""><span class="vlen"></span></span><span class="cname"></span><span class="sub"></span><div class="cacts"></div>';
+    const img = li.querySelector('.shot'), acts = li.querySelector('.cacts');
+    img.src = (pic && pic[0]) || 'icon-192.png';
+    if (!pic) img.style.objectFit = 'contain';
+    li.querySelector('.vlen').textContent = v.rec ? '● Recording' : pic ? mmss(pic[1]) : '';
+    li.querySelector('.vlen').hidden = !v.rec && !pic;
+    li.querySelector('.cname').textContent = label;
+    li.querySelector('.sub').textContent = [whenText(v.at), `${Math.round(v.size / 1e6)} MB`, v.rec ? 'recording now' : marks.length ? `${marks.length} highlight${marks.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+    if (v.rec) return li;
+    const btn = (text, cls, fn, aria) => { const b = Object.assign(document.createElement('button'), { className: `btn small ${cls}`, type: 'button', textContent: text }); if (aria) b.setAttribute('aria-label', aria); b.addEventListener('click', fn); acts.append(b); return b; };
+    const thumb = li.querySelector('.thumb'), watch = Object.assign(document.createElement('button'), { type: 'button', className: 'thumb' });
+    watch.setAttribute('aria-label', `Watch ${label}`);
+    watch.append(...thumb.childNodes);
+    thumb.replaceWith(watch);
+    watch.addEventListener('click', () => playGame(v.name));
+    btn(kept ? '★ Saved' : '☆ Save', 'star', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); }).setAttribute('aria-pressed', String(kept));
+    if (marks.length) btn('▶ Highlights', 'primary', () => playGame(v.name, marks), `Play the highlights of ${label}`);
+    btn('📁', '', () => client.gameVideo('show', v.name), `Show ${label} in its folder`).title = 'Show in folder';
+    btn('🗑', '', async () => {
+      if (!confirm(`Move “${label}” to the Recycle Bin?`)) return;
+      if (!(await client.gameVideo('trash', v.name))) notify('Couldn’t move that video to the Recycle Bin.', true);
+      vidSaved.delete(v.name); saveVidSaved(); loadVids();
+    }, `Bin ${label}`).title = 'Bin';
     return li;
+  }
+  // a picture and the length of each match video, for its card: one at a time, from the middle third of the video,
+  // kept (lpc-vid-pics) until the video goes. App 1.20 streams it; older apps would read the whole file, so none.
+  async function nextPic() {
+    const v = !picBusy && client && client.media && client.version !== '1.19.0' && vidsList.find((x) => !x.rec && !vidPics[x.name] && !picFailed.has(x.name));
+    if (!v) return;
+    picBusy = true;
+    const el = Object.assign(document.createElement('video'), { muted: true, crossOrigin: 'anonymous', preload: 'auto' }), ev = (n) => new Promise((res, rej) => { el.addEventListener(n, res, { once: true }); el.addEventListener('error', rej, { once: true }); setTimeout(rej, 15000); });
+    try {
+      el.src = client.media('game', v.name);
+      await ev('loadedmetadata');
+      if (!Number.isFinite(el.duration)) throw new Error('no length'); // a game the app closed during
+      el.currentTime = el.duration / 3;
+      await ev('seeked');
+      const c = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
+      c.getContext('2d').drawImage(el, 0, 0, 320, 180);
+      vidPics[v.name] = [c.toDataURL('image/jpeg', 0.7), Math.round(el.duration)];
+      store.set('lpc-vid-pics', JSON.stringify(vidPics));
+    } catch { picFailed.add(v.name); }
+    el.removeAttribute('src');
+    el.load();
+    picBusy = false;
+    renderVids();
   }
   // the Saved section, first on the Clips page: the clips and match videos you saved, which are never binned
   function renderSaved() {
@@ -7472,7 +7505,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     URL.revokeObjectURL(clipUrl);
     clipUrl = '';
     clipBytes = null;
-    if (client.media) vid.src = client.media(kind, name);
+    const url = client.media && client.version !== '1.19.0' && client.media(kind, name); // 1.19's premade:// couldn't skip around
+    if (url) vid.src = url;
     else {
       const b = await (kind === 'game' ? client.gameVideo('read', name) : client.clipRead(name)).catch(() => null);
       if (!b) return false;
@@ -7510,7 +7544,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     vid.addEventListener('durationchange', () => { vid.currentTime = 0; playerReady(); }, { once: true });
     vid.currentTime = 1e101;
   });
-  // the timestamps (about ten, each a round number of seconds) and the highlights over them
+  // the timestamps (about ten, each a round number of seconds) and the highlights over them, each with its icon
+  // (Rayan, 2026-10-22): a sword for your kill, crossed swords and a number for a multikill, a skull for a death, a
+  // shield for an assist, a crown for an Ace, then the objective's own; red when it went against you
+  const MARK_ICON = {
+    kill: '<path d="M19 5 8.5 15.5M5.5 12.5l6 6M7 17l-3 3M19 5v4M19 5h-4"/>',
+    multi: '<path d="M19 5 8.5 15.5M5.5 12.5l6 6M7 17l-3 3M5 5l10.5 10.5M18.5 12.5l-6 6M17 17l3 3"/>',
+    death: '<path d="M12 3a7 7 0 0 0-7 7c0 2.6 1.4 4.3 3 5.2V19h8v-3.8c1.6-.9 3-2.6 3-5.2a7 7 0 0 0-7-7z"/><circle cx="9.5" cy="10.5" r="1.5" fill="currentColor"/><circle cx="14.5" cy="10.5" r="1.5" fill="currentColor"/><path d="M10.5 19v2M13.5 19v2"/>',
+    assist: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M12 8v6M9 11h6"/>',
+    ace: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/>',
+    dragon: '<path d="M12 3c1 4 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z"/>',
+    baron: '<path d="M4 19c0-6 3-11 8-11s8 5 8 11"/><path d="M8 19v-3M12 19v-4M16 19v-3"/><circle cx="12" cy="11.5" r="1.5" fill="currentColor"/>',
+    herald: '<path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/>',
+    grubs: '<ellipse cx="12" cy="13" rx="4" ry="6"/><path d="M8 10H4M8 14H4M16 10h4M16 14h4M10 7 8 3M14 7l2-4"/>',
+    tower: '<path d="M7 21V9H5V4h3v2h2V4h4v2h2V4h3v5h-2v12z"/>',
+    inhib: '<path d="M12 2l6 8-6 12-6-12z"/><path d="M6 10h12"/>',
+  };
+  const markKind = (t) => {
+    const multi = MULTI.indexOf(t);
+    return multi > 1 ? ['multi', multi] : /^You died/.test(t) ? ['death'] : /assist/.test(t) ? ['assist'] : /Ace|aced/.test(t) ? ['ace'] : /Baron/.test(t) ? ['baron']
+      : /Herald/.test(t) ? ['herald'] : /Voidgrubs/.test(t) ? ['grubs'] : /Dragon/.test(t) ? ['dragon'] : /tower/.test(t) ? ['tower'] : /inhibitor/.test(t) ? ['inhib'] : ['kill'];
+  };
   function drawRuler() {
     const d = dur();
     $('tl').hidden = !d;
@@ -7524,8 +7578,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     $('tlRuler').replaceChildren(...ticks);
     $('tlMarks').replaceChildren(...shownMarks.filter((m) => m.s <= d).map((m) => {
-      const b = Object.assign(document.createElement('button'), { type: 'button', className: /died|aced|Lost|enemy/.test(m.text) ? 'mk bad' : 'mk', title: `${mmss(m.s)} ${m.text}` });
+      const [k, n] = markKind(m.text), b = Object.assign(document.createElement('button'), { type: 'button', className: `mk ${k}${/died|aced|Lost|enemy/.test(m.text) ? ' bad' : ''}`, title: `${mmss(m.s)} ${m.text}` });
       b.setAttribute('aria-label', b.title);
+      b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${MARK_ICON[k]}</svg>${n ? `<b>${n}</b>` : ''}`;
       b.style.left = atPct(m.s);
       b.addEventListener('click', () => { vid.currentTime = Math.max(0, m.s - 5); vid.play().catch(() => {}); });
       return b;
@@ -12469,6 +12524,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [60, 'October 22: match videos as cards, and highlight icons', [
+      'Each match video on the Clips page is now a card: a picture from the game with its length in the corner, its name, then when, its size and how many highlights it has. Click the picture to watch it, or ▶ Highlights to play them one after another.',
+      'The highlights are on the player’s timeline instead, each with its own icon: a sword for your kill, crossed swords and a number for a multikill, a skull for a death, a shield for an assist, a crown for an Ace, and the Dragon, Baron, Herald, Voidgrubs, tower or inhibitor. Red ones went against you.',
+      'Clicking a highlight now jumps right to it. It used to start the video from the beginning.',
+      'Assists count as highlights from app 1.20, which also lets Premade skip around in long videos without loading them whole; it installs itself the next time you start Premade.',
+    ]],
     [59, 'October 22: only friends who are online', [
       'Friends on the Voice page lists only friends with Premade online now. Show offline friends, under the list, shows the rest.',
       'Leaving a room no longer pulls you back into it when a friend in your League lobby had just invited you.',
@@ -12979,13 +13040,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
       ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Saved clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
-      ['The clip player', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen on the video, then a timeline with the highlights over the timestamps and a strip of pictures whose white handles are the cut. Open in Editor opens it in Windows’ own app; Audio sets the volume.',
+      ['The clip player', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen on the video, then a timeline with the highlights over the timestamps, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor opens it in Windows’ own app; Audio sets the volume.',
         'Play or cut on a clip, or Watch on a match video (app 1.19). Drag the handles, then Save the cut.', '#h-clips', 'app'],
       ['Recording quality', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate.',
         'Clip settings, Recording: Quality and Frame rate. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Saved clips and videos', 'Press Save on a clip or a match video and it goes in Saved, at the top of the Clips page, and is never moved to the Recycle Bin.', 'The Clips page, Saved.', '#h-saved', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself at the quality in Clip settings, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Watching highlights in Premade needs app 1.18.', '#optGameVideo', 'app'],
+      ['Match video cards', 'Each match video is a card with a picture from the game, its length, when, its size and how many highlights. Click the picture to watch it with its highlights on the timeline, or ▶ Highlights to play them one after another.',
+        'The Clips page, Whole matches and highlights. Pictures need app 1.20.', '#vidBox', 'app'],
       ['Clips folder', 'Pick where clips and match videos are saved, instead of Videos\\Premade. What’s already saved stays where it was.', 'Clip settings, Recording, Change folder (app 1.18).', '#clipSet [data-where="pick"]', 'app'],
     ]],
     ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
