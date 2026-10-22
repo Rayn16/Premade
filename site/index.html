@@ -2169,7 +2169,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const li = document.createElement('li');
     li.className = 'player';
     li.dataset.slot = p.slot;
-    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small screen" type="button" hidden>Show screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="300" step="5" value="150"><output>150%</output></label>';
+    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small screen" type="button" hidden>Show screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="400" step="5" value="150"><output>150%</output></label>';
     li.querySelector('.mute').addEventListener('click', (e) => {
       p.muted = !p.muted;
       e.currentTarget.setAttribute('aria-pressed', String(p.muted));
@@ -12958,7 +12958,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const NEWS = [
     [67, 'October 22: clearer voice recovery, room status and louder voices', [
       'Voice cards now show when someone is reconnecting and when their voice recovers. Help can copy network, audio-buffer and recovery details without including room codes or names.',
-      'Open rooms show how many players are inside and whether they are waiting or in a game. You can turn each player up to 300%; new room voices start at 150%.',
+      'Open rooms show how many players are inside and whether they are waiting or in a game. You can turn each player up to 400%; new room voices start at 150%.',
       'Screen-share audio is on by default. Discord desktop audio remains filtered in the Windows app, and the Voice page reports when sound is shared or muted. Audio output devices refresh when a headset is plugged in or removed.',
     ]],
     [66, 'October 22: Windows voice invites and open rooms', [
@@ -13373,7 +13373,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Under the live map in your room.', '#range, #createBtn'],
       ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass.',
         'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Voice settings, Popups and sounds.', '#optSurround'],
-      ['Player cards', 'Each friend’s champion, rank, record with you and connection. New voices start at 150%; turn one friend up or down (up to 300%), mute them just for you, Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
+      ['Player cards', 'Each friend’s champion, rank, record with you and connection. New voices start at 150%; turn one friend up or down (up to 400%), mute them just for you, Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
         'In your room, beside the map.', '#cardBox, #createBtn'],
       ['Ready check', 'Everyone’s mic, screen, minimap, app version and League window mode in one table, so you can fix problems before you queue.', 'Ready check, at the top of your room.', '#readyBtn, #createBtn'],
       ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',

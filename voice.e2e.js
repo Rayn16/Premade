@@ -311,7 +311,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual([await ana.evaluate(() => lpc.slot()), await ben.evaluate(() => lpc.slot())], [0, 1], 'first free slots');
     await hears(ana, ['Ben'], 1, 'Ana to hear Ben');
     await hears(ben, ['Ana'], 1, 'Ben to hear Ana');
-    assert.deepStrictEqual(await ana.$eval('#players .player .pvol input', (el) => [el.min, el.max, el.value]), ['0', '300', '150'], 'new room voices start at 150%, with a 300% volume ceiling');
+    assert.deepStrictEqual(await ana.$eval('#players .player .pvol input', (el) => [el.min, el.max, el.value]), ['0', '400', '150'], 'new room voices start at 150%, with a 400% volume ceiling');
     const finder = await player(browser, 'Finder', [1280, 720]);
     await finder.goto(URL_);
     await finder.click('.nav[data-view="voice"]');
