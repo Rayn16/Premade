@@ -293,6 +293,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.waitForFunction(() => lpc.slot() >= 0, null, { timeout: 15000 });
     const ROOM = await ana.evaluate(() => lpc.room());
     assert(/^[a-z]{4}$/.test(ROOM) && (await ana.textContent('#roomName')) === ROOM, `a 4-letter room: ${ROOM}`);
+    assert.strictEqual(await ana.isChecked('#optRoomSound'), false, 'screen audio is off by default to avoid sharing Discord voice');
+    await ana.check('#optRoomSound');
+    assert.strictEqual(await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')).roomSound), true, 'screen audio opt-in is saved');
+    await ana.uncheck('#optRoomSound');
     console.log(`Ana created room ${ROOM.toUpperCase()}`);
 
     const ben = await player(browser, 'Ben', [1920, 1080]);
@@ -355,6 +359,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const normalRate = await packetsAt(40, 60, 'normal voice');
     await voiceSetting(ben, 'fast');
     const fastRate = await packetsAt(85, 115, 'faster voice');
+    const fastBuffer = await ben.evaluate((id) => lpc.jitter(id)[0], anaId);
+    if (fastBuffer != null) assert.strictEqual(fastBuffer, 40, 'Faster requests a 40 ms playback buffer when supported');
+    console.log(`Faster voice: ${fastRate.toFixed(1)} packets/s, ${fastBuffer == null ? 'playback buffer control unavailable' : `${fastBuffer} ms playback buffer`}`);
     await voiceSetting(ben, 'low');
     const lowRate = await packetsAt(1, 20, 'less data');
     await bitrate((b) => b.max === 16000, 'Ana sending Ben 16 kbps');
@@ -618,14 +625,21 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await backOnNew(call, 'Cat back after the blip');
     const blipBack = (Date.now() - since) / 1000;
     await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both after the blip');
+    // ICE can also reach failed without first reporting disconnected; it must not leave a dead call stuck open.
+    call = await callTo();
+    since = Date.now();
+    await ana.evaluate((id) => lpc.fail(id), catId);
+    await backOnNew(call, 'Cat back after ICE failed');
+    const failedBack = (Date.now() - since) / 1000;
+    await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both after ICE failed');
     // the room server drops: tried again a second later
     since = Date.now();
     await ana.evaluate(() => lpc.serverDrop());
     await waitFor(ana, () => !lpc.server(), null, 'Ana off the room server');
     await waitFor(ana, () => lpc.server(), null, 'Ana back on the room server');
     const serverBack = (Date.now() - since) / 1000;
-    console.log(`auto reconnect: Cat back ${kickBack.toFixed(1)} s after the connection broke, ${blipBack.toFixed(1)} s after a Wi-Fi blip; the room server back in ${serverBack.toFixed(1)} s`);
-    assert(kickBack < 5 && blipBack < 9 && serverBack < 3, 'reconnects right away, not at the next check');
+    console.log(`auto reconnect: Cat back ${kickBack.toFixed(1)} s after the connection broke, ${blipBack.toFixed(1)} s after a Wi-Fi blip, ${failedBack.toFixed(1)} s after ICE failed; the room server back in ${serverBack.toFixed(1)} s`);
+    assert(kickBack < 5 && blipBack < 9 && failedBack < 5 && serverBack < 3, 'reconnects right away, not at the next check');
     const popups = await ana.evaluate(() => lpc.toasts());
     assert(popups.includes('Ben left the room') && popups.includes('Ben joined the room') && popups.filter((t) => t === 'Cat joined the room').length === 1 && !popups.includes('Cat left the room'), `popups when Ben left and came back, none for Cat's reconnect: ${JSON.stringify(popups)}`);
     const sounds = await ana.evaluate(() => lpc.played());

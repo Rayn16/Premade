@@ -5,11 +5,16 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('lpcClient', {
   version: (process.argv.find((a) => a.startsWith('--lpc-version=')) || '').slice(14),
   screens: () => ipcRenderer.invoke('screens'),
+  shareAudioMode: () => ipcRenderer.sendSync('share-audio-mode'),
+  shareAudioCancel: () => ipcRenderer.send('share-audio-cancel'),
+  startFilteredAudio: () => ipcRenderer.invoke('filtered-audio-start'),
+  stopFilteredAudio: () => ipcRenderer.send('filtered-audio-stop'),
   useScreen: (id) => ipcRenderer.send('screen', String(id)),
   keys: (keys) => ipcRenderer.invoke('keys', keys),
   windowMode: () => ipcRenderer.invoke('window-mode'),
   compact: (height) => ipcRenderer.send('compact', +height || 0),
   front: () => ipcRenderer.send('front'),
+  notify: (title, body, action) => ipcRenderer.send('notify', String(title || ''), String(body || ''), action && typeof action === 'object' ? action : null),
   overlay: (state) => ipcRenderer.send('overlay', state),
   overlayDone: () => ipcRenderer.send('overlay-done'),
   discord: (state) => ipcRenderer.send('discord', state),
@@ -31,5 +36,5 @@ contextBridge.exposeInMainWorld('lpcClient', {
   record: (on) => ipcRenderer.send('record', !!on),
   withLeague: (on) => ipcRenderer.invoke('with-league', typeof on === 'boolean' ? on : undefined),
   recordingsFolder: () => ipcRenderer.send('recordings-folder'),
-  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

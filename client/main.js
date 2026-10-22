@@ -6,8 +6,9 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage } = require('electron');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
+const { execFileSync, spawn } = require('child_process');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
 // in the folder of that name; its Videos and Documents folders move to the new name the first time they're used.
@@ -31,7 +32,19 @@ if (!app.requestSingleInstanceLock()) return app.quit();
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, additionalArguments: ['--lpc-version=' + app.getVersion()] };
 const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
 const openOut = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
-let win = null, overlay = null, screenId = '';
+let win = null, overlay = null, screenId = '', shareAudioMode = false, shareAudioFiltered = false, shareDiscordPid = 0, filteredDiscordPid = 0, filteredCapture = null, pendingNotificationAction = null;
+
+ipcMain.on('notify', (e, title, body, action) => {
+  if (!fromSite(e) || process.platform !== 'win32' || !Notification.isSupported()) return;
+  const n = new Notification({ title: String(title || 'Premade').slice(0, 80), body: String(body || '').slice(0, 240), silent: false });
+  if (action && action.type === 'room-invite' && /^[a-z0-9]{4,20}$/.test(action.room) && /^[a-z0-9]{0,20}$/.test(action.key || '')) {
+    n.on('click', () => {
+      pendingNotificationAction = { type: 'room-invite', room: action.room, key: action.key || '' };
+      if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); if (win.webContents.isLoading()) return; win.webContents.send('notification-action', pendingNotificationAction); pendingNotificationAction = null; }
+    });
+  }
+  n.show();
+});
 
 // ---- screens: the one picked in Settings is shared and gets the overlay; until then the main one
 async function screens(thumbs) {
@@ -41,6 +54,57 @@ async function screens(thumbs) {
   return list;
 }
 const chosen = (list) => list.find((s) => s.id === screenId) || list.find((s) => s.main) || list[0];
+function discordRootPid() {
+  try {
+    const out = execFileSync('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true, timeout: 2500 });
+    const rows = [...out.matchAll(/^("Discord(?:PTB|Canary|Development)?\.exe"),"(\d+)"/gim)];
+    if (new Set(rows.map((m) => m[1].toLowerCase())).size > 1) return { pid: 0, error: true };
+    const pids = rows.map((m) => +m[2]);
+    return { pid: pids.length ? Math.min(...pids) : 0, error: false };
+  } catch { return { pid: 0, error: true }; }
+}
+ipcMain.on('share-audio-mode', (e) => {
+  if (!fromSite(e)) return;
+  const found = process.platform === 'win32' ? discordRootPid() : { pid: 0, error: false };
+  shareAudioMode = true;
+  shareAudioFiltered = !!found.pid || found.error;
+  shareDiscordPid = found.pid;
+  e.returnValue = { filter: shareAudioFiltered };
+});
+ipcMain.on('share-audio-cancel', (e) => { if (fromSite(e)) { shareAudioMode = false; shareAudioFiltered = false; shareDiscordPid = 0; filteredDiscordPid = 0; stopFilteredCapture(); } });
+function stopFilteredCapture() {
+  if (!filteredCapture) return;
+  clearTimeout(filteredCapture.timer);
+  filteredCapture.child.kill();
+  filteredCapture = null;
+}
+ipcMain.handle('filtered-audio-start', async (e) => {
+  if (!fromSite(e) || process.platform !== 'win32' || !filteredDiscordPid || filteredCapture) return false;
+  const child = spawn(path.join(__dirname, 'audio-capture.exe'), [String(filteredDiscordPid)], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  let pending = Buffer.alloc(0), ready = false, resolveReady, rejectReady;
+  const result = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
+  const capture = filteredCapture = { child, timer: setTimeout(() => { if (!ready) { stopFilteredCapture(); rejectReady(new Error('Audio filter timed out')); } }, 4000) };
+  const sendPcm = (data) => { if (data.length && win && !win.isDestroyed()) win.webContents.send('filtered-audio-data', data); };
+  child.stdout.on('data', (chunk) => {
+    if (!ready) {
+      pending = Buffer.concat([pending, chunk]);
+      if (pending.length < 4) return;
+      if (pending.subarray(0, 4).toString() !== 'PCM1') { stopFilteredCapture(); rejectReady(new Error('Audio filter failed')); return; }
+      ready = true;
+      clearTimeout(capture.timer);
+      resolveReady(true);
+      const pcm = pending.subarray(4);
+      pending = Buffer.alloc(0);
+      sendPcm(pcm);
+      return;
+    }
+    sendPcm(chunk);
+  });
+  child.once('error', (err) => { if (!ready) rejectReady(err); stopFilteredCapture(); });
+  child.once('exit', () => { if (!ready) rejectReady(new Error('Audio filter stopped')); if (filteredCapture === capture) filteredCapture = null; });
+  return result;
+});
+ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredDiscordPid = 0; } });
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
 ipcMain.on('screen', (e, id) => {
   if (!fromSite(e) || typeof id !== 'string' || id === screenId) return;
@@ -865,7 +929,12 @@ app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.setDisplayMediaRequestHandler(async (req, done) => {
     const s = chosen(await screens(false));
-    done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // a clip's sound: what you hear
+    const filtered = shareAudioMode && shareAudioFiltered;
+    shareAudioMode = false;
+    shareAudioFiltered = false;
+    filteredDiscordPid = filtered ? shareDiscordPid : 0;
+    shareDiscordPid = 0;
+    done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && !filtered && { audio: 'loopback' }) } : {}); // clips keep normal loopback; screen-share audio is filtered separately when Discord is active
   });
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
 
@@ -893,13 +962,14 @@ app.whenReady().then(async () => {
     if (updateReady) win.webContents.send('update', updateReady);
     join(linkWaiting);
     linkWaiting = '';
+    if (pendingNotificationAction) { win.webContents.send('notification-action', pendingNotificationAction); pendingNotificationAction = null; }
   });
   win.on('closed', () => app.quit());
   app.on('second-instance', (e, argv) => { if (win.isMinimized()) win.restore(); win.show(); win.focus(); join(linkRoom(argv)); });
   pollLeague();
   checkUpdates();
 });
-app.on('will-quit', () => { globalShortcut.unregisterAll(); saveTake(); });
+app.on('will-quit', () => { globalShortcut.unregisterAll(); saveTake(); stopFilteredCapture(); });
 
 // ---- the move to GitHub (app 1.16): what the page saves (settings, LP and game history, notes, the avoid list...)
 // belongs to the address it was saved at, so the first start copies it from OLD_SITE to SITE. Both pages are made up

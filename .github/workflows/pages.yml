@@ -14,7 +14,35 @@ concurrency:
   group: pages
   cancel-in-progress: false
 jobs:
+  build-audio-helper:
+    runs-on: windows-latest
+    outputs:
+      available: ${{ steps.source.outputs.available }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the helper in the live client
+        id: source
+        shell: pwsh
+        run: |
+          $sha = Get-Content .github/live | Where-Object { $_ -match '^[0-9a-f]{40}$' } | Select-Object -First 1
+          git fetch -q --depth=1 origin $sha
+          git cat-file -e "${sha}:client/audio-capture.cpp" 2>$null
+          if ($LASTEXITCODE -ne 0) { "available=false" >> $env:GITHUB_OUTPUT; exit 0 }
+          git checkout --detach $sha
+          "available=true" >> $env:GITHUB_OUTPUT
+      - if: steps.source.outputs.available == 'true'
+        uses: ilammy/msvc-dev-cmd@v1
+      - if: steps.source.outputs.available == 'true'
+        name: Compile the Windows process-loopback helper
+        run: cl /nologo /EHsc /std:c++17 /O2 /Fe:client/audio-capture.exe client\audio-capture.cpp /link ole32.lib mmdevapi.lib
+      - if: steps.source.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-capture
+          path: client/audio-capture.exe
+          if-no-files-found: error
   build:
+    needs: build-audio-helper
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +59,11 @@ jobs:
         with:
           path: app
           key: app-${{ steps.live.outputs.client }}
+      - if: steps.app.outputs.cache-hit != 'true' && needs.build-audio-helper.outputs.available == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: audio-capture
+          path: audio-helper
       - if: steps.app.outputs.cache-hit != 'true'
         uses: actions/setup-node@v4
         with:
@@ -42,6 +75,7 @@ jobs:
         run: |
           mkdir -p live app
           git archive ${{ steps.live.outputs.sha }} client | tar -x -C live
+          if [ -f audio-helper/audio-capture.exe ]; then cp audio-helper/audio-capture.exe live/client/; fi
           cd live/client
           npm ci
           node build.js

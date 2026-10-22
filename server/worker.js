@@ -20,6 +20,16 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    if (url.pathname === '/rooms' && req.method === 'GET') return Response.json(await directory(env).list(), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    if (url.pathname === '/rooms' && req.method === 'POST') {
+      let body;
+      try { body = await req.json(); } catch { return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS }); }
+      if (!body || !/^[a-z0-9]{4,20}$/.test(body.room) || !/^[a-f0-9-]{36}$/.test(body.owner)) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
+      if (body.remove === true) await directory(env).remove(body.room, body.owner);
+      else if (body.locked !== true) await directory(env).put(body.room, body.owner);
+      else await directory(env).remove(body.room, body.owner);
+      return Response.json({ ok: true }, { headers: CORS });
+    }
     if (url.pathname.startsWith('/riot/')) return riot(env).fetch(req);
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });
     return new Response('Not found', { status: 404 });
@@ -28,6 +38,26 @@ export default {
     await riot(env).kick();
   },
 };
+
+const directory = (env) => env.DIRECTORY.get(env.DIRECTORY.idFromName('open-rooms'));
+
+// Public, unlocked rooms created on the Voice page. Short leases remove abandoned listings if a host closes
+// unexpectedly; the host refreshes its lease while it remains in the room.
+export class Directory extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec('CREATE TABLE IF NOT EXISTS rooms (room TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL) WITHOUT ROWID');
+  }
+  async put(room, owner) {
+    this.sql.exec('INSERT INTO rooms VALUES (?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires', room, owner, Date.now() + 120000);
+  }
+  async remove(room, owner) { this.sql.exec('DELETE FROM rooms WHERE room = ? AND owner = ?', room, owner); }
+  async list() {
+    this.sql.exec('DELETE FROM rooms WHERE expires < ?', Date.now());
+    return this.sql.exec('SELECT room FROM rooms ORDER BY room').toArray().map(({ room }) => ({ room }));
+  }
+}
 
 export class Room extends DurableObject {
   constructor(ctx, env) {

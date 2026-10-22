@@ -873,6 +873,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <button id="joinBtn" class="btn">Join</button>
             <input id="key" class="key" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Password" aria-label="Room password" hidden>
           </form>
+          <section id="openRoomsBox" class="stack" aria-label="Open voice rooms">
+            <h2 class="ph">Open voice rooms</h2>
+            <p id="openRoomsNote" class="hint">Looking for rooms…</p>
+            <div id="openRooms" class="stack"></div>
+          </section>
           <a id="appLink" class="btn browser-only" hidden>Open this room in the desktop app</a>
           <p id="autoNote" class="hint client-only">Or just start a game: you join your game's room by itself.</p>
           <p class="hint browser-only">On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a> for the in-game overlay, push to talk and League's own game data.</p>
@@ -936,6 +941,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <ul id="players" class="players"></ul>
                 <p id="empty" class="hint"></p>
                 <label class="check"><input id="optRoomScreen" type="checkbox"> Let the room watch my screen while I share it <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
+                <label class="check"><input id="optRoomSound" type="checkbox"> Share my screen’s sound with the room</label>
+                <p class="hint">The Windows app filters the Discord desktop app and keeps game audio. Discord in a browser can still be included. If the Windows filter cannot start, screen audio stays muted.</p>
                 <div class="toolbar"><label class="field">Screen share quality <select id="optShareQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label><label class="field">Frame rate <select id="optShareFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
               </div>
             </div>
@@ -1905,7 +1912,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   </div>
 </dialog>
 
-<div id="t-code" class="tipbox" popover>Friends join by typing this code on the site or in the Windows client, or by opening your invite link. Everyone in the same game should be in the same room.</div>
+<div id="t-code" class="tipbox" popover>Friends can join by choosing an open room on the Voice page, typing this code on the site or in the Windows client, or opening your invite link. Rooms you create are listed while they are active and unlocked. Everyone in the same game should be in the same room.</div>
 <div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Voices fade to silent at the edge, the way Fade says. It only changes what you hear.</div>
 <div id="t-fade" class="tipbox" popover>How voices fade as their champions move away; all of them reach silence at the edge of your hearing range. Normal: full volume up to two thirds of the range, then down to silent. Gentle: quieter little by little from close by. Realistic: like real sound, half as loud each time the distance doubles. Sharp: full volume until just before the edge. The dashed ring on the map shows where the fade starts.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
@@ -1951,7 +1958,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; it lasts 10 minutes. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
+<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -1972,6 +1979,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const client = window.lpcClient || null; // what the Windows client adds (client/preload.js); null in a browser
+  if (client) window.addEventListener('pagehide', () => { if (client.stopFilteredAudio) client.stopFilteredAudio(); if (client.shareAudioCancel) client.shareAudioCancel(); });
   // the site's top, also from the test version (test/): on GitHub Pages it's under /Premade/, so paths are relative to it
   const TEST = /\/test\/[^/]*$/.test(location.pathname), ROOT = location.href.replace(/[?#].*$/, '').replace(/(\/test)?\/[^/]*$/, '/');
   if (TEST) for (const a of document.querySelectorAll('a[href="Premade-Setup.exe"]')) a.href = ROOT + 'Premade-Setup.exe'; // the installer is only at the top
@@ -1999,7 +2007,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
-    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, history: true,
+    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: false, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameDays: 7, champLook: false, champMain: null,
@@ -2026,9 +2034,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // Each player takes the first free slot: peer id lolprox-<room>-<slot>. A newcomer dials every other slot.
   let room = '', prefix = '', slot = -1, peer = null, mic = null, myName = store.get('lpc-name') || '';
-  let joining = false, autoJoined = false, joinedAt = 0, left = { room: '', at: 0 }; // left: the room you last left with Leave, and when (our server's invites are in whole seconds)
+  let joining = false, autoJoined = false, roomCreator = false, joinedAt = 0, left = { room: '', at: 0 }; // left: the room you last left with Leave, and when (our server's invites are in whole seconds)
   let me = { x: 0, y: 0, t: -Infinity }; // my champion's spot (0..1 of the minimap), when it was last seen, and how (by)
-  let share = null;                      // { track, stop, follower, frames, sq, last (the follower's last answer) }
+  let share = null, filteredAudioSink = null, filteredAudioListener = false; // share: screen and its optional room audio
   let range = +store.get('lpc-range') || 1200;
   const peers = new Map();               // peer id -> { slot, name, conns, call, audio, pos, muted, user, vol, row, chip, ... }
   let muted = false, pttDown = false, mySpokeAt = -Infinity;
@@ -2648,6 +2656,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!peer || roomKey || hostSlot() !== slot) return;
     roomKey = newCode(6);
     send({ t: 'lock', key: roomKey });
+    updateRoomListing(true);
     toServer();
     notify('Room locked. Friends who join now need the invite link or the password.', true);
     keyChanged();
@@ -2694,6 +2703,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     watchIce(call);
     call.on('stream', (s) => {
       if (p.call !== call) return;
+      for (const r of call.peerConnection.getReceivers()) if (r.track && r.track.kind === 'audio' && 'jitterBufferTarget' in r) {
+        try { r.jitterBufferTarget = opts.voice === 'fast' ? 40 : 80; } catch {}
+      } else if (r.track && r.track.kind === 'audio' && 'playoutDelayHint' in r) {
+        try { r.playoutDelayHint = opts.voice === 'fast' ? 0.04 : 0.08; } catch {}
+      }
       p.audio.srcObject = s;
       p.audio.play().catch(() => {});
       if (p.src) p.src.disconnect();
@@ -2716,7 +2730,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Faster reconnect: a connection whose path has stopped working for 3 s (a Wi-Fi blip, a new address after a
   // router restart) is closed, so it's dialled or called again now. WebRTC itself waits about 30 s before giving up.
   const watchIce = (c) => c.on('iceStateChanged', (s) => {
-    if (s === 'disconnected') setTimeout(() => { if (c.peerConnection && c.peerConnection.iceConnectionState === 'disconnected') c.close(); }, 3000);
+    if (s === 'failed') { c.close(); return; }
+    if (s === 'disconnected') setTimeout(() => {
+      if (c.peerConnection && ['disconnected', 'failed'].includes(c.peerConnection.iceConnectionState)) c.close();
+    }, 3000);
   });
 
   function openPeer(id) {
@@ -3267,10 +3284,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // at 16 kbps, as Less data does, until three looks in a row (15 s) lose under 2% (weak, useBitrate). The call stays.
   async function checkHealth(p) {
     if (!p.call || !p.call.peerConnection) { p.health = ''; return; }
-    let rtt = null, lost = 0, got = 0, theirs = null;
+    let rtt = null, lost = 0, got = 0, theirs = null, jitterDelay = 0, jitterCount = 0;
     (await p.call.peerConnection.getStats()).forEach((r) => {
       if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime != null) rtt = r.currentRoundTripTime;
-      if (r.type === 'inbound-rtp' && r.kind === 'audio') { lost = r.packetsLost || 0; got = r.packetsReceived || 0; }
+      if (r.type === 'inbound-rtp' && r.kind === 'audio') {
+        lost = r.packetsLost || 0; got = r.packetsReceived || 0;
+        jitterDelay = r.jitterBufferDelay || 0; jitterCount = r.jitterBufferEmittedCount || 0;
+      }
       if (r.type === 'remote-inbound-rtp' && r.kind === 'audio' && r.fractionLost != null) theirs = r.fractionLost;
     });
     if (theirs != null) {
@@ -3283,6 +3303,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     p.health = rtt == null ? '' : rtt < 0.15 && loss < 0.02 ? 'good' : rtt < 0.3 && loss < 0.08 ? 'ok' : 'bad';
     p.rtt = rtt;
     p.loss = loss;
+    p.jitterMs = jitterCount ? jitterDelay * 1000 / jitterCount : null;
   }
 
   // ---- staying connected: a player whose connection broke is dialled again at once, then every 5 s for 2 minutes
@@ -3331,7 +3352,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- joining and leaving
-  async function joinRoom(code, auto = false, key = '') {
+  async function joinRoom(code, auto = false, key = '', created = false) {
     code = cleanRoom(code || '');
     if (peer || joining) return;
     if (!code) return say('Type the room code your friend sent you.');
@@ -3360,6 +3381,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       $('createBtn').disabled = $('joinBtn').disabled = false;
     }
     autoJoined = auto;
+    roomCreator = created;
+    if (roomCreator) updateRoomListing();
     joinedAt = performance.now();
     sessStart();
     $('key').hidden = true;
@@ -3396,6 +3419,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function leaveRoom() {
     if (!peer) return;
+    if (roomCreator) updateRoomListing(true);
+    roomCreator = false;
     endGame();
     const old = peer;
     peer = null;
@@ -3432,9 +3457,37 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     applyMic(); // a mic the host muted is yours again
     render();
   }
-  $('createBtn').addEventListener('click', () => joinRoom(newCode()));
+  $('createBtn').addEventListener('click', () => joinRoom(newCode(), false, '', true));
   $('joinForm').addEventListener('submit', (e) => { e.preventDefault(); joinRoom($('code').value, false, $('key').hidden ? '' : $('key').value); });
   $('leaveBtn').addEventListener('click', () => { left = { room, at: Math.round(Date.now() / 1000) }; leaveRoom(); });
+
+  // Only the creator publishes an unlocked room. The Worker lease expires if the app closes unexpectedly.
+  async function updateRoomListing(remove = false) {
+    if (!room || !roomCreator && !remove || roomKey && !remove) return;
+    await fetch(`${serverUrl}/rooms`, { method: 'POST', body: JSON.stringify({ room, owner: myDevice, remove, locked: !!roomKey }) }).catch(() => {});
+  }
+  async function refreshOpenRooms() {
+    const voiceView = document.querySelector('main > .view[data-view="voice"]');
+    if (peer || joining || !voiceView || voiceView.hidden || $('joinView').hidden) return;
+    const list = await fetch(`${serverUrl}/rooms`).then((r) => r.ok ? r.json() : []).catch(() => []);
+    if (!Array.isArray(list)) return;
+    const rows = list.filter((x) => x && /^[a-z0-9]{4,20}$/.test(x.room));
+    $('openRoomsNote').textContent = rows.length ? 'Join an open room without a code.' : 'No open rooms right now.';
+    $('openRooms').replaceChildren(...rows.map(({ room: code }) => {
+      const row = document.createElement('div'); row.className = 'toolbar';
+      row.append(Object.assign(document.createElement('span'), { className: 'code', textContent: code.toUpperCase() }),
+        Object.assign(document.createElement('button'), { className: 'btn primary small', type: 'button', textContent: 'Join', onclick: () => joinRoom(code) }));
+      return row;
+    }));
+  }
+  setInterval(() => { if (roomCreator && peer && !roomKey) updateRoomListing(); refreshOpenRooms(); }, 45000);
+  refreshOpenRooms();
+
+  client && client.on('notification-action', (action) => {
+    if (!action || action.type !== 'room-invite' || !cleanRoom(action.room)) return;
+    if (peer) leaveRoom();
+    joinRoom(action.room, false, action.key || '');
+  });
 
   // ---- popups: in the window, on the in-game overlay, and as a system notification while a browser tab is hidden.
   // Join and leave popups skip players who were here when you came in and quick reconnects.
@@ -4143,8 +4196,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const live = !!p.audio.srcObject && p.audio.srcObject.getAudioTracks().some((t) => t.readyState === 'live');
     const ms = p.rtt != null ? `${Math.round(p.rtt * 1000)} ms delay` : 'some delay';
     if (!p.call || !live) add('bad', 'No voice connection with you yet. It can take 15 seconds; if it stays like this, one of you should leave the room and join again.');
-    else if (p.health === 'bad' || p.health === 'ok') add(p.health, `${p.health === 'bad' ? 'Bad' : 'Shaky'} connection between you: ${ms}${p.loss ? `, ${Math.round(p.loss * 100)}% of the sound lost` : ''}. Wi-Fi or a busy connection on either side does this; Less data (Voice settings, Microphone) helps.`);
-    else add('good', `Voice connection is good${p.rtt != null ? ` (${ms})` : ''}.`);
+    else if (p.health === 'bad' || p.health === 'ok') add(p.health, `${p.health === 'bad' ? 'Bad' : 'Shaky'} connection between you: ${ms}${p.jitterMs != null ? `, about ${Math.round(p.jitterMs)} ms in the audio buffer` : ''}${p.loss ? `, ${Math.round(p.loss * 100)}% of the sound lost` : ''}. Wi-Fi or a busy connection on either side does this; Less data (Voice settings, Microphone) helps.`);
+    else add('good', `Voice connection is good${p.rtt != null ? ` (${ms}${p.jitterMs != null ? `, ${Math.round(p.jitterMs)} ms audio buffer` : ''})` : ''}.`);
     if (p.weak) add('', 'They lose some of your voice on the way, so it goes to them in lower quality until that stops.');
     if (p.echoes) add('bad', 'Their mic sends your voice back to you, from their speakers most likely. Headphones fix it.');
     if (!r) { add('', 'Their app hasn’t said how it’s set up yet. Press Check again.'); return out; }
@@ -4196,12 +4249,57 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- screen share: find the minimap, then your champion on it (camera-box.js Follower), five times a second
   async function startShare() {
     let stream;
+    const audioMode = client && client.shareAudioMode ? client.shareAudioMode() : { filter: false };
     try {
-      // the sound too, for the room's screen tiles (the app's is what you hear; a browser asks): with echo cancelling,
-      // which takes out what Premade itself plays, so your friends don't hear their own voices back
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
-    } catch { return; } // picker cancelled
+      // The desktop app replaces whole-system loopback with Windows process-loopback when Discord is running.
+      // Browsers and clips keep their normal capture behavior.
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: audioMode.filter ? false : { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
+    } catch { if (client && client.shareAudioCancel) client.shareAudioCancel(); return; } // picker cancelled
     const s = share = { track: stream.getVideoTracks()[0], sound: stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0 };
+    if (audioMode.filter) {
+      try {
+        if (!client || !client.startFilteredAudio) throw new Error('Desktop audio filter unavailable');
+        const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+        const source = `registerProcessor('discord-filtered-audio', class extends AudioWorkletProcessor {
+          constructor() { super(); this.q = []; this.cur = null; this.at = 0; this.port.onmessage = (e) => { if (this.q.length < 12) this.q.push(e.data); }; }
+          process(_, outputs) {
+            const [out] = outputs, l = out[0], r = out[1];
+            for (let i = 0; i < l.length; i++) {
+              if (!this.cur || this.at >= this.cur.length) { this.cur = this.q.shift() || null; this.at = 0; }
+              if (this.cur) { l[i] = this.cur[this.at++] || 0; r[i] = this.cur[this.at++] || 0; }
+              else { l[i] = 0; r[i] = 0; }
+            }
+            return true;
+          }
+        });`;
+        const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+        try { await ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+        const node = new AudioWorkletNode(ctx, 'discord-filtered-audio', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+        const dst = ctx.createMediaStreamDestination();
+        node.connect(dst);
+        if (!filteredAudioListener) {
+          client.on('filtered-audio-data', (bytes) => {
+            if (filteredAudioSink) filteredAudioSink(bytes);
+          });
+          filteredAudioListener = true;
+        }
+        filteredAudioSink = (bytes) => {
+          const u = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : ArrayBuffer.isView(bytes) ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength) : new Uint8Array(bytes.data || bytes);
+          const n = u.byteLength & ~1, view = new DataView(u.buffer, u.byteOffset, n), f = new Float32Array(n / 2);
+          for (let i = 0; i < f.length; i++) f[i] = view.getInt16(i * 2, true) / 32768;
+          node.port.postMessage(f, [f.buffer]);
+        };
+        await ctx.resume();
+        if (!await client.startFilteredAudio()) throw new Error('Windows could not start Discord audio filtering');
+        s.sound = dst.stream.getAudioTracks()[0];
+        s.filteredAudio = { ctx, node };
+      } catch (err) {
+        filteredAudioSink = null;
+        if (client && client.stopFilteredAudio) client.stopFilteredAudio();
+        notify('Discord is active, so screen-share sound stayed muted because its audio filter could not start.');
+        console.warn('screen-share audio filter:', err);
+      }
+    }
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
     s.stop = CameraBox.watch(stream, 200, (src, w, h) => {
       if (share !== s) return;
@@ -4260,6 +4358,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     share.stop();
     share.track.stop();
     if (share.sound) share.sound.stop();
+    if (share.filteredAudio) { filteredAudioSink = null; share.filteredAudio.node.disconnect(); share.filteredAudio.ctx.close().catch(() => {}); if (client && client.stopFilteredAudio) client.stopFilteredAudio(); }
     share = null;
     me.t = -Infinity;
     pickedChamp = '';
@@ -4768,10 +4867,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const lends = new Map(), lendSaid = new Set(); // a teammate -> { call, track }: the call carrying your screen to them
   function lendTick() { // every second, and when a teammate asks
     const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
-    for (const [p, l] of lends) if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
+    for (const [p, l] of lends) {
+      if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
+      else if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
+    }
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
       const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
+      if (sound) sound.enabled = !!opts.roomSound;
       const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track, sound].filter(Boolean)), { metadata: { screen: true } });
       if (!call) { track.stop(); if (sound) sound.stop(); continue; }
       // scaled by the call, not the track: a track's constraints would change the one capture the recording uses too
@@ -5159,6 +5262,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
     if (name === 'overlay') ovOpen();
+    if (name === 'voice') refreshOpenRooms();
     main.scrollTop = 0;
     render();
     if (name === 'game' || name === 'pregame') renderGame();
@@ -12253,7 +12357,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           if (peer) leaveRoom();
           await joinRoom(v.room, false, v.key);
           if (peer && room === v.room) notify(`Joined ${v.n || v.riot}’s voice room, ${v.room.toUpperCase()}, as you’re in their League lobby`, true);
-        } else { notify(`${v.n || v.riot} invites you to their voice room, ${v.room.toUpperCase()}. Join from Friends, on the Voice page.`, true); if (opts.chimes) chime('call'); }
+        } else {
+          const inviter = v.n || v.riot, body = `${inviter} invites you to their voice room, ${v.room.toUpperCase()}.`;
+          notify(`${body} Join from Friends, on the Voice page.`, true);
+          if (client && client.notify) client.notify('Voice room invite', body, { type: 'room-invite', room: v.room, key: v.key || '' });
+          if (opts.chimes) chime('call');
+        }
       }
       if (opts.lobbyRoom && peer && room && !GAME_ROOM.test(room)) for (const n of lobbyIds()) // your lobby's friends with Premade, once a room
         if (!mineIds().has(acctOf(n)) && frHas[acctOf(n)] && frAsked.get(acctOf(n)) !== room + joinedAt) { frAsked.set(acctOf(n), room + joinedAt); frInvite(n, await lobHash(room)); }
@@ -12262,7 +12371,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   async function frInvite(n, lob) { // lob: for a friend in your lobby (lobHash), else none
     const quiet = lob !== undefined;
-    if (!peer) await joinRoom(newCode());
+    if (!peer) await joinRoom(newCode(), false, '', true);
     if (!peer) return;
     const r = await fetch(`${serverUrl}/invite`, { method: 'POST', body: JSON.stringify({ id: myDevice, to: n, room, key: roomKey, lob: lob || '' }) }).then((x) => x.json()).catch(() => ({ error: 'Our server didn’t answer' }));
     if (r.error) notify(`Couldn’t invite ${n}: ${r.error}.`, true);
@@ -12603,7 +12712,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
-    surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(),
+    surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: lendTick,
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
@@ -12612,7 +12721,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
-    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optHistory', 'history'],
+    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optHistory', 'history'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
@@ -12785,8 +12894,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [66, 'October 22: Windows voice invites and open rooms', [
+      'Voice-room invites can now arrive as Windows notifications. Click one to open Premade and join the room.',
+      'Rooms you create appear under Open voice rooms on the Voice page while they are active and unlocked. Anyone can join from the list without a code.',
+    ]],
+    [65, 'October 22: Discord audio filtered from screen shares', [
+      'In the Windows app, screen-share sound now keeps game and other system audio while excluding the Discord desktop app and its child processes. If Windows cannot start the filter, screen-share sound stays muted. Browser sharing still uses normal audio capture.',
+    ]],
+    [64, 'October 22: screen-share sound controls and voice recovery', [
+      'Screen-share sound is now off by default, because Windows includes Discord and other apps in the sound mix. Turn it on under Players only when you want the room to hear that mix.',
+      'A voice connection that reaches the failed state now closes and reconnects right away instead of staying stuck.',
+      'Faster voice uses a shorter playback buffer when the browser supports it. Help shows the measured network delay and audio buffer when available.',
+    ]],
     [63, 'October 22: sound with screen share, and sharing as you join', [
-      'A shared screen now comes with its sound: the game, music or a video. Premade’s own voices are taken out, so your friends don’t hear themselves back. Each screen tile on the Voice page has its own volume, and you can mute one there.',
+      'A shared screen can come with its sound: the game, music or a video. Premade’s own voices are taken out where the capture API supports it. Each screen tile on the Voice page has its own volume, and you can mute one there.',
       'The desktop app now shares your screen by itself as soon as you join a room, not only once a game starts. Stop sharing keeps that room unshared. Untick Share my screen by itself in Voice settings, In a game, to stop it.',
     ]],
     [62, 'October 22: a clip editor in Premade, and K/D/A on your clips', [
@@ -13170,15 +13291,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Voice', 'Proximity voice for your game: your room, its games and every voice setting.', [
       ['Proximity voice', 'Friends sound louder the closer their champions are to yours on the minimap, and fade to silent at the edge of your hearing range. Before a game starts, everyone hears everyone. The live map shows everyone, your range as a gold ring and who can hear you.',
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
-      ['Rooms and invite links', 'A room is everyone you play with. Friends join with its 4-letter code or your invite link, and on the website an invite link can open the room in the desktop app.',
-        'Create room, then Copy invite link and send it. To join a friend, type their code under Join.', '#copyBtn, #createBtn'],
+      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Friends can also join with a code or invite link.',
+        'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn'],
       ['Screen share quality', 'Your shared screen at 720p, 1080p or 1440p and 30, 60 or 120 fps, for everyone watching it in the room.', 'Under Players on the Voice page: Screen share quality and Frame rate. A change takes effect at once.', '#optShareQ'],
       ['Screens in the room', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team, and you’re told who’s watching.',
         'Screens show at the top of the Voice page; Hide one, and Show screen on their card brings it back. On unless you turn it off: Let the room watch my screen, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
-      ['Sound with your screen', 'Your room hears your screen’s sound with it: the game, music, videos. Premade’s own voices are taken out, so friends don’t hear themselves back.',
-        'Each screen tile at the top of the Voice page has its own sound and volume in its controls; mute one there. In a browser, tick Share audio when it asks.', '#roomScreens, #optRoomScreen'],
+      ['Sound with your screen', 'You can share your screen’s sound with the room. In the Windows app, the Discord desktop app is filtered out while game and other system audio remain. Discord in a browser can still be included.',
+        'Turn on Share my screen’s sound with the room under Players. Each screen tile has its own volume; browser sharing uses the browser’s Share audio option.', '#roomScreens, #optRoomSound'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
@@ -13217,7 +13338,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling or Bluetooth mic.',
         'Voice settings, Microphone, at the bottom of the Voice page: Test mic, then Set the gate for me.', '#micTest'],
-      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. When a friend’s connection gets bad, your voice goes to them in lower quality by itself, and a headset swap or a Wi-Fi blip reconnects by itself.',
+      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Faster uses shorter packets and a shorter playback buffer when supported. Help reports measured network and audio-buffer delay. When a connection fails or a Wi-Fi blip interrupts it, voice reconnects by itself.',
         'Voice connection, in Voice settings, Microphone.', '#optVoice'],
       ['Mute and push to talk', 'Mute with Ctrl+Shift+M or the mic in the status bar, or set a push-to-talk key (mouse side buttons work too). The desktop app catches them while League is in front.',
         'Voice settings, Talking: Change or Set key.', '#kMute'],
@@ -13637,6 +13758,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return top;
     },
     kick: (id) => { for (const c of peers.get(id).conns) c.close(); }, // breaks the connection, as a network drop would
+    fail: (id) => { const p = peers.get(id); for (const c of [p.call, ...p.conns]) { Object.defineProperty(c.peerConnection, 'iceConnectionState', { value: 'failed', configurable: true }); c.peerConnection.oniceconnectionstatechange(); } },
     // the connections with a player stop working, as in a Wi-Fi blip: their path is 'disconnected' from here on
     blip: (id) => {
       const p = peers.get(id);
@@ -13663,6 +13785,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     checks: () => ({ gate, coach: $('coachNote').hidden ? '' : $('coachNote').textContent, bt: btMic, btNote: !$('btNote').hidden, phone: phone.length,
       clip: performance.now() - clipAt < 60000, weak: [...peers.values()].map((p) => [p.name, p.weak, p.rate]), echoes: [...peers.values()].filter((p) => p.echoes).map(nameOf) }),
     panner: (id) => { const n = peers.get(id).panner; return { model: n.panningModel, x: n.positionX.value, z: n.positionZ.value }; },
+    jitter: (id) => { const p = peers.get(id); return p && p.call ? p.call.peerConnection.getReceivers().filter((r) => r.track && r.track.kind === 'audio').map((r) => r.jitterBufferTarget ?? (r.playoutDelayHint == null ? null : r.playoutDelayHint * 1000)) : []; },
     audio: async (id) => {
       let out = { bytes: 0, energy: 0 };
       const p = peers.get(id);
