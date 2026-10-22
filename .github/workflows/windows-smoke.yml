@@ -1,0 +1,42 @@
+name: Windows installer smoke check
+on:
+  push:
+    branches: [claude/voice-clips-6a9va7]
+  workflow_dispatch:
+jobs:
+  install-and-launch:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile screen audio helper
+        run: cl /nologo /EHsc /std:c++17 /O2 /Fe:client/audio-capture.exe client\audio-capture.cpp /link ole32.lib mmdevapi.lib
+      - name: Build Windows installer
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+      - name: Check update manifest and installer
+        shell: pwsh
+        run: |
+          $package = Get-Content client/package.json | ConvertFrom-Json
+          $manifest = Get-Content client/dist/latest.yml -Raw
+          if ($manifest -notmatch "(?m)^version: $([regex]::Escape($package.version))$") { throw "latest.yml does not match app version $($package.version)" }
+          if (!(Test-Path client/dist/Premade-Setup.exe) -or (Get-Item client/dist/Premade-Setup.exe).Length -lt 10MB) { throw 'Installer is missing or unexpectedly small.' }
+          $installPath = Join-Path $env:RUNNER_TEMP 'Premade-smoke-install'
+          Start-Process -FilePath (Resolve-Path client/dist/Premade-Setup.exe) -ArgumentList @('/S', "/D=$installPath") -Wait
+          $appPath = Join-Path $installPath 'Premade.exe'
+          if (!(Test-Path $appPath)) { throw 'Silent install did not create Premade.exe.' }
+          $env:LPC_SITE = 'https://rayn16.github.io/Premade/test/'
+          $app = Start-Process -FilePath $appPath -PassThru
+          try {
+            Start-Sleep -Seconds 15
+            $app.Refresh()
+            if ($app.HasExited) { throw "Installed app exited during launch smoke check (exit $($app.ExitCode))." }
+            Write-Host "Installed and launched Premade $($package.version)."
+          } finally {
+            if (!$app.HasExited) { Stop-Process -Id $app.Id -Force }
+          }

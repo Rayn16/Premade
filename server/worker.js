@@ -24,9 +24,9 @@ export default {
     if (url.pathname === '/rooms' && req.method === 'POST') {
       let body;
       try { body = await req.json(); } catch { return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS }); }
-      if (!body || !/^[a-z0-9]{4,20}$/.test(body.room) || !/^[a-f0-9-]{36}$/.test(body.owner)) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
+      if (!body || !/^[a-z0-9]{4,20}$/.test(body.room) || !/^[a-f0-9-]{36}$/.test(body.owner) || (body.count != null && (!Number.isInteger(body.count) || body.count < 1 || body.count > 10)) || (body.playing != null && typeof body.playing !== 'boolean')) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
       if (body.remove === true) await directory(env).remove(body.room, body.owner);
-      else if (body.locked !== true) await directory(env).put(body.room, body.owner);
+      else if (body.locked !== true) await directory(env).put(body.room, body.owner, body.count || 1, body.playing === true);
       else await directory(env).remove(body.room, body.owner);
       return Response.json({ ok: true }, { headers: CORS });
     }
@@ -48,14 +48,17 @@ export class Directory extends DurableObject {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec('CREATE TABLE IF NOT EXISTS rooms (room TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL) WITHOUT ROWID');
+    const columns = new Set(this.sql.exec('PRAGMA table_info(rooms)').toArray().map((x) => x.name));
+    if (!columns.has('count')) this.sql.exec('ALTER TABLE rooms ADD COLUMN count INTEGER NOT NULL DEFAULT 1');
+    if (!columns.has('playing')) this.sql.exec('ALTER TABLE rooms ADD COLUMN playing INTEGER NOT NULL DEFAULT 0');
   }
-  async put(room, owner) {
-    this.sql.exec('INSERT INTO rooms VALUES (?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires', room, owner, Date.now() + 120000);
+  async put(room, owner, count = 1, playing = false) {
+    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing', room, owner, Date.now() + 120000, count, playing ? 1 : 0);
   }
   async remove(room, owner) { this.sql.exec('DELETE FROM rooms WHERE room = ? AND owner = ?', room, owner); }
   async list() {
     this.sql.exec('DELETE FROM rooms WHERE expires < ?', Date.now());
-    return this.sql.exec('SELECT room FROM rooms ORDER BY room').toArray().map(({ room }) => ({ room }));
+    return this.sql.exec('SELECT room, count, playing FROM rooms ORDER BY room').toArray().map(({ room, count, playing }) => ({ room, count, playing: !!playing }));
   }
 }
 

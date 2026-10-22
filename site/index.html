@@ -901,6 +901,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             </div>
           </header>
           <p id="phase" class="phase" role="status"></p>
+          <p id="connectionStatus" class="hint" role="status" hidden></p>
           <div id="modeRow" class="moderow">
             <label class="field">Game mode <select id="modeSel"><option value="classic">Classic</option><option value="legends">Legends</option><option value="immersive">Immersive</option><option value="gibberish">Gibberish</option><option value="swap">Voice swap</option><option value="showdown">Showdown</option><option value="chaos">Chaos</option></select></label>
             <button class="tip" type="button" popovertarget="t-mode" aria-label="About game modes">?</button>
@@ -942,7 +943,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <p id="empty" class="hint"></p>
                 <label class="check"><input id="optRoomScreen" type="checkbox"> Let the room watch my screen while I share it <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
                 <label class="check"><input id="optRoomSound" type="checkbox"> Share my screen’s sound with the room</label>
-                <p class="hint">The Windows app filters the Discord desktop app and keeps game audio. Discord in a browser can still be included. If the Windows filter cannot start, screen audio stays muted.</p>
+                <p id="roomSoundState" class="hint" role="status">Screen audio is on by default. The Windows app filters the Discord desktop app and keeps game audio. Discord in a browser can still be included.</p>
                 <div class="toolbar"><label class="field">Screen share quality <select id="optShareQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label><label class="field">Frame rate <select id="optShareFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
               </div>
             </div>
@@ -1890,7 +1891,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   <div class="wz">
     <h2 id="helpTitle" class="title"></h2>
     <ul id="helpList" class="helplist"></ul>
-    <footer><button id="helpAsk" class="btn" type="button">Check again</button><button id="helpClose" class="btn primary" type="button">Close</button></footer>
+    <footer><button id="helpCopy" class="btn" type="button">Copy connection details</button><button id="helpAsk" class="btn" type="button">Check again</button><button id="helpClose" class="btn primary" type="button">Close</button></footer>
   </div>
 </dialog>
 
@@ -2007,7 +2008,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
-    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: false, history: true,
+    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameDays: 7, champLook: false, champMain: null,
@@ -2017,6 +2018,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', overlay: 'Alt+V', ptt: '', ...load('lpc-keys', {}) };
   if (keys.overlay === 'Ctrl+Shift+O') keys.overlay = 'Alt+V'; // the old default, kept by anyone who changed another key
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
+  // Screen audio used to default off. Apply the new default once to existing installs; afterward a user's choice sticks.
+  if (!store.get('lpc-room-sound-default-v1')) {
+    opts.roomSound = true;
+    saveOpts();
+    store.set('lpc-room-sound-default-v1', '1');
+  }
   // The theme's colours (Settings > Look) for what's drawn in code: the live map, the season recap and the overlay
   const lookNow = () => {
     const css = getComputedStyle(document.documentElement), c = { dark: css.colorScheme !== 'light' };
@@ -2138,7 +2145,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function rec(id) {
     let p = peers.get(id);
     if (p) return p;
-    p = { slot: +id.slice(prefix.length), name: '', conns: new Set(), call: null, audio: new Audio(), pos: null, muted: false, user: 1, vol: 1, out: 1, muffle: 0, pan: 0, health: '', talking: false, spokeAt: -Infinity, champ: '', team: '', dead: false, respawn: 0, face: '', fx: [], range: 1200, ready: null, scrambled: false, st: '', min: 0, vq: 'normal', rtt: null, loss: 0, weak: false, calm: 0 };
+    p = { slot: +id.slice(prefix.length), name: '', conns: new Set(), call: null, audio: new Audio(), pos: null, muted: false, user: 1.5, vol: 1, out: 1, muffle: 0, pan: 0, health: '', talking: false, spokeAt: -Infinity, champ: '', team: '', dead: false, respawn: 0, face: '', fx: [], range: 1200, ready: null, scrambled: false, st: '', min: 0, vq: 'normal', rtt: null, loss: 0, weak: false, calm: 0, linkStatus: 'connecting', linkReason: 'setting up the voice connection', recoveryAt: 0 };
     p.audio.autoplay = true;
     p.audio.muted = true; // Chrome only feeds a call's sound to Web Audio while it plays in an element; we hear it through Web Audio
     p.lp = ac.createBiquadFilter();
@@ -2162,7 +2169,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const li = document.createElement('li');
     li.className = 'player';
     li.dataset.slot = p.slot;
-    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small screen" type="button" hidden>Show screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="200" step="5" value="100"><output>100%</output></label>';
+    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small screen" type="button" hidden>Show screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="300" step="5" value="150"><output>150%</output></label>';
     li.querySelector('.mute').addEventListener('click', (e) => {
       p.muted = !p.muted;
       e.currentTarget.setAttribute('aria-pressed', String(p.muted));
@@ -2207,7 +2214,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (isHost() && hostMuted(p.slot)) setTimeout(() => { if (isHost() && hostMuted(p.slot) && !slotted(p.slot)) { takeHostMute({ n: nextN(hm.n), s: hm.s.filter((s) => s !== p.slot) }, slot); send(meMsg()); } }, left ? 0 : 30000);
     if (left && p.hello) gone(nameOf(p));
     else if (!quiet && p.hello) leftLater(nameOf(p));
-    if (!quiet && !left) { dropped.set(p.slot, performance.now()); dial(p.slot); } // the connection broke: dial them again now
+    if (!quiet && !left) { dropped.set(p.slot, { at: performance.now(), name: nameOf(p) }); dial(p.slot); } // the room connection broke: dial them again now
+    if (roomCreator) updateRoomListing();
     render();
   }
 
@@ -2253,6 +2261,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   const HEALTH = { good: 'Good connection', ok: 'Shaky connection: some lag or lost sound', bad: 'Bad connection: voice may cut out' };
   function stateText(p) {
+    if (p.linkStatus === 'reconnecting') return 'Reconnecting voice…';
+    if (p.linkStatus === 'reconnected' && Date.now() - p.recoveryAt < 8000) return 'Voice reconnected';
     if (!p.call || !p.audio.srcObject) return 'Connecting voice…';
     if (p.health === 'bad') return 'Bad connection: their voice may cut out';
     if (hostMuted(p.slot)) return 'Muted for everyone by the host';
@@ -2286,7 +2296,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     hmb.textContent = hostMuted(p.slot) ? 'Unmute for all' : 'Mute for all';
     hmb.setAttribute('aria-pressed', String(hostMuted(p.slot)));
     hmb.setAttribute('aria-label', `${hostMuted(p.slot) ? 'Unmute' : 'Mute'} ${name}’s mic for everyone`);
-    r.querySelector('.pvol input').setAttribute('aria-label', 'Volume for ' + name);
+    const vol = r.querySelector('.pvol input');
+    vol.setAttribute('aria-label', 'Volume for ' + name);
+    if (document.activeElement !== vol) { vol.value = String(Math.round(p.user * 100)); vol.nextElementSibling.textContent = `${Math.round(p.user * 100)}%`; }
     const pl = r.querySelector('.plol'), lt = lolText(p), tier = p.lol && p.lol.rk ? p.lol.rk[0] : '', pk = (emblems[tier] || '') + lt;
     if (pl.dataset.key !== pk) { pl.dataset.key = pk; pl.textContent = lt; if (lt) pl.prepend(emblem(tier)); }
     r.querySelector('.watch').hidden = !canWatch(p);
@@ -2301,6 +2313,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     setPic(r.querySelector('.pic'), picOf(p), name);
     p.chip.toggleAttribute('data-talking', shownTalking(p));
     p.chip.lastChild.textContent = name;
+    if (roomCreator) updateRoomListing();
   }
   const trackText = () => (!share ? 'not sharing your screen' : !share.sq ? 'looking for your minimap'
     : fresh(me) && me.by === 'icon' ? 'following your champion' : fresh(me) ? 'following your camera box' : 'looking for your champion');
@@ -2320,6 +2333,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderGoalBoard();
     const hear = peer && fresh(me) ? hearMe() : null;
     $('hearMe').textContent = !hear ? '' : hear.length ? `Can hear you now: ${hear.join(', ')}.` : league ? 'No teammate can hear you right now.' : 'Nobody can hear you right now.';
+    const retrying = [...dropped.values()];
+    $('connectionStatus').hidden = !peer || !retrying.length;
+    $('connectionStatus').textContent = retrying.length ? `Reconnecting to ${retrying.map((x) => x.name).filter(Boolean).join(', ') || 'a room member'} after their room connection dropped. Premade keeps retrying automatically.` : '';
     $('empty').hidden = peers.size > 0;
     $('empty').textContent = peer ? 'No one else is here yet. Send them the room code or the invite link.' : 'You’re not in a room yet.';
     const inGame = [...peers.values()].filter((p) => fresh(p.pos)).length + (fresh(me) ? 1 : 0);
@@ -2709,6 +2725,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         try { r.playoutDelayHint = opts.voice === 'fast' ? 0.04 : 0.08; } catch {}
       }
       p.audio.srcObject = s;
+      if (p.linkStatus === 'reconnecting') { p.linkStatus = 'reconnected'; p.linkReason = 'voice audio resumed'; p.recoveryAt = Date.now(); }
+      else p.linkStatus = 'connected';
       p.audio.play().catch(() => {});
       if (p.src) p.src.disconnect();
       p.src = ac.createMediaStreamSource(s);
@@ -2723,6 +2741,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (p.call !== call) return;
       p.call = null;
       p.audio.srcObject = null;
+      p.linkStatus = 'reconnecting';
+      p.linkReason = 'the voice call closed; retrying';
       render();
       setTimeout(() => { if (peers.get(call.peer) === p && !p.call && slot < p.slot && p.conns.size && peer && !peer.disconnected) callPeer(call.peer); }, 1000);
     });
@@ -2730,6 +2750,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Faster reconnect: a connection whose path has stopped working for 3 s (a Wi-Fi blip, a new address after a
   // router restart) is closed, so it's dialled or called again now. WebRTC itself waits about 30 s before giving up.
   const watchIce = (c) => c.on('iceStateChanged', (s) => {
+    const p = peers.get(c.peer);
+    if (p) {
+      p.lastIce = s;
+      if (s === 'disconnected' || s === 'failed') {
+        p.linkStatus = 'reconnecting';
+        p.linkReason = s === 'failed' ? 'the WebRTC path failed' : 'the network path was interrupted';
+      } else if (s === 'connected' || s === 'completed') {
+        if (p.linkStatus === 'reconnecting') { p.linkStatus = 'reconnected'; p.linkReason = 'connection recovered automatically'; p.recoveryAt = Date.now(); }
+      }
+      render();
+    }
     if (s === 'failed') { c.close(); return; }
     if (s === 'disconnected') setTimeout(() => {
       if (c.peerConnection && ['disconnected', 'failed'].includes(c.peerConnection.iceConnectionState)) c.close();
@@ -2895,7 +2926,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('outSel').replaceChildren(new Option('Default', ''), ...outs.map((d, i) => new Option(d.label || `Speakers ${i + 1}`, d.deviceId, false, d.deviceId === outId)));
     $('outRow').hidden = !outs.length || !ac.setSinkId;
     const sink = outs.some((d) => d.deviceId === outId) ? outId : ''; // the speakers you picked, or the default while they're unplugged
-    if (outId && ac.setSinkId && ac.sinkId !== sink) ac.setSinkId(sink).catch(() => {});
+    if (outId && !sink) { outId = ''; store.set('lpc-out', ''); $('outSel').value = ''; $('roomSoundState').textContent = 'Your selected speaker was disconnected; voice is playing through the default output.'; }
+    if (ac.setSinkId && ac.sinkId !== sink) ac.setSinkId(sink).catch(() => { $('roomSoundState').textContent = 'Could not switch audio output. Choose another speaker in Voice settings.'; });
     return devs;
   }
   // ---- headset swap: when your mic goes away (unplugged, a headset switched off), the one you picked comes back, or
@@ -2916,6 +2948,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (raw.getAudioTracks()[0].label !== t.label) notify(`Your mic is now ${raw.getAudioTracks()[0].label || 'another one'}.`, true);
   }
   navigator.mediaDevices.addEventListener('devicechange', micMoved);
+  navigator.mediaDevices.addEventListener('devicechange', () => { if (raw) listDevices().catch((err) => console.warn('audio output refresh:', err)); });
   // where voices play: another output than the default, like a Wave Link channel (Chrome and the client only)
   let outId = store.get('lpc-out') || '';
   function useOut(picked) {
@@ -3212,21 +3245,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     coachSay(`Noise gate set to ${pct(gate)}, just above your room’s background noise.`);
   });
   // ---- Bluetooth warning: on Windows a Bluetooth headset's mic works in phone quality, and while it's in use the
-  // headset plays everything in phone quality too. Spotted by the mic's name (Hands-Free) or by its sound: in 5 s of
-  // talking, not one moment with sound above 8.5 kHz ('s' and 't' always have some), as in micCheck. A note by the mic,
-  // a popup once for each mic, and a line in friends' Help.
-  let btMic = false, phone = [];
+  // headset plays everything in phone quality too.
+  // Bluetooth headset microphones normally expose their hands-free profile in the Windows device label. Use that
+  // stable device signal; synthetic beeps and quiet speech can lack high frequencies and must not trigger a warning.
+  let btMic = false;
+  const phoneQuality = (label) => /hands-?free|bluetooth|\bAG Audio\b/i.test(label);
   function btCheck() {
     const label = raw.getAudioTracks()[0].label;
-    btMic = /hands-?free|bluetooth|\bAG Audio\b/i.test(label) || (phone.length >= 50 && Math.max(...phone) < -40);
+    btMic = phoneQuality(label);
     $('btNote').hidden = !btMic;
     const seen = load('lpc-btwarned', []);
     if (!btMic || seen.includes(label)) return;
     store.set('lpc-btwarned', JSON.stringify([...seen, label].slice(-20)));
     notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely). A separate mic, or the headset’s own USB dongle, sounds much better.', true);
   }
-  // the raw mic, ten times a second: clipping, and how much of your voice is above 8.5 kHz (dB against 300 to 3,400 Hz)
-  const spec = new Float32Array(1024);
+  // the raw mic, ten times a second: clipping
   function micCheck() {
     if (!micAn || !raw) return;
     micAn.getFloatTimeDomainData(wave);
@@ -3238,10 +3271,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       coachSay('Your mic is too loud: its loudest sounds get cut off, which crackles. Turn it down in Windows’ sound settings (Recording, your mic, Levels) or move it further from your mouth.');
       if (peer && !clipWarned) { clipWarned = true; notify('Your mic is too loud, so your voice crackles. Turn it down in Windows’ sound settings.', true); }
     }
-    if (phone.length >= 50 || Math.sqrt(e / wave.length) < 0.02) return; // decided, or you're not talking
-    micAn.getFloatFrequencyData(spec);
-    const band = (lo, hi) => { let s = 0; for (let i = Math.round(lo / 23.4375); i < hi / 23.4375; i++) s += 10 ** (spec[i] / 10); return s; };
-    if (phone.push(10 * Math.log10((band(8500, 12000) + 1e-20) / (band(300, 3400) + 1e-20))) === 50) btCheck();
   }
   // ---- echo check: when a friend's mic sends your own voice back to you (their speakers, whose sound their echo
   // cancelling takes out unless Studio voice turned it off), you're both told, at most every 10 minutes. It's an echo
@@ -3304,6 +3333,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     p.rtt = rtt;
     p.loss = loss;
     p.jitterMs = jitterCount ? jitterDelay * 1000 / jitterCount : null;
+    p.delayMs = rtt == null ? null : Math.round(rtt * 500 + (p.jitterMs || 0)); // estimated one-way path plus the receiver's average audio buffer
   }
 
   // ---- staying connected: a player whose connection broke is dialled again at once, then every 5 s for 2 minutes
@@ -3321,7 +3351,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     setTimeout(() => { dialing.delete(id); if (!c.open) c.close(); }, 10000); // nobody there
   }
   function redial() {
-    for (const [s, at] of dropped) if (performance.now() - at > 120000) dropped.delete(s); else dial(s);
+    for (const [s, state] of dropped) if (performance.now() - state.at > 120000) dropped.delete(s); else dial(s);
     for (const [id, p] of peers) if (!p.call && slot < p.slot && p.conns.size) callPeer(id);
   }
   let ticks = 0;
@@ -3462,9 +3492,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('leaveBtn').addEventListener('click', () => { left = { room, at: Math.round(Date.now() / 1000) }; leaveRoom(); });
 
   // Only the creator publishes an unlocked room. The Worker lease expires if the app closes unexpectedly.
+  let roomListingState = '';
   async function updateRoomListing(remove = false) {
     if (!room || !roomCreator && !remove || roomKey && !remove) return;
-    await fetch(`${serverUrl}/rooms`, { method: 'POST', body: JSON.stringify({ room, owner: myDevice, remove, locked: !!roomKey }) }).catch(() => {});
+    const count = Math.min(10, peers.size + 1), playingNow = !!inGameNow();
+    const state = `${room}|${count}|${playingNow}|${!!roomKey}|${remove}`;
+    if (!remove && state === roomListingState) return;
+    roomListingState = remove ? '' : state;
+    await fetch(`${serverUrl}/rooms`, { method: 'POST', body: JSON.stringify({ room, owner: myDevice, count, playing: playingNow, remove, locked: !!roomKey }) }).catch(() => {});
   }
   async function refreshOpenRooms() {
     const voiceView = document.querySelector('main > .view[data-view="voice"]');
@@ -3473,9 +3508,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!Array.isArray(list)) return;
     const rows = list.filter((x) => x && /^[a-z0-9]{4,20}$/.test(x.room));
     $('openRoomsNote').textContent = rows.length ? 'Join an open room without a code.' : 'No open rooms right now.';
-    $('openRooms').replaceChildren(...rows.map(({ room: code }) => {
+    $('openRooms').replaceChildren(...rows.map(({ room: code, count, playing }) => {
       const row = document.createElement('div'); row.className = 'toolbar';
+      const people = Number.isInteger(count) ? `${Math.max(1, Math.min(10, count))}/10 players` : 'Open room';
+      const phase = playing ? 'In game' : 'Waiting in lobby';
       row.append(Object.assign(document.createElement('span'), { className: 'code', textContent: code.toUpperCase() }),
+        Object.assign(document.createElement('span'), { className: 'hint', textContent: `${people} · ${phase}` }),
         Object.assign(document.createElement('button'), { className: 'btn primary small', type: 'button', textContent: 'Join', onclick: () => joinRoom(code) }));
       return row;
     }));
@@ -4178,7 +4216,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     };
     $('statusRows').replaceChildren(row(`${myName || 'You'} (you)`, myStatus(), league ? Math.floor(gameNow() / 60) : 0), ...[...peers.values()].map((p) => row(nameOf(p), p.st, p.min)));
   }
-  function statusTick() { const st = myStatus(); if (st !== stWas) { stWas = st; send(meMsg()); } }
+  function statusTick() { const st = myStatus(); if (st !== stWas) { stWas = st; send(meMsg()); if (roomCreator) updateRoomListing(); } }
 
   $('readyBtn').addEventListener('click', async () => {
     $('readyBox').hidden = false;
@@ -4194,7 +4232,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function helpFor(p) {
     const r = p.ready, out = [], add = (h, text) => out.push([h, text]);
     const live = !!p.audio.srcObject && p.audio.srcObject.getAudioTracks().some((t) => t.readyState === 'live');
-    const ms = p.rtt != null ? `${Math.round(p.rtt * 1000)} ms delay` : 'some delay';
+    const ms = p.rtt != null ? `${Math.round(p.rtt * 1000)} ms round trip${p.delayMs != null ? `, about ${p.delayMs} ms one-way plus buffer` : ''}` : 'some delay';
+    if (p.linkStatus === 'reconnecting') add('ok', `Voice is reconnecting: ${p.linkReason || 'the connection was interrupted'}. Premade is retrying automatically.`);
+    else if (p.linkStatus === 'reconnected') add('good', `${p.linkReason || 'Voice recovered'}${p.recoveryAt ? ` at ${new Date(p.recoveryAt).toLocaleTimeString()}` : ''}.`);
     if (!p.call || !live) add('bad', 'No voice connection with you yet. It can take 15 seconds; if it stays like this, one of you should leave the room and join again.');
     else if (p.health === 'bad' || p.health === 'ok') add(p.health, `${p.health === 'bad' ? 'Bad' : 'Shaky'} connection between you: ${ms}${p.jitterMs != null ? `, about ${Math.round(p.jitterMs)} ms in the audio buffer` : ''}${p.loss ? `, ${Math.round(p.loss * 100)}% of the sound lost` : ''}. Wi-Fi or a busy connection on either side does this; Less data (Voice settings, Microphone) helps.`);
     else add('good', `Voice connection is good${p.rtt != null ? ` (${ms}${p.jitterMs != null ? `, ${Math.round(p.jitterMs)} ms audio buffer` : ''})` : ''}.`);
@@ -4232,6 +4272,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function openHelp(id) { helpId = id; renderHelp(); $('helpDlg').showModal(); }
   $('helpClose').addEventListener('click', () => $('helpDlg').close());
   $('helpAsk').addEventListener('click', () => { const p = peers.get(helpId), [c] = p ? p.conns : []; if (c) c.send({ t: 'ready?' }); });
+  $('helpCopy').addEventListener('click', async () => {
+    const p = peers.get(helpId);
+    if (!p) return;
+    const pc = p.call && p.call.peerConnection;
+    const details = {
+      app: client && client.version || 'web', browser: navigator.userAgent,
+      playerSlot: p.slot, voiceCall: !!p.call,
+      connectionState: pc && pc.connectionState || 'unavailable', iceState: pc && pc.iceConnectionState || p.lastIce || 'unavailable',
+      health: p.health || 'not measured', roundTripMs: p.rtt == null ? null : Math.round(p.rtt * 1000),
+      estimatedOneWayIncludingBufferMs: p.delayMs ?? null, jitterBufferMs: p.jitterMs == null ? null : Math.round(p.jitterMs),
+      packetLossPercent: Math.round((p.loss || 0) * 100), recovery: p.linkReason || 'none', recoveredAt: p.recoveryAt ? new Date(p.recoveryAt).toISOString() : null,
+      audioOutput: outId ? 'selected device' : 'system default', capturedAt: new Date().toISOString(),
+    };
+    try { await navigator.clipboard.writeText(JSON.stringify(details, null, 2)); notify('Connection details copied.', true); }
+    catch { notify('Could not copy connection details. Allow clipboard access and try again.', true); }
+  });
   $('helpDlg').addEventListener('close', () => { helpId = ''; });
 
   let trackedAt = 0, lostWarned = false;
@@ -4256,6 +4312,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: audioMode.filter ? false : { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
     } catch { if (client && client.shareAudioCancel) client.shareAudioCancel(); return; } // picker cancelled
     const s = share = { track: stream.getVideoTracks()[0], sound: stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0 };
+    $('roomSoundState').textContent = opts.roomSound
+      ? (s.sound ? 'Screen audio is being shared with the room.' : audioMode.filter ? 'Discord filtering is active; starting filtered screen audio.' : 'Screen audio was not selected in the screen picker.')
+      : 'Screen audio sharing is off. Turn it on here to share sound.';
     if (audioMode.filter) {
       try {
         if (!client || !client.startFilteredAudio) throw new Error('Desktop audio filter unavailable');
@@ -4293,10 +4352,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (!await client.startFilteredAudio()) throw new Error('Windows could not start Discord audio filtering');
         s.sound = dst.stream.getAudioTracks()[0];
         s.filteredAudio = { ctx, node };
+        $('roomSoundState').textContent = opts.roomSound ? 'Screen audio is being shared with the room; Discord desktop audio is filtered.' : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
       } catch (err) {
         filteredAudioSink = null;
         if (client && client.stopFilteredAudio) client.stopFilteredAudio();
         notify('Discord is active, so screen-share sound stayed muted because its audio filter could not start.');
+        $('roomSoundState').textContent = 'Screen audio is muted because Discord filtering could not start.';
         console.warn('screen-share audio filter:', err);
       }
     }
@@ -4360,6 +4421,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (share.sound) share.sound.stop();
     if (share.filteredAudio) { filteredAudioSink = null; share.filteredAudio.node.disconnect(); share.filteredAudio.ctx.close().catch(() => {}); if (client && client.stopFilteredAudio) client.stopFilteredAudio(); }
     share = null;
+    $('roomSoundState').textContent = opts.roomSound ? 'Screen sharing stopped. Screen audio is on for your next share.' : 'Screen sharing stopped. Screen audio sharing is off.';
     me.t = -Infinity;
     pickedChamp = '';
     refreshMine();
@@ -12712,7 +12774,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
-    surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: lendTick,
+    surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
@@ -12894,6 +12956,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [67, 'October 22: clearer voice recovery, room status and louder voices', [
+      'Voice cards now show when someone is reconnecting and when their voice recovers. Help can copy network, audio-buffer and recovery details without including room codes or names.',
+      'Open rooms show how many players are inside and whether they are waiting or in a game. You can turn each player up to 300%; new room voices start at 150%.',
+      'Screen-share audio is on by default. Discord desktop audio remains filtered in the Windows app, and the Voice page reports when sound is shared or muted. Audio output devices refresh when a headset is plugged in or removed.',
+    ]],
     [66, 'October 22: Windows voice invites and open rooms', [
       'Voice-room invites can now arrive as Windows notifications. Click one to open Premade and join the room.',
       'Rooms you create appear under Open voice rooms on the Voice page while they are active and unlocked. Anyone can join from the list without a code.',
@@ -13298,15 +13365,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Screens show at the top of the Voice page; Hide one, and Show screen on their card brings it back. On unless you turn it off: Let the room watch my screen, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
-      ['Sound with your screen', 'You can share your screen’s sound with the room. In the Windows app, the Discord desktop app is filtered out while game and other system audio remain. Discord in a browser can still be included.',
-        'Turn on Share my screen’s sound with the room under Players. Each screen tile has its own volume; browser sharing uses the browser’s Share audio option.', '#roomScreens, #optRoomSound'],
+      ['Sound with your screen', 'Screen audio is on by default. In the Windows app, the Discord desktop app is filtered out while game and other system audio remain. Discord in a browser can still be included. Premade tells you when screen audio is shared or muted.',
+        'Share my screen’s sound with the room is under Players. Each screen tile has its own volume; browser sharing uses the browser’s Share audio option.', '#roomScreens, #optRoomSound'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
         'Under the live map in your room.', '#range, #createBtn'],
       ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass.',
         'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Voice settings, Popups and sounds.', '#optSurround'],
-      ['Player cards', 'Each friend’s champion, rank, record with you and connection. Turn one friend up or down (up to 200%), mute them just for you, Watch their game, or press Help to see what’s wrong with their setup.',
+      ['Player cards', 'Each friend’s champion, rank, record with you and connection. New voices start at 150%; turn one friend up or down (up to 300%), mute them just for you, Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
         'In your room, beside the map.', '#cardBox, #createBtn'],
       ['Ready check', 'Everyone’s mic, screen, minimap, app version and League window mode in one table, so you can fix problems before you queue.', 'Ready check, at the top of your room.', '#readyBtn, #createBtn'],
       ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
@@ -13674,6 +13741,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (params.has('debug')) window.lpc = {
     slot: () => slot,
     room: () => room,
+    phoneQuality,
     jungler: (r, tl) => junglerEl(r, tl),
     foes: () => (share && share.foes ? share.foes.list.map(({ name, id, seen, zone, where, lane, called, dead }) => ({ name, id, seen, zone, where, lane, called, dead })) : null),
     zone: (p) => zoneOf(p),
@@ -13782,7 +13850,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     },
     callId: (id) => { const p = peers.get(id); return p && p.call ? p.call.connectionId : ''; },
     env: (id) => peers.get(id).env, // the echo check's last 8 s: your loudness (a) and theirs (b)
-    checks: () => ({ gate, coach: $('coachNote').hidden ? '' : $('coachNote').textContent, bt: btMic, btNote: !$('btNote').hidden, phone: phone.length,
+    checks: () => ({ gate, coach: $('coachNote').hidden ? '' : $('coachNote').textContent, bt: btMic, btNote: !$('btNote').hidden,
       clip: performance.now() - clipAt < 60000, weak: [...peers.values()].map((p) => [p.name, p.weak, p.rate]), echoes: [...peers.values()].filter((p) => p.echoes).map(nameOf) }),
     panner: (id) => { const n = peers.get(id).panner; return { model: n.panningModel, x: n.positionX.value, z: n.positionZ.value }; },
     jitter: (id) => { const p = peers.get(id); return p && p.call ? p.call.peerConnection.getReceivers().filter((r) => r.track && r.track.kind === 'audio').map((r) => r.jitterBufferTarget ?? (r.playoutDelayHint == null ? null : r.playoutDelayHint * 1000)) : []; },

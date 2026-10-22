@@ -32,6 +32,7 @@ const PEER = process.env.PEER || '127.0.0.1:9000';
 const URL_ = `http://127.0.0.1:8080/index.html?peer=${PEER}&debug`;
 const MAP = 14870, RANGE = 1200;
 const GAME_ROOM = 'g0123456789a';
+const OPEN_ROOMS = new Map(); // isolate the public room directory from production while exercising its client contract
 
 const peerServer = process.env.PEER ? null : PeerServer({ host: '127.0.0.1', port: 9000, path: '/' });
 const web = http.createServer((req, res) => {
@@ -164,6 +165,13 @@ async function player(browser, name, screen, { setup = true, client = false, den
   if (process.env.PEER) await ctx.route(/\/riot\//, (r) => r.fulfill({ status: 404, headers: cors })); // no Riot data, as with a local PeerServer
   ctx.hellos = []; // what the page tells our server about this device (/hello, who has Premade)
   await ctx.route('**/hello', (r) => { ctx.hellos.push(JSON.parse(r.request().postData())); r.fulfill({ status: 204, headers: cors }); });
+  await ctx.route('**/rooms', (r) => {
+    if (r.request().method() === 'GET') return r.fulfill({ json: [...OPEN_ROOMS.values()].map(({ room, count, playing }) => ({ room, count, playing })), headers: cors });
+    const b = JSON.parse(r.request().postData() || '{}');
+    if (b.remove || b.locked) { if (OPEN_ROOMS.get(b.room)?.owner === b.owner) OPEN_ROOMS.delete(b.room); }
+    else OPEN_ROOMS.set(b.room, { room: b.room, owner: b.owner, count: b.count, playing: b.playing });
+    r.fulfill({ json: { ok: true }, headers: cors });
+  });
   await ctx.addInitScript(fakeScreen, screen);
   if (setup) await ctx.addInitScript((n) => { localStorage.setItem('lpc-setup', '1'); localStorage.setItem('lpc-name', n); localStorage.setItem('lpc-news', '9999'); }, name);
   // smart noise removal takes the fake mic's beeps for noise, so it's off unless a test wants it
@@ -201,7 +209,7 @@ const lum = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).m
 const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
 
 (async () => {
-  const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+  const browser = await chromium.launch({ ...(process.env.PW_CHROMIUM_PATH && { executablePath: process.env.PW_CHROMIUM_PATH }), args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   try {
     const scratch = await browser.newPage();
     pic = await scratch.evaluate(() => {
@@ -293,9 +301,8 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.waitForFunction(() => lpc.slot() >= 0, null, { timeout: 15000 });
     const ROOM = await ana.evaluate(() => lpc.room());
     assert(/^[a-z]{4}$/.test(ROOM) && (await ana.textContent('#roomName')) === ROOM, `a 4-letter room: ${ROOM}`);
-    assert.strictEqual(await ana.isChecked('#optRoomSound'), false, 'screen audio is off by default to avoid sharing Discord voice');
-    await ana.check('#optRoomSound');
-    assert.strictEqual(await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')).roomSound), true, 'screen audio opt-in is saved');
+    assert.strictEqual(await ana.isChecked('#optRoomSound'), true, 'screen audio is on by default');
+    assert.strictEqual(await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')).roomSound), true, 'screen audio default is saved');
     await ana.uncheck('#optRoomSound');
     console.log(`Ana created room ${ROOM.toUpperCase()}`);
 
@@ -304,6 +311,13 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual([await ana.evaluate(() => lpc.slot()), await ben.evaluate(() => lpc.slot())], [0, 1], 'first free slots');
     await hears(ana, ['Ben'], 1, 'Ana to hear Ben');
     await hears(ben, ['Ana'], 1, 'Ben to hear Ana');
+    assert.deepStrictEqual(await ana.$eval('#players .player .pvol input', (el) => [el.min, el.max, el.value]), ['0', '300', '150'], 'new room voices start at 150%, with a 300% volume ceiling');
+    const finder = await player(browser, 'Finder', [1280, 720]);
+    await finder.goto(URL_);
+    await finder.click('.nav[data-view="voice"]');
+    await waitFor(finder, () => document.getElementById('openRooms').textContent.includes('2/10 players'), null, 'public open-room size');
+    assert(/Waiting in lobby/.test(await finder.textContent('#openRooms')) && await finder.isVisible('#openRooms button'), 'other players can find and join an open room without a code');
+    await finder.context().close();
 
     // the fake mic beeps, so sound must arrive at both ends and come out of the speakers (Web Audio)
     const benId = (await others(ana))[0].id, anaId = (await others(ben))[0].id;
@@ -622,6 +636,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     call = await callTo();
     since = Date.now();
     await ana.evaluate((id) => lpc.blip(id), catId);
+    await waitFor(ana, () => /Reconnecting voice/.test(document.querySelector('#players [data-slot="2"] .pstate').textContent), null, 'voice recovery status appears during a network blip');
     await backOnNew(call, 'Cat back after the blip');
     const blipBack = (Date.now() - since) / 1000;
     await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both after the blip');
@@ -848,6 +863,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log(`help a friend: ${JSON.stringify(help)}`);
     assert(help.some(([h, t]) => h === 'good' && /^Voice connection is good/.test(t)) && help.some(([h, t]) => h === 'good' && t === 'Their mic picks up sound.')
       && help.some(([h, t]) => h === 'good' && t === 'Their minimap is found.') && help.some(([, t]) => /They use the website/.test(t)), 'Ben’s setup');
+    await ana.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await ana.click('#helpCopy');
+    const copied = JSON.parse(await ana.evaluate(() => navigator.clipboard.readText()));
+    assert(copied.voiceCall && copied.connectionState && copied.roundTripMs != null && !('room' in copied) && !('name' in copied), 'copyable diagnostics include connection stats without room codes or names');
     await ana.click('#helpAsk');
     await ana.click('#helpClose');
     for (const p of [ben, cat]) await p.click('#shareBtn'); // stop sharing
@@ -1068,13 +1087,15 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await shot(ana, 'ana-stats');
     console.log(`game history: ${JSON.stringify({ ...games[0], map: games[0].map.length + ' bytes' })}`);
 
-    // the voice checks stay quiet for the fake mics' beeps: no echo (beeps that repeat follow each other both ways) and
-    // not phone quality (a beep's square wave reaches past 8.5 kHz)
+    // Chromium's synthetic beep has no stable speech spectrum. It must not trigger a Bluetooth warning; classify only
+    // the device label, which the headset-specific test below also checks through the real mic UI.
     for (const [p, n] of [[ana, 'Ana'], [ben, 'Ben'], [cat, 'Cat']]) {
       const c = await p.evaluate(() => lpc.checks());
-      assert(!c.echoes.length && !c.bt && !c.btNote, `${n}: no echo, not phone quality: ${JSON.stringify(c)}`);
+      assert(!c.echoes.length, `${n}: no echo: ${JSON.stringify(c)}`);
+      assert(!c.bt && !c.btNote, `${n}: synthetic mic is not misidentified as Bluetooth: ${JSON.stringify(c)}`);
+      assert.deepStrictEqual(await p.evaluate(() => [lpc.phoneQuality('Default microphone'), lpc.phoneQuality('WH-1000XM4 Hands-Free AG Audio')]), [false, true], `${n}: deterministic Bluetooth-label classification`);
     }
-    console.log(`voice checks on the beeps: no echo, not phone quality (Ana's mic judged from ${(await ana.evaluate(() => lpc.checks())).phone} moments of talking)`);
+    console.log(`voice checks: no echo or false Bluetooth warning on synthetic beeps; headset-label classification is deterministic`);
 
     // the mic coach and the Bluetooth warning: Ivy's mic is a Bluetooth headset's, by its name, and talks so loud that
     // it clips (noise bursts past full scale); in a quiet room Set the gate for me puts the gate at its lowest
