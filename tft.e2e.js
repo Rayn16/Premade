@@ -99,10 +99,12 @@ const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1
 const L = { calls: [], refused: [] };
 // our server's augment ratings (/riot/tftaug), and what the app sent it: Rich Get Richer's two ids have 30
 // games of Set 18 at 3.33 on average, Cluster too few. And CommunityDragon's Arena and Mayhem augments; arammayhem.com's
-// Mayhem pick rates (Sneakerhead has none) and Ahri's combos: Symphony of War a god combo, Mystic Punch a trap
+// Mayhem pick rates on all champions, Ahri's (mayhem-champ.json; Sneakerhead not listed) and Ahri's combos: Symphony of War
+// a god combo, Mystic Punch a trap
 const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } } };
 const SENT = [];
-const AMD = { augments: { rows: [['Symphony of War', 40], ['Mystic Punch', 5]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
+const MAYHEM_CHAMP = { c: { Ahri: { 'Symphony of War': 40, 'Mystic Punch': 5 } } };
+const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
 const ok = (data) => ({ status: 200, data });
@@ -152,6 +154,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
+  await ctx.route('**/mayhem-champ.json', (r) => r.fulfill({ json: MAYHEM_CHAMP }));
   await ctx.route(/arammayhem\.com\/data\/v1\/latest\/(augments|combos)\.json$/, (r) => r.fulfill({ json: AMD[/(augments|combos)\.json$/.exec(r.request().url())[1]], headers: cors }));
   await ctx.route(/raw\.communitydragon\.org/, (r) => {
     const u = r.request().url();
@@ -413,8 +416,8 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, Math.abs(c.y * 720 - 466) <= 6])), // the frame's foot is at y 500, the name at y 300: 16% of the way up
-      [['Symphony of War: picked 40% of the time on all champions (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on all champions (arammayhem.com)', true, true], ['Sneakerhead: no pick rate yet', true, true]], 'arammayhem.com’s pick rates, at the foot of each card');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'all champions', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'all champions', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
+      [['Symphony of War: picked 40% of the time on Ahri (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on Ahri (arammayhem.com)', true, true], ['Sneakerhead: rarely picked on Ahri', true, true]], 'arammayhem.com’s pick rates on Ahri, at the foot of each card');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'on Ahri', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'on Ahri', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
       'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(300);
