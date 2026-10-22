@@ -533,7 +533,6 @@ async function binClip(n) {
   await fs.promises.unlink(picAt(n)).catch(() => {});
   return true;
 }
-ipcMain.handle('clip-open', async (e, n) => fromSite(e) && clipOk(n) && (await shell.openPath(clipAt(n))) === ''); // in Windows' own app, to edit it
 ipcMain.handle('clip-trash', (e, n) => (fromSite(e) && clipOk(n) ? binClip(n) : false));
 // the oldest clips that aren't favorites (keep) go to the bin until the folder is under limit bytes; says which went
 ipcMain.handle('clips-clean', async (e, limit, keep) => {
@@ -868,7 +867,7 @@ app.whenReady().then(async () => {
     const s = chosen(await screens(false));
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // a clip's sound: what you hear
   });
-  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write'].includes(perm)));
+  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
 
   const last = lastBounds();
   win = new BrowserWindow({

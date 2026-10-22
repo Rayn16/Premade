@@ -472,6 +472,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .tlsel .h.b { right: -6px; }
 .tlhead { position: absolute; top: 24px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
 .tlhead::before { content: ""; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
+#edView { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; pointer-events: none; }
+.edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 14px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.edit .wide { grid-column: span 2; }
+@container app (max-width: 560px) { .edit .wide { grid-column: auto; } }
+.vplayer[data-full] { position: fixed; inset: 0; z-index: 10; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
+.vplayer[data-full] #clipVideo { max-height: none; height: 100%; }
+.clip .kda { display: flex; align-items: center; gap: 6px; font: 600 13px/1 var(--mono); }
+.clip .kda img { width: 22px; height: 22px; border-radius: 50%; }
 .pacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .pacts output { font: 500 13px/1 var(--mono); color: var(--muted); margin-left: auto; }
 .trim { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -1822,7 +1830,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   <div class="wz">
     <h2 id="clipTitle" class="ph"></h2>
     <div id="player" class="vplayer" data-paused>
-      <video id="clipVideo" playsinline crossorigin="anonymous"></video>
+      <video id="clipVideo" playsinline crossorigin="anonymous"></video><canvas id="edView" hidden></canvas>
       <div class="pbar">
         <div id="pLine" class="pline"><i id="pFill"></i></div>
         <button id="pPlay" class="pbtn" type="button" aria-label="Play">▶</button><span id="pTime">00:00</span>
@@ -1844,9 +1852,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <span>End</span><input id="trimTo" type="range" min="0" max="1" step="0.5" value="1" aria-label="Where the cut ends">
     </div>
     <div class="pacts">
-      <button id="clipEdit" class="btn small" type="button">🎬 Open in Editor</button><button id="clipAudio" class="btn small" type="button" popovertarget="pAudio">🔊 Audio</button>
+      <button id="clipEdit" class="btn small" type="button" aria-expanded="false" aria-controls="edit">🎬 Open in Editor</button><button id="clipAudio" class="btn small" type="button" popovertarget="pAudio">🔊 Audio</button>
       <div id="pAudio" popover><label class="field">Volume <input id="pVol" type="range" min="0" max="1" step="0.05" value="1"></label></div>
       <output>Cut <span id="trimFromOut"></span> to <span id="trimToOut"></span></output>
+    </div>
+    <div id="edit" class="edit" hidden>
+      <label class="field">Speed <select id="edSpeed"><option value="0.5">0.5× slow motion</option><option value="1" selected>Normal</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+      <label class="field">Shape <select id="edCrop"><option value="">As recorded</option><option value="1">Square 1:1</option><option value="0.5625">Phone 9:16 (TikTok, Shorts)</option><option value="1.25">Instagram 4:5</option></select></label>
+      <label class="field">Zoom <input id="edZoom" type="range" min="1" max="3" step="0.1" value="1"></label>
+      <label class="field">Left or right <input id="edX" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+      <label class="field">Up or down <input id="edY" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+      <label class="field wide">Text <input id="edText" maxlength="80" placeholder="A caption on the video"></label>
+      <label class="field">Text at <select id="edTextAt"><option value="top">Top</option><option value="bottom" selected>Bottom</option></select></label>
+      <button id="edReset" class="btn small" type="button">Undo all</button>
     </div>
     <p id="trimNote" class="hint" role="status">Move Start and End, then save the cut as a new clip. Cuts land on the nearest second or two.</p>
     <footer><button id="trimSave" class="btn primary" type="button">Save the cut</button><button id="clipClose" class="btn" type="button">Close</button></footer>
@@ -7123,8 +7141,28 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return out;
   }
+  // your champion and K/D/A on each clip's and match video's card (Rayan, 2026-10-22): a match's kept as its game goes,
+  // a clip's when it's saved, a cut's from the video it came from
+  // ponytail: never pruned (about 40 bytes each); prune with the lists if it ever grows big
+  let vidKda = load('lpc-vid-kda', {});
+  function keepKda(name, from) {
+    const p = from ? vidKda[from] : meIn(), m = p && { c: p.c || p.champ, k: p.k, d: p.d, a: p.a };
+    if (!name || !m || JSON.stringify(m) === JSON.stringify(vidKda[name])) return;
+    vidKda[name] = m;
+    store.set('lpc-vid-kda', JSON.stringify(vidKda));
+  }
+  function kdaLine(name) { // older match videos without one: the champion from the end of the name
+    const m = vidKda[name], c = m ? champOf(m.c) : champByName((/^Game \S+ \S+ (.+?)(?: \(\d\))?\.webm$/i.exec(name) || [])[1] || '');
+    if (!m && !c) return null;
+    const el = Object.assign(document.createElement('span'), { className: 'kda' });
+    if (c) el.append(Object.assign(document.createElement('img'), { src: champPic(c.id), alt: '' }));
+    el.append([c && c.name, m && `${m.k}/${m.d}/${m.a}`].filter(Boolean).join(' '));
+    if (m) el.title = 'Kills / deaths / assists';
+    return el;
+  }
   function keepMarks(g) {
     if (!g.name || !league || !Array.isArray(league.events)) return;
+    keepKda(g.name);
     if (g.t0 == null) g.t0 = Math.max(0, gameNow() - (performance.now() - g.wall) / 1000);
     const m = marksOf(league.events, g.t0, mine.team);
     if (m.length === (vidMarks[g.name] || []).length) return;
@@ -7176,6 +7214,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     li.querySelector('.vlen').textContent = v.rec ? '● Recording' : pic ? mmss(pic[1]) : '';
     li.querySelector('.vlen').hidden = !v.rec && !pic;
     li.querySelector('.cname').textContent = label;
+    const kda = kdaLine(v.name);
+    if (kda) li.querySelector('.cname').after(kda);
     li.querySelector('.sub').textContent = [whenText(v.at), `${Math.round(v.size / 1e6)} MB`, v.rec ? 'recording now' : marks.length ? `${marks.length} highlight${marks.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
     if (v.rec) return li;
     const btn = (text, cls, fn, aria) => { const b = Object.assign(document.createElement('button'), { className: `btn small ${cls}`, type: 'button', textContent: text }); if (aria) b.setAttribute('aria-label', aria); b.addEventListener('click', fn); acts.append(b); return b; };
@@ -7282,7 +7322,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // a small JPEG of a video track's picture now, or of a video element's, for the gallery
   async function shot(from) {
     try {
-      const img = from instanceof HTMLVideoElement ? from : await new ImageCapture(from).grabFrame(), w = img.videoWidth || img.width, h = img.videoHeight || img.height, c = document.createElement('canvas');
+      const img = from instanceof HTMLVideoElement || from instanceof HTMLCanvasElement ? from : await new ImageCapture(from).grabFrame(), w = img.videoWidth || img.width, h = img.videoHeight || img.height, c = document.createElement('canvas');
       c.width = 320;
       c.height = Math.round((320 * h) / w) || 180;
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
@@ -7301,6 +7341,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const out = cutClip(head, new Uint8Array(await new Blob([...(r.trimmed ? [] : [r.head]), ...r.parts.map((p) => p.blob)]).arrayBuffer()), secs);
       const name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
       if (!name) throw new Error('nothing to save');
+      keepKda(name);
       clipNames.unshift(name);
       if (curGame) curGame.clips = (curGame.clips || 0) + 1; // for the card after the game
       notify(`Clip saved${said ? ` when you said “${said}”` : CLIP_WHY[why] || ''}: ${name}`, true);
@@ -7567,6 +7608,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     img.addEventListener('dragstart', (e) => { e.preventDefault(); client.clipDrag(c.name); });
     img.addEventListener('click', () => playClip(c.name));
     el.querySelector('.cname').textContent = label;
+    const kda = kdaLine(c.name);
+    if (kda) el.querySelector('.cname').after(kda);
     el.querySelector('.sub').textContent = `${new Date(c.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${(c.size / 1e6).toFixed(1)} MB`;
     star.setAttribute('aria-pressed', String(fav));
     star.textContent = fav ? '★ Saved' : '☆ Save';
@@ -7605,22 +7648,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (!to) return say('Couldn’t rename it: that name may be taken, or have a character Windows doesn’t allow (\\ / : * ? " < > |).');
       say('');
       if (favs.delete(name)) { favs.add(to); saveFavs(); }
+      keepKda(to, name);
       loadClips();
     });
   }
   // the player (Rayan's layout, 2026-10-21): the video with its own bar (play, time, sound, speed, full screen), then
   // the timeline: the video's highlights over the timestamps, the playhead, and a strip of pictures whose white
   // handles are the cut (Start and End, also the two sliders, for the keyboard). Save the cut makes a new clip
-  // ("... cut") next to it; Open in Editor opens the file in Windows' own app. App 1.19 streams the video
+  // ("... cut") next to it; Open in Editor shows the editor (speed, shape, zoom, a caption). App 1.19 streams the video
   // (client.media, premade://); older apps hand the page the whole file (clipBytes).
   const clipDlg = $('clipDlg'), vid = $('clipVideo');
   const secsText = (v) => `${Math.floor(v / 60)}:${(v % 60).toFixed(1).padStart(4, '0')}`;
   const two = (v) => String(Math.floor(v)).padStart(2, '0');
-  let viewKind = 'clip', shownMarks = [];
+  let shownMarks = [];
   async function openPlayer(kind, name, marks) {
     reel = [];
     viewing = name;
-    viewKind = kind;
     shownMarks = marks || [];
     URL.revokeObjectURL(clipUrl);
     clipUrl = '';
@@ -7634,7 +7677,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/webm' }));
       vid.src = clipUrl;
     }
-    $('clipEdit').hidden = kind === 'clip' && !client.clipOpen;
+    edReset();
+    showEdit(false);
     clipDlg.showModal();
     return true;
   }
@@ -7744,11 +7788,90 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('pMute').addEventListener('click', () => { vid.muted = !vid.muted; showVol(); });
   $('pVol').addEventListener('input', (e) => { vid.volume = +e.target.value; vid.muted = false; showVol(); });
   for (const b of document.querySelectorAll('#pSpeed [data-rate]')) b.addEventListener('click', () => { vid.playbackRate = +b.dataset.rate; $('pSpeed').hidePopover(); });
-  $('pFull').addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : $('player').requestFullscreen()).catch(() => {}));
-  $('clipEdit').addEventListener('click', async () => {
-    vid.pause();
-    if (!(await (viewKind === 'game' ? client.gameVideo('open', viewing) : client.clipOpen(viewing)).catch(() => false))) notify('Couldn’t open that video. It may have been moved or deleted.', true);
+  // full screen: app 1.21 lets the page have it; older apps refuse it, so the player fills the window instead (Esc leaves)
+  const fillWin = (on) => $('player').toggleAttribute('data-full', on);
+  $('pFull').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if ($('player').hasAttribute('data-full')) fillWin(false);
+    else $('player').requestFullscreen().catch(() => fillWin(true));
   });
+  clipDlg.addEventListener('cancel', (e) => { if ($('player').hasAttribute('data-full')) { e.preventDefault(); fillWin(false); } });
+  // the editor (Rayan, 2026-10-22: tools in the app, not Windows' player): the cut is the white handles, then speed, a
+  // shape (square, phone, 4:5) with zoom and where it sits, and a caption. The preview over the video is drawn by
+  // edDraw, as it's saved; Save the cut records it again when anything but the cut changed (reEncode).
+  const ED = { edSpeed: '1', edCrop: '', edZoom: '1', edX: '0.5', edY: '0.5', edText: '', edTextAt: 'bottom' };
+  const ed = () => ({ speed: +$('edSpeed').value, shape: +$('edCrop').value, zoom: +$('edZoom').value, x: +$('edX').value, y: +$('edY').value, text: $('edText').value.trim(), top: $('edTextAt').value === 'top' });
+  const edited = () => { const e = ed(); return e.speed !== 1 || !!e.shape || e.zoom > 1 || !!e.text; };
+  function edDraw(g, src) {
+    const W = src.videoWidth, H = src.videoHeight, e = ed();
+    if (!W || !H) return;
+    const a = e.shape || W / H, cw = Math.round(Math.min(W, H * a) / 2) * 2, ch = Math.round(cw / a / 2) * 2, w = cw / e.zoom, h = ch / e.zoom; // zoomed in, it keeps the size
+    if (g.canvas.width !== cw || g.canvas.height !== ch) Object.assign(g.canvas, { width: cw, height: ch });
+    g.drawImage(src, (W - w) * e.x, (H - h) * e.y, w, h, 0, 0, cw, ch);
+    if (!e.text) return;
+    const px = Math.round(Math.min(cw, ch) * 0.08), y = e.top ? ch * 0.06 : ch * 0.94;
+    Object.assign(g, { font: `800 ${px}px system-ui, sans-serif`, textAlign: 'center', textBaseline: e.top ? 'top' : 'bottom', lineWidth: px / 6, lineJoin: 'round', strokeStyle: '#000', fillStyle: '#fff' });
+    g.strokeText(e.text, cw / 2, y, cw * 0.92);
+    g.fillText(e.text, cw / 2, y, cw * 0.92);
+  }
+  let edLoop = 0;
+  const edTick = () => { edDraw($('edView').getContext('2d'), vid); edLoop = !$('edit').hidden && clipDlg.open ? requestAnimationFrame(edTick) : 0; };
+  function showEdit(on) {
+    $('edit').hidden = $('edView').hidden = !on;
+    $('clipEdit').setAttribute('aria-expanded', String(on));
+    $('clipEdit').textContent = on ? '🎬 Close the editor' : '🎬 Open in Editor';
+    vid.playbackRate = on ? ed().speed : 1;
+    if (on && !edLoop) edTick();
+    if (on) $('trimNote').textContent = 'Drag the white handles to cut it, pick a speed, a shape and a caption, then Save the cut. It’s saved as you see it.';
+  }
+  function edReset() { for (const [id, v] of Object.entries(ED)) $(id).value = v; vid.playbackRate = 1; }
+  $('clipEdit').addEventListener('click', () => showEdit($('edit').hidden));
+  $('edSpeed').addEventListener('input', () => { vid.playbackRate = ed().speed; });
+  $('edReset').addEventListener('click', edReset);
+  // plays the cut once, hidden and silent, drawing each frame through edDraw into a recorder
+  // ponytail: takes as long as the cut plays (30 s at 2× is 15 s); WebCodecs could do it faster
+  let edStop = null;
+  async function reEncode(from, to) {
+    const e = ed(), ex = Object.assign(document.createElement('video'), { crossOrigin: 'anonymous', preload: 'auto', src: vid.currentSrc });
+    const on = (n) => new Promise((res, rej) => { ex.addEventListener(n, res, { once: true }); ex.addEventListener('error', rej, { once: true }); });
+    const cv = document.createElement('canvas'), g = cv.getContext('2d'), ac = new AudioContext(), dst = ac.createMediaStreamDestination(), parts = [];
+    let gone = false;
+    try {
+      await on('loadedmetadata');
+      ex.currentTime = from;
+      await on('seeked');
+      edDraw(g, ex);
+      ac.createMediaElementSource(ex).connect(dst);
+      const mr = new MediaRecorder(new MediaStream([...cv.captureStream(60).getVideoTracks(), ...dst.stream.getAudioTracks()]), { mimeType: MIME, videoBitsPerSecond: vRate(opts.clipQ, opts.clipFps) });
+      const stopped = new Promise((res) => { mr.onstop = res; });
+      mr.ondataavailable = (ev) => { if (ev.data.size) parts.push(ev.data); };
+      ex.playbackRate = e.speed;
+      mr.start(1000);
+      await ex.play();
+      await new Promise((res) => {
+        edStop = () => { gone = true; res(); };
+        ex.addEventListener('ended', res, { once: true });
+        const tick = () => {
+          if (gone || ex.currentTime >= to) return res();
+          edDraw(g, ex);
+          $('trimNote').textContent = `Saving your edit… ${Math.round((100 * (ex.currentTime - from)) / (to - from))}%`;
+          ex.requestVideoFrameCallback(tick);
+        };
+        ex.requestVideoFrameCallback(tick);
+      });
+      ex.pause();
+      mr.stop();
+      await stopped;
+    } finally {
+      edStop = null;
+      ac.close();
+      ex.removeAttribute('src');
+      ex.load();
+    }
+    if (gone) return null;
+    const b = new Uint8Array(await new Blob(parts).arrayBuffer());
+    return cutClip(b, b, 0, [0, 1e6]); // writes its length in
+  }
   for (const [pop, btn] of [['pSpeed', 'pSet'], ['pAudio', 'clipAudio']]) $(pop).addEventListener('toggle', (e) => { // over its button
     if (e.newState !== 'open') return;
     const r = $(btn).getBoundingClientRect(), el = $(pop);
@@ -7790,13 +7913,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return cutClip(head, body, 0, [from, to], true);
   }
   $('trimSave').addEventListener('click', async () => {
-    const from = +$('trimFrom').value, to = +$('trimTo').value, out = await cutNow(from, to).catch(() => null);
-    if (!out) return void ($('trimNote').textContent = 'Couldn’t cut this clip.');
+    const from = +$('trimFrom').value, to = +$('trimTo').value, re = edited();
+    $('trimSave').disabled = true;
+    const out = await (re ? reEncode(from, to) : cutNow(from, to)).catch(() => null);
+    $('trimSave').disabled = false;
+    if (!clipDlg.open) return;
+    if (!out) return void ($('trimNote').textContent = re ? 'Couldn’t save your edit.' : 'Couldn’t cut this clip.');
     vid.pause();
     vid.currentTime = from;
     await new Promise((res) => { vid.addEventListener('seeked', res, { once: true }); setTimeout(res, 1500); });
-    const name = await client.clip(out, await shot(vid), viewing);
-    $('trimNote').textContent = name ? `Saved the cut as “${name.replace(/\.webm$/i, '')}”.` : 'Couldn’t save the cut.';
+    const pic = re && document.createElement('canvas').getContext('2d');
+    if (pic) edDraw(pic, vid);
+    const name = await client.clip(out, await shot(pic ? pic.canvas : vid), viewing);
+    if (name) keepKda(name, viewing);
+    $('trimNote').textContent = name ? `Saved the ${re ? 'edit' : 'cut'} as “${name.replace(/\.webm$/i, '')}”.` : 'Couldn’t save the cut.';
     if (name) { await cleanClips(); loadClips(); }
   });
   $('clipClose').addEventListener('click', () => clipDlg.close());
@@ -7806,6 +7936,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     strip.removeAttribute('src');
     strip.load();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    fillWin(false);
+    if (edStop) edStop();
     vid.pause(); vid.removeAttribute('src'); vid.load(); URL.revokeObjectURL(clipUrl); clipUrl = ''; clipBytes = null;
   });
   $('clipsFolder').addEventListener('click', () => client && client.clipsFolder && client.clipsFolder());
@@ -12644,6 +12776,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [62, 'October 22: a clip editor in Premade, and K/D/A on your clips', [
+      'Open in Editor, in the clip player, now opens Premade’s own editor instead of Windows’ video app: cut it with the white handles, slow it down or speed it up, make it square, phone-shaped (9:16 for TikTok and Shorts) or 4:5, zoom in and move the picture, and write a caption on it. You see it as it will be saved, and Save the cut keeps it as a new clip.',
+      'Every clip and match video card shows your champion and your K/D/A. Match videos from before today show the champion only.',
+      'The full screen button on the player works now. Until app 1.21 installs itself (the next time you start Premade), it fills the Premade window instead.',
+    ]],
     [61, 'October 22: past voice sessions', [
       'Past sessions, under the chat on the Voice page, keeps every voice room you’re in: when, who was there, and the whole chat with its pictures and videos. Open one to read it again. They stay on this computer for 30 days, then they’re deleted. Untick Keep my voice sessions to stop.',
     ]],
@@ -13163,9 +13300,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
-      ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Saved clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+      ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Each card shows your champion and K/D/A. Saved clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
       ['The clip player', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen on the video, then a timeline with the highlights over the timestamps, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor opens it in Windows’ own app; Audio sets the volume.',
         'Play or cut on a clip, or Watch on a match video (app 1.19). Drag the handles, then Save the cut.', '#h-clips', 'app'],
+      ['The clip editor', 'Cut a clip or a match video, change its speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
+        'Open in Editor in the clip player.', '#h-clips', 'app'],
       ['Recording quality', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate.',
         'Clip settings, Recording: Quality and Frame rate. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Saved clips and videos', 'Press Save on a clip or a match video and it goes in Saved, at the top of the Clips page, and is never moved to the Recycle Bin.', 'The Clips page, Saved.', '#h-saved', 'app'],
