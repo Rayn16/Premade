@@ -9940,27 +9940,35 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const [, name] of mayNames || []) { const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1); if (s > top) { top = s; best = name; } }
     return best;
   }
-  // ARAM: Mayhem's pick rates (all champions) and champion + augment combos, from arammayhem.com's free data (CC BY 4.0,
-  // credited on the cards, the Overlay page and Features); once a game with the cards on, again after 10 minutes if it failed
+  // ARAM: Mayhem's pick rates and champion + augment combos, from arammayhem.com's data (CC BY 4.0, credited on the Overlay
+  // page and Features): each augment's rate on your champion from mayhem-champ.json (their champion pages' appearance
+  // rates, patch 26.20, put together by Rayan), else on all champions; once a game with the cards on, again after 10 minutes if it failed
+  // ponytail: mayhem-champ.json is a snapshot, refreshed by hand each patch
   const COMBO = { god: ['God combo', 'good'], strong: ['Strong combo', 'good'], blackTech: ['Hidden tech', 'good'], entertainment: ['Fun combo', ''], trap: ['Trap', 'bad'], bug: ['Bugged', 'bad'] };
-  let mayData = null, mayDataAt = -Infinity; // { a: Map(name key -> pick rate %), c: { Data Dragon champion id: Map(name key -> COMBO's kind) } }
+  let mayData = null, mayDataAt = -Infinity; // { a: Map(name key -> pick rate %), c: { Data Dragon champion id: Map(name key -> COMBO's kind) }, p: { champion id: Map(name key -> its rate on that champion %) } }
   function mayDataSoon() {
     if (mayData || performance.now() - mayDataAt < 600000) return;
     mayDataAt = performance.now();
     const get = (f) => fetch(`https://arammayhem.com/data/v1/latest/${f}.json`).then((r) => r.json()).then((j) => (Array.isArray(j.rows) ? j.rows : []));
-    Promise.all([get('augments'), get('combos')]).then(([a, cs]) => {
+    Promise.all([get('augments'), get('combos'), fetch('mayhem-champ.json').then((r) => r.json()).catch(() => ({}))]).then(([a, cs, pc]) => {
       const c = {}, en = (n) => augKey((n && n.en) || n || '');
       for (const r of cs) {
         const t = Object.keys(COMBO).find((k) => (r.types || []).includes(k)), m = (c[r.championId] ||= new Map());
         if (t) for (const n of r.augmentNames || []) if (!m.has(en(n))) m.set(en(n), t); // the first, strongest kind wins
       }
-      mayData = { a: new Map(a.map((r) => [en(r.name), +r.pickRate])), c };
+      mayData = { a: new Map(a.map((r) => [en(r.name), +r.pickRate])), c, p: Object.fromEntries(Object.entries(pc.c || {}).map(([id, l]) => [id, new Map(Object.entries(l).map(([n, v]) => [en(n), +v]))])) };
       pushOverlay();
     }).catch(() => {});
   }
-  function mayRate(name) { // the augment's pick rate on all champions, and its combo with your champion if it's one
-    const c = champOf(league && league.me && league.me.champ), k = augKey(name), r = mayData && mayData.a.get(k), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k);
+  function mayRate(name) { // the augment's pick rate on your champion (else on all champions), and its combo with your champion if it's one
+    const c = champOf(league && league.me && league.me.champ), k = augKey(name), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k), pc = c && mayData && mayData.p[c.id];
     const tag = g ? { g: `${COMBO[g][0]} with ${c.name}`, gk: COMBO[g][1] } : {};
+    if (pc) { // your champion's rates: one not listed is rarely taken on it
+      const r = pc.get(k);
+      if (!(r >= 0)) return { t: `${name}: rarely picked on ${c.name}`, k: '', ...tag };
+      return { t: `${name}: picked ${pct(r / 100)} of the time on ${c.name} (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: `on ${c.name}`, ...tag };
+    }
+    const r = mayData && mayData.a.get(k);
     if (!(r >= 0)) return { t: g ? `${name}: ${tag.g}` : `${name}: no pick rate yet`, k: '', ...tag };
     return { t: `${name}: picked ${pct(r / 100)} of the time on all champions (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: 'all champions', ...tag };
   }
@@ -11952,7 +11960,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [56, 'October 22: ARAM: Mayhem pick rates from arammayhem.com', [
-      'The bars on ARAM: Mayhem’s augment cards now show each augment’s pick rate across all champions, from arammayhem.com’s free data, so every card has a number from your first game instead of “few games”.',
+      'The bars on ARAM: Mayhem’s augment cards now show each augment’s pick rate on your champion, from arammayhem.com’s data, so every card has a number from your first game instead of “few games”. A champion they have no numbers for shows the rate on all champions.',
       'A card that’s a known combo with your champion says so under its bar: God combo, Strong combo, Hidden tech or Fun combo, or Trap in red.',
       'Premade no longer sends your Mayhem games to our server.',
     ]],
@@ -12385,7 +12393,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Lobby rank', 'Each team’s average rank and which team is favored, in your game from the loading screen on and in any live game you look up.', 'Nothing to set up: on Game, on the loading screen overlay and in Live game on Profile.', '#liveAvg', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
-      ['Pick rates on Mayhem augment cards', 'When you pick an augment in ARAM: Mayhem, each card shows its pick rate across all champions and any combo with your champion. Data: arammayhem.com (CC BY 4.0).',
+      ['Pick rates on Mayhem augment cards', 'When you pick an augment in ARAM: Mayhem, each card shows its pick rate on your champion (or on all champions) and any combo with your champion. Data: arammayhem.com (CC BY 4.0).',
         'Tick “How often players take each augment” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text), with League in Borderless mode.', '#optMayhemAugs', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
