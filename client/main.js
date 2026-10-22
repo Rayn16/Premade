@@ -6,7 +6,7 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, protocol } = require('electron');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
@@ -27,7 +27,6 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // voice plays in a room joined for your game
 
 if (!app.requestSingleInstanceLock()) return app.quit();
-protocol.registerSchemesAsPrivileged([{ scheme: 'premade', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, additionalArguments: ['--lpc-version=' + app.getVersion()] };
 const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
@@ -124,7 +123,7 @@ function summary(d) {
   };
 }
 // The game's big moments, for the voice effects of the Legends mode, clips and the objective timers: Baron, Elder and
-// the other dragons with the team that took them, Aces, your own kills, deaths, multikills and steals, Herald,
+// the other dragons with the team that took them, Aces, your own kills, deaths, assists, multikills and steals, Herald,
 // Voidgrubs, and towers and inhibitors with whose they were (of). alive: whether you were alive when it happened, as
 // seen on the first look after it (Baron and Elder only go to the living); moments from before the app was watching
 // count you as alive.
@@ -139,6 +138,7 @@ function moments(d, all, me, game) {
     const by = who(e.KillerName), t = Math.round((+e.EventTime || 0) * 10) / 10;
     const base = { t, team: by ? String(by.team) : '', me: by === me, alive: seen.get(e.EventID) };
     if (e.EventName === 'ChampionKill' && (by === me || who(e.VictimName) === me)) out.push({ ...base, e: 'kill', on: who(e.VictimName) === me });
+    else if (e.EventName === 'ChampionKill' && Array.isArray(e.Assisters) && e.Assisters.some((n) => who(n) === me)) out.push({ ...base, e: 'assist' }); // for a match's highlights (app 1.20)
     else if (e.EventName === 'Multikill' && by === me) out.push({ ...base, e: 'multi', n: +e.KillStreak || 2 });
     else if (e.EventName === 'DragonKill' || e.EventName === 'BaronKill') {
       const what = e.EventName === 'BaronKill' ? 'baron' : e.DragonType === 'Elder' ? 'elder' : 'dragon';
@@ -576,20 +576,27 @@ async function vidEnd(n) {
   await seekable(vidAt(n)).catch((err) => console.error('game video:', err.message));
   return true;
 }
-// premade://clip/<name> and premade://game/<name>: a clip or game video for the page's player (app 1.19), in parts
-// (Range), so a long 1440p game is streamed, not read into memory
-async function mediaFile(req) {
-  const u = new URL(req.url), n = decodeURIComponent(u.pathname.slice(1)), at = u.host === 'clip' ? clipAt : u.host === 'game' ? vidAt : null;
-  const cors = { 'Access-Control-Allow-Origin': new URL(SITE).origin, 'Access-Control-Expose-Headers': 'Content-Range, Content-Length', 'Accept-Ranges': 'bytes' };
-  const st = at && clipOk(n) ? await fs.promises.stat(at(n)).catch(() => null) : null;
-  if (!st || !st.isFile()) return new Response(null, { status: 404, headers: cors });
-  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('range') || ''), size = st.size;
-  let a = 0, z = size - 1;
-  if (m && m[1]) { a = +m[1]; if (m[2]) z = Math.min(+m[2], size - 1); } else if (m && m[2]) a = Math.max(0, size - +m[2]);
-  if (a > z) return new Response(null, { status: 416, headers: { ...cors, 'Content-Range': `bytes */${size}` } });
-  const body = require('stream').Readable.toWeb(fs.createReadStream(at(n), { start: a, end: z }));
-  return new Response(body, { status: m ? 206 : 200, headers: { ...cors, 'Content-Type': 'video/webm', 'Content-Length': String(z - a + 1), ...(m && { 'Content-Range': `bytes ${a}-${z}/${size}` }) } });
-}
+// A clip or game video for the page's player, from a server on this PC only (127.0.0.1, with a random key in each
+// address), in parts (Range), so a long 1440p game is never read into memory. Chromium skips around only in http(s)
+// media: app 1.19's premade:// played from the start whatever you clicked.
+const mediaKey = require('crypto').randomBytes(16).toString('hex');
+let mediaBase = '';
+const mediaServer = require('http').createServer(async (req, res) => {
+  const [, key, kind, n] = new URL(req.url, 'http://x').pathname.split('/').map((x) => { try { return decodeURIComponent(x); } catch { return ''; } });
+  const at = kind === 'clip' ? clipAt : kind === 'game' ? vidAt : null, size = (st) => st && st.isFile() && st.size;
+  const cors = { 'Access-Control-Allow-Origin': new URL(SITE).origin, 'Access-Control-Allow-Headers': 'Range', 'Access-Control-Expose-Headers': 'Content-Range, Content-Length', 'Accept-Ranges': 'bytes' };
+  if (req.method === 'OPTIONS') return res.writeHead(204, cors).end();
+  const all = key === mediaKey && at && clipOk(n) && size(await fs.promises.stat(at(n)).catch(() => null));
+  if (!all) return res.writeHead(404, cors).end();
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  let a = 0, z = all - 1;
+  if (m && m[1]) { a = +m[1]; if (m[2]) z = Math.min(+m[2], all - 1); } else if (m && m[2]) a = Math.max(0, all - +m[2]);
+  if (a > z) return res.writeHead(416, { ...cors, 'Content-Range': `bytes */${all}` }).end();
+  res.writeHead(m ? 206 : 200, { ...cors, 'Content-Type': 'video/webm', 'Content-Length': String(z - a + 1), ...(m && { 'Content-Range': `bytes ${a}-${z}/${all}` }) });
+  if (req.method === 'HEAD') return res.end();
+  fs.createReadStream(at(n), { start: a, end: z }).on('error', () => res.destroy()).pipe(res);
+}).listen(0, '127.0.0.1', () => { mediaBase = `http://127.0.0.1:${mediaServer.address().port}/${mediaKey}/`; });
+ipcMain.on('media-base', (e) => { e.returnValue = fromSite(e) ? mediaBase : ''; });
 ipcMain.handle('game-video', async (e, what, a, b) => {
   if (!fromSite(e)) return null;
   if (what === 'start') { // a: your champion's name, for the file's
@@ -861,7 +868,6 @@ app.whenReady().then(async () => {
     const s = chosen(await screens(false));
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // a clip's sound: what you hear
   });
-  protocol.handle('premade', mediaFile);
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write'].includes(perm)));
 
   const last = lastBounds();
