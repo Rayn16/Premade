@@ -1129,7 +1129,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
           <section class="panel client-only">
             <h2 class="ph">In a game</h2>
-            <label class="check"><input id="optAutoShare" type="checkbox"> Share my League screen by itself in every game (for the minimap, callouts and the surrender pop-up; it doesn’t join a room or turn voice on)</label>
+            <label class="check"><input id="optAutoShare" type="checkbox"> Share my screen by itself when I join a room and in every game (for the room, the minimap, callouts and the surrender pop-up; it doesn’t join a room or turn voice on)</label>
             <label class="check"><input id="optAutoRoom" type="checkbox"> Join my game's room by itself <button class="tip" type="button" popovertarget="t-auto" aria-label="About joining your game's room">?</button></label>
             <label class="check"><input id="optHurt" type="checkbox"> Shaky, rough voice when my champion is low on health</label>
             <label class="check"><input id="optLendScreen" type="checkbox"> Let teammates in my room watch my screen while they’re dead</label>
@@ -4197,9 +4197,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   async function startShare() {
     let stream;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: false });
+      // the sound too, for the room's screen tiles (the app's is what you hear; a browser asks): with echo cancelling,
+      // which takes out what Premade itself plays, so your friends don't hear their own voices back
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
     } catch { return; } // picker cancelled
-    const s = share = { track: stream.getVideoTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0 };
+    const s = share = { track: stream.getVideoTracks()[0], sound: stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0 };
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
     s.stop = CameraBox.watch(stream, 200, (src, w, h) => {
       if (share !== s) return;
@@ -4257,6 +4259,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!share) return;
     share.stop();
     share.track.stop();
+    if (share.sound) share.sound.stop();
     share = null;
     me.t = -Infinity;
     pickedChamp = '';
@@ -4611,12 +4614,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // any game in a room when you let teammates watch your screen), and stops once the game ends if it started it; it
   // tries again 30 s after a share that didn't start
   let autoShareAt = -Infinity;
-  let shareOff = ''; // the game you stopped sharing in yourself: not shared again until the next one
+  let shareOff = ''; // the game or room you stopped sharing in yourself: not shared again until the next one
   function autoShare() {
-    if (share && share.auto && !league) stopShare();
-    // with Share my League screen by itself (opts.autoShare, on) every game is shared, from launch if Premade opens mid-game;
-    // sharing only reads the minimap and sends where you are to a room you're already in, it never joins one
-    if (!client || share || !(foesOn() || (opts.lendScreen && !!league && !!peer) || (opts.autoShare && !!league && league.room !== shareOff)) || performance.now() - autoShareAt < 30000) return;
+    const at = league ? league.room : peer ? room : ''; // a game, else the room you're in
+    if (share && share.auto && !at) stopShare();
+    // with Share my screen by itself (opts.autoShare, on) every game and every room you join is shared, from launch if
+    // Premade opens mid-game; sharing reads the minimap and shows your screen to the room, it never joins one
+    if (!client || share || !(foesOn() || (opts.lendScreen && !!league && !!peer) || (opts.autoShare && !!at && at !== shareOff)) || performance.now() - autoShareAt < 30000) return;
     autoShareAt = performance.now();
     startShare().then(() => { if (share) share.auto = true; });
   }
@@ -4764,15 +4768,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const lends = new Map(), lendSaid = new Set(); // a teammate -> { call, track }: the call carrying your screen to them
   function lendTick() { // every second, and when a teammate asks
     const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
-    for (const [p, l] of lends) if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); }
+    for (const [p, l] of lends) if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
-      const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track]), { metadata: { screen: true } });
-      if (!call) { track.stop(); continue; }
+      const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
+      const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track, sound].filter(Boolean)), { metadata: { screen: true } });
+      if (!call) { track.stop(); if (sound) sound.stop(); continue; }
       // scaled by the call, not the track: a track's constraints would change the one capture the recording uses too
-      const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), [h, fps, rate] = room ? [+opts.shareQ, opts.shareFps, Math.round(vRate(opts.shareQ, opts.shareFps) / 3)] : [720, 10, 1200000]; // a dead teammate's is small: they're in a game
+      const [h, fps, rate] = room ? [+opts.shareQ, opts.shareFps, Math.round(vRate(opts.shareQ, opts.shareFps) / 3)] : [720, 10, 1200000]; // a dead teammate's is small: they're in a game
       if (room) track.contentHint = 'motion'; // keeps the frame rate you picked; WebRTC's default for a screen drops it to keep text sharp
-      lends.set(p, { call, track });
+      lends.set(p, { call, track, sound });
       call.on('iceStateChanged', (st) => {
         if (st === 'connected') for (const x of call.peerConnection.getSenders()) {
           const q = x.getParameters();
@@ -4780,7 +4785,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           if (q.encodings && q.encodings[0]) x.setParameters(q).catch(() => {});
         }
       });
-      call.on('close', () => { track.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
+      call.on('close', () => { track.stop(); if (sound) sound.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
       const k = (league ? league.room : room) + p.slot + !!p.wantSee;
       if (!lendSaid.has(k)) { lendSaid.add(k); notify(p.wantSee ? `${nameOf(p)} is watching your screen.` : `${nameOf(p)} is watching your screen while they’re dead.`, true); }
     }
@@ -4805,7 +4810,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const tile = document.createElement('figure');
         tile.className = 'screentile';
         tile.dataset.slot = p.slot;
-        tile.innerHTML = '<figcaption><span></span><button class="btn small" type="button">Hide</button></figcaption><video autoplay muted playsinline controls></video>';
+        tile.innerHTML = '<figcaption><span></span><button class="btn small" type="button">Hide</button></figcaption><video autoplay playsinline controls></video>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
         seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video') }));
         bySlot($('screenGrid'), tile, p.slot);
@@ -4834,7 +4839,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const v = seen.get(p);
     if (v.call && v.call !== call && !(cam && cam.call === v.call)) v.call.close();
     v.call = call;
-    call.on('stream', (s) => { if (seen.get(p) === v && v.call === call) v.vid.srcObject = s; });
+    call.on('stream', (s) => {
+      if (seen.get(p) !== v || v.call !== call) return;
+      v.vid.srcObject = s;
+      v.vid.play().catch((e) => { if (e.name === 'NotAllowedError') { v.vid.muted = true; v.vid.play().catch(() => {}); } }); // their sound; muted if the browser won't play it yet (unmute in its controls)
+    });
     call.on('close', () => { if (seen.get(p) === v && v.call === call) { v.call = null; v.vid.srcObject = null; } });
   }
   // ---- the Overlay page's Layout: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
@@ -12776,6 +12785,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [63, 'October 22: sound with screen share, and sharing as you join', [
+      'A shared screen now comes with its sound: the game, music or a video. Premade’s own voices are taken out, so your friends don’t hear themselves back. Each screen tile on the Voice page has its own volume, and you can mute one there.',
+      'The desktop app now shares your screen by itself as soon as you join a room, not only once a game starts. Stop sharing keeps that room unshared. Untick Share my screen by itself in Voice settings, In a game, to stop it.',
+    ]],
     [62, 'October 22: a clip editor in Premade, and K/D/A on your clips', [
       'Open in Editor, in the clip player, now opens Premade’s own editor instead of Windows’ video app: cut it with the white handles, slow it down or speed it up, make it square, phone-shaped (9:16 for TikTok and Shorts) or 4:5, zoom in and move the picture, and write a caption on it. You see it as it will be saved, and Save the cut keeps it as a new clip.',
       'Every clip and match video card shows your champion and your K/D/A. Match videos from before today show the champion only.',
@@ -13162,8 +13175,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Screen share quality', 'Your shared screen at 720p, 1080p or 1440p and 30, 60 or 120 fps, for everyone watching it in the room.', 'Under Players on the Voice page: Screen share quality and Frame rate. A change takes effect at once.', '#optShareQ'],
       ['Screens in the room', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team, and you’re told who’s watching.',
         'Screens show at the top of the Voice page; Hide one, and Show screen on their card brings it back. On unless you turn it off: Let the room watch my screen, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
-      ['Your screen shared by itself', 'In every game the desktop app shares the screen League is on by itself, from the moment Premade opens, so the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
-        'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that game stays unshared.', '#optAutoShare', 'app'],
+      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
+        'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
+      ['Sound with your screen', 'Your room hears your screen’s sound with it: the game, music, videos. Premade’s own voices are taken out, so friends don’t hear themselves back.',
+        'Each screen tile at the top of the Voice page has its own sound and volume in its controls; mute one there. In a browser, tick Share audio when it asks.', '#roomScreens, #optRoomScreen'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
@@ -13489,7 +13504,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('copyBtn').addEventListener('click', copyInvite);
   $('sbRoom').addEventListener('click', copyInvite);
-  $('shareBtn').addEventListener('click', () => { if (share && league) shareOff = league.room; share ? stopShare() : startShare(); });
+  $('shareBtn').addEventListener('click', () => { if (share) shareOff = league ? league.room : room; share ? stopShare() : startShare(); });
   const showRange = () => { $('rangeOut').textContent = `${range.toLocaleString('en-US')} units`; };
   $('range').value = range;
   $('range').addEventListener('input', (e) => { range = +e.target.value; store.set('lpc-range', range); showRange(); volumes(); });
@@ -13593,7 +13608,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth })), // the in-game helpers
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0 })), // the in-game helpers
     augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, // what's read off TFT's augment cards
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,

@@ -74,7 +74,11 @@ function fakeApp([lcu, colour]) {
   g.fillStyle = colour; g.fillRect(0, 0, 1280, 720);
   let n = 0;
   setInterval(() => { g.fillStyle = n++ % 2 ? colour : '#000'; g.fillRect(0, 0, 1, 1); }, 100);
-  navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(10);
+  navigator.mediaDevices.getDisplayMedia = async (c) => { // with a tone for its sound, when asked
+    const s = cv.captureStream(10);
+    if (c && c.audio) { const a = new AudioContext(), d = a.createMediaStreamDestination(), o = a.createOscillator(); o.connect(d); o.start(); s.addTrack(d.stream.getAudioTracks()[0]); }
+    return s;
+  };
   window.voteBox = (on) => { // League's surrender vote box where League puts it on this 720p screen: a yes, 4 to come, half the time left
     const s = 720 / 1200;
     g.setTransform(s, 0, 0, s, 1280 - 243 * s, 602 * s);
@@ -276,7 +280,8 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       }
       const [ana, ben, cat] = ps.map(([, p]) => p);
       for (const p of [ana, ben, cat]) await wait(p, () => lpc.peers().length === 2 && lpc.peers().every((x) => x.name), null, 'everyone in the room');
-      await ana.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); }); // screens in the room come later
+      for (const p of [ana, ben, cat]) await wait(p, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'shared by itself on joining a room, before any game (What’s new 63)');
+      for (const p of [ana, ben, cat]) await p.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); }); // screens in the room come later
       const players = [['Ana', 'ORDER', 'Ahri', 'MIDDLE'], ['Ben', 'ORDER', 'Garen', 'TOP'], ['Cat', 'CHAOS', 'Zed', 'MIDDLE']];
       const lol = (p, me) => p.evaluate((g) => lpcClient.emit('league', g), game(me, players));
       await lol(ana, { champ: 'Ahri', team: 'ORDER' });
@@ -314,6 +319,8 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       const screens = (p) => p.evaluate(() => lpc.seen().map((s) => s.name));
       await wait(ben, () => { const s = lpc.seen(); return s.length === 1 && s[0].name === 'Ana' && s[0].call && s[0].video > 0; }, null, 'Ana’s screen playing on Ben’s Voice page', 30000);
       await wait(ben, () => document.querySelector('#screenGrid figcaption span').textContent === 'Ana’s screen', null, 'named on its tile');
+      assert.strictEqual(await ben.evaluate(() => lpc.seen()[0].sound), 1, 'with its sound (What’s new 63)');
+      assert.strictEqual(await ben.$eval('#screenGrid video', (v) => v.muted), false, 'not muted');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');
       await shot(ben, 'room-screen');
       await cat.waitForTimeout(2000);
