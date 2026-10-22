@@ -206,6 +206,32 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .chatlog time { font: 500 12px/1 var(--mono); color: var(--muted); margin-right: 8px; }
 .chatlog b { color: var(--gold); margin-right: 6px; }
 .chatform { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.roomform { grid-template-columns: auto minmax(0, 1fr) auto; }
+.roomchat { max-height: 420px; }
+.roomchat li { position: relative; padding: 2px 4px; border-radius: 4px; }
+.roomchat li:hover, .roomchat li:focus-within { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.roomchat li.pinged { background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: inset 2px 0 var(--gold); }
+.roomchat li.flash { animation: chatflash 1.2s; }
+@keyframes chatflash { from { background: color-mix(in srgb, var(--gold) 35%, transparent); } }
+.roomchat .acts { position: absolute; top: 2px; right: 4px; display: none; gap: 2px; padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+.roomchat li:hover .acts, .roomchat li:focus-within .acts { display: flex; }
+.roomchat .acts button { font: 12px/1 var(--body); padding: 4px 6px; border: 0; background: none; color: var(--fg); cursor: pointer; border-radius: 3px; }
+.roomchat .acts button:hover, .roomchat .acts button:focus-visible { background: color-mix(in srgb, var(--fg) 12%, transparent); }
+.roomchat .quote { display: block; font: 12px/1.3 var(--body); color: var(--muted); background: none; border: 0; padding: 0 0 2px; cursor: pointer; text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roomchat .chatmedia { display: block; max-width: min(100%, 360px); max-height: 280px; margin-top: 4px; border-radius: 4px; cursor: pointer; }
+.roomchat video.chatmedia { cursor: auto; }
+.roomchat .mention { color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent); border-radius: 3px; padding: 0 2px; }
+.roomchat code { font: 13px var(--mono); background: color-mix(in srgb, var(--fg) 10%, transparent); padding: 0 3px; border-radius: 3px; }
+.roomchat .spoiler { background: var(--fg); color: transparent; border-radius: 3px; cursor: pointer; }
+.roomchat .spoiler.shown { background: color-mix(in srgb, var(--fg) 10%, transparent); color: inherit; }
+.roomchat .reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.roomchat .reacts [aria-pressed="true"] { border-color: var(--gold); }
+.roomchat .chatprog { margin-left: 6px; }
+#chatTyping { min-height: 1.2em; margin: 4px 0 0; font-size: 12px; }
+.chatbar { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+.chatpick { display: flex; flex-wrap: wrap; gap: 4px; }
+.chatpick:not(:empty) { margin-bottom: 6px; }
+.dropping { outline: 2px dashed var(--gold); outline-offset: -4px; }
 
 /* stats and game history */
 .talk { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -907,8 +933,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
           <section class="panel" aria-labelledby="h-chat">
             <h2 id="h-chat" class="ph">Chat</h2>
-            <ol id="chatLog" class="chatlog" data-empty="No messages yet. Links open in your browser."></ol>
-            <form id="chatForm" class="chatform"><input id="chatText" maxlength="300" autocomplete="off" placeholder="Message everyone in the room" aria-label="Message"><button class="btn">Send</button></form>
+            <ol id="chatLog" class="chatlog roomchat" data-empty="No messages yet. Send pictures and videos with + or by pasting or dropping them here; @ mentions someone."></ol>
+            <p id="chatTyping" class="hint" aria-live="polite"></p>
+            <p id="chatBar" class="chatbar" hidden><span id="chatBarText"></span> <button id="chatBarX" class="btn small" type="button">Cancel</button></p>
+            <div id="chatPick" class="chatpick"></div>
+            <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture or video (up to 50 MB)" aria-label="Send a picture or video">+</button><input id="chatFile" type="file" accept="image/*,video/*" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
           </section>
           <section class="panel" aria-labelledby="h-games">
             <h2 id="h-games" class="ph">Room games <button class="tip" type="button" popovertarget="t-games" aria-label="About room games">?</button></h2>
@@ -2391,7 +2420,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // for the ready check; rm: the room's game mode as you have it, which counts only from the host, see takeMode),
   // vq: your voice connection setting, Normal, Faster or Less data (see callPeer), sq: the squad you're in (Your group),
   // {t:'face', img} when it changes, {t:'pos', x, y} on every tracked frame, {t:'talk', s, g} every 5 s,
-  // {t:'chat', text}, {t:'ready?'} for a ready check, {t:'guess'} to the host for Guess the voice, {t:'echo'} when your
+  // {t:'chat', id, text, re, att} and the rest of the room chat's (below), {t:'ready?'} for a ready check, {t:'guess'} to the host for Guess the voice, {t:'echo'} when your
   // speakers send their voice back (echo check), {t:'timer'} for an enemy timer, {t:'cg'} and {t:'duel'} for custom games
   // and 1v1s (Customs), and {t:'bye'} when leaving. The host sends {t:'lock', key, remove} and {t:'removed'}, and its
   // 'me' adds the voice swap (sw), the room games' teams (tm) and roles (ro), the mics it muted for everyone (hm), the
@@ -2413,15 +2442,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!p || !m || typeof m !== 'object') return;
     if (m.t === 'hi' && typeof m.name === 'string') p.name = m.name.slice(0, 24);
     if (m.t === 'bye') { drop(id, false, true); for (const c of p.conns) c.close(); return; }
-    if (m.t === 'chat' && typeof m.text === 'string' && m.text.trim()) {
-      const text = m.text.trim().slice(0, 300);
-      addChat(nameOf(p), text);
-      chats.push({ name: nameOf(p), text: text.slice(0, 140), at: performance.now() });
-      if (chats.length > 3) chats.shift();
-      if (!overlayOn && (league || document.hidden || !$('chatLog').offsetParent)) notify(`${nameOf(p)}: ${text.slice(0, 100)}`);
-      pushOverlay();
-      return;
-    }
+    if (/^(chat|part|react|chatEdit|chatDel|typing|chatHist)$/.test(m.t)) return chatMsg(p, m);
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
@@ -2561,6 +2582,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     dropped.delete(p.slot);
     for (const c of pd.conns) { p.conns.add(c); welcome(c); }
     hello(p);
+    if (slot === hostSlot() && msgs.size) tell(p, chatHist()); // the room's recent chat, for whoever joins
     for (const m of pd.early) onData(id, m); // first, so the call is made with their settings
     if (pd.call) answer(pd.call);
     else if (slot < p.slot) callPeer(id);
@@ -3353,8 +3375,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pending.clear();
     dialing.clear();
     dropped.clear();
-    $('chatLog').replaceChildren();
-    chatLines.length = 0;
+    for (const id of [...msgs.keys()]) dropMsg(id);
+    incoming.clear();
+    chatCancel();
     old.removeAllListeners();
     old.disconnect(); // frees your slot on the room server now
     setTimeout(() => old.destroy(), 300); // lets the goodbye go out
@@ -3396,7 +3419,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Little sounds only you hear: two quick notes, rising for unmute and joins, falling for mute and leaves; four
   // rising ones before voice swap reshuffles; a ring when it's your turn in champ select; three for an objective
   // coming up. The alarms ring even outside a room (a context of their own, on the same speakers as the voices).
-  const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659], call: [659, 784, 988, 784, 988] };
+  const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659], call: [659, 784, 988, 784, 988], ping: [988, 1319] };
   const played = []; // for the test hooks
   let bell = null;
   function chime(name) {
@@ -3419,40 +3442,289 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     });
   }
 
-  // ---- room chat. Links open in your browser (the Windows client sends every other site there). The last 30 lines
-  // also go to the phone remote, which can write in it too.
-  const chatLines = []; // { who, text, at }
-  function addChat(who, text) {
-    chatLines.push({ who, text, at: Date.now() });
-    if (chatLines.length > 30) chatLines.shift();
+  // ---- room chat, like Discord (What's new 58). Every message has an id, so replies, reactions, edits and deletes
+  // point at it. Pictures and videos (picked, pasted, dropped, or a clip sent from the Clips page) go to everyone in
+  // 64 KB pieces over the same peer-to-peer connection, paced so voice messages aren't stuck behind them; nothing is
+  // kept on our server. @name pings that player (a popup even in a game), @everyone and @here ping all. **bold**,
+  // *italics*, `code`, ||spoiler||, and links to pictures, videos and YouTube show inline. The host sends whoever joins
+  // the last 30 text messages. The phone remote and the overlay get the text. Links open in your browser.
+  const msgs = new Map(); // id -> { id, from ('me', a peer id, or '' for history nobody can edit), who, text, at, re, att, url, done, edited, react: { emoji: Set of names }, el }
+  const incoming = new Map(); // id -> { from, parts, got } for a picture or video on its way
+  const REACTS = ['👍', '😂', '🔥', '😮', '😢', '❤️'], FILE_MAX = 50e6, PART = 64e3;
+  const ATT_TYPE = /^(image|video)\/[\w.+-]{1,40}$/;
+  let replyTo = '', editing = '', typingSent = 0;
+  const newId = () => Math.random().toString(36).slice(2, 12);
+  const kindOf = (att) => (att.type.startsWith('image/') ? 'picture' : 'video');
+  const lineText = (m) => m.text.replace(/\|\|(.+?)\|\|/g, '▒▒▒') || (m.att ? `sent a ${kindOf(m.att)}` : ''); // spoilers hidden in previews, popups and the overlay
+  const remoteLines = () => [...msgs.values()].slice(-30).map((m) => ({ who: m.who, text: lineText(m), at: m.at }));
+  const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const chatNames = () => [...new Set([myName, ...[...peers.values()].map(nameOf)].filter(Boolean))];
+  const pings = (text) => new RegExp(`@(everyone|here${myName ? `|${reEsc(myName)}` : ''})(?![\\w])`, 'i').test(text);
+  function chatEl(name, cls, text) { const e = document.createElement(name); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function media(type, src) {
+    const e = chatEl(type.startsWith('image') ? 'img' : 'video', 'chatmedia');
+    e.src = src;
+    e.addEventListener(e.tagName === 'IMG' ? 'load' : 'loadedmetadata', () => { const log = $('chatLog'); if (log.scrollHeight - log.scrollTop - log.clientHeight < e.offsetHeight + 60) log.scrollTop = log.scrollHeight; }); // still at the end once it's in
+    if (e.tagName === 'VIDEO') { e.controls = true; e.preload = 'metadata'; } else { e.alt = ''; e.loading = 'lazy'; e.addEventListener('click', () => window.open(src, '_blank')); }
+    return e;
+  }
+  // the message's text with its links, team codes, mentions and formatting, then what its links show inline
+  function chatBits(text) {
+    const names = ['everyone', 'here', ...chatNames()].sort((a, b) => b.length - a.length).map(reEsc);
+    const re = new RegExp(`(https?://\\S+)|(\\b0[12][0-9a-f]{20,30}TFTSet\\d+\\b)|(@(?:${names.join('|')}))(?![\\w])|\\*\\*(.+?)\\*\\*|\\*(\\S(?:.*?\\S)?)\\*|\`(.+?)\`|\\|\\|(.+?)\\|\\|`, 'gi');
+    const out = [], shown = [];
+    let last = 0;
+    for (const m of text.matchAll(re)) { // ponytail: no formatting inside formatting
+      out.push(text.slice(last, m.index));
+      last = m.index + m[0].length;
+      if (m[1]) {
+        const a = chatEl('a', '', m[1]);
+        a.href = m[1];
+        a.target = '_blank';
+        a.rel = 'noopener';
+        out.push(a);
+        const yt = m[1].match(/^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/i);
+        if (yt) { const y = a.cloneNode(); y.className = 'chatyt'; y.append(media('image', `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`)); shown.push(y); }
+        else if (/\.(png|jpe?g|gif|webp|avif)(\?\S*)?$/i.test(m[1])) shown.push(media('image', m[1]));
+        else if (/\.(mp4|webm|mov)(\?\S*)?$/i.test(m[1])) shown.push(media('video', m[1]));
+      } else if (m[2]) out.push(Object.assign(tftBtn('Copy team code', () => tftCopy(m[2])), { title: m[2] })); // a TFT comp, for League's Team Planner
+      else if (m[3]) out.push(chatEl('span', 'mention', m[3]));
+      else if (m[4]) out.push(chatEl('strong', '', m[4]));
+      else if (m[5]) out.push(chatEl('em', '', m[5]));
+      else if (m[6]) out.push(chatEl('code', '', m[6]));
+      else {
+        const s = chatEl('span', 'spoiler', m[7]);
+        s.tabIndex = 0;
+        s.title = 'Spoiler: click to show';
+        s.onclick = s.onkeydown = () => s.classList.add('shown');
+        out.push(s);
+      }
+    }
+    out.push(text.slice(last));
+    return [out, shown];
+  }
+  function draw(m) {
+    const li = m.el || (m.el = document.createElement('li'));
+    li.replaceChildren();
+    li.dataset.id = m.id;
+    li.classList.toggle('pinged', m.from !== 'me' && pings(m.text));
+    if (m.re) {
+      const r = msgs.get(m.re), q = chatEl('button', 'quote', r ? `↪ ${r.who}: ${lineText(r).slice(0, 80)}` : '↪ a message that’s gone');
+      q.type = 'button';
+      q.onclick = () => { if (r && r.el.isConnected) { r.el.scrollIntoView({ block: 'nearest' }); r.el.classList.remove('flash'); void r.el.offsetWidth; r.el.classList.add('flash'); } };
+      li.append(q);
+    }
+    const time = chatEl('time', '', new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const [bits, shown] = chatBits(m.text);
+    li.append(time, chatEl('b', '', m.who), ...bits);
+    if (m.edited) li.append(chatEl('small', 'muted', ' (edited)'));
+    if (m.att) {
+      if (m.url && (m.from === 'me' || m.done)) li.append(media(m.att.type, m.url));
+      if (!m.done) li.append(chatEl('span', 'hint chatprog', `${m.from === 'me' ? 'Sending' : 'Getting'} the ${kindOf(m.att)}… ${Math.floor(100 * (m.prog || 0))}%`));
+    }
+    li.append(...shown);
+    const rs = Object.entries(m.react).filter(([, who]) => who.size);
+    if (rs.length) {
+      const row = chatEl('div', 'reacts');
+      for (const [e, who] of rs) {
+        const b = chatEl('button', 'btn small', `${e} ${who.size}`);
+        b.type = 'button';
+        b.title = [...who].join(', ');
+        b.setAttribute('aria-pressed', String(who.has(myName || 'You')));
+        b.onclick = () => react(m.id, e);
+        row.append(b);
+      }
+      li.append(row);
+    }
+    const acts = chatEl('div', 'acts');
+    const act = (text, label, fn) => { const b = chatEl('button', '', text); b.type = 'button'; b.title = label; b.setAttribute('aria-label', `${label}: ${m.who}, ${lineText(m).slice(0, 40)}`); b.onclick = fn; acts.append(b); };
+    for (const e of REACTS) act(e, `React ${e}`, () => react(m.id, e));
+    act('Reply', 'Reply', () => { replyTo = m.id; editing = ''; chatBar(); $('chatText').focus(); });
+    if (m.from === 'me' && m.text) act('Edit', 'Edit', () => editMsg(m.id));
+    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); dropMsg(m.id); } });
+    li.append(acts);
+  }
+  function addMsg(m, before) {
+    if (!m.id || msgs.has(m.id)) return null;
+    m.react = {};
+    msgs.set(m.id, m);
+    draw(m);
+    const log = $('chatLog'), end = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    log.insertBefore(m.el, before || null);
+    while (log.children.length > 100) dropMsg(log.firstElementChild.dataset.id);
+    if (end || m.from === 'me') log.scrollTop = log.scrollHeight;
     pushRemote();
-    const li = document.createElement('li'), time = document.createElement('time'), b = document.createElement('b');
-    time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    b.textContent = who;
-    li.append(time, b, ...text.split(/(https?:\/\/\S+|\b0[12][0-9a-f]{20,30}TFTSet\d+\b)/i).map((s, i) => {
-      if (i % 2 === 0) return s;
-      if (!/^https?:/i.test(s)) return Object.assign(tftBtn('Copy team code', () => tftCopy(s)), { title: s }); // a TFT comp, for League's Team Planner
-      const a = document.createElement('a');
-      a.href = a.textContent = s;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      return a;
-    }));
-    const log = $('chatLog');
-    log.append(li);
-    if (log.children.length > 100) log.firstElementChild.remove();
-    log.scrollTop = log.scrollHeight;
+    return m;
+  }
+  function dropMsg(id) {
+    const m = msgs.get(id);
+    if (!m) return;
+    msgs.delete(id);
+    incoming.delete(id);
+    m.el.remove();
+    if (m.url && m.url.startsWith('blob:')) URL.revokeObjectURL(m.url);
+    pushRemote();
+  }
+  function react(id, e, who = myName || 'You', on) {
+    const m = msgs.get(id);
+    if (!m || !REACTS.includes(e)) return;
+    const set = m.react[e] || (m.react[e] = new Set());
+    if (on === undefined) { on = !set.has(who); sendOnce({ t: 'react', id, e, on }); }
+    if (on) set.add(who); else set.delete(who);
+    draw(m);
+  }
+  function editMsg(id) {
+    const m = msgs.get(id);
+    if (!m || m.from !== 'me' || !m.text) return;
+    editing = id;
+    replyTo = '';
+    $('chatText').value = m.text;
+    chatBar();
+    $('chatText').focus();
+  }
+  // the line above the box: what you're replying to or editing, with Cancel
+  function chatBar() {
+    const r = msgs.get(replyTo), bar = $('chatBar');
+    if (!msgs.has(editing)) editing = '';
+    if (!r) replyTo = '';
+    bar.hidden = !r && !editing;
+    $('chatBarText').textContent = editing ? 'Editing your message. Esc to cancel.' : r ? `Replying to ${r.who}: ${lineText(r).slice(0, 60)}` : '';
+    $('chatText').placeholder = editing ? 'Edit your message' : 'Message everyone in the room. @ to mention';
+  }
+  function chatCancel() { if (editing) $('chatText').value = ''; replyTo = editing = ''; chatBar(); }
+  // a message from the room (or the history the host sends): shown, popped up, and on the overlay
+  function takeChat(p, m) {
+    const text = typeof m.text === 'string' ? m.text.trim().slice(0, 1000) : '';
+    const att = m.att && typeof m.att === 'object' && ATT_TYPE.test(m.att.type) && Number.isFinite(m.att.size) && m.att.size > 0 && m.att.size <= FILE_MAX ? { type: m.att.type, size: m.att.size } : null;
+    if (!text && !att) return;
+    const got = addMsg({ id: typeof m.id === 'string' && /^\w{1,16}$/.test(m.id) ? m.id : newId(), from: p.id, who: nameOf(p), text, at: Date.now(), re: typeof m.re === 'string' ? m.re : '', att });
+    if (!got) return;
+    if (att) incoming.set(got.id, { from: p.id, parts: [], got: 0 });
+    const line = lineText(got), ping = pings(text);
+    chats.push({ name: got.who, text: line.slice(0, 140), at: performance.now() });
+    if (chats.length > 3) chats.shift();
+    if (ping) { notify(`${got.who} mentioned you: ${line.slice(0, 100)}`, true); if (opts.chimes) chime('ping'); }
+    else if (!overlayOn && (league || document.hidden || !$('chatLog').offsetParent)) notify(`${got.who}: ${line.slice(0, 100)}`);
+    $('chatTyping').textContent = '';
+    p.typingAt = 0;
+    pushOverlay();
+  }
+  function takePart(p, m) {
+    const f = incoming.get(m.id), msg = msgs.get(m.id);
+    if (!f || !msg || f.from !== p.id || !(m.d instanceof ArrayBuffer) || m.i !== f.parts.length) return;
+    f.parts.push(m.d);
+    f.got += m.d.byteLength;
+    if (f.got > msg.att.size) return dropMsg(m.id); // more than they said
+    msg.prog = f.got / msg.att.size;
+    if (f.got === msg.att.size) {
+      incoming.delete(m.id);
+      msg.url = URL.createObjectURL(new Blob(f.parts, { type: msg.att.type }));
+      msg.done = true;
+      draw(msg);
+    } else if (f.parts.length % 16 === 1) draw(msg); // the percentage, now and then
+  }
+  function chatMsg(p, m) {
+    if (m.t === 'chat') return takeChat(p, m);
+    if (m.t === 'part') return takePart(p, m);
+    const own = msgs.get(m.id);
+    if (m.t === 'react' && own) return react(m.id, m.e, nameOf(p), m.on === true);
+    if (m.t === 'chatEdit' && own && own.from === p.id && typeof m.text === 'string' && m.text.trim()) { own.text = m.text.trim().slice(0, 1000); own.edited = true; return draw(own); }
+    if (m.t === 'chatDel' && own && own.from === p.id) return dropMsg(m.id);
+    if (m.t === 'typing') { p.typingAt = performance.now(); return typingShow(); }
+    if (m.t === 'chatHist' && Array.isArray(m.list) && p.slot === hostSlot()) {
+      const first = $('chatLog').firstElementChild;
+      for (const h of m.list.slice(-30)) {
+        if (!h || typeof h.text !== 'string' || !h.text.trim() || typeof h.id !== 'string' || !/^\w{1,16}$/.test(h.id)) continue;
+        addMsg({ id: h.id, from: h.by === peer.id ? 'me' : peers.has(h.by) ? h.by : '', who: String(h.who || '').slice(0, 24) || 'Someone', text: h.text.trim().slice(0, 1000), at: Number.isFinite(h.at) ? h.at : Date.now(), re: typeof h.re === 'string' ? h.re : '', edited: h.edited === true }, first);
+      }
+    }
+  }
+  const chatHist = () => ({ t: 'chatHist', list: [...msgs.values()].filter((m) => m.text).slice(-30).map((m) => ({ id: m.id, by: m.from === 'me' ? peer.id : m.from, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited })) });
+  function typingShow() {
+    const now = performance.now(), who = [...peers.values()].filter((p) => now - (p.typingAt || 0) < 4000).map(nameOf);
+    $('chatTyping').textContent = !who.length ? '' : who.length > 2 ? 'Several people are typing…' : `${who.join(' and ')} ${who.length > 1 ? 'are' : 'is'} typing…`;
+    if (who.length) setTimeout(typingShow, 1000);
   }
   function sendChat(text) {
-    text = text.trim().slice(0, 300);
+    text = text.trim().slice(0, 1000);
     if (!text || !peer) return false;
-    sendOnce({ t: 'chat', text });
-    addChat(myName || 'You', text);
+    if (editing) {
+      const m = msgs.get(editing);
+      if (m && m.text !== text) { m.text = text; m.edited = true; sendOnce({ t: 'chatEdit', id: m.id, text }); draw(m); }
+    } else {
+      const id = newId(), re = msgs.has(replyTo) ? replyTo : '';
+      sendOnce({ t: 'chat', id, text, ...(re && { re }) });
+      addMsg({ id, from: 'me', who: myName || 'You', text, at: Date.now(), re });
+    }
+    replyTo = editing = '';
+    chatBar();
     return true;
   }
+  // a picture or video to everyone in the room: the message first, then its pieces to each friend in turn, waiting
+  // whenever a connection has more than 1 MB still to send
+  async function sendFile(file) {
+    if (!peer) return notify('Join a voice room first.', true), false;
+    if (!ATT_TYPE.test(file.type)) return notify('Only pictures and videos can go in the room chat.', true), false;
+    if (file.size > FILE_MAX) return notify(`That’s ${(file.size / 1e6).toFixed(0)} MB. Pictures and videos in the chat can be up to 50 MB; cut a clip shorter first.`, true), false;
+    const id = newId(), att = { type: file.type, size: file.size }, text = $('chatText').value.trim().slice(0, 1000), re = msgs.has(replyTo) ? replyTo : '';
+    if (editing) chatCancel();
+    $('chatText').value = '';
+    sendOnce({ t: 'chat', id, text, att, ...(re && { re }) });
+    const m = addMsg({ id, from: 'me', who: myName || 'You', text, at: Date.now(), re, att, url: URL.createObjectURL(file) });
+    replyTo = '';
+    chatBar();
+    const buf = await file.arrayBuffer(), to = [...peers.values()].map((p) => [...p.conns][0]).filter(Boolean);
+    for (let i = 0, o = 0; o < buf.byteLength; i++, o += PART) {
+      for (const c of to) {
+        while (c.open && c.dataChannel && c.dataChannel.bufferedAmount > 1e6) await new Promise((r) => setTimeout(r, 30));
+        if (c.open) c.send({ t: 'part', id, i, d: buf.slice(o, o + PART) });
+      }
+      if (!msgs.has(id)) return true; // deleted while sending
+      m.prog = Math.min(1, (o + PART) / buf.byteLength);
+      if (i % 16 === 0) draw(m);
+    }
+    m.done = true;
+    draw(m);
+    return true;
+  }
+  const chatText = $('chatText');
   $('chatForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    if (sendChat($('chatText').value)) $('chatText').value = '';
+    if (sendChat(chatText.value)) chatText.value = '';
+    $('chatPick').replaceChildren();
+  });
+  $('chatAttach').addEventListener('click', () => $('chatFile').click());
+  $('chatFile').addEventListener('change', async (e) => { for (const f of [...e.target.files]) await sendFile(f); e.target.value = ''; });
+  $('chatBarX').addEventListener('click', chatCancel);
+  chatText.addEventListener('paste', (e) => { const fs = [...(e.clipboardData ? e.clipboardData.files : [])]; if (fs.length) { e.preventDefault(); fs.forEach(sendFile); } });
+  const chatPanel = $('chatForm').closest('section');
+  chatPanel.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); chatPanel.classList.add('dropping'); } });
+  chatPanel.addEventListener('dragleave', (e) => { if (!chatPanel.contains(e.relatedTarget)) chatPanel.classList.remove('dropping'); });
+  chatPanel.addEventListener('drop', (e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); chatPanel.classList.remove('dropping'); [...e.dataTransfer.files].forEach(sendFile); });
+  // @ suggests the names in the room; Tab or a click fills one in
+  function mentionPick() {
+    const at = chatText.value.slice(0, chatText.selectionStart).match(/@([^@\s]*)$/);
+    const list = !at ? [] : ['everyone', ...chatNames().filter((n) => n !== myName)].filter((n) => n.toLowerCase().startsWith(at[1].toLowerCase())).slice(0, 6);
+    $('chatPick').replaceChildren(...list.map((n) => {
+      const b = chatEl('button', 'btn small', `@${n}`);
+      b.type = 'button';
+      b.onclick = () => {
+        const i = chatText.selectionStart - at[1].length;
+        chatText.setRangeText(`${n} `, i, chatText.selectionStart, 'end');
+        $('chatPick').replaceChildren();
+        chatText.focus();
+      };
+      return b;
+    }));
+  }
+  chatText.addEventListener('input', () => {
+    mentionPick();
+    if (peer && chatText.value && performance.now() - typingSent > 3000) { typingSent = performance.now(); sendOnce({ t: 'typing' }); }
+  });
+  chatText.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && $('chatPick').firstChild) { e.preventDefault(); $('chatPick').firstChild.click(); }
+    else if (e.key === 'Escape' && (replyTo || editing)) chatCancel();
+    else if (e.key === 'ArrowUp' && !chatText.value) { const mine = [...msgs.values()].filter((m) => m.from === 'me' && m.text).pop(); if (mine) { e.preventDefault(); editMsg(mine.id); } }
   });
   // ---- game modes: the host picks one for the room. Legends and Immersive change your own voice for everyone (from
   // League's data and your minimap), Gibberish scrambles the other team for you, Voice swap moves every voice to
@@ -6522,7 +6794,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       rc: lcu === 'ReadyCheck' && rc && rc.state === 'InProgress' ? { response: rc.playerResponse, left: Math.max(0, 12 - Math.round(rc.timer || 0)) } : null,
       cs: cs && lcu === 'ChampSelect' ? csRemote(a) : null,
       game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold(), foes: opts.foeTimers ? liveList().filter((p) => !p.ally && p.champ).map((p) => p.champ) : null } : null, // foes: to tap for enemy timers
-      chat: peer ? chatLines : null, // in a voice room
+      chat: peer ? remoteLines() : null, // in a voice room
       lol: chatOk() && lcu ? { inv: lolChat.inv, convs: lolChat.convs.slice(0, 12).map(({ id, name, unread, last }) => ({ id, name, unread, last: last.slice(0, 80) })),
         open: lolChat.open ? { id: lolChat.open, name: chatName(), msgs: lolChat.msgs.slice(-15) } : null } : null, // League chat (app 1.14)
     };
@@ -7133,7 +7405,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const el = document.createElement('div'), fav = favs.has(c.name);
     el.className = 'clip';
     el.toggleAttribute('data-fav', fav);
-    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
+    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small send" type="button">Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
     const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(/\.webm$/i, '');
     img.src = c.pic || 'icon-192.png';
     if (!c.pic) img.style.objectFit = 'contain';
@@ -7147,6 +7419,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     star.setAttribute('aria-label', `${fav ? 'Stop saving' : 'Save'} ${label}`);
     star.addEventListener('click', () => { if (!favs.delete(c.name)) favs.add(c.name); saveFavs(); renderClips(); });
     el.querySelector('.play').addEventListener('click', () => playClip(c.name));
+    el.querySelector('.send').addEventListener('click', async () => {
+      const b = await client.clipRead(c.name).catch(() => null);
+      if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
+      if (await sendFile(new File([b], c.name, { type: 'video/webm' }))) notify(`Sent “${label}” to your room`, true);
+    });
     el.querySelector('.ren').addEventListener('click', () => renameClip(c.name, el));
     el.querySelector('.bin').addEventListener('click', async () => {
       if (!confirm(`Move “${label}” to the Recycle Bin?`)) return;
@@ -12185,6 +12462,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [58, 'October 22: room chat like Discord', [
+      'Send pictures, GIFs and videos in the room chat: paste them, drop them on the chat or press +. They go straight from your PC to your friends’, never through our server, up to 50 MB each. Send to room on the Clips page sends a clip.',
+      'Point at a message to reply to it, react with an emoji, or edit or delete your own. Up arrow edits your last message.',
+      'Type @ to mention someone: they get a popup even in a game, and the message is highlighted for them. @everyone pings the whole room.',
+      '**bold**, *italics*, `code` and ||spoilers||, links to pictures, videos and YouTube show inline, you see who’s typing, and whoever joins sees the last 30 messages.',
+    ]],
     [56, 'October 22: ARAM: Mayhem pick rates from arammayhem.com', [
       'The bars on ARAM: Mayhem’s augment cards now show each augment’s pick rate on your champion, from arammayhem.com’s data, so every card has a number from your first game instead of “few games”. A champion they have no numbers for shows the rate on all champions.',
       'A card that’s a known combo with your champion says so under its bar: God combo, Strong combo, Hidden tech or Fun combo, or Trap in red.',
@@ -12559,6 +12842,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Game modes', 'The host picks one for the whole room: Classic, Legends (your voice changes with Baron, dragons, towers and sprees), Immersive, Gibberish, Voice swap (guess who’s really talking), Showdown and Chaos.',
         'Game mode, at the top of your room. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],
       ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
+      ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
+      ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
       ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'In your room. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
       ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles, a Queue quiz, a Mock draft, an MVP vote and a Fearless series. Room awards come after each game with friends in voice.',
         'Room games, in your room.', '#h-games, #createBtn'],
