@@ -219,8 +219,9 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     // joining from the invite; then Duo joining Rayan's League lobby and so his voice room, by itself
     await duo.click('#leaveBtn');
     const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
-    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | Premade open now · Online in League | Invite,Sleepy#EUW | No Premade yet | '; }, 'Rayan’s friends');
+    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | 🟢 Online · In League | Invite,Sleepy#EUW | No Premade yet | '; }, 'Rayan’s friends');
     if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
+    assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => x.riot).sort(), ['Duo#EUW', 'Sleepy#EUW'], 'League friends kept for when League is closed');
     await ray.click('.nav[data-view="profile"]'); // Profile's friends, each opening their profile
     await wait(ray, () => [...document.querySelectorAll('#proFrList button')].map((b) => b.textContent).join() === 'Duo#EUW,Sleepy#EUW', null, 'friends on Profile');
     await ray.click('#proFrList button');
@@ -228,7 +229,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await ray.click('.nav[data-view="voice"]');
     await ray.fill('#frId', 'Kev # NA1');
     await ray.click('#frAdd button');
-    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Premade open now · Online in League | Invite', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
+    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | 🟢 Online · In League | Invite', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
     await ray.click('#frRows tr:nth-child(2) button');
     assert.strictEqual((await frRows(ray)).length, 2, 'Kev removed');
     await ray.click('#frRows tr:first-child button');
