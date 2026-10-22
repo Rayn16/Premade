@@ -231,6 +231,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .chatbar { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
 .chatpick { display: flex; flex-wrap: wrap; gap: 4px; }
 .chatpick:not(:empty) { margin-bottom: 6px; }
+.hist li { margin: 4px 0; }
+#histLog { max-height: calc(60vh / var(--zoom, 1)); }
 .dropping { outline: 2px dashed var(--gold); outline-offset: -4px; }
 
 /* stats and game history */
@@ -939,6 +941,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <div id="chatPick" class="chatpick"></div>
             <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture or video (up to 50 MB)" aria-label="Send a picture or video">+</button><input id="chatFile" type="file" accept="image/*,video/*" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
           </section>
+          <details id="histBox" class="panel">
+            <summary id="h-hist" class="ph">Past sessions</summary>
+            <p class="hint">Every voice room you’re in, who was there and its chat with the pictures and videos, kept on this computer for 30 days, then deleted.</p>
+            <label class="check"><input id="optHistory" type="checkbox"> Keep my voice sessions and their chat</label>
+            <ul id="histRows" class="plain hist"></ul>
+            <p id="histNote" class="hint"></p>
+          </details>
           <section class="panel" aria-labelledby="h-games">
             <h2 id="h-games" class="ph">Room games <button class="tip" type="button" popovertarget="t-games" aria-label="About room games">?</button></h2>
             <div class="toolbar">
@@ -1792,6 +1801,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   </div>
 </dialog>
 
+<dialog id="histDlg" class="wizard" aria-labelledby="histTitle">
+  <div class="wz">
+    <h2 id="histTitle" class="ph"></h2>
+    <p id="histWho" class="hint"></p>
+    <ol id="histLog" class="chatlog roomchat" data-empty="No messages in this session."></ol>
+    <div class="toolbar"><button id="histDel" class="btn small" type="button">Delete this session</button> <button id="histClose" class="btn primary" type="button">Close</button></div>
+  </div>
+</dialog>
 <dialog id="clipDlg" class="wizard viewer" aria-labelledby="clipTitle">
   <div class="wz">
     <h2 id="clipTitle" class="ph"></h2>
@@ -1955,7 +1972,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
-    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true,
+    deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameDays: 7, champLook: false, champMain: null,
@@ -3317,6 +3334,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     autoJoined = auto;
     joinedAt = performance.now();
+    sessStart();
     $('key').hidden = true;
     setHash();
     keyTo(peer, key0); // before dialling anyone, so a locked room lets you in right away
@@ -3375,6 +3393,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pending.clear();
     dialing.clear();
     dropped.clear();
+    sessSave(true);
+    sess = null;
     for (const id of [...msgs.keys()]) dropMsg(id);
     incoming.clear();
     chatCancel();
@@ -3413,6 +3433,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function hello(p) {
     p.hello = true;
     const name = nameOf(p);
+    if (sess) { sess.people.add(name); sessSave(); }
     if (leaving.has(name)) { clearTimeout(leaving.get(name)); leaving.delete(name); return; }
     if (performance.now() - joinedAt > 8000) { notify(`${name} joined the room`); if (opts.chimes) chime('join'); }
   }
@@ -3461,7 +3482,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const chatNames = () => [...new Set([myName, ...[...peers.values()].map(nameOf)].filter(Boolean))];
   const pings = (text) => new RegExp(`@(everyone|here${myName ? `|${reEsc(myName)}` : ''})(?![\\w])`, 'i').test(text);
   function chatEl(name, cls, text) { const e = document.createElement(name); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function media(type, src) {
+  function chatMedia(type, src) {
     const e = chatEl(type.startsWith('image') ? 'img' : 'video', 'chatmedia');
     e.src = src;
     e.addEventListener(e.tagName === 'IMG' ? 'load' : 'loadedmetadata', () => { const log = $('chatLog'); if (log.scrollHeight - log.scrollTop - log.clientHeight < e.offsetHeight + 60) log.scrollTop = log.scrollHeight; }); // still at the end once it's in
@@ -3484,9 +3505,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         a.rel = 'noopener';
         out.push(a);
         const yt = m[1].match(/^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/i);
-        if (yt) { const y = a.cloneNode(); y.className = 'chatyt'; y.append(media('image', `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`)); shown.push(y); }
-        else if (/\.(png|jpe?g|gif|webp|avif)(\?\S*)?$/i.test(m[1])) shown.push(media('image', m[1]));
-        else if (/\.(mp4|webm|mov)(\?\S*)?$/i.test(m[1])) shown.push(media('video', m[1]));
+        if (yt) { const y = a.cloneNode(); y.className = 'chatyt'; y.append(chatMedia('image', `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`)); shown.push(y); }
+        else if (/\.(png|jpe?g|gif|webp|avif)(\?\S*)?$/i.test(m[1])) shown.push(chatMedia('image', m[1]));
+        else if (/\.(mp4|webm|mov)(\?\S*)?$/i.test(m[1])) shown.push(chatMedia('video', m[1]));
       } else if (m[2]) out.push(Object.assign(tftBtn('Copy team code', () => tftCopy(m[2])), { title: m[2] })); // a TFT comp, for League's Team Planner
       else if (m[3]) out.push(chatEl('span', 'mention', m[3]));
       else if (m[4]) out.push(chatEl('strong', '', m[4]));
@@ -3519,7 +3540,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     li.append(time, chatEl('b', '', m.who), ...bits);
     if (m.edited) li.append(chatEl('small', 'muted', ' (edited)'));
     if (m.att) {
-      if (m.url && (m.from === 'me' || m.done)) li.append(media(m.att.type, m.url));
+      if (m.url && (m.from === 'me' || m.done)) li.append(chatMedia(m.att.type, m.url));
       if (!m.done) li.append(chatEl('span', 'hint chatprog', `${m.from === 'me' ? 'Sending' : 'Getting'} the ${kindOf(m.att)}… ${Math.floor(100 * (m.prog || 0))}%`));
     }
     li.append(...shown);
@@ -3541,13 +3562,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const e of REACTS) act(e, `React ${e}`, () => react(m.id, e));
     act('Reply', 'Reply', () => { replyTo = m.id; editing = ''; chatBar(); $('chatText').focus(); });
     if (m.from === 'me' && m.text) act('Edit', 'Edit', () => editMsg(m.id));
-    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); dropMsg(m.id); } });
+    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); if (sess) sess.log.delete(m.id); dropMsg(m.id); } });
     li.append(acts);
+    sessSave(); // an edit, a reaction or a picture that's in
   }
   function addMsg(m, before) {
     if (!m.id || msgs.has(m.id)) return null;
     m.react = {};
     msgs.set(m.id, m);
+    if (sess) sess.log.set(m.id, m);
     draw(m);
     const log = $('chatLog'), end = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     log.insertBefore(m.el, before || null);
@@ -3618,8 +3641,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     msg.prog = f.got / msg.att.size;
     if (f.got === msg.att.size) {
       incoming.delete(m.id);
-      msg.url = URL.createObjectURL(new Blob(f.parts, { type: msg.att.type }));
+      const blob = new Blob(f.parts, { type: msg.att.type });
+      msg.url = URL.createObjectURL(blob);
       msg.done = true;
+      sessFile(msg.id, blob);
       draw(msg);
     } else if (f.parts.length % 16 === 1) draw(msg); // the percentage, now and then
   }
@@ -3629,7 +3654,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const own = msgs.get(m.id);
     if (m.t === 'react' && own) return react(m.id, m.e, nameOf(p), m.on === true);
     if (m.t === 'chatEdit' && own && own.from === p.id && typeof m.text === 'string' && m.text.trim()) { own.text = m.text.trim().slice(0, 1000); own.edited = true; return draw(own); }
-    if (m.t === 'chatDel' && own && own.from === p.id) return dropMsg(m.id);
+    if (m.t === 'chatDel' && own && own.from === p.id) { if (sess) sess.log.delete(m.id); return dropMsg(m.id); }
     if (m.t === 'typing') { p.typingAt = performance.now(); return typingShow(); }
     if (m.t === 'chatHist' && Array.isArray(m.list) && p.slot === hostSlot()) {
       const first = $('chatLog').firstElementChild;
@@ -3671,6 +3696,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('chatText').value = '';
     sendOnce({ t: 'chat', id, text, att, ...(re && { re }) });
     const m = addMsg({ id, from: 'me', who: myName || 'You', text, at: Date.now(), re, att, url: URL.createObjectURL(file) });
+    sessFile(id, file);
     replyTo = '';
     chatBar();
     const buf = await file.arrayBuffer(), to = [...peers.values()].map((p) => [...p.conns][0]).filter(Boolean);
@@ -3725,6 +3751,100 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (e.key === 'Tab' && $('chatPick').firstChild) { e.preventDefault(); $('chatPick').firstChild.click(); }
     else if (e.key === 'Escape' && (replyTo || editing)) chatCancel();
     else if (e.key === 'ArrowUp' && !chatText.value) { const mine = [...msgs.values()].filter((m) => m.from === 'me' && m.text).pop(); if (mine) { e.preventDefault(); editMsg(mine.id); } }
+  });
+  // ---- past sessions (What's new 59): every voice room you're in, who was there and its chat (pictures too), kept in
+  // this browser's IndexedDB for 30 days and never sent anywhere. Saved two seconds after each change, every minute,
+  // and when you leave. Opening the list deletes what's older.
+  const HIST_DAYS = 30;
+  let sess = null, sessT = 0;
+  const histDb = new Promise((ok) => {
+    try {
+      const r = indexedDB.open('premade-sessions', 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore('sessions', { keyPath: 'id' }); r.result.createObjectStore('files', { keyPath: 'id' }); };
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => ok(null);
+    } catch { ok(null); }
+  });
+  async function histDo(name, mode, fn) {
+    const db = await histDb;
+    if (!db) return null;
+    return new Promise((ok) => {
+      const t = db.transaction(name, mode), r = fn(t.objectStore(name));
+      t.oncomplete = () => ok(r ? r.result : null);
+      t.onerror = t.onabort = () => ok(null);
+    });
+  }
+  function sessStart() { sess = opts.history ? { id: Date.now(), room, start: Date.now(), people: new Set(), log: new Map() } : null; }
+  function sessSave(now) {
+    const s = sess;
+    if (!s) return;
+    clearTimeout(sessT);
+    sessT = setTimeout(() => {
+      if (!s.people.size && !s.log.size) return; // alone the whole time
+      const msgs = [...s.log.values()].map((m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '',
+        react: Object.fromEntries(Object.entries(m.react).filter(([, w]) => w.size).map(([e, w]) => [e, [...w]])) }));
+      histDo('sessions', 'readwrite', (o) => o.put({ id: s.id, room: s.room, start: s.start, end: Date.now(), people: [...s.people], msgs }));
+    }, now ? 0 : 2000);
+  }
+  setInterval(() => sessSave(), 60000);
+  function sessFile(id, blob) { if (sess) histDo('files', 'readwrite', (o) => o.put({ id, sess: sess.id, blob })); }
+  // the sessions in these 30 days, newest first; older ones and their pictures are deleted
+  async function histList() {
+    const all = (await histDo('sessions', 'readonly', (o) => o.getAll())) || [], old = Date.now() - HIST_DAYS * 864e5;
+    const gone = all.filter((s) => s.end < old).map((s) => s.id);
+    if (gone.length) await histDrop(gone);
+    return all.filter((s) => s.end >= old).sort((a, b) => b.start - a.start);
+  }
+  async function histDrop(ids) {
+    const set = new Set(ids);
+    await histDo('sessions', 'readwrite', (o) => { for (const id of set) o.delete(id); });
+    await histDo('files', 'readwrite', (o) => { const r = o.openCursor(); r.onsuccess = () => { const c = r.result; if (!c) return; if (set.has(c.value.sess)) c.delete(); c.continue(); }; });
+  }
+  const histRoom = (s) => (GAME_ROOM.test(s.room) ? 'League game' : `Room ${s.room.toUpperCase()}`);
+  const histWhen = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  async function histShow() {
+    if (!$('histBox').open) return;
+    const list = await histList();
+    $('histRows').replaceChildren(...list.map((s) => {
+      const li = document.createElement('li'), b = chatEl('button', 'btn small', `${histWhen(s.start)} · ${histRoom(s)} · ${Math.max(1, Math.round((s.end - s.start) / 60000))} min`);
+      b.type = 'button';
+      b.onclick = () => histOpen(s);
+      li.append(b, ` ${s.people.join(', ') || 'Just you'} · ${s.msgs.length} message${s.msgs.length === 1 ? '' : 's'}`);
+      return li;
+    }));
+    $('histNote').textContent = list.length ? '' : 'No sessions yet. Join a voice room and it shows here.';
+  }
+  let histOpenId = 0;
+  const histUrls = [];
+  async function histOpen(s) {
+    histOpenId = s.id;
+    histUrls.splice(0).forEach((u) => URL.revokeObjectURL(u));
+    $('histTitle').textContent = `${histRoom(s)}, ${histWhen(s.start)} to ${new Date(s.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    $('histWho').textContent = `With ${s.people.join(', ') || 'nobody else'}.`;
+    const byId = new Map(s.msgs.map((m) => [m.id, m]));
+    $('histLog').replaceChildren(...await Promise.all(s.msgs.map(async (m) => {
+      const li = document.createElement('li'), r = byId.get(m.re), [bits, shown] = chatBits(m.text);
+      if (m.re) li.append(chatEl('span', 'quote', r ? `↪ ${r.who}: ${(r.text || 'a picture or video').slice(0, 80)}` : '↪ a message from before'));
+      li.append(chatEl('time', '', new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), chatEl('b', '', m.who), ...bits);
+      if (m.edited) li.append(chatEl('small', 'muted', ' (edited)'));
+      if (m.att) {
+        const f = await histDo('files', 'readonly', (o) => o.get(m.id));
+        if (f && f.blob) { const u = URL.createObjectURL(f.blob); histUrls.push(u); li.append(chatMedia(m.att, u)); } else li.append(chatEl('span', 'hint', ` (a ${m.att.startsWith('image') ? 'picture' : 'video'} that didn’t finish)`));
+      }
+      li.append(...shown);
+      const rs = Object.entries(m.react || {});
+      if (rs.length) li.append(chatEl('div', 'reacts', rs.map(([e, w]) => `${e} ${w.length}`).join('  ')));
+      return li;
+    })));
+    $('histDlg').showModal();
+  }
+  $('histBox').addEventListener('toggle', histShow);
+  $('histClose').addEventListener('click', () => $('histDlg').close());
+  $('histDel').addEventListener('click', async () => {
+    if (!confirm('Delete this session and its chat from this computer?')) return;
+    await histDrop([histOpenId]);
+    $('histDlg').close();
+    histShow();
   });
   // ---- game modes: the host picks one for the room. Legends and Immersive change your own voice for everyone (from
   // League's data and your minimap), Gibberish scrambles the other team for you, Voice swap moves every voice to
@@ -12289,7 +12409,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
-    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'],
+    ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optHistory', 'history'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
@@ -12462,6 +12582,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [59, 'October 22: past voice sessions', [
+      'Past sessions, under the chat on the Voice page, keeps every voice room you’re in: when, who was there, and the whole chat with its pictures and videos. Open one to read it again. They stay on this computer for 30 days, then they’re deleted. Untick Keep my voice sessions to stop.',
+    ]],
     [58, 'October 22: room chat like Discord', [
       'Send pictures, GIFs and videos in the room chat: paste them, drop them on the chat or press +. They go straight from your PC to your friends’, never through our server, up to 50 MB each. Send to room on the Clips page sends a clip.',
       'Point at a message to reply to it, react with an emoji, or edit or delete your own. Up arrow edits your last message.',
@@ -12843,6 +12966,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Game mode, at the top of your room. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],
       ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
       ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
+      ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat on the Voice page. On unless you untick Keep my voice sessions.', '#optHistory'],
       ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
       ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'In your room. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
       ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles, a Queue quiz, a Mock draft, an MVP vote and a Fearless series. Room awards come after each game with friends in voice.',

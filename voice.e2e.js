@@ -655,6 +655,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ben.evaluate(() => [...document.querySelectorAll('#chatLog li')].find((li) => /gg wp/.test(li.textContent)).querySelector('.acts button[title="Delete"]').click());
     await waitFor(ana, () => document.querySelectorAll('#chatLog li').length === 2 && !/gg wp/.test(document.getElementById('chatLog').textContent), null, 'Ben\'s message gone for Ana');
     console.log('room chat like Discord: a reply with a mention, a reaction, a picture peer to peer, an edit with formatting, a delete');
+    // past sessions: this one on Ana's list with who's here and its chat and picture; one older than 30 days deleted
+    await ana.evaluate(() => new Promise((ok) => { const r = indexedDB.open('premade-sessions', 1); r.onsuccess = () => { const t = r.result.transaction('sessions', 'readwrite'); t.objectStore('sessions').put({ id: 1, room: 'oldold', start: Date.now() - 40 * 864e5, end: Date.now() - 31 * 864e5, people: ['Old'], msgs: [] }); t.oncomplete = ok; }; }));
+    await new Promise((r) => setTimeout(r, 2500));
+    await ana.evaluate(() => { document.getElementById('histBox').open = true; });
+    await waitFor(ana, () => { const t = document.getElementById('histRows').textContent; return /Ben, Cat · 2 messages/.test(t) && !/OLDOLD/.test(t); }, null, 'this session on Ana\'s list, the 31-day-old one gone');
+    await ana.click('#histRows button');
+    await waitFor(ana, async () => /Ana\s*brb, build/.test(document.getElementById('histLog').textContent) && document.querySelector('#histLog li .reacts').textContent === '🔥 1' && !!document.querySelector('#histLog img.chatmedia') && (await (await fetch(document.querySelector('#histLog img.chatmedia').src)).blob()).size === 300000, null, 'the session\'s chat, reaction and picture');
+    await ana.click('#histClose');
+    await ana.evaluate(() => { document.getElementById('histBox').open = false; });
+    console.log('past sessions: this one with who was there, its chat and picture; one older than 30 days deleted');
 
     // locking the room: Ana, the host, locks it; Fay, who only has the code, is turned away until she types the password
     assert(await ana.isVisible('#lockBtn') && await ben.isHidden('#lockBtn'), 'only the host can lock');
