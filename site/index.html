@@ -1046,7 +1046,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <canvas id="mini" width="280" height="280" hidden aria-label="Your minimap. The gold circle is where the page thinks your champion is."></canvas>
               <div class="me-text">
                 <p id="me"></p>
-                <div class="toolbar"><button id="shareBtn" class="btn primary" type="button">Share League screen</button></div>
+                <div class="toolbar"><button id="shareBtn" class="btn primary" type="button">Share League screen</button><button id="generalShareBtn" class="btn" type="button">Share screen or app</button></div>
                 <div class="facerow">
                   <canvas id="face" width="128" height="128" hidden aria-label="Close-up of the champion icon the page follows as you."></canvas>
                   <button id="relearnBtn" class="btn" type="button" hidden>Not my champion</button>
@@ -1828,6 +1828,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   </div>
 </dialog>
 
+<dialog id="captureDlg" class="wizard" aria-labelledby="captureTitle">
+  <div class="wz">
+    <h2 id="captureTitle" class="title">Share a screen or app</h2>
+    <p class="hint">Choose a display or an open app/window to share with your room.</p>
+    <div id="captureGrid" class="screengrid"></div>
+    <footer><button id="captureCancel" class="btn" type="button">Cancel</button></footer>
+  </div>
+</dialog>
+
 <dialog id="histDlg" class="wizard" aria-labelledby="histTitle">
   <div class="wz">
     <h2 id="histTitle" class="ph"></h2>
@@ -2343,7 +2352,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     p.chip.lastChild.textContent = name;
     if (roomCreator) updateRoomListing();
   }
-  const trackText = () => (!share ? 'not sharing your screen' : !share.sq ? 'looking for your minimap'
+  const trackText = () => (!share ? 'not sharing your screen' : share.mode === 'general' ? 'sharing a screen or app without League tracking' : !share.sq ? 'looking for your minimap'
     : fresh(me) && me.by === 'icon' ? 'following your champion' : fresh(me) ? 'following your camera box' : 'looking for your champion');
   function render() {
     if (document.hidden) return;
@@ -2371,15 +2380,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('phase').textContent = inGameNow()
       ? `In game: proximity is on. ${inGame} of ${peers.size + 1} players have their minimap tracked; you hear only those close to you.`
       : 'Lobby: everyone hears everyone at full volume. Once the game starts, you only hear players close to you on the map.';
-    $('shareBtn').textContent = share ? 'Stop sharing' : 'Share League screen';
+    $('shareBtn').textContent = share && share.mode === 'league' ? 'Stop sharing' : 'Share League screen';
+    $('shareBtn').disabled = !!share && share.mode === 'general';
+    $('generalShareBtn').textContent = share && share.mode === 'general' ? 'Stop sharing' : 'Share screen or app';
+    $('generalShareBtn').disabled = !!share && share.mode === 'league';
     $('changeShareBtn').hidden = !share;
     $('changeShareBtn').textContent = client ? 'Choose a different screen' : 'Change shared screen or audio';
-    $('mini').hidden = !(share && share.sq);
+    $('mini').hidden = !(share && share.mode === 'league' && share.sq);
     $('relearnBtn').hidden = !(share && fresh(me) && me.learned);
     $('face').hidden = !(share && fresh(me) && me.by === 'icon');
-    $('pickForm').hidden = !(share && share.sq && !(fresh(me) && me.learned));
+    $('pickForm').hidden = !(share && share.mode === 'league' && share.sq && !(fresh(me) && me.learned));
     if (!$('pickForm').hidden) ddSoon(); // the list of names; after a failure, Find me tries again
-    $('me').textContent = !share ? 'Share the screen League is on so the page can see your minimap. Until then you’re heard in the lobby, but not once a game starts.'
+    $('me').textContent = share && share.mode === 'general' ? 'You’re sharing a screen or app with the room. League minimap tracking is off for this share.' : !share ? 'Share the screen League is on so the page can see your minimap. Until then you’re heard in the lobby, but not once a game starts.'
       : !share.sq ? share.hint || 'Looking for your minimap. Make sure you shared the whole screen League is on.'
       : fresh(me) && me.by === 'icon' ? `Following this champion: ${pct(me.x)} across, ${pct(me.y)} down the minimap.`
       : fresh(me) && me.learned ? 'Your champion isn’t on the minimap, so following your camera box for now.'
@@ -4367,14 +4379,43 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- screen share: find the minimap, then your champion on it (camera-box.js Follower), five times a second
-  async function startShare() {
+  async function chooseCaptureSource() {
+    if (!client || !client.captureSources) return '';
+    const list = await client.captureSources();
+    const dlg = $('captureDlg'), grid = $('captureGrid');
+    grid.replaceChildren();
+    return new Promise((resolve) => {
+      const finish = (id) => { dlg.close(); resolve(id); };
+      $('captureCancel').onclick = () => finish('');
+      list.forEach((source) => {
+        const b = document.createElement('button'), img = new Image(), label = document.createElement('span');
+        b.type = 'button'; b.className = 'screen'; img.alt = ''; img.src = source.thumb;
+        label.textContent = source.type === 'screen' ? ('Entire screen' + (source.main ? ' (main)' : '')) : source.name;
+        b.append(img, label); b.onclick = () => finish(source.id); grid.append(b);
+      });
+      if (!list.length) { finish(''); notify('No screens or open app windows were found.'); return; }
+      dlg.showModal();
+    });
+  }
+  async function startShare(mode = 'league') {
     let stream;
     const previousShare = share;
     const audioMode = client && client.shareAudioMode ? client.shareAudioMode() : { filter: false };
+    if (mode === 'general' && client) {
+      let sourceId = '';
+      try { sourceId = await chooseCaptureSource(); } catch (err) {
+        if (client.shareAudioCancel) client.shareAudioCancel();
+        console.warn('screen source picker:', err);
+        notify('Could not open the screen and app picker.');
+        return;
+      }
+      if (!sourceId) { if (client.shareAudioCancel) client.shareAudioCancel(); return; }
+      if (!await client.captureSource(sourceId)) { if (client.shareAudioCancel) client.shareAudioCancel(); return; }
+    }
     try {
       // The desktop app replaces whole-system loopback with Windows process-loopback when Discord is running.
       // Browsers and clips keep their normal capture behavior.
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), displaySurface: 'monitor' }, audio: audioMode.filter ? false : { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), ...(mode === 'league' ? { displaySurface: 'monitor' } : {}) }, audio: audioMode.filter ? false : { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
     } catch { if (!share && client && client.shareAudioCancel) client.shareAudioCancel(); return; } // picker cancelled; an existing share stays live
     const activeShare = share === previousShare ? previousShare : null;
     let reuseSound = null, reuseFilter = null;
@@ -4385,7 +4426,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       reuseFilter = activeShare.filteredAudio;
       share = null;
     } else if (activeShare) stopShare();
-    const s = share = { track: stream.getVideoTracks()[0], sound: reuseSound || stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0, ...(reuseFilter && { filteredAudio: reuseFilter }) };
+    const s = share = { mode, track: stream.getVideoTracks()[0], sound: reuseSound || stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0, ...(reuseFilter && { filteredAudio: reuseFilter }) };
     for (const l of lends.values()) { l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
     lends.clear();
     $('roomSoundState').textContent = opts.roomSound
@@ -4439,7 +4480,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     if (audioMode.filter && s.filteredAudio) $('roomSoundState').textContent = opts.roomSound ? 'Screen audio is being shared with the room; Discord desktop audio is filtered.' : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
-    s.stop = CameraBox.watch(stream, 200, (src, w, h) => {
+    s.stop = mode === 'league' ? CameraBox.watch(stream, 200, (src, w, h) => {
       if (share !== s) return;
       if (!s.sq || s.frames++ % 25 === 0) s.sq = CameraBox.locateMinimap(cctx, src, w, h); // again every 5 s, in case Minimap Scale changed
       if (!s.sq && ++s.miss % 10 === 0) { s.hint = shareHint(s); render(); }
@@ -4454,8 +4495,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       // League's surrender vote box (votePop): on after 2 frames with it, off after 2 without
       if (league && SR.test(league.mode) && opts.overlayWin) { s.vote = CameraBox.seeVote(cctx, src, w, h) ? Math.min(3, s.vote + 1) : Math.max(0, s.vote - 1); s.wide = w / h; }
       volumes();
-    });
+    }) : () => {};
     trackedAt = 0;
+    if (mode === 'general') { me.t = -Infinity; send(posMsg()); }
     lendTick();
     render();
   }
@@ -4504,6 +4546,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pickedChamp = '';
     refreshMine();
     volumes();
+    render();
   }
 
   // ---- your champion by name: Riot's Data Dragon has every champion's picture, and camera-box.js finds the
@@ -5055,14 +5098,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         tile.dataset.slot = p.slot;
         tile.innerHTML = '<figcaption><span></span><button class="btn small" type="button">Hide</button></figcaption><video autoplay playsinline controls></video>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
-        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video') }));
+        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, frames: -1, frameAt: 0, restarts: 0 }));
         bySlot($('screenGrid'), tile, p.slot);
+      }
+      if (v.call && screenFrozen(v, performance.now())) {
+        const old = v.call;
+        v.call = null;
+        v.vid.srcObject = null;
+        v.streamAt = 0;
+        v.frames = -1;
+        v.restarts++;
+        v.asked = -Infinity;
+        old.close(); // ask again below; the sender starts a fresh screen call
       }
       v.tile.querySelector('span').textContent = v.call ? `${nameOf(p)}’s screen` : `${nameOf(p)}’s screen: connecting…`;
       v.tile.querySelector('button').setAttribute('aria-label', `Hide ${nameOf(p)}’s screen`);
       if (!v.call && performance.now() - v.asked >= 5000) { v.asked = performance.now(); tell(p, { t: 'see', on: true }); }
     }
     $('roomScreens').hidden = !seen.size;
+  }
+  function screenFrozen(v, now) { // a live screen call with no decoded frames gets replaced so the sender can reopen it
+    if (!v.call || document.hidden) return false;
+    if (!v.streamAt) return now - v.callAt > 15000; // the call connected but never delivered a stream
+    if (v.vid.readyState < 2) return now - v.streamAt > 15000; // stream arrived but no first frame
+    const quality = v.vid.getVideoPlaybackQuality && v.vid.getVideoPlaybackQuality();
+    const frames = quality && Number.isFinite(quality.totalVideoFrames) ? quality.totalVideoFrames : v.vid.webkitDecodedFrameCount;
+    if (!Number.isFinite(frames)) return false;
+    if (frames > v.frames) { v.frames = frames; v.frameAt = now; return false; }
+    return now - v.frameAt > 12000;
   }
   function hideScreen(p, hide) {
     if (hide) screensHidden.add(nameOf(p));
@@ -5082,9 +5145,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const v = seen.get(p);
     if (v.call && v.call !== call && !(cam && cam.call === v.call)) v.call.close();
     v.call = call;
+    v.callAt = performance.now();
+    v.streamAt = 0;
     call.on('stream', (s) => {
       if (seen.get(p) !== v || v.call !== call) return;
       v.vid.srcObject = s;
+      v.streamAt = performance.now();
+      v.frameAt = v.streamAt;
+      v.frames = -1;
       v.vid.play().catch((e) => { if (e.name === 'NotAllowedError') { v.vid.muted = true; v.vid.play().catch(() => {}); } }); // their sound; muted if the browser won't play it yet (unmute in its controls)
     });
     call.on('close', () => { if (seen.get(p) === v && v.call === call) { v.call = null; v.vid.srcObject = null; } });
@@ -10781,7 +10849,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (augs !== a) return s.getTracks().forEach((t) => t.stop());
     a.track = s.getVideoTracks()[0];
     a.g = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 }).getContext('2d', { willReadFrequently: true });
-    a.stop = CameraBox.watch(s, 1000, (src, w, h) => augFrame(a, src, w, h));
+    a.stop = CameraBox.watch(s, a.may ? 350 : 1000, (src, w, h) => augFrame(a, src, w, h));
     if (lcuOn()) tftGamesLoad(); // your games
   }
   function augStop() {
@@ -10882,7 +10950,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot, as shares of the screen; t: what to say; k: good, bad or ''; Mayhem's bars: v, the bar's length 0-1, p the pick rate, s what's under it }]
     if (augs && augs.may) { // Mayhem: bars as long as each card's pick rate against the most picked of them, which is k good
       const l = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) })), top = Math.max(0, ...l.map((c) => c.r || 0));
-      return l.length ? l.map(({ r, ...c }) => (r == null ? c : { ...c, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' })) : null;
+      return l.length ? l.map(({ r, ...c }) => (r == null ? { ...c, may: true } : { ...c, may: true, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' })) : null;
     }
     if (!augs || !augs.box || !augs.cards.some((c) => c && c.name)) return null;
     const [x0, y0, bw, bh] = augs.box;
@@ -10943,10 +11011,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   const mayCv = document.createElement('canvas');
   function mayFrame(a, src, w, h) {
-    if (a.busy || a.failed || !mayNames || performance.now() - (a.at || 0) < 2000) return;
+    if (a.busy || a.failed || !mayNames || performance.now() - (a.at || 0) < 700) return;
     if (!mayOpen()) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
     a.at = performance.now();
-    const sx = w * 0.1, sy = h * 0.1, sw = w * 0.8, sh = h * 0.8, k = 1280 / sw; // the middle of the screen with the cards' feet, 1280 wide
+    // The offers occupy the middle band; excluding the rest of the game makes OCR faster and avoids unrelated text.
+    const sx = w * 0.1, sy = h * 0.25, sw = w * 0.8, sh = h * 0.5, k = 1280 / sw;
     mayCv.width = 1280;
     mayCv.height = Math.round(sh * k);
     const g = mayCv.getContext('2d', { willReadFrequently: true });
@@ -10958,20 +11027,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     (augOcr = augOcr || augLoad('11')).then((ocr) => ocr.recognize(mayCv, {}, { blocks: true })).then((r) => {
       if (augs !== a) return;
       const lines = ((r && r.data && r.data.blocks) || []).flatMap((b) => b.paragraphs || []).flatMap((q) => q.lines || []);
-      const foot = (b) => { // the card's frame under its name: the first row from 3 names' heights down whose middle 80 px are nearly all light (dark here), else -1
-        const cx = Math.round((b.x0 + b.x1) / 2), W = mayCv.width;
-        for (let y = Math.round(b.y1 + 3 * (b.y1 - b.y0)); y < mayCv.height; y++) {
-          let n = 0;
-          for (let x = cx - 40; x < cx + 40; x += 2) n += d[(y * W + x) * 4] < 105;
-          if (n >= 36) return y;
-        }
-        return -1;
-      };
       const had = a.cards.some(Boolean);
-      a.cards = lines.map((l) => {
-        const name = mayMatch(l.text), b = l.bbox, f = name ? foot(b) : -1, y = f > 0 ? f - 0.16 * (f - b.y0) : b.y1 + 9 * (b.y1 - b.y0); // near the card's foot, above its frame
-        return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4) };
-      }).filter(Boolean).slice(0, 4);
+      const found = lines.map((l) => {
+        const name = mayMatch(l.text), b = l.bbox;
+        // Keep the badge anchored to the card text. Edge scans can latch onto descriptions or art and make it drift.
+        const y = b.y1 + 0.6 * mayCv.height;
+        return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0 };
+      }).filter(Boolean).sort((x, y) => y.confidence - x.confidence);
+      const seen = new Set();
+      a.cards = found.filter((c) => { const key = augKey(c.name); if (seen.has(key)) return false; seen.add(key); return true; })
+        .sort((x, y) => x.x - y.x).slice(0, 3);
       if (had && !a.cards.length) mayUntil = 0; // picked: no more till the next level
       pushOverlay();
     }).catch((e) => { a.failed = true; console.warn('augment cards:', e); }).finally(() => { a.busy = false; });
@@ -13034,6 +13099,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [69, 'October 23: share any screen, and cleaner Mayhem overlay ratings', [
+      'In a voice room, Share screen or app lets you share an open app window or an entire display. League screen sharing stays separate and keeps minimap tracking.',
+      'The Windows overlay now fits small displays and ignores stale placement requests when screens change. Mayhem ratings stay anchored under detected augment names with transparent backgrounds, and detection checks more often.',
+      'Frozen incoming screen shares recover by restarting the stuck video connection.',
+    ]],
     [68, 'October 23: remembered voice controls and easier room and screen sharing', [
       'If a voice connection to the room server drops, Premade retries with a growing delay instead of hammering the server, and retries right away when your internet comes back. Voice with people already connected keeps working.',
       'Your per-person volume and mute choices are remembered on this computer when that friend returns.',
@@ -13776,7 +13846,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('copyBtn').addEventListener('click', copyInvite);
   $('sbRoom').addEventListener('click', copyInvite);
-  $('shareBtn').addEventListener('click', () => { if (share) shareOff = league ? league.room : room; share ? stopShare() : startShare(); });
+  $('shareBtn').addEventListener('click', () => { if (share && share.mode === 'league') { shareOff = league ? league.room : room; stopShare(); } else if (!share) startShare('league'); });
+  $('generalShareBtn').addEventListener('click', () => { if (share && share.mode === 'general') { shareOff = league ? league.room : room; stopShare(); } else if (!share) startShare('general'); });
   $('changeShareBtn').addEventListener('click', () => {
     if (!client) return startShare();
     view('settings');
@@ -13887,7 +13958,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0 })), // the in-game helpers
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
+    screenStall: (name) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (v && v.call) { v.vid.pause(); v.frames = v.vid.getVideoPlaybackQuality?.().totalVideoFrames ?? v.vid.webkitDecodedFrameCount ?? 0; v.frameAt = performance.now() - 13000; } }, // simulate a frozen receiver in the e2e test
     augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, // what's read off TFT's augment cards
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,

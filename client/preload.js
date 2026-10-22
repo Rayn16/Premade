@@ -5,6 +5,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('lpcClient', {
   version: (process.argv.find((a) => a.startsWith('--lpc-version=')) || '').slice(14),
   screens: () => ipcRenderer.invoke('screens'),
+  captureSources: () => ipcRenderer.invoke('capture-sources'),
+  captureSource: (id) => ipcRenderer.invoke('capture-source', String(id)),
   shareAudioMode: () => ipcRenderer.sendSync('share-audio-mode'),
   shareAudioCancel: () => ipcRenderer.send('share-audio-cancel'),
   startFilteredAudio: () => ipcRenderer.invoke('filtered-audio-start'),

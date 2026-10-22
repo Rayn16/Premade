@@ -435,9 +435,17 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('headset swap: a new mic after the unplug and after Windows’ default changed, the call kept');
 
     // screen share: Ana shares again (her real minimap through the browser's video pipeline)
+    await ana.selectOption('#optShareQ', '720');
+    await ben.selectOption('#optShareQ', '720'); // keep the test's reciprocal room shares light on the headless browser
     await ana.click('#shareBtn');
     await ben.evaluate(() => setBox(0.4, 0.6));
     await ben.click('#shareBtn');
+    await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.video > 0), null, 'Ben’s screen shown in Ana’s Voice page');
+    await waitFor(ben, () => lpc.seen().some((s) => s.name === 'Ana' && s.video > 0), null, 'Ana’s screen shown in Ben’s Voice page');
+    await ana.evaluate(() => lpc.screenStall('Ben'));
+    await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.restarts > 0), null, 'a frozen screen call is restarted', 20000);
+    await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.call && s.video > 0), null, 'Ben’s screen resumes after reconnecting', 20000);
+    console.log('room screens: a frozen video call is replaced and the screen resumes');
     await waitFor(ana, () => lpc.me().fresh, null, 'Ana tracked', 40000); // the first frames are slow on a busy container
     await waitFor(ben, () => lpc.me().fresh, null, 'Ben tracked', 40000);
     const me = await ana.evaluate(() => lpc.me());

@@ -32,7 +32,7 @@ if (!app.requestSingleInstanceLock()) return app.quit();
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, additionalArguments: ['--lpc-version=' + app.getVersion()] };
 const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
 const openOut = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
-let win = null, overlay = null, screenId = '', shareAudioMode = false, shareAudioFiltered = false, shareDiscordPid = 0, filteredDiscordPid = 0, filteredCapture = null, pendingNotificationAction = null;
+let win = null, overlay = null, screenId = '', captureSourceId = '', shareAudioMode = false, shareAudioFiltered = false, shareDiscordPid = 0, filteredDiscordPid = 0, filteredCapture = null, pendingNotificationAction = null;
 
 ipcMain.on('notify', (e, title, body, action) => {
   if (!fromSite(e) || process.platform !== 'win32' || !Notification.isSupported()) return;
@@ -106,6 +106,17 @@ ipcMain.handle('filtered-audio-start', async (e) => {
 });
 ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredDiscordPid = 0; } });
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
+ipcMain.handle('capture-sources', async (e) => {
+  if (!fromSite(e)) return [];
+  const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 280, height: 158 } });
+  const main = String(screen.getPrimaryDisplay().id);
+  return list.map((s) => ({ id: s.id, name: s.name, type: s.id.startsWith('screen:') ? 'screen' : 'window', main: s.id.startsWith('screen:') && s.display_id === main, thumb: s.thumbnail.toDataURL() }));
+});
+ipcMain.handle('capture-source', (e, id) => {
+  if (!fromSite(e) || typeof id !== 'string') return false;
+  captureSourceId = id;
+  return true;
+});
 ipcMain.on('screen', (e, id) => {
   if (!fromSite(e) || typeof id !== 'string' || id === screenId) return;
   screenId = id;
@@ -395,19 +406,20 @@ function hider() {
 // 300x360 times the page's scale, at a corner (pos) or where it was dragged (box: fractions of the screen). While the
 // page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved). With
 // everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
-let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null;
+let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null, overlayRevision = 0;
 const display = async () => { const s = chosen(await screens(false)); return screen.getAllDisplays().find((d) => s && String(d.id) === s.display_id) || screen.getPrimaryDisplay(); };
 ipcMain.on('overlay', (e, s) => {
   if (!fromSite(e) || !s || typeof s !== 'object') return;
+  const revision = ++overlayRevision;
   overlayState = s;
   if (overlay) overlay.webContents.send('overlay', s);
   if (!s.visible) { if (overlay) overlay.hide(); placed = placedShape = ''; return; }
-  placeOverlay(s);
+  placeOverlay(s, revision);
 });
 // where it goes again once the screens change (League switching resolution, a screen plugged in or out): Windows may
 // have moved or cut it
-const replaceOverlay = () => { if (overlay && overlayState.visible) { placed = placedShape = ''; placeOverlay(overlayState); } };
-async function placeOverlay(s) {
+const replaceOverlay = () => { if (overlay && overlayState.visible) { placed = placedShape = ''; placeOverlay(overlayState, ++overlayRevision); } };
+async function placeOverlay(s, revision = ++overlayRevision) {
   if (!overlay) {
     overlay = new BrowserWindow({
       width: 300, height: 360, show: false, frame: false, transparent: true, resizable: false, focusable: false,
@@ -437,12 +449,13 @@ async function placeOverlay(s) {
   const board = !!s.board && !editing, key = JSON.stringify([s.pos, k, box, board]), shape = JSON.stringify([s.pos, k, board]);
   if (placed === key) return;
   const dragged = editing && s.pos === 'custom' && shape === placedShape; // the page keeping where it was dragged: it's there
+  const { x, y, width, height } = (await display()).bounds;
+  if (revision !== overlayRevision || !overlayState.visible) return;
   placed = key;
   placedShape = shape;
   if (dragged) return;
-  const { x, y, width, height } = (await display()).bounds;
-  if (!overlayState.visible) return;
-  const w = board ? width : Math.round(300 * k), h = board ? height : Math.round(360 * k);
+  const fit = Math.min(k, width / 300, height / 360);
+  const w = board ? width : Math.round(300 * fit), h = board ? height : Math.round(360 * fit);
   const at = board ? { x, y } : box ? { x: x + Math.round(box.x * width), y: y + Math.round(box.y * height) }
     : { x: s.pos === 'mr' ? x + width - w - 16 : x + 16, y: s.pos === 'ml' || s.pos === 'mr' ? y + Math.round((height - h) / 2) : y + 16 };
   placedAt = { x: Math.min(Math.max(at.x, x), x + width - w), y: Math.min(Math.max(at.y, y), y + height - h) };
@@ -928,7 +941,11 @@ ipcMain.handle('keys', (e, k) => {
 app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.setDisplayMediaRequestHandler(async (req, done) => {
-    const s = chosen(await screens(false));
+    const requestedId = captureSourceId;
+    captureSourceId = '';
+    const s = requestedId
+      ? (await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } })).find((x) => x.id === requestedId)
+      : chosen(await screens(false));
     const filtered = shareAudioMode && shareAudioFiltered;
     shareAudioMode = false;
     shareAudioFiltered = false;
