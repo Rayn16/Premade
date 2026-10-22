@@ -9962,7 +9962,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const c = champOf(league && league.me && league.me.champ), k = augKey(name), r = mayData && mayData.a.get(k), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k);
     const tag = g ? { g: `${COMBO[g][0]} with ${c.name}`, gk: COMBO[g][1] } : {};
     if (!(r >= 0)) return { t: g ? `${name}: ${tag.g}` : `${name}: no pick rate yet`, k: '', ...tag };
-    return { t: `${name}: picked ${pct(r / 100)} of the time on all champions (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: 'all champions · arammayhem.com', ...tag };
+    return { t: `${name}: picked ${pct(r / 100)} of the time on all champions (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: 'all champions', ...tag };
   }
 
   function renderTft() {
