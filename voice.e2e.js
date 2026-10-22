@@ -631,6 +631,31 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const sounds = await ana.evaluate(() => lpc.played());
     assert(sounds.includes('leave') && sounds.filter((t) => t === 'join').length === 2, `chimes when Ben left and Ben and Cat joined: ${sounds}`);
 
+    // like Discord: a reply that mentions, a reaction, a picture sent peer to peer in pieces, an edit, formatting, a delete
+    await ben.evaluate(() => document.querySelector('#chatLog li .acts button[title="Reply"]').click());
+    assert(/Replying to Ana/.test(await ben.textContent('#chatBar')), 'the reply bar');
+    await ben.fill('#chatText', '@An');
+    await ben.press('#chatText', 'Tab');
+    assert.strictEqual(await ben.inputValue('#chatText'), '@Ana ', '@ suggests Ana and Tab fills her in');
+    await ben.type('#chatText', 'gg');
+    await ben.press('#chatText', 'Enter');
+    await waitFor(ana, () => { const li = document.querySelector('#chatLog li:last-child'); return li && li.classList.contains('pinged') && /↪ Ana: brb/.test(li.querySelector('.quote').textContent) && li.querySelector('.mention').textContent === '@Ana' && lpc.toasts().some((t) => t.startsWith('Ben mentioned you: @Ana gg')); }, null, 'Ben\'s reply pings Ana');
+    assert(!(await cat.evaluate(() => document.querySelector('#chatLog li:last-child').classList.contains('pinged'))), 'not a ping for Cat');
+    await cat.evaluate(() => document.querySelector('#chatLog li .acts button[title="React 🔥"]').click());
+    await waitFor(ana, () => { const b = document.querySelector('#chatLog li .reacts button'); return b && b.textContent === '🔥 1' && b.title === 'Cat'; }, null, 'Cat\'s 🔥 on Ana\'s message');
+    const ward = Buffer.alloc(300000, 7);
+    await ana.setInputFiles('#chatFile', { name: 'ward.png', mimeType: 'image/png', buffer: ward });
+    for (const pg of [ben, cat]) await waitFor(pg, async () => { const img = document.querySelector('#chatLog img.chatmedia'); return !!img && (await (await fetch(img.src)).blob()).size === 300000; }, null, 'Ana\'s picture, all 300 KB of it');
+    await ben.press('#chatText', 'ArrowUp');
+    assert.strictEqual(await ben.inputValue('#chatText'), '@Ana gg', 'Up arrow edits your last message');
+    await ben.fill('#chatText', '@Ana gg wp, **big** ||secret||');
+    await ben.press('#chatText', 'Enter');
+    await waitFor(ana, () => [...document.querySelectorAll('#chatLog li')].some((li) => /gg wp/.test(li.textContent) && /\(edited\)/.test(li.textContent) && li.querySelector('strong').textContent === 'big' && li.querySelector('.spoiler').textContent === 'secret'), null, 'Ben\'s edit, with bold and a spoiler');
+    ben.once('dialog', (d) => d.accept());
+    await ben.evaluate(() => [...document.querySelectorAll('#chatLog li')].find((li) => /gg wp/.test(li.textContent)).querySelector('.acts button[title="Delete"]').click());
+    await waitFor(ana, () => document.querySelectorAll('#chatLog li').length === 2 && !/gg wp/.test(document.getElementById('chatLog').textContent), null, 'Ben\'s message gone for Ana');
+    console.log('room chat like Discord: a reply with a mention, a reaction, a picture peer to peer, an edit with formatting, a delete');
+
     // locking the room: Ana, the host, locks it; Fay, who only has the code, is turned away until she types the password
     assert(await ana.isVisible('#lockBtn') && await ben.isHidden('#lockBtn'), 'only the host can lock');
     await ana.click('#lockBtn');
@@ -652,6 +677,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await fay.fill('#key', KEY.toUpperCase());
     await fay.click('#joinBtn');
     await hears(fay, ['Ana', 'Ben', 'Cat'], null, 'Fay in with the password');
+    await waitFor(fay, () => /Ana\s*brb, build/.test(document.getElementById('chatLog').textContent), null, 'the room\'s recent chat for Fay, from the host');
     await hears(ana, ['Ben', 'Cat', 'Fay'], null, 'Ana hears Fay');
     await waitFor(ana, () => lpc.inGame().includes('Fay'), null, 'Fay in the game Ana is playing (checked once a second)');
     assert(await fay.evaluate(() => lpc.denoise()), 'Fay\'s smart noise removal is on');
