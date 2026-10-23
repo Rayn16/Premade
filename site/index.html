@@ -11082,7 +11082,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const tag = g ? { g: `${COMBO[g][0]} with ${c.name}`, gk: COMBO[g][1] } : {};
     if (pc) { // your champion's rates: one not listed is rarely taken on it
       const r = pc.get(k);
-      if (!(r >= 0)) return { t: `${name}: rarely picked on ${c.name}`, k: '', ...tag };
+      if (!(r >= 0)) return { t: `${name}: 0% pick rate on ${c.name}`, k: '', ...tag };
       return { t: `${name}: picked ${pct(r / 100)} of the time on ${c.name} (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: `on ${c.name}`, ...tag };
     }
     const r = mayData && mayData.a.get(k);
@@ -13099,6 +13099,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [70, 'October 23: Mayhem augment rates show zero clearly', [
+      'When ARAM: Mayhem has no recorded pick rate for an augment on your champion, its overlay now labels it “0% pick rate” instead of “rarely picked.”',
+    ]],
     [69, 'October 23: share any screen, and cleaner Mayhem overlay ratings', [
       'In a voice room, Share screen or app lets you share an open app window or an entire display. League screen sharing stays separate and keeps minimap tracking.',
       'The Windows overlay now fits small displays and ignores stale placement requests when screens change. Mayhem ratings stay anchored under detected augment names with transparent backgrounds, and detection checks more often.',
