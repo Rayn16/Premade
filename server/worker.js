@@ -10,6 +10,16 @@ const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
 const CORS = { 'access-control-allow-origin': '*' };
 const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: one counter for every room, fine for friend groups
 const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(0, 10); // UTC
+const DEVICE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const riotIdList = (a, n) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(x)).slice(0, n) : []);
+const helloOf = (b) => {
+  if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10) };
+};
+const owner = (env, key) => {
+  const [a, b] = [typeof key === 'string' ? key : '', env.OWNER_KEY || ''].map((s) => new TextEncoder().encode(s));
+  return b.byteLength > 0 && a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
+};
 
 function deepAramAugments(html) {
   const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
@@ -34,6 +44,21 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    if (req.method === 'POST' && (url.pathname === '/hello' || url.pathname === '/who')) {
+      const b = await req.json().catch(() => null);
+      if (url.pathname === '/who') return owner(env, b && b.key) ? Response.json({ apps: await stats(env).who() }, { headers: CORS }) : new Response('Not the owner key', { status: 403, headers: CORS });
+      const h = helloOf(b);
+      if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
+      await stats(env).hello(h);
+      return new Response(null, { status: 204, headers: CORS });
+    }
+    if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) {
+      const b = await req.json().catch(() => null), id = b && DEVICE.test(b.id) ? b.id : '';
+      if (url.pathname === '/friends') return Response.json(await stats(env).friends(id, riotIdList(b && b.riot, 300)), { headers: CORS });
+      const [to] = riotIdList(b && [b.to], 1), room = b && /^[a-z0-9]{1,20}$/.test(b.room) ? b.room : '', key = (b && b.key) ?? '';
+      if (!id || !to || !room || typeof key !== 'string' || !/^[a-z]{0,12}$/.test(key)) return Response.json({ error: 'Not an invite' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).invite(id, to, room, key), { headers: CORS });
+    }
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
       const champion = url.searchParams.get('champ') || '';
       if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
@@ -136,6 +161,37 @@ export class Stats extends DurableObject {
     super(ctx, env);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, PRIMARY KEY (dest, src))');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
+  }
+  friends(id, riot) {
+    const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map((x) => x.toLowerCase())), has = {};
+    sql.exec('DELETE FROM invites WHERE at < ?', now - 600);
+    for (const r of sql.exec('SELECT a.id, a.riot, a.last FROM apps a JOIN friendly f ON f.id = a.id WHERE a.last > ?', now - 90 * 86400))
+      if (r.id !== id) for (const n of JSON.parse(r.riot).map((x) => x.toLowerCase())) if (want.has(n)) has[n] = Math.max(has[n] || 0, r.last);
+    const me = id && sql.exec('SELECT riot, last FROM apps WHERE id = ?', id).toArray()[0];
+    if (!me) return { has, inv: [] };
+    sql.exec('INSERT OR IGNORE INTO friendly VALUES (?)', id);
+    if (now - me.last >= 45) sql.exec('UPDATE apps SET last = ? WHERE id = ?', now, id);
+    const mine = JSON.parse(me.riot).map((x) => x.toLowerCase());
+    const inv = mine.length ? sql.exec(`SELECT a.name AS n, a.riot, i.room, i.key, i.at FROM invites i JOIN apps a ON a.id = i.src WHERE i.dest IN (${mine.map(() => '?').join()})`, ...mine).toArray() : [];
+    return { has, inv: inv.map((x) => ({ ...x, riot: JSON.parse(x.riot)[0] || '' })) };
+  }
+  invite(id, to, room, key) {
+    const sql = this.ctx.storage.sql;
+    if (!sql.exec('SELECT 1 FROM apps WHERE id = ?', id).toArray().length) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Settings > App first' };
+    sql.exec('INSERT OR REPLACE INTO invites VALUES (?, ?, ?, ?, ?)', to.toLowerCase(), id, room, key, Math.round(Date.now() / 1000));
+    return { ok: true };
+  }
+  hello({ id, v, name, riot }) {
+    const now = Math.round(Date.now() / 1000);
+    this.ctx.storage.sql.exec('INSERT INTO apps VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v, name = excluded.name, riot = excluded.riot, last = excluded.last', id, v, name, JSON.stringify(riot), now, now);
+  }
+  who() {
+    const sql = this.ctx.storage.sql;
+    sql.exec('DELETE FROM apps WHERE last < ?', Math.round(Date.now() / 1000) - 365 * 86400);
+    return sql.exec('SELECT v, name, riot, first, last FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot) }));
   }
   prune() {
     this.ctx.storage.sql.exec('DELETE FROM salt WHERE day < ?', day());
