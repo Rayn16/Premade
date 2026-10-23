@@ -4415,9 +4415,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (!await client.captureSource(sourceId)) { if (client.shareAudioCancel) client.shareAudioCancel(); return; }
     }
     try {
-      // The desktop app replaces whole-system loopback with Windows process-loopback when Discord is running.
-      // Browsers and clips keep their normal capture behavior.
-      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), ...(mode === 'league' ? { displaySurface: 'monitor' } : {}) }, audio: audioMode.filter ? false : { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
+      // Capture source audio as a fallback; on Windows, replace it with the system mix excluding Discord when available.
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), ...(mode === 'league' ? { displaySurface: 'monitor' } : {}) }, audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
     } catch { if (!share && client && client.shareAudioCancel) client.shareAudioCancel(); return; } // picker cancelled; an existing share stays live
     const activeShare = share === previousShare ? previousShare : null;
     let reuseSound = null, reuseFilter = null;
@@ -4469,17 +4468,20 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         };
         await ctx.resume();
         if (!await client.startFilteredAudio()) throw new Error('Windows could not start Discord audio filtering');
+        const capturedTrack = s.sound;
         s.sound = dst.stream.getAudioTracks()[0];
+        if (capturedTrack) capturedTrack.stop();
         s.filteredAudio = { ctx, node };
         $('roomSoundState').textContent = opts.roomSound ? 'Screen audio is being shared with the room; Discord desktop audio is filtered.' : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
       } catch (err) {
         filteredAudioSink = null;
         if (client && client.stopFilteredAudio) client.stopFilteredAudio();
-        notify('Discord is active, so screen-share sound stayed muted because its audio filter could not start.');
-        $('roomSoundState').textContent = 'Screen audio is muted because Discord filtering could not start.';
+        notify('Discord audio filtering could not start. Screen audio is still shared, but may include Discord.');
+        $('roomSoundState').textContent = s.sound ? 'Screen audio is still shared; Discord filtering could not start, so Discord audio may be included.' : 'Screen audio was not selected in the screen picker.';
         console.warn('screen-share audio filter:', err);
       }
     }
+    if (audioMode.warning) notify('Could not check whether Discord is running. Screen audio stays on, but Discord audio may be included.');
     if (audioMode.filter && s.filteredAudio) $('roomSoundState').textContent = opts.roomSound ? 'Screen audio is being shared with the room; Discord desktop audio is filtered.' : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
     s.stop = mode === 'league' ? CameraBox.watch(stream, 200, (src, w, h) => {

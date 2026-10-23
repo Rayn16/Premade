@@ -67,9 +67,9 @@ ipcMain.on('share-audio-mode', (e) => {
   if (!fromSite(e)) return;
   const found = process.platform === 'win32' ? discordRootPid() : { pid: 0, error: false };
   shareAudioMode = true;
-  shareAudioFiltered = !!found.pid || found.error;
+  shareAudioFiltered = !!found.pid;
   shareDiscordPid = found.pid;
-  e.returnValue = { filter: shareAudioFiltered };
+  e.returnValue = { filter: shareAudioFiltered, warning: found.error };
 });
 ipcMain.on('share-audio-cancel', (e) => { if (fromSite(e)) { shareAudioMode = false; shareAudioFiltered = false; shareDiscordPid = 0; filteredDiscordPid = 0; stopFilteredCapture(); } });
 function stopFilteredCapture() {
