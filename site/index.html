@@ -11039,8 +11039,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const found = [[], [], []];
       for (const l of lines) {
         const b = l.bbox, cy = (b.y0 + b.y1) / 2;
-        // Augment titles sit across the central band; ignoring the description rows prevents them being mistaken for titles.
-        if (cy < mayCv.height * 0.35 || cy > mayCv.height * 0.72) continue;
+        // The augment titles sit near the top of the cards; ignore the lower description rows so they aren't mistaken for titles.
+        if (cy < mayCv.height * 0.08 || cy > mayCv.height * 0.32) continue;
         const name = mayMatch(l.text);
         if (!name) continue;
         const cx = (b.x0 + b.x1) / 2, slot = Math.min(2, Math.floor(cx / (mayCv.width / 3))), y = b.y1 + 0.42 * mayCv.height;
