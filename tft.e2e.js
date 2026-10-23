@@ -416,7 +416,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.strictEqual(await pc.evaluate(() => lpc.mayhem()), true, 'League mode KIWI identifies ARAM: Mayhem independently of TFT');
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the Mayhem cards read', 60000);
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y > 0.72 && c.y < 0.9])),
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y > 0.58 && c.y < 0.7])),
       [['Symphony of War: picked 40% of the time on Ahri (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on Ahri (arammayhem.com)', true, true], ['Sneakerhead: 0% pick rate on Ahri', true, true]], 'the rating stays on each augment card without drifting to unrelated screen edges');
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'on Ahri', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'on Ahri', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
       'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');

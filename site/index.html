@@ -11036,7 +11036,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const found = lines.map((l) => {
         const name = mayMatch(l.text), b = l.bbox;
         // Keep the badge anchored to the card text. Edge scans can latch onto descriptions or art and make it drift.
-        const y = b.y1 + 0.75 * mayCv.height;
+        const y = b.y1 + 0.42 * mayCv.height;
         return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0 };
       }).filter(Boolean).sort((x, y) => y.confidence - x.confidence);
       const seen = new Set();
@@ -13105,6 +13105,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [74, 'October 23: Mayhem ratings inside the cards', [
+      'Mayhem pick rates now sit inside each augment card near its bottom edge.',
+    ]],
     [73, 'October 23: a dedicated ARAM: Mayhem overlay', [
       'Premade detects ARAM: Mayhem from League’s game mode or queue and uses its own augment-card reader and transparent overlay layer. TFT ratings no longer run on Mayhem cards.',
     ]],
