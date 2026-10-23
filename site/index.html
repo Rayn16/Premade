@@ -11040,7 +11040,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       for (const l of lines) {
         const b = l.bbox, cy = (b.y0 + b.y1) / 2;
         // The augment titles sit near the top of the cards; ignore the lower description rows so they aren't mistaken for titles.
-        if (cy < mayCv.height * 0.08 || cy > mayCv.height * 0.32) continue;
+        if (cy < mayCv.height * 0.08 || cy > mayCv.height * 0.4) continue;
         const name = mayMatch(l.text);
         if (!name) continue;
         const cx = (b.x0 + b.x1) / 2, slot = Math.min(2, Math.floor(cx / (mayCv.width / 3))), y = b.y1 + 0.42 * mayCv.height;
