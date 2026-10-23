@@ -6158,7 +6158,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   async function gameStart() {
     gfs = await lcuGet('/lol-gameflow/v1/session');
     const gd = (gfs && gfs.gameData) || {}, q = gd.queue || {};
-    curGame = gd.gameId ? { id: gd.gameId, queue: q.id, ranked: !!q.isRanked || q.id === 420 || q.id === 440, custom: !!gd.isCustomGame, result: '', tft: q.gameMode === 'TFT' } : null;
+    curGame = gd.gameId ? { id: gd.gameId, queue: q.id, mode: String(q.gameMode || gd.gameMode || ''), ranked: !!q.isRanked || q.id === 420 || q.id === 440, custom: !!gd.isCustomGame, result: '', tft: (q.gameMode || gd.gameMode) === 'TFT' } : null;
     const nameOf_ = (p) => (p.gameName ? `${p.gameName}#${p.tagLine || ''}` : String(p.summonerName || ''));
     livePlayers = [...(gd.teamOne || []).map((p) => [p, 'ORDER']), ...(gd.teamTwo || []).map((p) => [p, 'CHAOS'])]
       .filter(([p]) => p && typeof p === 'object').map(([p, team]) => ({ puuid: typeof p.puuid === 'string' ? p.puuid : '', name: nameOf_(p), champ: +p.championId || 0, team, pos: String(p.selectedPosition || '').toUpperCase() }));
@@ -6573,7 +6573,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     Tank: ['health, armor, magic resist, shields and ability haste', 'critical strikes and attack speed'],
     Support: ['heal and shield power, ability haste, mana and ability power', 'critical strikes and attack speed'],
   };
-  const mayhem = () => !!league && ((!!curGame && curGame.queue === 2400) || league.mode === 'KIWI');
+  const isMayhemMode = (mode) => String(mode || '').toUpperCase() === 'KIWI';
+  const mayhem = () => !!league && ((!!curGame && (+curGame.queue === 2400 || isMayhemMode(curGame.mode))) || isMayhemMode(league.mode));
   function augTip(k) {
     const c = champOf(k), t = c && (c.tags || [])[0], tip = c && (AUG_TIPS[t + (isMagic(c) ? 'AP' : '')] || AUG_TIPS[t]);
     return tip ? `Augments for ${c.name}: look for ${tip[0]}; skip ${tip[1]}.` : '';
