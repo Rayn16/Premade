@@ -11044,7 +11044,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const name = mayMatch(l.text);
         if (!name) continue;
         const cx = (b.x0 + b.x1) / 2, slot = Math.min(2, Math.floor(cx / (mayCv.width / 3))), y = b.y1 + 0.42 * mayCv.height;
-        found[slot].push({ name, x: +((sx + (slot + 0.5) * sw / 3) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now() });
+        found[slot].push({ name, x: +((sx + cx / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now() });
       }
       const now = performance.now(), next = [null, null, null];
       for (let i = 0; i < 3; i++) {
