@@ -2258,6 +2258,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let dd = null, ddVersion = '', ddAt = -Infinity; // dd: Promise of { version, byName: lower-case name or id -> id }
   let ddVersions = []; // this patch's version and the last one's, for Stats' patch changes
   const ddChamp = {}; // a champion's Data Dragon entry by its number (League's client) and its id
+  const ddChampByName = {}; // and by the display name League sometimes supplies instead of its Data Dragon id
   const emblems = {}; // Riot's rank emblems by tier, from Data Dragon's TFT ranked regalia (the same crests as League's ranks)
   const emblem = (tier) => { const src = emblems[String(tier || '').toUpperCase()]; return src ? Object.assign(new Image(), { src, alt: '', className: 'emb' }) : ''; };
   const withEmblem = (tier, ...text) => { const s = document.createElement('span'); s.className = 'who'; s.append(emblem(tier), ...text); return s; };
@@ -2269,7 +2270,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         fetch(`${DD}/cdn/${version}/data/en_US/tft-regalia.json`).then((r) => r.json()).catch(() => null)]); // without emblems, ranks are only text
       for (const [k, v] of Object.entries((regalia && regalia.data && regalia.data.RANKED_TFT) || {})) if (v && v.image && v.image.full) emblems[k.toUpperCase()] = `${DD}/cdn/${version}/img/tft-regalia/${v.image.full}`;
       const byName = {};
-      for (const c of Object.values(data)) { byName[c.name.toLowerCase()] = c.id; byName[c.id.toLowerCase()] = c.id; ddChamp[c.key] = ddChamp[c.id] = c; }
+      for (const c of Object.values(data)) { byName[c.name.toLowerCase()] = c.id; byName[c.id.toLowerCase()] = c.id; ddChamp[c.key] = ddChamp[c.id] = c; ddChampByName[c.name.toLowerCase()] = ddChampByName[c.id.toLowerCase()] = c; }
       $('champs').replaceChildren(...Object.values(data).map((c) => new Option(c.name)));
       ddVersion = version;
       ddVersions = versions.slice(0, 2);
@@ -5500,7 +5501,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const PLATS = { euw1: ['EUW', 'europe'], eun1: ['EUNE', 'europe'], na1: ['NA', 'americas'], kr: ['KR', 'asia'], jp1: ['JP', 'asia'], br1: ['BR', 'americas'], la1: ['LAN', 'americas'], la2: ['LAS', 'americas'],
     oc1: ['OCE', 'sea'], tr1: ['TR', 'europe'], ru: ['RU', 'europe'], me1: ['ME', 'europe'], sg2: ['SEA', 'sea'], tw2: ['TW', 'sea'], vn2: ['VN', 'sea'] };
   const cap = (s) => String(s || '').charAt(0) + String(s || '').slice(1).toLowerCase();
-  const champOf = (k) => (k && ddChamp[k]) || null; // a champion by its number (League's client) or its id (Data Dragon)
+  const champOf = (k) => (k && (ddChamp[k] || ddChampByName[String(k).toLowerCase()])) || null; // a champion by its number, id or display name
   const champName = (k) => (champOf(k) || {}).name || (k ? 'a champion' : '');
   const champImg = (k) => champPic((champOf(k) || {}).id);
   const kda = (k, d, a) => ((k + a) / Math.max(1, d)).toFixed(1);
@@ -11077,14 +11078,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       pushOverlay();
     }).catch(() => {});
   }
-  function mayRate(name) { // the augment's pick rate on your champion (else on all champions), and its combo with your champion if it's one
-    const c = champOf(league && league.me && league.me.champ), k = augKey(name), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k), pc = c && mayData && mayData.p[c.id];
+  function mayRate(name) { // the augment's pick rate on your champion, and its combo with your champion if it's one
+    const me = league && league.me, c = champOf(me && me.champ) || champOf(me && me.champName), k = augKey(name), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k), pc = c && mayData && mayData.p[c.id];
     const tag = g ? { g: `${COMBO[g][0]} with ${c.name}`, gk: COMBO[g][1] } : {};
     if (pc) { // your champion's rates: one not listed is rarely taken on it
       const r = pc.get(k);
       if (!(r >= 0)) return { t: `${name}: 0% pick rate on ${c.name}`, k: '', ...tag };
       return { t: `${name}: picked ${pct(r / 100)} of the time on ${c.name} (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: `on ${c.name}`, ...tag };
     }
+    if (me) return { t: `${name}: champion rate unavailable`, k: '', ...tag };
     const r = mayData && mayData.a.get(k);
     if (!(r >= 0)) return { t: g ? `${name}: ${tag.g}` : `${name}: no pick rate yet`, k: '', ...tag };
     return { t: `${name}: picked ${pct(r / 100)} of the time on all champions (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: 'all champions', ...tag };
@@ -13099,6 +13101,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [72, 'October 23: Mayhem rates use your champion', [
+      'The overlay now matches champion pick-rate data by Riot ID or display name. If it cannot resolve your champion’s data, it says so instead of showing the all-champion rate.',
+    ]],
     [71, 'October 23: smaller Mayhem ratings on the augment cards', [
       'Mayhem ratings now sit higher on the augment cards and take up less space.',
     ]],
@@ -13966,7 +13971,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (v && v.call) { v.vid.pause(); v.frames = v.vid.getVideoPlaybackQuality?.().totalVideoFrames ?? v.vid.webkitDecodedFrameCount ?? 0; v.frameAt = performance.now() - 13000; } }, // simulate a frozen receiver in the e2e test
-    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, augMatch, augTierOf, // what's read off TFT's augment cards
+    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayRate, augMatch, augTierOf, // what's read off TFT's augment cards
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now

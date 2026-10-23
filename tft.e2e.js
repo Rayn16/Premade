@@ -103,7 +103,7 @@ const L = { calls: [], refused: [] };
 // a god combo, Mystic Punch a trap
 const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } } };
 const SENT = [];
-const MAYHEM_CHAMP = { c: { Ahri: { 'Symphony of War': 40, 'Mystic Punch': 5 } } };
+const MAYHEM_CHAMP = { c: { Ahri: { 'Symphony of War': 40, 'Mystic Punch': 5 }, MissFortune: { 'Symphony of War': 10 } } };
 const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
@@ -148,7 +148,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     const u = r.request().url();
     let m;
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.1', '1.0'], headers: cors });
-    if (u.endsWith('/champion.json')) return r.fulfill({ json: { data: { Ahri: { id: 'Ahri', key: '103', name: 'Ahri', tags: ['Mage', 'Assassin'], info: { attack: 3, magic: 8 } } } }, headers: cors });
+    if (u.endsWith('/champion.json')) return r.fulfill({ json: { data: { Ahri: { id: 'Ahri', key: '103', name: 'Ahri', tags: ['Mage', 'Assassin'], info: { attack: 3, magic: 8 } }, MissFortune: { id: 'MissFortune', key: '21', name: 'Miss Fortune', tags: ['Marksman'], info: { attack: 8, magic: 2 } } } }, headers: cors });
     if ((m = /\/tft-(champion|trait|item|augments)\.json$/.exec(u))) return r.fulfill({ json: { data: DD_TFT[m[1]] }, headers: cors });
     if (u.endsWith('/tft-shop-drop-rates-data.json')) return r.fulfill({ json: { type: 'tft-shop-drop-rates', version: '1.1', data: { Shop: ODDS } }, headers: cors });
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
@@ -408,8 +408,8 @@ async function join(page) { // a voice room by its invite link, which the page r
     // ARAM: Mayhem's cards: with its box ticked the app shares the screen in a Mayhem game, Tesseract reads the names
     // anywhere in the middle while a pick may be up (the start, levels 7, 11 and 15, while dead), and each card says how
     // many of Ahri's games took it, above its name; none between picks
-    const mayhemAt = (t, dead = false, lvl = 3) => pc.evaluate(([t, dead, lvl]) => lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'KIWI', t, room: 'g0123456789b', result: '', events: [],
-      me: { champ: 'Ahri', champName: 'Ahri', team: 'ORDER', dead, respawn: 0, hp: 1, speed: 330 }, players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl, k: 0, d: 0, a: 0, cs: 0, items: [] }] }), [t, dead, lvl]);
+    const mayhemAt = (t, dead = false, lvl = 3, champ = 'Ahri', champName = champ) => pc.evaluate(([t, dead, lvl, champ, champName]) => lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'KIWI', t, room: 'g0123456789b', result: '', events: [],
+      me: { champ, champName, team: 'ORDER', dead, respawn: 0, hp: 1, speed: 330 }, players: [{ name: 'Rayan#EUW', team: 'ORDER', champ, champName, pos: '', lvl, k: 0, d: 0, a: 0, cs: 0, items: [] }] }), [t, dead, lvl, champ, champName]);
     await pc.check('#optMayhemAugs');
     await mayhemAt(20);
     await wait(pc, () => window.shares === 2, null, 'the screen shared in the Mayhem game (30 s after the last share at most)', 45000);
@@ -420,6 +420,13 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'on Ahri', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'on Ahri', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
       'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');
     await shot(pc, 'mayhem-augment-cards');
+    await mayhemAt(250, false, 3, '', 'Miss Fortune');
+    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: picked 10% of the time on Miss Fortune (arammayhem.com)', 'display names resolve to their champion-specific rates');
+    await mayhemAt(260, false, 3, 'UnresolvedChampion', '');
+    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: champion rate unavailable', 'an unresolved champion never gets shown the all-champion rate');
+    await mayhemAt(265, false, 3, '', '');
+    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: champion rate unavailable', 'a missing champion never gets shown the all-champion rate');
+    await mayhemAt(270);
     await mayhemAt(300);
     await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
     // reaching level 7 alive: read again until the pick has gone, then not till the next level
