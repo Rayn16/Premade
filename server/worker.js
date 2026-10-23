@@ -11,6 +11,20 @@ const CORS = { 'access-control-allow-origin': '*' };
 const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: one counter for every room, fine for friend groups
 const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(0, 10); // UTC
 
+function deepAramAugments(html) {
+  const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
+  const re = /\\"id\\":(\d+),\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\",\\"tags\\":\[[^\]]*\],\\"rarity\\":\\"(silver|gold|prismatic)\\",\\"pickRate\\":([0-9.]+).*?\\"deepScore\\":([0-9]+),\\"href\\":\\"\/augments\/([^\\"]+)\\"/g;
+  const rows = [];
+  for (const m of html.matchAll(re)) {
+    let name;
+    try { name = JSON.parse(`"${m[2]}"`); } catch { continue; }
+    const score = +m[5];
+    rows.push({ id: +m[1], name, rarity: m[3], pickRate: +m[4], deepScore: score,
+      tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D', href: m[6] });
+  }
+  return { patch, rows };
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -20,6 +34,20 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
+      const champion = url.searchParams.get('champ') || '';
+      if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
+      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`;
+      try {
+        const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
+        if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
+        const { patch, rows } = deepAramAugments(await upstream.text());
+        if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
+        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows }, { headers: { ...CORS, 'cache-control': 'public, max-age=1800' } });
+      } catch {
+        return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
+      }
+    }
     if (url.pathname === '/rooms' && req.method === 'GET') return Response.json(await directory(env).list(), { headers: { ...CORS, 'cache-control': 'no-store' } });
     if (url.pathname === '/rooms' && req.method === 'POST') {
       let body;

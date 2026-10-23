@@ -1642,7 +1642,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
             <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"> TFT item recipes in TFT games</label>
             <label class="check lcu-only"><input id="optTftAugs" type="checkbox"> Each augment’s tier on TFT’s augment cards (reads my screen)</label>
-            <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"> <span>How often players take each augment, and combos with my champion, on ARAM: Mayhem’s augment cards (reads my screen; data from <a href="https://arammayhem.com/data/" target="_blank" rel="noopener">arammayhem.com</a>)</span></label>
+            <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"> <span>Show each augment’s rating for my champion on ARAM: Mayhem cards (reads my screen; data from <a href="https://deeparam.com/tier-list" target="_blank" rel="noopener">DeepARAM</a>)</span></label>
+            <label class="field lcu-only">Mayhem card rating <select id="optMayhemRating"><option value="rate">Pick rate and tier</option><option value="tier">Tier only</option></select></label>
             <label class="check lcu-only"><input id="optDeadTips" type="checkbox"> Tips for my lane while I’m dead</label>
             <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"> What to buy next, while I’m dead or in my base</label>
             <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"> My team’s chance to win</label>
@@ -2017,7 +2018,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
-    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
+    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
@@ -10959,7 +10960,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const cards = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) }));
     if (!cards.length) return null;
     const top = Math.max(0, ...cards.map((c) => c.r || 0));
-    return cards.map(({ r, ...c }) => r == null ? c : { ...c, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' });
+    return cards.map(({ r, ...c }) => r == null || c.tierOnly ? c : { ...c, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' });
   }
 
   // ---- TFT's numbers on the cards come from Premade players' own games: League's client has every player's augments in
@@ -11062,38 +11063,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const [, name] of mayNames || []) { const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1); if (s > top) { top = s; best = name; } }
     return best;
   }
-  // ARAM: Mayhem's pick rates and champion + augment combos, from arammayhem.com's data (CC BY 4.0, credited on the Overlay
-  // page and Features): each augment's rate on your champion from mayhem-champ.json (their champion pages' appearance
-  // rates, patch 26.20, put together by Rayan), else on all champions; once a game with the cards on, again after 10 minutes if it failed
-  // ponytail: mayhem-champ.json is a snapshot, refreshed by hand each patch
-  const COMBO = { god: ['God combo', 'good'], strong: ['Strong combo', 'good'], blackTech: ['Hidden tech', 'good'], entertainment: ['Fun combo', ''], trap: ['Trap', 'bad'], bug: ['Bugged', 'bad'] };
-  let mayData = null, mayDataAt = -Infinity; // { a: Map(name key -> pick rate %), c: { Data Dragon champion id: Map(name key -> COMBO's kind) }, p: { champion id: Map(name key -> its rate on that champion %) } }
+  // DeepARAM's champion pages publish patch-specific augment pick rates and DeepScores. Premade caches the current
+  // champion's rows through our Worker and links to DeepARAM in the Overlay setting (permission granted with attribution).
+  let mayData = null, mayDataAt = -Infinity, mayDataFor = '';
   function mayDataSoon() {
-    if (mayData || performance.now() - mayDataAt < 600000) return;
+    const me = league && league.me, c = champOf(me && me.champ) || champOf(me && me.champName);
+    if (!c || (mayData && mayData.champion === c.id) || (mayDataFor === c.id && performance.now() - mayDataAt < 600000)) return;
     mayDataAt = performance.now();
-    const get = (f) => fetch(`https://arammayhem.com/data/v1/latest/${f}.json`).then((r) => r.json()).then((j) => (Array.isArray(j.rows) ? j.rows : []));
-    Promise.all([get('augments'), get('combos'), fetch('mayhem-champ.json').then((r) => r.json()).catch(() => ({}))]).then(([a, cs, pc]) => {
-      const c = {}, en = (n) => augKey((n && n.en) || n || '');
-      for (const r of cs) {
-        const t = Object.keys(COMBO).find((k) => (r.types || []).includes(k)), m = (c[r.championId] ||= new Map());
-        if (t) for (const n of r.augmentNames || []) if (!m.has(en(n))) m.set(en(n), t); // the first, strongest kind wins
-      }
-      mayData = { a: new Map(a.map((r) => [en(r.name), +r.pickRate])), c, p: Object.fromEntries(Object.entries(pc.c || {}).map(([id, l]) => [id, new Map(Object.entries(l).map(([n, v]) => [en(n), +v]))])) };
+    mayDataFor = c.id;
+    fetch(`${serverUrl}/mayhem/augments?champ=${encodeURIComponent(c.id)}`).then((r) => { if (!r.ok) throw new Error('DeepARAM data unavailable'); return r.json(); }).then((j) => {
+      if (mayDataFor !== c.id) return;
+      if (!Array.isArray(j.rows) || !j.patch || j.champion !== c.id) throw new Error('DeepARAM data invalid');
+      mayData = { champion: c.id, patch: j.patch, rows: new Map(j.rows.map((r) => [augKey(r.name), r])) };
       pushOverlay();
     }).catch(() => {});
   }
-  function mayRate(name) { // the augment's pick rate on your champion, and its combo with your champion if it's one
-    const me = league && league.me, c = champOf(me && me.champ) || champOf(me && me.champName), k = augKey(name), g = c && mayData && mayData.c[c.id] && mayData.c[c.id].get(k), pc = c && mayData && mayData.p[c.id];
-    const tag = g ? { g: `${COMBO[g][0]} with ${c.name}`, gk: COMBO[g][1] } : {};
-    if (pc) { // your champion's rates: one not listed is rarely taken on it
-      const r = pc.get(k);
-      if (!(r >= 0)) return { t: `${name}: 0% pick rate on ${c.name}`, k: '', ...tag };
-      return { t: `${name}: picked ${pct(r / 100)} of the time on ${c.name} (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: `on ${c.name}`, ...tag };
-    }
-    if (me) return { t: `${name}: champion rate unavailable`, k: '', ...tag };
-    const r = mayData && mayData.a.get(k);
-    if (!(r >= 0)) return { t: g ? `${name}: ${tag.g}` : `${name}: no pick rate yet`, k: '', ...tag };
-    return { t: `${name}: picked ${pct(r / 100)} of the time on all champions (arammayhem.com)`, k: '', r: r / 100, p: pct(r / 100), s: 'all champions', ...tag };
+  function mayRate(name) { // the augment's pick rate and tier on your champion
+    const me = league && league.me, c = champOf(me && me.champ) || champOf(me && me.champName), row = mayData && c && mayData.champion === c.id && mayData.rows.get(augKey(name));
+    if (!row) return { t: `${name}: no ${mayData && mayData.patch || 'current patch'} champion data`, k: '' };
+    const rate = +row.pickRate || 0, score = +row.deepScore || 0, tier = String(row.tier || '');
+    const text = `${name}: ${tier} tier (${score} DeepScore), ${pct(rate)} pick rate on ${c.name} · DeepARAM patch ${mayData.patch}`;
+    return { t: text, r: rate, p: pct(rate), s: opts.mayhemRating === 'tier' ? `${score} DeepScore · ${c.name}` : `${c.name} · ${tier} tier`, tier, score, tierOnly: opts.mayhemRating === 'tier', k: '' };
   }
 
   function renderTft() {
@@ -12941,6 +12931,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   for (const [id, ok] of [['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
+  $('optMayhemRating').value = opts.mayhemRating === 'tier' ? 'tier' : 'rate';
+  $('optMayhemRating').addEventListener('change', (e) => { opts.mayhemRating = e.target.value === 'tier' ? 'tier' : 'rate'; saveOpts(); pushOverlay(); ovDraw(); });
+  if (!boardOk()) { $('optMayhemRating').disabled = true; $('optMayhemRating').parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   // App updates (Windows client): the installed app updates itself and says when one is ready; the old portable .exe
   // can't, so it gets a link to the installer
   if (client) {
@@ -13105,6 +13098,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [75, 'October 23: Mayhem ratings from DeepARAM', [
+      'Mayhem augment cards now use DeepARAM’s champion-specific pick rates and tiers for patch 26.21. Choose pick rate and tier or tier only in Settings > Overlay. Source: https://deeparam.com/tier-list.',
+    ]],
     [74, 'October 23: Mayhem ratings inside the cards', [
       'Mayhem pick rates now sit inside each augment card near its bottom edge.',
     ]],
@@ -13626,8 +13622,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Lobby rank', 'Each team’s average rank and which team is favored, in your game from the loading screen on and in any live game you look up.', 'Nothing to set up: on Game, on the loading screen overlay and in Live game on Profile.', '#liveAvg', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
-      ['Pick rates on Mayhem augment cards', 'When you pick an augment in ARAM: Mayhem, each card shows its pick rate on your champion (or on all champions) and any combo with your champion. Data: arammayhem.com (CC BY 4.0).',
-        'Tick “How often players take each augment” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text), with League in Borderless mode.', '#optMayhemAugs', 'app'],
+      ['Mayhem augment ratings', 'When you pick an augment in ARAM: Mayhem, each card shows its champion-specific pick rate and tier, or tier only. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
+        'Tick “Show each augment’s rating” on the Overlay page. Choose pick rate and tier or tier only. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
