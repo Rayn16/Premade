@@ -5006,7 +5006,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ponytail: each app's own word on its team and champion decides who's a teammate, so a changed app could pretend;
   // that's why lending is off until you turn it on, for rooms of people you trust
   const mate = (p) => !!league && !!mine.team && p.team === mine.team && !!p.champ && (league.players || []).some((q) => q.team === p.team && q.champ === p.champ);
-  const tell = (p, m) => { const [c] = p.conns; if (c) c.send(m); };
+  const tell = (p, m) => { for (const c of p.conns) if (c.open) { try { c.send(m); } catch {} } };
   const camCv = document.createElement('canvas'), camG = camCv.getContext('2d');
   let cam = null; // the screen you're watching: { p, call, stop, img, at, asked }
   function camTick() { // every second
