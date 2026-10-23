@@ -12591,7 +12591,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const quiet = lob !== undefined;
     if (!peer) await joinRoom(newCode(), false, '', true);
     if (!peer) return;
-    const r = await fetch(`${serverUrl}/invite`, { method: 'POST', body: JSON.stringify({ id: myDevice, to: n, room, key: roomKey, lob: lob || '' }) }).then((x) => x.json()).catch(() => ({ error: 'Our server didn’t answer' }));
+    const inviteBody = JSON.stringify({ id: myDevice, to: n, room, key: roomKey, lob: lob || '' });
+    let r, inviteFailure;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(`${serverUrl}/invite`, { method: 'POST', body: inviteBody }); // plain text: no preflight
+        const text = await response.text();
+        try { r = JSON.parse(text); } catch { throw new Error(`server returned HTTP ${response.status} without a valid reply`); }
+        if (!response.ok && !r.error) r.error = `server returned HTTP ${response.status}`;
+        inviteFailure = '';
+        break;
+      } catch (e) {
+        inviteFailure = e && e.message ? e.message : 'network error';
+        if (!attempt) await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+    if (!r) r = { error: `Our server didn’t answer after retry (${inviteFailure}).` };
     if (r.error) notify(`Couldn’t invite ${n}: ${r.error}.`, true);
     else if (!quiet) notify(`Invited ${n} to room ${room.toUpperCase()}: it pops up in their Premade.`, true);
     else notify(`${n} is in your League lobby, so their Premade is joining your voice room.`);
