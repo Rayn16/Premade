@@ -340,7 +340,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
         const top = el('augt'), track = el('augtrack'), fill = el('augfill');
         top.append(el('augp', tierOnly ? `Tier ${c.tier || '?'}` : String(c.p || '')), el('augs', tierOnly ? `${c.score ?? ''} DeepScore` : String(c.s || '')));
         if (bar) { fill.style.width = `${Math.min(1, Math.max(0, v)) * 100}%`; track.append(fill); }
-        b.append(top, ...(bar ? [track] : []));
+        b.append(...(bar ? [track] : []), top);
         b.title = String(c.t || '');
       }
       b.style.left = `${Math.min(1, Math.max(0, +c.x)) * 100}%`;
