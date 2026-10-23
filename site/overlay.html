@@ -75,17 +75,17 @@ body.board { font-size: calc(1.25vh * var(--k, 1)); }
 .augc.good { border-color: var(--good); }
 .augc.bad { border-color: var(--bad); }
 /* ARAM: Mayhem's ratings float over the cards without an opaque badge behind them. */
-.augc.may { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-shadow: 0 2px 4px #000, 0 0 2px #000; }
-.augc.bar { width: 14vw; max-width: none; box-sizing: border-box; display: grid; justify-items: center; gap: 0.5vh; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: center; white-space: normal; }
+.augc.may { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 1.35vh; text-shadow: 0 2px 4px #000, 0 0 2px #000; }
+.augc.bar { width: 12vw; max-width: none; box-sizing: border-box; display: grid; justify-items: center; gap: 0.35vh; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: center; white-space: normal; }
 .augc .augt { display: grid; justify-items: center; gap: 0.15vh; }
-.augc .augp { white-space: nowrap; font: 700 2.6vh/1 Georgia, serif; color: var(--fg); font-variant-numeric: tabular-nums; }
-.augc .augs { font-size: 1.2vh; color: var(--fg); text-align: center; }
-.augc .augtrack { height: 0.8vh; border-radius: 999px; background: color-mix(in srgb, var(--fg) 12%, transparent); overflow: hidden; }
+.augc .augp { white-space: nowrap; font: 700 2.1vh/1 Georgia, serif; color: var(--fg); font-variant-numeric: tabular-nums; }
+.augc .augs { font-size: 1vh; color: var(--fg); text-align: center; }
+.augc .augtrack { height: 0.6vh; border-radius: 999px; background: color-mix(in srgb, var(--fg) 12%, transparent); overflow: hidden; }
 .augc .augfill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold-line), var(--gold)); transition: width 0.4s; }
 .augc.bar.good { border-color: transparent; box-shadow: none; }
 .augc.bar.good .augp { color: var(--gold); }
 .augc.bar.good .augfill { background: linear-gradient(90deg, var(--gold), #f3dca0); }
-.augc .augtag { justify-self: center; padding: 0; border: 0; border-radius: 0; font-size: 1.15vh; font-weight: 700; }
+.augc .augtag { justify-self: center; padding: 0; border: 0; border-radius: 0; font-size: 0.95vh; font-weight: 700; }
 .augc .augtag.good { color: var(--good); }
 .augc .augtag.bad { color: var(--bad); }
 /* the card over League's end screen (after) */

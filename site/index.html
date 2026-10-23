@@ -11031,7 +11031,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const found = lines.map((l) => {
         const name = mayMatch(l.text), b = l.bbox;
         // Keep the badge anchored to the card text. Edge scans can latch onto descriptions or art and make it drift.
-        const y = b.y1 + 0.6 * mayCv.height;
+        const y = b.y1 + 0.75 * mayCv.height;
         return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0 };
       }).filter(Boolean).sort((x, y) => y.confidence - x.confidence);
       const seen = new Set();
@@ -13099,6 +13099,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [71, 'October 23: smaller Mayhem ratings on the augment cards', [
+      'Mayhem ratings now sit higher on the augment cards and take up less space.',
+    ]],
     [70, 'October 23: Mayhem augment rates show zero clearly', [
       'When ARAM: Mayhem has no recorded pick rate for an augment on your champion, its overlay now labels it “0% pick rate” instead of “rarely picked.”',
     ]],
