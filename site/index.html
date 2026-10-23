@@ -11087,7 +11087,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let mayData = null, mayDataAt = -Infinity, mayDataFor = '';
   function mayDataSoon() {
     const me = league && league.me, c = champOf(me && me.champ) || champOf(me && me.champName);
-    if (!c || (mayData && mayData.champion === c.id) || (mayDataFor === c.id && performance.now() - mayDataAt < 600000)) return;
+    if (!c || (mayData && mayData.champion === c.id) || (mayDataFor === c.id && performance.now() - mayDataAt < 30000)) return; // retry a failed fetch after 30 seconds, not 10 minutes
     mayDataAt = performance.now();
     mayDataFor = c.id;
     fetch(`${serverUrl}/mayhem/augments?champ=${encodeURIComponent(c.id)}`).then((r) => { if (!r.ok) throw new Error('DeepARAM data unavailable'); return r.json(); }).then((j) => {
