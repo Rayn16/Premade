@@ -10842,7 +10842,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   async function augStart() {
     augsAt = performance.now();
-    const a = (augs = { cards: [null, null, null], busy: false, may: mayhem() });
+    const a = (augs = { cards: [null, null, null], pending: [null, null, null], emptySince: 0, busy: false, may: mayhem() });
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false }); } catch (err) {
       console.warn('augment cards:', err);
@@ -11033,17 +11033,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     (augOcr = augOcr || augLoad('11')).then((ocr) => ocr.recognize(mayCv, {}, { blocks: true })).then((r) => {
       if (augs !== a) return;
       const lines = ((r && r.data && r.data.blocks) || []).flatMap((b) => b.paragraphs || []).flatMap((q) => q.lines || []);
-      const had = a.cards.some(Boolean);
-      const found = lines.map((l) => {
-        const name = mayMatch(l.text), b = l.bbox;
-        // Keep the badge anchored to the card text. Edge scans can latch onto descriptions or art and make it drift.
-        const y = b.y1 + 0.42 * mayCv.height;
-        return name && { name, x: +((sx + ((b.x0 + b.x1) / 2) / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0 };
-      }).filter(Boolean).sort((x, y) => y.confidence - x.confidence);
-      const seen = new Set();
-      a.cards = found.filter((c) => { const key = augKey(c.name); if (seen.has(key)) return false; seen.add(key); return true; })
-        .sort((x, y) => x.x - y.x).slice(0, 3);
-      if (had && !a.cards.length) mayUntil = 0; // picked: no more till the next level
+      const found = [[], [], []];
+      for (const l of lines) {
+        const b = l.bbox, cy = (b.y0 + b.y1) / 2;
+        // Augment titles sit across the central band; ignoring the description rows prevents them being mistaken for titles.
+        if (cy < mayCv.height * 0.35 || cy > mayCv.height * 0.72) continue;
+        const name = mayMatch(l.text);
+        if (!name) continue;
+        const cx = (b.x0 + b.x1) / 2, slot = Math.min(2, Math.floor(cx / (mayCv.width / 3))), y = b.y1 + 0.42 * mayCv.height;
+        found[slot].push({ name, x: +((sx + (slot + 0.5) * sw / 3) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now() });
+      }
+      const now = performance.now(), next = [null, null, null];
+      for (let i = 0; i < 3; i++) {
+        const candidate = found[i].sort((x, y) => y.confidence - x.confidence)[0], old = a.cards[i];
+        if (!candidate) { if (old && now - old.seenAt < 3500) next[i] = old; a.pending[i] = null; continue; }
+        if (old && augKey(old.name) === augKey(candidate.name)) { next[i] = { ...candidate, y: old.y * 0.7 + candidate.y * 0.3 }; a.pending[i] = null; continue; }
+        const pending = a.pending[i];
+        if (old && now - old.seenAt < 2500 && pending && augKey(pending.name) === augKey(candidate.name)) {
+          next[i] = candidate;
+          a.pending[i] = null;
+        } else if (old && now - old.seenAt < 2500) {
+          next[i] = old;
+          a.pending[i] = { name: candidate.name };
+        } else next[i] = candidate;
+      }
+      if (next.some(Boolean)) a.emptySince = 0;
+      else if (!a.emptySince) a.emptySince = now;
+      a.cards = next;
+      if (!next.some(Boolean) && now - a.emptySince >= 3500) mayUntil = 0; // close only after repeated OCR misses, never a single bad frame
       pushOverlay();
     }).catch((e) => { a.failed = true; console.warn('augment cards:', e); }).finally(() => { a.busy = false; });
   }
@@ -13098,6 +13115,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [76, 'October 23: steadier Mayhem overlay ratings', [
+      'Mayhem ratings now stay visible through brief OCR misses, and each badge is anchored to its own card. Description text is filtered out to reduce misplaced ratings.',
+    ]],
     [75, 'October 23: Mayhem ratings from DeepARAM', [
       'Mayhem augment cards now use DeepARAM’s champion-specific pick rates and tiers for patch 26.21. Choose pick rate and tier or tier only in Settings > Overlay. Source: https://deeparam.com/tier-list.',
     ]],
