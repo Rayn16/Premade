@@ -413,11 +413,12 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.check('#optMayhemAugs');
     await mayhemAt(20);
     await wait(pc, () => window.shares === 2, null, 'the screen shared in the Mayhem game (30 s after the last share at most)', 45000);
+    assert.strictEqual(await pc.evaluate(() => lpc.mayhem()), true, 'League mode KIWI identifies ARAM: Mayhem independently of TFT');
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
-    await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the Mayhem cards read', 60000);
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y > 0.72 && c.y < 0.9])),
+    await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the Mayhem cards read', 60000);
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y > 0.72 && c.y < 0.9])),
       [['Symphony of War: picked 40% of the time on Ahri (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on Ahri (arammayhem.com)', true, true], ['Sneakerhead: 0% pick rate on Ahri', true, true]], 'the rating stays on each augment card without drifting to unrelated screen edges');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.cards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'on Ahri', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'on Ahri', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'on Ahri', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'on Ahri', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
       'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(250, false, 3, '', 'Miss Fortune');
@@ -428,15 +429,15 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: champion rate unavailable', 'a missing champion never gets shown the all-champion rate');
     await mayhemAt(270);
     await mayhemAt(300);
-    await wait(pc, () => !window.lastOverlay.cards, null, 'none between picks');
+    await wait(pc, () => !window.lastOverlay.mayhemCards, null, 'none between picks');
     // reaching level 7 alive: read again until the pick has gone, then not till the next level
     await mayhemAt(400, false, 7);
-    await wait(pc, () => (window.lastOverlay.cards || []).length === 3, null, 'the level 7 pick read', 30000);
+    await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the level 7 pick read', 30000);
     await pc.evaluate(drawMayhem, null);
-    await wait(pc, () => !window.lastOverlay.cards, null, 'gone once picked', 30000);
+    await wait(pc, () => !window.lastOverlay.mayhemCards, null, 'gone once picked', 30000);
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await new Promise((r) => setTimeout(r, 5000));
-    assert(!(await pc.evaluate(() => window.lastOverlay.cards)), 'not read again after the pick');
+    assert(!(await pc.evaluate(() => window.lastOverlay.mayhemCards)), 'not read again after the pick');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await new Promise((r) => setTimeout(r, 2000));
     assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');
@@ -456,13 +457,13 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.deepStrictEqual(await ovp.$$eval('.augc', (l) => l.map((e) => { const r = e.getBoundingClientRect(); return [e.textContent, Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2), e.classList.contains('good')]; })),
       [['Your average: 1.5 in 2 games', 366, 526, true], ['Not in your last 4 games', 913, 526, false]]);
     await shot(ovp, 'tft-augment-cards');
-    await ovp.evaluate(() => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, cards: [
+    await ovp.evaluate(() => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, mayhemCards: [
       { x: 0.23, y: 0.66, may: true, v: 1, p: '40%', s: 'on Ahri', k: 'good', g: 'God combo with Ahri', gk: 'good' },
       { x: 0.5, y: 0.66, may: true, v: 0.125, p: '5%', s: 'on Ahri', g: 'Trap with Ahri', gk: 'bad' },
       { x: 0.77, y: 0.66, may: true, t: 'Sneakerhead: 0% pick rate on Ahri' },
     ] }));
-    assert.deepStrictEqual(await ovp.$$eval('.augc', (l) => l.map((e) => [e.classList.contains('may'), getComputedStyle(e).backgroundColor, getComputedStyle(e).borderTopWidth, e.textContent.includes('40%') || e.textContent.includes('Sneakerhead')])),
-      [[true, 'rgba(0, 0, 0, 0)', '0px', true], [true, 'rgba(0, 0, 0, 0)', '0px', false], [true, 'rgba(0, 0, 0, 0)', '0px', true]], 'Mayhem ratings have transparent backplates, including an augment without a rate');
+    assert.deepStrictEqual(await ovp.$$eval('.may-rate', (l) => l.map((e) => [e.classList.contains('good'), getComputedStyle(e).backgroundColor, getComputedStyle(e).borderTopWidth, e.textContent.includes('40%') || e.textContent.includes('Sneakerhead')])),
+      [[true, 'rgba(0, 0, 0, 0)', '0px', true], [false, 'rgba(0, 0, 0, 0)', '0px', false], [false, 'rgba(0, 0, 0, 0)', '0px', true]], 'Mayhem ratings have transparent backplates, including an augment without a rate');
     await shot(ovp, 'mayhem-transparent-cards');
     await ovp.close();
     console.log('overlay: Mayhem ratings stay anchored under the augment names');

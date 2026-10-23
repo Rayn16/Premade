@@ -1,7 +1,7 @@
 {
   "name": "league-proxchat",
   "productName": "Premade",
-  "version": "1.25.3",
+  "version": "1.25.4",
   "description": "Proximity voice chat and game tools for League of Legends",
   "main": "main.js",
   "author": "Rayan",

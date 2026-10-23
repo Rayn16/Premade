@@ -4657,16 +4657,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
     const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
-    const cards = overlayEdit || overlayHide ? null : augCards(); // on TFT's augment cards
+    const cards = overlayEdit || overlayHide ? null : tftAugCards();
+    const mayCards = overlayEdit || overlayHide ? null : mayhemAugCards();
     const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
     // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
     // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
-    // the ratings on TFT's augment cards, and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || (visible && Object.keys(opts.overlayParts).length > 0));
+    // TFT ratings and Mayhem's independent full-screen card layer, and parts with places of their own
+    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     const s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
-      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards,
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(talk && {
@@ -10948,14 +10949,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const avg = l.reduce((t, g) => t + g.place, 0) / l.length;
     return { t: `Your average: ${avg.toFixed(1)} in ${l.length} game${l.length === 1 ? '' : 's'}`, k: l.length < 2 ? '' : avg <= 4 ? 'good' : 'bad' };
   }
-  function augCards() { // for overlay.html: [{ x, y: the middle of the card's foot, as shares of the screen; t: what to say; k: good, bad or ''; Mayhem's bars: v, the bar's length 0-1, p the pick rate, s what's under it }]
-    if (augs && augs.may) { // Mayhem: bars as long as each card's pick rate against the most picked of them, which is k good
-      const l = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) })), top = Math.max(0, ...l.map((c) => c.r || 0));
-      return l.length ? l.map(({ r, ...c }) => (r == null ? { ...c, may: true } : { ...c, may: true, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' })) : null;
-    }
-    if (!augs || !augs.box || !augs.cards.some((c) => c && c.name)) return null;
+  function tftAugCards() { // for overlay.html: where each TFT augment was read, and its result from your recent games
+    if (!augs || augs.may || !augs.box || !augs.cards.some((c) => c && c.name)) return null;
     const [x0, y0, bw, bh] = augs.box;
     return augs.cards.map((c, i) => c && c.name && { x: +(x0 + (AUG_X[i] / 1280) * bw).toFixed(4), y: +(y0 + 0.73 * bh).toFixed(4), ...(tftTierOf(c.name) || augYou(c.name)) }).filter(Boolean);
+  }
+  function mayhemAugCards() { // ARAM: Mayhem has its own card overlay data and doesn't share TFT's ratings renderer
+    if (!augs || !augs.may) return null;
+    const cards = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, ...mayRate(c.name) }));
+    if (!cards.length) return null;
+    const top = Math.max(0, ...cards.map((c) => c.r || 0));
+    return cards.map(({ r, ...c }) => r == null ? c : { ...c, v: top ? +(r / top).toFixed(3) : 0, k: top && r === top ? 'good' : '' });
   }
 
   // ---- TFT's numbers on the cards come from Premade players' own games: League's client has every player's augments in
@@ -13101,6 +13105,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [73, 'October 23: a dedicated ARAM: Mayhem overlay', [
+      'Premade detects ARAM: Mayhem from League’s game mode or queue and uses its own augment-card reader and transparent overlay layer. TFT ratings no longer run on Mayhem cards.',
+    ]],
     [72, 'October 23: Mayhem rates use your champion', [
       'The overlay now matches champion pick-rate data by Riot ID or display name. If it cannot resolve your champion’s data, it says so instead of showing the all-champion rate.',
     ]],
@@ -13971,7 +13978,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (v && v.call) { v.vid.pause(); v.frames = v.vid.getVideoPlaybackQuality?.().totalVideoFrames ?? v.vid.webkitDecodedFrameCount ?? 0; v.frameAt = performance.now() - 13000; } }, // simulate a frozen receiver in the e2e test
-    augCards: () => augs && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayRate, augMatch, augTierOf, // what's read off TFT's augment cards
+    augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now
