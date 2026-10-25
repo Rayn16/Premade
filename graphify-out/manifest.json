@@ -1,0 +1,308 @@
+{
+  ".github/workflows/build.yml": {
+    "mtime": 1792947983.032399,
+    "seen": 1792948180.984684,
+    "ast_hash": "48ec850c5575957d3342d1eefd138843",
+    "semantic_hash": ""
+  },
+  ".github/workflows/pages.yml": {
+    "mtime": 1792947983.0324547,
+    "seen": 1792948180.9846961,
+    "ast_hash": "1647437e8bd61b874ef035a29377d488",
+    "semantic_hash": ""
+  },
+  "camera-box.test.js": {
+    "mtime": 1792947983.0324547,
+    "seen": 1792948180.9846997,
+    "ast_hash": "c1554b630a976497ed91bc62299b4a3f",
+    "semantic_hash": ""
+  },
+  "client/afterPack.js": {
+    "mtime": 1792947983.0324547,
+    "seen": 1792948180.9847019,
+    "ast_hash": "1e5ed96a5d4fda3540572916a2d38a33",
+    "semantic_hash": ""
+  },
+  "client/build.js": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847038,
+    "ast_hash": "21ae2928bf6d9016e74ce4ec16688baa",
+    "semantic_hash": ""
+  },
+  "client/client.test.js": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847054,
+    "ast_hash": "ee626a13706e2edb85f504e172ebb371",
+    "semantic_hash": ""
+  },
+  "client/main.js": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847076,
+    "ast_hash": "1f9a059e40fea0e976d94289e54da6ec",
+    "semantic_hash": ""
+  },
+  "client/package.json": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847088,
+    "ast_hash": "33533aa4caa3b1e47fd6b50f3dec07ad",
+    "semantic_hash": ""
+  },
+  "client/preload.js": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847102,
+    "ast_hash": "7f3b4394ad045ecf38077236ce4c1b60",
+    "semantic_hash": ""
+  },
+  "coach.e2e.js": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847114,
+    "ast_hash": "9630e9176b48cda4ab0875cde4b3a197",
+    "semantic_hash": ""
+  },
+  "customs.e2e.js": {
+    "mtime": 1792947983.035779,
+    "seen": 1792948180.984713,
+    "ast_hash": "b2f1034a558a00a5a13f0dfae9e9e81f",
+    "semantic_hash": ""
+  },
+  "group.e2e.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847147,
+    "ast_hash": "bf15ae928fb892ffc708645c246d3f94",
+    "semantic_hash": ""
+  },
+  "ingame.e2e.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847162,
+    "ast_hash": "10af6132a2f927db6434f0013ee41ef6",
+    "semantic_hash": ""
+  },
+  "league.e2e.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847178,
+    "ast_hash": "f3a4c7da820d866778dc2c5cc5d5b48d",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.984719,
+    "ast_hash": "b2488b421ea629051b8d6d60bf24176e",
+    "semantic_hash": ""
+  },
+  "practice.e2e.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847205,
+    "ast_hash": "7590f09303069b02ece05ec690f9bc53",
+    "semantic_hash": ""
+  },
+  "profile.e2e.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847217,
+    "ast_hash": "1caa061c231f5f5e8206c27ee2efb196",
+    "semantic_hash": ""
+  },
+  "ranks.e2e.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847229,
+    "ast_hash": "7a78ae2a4eb4d12780cf6002ec50748f",
+    "semantic_hash": ""
+  },
+  "server/aug.test.js": {
+    "mtime": 1792947983.039779,
+    "seen": 1792948180.9847248,
+    "ast_hash": "7ff8af6430c1426da8b5cd2407ebe404",
+    "semantic_hash": ""
+  },
+  "server/esports.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.9847262,
+    "ast_hash": "88f2f40d9cb96037fe9306746dbe5393",
+    "semantic_hash": ""
+  },
+  "server/lock.test.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.9847276,
+    "ast_hash": "c95e720b8f944b33a659d8cbfb6b1a84",
+    "semantic_hash": ""
+  },
+  "server/push.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.9847288,
+    "ast_hash": "d99285a86ce548ddbb0fffcbaec0b46c",
+    "semantic_hash": ""
+  },
+  "server/push.test.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.9847307,
+    "ast_hash": "1ccb7f8ce1279d8cf84b0062c19b5769",
+    "semantic_hash": ""
+  },
+  "server/riot.test.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.984732,
+    "ast_hash": "f36e51a51b7d8b00fb843afe7fa718e7",
+    "semantic_hash": ""
+  },
+  "server/squad.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.984733,
+    "ast_hash": "c87668f774c6c1ab7ec67d37d64e97f4",
+    "semantic_hash": ""
+  },
+  "server/squad.test.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.9847345,
+    "ast_hash": "6d275e77e1f16c30932b7b933cf989cd",
+    "semantic_hash": ""
+  },
+  "server/stats.test.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.9847357,
+    "ast_hash": "3218eeff16780f4d24281993f343fe6a",
+    "semantic_hash": ""
+  },
+  "server/worker.js": {
+    "mtime": 1792947983.0438924,
+    "seen": 1792948180.984737,
+    "ast_hash": "4f8ec235b79c478f9f5175b329ca1531",
+    "semantic_hash": ""
+  },
+  "site/camera-box.js": {
+    "mtime": 1792947983.0455508,
+    "seen": 1792948180.9847383,
+    "ast_hash": "b89361d2fbcb9a14eef273363e0e78c5",
+    "semantic_hash": ""
+  },
+  "site/manifest.json": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.9847393,
+    "ast_hash": "2f47b4fb91149a4830a8b0d2ba8c0e5a",
+    "semantic_hash": ""
+  },
+  "site/remote-manifest.json": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.9847405,
+    "ast_hash": "69424efd6d9e8e8d01b8cd5c51bbd1d9",
+    "semantic_hash": ""
+  },
+  "site/remote-sw.js": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.984742,
+    "ast_hash": "50248a0b181b37b1362125bc69f24610",
+    "semantic_hash": ""
+  },
+  "site/terrain.js": {
+    "mtime": 1792947983.051779,
+    "seen": 1792948180.984743,
+    "ast_hash": "89e8a399fdcf700331ef6994b55d2528",
+    "semantic_hash": ""
+  },
+  "terrain.test.js": {
+    "mtime": 1792947983.483779,
+    "seen": 1792948180.9847445,
+    "ast_hash": "d9844cb319375d2ee364c62a1cd8f4b2",
+    "semantic_hash": ""
+  },
+  "tft.e2e.js": {
+    "mtime": 1792947983.483779,
+    "seen": 1792948180.9847455,
+    "ast_hash": "36e77a96bf2db781dd51e5a1ad855eeb",
+    "semantic_hash": ""
+  },
+  "voice.e2e.js": {
+    "mtime": 1792947983.483779,
+    "seen": 1792948180.9847467,
+    "ast_hash": "b1e5231736bceefb463f39cac6dc0721",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1792947983.0324547,
+    "seen": 1792948180.9847481,
+    "ast_hash": "0fdc83d10529a2bbe5b53cbf50968051",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1792947983.0324547,
+    "seen": 1792948180.9847496,
+    "ast_hash": "4a345eec155a790301553df2507ea725",
+    "semantic_hash": ""
+  },
+  "site/index.html": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.9847507,
+    "ast_hash": "a0f81d7c26fe5939a8f1cccfdae7ee35",
+    "semantic_hash": ""
+  },
+  "site/overlay.html": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.9847522,
+    "ast_hash": "8a2314e1bda918f0954b72966aa495c2",
+    "semantic_hash": ""
+  },
+  "site/privacy.html": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.9847536,
+    "ast_hash": "81a6a3b966da1b8fc8e73467412437e7",
+    "semantic_hash": ""
+  },
+  "site/profile.html": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.9847548,
+    "ast_hash": "8a83be1aa0fb7b5f424240616170b492",
+    "semantic_hash": ""
+  },
+  "site/remote.html": {
+    "mtime": 1792947983.0477788,
+    "seen": 1792948180.984756,
+    "ast_hash": "81686ada657eb0f0b16b5e91cf750177",
+    "semantic_hash": ""
+  },
+  "site/terms.html": {
+    "mtime": 1792947983.051779,
+    "seen": 1792948180.984759,
+    "ast_hash": "99ca60d75c48b1d258d22e3018de869d",
+    "semantic_hash": ""
+  },
+  "site/tracker.html": {
+    "mtime": 1792947983.051779,
+    "seen": 1792948180.9847603,
+    "ast_hash": "3caa001213fc0db6616409e055343a81",
+    "semantic_hash": ""
+  },
+  "site/who.html": {
+    "mtime": 1792947983.483779,
+    "seen": 1792948180.9847617,
+    "ast_hash": "0c54fe0d8bc802e7613badd3b2ba5c7e",
+    "semantic_hash": ""
+  },
+  "client/icon.png": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847631,
+    "ast_hash": "f36140432c98a8a947a3970c79b59f44",
+    "semantic_hash": ""
+  },
+  "client/icon.svg": {
+    "mtime": 1792947983.033708,
+    "seen": 1792948180.9847643,
+    "ast_hash": "6427f7a5ca0cca48794f3902bad029eb",
+    "semantic_hash": ""
+  },
+  "site/icon-192.png": {
+    "mtime": 1792947983.0455508,
+    "seen": 1792948180.9847658,
+    "ast_hash": "3c9554a0ef79dfb1aea2272222d69b89",
+    "semantic_hash": ""
+  },
+  "site/icon-512.png": {
+    "mtime": 1792947983.0455508,
+    "seen": 1792948180.9847667,
+    "ast_hash": "f36140432c98a8a947a3970c79b59f44",
+    "semantic_hash": ""
+  },
+  "fixtures/that-was-sick.wav": {
+    "mtime": 1792947983.0377476,
+    "seen": 1792948180.984768,
+    "ast_hash": "c7e60d5a1fd385bd4f4cd85cfe3b9846",
+    "semantic_hash": ""
+  }
+}

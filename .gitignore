@@ -2,3 +2,7 @@ node_modules/
 dist/
 .wrangler/
 *.log
+
+# Graphify
+graphify-out/cache/
+graphify-out/cost.json
