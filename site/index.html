@@ -2792,8 +2792,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       setTimeout(() => { if (peers.get(call.peer) === p && !p.call && slot < p.slot && p.conns.size && peer && !peer.disconnected) callPeer(call.peer); }, 1000);
     });
   }
-  // Faster reconnect: a connection whose path has stopped working for 3 s (a Wi-Fi blip, a new address after a
+  // Faster reconnect: a connection whose path has stopped working for 10 s (a Wi-Fi blip, a new address after a
   // router restart) is closed, so it's dialled or called again now. WebRTC itself waits about 30 s before giving up.
+  // Not 3 s: WebRTC says disconnected after 2.5 s without a packet, which a busy upload (a screen share) or a PC
+  // under load reaches without the path being broken, and closing then pushed friends out of the room.
   const watchIce = (c) => c.on('iceStateChanged', (s) => {
     const p = peers.get(c.peer);
     if (p) {
@@ -2809,7 +2811,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (s === 'failed') { c.close(); return; }
     if (s === 'disconnected') setTimeout(() => {
       if (c.peerConnection && ['disconnected', 'failed'].includes(c.peerConnection.iceConnectionState)) c.close();
-    }, 3000);
+    }, 10000);
   });
 
   function openPeer(id) {
@@ -5103,7 +5105,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         tile.dataset.slot = p.slot;
         tile.innerHTML = '<figcaption><span></span><button class="btn small" type="button">Hide</button></figcaption><video autoplay playsinline controls></video>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
-        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, frames: -1, frameAt: 0, restarts: 0 }));
+        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0 }));
         bySlot($('screenGrid'), tile, p.slot);
       }
       if (v.call && screenFrozen(v, performance.now())) {
@@ -5111,7 +5113,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         v.call = null;
         v.vid.srcObject = null;
         v.streamAt = 0;
-        v.frames = -1;
         v.restarts++;
         v.asked = -Infinity;
         old.close(); // ask again below; the sender starts a fresh screen call
@@ -5122,15 +5123,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     $('roomScreens').hidden = !seen.size;
   }
-  function screenFrozen(v, now) { // a live screen call with no decoded frames gets replaced so the sender can reopen it
-    if (!v.call || document.hidden) return false;
-    if (!v.streamAt) return now - v.callAt > 15000; // the call connected but never delivered a stream
-    if (v.vid.readyState < 2) return now - v.streamAt > 15000; // stream arrived but no first frame
-    const quality = v.vid.getVideoPlaybackQuality && v.vid.getVideoPlaybackQuality();
-    const frames = quality && Number.isFinite(quality.totalVideoFrames) ? quality.totalVideoFrames : v.vid.webkitDecodedFrameCount;
-    if (!Number.isFinite(frames)) return false;
-    if (frames > v.frames) { v.frames = frames; v.frameAt = now; return false; }
-    return now - v.frameAt > 12000;
+  // a screen call that never delivered a stream, or whose connection has been broken for 10 s, gets replaced so the
+  // sender can reopen it. Not one that only shows no new frames: a still screen, a minimized window being shared or
+  // this window minimized (Windows stops drawing it) all look like that, and restarting cut the share off each time.
+  function screenFrozen(v, now) {
+    if (!v.call) return false;
+    if (!v.streamAt) return now - v.callAt > 15000;
+    const pc = v.call.peerConnection;
+    if (!pc || !['disconnected', 'failed'].includes(pc.iceConnectionState)) { v.okAt = now; return false; }
+    return now - v.okAt > 10000;
   }
   function hideScreen(p, hide) {
     if (hide) screensHidden.add(nameOf(p));
@@ -5155,9 +5156,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     call.on('stream', (s) => {
       if (seen.get(p) !== v || v.call !== call) return;
       v.vid.srcObject = s;
-      v.streamAt = performance.now();
-      v.frameAt = v.streamAt;
-      v.frames = -1;
+      v.okAt = v.streamAt = performance.now();
       v.vid.play().catch((e) => { if (e.name === 'NotAllowedError') { v.vid.muted = true; v.vid.play().catch(() => {}); } }); // their sound; muted if the browser won't play it yet (unmute in its controls)
     });
     call.on('close', () => { if (seen.get(p) === v && v.call === call) { v.call = null; v.vid.srcObject = null; } });
@@ -13139,6 +13138,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [77, 'October 25: screen shares and rooms stay connected', [
+      'A screen share in the room no longer cuts off and reconnects when the picture stays still or a Premade window is minimized. It only restarts when its connection really breaks.',
+      'A short hiccup in someone’s connection, like a busy upload while sharing a screen, no longer drops them from the room. Premade waits 10 seconds before reconnecting them.',
+    ]],
     [76, 'October 23: steadier Mayhem overlay ratings', [
       'Mayhem ratings now stay visible through brief OCR misses, and each badge is anchored to its own card. Description text is filtered out to reduce misplaced ratings.',
     ]],
@@ -13576,7 +13579,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Screen share quality', 'Your shared screen at 720p, 1080p or 1440p and 30, 60 or 120 fps, for everyone watching it in the room.', 'Under Players on the Voice page: Screen share quality and Frame rate. A change takes effect at once.', '#optShareQ'],
-      ['Screens in the room', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team, and you’re told who’s watching.',
+      ['Screens in the room', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off.',
         'Screens show at the top of the Voice page; Hide one, and Show screen on their card brings it back. On unless you turn it off: Let the room watch my screen, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
@@ -14020,7 +14023,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
-    screenStall: (name) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (v && v.call) { v.vid.pause(); v.frames = v.vid.getVideoPlaybackQuality?.().totalVideoFrames ?? v.vid.webkitDecodedFrameCount ?? 0; v.frameAt = performance.now() - 13000; } }, // simulate a frozen receiver in the e2e test
+    screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,

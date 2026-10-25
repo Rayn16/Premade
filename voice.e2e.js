@@ -443,9 +443,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.video > 0), null, 'Ben’s screen shown in Ana’s Voice page');
     await waitFor(ben, () => lpc.seen().some((s) => s.name === 'Ana' && s.video > 0), null, 'Ana’s screen shown in Ben’s Voice page');
     await ana.evaluate(() => lpc.screenStall('Ben'));
-    await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.restarts > 0), null, 'a frozen screen call is restarted', 20000);
+    await ana.waitForTimeout(2500);
+    assert(await ana.evaluate(() => lpc.seen().some((s) => s.name === 'Ben' && s.call && !s.restarts)), 'a still screen (no new frames) keeps its call');
+    await ana.evaluate(() => lpc.screenStall('Ben', true));
+    await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.restarts > 0), null, 'a broken screen call is restarted', 20000);
     await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.call && s.video > 0), null, 'Ben’s screen resumes after reconnecting', 20000);
-    console.log('room screens: a frozen video call is replaced and the screen resumes');
+    console.log('room screens: a still screen keeps its call, a broken one is replaced and the screen resumes');
     await waitFor(ana, () => lpc.me().fresh, null, 'Ana tracked', 40000); // the first frames are slow on a busy container
     await waitFor(ben, () => lpc.me().fresh, null, 'Ben tracked', 40000);
     const me = await ana.evaluate(() => lpc.me());
@@ -630,6 +633,8 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log(`talk time on Ana's page: ${JSON.stringify(await ana.evaluate(() => lpc.talk()))}`);
 
     // a broken connection comes back by itself, without join or leave popups
+    const benPopups = await ana.evaluate(() => lpc.toasts()); // now: the list keeps the last 4, and the reconnects below take a while
+    assert(benPopups.includes('Ben left the room') && benPopups.includes('Ben joined the room'), `popups when Ben left and came back: ${JSON.stringify(benPopups)}`);
     const catId = (await others(ana)).find((p) => p.name === 'Cat').id;
     // back: a new voice call with Cat (the broken one was closed), everyone live; Cat is gone for too short a time to catch
     const callTo = () => ana.evaluate((id) => lpc.callId(id), catId);
@@ -639,7 +644,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await backOnNew(call, 'Cat back after the broken connection');
     const kickBack = (Date.now() - since) / 1000;
     await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both again');
-    // a Wi-Fi blip: the connections with Cat stop working, so after 3 s they're closed and dialled again, instead of
+    // a Wi-Fi blip: the connections with Cat stop working, so after 10 s they're closed and dialled again, instead of
     // WebRTC's own 30 s wait
     call = await callTo();
     since = Date.now();
@@ -662,9 +667,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ana, () => lpc.server(), null, 'Ana back on the room server');
     const serverBack = (Date.now() - since) / 1000;
     console.log(`auto reconnect: Cat back ${kickBack.toFixed(1)} s after the connection broke, ${blipBack.toFixed(1)} s after a Wi-Fi blip, ${failedBack.toFixed(1)} s after ICE failed; the room server back in ${serverBack.toFixed(1)} s`);
-    assert(kickBack < 5 && blipBack < 9 && failedBack < 5 && serverBack < 3, 'reconnects right away, not at the next check');
+    assert(kickBack < 5 && blipBack < 16 && failedBack < 5 && serverBack < 3, 'reconnects right away, not at the next check');
     const popups = await ana.evaluate(() => lpc.toasts());
-    assert(popups.includes('Ben left the room') && popups.includes('Ben joined the room') && popups.filter((t) => t === 'Cat joined the room').length === 1 && !popups.includes('Cat left the room'), `popups when Ben left and came back, none for Cat's reconnect: ${JSON.stringify(popups)}`);
+    assert(popups.filter((t) => t === 'Cat joined the room').length <= 1 && !popups.includes('Cat left the room'), `no popups for Cat's reconnect: ${JSON.stringify(popups)}`);
     const sounds = await ana.evaluate(() => lpc.played());
     assert(sounds.includes('leave') && sounds.filter((t) => t === 'join').length === 2, `chimes when Ben left and Ben and Cat joined: ${sounds}`);
 
