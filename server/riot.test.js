@@ -1,6 +1,13 @@
 // Checks the Riot object (/riot/...) under `wrangler dev` against a fake Riot API: it counts each high-elo game once
-// (only full ranked solo games on Summoner's Rift), keeps what each champion bought, levelled and took, with their
-// lane opponent and gold at 10, and passes only the lookup calls on its list through, with our key and its limits.
+// (only full ranked solo games on Summoner's Rift), from Korea's and Europe West's ladders, with their bans, keeps
+// what each champion bought, levelled and took, with their lane opponent and gold at 10, the game's length and their
+// gold, vision and damage, each player's code and the pro players' names and teams (from a fake Leaguepedia, which
+// never gets our key), keeps Europe West's Emerald and Diamond games apart, says which champions the same ladder
+// players play from their mastery, passes only the lookup calls on its list through, with our key and its limits,
+// keeping the ranks they get for each season, and says how much of the free plan it used. Then, restarted with the
+// sweep going 8 days back, it carries on with the day it was on and counts the older games a day at a time, newer
+// days first, takes the pro players' games with its ladder's, and finishes counting each server's ladder for the
+// ladder places.
 // WRANGLER=<path to wrangler> node riot.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
@@ -9,15 +16,42 @@ const PORT = 8788, RIOT = 8899, BASE = `http://127.0.0.1:${PORT}`, KEY = 'test-k
 const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-riot-'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const P = (n) => `${n}`.repeat(78).slice(0, 78); // a puuid
+const DAY = 86400, today = Math.floor(Date.now() / 864e5);
 const TEAM = [[266, 'TOP'], [64, 'JUNGLE'], [103, 'MIDDLE'], [222, 'BOTTOM'], [412, 'UTILITY'], [86, 'TOP'], [254, 'JUNGLE'], [238, 'MIDDLE'], [145, 'BOTTOM'], [117, 'UTILITY']];
-// the games: KR_1001 is the patch before; KR_1004 is ARAM and KR_1005 a remake, which don't count
-const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1700], KR_1003: ['16.20.3.4', 420, 2000], KR_1004: ['16.20.3.4', 450, 1200], KR_1005: ['16.20.3.4', 420, 300], KR_1006: ['16.20.5.1', 420, 1500] };
-const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR_1004', 'KR_1005'], [P(3)]: ['KR_1006'] };
+// the games: KR_1001 is the patch before; KR_1004 is ARAM and KR_1005 a remake, which don't count. EUW1_3001 is Europe
+// West's, with other champions (+1000), and EUW1_3002 its Emerald's (+2000). In Korea's games Ahri is Faker, a pro
+// player. The sweep's older games: KR_2002 is the patch before and KR_2003 the one before that; KR_2004 is ARAM and
+// KR_2005 a remake
+const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1700], KR_1003: ['16.20.3.4', 420, 2000], KR_1004: ['16.20.3.4', 450, 1200], KR_1005: ['16.20.3.4', 420, 300], KR_1006: ['16.20.5.1', 420, 1500],
+  EUW1_3001: ['16.20.3.4', 420, 1900], EUW1_3002: ['16.20.3.4', 420, 1900],
+  KR_2001: ['16.20.1.1', 420, 1900], KR_2002: ['16.19.2.1', 420, 1600], KR_2003: ['16.18.1.1', 420, 1750], KR_2004: ['16.20.1.1', 450, 1200], KR_2005: ['16.20.1.1', 420, 250], KR_2006: ['16.20.1.1', 420, 1800] };
+// each server's Challenger and Grandmaster players; North America's one has no games
+const LADDERS = { kr: [[P(1), P(2)], [P(3)]], euw1: [[P(4)], []], na1: [[P(5)], []] };
+// each server's Solo/Duo ladder for the ladder places, by division, as each player's LP, 3 a page: Korea's Gold II has
+// 3 pages, Europe West's Silver I 2 full ones, North America's is empty
+const LAD = { kr: { 'CHALLENGER/I': [1500, 1210], 'GRANDMASTER/I': [900], 'MASTER/I': [450, 300, 305, 12], 'DIAMOND/I': [0, 10, 20, 30], 'GOLD/II': [1, 2, 3, 4, 5, 6, 7] },
+  euw1: { 'MASTER/I': [100], 'SILVER/I': [1, 2, 3, 4, 5, 6] }, na1: {} };
+const IDS = { [P(1)]: ['KR_1001', 'KR_1002', 'KR_1003'], [P(2)]: ['KR_1002', 'KR_1004', 'KR_1005'], [P(3)]: ['KR_1006'], [P(4)]: ['EUW1_3001'], [P(7)]: ['EUW1_3002'] }; // the last 3 days'
+// Europe West's Emerald I players (each other division has none, and so has North America)
+const EMERALD = [P(7)];
+// the ladder players' champions with the most mastery: Ahri (103), Zed (238), Lux (99) and Kassadin (38)
+const MASTERY = { [P(1)]: [103, 238, 38], [P(2)]: [103, 238], [P(3)]: [103, 99], [P(4)]: [103, 238, 99], [P(5)]: [238, 99] };
+// Leaguepedia's player list, as its Cargo export page sends it (line breaks escaped): Faker's Riot IDs (Hide on bush#KR1
+// is P(1), on Korea's ladder; Fakeeer#EUW is P(6), not on Europe West's), and one that Riot doesn't know, of a player
+// whose name comes as a number
+const LEAGUEPEDIA = [{ Player: 'Faker', Team: 'T1', SoloqueueIds: "'''KR:''' Hide on bush#KR1, [[T1|T1]] Faker (old)&lt;br&gt;'''EUW''': Fakeeer #EUW" },
+  { Player: 1116, Team: 'X', SoloqueueIds: 'Gone#123' }];
+const PROS = { 'Hide%20on%20bush/KR1': [P(1), 'kr'], 'Fakeeer/EUW': [P(6), 'euw1'] };
+// the games played that many days ago, which every ladder player was in; KR_1001 (the crawl's) too, for the sweep
+const DAYS = { 4: ['KR_1001', 'KR_2004'], 5: ['KR_2002'], 6: ['KR_2001'], 7: ['KR_2003'], 8: ['KR_2005'], 9: ['KR_2006'] };
 const match = (id) => {
-  const [v, q, len] = GAMES[id], blueWins = id !== 'KR_1003';
-  return { metadata: { matchId: id }, info: { gameVersion: v, queueId: q, mapId: q === 450 ? 12 : 11, gameDuration: len, gameCreation: 1760000000000 + +id.slice(3) * 1000,
-    participants: TEAM.map(([c, r], i) => ({ participantId: i + 1, championId: c, teamPosition: r, teamId: i < 5 ? 100 : 200, win: i < 5 === blueWins, summoner1Id: 4, summoner2Id: i % 5 === 1 ? 11 : 14,
-      kills: i, deaths: 2, assists: 7, totalMinionsKilled: 150 + i, neutralMinionsKilled: 4, riotIdGameName: 'Secret' + i, puuid: P(9),
+  const [v, q, len] = GAMES[id], blueWins = id !== 'KR_1003', ago = Object.keys(DAYS).find((k) => DAYS[k].includes(id)), eu = id === 'EUW1_3002' ? 2000 : id.startsWith('EUW') ? 1000 : 0;
+  return { metadata: { matchId: id }, info: { gameVersion: v, queueId: q, mapId: q === 450 ? 12 : 11, gameDuration: len,
+    gameCreation: id.startsWith('KR_2') ? (today - ago) * 864e5 + 3600e3 : 1760000000000 + +id.split('_')[1] * 1000,
+    teams: [{ teamId: 100, bans: [{ championId: 157, pickTurn: 1 }, { championId: -1, pickTurn: 2 }] }, { teamId: 200, bans: [{ championId: 157, pickTurn: 6 }, { championId: 555, pickTurn: 7 }] }],
+    participants: TEAM.map(([c, r], i) => ({ participantId: i + 1, championId: c + eu, teamPosition: r, teamId: i < 5 ? 100 : 200, win: i < 5 === blueWins, summoner1Id: 4, summoner2Id: i % 5 === 1 ? 11 : 14,
+      kills: i, deaths: 2, assists: 7, totalMinionsKilled: 150 + i, neutralMinionsKilled: 4, riotIdGameName: 'Secret' + i, puuid: i === 2 && id.startsWith('KR') ? P(1) : P(9),
+      goldEarned: 10000 + 100 * i, visionScore: 20 + i, totalDamageDealtToChampions: 15000 + 1000 * i,
       perks: { statPerks: { defense: 5011, flex: 5008, offense: 5005 }, styles: [{ description: 'primaryStyle', style: 8100, selections: [8112, 8139, 8138, 8135].map((perk) => ({ perk })) }, { description: 'subStyle', style: 8300, selections: [8306, 8347].map((perk) => ({ perk })) }] } })) } };
 };
 const timeline = () => {
@@ -36,61 +70,104 @@ const timeline = () => {
   return { metadata: {}, info: { frameInterval: 60000, frames } };
 };
 
-// the fake Riot API: the routing value is the first part of the path
+// the fake Riot API: the routing value is the first part of the path; and the fake Leaguepedia, at /leaguepedia
 const calls = [];
-let slowDown = false;
+let slowDown = false, anaLost = false; // Ana's rank drops for her second lookup
 const riot = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x'), [, host, ...rest] = u.pathname.split('/'), p = '/' + rest.join('/');
   calls.push({ host, p, q: u.search, key: req.headers['x-riot-token'] });
   const send = (code, body, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(body)); };
+  if (host === 'leaguepedia') return send(200, u.searchParams.get('offset') === '0' ? LEAGUEPEDIA : []);
   if (req.headers['x-riot-token'] !== KEY) return send(401, { status: { message: 'Unauthorized' } });
   let m;
-  if (host === 'kr' && p === '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5') return send(200, { tier: 'CHALLENGER', entries: [{ puuid: P(1), leaguePoints: 1500 }, { puuid: P(2), leaguePoints: 1400 }] });
-  if (host === 'kr' && p === '/lol/league/v4/grandmasterleagues/by-queue/RANKED_SOLO_5x5') return send(200, { tier: 'GRANDMASTER', entries: [{ puuid: P(3), leaguePoints: 700 }] });
-  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/))) return send(200, IDS[m[1]] || []);
-  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/(KR_\d+)(\/timeline)?$/)) && GAMES[m[1]]) return send(200, m[2] ? timeline() : match(m[1]));
+  if ((host === 'euw1' || host === 'na1') && (m = p.match(/^\/lol\/league\/v4\/entries\/RANKED_SOLO_5x5\/(EMERALD|DIAMOND)\/(I|II|III|IV)$/))) return send(200, host === 'euw1' && m[1] + m[2] === 'EMERALDI' ? EMERALD.map((puuid) => ({ puuid, tier: 'EMERALD', rank: 'I' })) : []);
+  if (['kr', 'euw1', 'na1'].includes(host) && (m = p.match(/^\/lol\/champion-mastery\/v4\/champion-masteries\/by-puuid\/(\w+)\/top$/)) && MASTERY[m[1]] && u.search === '?count=8') return send(200, MASTERY[m[1]].map((championId) => ({ championId, championPoints: 1e5 })));
+  if (['americas', 'europe', 'asia'].includes(host) && (m = p.match(/^\/riot\/account\/v1\/accounts\/by-riot-id\/(.+)$/)) && PROS[m[1]]) return send(200, { puuid: PROS[m[1]][0], gameName: 'x', tagLine: 'y' });
+  if (['americas', 'europe', 'asia'].includes(host) && (m = p.match(/^\/riot\/account\/v1\/region\/by-game\/lol\/by-puuid\/(\w+)$/)) && Object.values(PROS).some(([x]) => x === m[1])) return send(200, { puuid: m[1], game: 'lol', region: Object.values(PROS).find(([x]) => x === m[1])[1] });
+  if (LADDERS[host] && (m = p.match(/^\/lol\/league\/v4\/(challenger|grandmaster)leagues\/by-queue\/RANKED_SOLO_5x5$/))) return send(200, { entries: LADDERS[host][m[1] === 'challenger' ? 0 : 1].map((puuid) => ({ puuid, leaguePoints: 1000 })) });
+  if (LAD[host] && (m = p.match(/^\/lol\/league-exp\/v4\/entries\/RANKED_SOLO_5x5\/([A-Z]+)\/([IV]+)$/))) {
+    const pg = +u.searchParams.get('page');
+    return send(200, (LAD[host][m[1] + '/' + m[2]] || []).slice(pg * 3 - 3, pg * 3).map((lp) => ({ puuid: P(8), queueType: 'RANKED_SOLO_5x5', tier: m[1], rank: m[2], leaguePoints: lp })));
+  }
+  if (host === 'asia' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/))) {
+    const end = u.searchParams.get('endTime'); // the sweep asks for one day
+    return send(200, end ? DAYS[today - Math.floor(end / DAY)] || [] : IDS[m[1]] || []);
+  }
+  if (host === 'europe' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/)) && [P(4), P(7)].includes(m[1])) return send(200, IDS[m[1]]);
+  if ((m = p.match(/^\/lol\/match\/v5\/matches\/([A-Z0-9]+_\d+)(\/timeline)?$/)) && GAMES[m[1]] && host === (m[1].startsWith('KR') ? 'asia' : 'europe')) return send(200, m[2] ? timeline() : match(m[1]));
   // lookups
   if (host === 'europe' && p === '/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW') return send(200, { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
   if (host === 'europe' && p.startsWith('/riot/account/v1/accounts/by-riot-id/')) return send(404, { status: { message: 'Data not found' } });
-  if (host === 'euw1' && p === `/lol/league/v4/entries/by-puuid/${P('a')}`) return send(200, [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'II', leaguePoints: 40, wins: 10, losses: 8 }]);
+  if (host === 'europe' && p === `/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`) return send(200, { puuid: P('a'), game: 'lol', region: 'euw1' });
+  if (host === 'euw1' && p === `/lol/league/v4/entries/by-puuid/${P('a')}`) return send(200, [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: anaLost ? 'III' : 'II', leaguePoints: anaLost ? 75 : 40, wins: 10, losses: 8 }, { queueType: 'CHERRY', tier: 'GOLD' }]);
   if (host === 'kr' && p.startsWith('/lol/summoner/v4/summoners/by-puuid/')) return send(200, { puuid: P('k'), summonerLevel: 300 });
   if (host === 'jp1') return slowDown ? send(429, { status: { message: 'Rate limit exceeded' } }, { 'retry-after': '2' }) : send(200, { summonerLevel: 1 });
   if (host === 'europe' && p === `/lol/match/v5/matches/by-puuid/${P('a')}/ids`) return send(200, ['EUW1_7123456789']);
   if (host === 'europe' && p === '/lol/match/v5/matches/EUW1_7123456789') return send(200, { info: { gameId: 7123456789 } });
+  if (host === 'euw1' && p === '/lol/status/v4/platform-data') return send(200, { id: 'EUW1', maintenances: [{ id: 1, maintenance_status: 'in_progress', titles: [{ locale: 'en_US', content: 'Ranked is off' }] }], incidents: [] });
   send(404, { status: { message: 'Not found' } });
 }).listen(RIOT, '127.0.0.1');
 
 const env = { ...process.env, NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost' };
-const wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist,
-  '--var', `RIOT_KEY:${KEY}`, '--var', `RIOT_BASE:http://127.0.0.1:${RIOT}/{host}`, '--var', 'CRAWL_EVERY:150'], { cwd: __dirname, detached: true, stdio: 'ignore', env });
-const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...headers } });
-
-(async () => {
+let wr;
+const up = async (...vars) => { // wrangler dev with our key, the fake Riot API and these variables
+  wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist,
+    ...[`RIOT_KEY:${KEY}`, `RIOT_BASE:http://127.0.0.1:${RIOT}/{host}`, `LEAGUEPEDIA:http://127.0.0.1:${RIOT}/leaguepedia`, 'CRAWL_EVERY:75', ...vars].flatMap((v) => ['--var', v])], { cwd: __dirname, detached: true, stdio: 'ignore', env });
   for (let i = 0; ; i++) {
-    try { if ((await fetch(BASE + '/')).ok) break; } catch {}
+    try { if ((await fetch(BASE + '/')).ok) return; } catch {}
     assert(i < 120, 'wrangler dev did not start');
     await sleep(500);
   }
-  // the counting starts by itself once the Riot object wakes up
-  let sum;
+};
+const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...headers } });
+const counted = async (n) => { // the summary once n games are counted and nothing more comes
   for (let i = 0; ; i++) {
-    sum = await (await get('/riot/summary')).json();
-    if (sum.total >= 4) break;
+    const sum = await (await get('/riot/summary')).json();
+    if (sum.total >= n) break;
     assert(i < 120, `only ${sum.total} games counted: ${JSON.stringify(calls.map((c) => c.p))}`);
     await sleep(500);
   }
-  await sleep(1500); // nothing more to count
-  sum = await (await get('/riot/summary')).json();
-  assert.equal(sum.total, 4, 'KR_1004 (ARAM) and KR_1005 (a remake) are not counted');
-  assert.equal(sum.today, 4);
+  await sleep(1500);
+  return (await get('/riot/summary')).json();
+};
+
+(async () => {
+  await up('SWEEP_DAYS:3'); // the sweep waits for now: it has no day older than 3 days to count
+  // the counting starts by itself once the Riot object wakes up
+  let sum = await counted(5);
+  assert.equal(sum.total, 5, 'KR_1004 (ARAM) and KR_1005 (a remake) are not counted');
+  assert.equal(sum.today, 5);
+  assert.deepEqual(sum.by, { kr: 4, euw1: 1 }, "Korea's games and Europe West's");
   assert.equal(sum.p, '16.20');
+  assert.equal(sum.from, undefined, 'no older days counted');
+  assert.equal(sum.on, undefined);
   assert.deepEqual(sum.c['103'], { MIDDLE: [3, 2] }, 'Ahri: three games this patch, won two');
-  assert.deepEqual(sum.old, { p: '16.19', c: Object.fromEntries(TEAM.map(([c, r], i) => [c, { [r]: [1, i < 5 ? 1 : 0] }])) }, 'the patch before');
+  assert.deepEqual(sum.c['1103'], { MIDDLE: [1, 1] }, "Europe West's game");
+  assert.deepEqual([sum.b, sum.bn], [{ 157: 4, 555: 4 }, 4], 'each champion banned once a game, without no ban (-1)');
+  assert.deepEqual(sum.old, { p: '16.19', c: Object.fromEntries(TEAM.map(([c, r], i) => [c, { [r]: [1, i < 5 ? 1 : 0] }])), b: { 157: 1, 555: 1 }, bn: 1 }, 'the patch before');
+  // what it used of the free plan today
+  const isoDay = new Date().toISOString().slice(0, 10);
+  assert.equal(sum.use.day, isoDay);
+  assert(sum.use.req > 20 && sum.use.read > 0 && sum.use.write > 20 && sum.use.ms >= 0 && sum.use.prev === undefined, JSON.stringify(sum.use));
+  assert.deepEqual(sum.use.lim, { req: 1e5, read: 5e6, write: 1e5, ms: 101562500 });
+  assert((await (await get('/riot/summary')).json()).use.req > sum.use.req, 'a call is a request');
   const crawl = calls.filter((c) => c.host === 'kr' || c.host === 'asia');
-  for (const id of Object.keys(GAMES)) assert.equal(crawl.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, 1, `${id} asked for once`);
+  for (const id of Object.keys(GAMES).filter((x) => x.startsWith('KR_1'))) assert.equal(crawl.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, 1, `${id} asked for once`);
   assert.deepEqual(crawl.filter((c) => c.p.endsWith('/timeline')).map((c) => c.p.split('/')[5]).sort(), ['KR_1001', 'KR_1002', 'KR_1003', 'KR_1006'], 'timelines only for games that count');
   for (const c of crawl.filter((x) => x.p.endsWith('/ids'))) assert.match(c.q, /^\?queue=420&type=ranked&count=20&startTime=\d+$/);
-  assert(calls.every((c) => c.key === KEY), 'our key on every call');
+  assert(calls.every((c) => c.key === (c.host === 'leaguepedia' ? undefined : KEY)), 'our key on every call to Riot, and never to Leaguepedia');
+
+  // Emerald and Diamond: Europe West's Emerald I player's game, counted apart (each division's first players asked for)
+  for (let i = 0; !(sum.ed && sum.ed.total); i++) { assert(i < 60, 'no Emerald and Diamond game counted'); await sleep(500); sum = await (await get('/riot/summary')).json(); }
+  assert.deepEqual([sum.ed.total, sum.ed.by, sum.ed.p, sum.ed.c['2103']], [1, { euw1: 1 }, '16.20', { MIDDLE: [1, 1] }], 'EUW1_3002 in Emerald and Diamond');
+  assert.equal(sum.c['2103'], undefined, 'and not in high elo');
+  const divs = calls.filter((c) => /^\/lol\/league\/v4\/entries\/RANKED_SOLO_5x5\//.test(c.p)); // not the ladder places' league-exp
+  assert.deepEqual([...new Set(divs.map((c) => c.host))].sort(), ['euw1', 'na1']);
+  assert.equal(divs.filter((c) => c.host === 'euw1').length, 8, 'the first page of each Emerald and Diamond division, once');
+  const emerald = await (await get('/riot/champ?c=2103&t=ed')).json();
+  assert.deepEqual([emerald.t, emerald.role, emerald.games.length, emerald.y], ['ed', 'MIDDLE', 1, { n: 0, w: 0, vs: {} }]);
+  assert.equal((await (await get('/riot/champ?c=2103')).json()).games.length, 0, 'not among the high elo games');
+  assert.equal((await (await get('/riot/champ?c=103&t=ed')).json()).games.length, 0, "and Korea's high elo games not among Emerald and Diamond's");
 
   // a champion's games for the page
   let r = await get('/riot/champ?c=103&r=MIDDLE');
@@ -99,27 +176,38 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
   assert.equal(ahri.patch, '16.20');
   assert.equal(ahri.role, 'MIDDLE');
   assert.deepEqual(ahri.roles, { MIDDLE: [3, 2] });
+  assert.deepEqual(ahri.y, { n: 0, w: 0, vs: {} }, 'no older games yet');
   assert.equal(ahri.games.length, 4);
   assert.deepEqual(ahri.games.map((g) => g.p), ['16.20', '16.20', '16.20', '16.19'], 'newest first');
   const g = ahri.games.find((x) => x.t === 1760000000000 / 1000 + 1002);
-  assert.deepEqual({ ...g, b: undefined }, { p: '16.20', t: 1760001002, w: 1, o: 238, g: -500, s: [4, 14], rn: [8100, 8300, 8112, 8139, 8138, 8135, 8306, 8347, 5005, 5008, 5011], k: [1, 2, 3], x: [2, 2, 7, 156], l: [-5, -50], b: undefined });
+  assert.deepEqual({ ...g, b: undefined }, { p: '16.20', t: 1760001002, w: 1, o: 238, g: -500, s: [4, 14], rn: [8100, 8300, 8112, 8139, 8138, 8135, 8306, 8347, 5005, 5008, 5011], k: [1, 2, 3], x: [2, 2, 7, 156], l: [-5, -50], b: undefined,
+    a: [266, 64, 222, 412], e: [86, 254, 238, 145, 117], m: [1700, 10200, 22, 17000, 10, 85000], u: g.u, pro: ['Faker', 'T1'] }, "with who was on each team, the game's length and Ahri's gold, vision and damage, her team's kills and damage, her code, and Faker's name and team");
+  assert.match(g.u, /^[0-9a-f]{8}$/);
+  assert(ahri.games.every((x) => x.u === g.u && x.pro && x.pro[0] === 'Faker'), "every one of Faker's games, with the same code");
   assert.deepEqual(g.b, [[2, 1055], [3, 2003], [402, 3020]], 'the boots Ahri undid are left out');
   assert.equal(ahri.games.filter((x) => x.w).length, 3);
   assert.equal((await (await get('/riot/champ?c=103')).json()).role, 'MIDDLE', 'its most played role when none is asked for');
   const jungle = await (await get('/riot/champ?c=64')).json();
   assert.equal(jungle.role, 'JUNGLE');
   assert.deepEqual(jungle.games[0].s, [4, 11]);
+  assert(jungle.games.every((x) => /^[0-9a-f]{8}$/.test(x.u) && x.u !== g.u && !x.pro), 'another player, not a pro');
   assert.deepEqual(await (await get('/riot/champ?c=nope')).json(), { games: [] });
+  const eu = await (await get('/riot/champ?c=1103')).json();
+  assert.deepEqual(eu.games.map((x) => [x.t, x.m, x.e]), [[1760003001, [1900, 10200, 22, 17000, 10, 85000], [1086, 1254, 1238, 1145, 1117]]], "Europe West's game");
   assert.equal((await get('/riot/champ?c=103', { origin: 'https://evil.example' })).headers.get('access-control-allow-origin'), null, 'other sites are not let in');
+  for (const o of ['https://rayn16.github.io', 'https://league-proxchat.netlify.app']) assert.equal((await get('/riot/champ?c=103', { origin: o })).headers.get('access-control-allow-origin'), o, 'the site on GitHub Pages and on Netlify');
+  assert.equal((await get('/riot/champ?c=103', { origin: 'https://someone.github.io' })).headers.get('access-control-allow-origin'), null, 'not every GitHub Pages site');
 
   // lookups: only the calls on the list, with their own query parameters, as Riot answers them (the counting goes on
-  // meanwhile, on kr and asia)
-  const before = calls.length, looked = () => calls.slice(before).filter((c) => c.host !== 'kr' && c.host !== 'asia');
+  // meanwhile: Korea's on kr and asia, the others' ladders, game lists and EUW1_3001)
+  const background = /leagues\/by-queue|entries\/RANKED_SOLO_5x5|champion-masteries\/by-puuid\/\w+\/top$|EUW1_300[12]|by-riot-id\/(Hide|Fakeeer|Gone)|by-puuid\/(1{78}|6{78})$/; // the counting's, pools' and pro players' own calls
+  const before = calls.length, looked = () => calls.slice(before).filter((c) => c.host !== 'kr' && c.host !== 'asia' && c.host !== 'leaguepedia' && !c.q.includes('startTime') && !background.test(c.p));
   r = await get('/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW');
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('access-control-allow-origin'), SITE);
   assert.deepEqual(await r.json(), { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
   assert.equal((await get('/riot/api/europe/riot/account/v1/accounts/by-riot-id/Nobody/EUW')).status, 404, "Riot's not found passes through");
+  assert.deepEqual(await (await get(`/riot/api/europe/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`)).json(), { puuid: P('a'), game: 'lol', region: 'euw1' }, 'the server Ana plays League on');
   assert.equal((await get(`/riot/api/euw1/lol/league/v4/entries/by-puuid/${P('a')}`)).status, 200);
   assert.equal((await get(`/riot/api/euw1/lol/spectator/v5/active-games/by-summoner/${P('a')}`)).status, 404, 'not in a game');
   r = await get(`/riot/api/europe/lol/match/v5/matches/by-puuid/${P('a')}/ids?count=500&type=ranked&evil=1`);
@@ -128,10 +216,28 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
   r = await get('/riot/api/europe/lol/match/v5/matches/EUW1_7123456789');
   assert.equal(r.status, 200);
   assert.match(r.headers.get('cache-control'), /max-age=86400/);
+  r = await get('/riot/api/euw1/lol/status/v4/platform-data');
+  assert.equal((await r.json()).maintenances[0].maintenance_status, 'in_progress', "the problems Riot reports on a server");
   for (const bad of ['/riot/api/europe/lol/match/v5/matches/EUW1_7123456789/timeline', '/riot/api/euw1/riot/account/v1/accounts/by-riot-id/Ana/EUW', '/riot/api/evil/lol/match/v5/matches/EUW1_7123456789',
-    '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`])
+    '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`,
+    `/riot/api/europe/riot/account/v1/region/by-game/val/by-puuid/${P('a')}`, `/riot/api/euw1/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`, '/riot/api/europe/lol/status/v4/platform-data'])
     assert.equal((await get(bad)).status, 404, bad);
-  assert.equal(looked().length, 6, 'nothing off the list reached Riot');
+  assert.equal(looked().length, 8, 'nothing off the list reached Riot');
+
+  // the ranks lookups get, kept for each season (16.20 is 2026): the highest and the last, for the page's past ranks
+  let past = (await (await get(`/riot/past?u=${P('a')}`)).json()).s;
+  assert.deepEqual(Object.keys(past), ['2026']);
+  assert.deepEqual(Object.keys(past['2026']), ['RANKED_SOLO_5x5'], 'not Arena');
+  assert.deepEqual(past['2026'].RANKED_SOLO_5x5.last, ['GOLD', 'II', 40]);
+  anaLost = true;
+  assert.equal((await get(`/riot/api/euw1/lol/league/v4/entries/by-puuid/${P('a')}`)).status, 200);
+  r = await get(`/riot/past?u=${P('a')}`);
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  past = (await r.json()).s['2026'].RANKED_SOLO_5x5;
+  assert.deepEqual([past.peak, past.last], [['GOLD', 'II', 40], ['GOLD', 'III', 75]], 'the highest stays');
+  assert(Math.abs(past.at - Date.now() / 1000) < 60, 'with when it was seen');
+  assert.deepEqual(await (await get(`/riot/past?u=${P('b')}`)).json(), { s: {} }, 'nobody looked up');
+  assert.deepEqual(await (await get('/riot/past?u=..%2Fx')).json(), { s: {} });
 
   // one address gets 60 lookups every 2 minutes
   const ip = { 'cf-connecting-ip': '198.51.100.7' };
@@ -151,10 +257,85 @@ const get = (p, headers = {}) => fetch(BASE + p, { headers: { origin: SITE, ...h
   await sleep(2200);
   assert.equal((await get(jp)).status, 200, 'and asks again once the wait is over');
 
+  // pro players from Leaguepedia: its player list asked for once, the Riot IDs in it looked up, the ones Riot knows kept
+  const lp = calls.filter((c) => c.host === 'leaguepedia').map((c) => Object.fromEntries(new URLSearchParams(c.q)));
+  assert.deepEqual(lp, [{ tables: 'Players', fields: 'Player,Team,SoloqueueIds', where: 'Team != "" AND SoloqueueIds != ""', order_by: 'Players._pageName', limit: '100', offset: '0', format: 'json' }]);
+  assert.deepEqual(calls.filter((c) => /by-riot-id\/(Hide|Fakeeer|Gone)/.test(c.p)).map((c) => c.p.split('/').slice(-2).join('/')).sort(), ['Fakeeer/EUW', 'Gone/123', 'Hide%20on%20bush/KR1'], 'each Riot ID in the list once');
+  let more = await (await get('/riot/summary?more=1')).json();
+  assert.equal(more.pros, 2, 'Hide on bush#KR1 and Fakeeer#EUW');
+  assert.equal(more.lp.ok, true);
+  assert.equal(sum.pros, undefined, 'only with more');
+  // champions to try: the ladder players' champions with the most mastery, 3 of them or more
+  for (let i = 0; more.pools < 5; i++) { assert(i < 60, `only ${more.pools} pools`); await sleep(500); more = await (await get('/riot/summary?more=1')).json(); }
+  assert(calls.filter((c) => c.p.includes('champion-masteries')).every((c) => c.q === '?count=8'));
+  r = await get('/riot/alike?c=103');
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.deepEqual(await r.json(), { n: 4, of: 5, list: [[238, 3]] }, 'of the 4 who play Ahri, 3 play Zed; Lux and Kassadin are too few');
+  assert.deepEqual(await (await get('/riot/alike?c=nope')).json(), { n: 0, of: 0, list: [] });
+
   // the key never comes back
-  for (const p of ['/riot/summary', '/riot/champ?c=103', '/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW']) {
+  for (const p of ['/riot/summary?more=1', '/riot/champ?c=103', '/riot/alike?c=103', '/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW']) {
     const x = await get(p), text = await x.text();
     assert(!text.includes(KEY) && ![...x.headers.values()].some((v) => v.includes(KEY)), p);
   }
+
+  // the sweep: restarted as if it had stopped while on the day 6 days ago, its games listed (so the newer days come
+  // next) and one game in from before it kept bans, with a month of lane matchups older than it keeps; and the free
+  // plan's use from an older day
+  try { process.kill(-wr.pid); } catch {}
+  for (let i = 0; ; i++) {
+    try { await fetch(BASE + '/'); } catch { if (wr.exitCode !== null || wr.signalCode !== null) break; }
+    assert(i < 100, 'wrangler dev did not stop');
+    await sleep(200);
+  }
+  const { DatabaseSync } = require('node:sqlite'), dir = path.join(persist, 'v3', 'do', 'league-proxchat-Riot');
+  const db = new DatabaseSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith('.sqlite'))));
+  const had = ['16.20', (today - 6) * DAY + 7200, ...TEAM.map(([c, r], i) => [c, r, i < 5 ? 1 : 0, TEAM[(i + 5) % 10][0]])];
+  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('sweep', JSON.stringify({ lo: today - 6, hi: today - 6, li: 0, w: { d: today - 6, asked: 3, found: ['KR_2001', 'KR_2009'], q: ['KR_2001'], g: [had] } }));
+  db.prepare('INSERT OR REPLACE INTO kv VALUES (?, ?)').run('use', JSON.stringify({ day: '2000-01-01', req: 5, read: 6, write: 7, ms: 8 }));
+  db.prepare('INSERT INTO matchups VALUES (?, ?, ?)').run(103 % 16, '2020-01', JSON.stringify({ 103: { MIDDLE: { 238: [50, 0] } } }));
+  db.prepare("UPDATE kv SET v = json_set(v, '$.p.euw1.lat', 0) WHERE k = 'crawl'").run(); // Europe West's ladder is asked for again
+  db.close();
+  const mark = calls.length;
+  await up('SWEEP_DAYS:8', 'SWEEP_ROOM:100', 'PLACES_ROOM:1000'); // room for the sweep beside this test's busy crawl, and for the ladder places
+  sum = await counted(9);
+  assert.equal(sum.total, 9, 'KR_2001, KR_2002, KR_2003 and the game it had count; not the ARAM, the remake, KR_1001 again or KR_2006, 9 days old');
+  assert.deepEqual(sum.by, { kr: 8, euw1: 1 });
+  assert.equal(sum.from, (today - 8) * DAY, 'counted back to 8 days ago');
+  assert.equal(sum.on, undefined, 'and on no day now');
+  assert.deepEqual(sum.c['103'], { MIDDLE: [5, 4] }, 'KR_2001 and the game it had join this patch');
+  assert.deepEqual([sum.b, sum.bn], [{ 157: 5, 555: 5 }, 5], "KR_2001's bans, and none for the game it had");
+  assert.deepEqual(sum.old.c['103'], { MIDDLE: [2, 2] }, 'KR_2002 the patch before, and KR_2003 neither');
+  assert.deepEqual([sum.old.b, sum.old.bn], [{ 157: 2, 555: 2 }, 2]);
+  assert.deepEqual([sum.use.day, sum.use.prev], [isoDay, { day: '2000-01-01', req: 5, read: 6, write: 7, ms: 8 }], 'a new day, with the one before');
+  const swept = calls.slice(mark).filter((c) => c.p.endsWith('/ids') && c.q.includes('endTime')).map((c) => c.q.match(/^\?queue=420&type=ranked&startTime=(\d+)&endTime=(\d+)&count=100$/));
+  assert(swept.every((x) => x && x[1] % DAY === 0 && x[2] - x[1] === DAY - 1), 'a whole UTC day each');
+  assert.deepEqual(swept.map((x) => today - x[1] / DAY), [5, 5, 5, 4, 4, 4, 7, 7, 7, 8, 8, 8], 'after the day it was on, each ladder player, newer days first, then back in time');
+  for (const id of Object.keys(GAMES)) assert.equal(calls.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, id === 'KR_2006' ? 0 : 1, `${id} asked for ${id === 'KR_2006' ? 'never' : 'once'}`);
+  assert(!calls.some((c) => /KR_2\d+\/timeline$/.test(c.p)), 'no timelines for older games');
+  assert(calls.slice(mark).some((c) => c.host === 'europe' && c.p === `/lol/match/v5/matches/by-puuid/${P(6)}/ids`), "Fakeeer's games are looked for with Europe West's ladder");
+  const old = await (await get('/riot/champ?c=103&r=MIDDLE')).json();
+  assert.deepEqual(old.y, { n: 4, w: 4, vs: { 238: [4, 4] } }, "Ahri's older games against Zed, without 2020's month");
+  assert.equal(old.games.length, 4, 'its games with builds are still the last 3 days');
+
+  // the ladder places: each server's divisions counted from their last page, and Master and up by 10 LP
+  for (let i = 0; !(await (await get('/riot/places?p=na1')).json()).d; i++) { assert(i < 120, 'the ladders were not counted'); await sleep(500); }
+  const zero = Object.fromEntries(['DIAMOND', 'EMERALD', 'PLATINUM', 'GOLD', 'SILVER', 'BRONZE', 'IRON'].flatMap((t) => ['I', 'II', 'III', 'IV'].map((d) => [`${t} ${d}`, 0])));
+  r = await get('/riot/places?p=kr');
+  assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.match(r.headers.get('cache-control'), /public, max-age=3600/);
+  const kr = await r.json(), byLp = (o) => Array.from(Object.entries(o).reduce((a, [b, n]) => { a[b] = n; return a; }, []), (x) => x | 0);
+  assert(Math.abs(kr.at - Date.now()) < 120000, 'with when');
+  assert.deepEqual(kr.d, { ...zero, 'DIAMOND I': 4, 'GOLD II': 7 }, "Korea's divisions");
+  assert.deepEqual(kr.lp, byLp({ 1: 1, 30: 2, 45: 1, 90: 1, 121: 1, 150: 1 }), "Korea's Master, Grandmaster and Challenger players by 10 LP");
+  const euw = await (await get('/riot/places?p=euw1')).json();
+  assert.deepEqual({ ...euw, at: 0 }, { at: 0, d: { ...zero, 'SILVER I': 6 }, lp: byLp({ 10: 1 }) }, "Europe West's, its last page full");
+  assert.deepEqual((await (await get('/riot/places?p=na1')).json()).lp, [], 'nobody on North America’s');
+  assert.deepEqual(await (await get('/riot/places?p=eun1')).json(), {}, 'a server it doesn’t count');
+  assert.deepEqual(await (await get('/riot/places?p=toString')).json(), {});
+  const asked = (h) => calls.filter((c) => c.host === h && c.p.includes('league-exp'));
+  assert.deepEqual(asked('euw1').filter((c) => c.p.endsWith('/SILVER/I')).map((c) => c.q), ['?page=1', '?page=2', '?page=4', '?page=3'], 'doubling, then halving');
+  assert.equal(asked('kr').filter((c) => c.p.endsWith('/GOLD/I')).length, 1, 'an empty division once');
+  assert(['kr', 'euw1', 'na1'].every((h) => asked(h).length < 45), 'a few calls a server');
   console.log('riot ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} riot.close(); fs.rmSync(persist, { recursive: true, force: true }); });

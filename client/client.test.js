@@ -252,7 +252,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(wb.height === 700 && wb.max === false && Number.isFinite(wb.x), `the window remembered: ${JSON.stringify(wb)}`);
 
     // the page's own overlay in a game: the objective timers and kills, with the gold and win chance once Riot's item prices load
-    const ovWin = () => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('overlay.html'));
+    const ovWin = () => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().split('?')[0].endsWith('overlay.html'));
     let ov;
     await until(async () => (ov = ovWin()) && ov.isVisible() && /Dragon \d:\d\d · Baron \d+:\d\d · Kills 0–0( · Gold even · Win chance 50%)?\nCS 0 · 0\.0 a minute/.test(await ov.webContents.executeJavaScript('document.body.innerText')), 'the game line and CS counter on the overlay');
     console.log(`the page's overlay: ${JSON.stringify(await ov.webContents.executeJavaScript('document.body.innerText'))}`);
@@ -393,9 +393,9 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // Test version first (Settings > App): the test/ copy of the page, kept for next time (test-version in the app's
     // folder) with the overlay from the same copy; the status bar's link goes back. No test copy: the normal page.
     const flag = path.join(tmp, 'profile', 'test-version'), went = [];
-    win.webContents.on('did-navigate', (e, url, code) => went.push(`${code} ${url.slice(process.env.LPC_SITE.length - 1)}`));
-    const at = (where, what) => until(async () => win.webContents.getURL() === process.env.LPC_SITE + where && fs.existsSync(flag) === !!where
-      && ovWin().webContents.getURL() === process.env.LPC_SITE + where + 'overlay.html' && await win.webContents.executeJavaScript(`document.readyState === 'complete' && document.getElementById('optTest').checked === ${!!where}`).catch(() => false), what); // not while it loads
+    win.webContents.on('did-navigate', (e, url, code) => went.push(`${code} ${url.split("?")[0].slice(process.env.LPC_SITE.length - 1)}`));
+    const at = (where, what) => until(async () => win.webContents.getURL().split('?')[0] === process.env.LPC_SITE + where && fs.existsSync(flag) === !!where
+      && ovWin().webContents.getURL().split('?')[0] === process.env.LPC_SITE + where + 'overlay.html' && await win.webContents.executeJavaScript(`document.readyState === 'complete' && document.getElementById('optTest').checked === ${!!where}`).catch(() => false), what); // not while it loads
     await js('setTimeout(() => document.getElementById("optTest").click())');
     await at('test/', 'the test version');
     assert(await js('getComputedStyle(document.getElementById("sbTest")).display !== "none"'), 'the status bar says it’s the test version');
@@ -422,7 +422,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await moveSaved();
     assert.deepStrictEqual(await js('["lpc-test-a", "lpc-test-b"].map((k) => localStorage.getItem(k))'), ['old', 'new'], 'the old address’s data, without overwriting');
     assert(fs.readFileSync(moved, 'utf8').startsWith('1 of 2 copied'), fs.readFileSync(moved, 'utf8'));
-    assert.strictEqual(await js('location.href'), process.env.LPC_SITE, 'the page stays put');
+    assert.strictEqual(await js('location.origin + location.pathname'), process.env.LPC_SITE, 'the page stays put');
     console.log(`saved data moved: ${fs.readFileSync(moved, 'utf8').trim()}`);
     console.log('ok');
   } catch (err) { console.error(err); process.exitCode = 1; }
