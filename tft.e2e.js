@@ -99,7 +99,7 @@ const GAMES = [tftGame(1, 18, 2, [['DA_18_Solar', 4, 2], ['DA_18_Vanguard', 2, 1
 const L = { calls: [], refused: [] };
 // our server's augment ratings (/riot/tftaug), and what the app sent it: Rich Get Richer's two ids have 30
 // games of Set 18 at 3.33 on average, Cluster too few. And CommunityDragon's Arena and Mayhem augments; arammayhem.com's
-// Mayhem pick rates on all champions, Ahri's (mayhem-champ.json; Sneakerhead not listed) and Ahri's combos: Symphony of War
+// Mayhem pick rates on all champions and Ahri's combos: Symphony of War
 // a god combo, Mystic Punch a trap
 const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } } };
 const SENT = [];
@@ -107,7 +107,6 @@ const DEEPARAM = { // our server's /mayhem/augments: DeepARAM's rows for a champ
   Ahri: [{ name: 'Symphony of War', pickRate: 0.4, deepScore: 72, tier: 'S' }, { name: 'Mystic Punch', pickRate: 0.05, deepScore: 40, tier: 'C' }],
   MissFortune: [{ name: 'Symphony of War', pickRate: 0.1, deepScore: 50, tier: 'B' }],
 };
-const MAYHEM_CHAMP = { c: { Ahri: { 'Symphony of War': 40, 'Mystic Punch': 5 }, MissFortune: { 'Symphony of War': 10 } } };
 const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
@@ -158,7 +157,6 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
-  await ctx.route('**/mayhem-champ.json', (r) => r.fulfill({ json: MAYHEM_CHAMP }));
   await ctx.route(/127\.0\.0\.1:9004\/mayhem\/augments/, (r) => { const c = new URL(r.request().url()).searchParams.get('champ'); r.fulfill(DEEPARAM[c] ? { json: { source: 'https://deeparam.com/tier-list', champion: c, patch: '26.21', rows: DEEPARAM[c] }, headers: cors } : { status: 502, json: {}, headers: cors }); });
   await ctx.route(/arammayhem\.com\/data\/v1\/latest\/(augments|combos)\.json$/, (r) => r.fulfill({ json: AMD[/(augments|combos)\.json$/.exec(r.request().url())[1]], headers: cors }));
   await ctx.route(/raw\.communitydragon\.org/, (r) => {

@@ -8,7 +8,7 @@
 // map and player cards (the other team hidden), shortcuts and their beeps, popups and chimes, room chat, quick
 // reconnects, locking the room, studio voice, the limiter, auto voice quality, a headset swap, the echo check, the mic
 // coach and the Bluetooth warning, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room
-// games (balanced teams, role roulette, the queue quiz, a mock draft) and game history with its room awards. Dee and
+// games (balanced teams, role roulette, a mock draft) and game history with its room awards. Dee and
 // Eve get a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status
 // window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
 // Legends and Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown),
@@ -139,13 +139,13 @@ function fakeSpeakers() {
 }
 
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
-// Data Dragon's champions: Test Champ and 21 more for the room games' quiz and draft, each with a story (blurb)
+// Data Dragon's champions: Test Champ and 21 more for the room games' draft, each with a story (blurb)
 const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
 const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
 ['Annie', 'Ashe', 'Garen', 'Lux', 'Darius', 'Jinx', 'Leona', 'Zed', 'Ahri', 'Thresh', 'Vayne', 'Malphite', 'Ezreal', 'Sona', 'Yasuo', 'Teemo', 'Caitlyn', 'Nasus', 'Morgana', 'Riven', 'Braum'].forEach((n, i) => {
   CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i }, blurb: story(n) };
 });
-// Data Dragon's items: five finished ones, for the quiz's item pictures
+// Data Dragon's items: five finished ones
 const ITEMS = Object.fromEntries(['Infinity Edge', 'Thornmail', 'Sunfire Aegis', 'Trinity Force', 'Rabadon\'s Deathcap'].map((name, i) => [String(3031 + i), { name, gold: { total: 2600 + 100 * i }, tags: [], maps: { 11: true } }]));
 const POS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Middle', BOTTOM: 'Bottom', UTILITY: 'Support' };
 async function player(browser, name, screen, { setup = true, client = false, denoise = false } = {}) {
@@ -885,7 +885,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     for (const p of [ben, cat]) await p.click('#shareBtn'); // stop sharing
 
     // room games, started by the host (Ana) and the same on every page: balanced teams (nobody's rank is known in a
-    // browser), role roulette, the queue quiz and a mock draft
+    // browser), role roulette and a mock draft
     const trio = [ana, ben, cat], bySlot = Object.fromEntries(await Promise.all(trio.map(async (p) => [await p.evaluate(() => lpc.slot()), p])));
     assert(await ben.$eval('#teamsBtn', (b) => b.disabled) && (await ben.textContent('#gamesNote')) === 'The host starts these.', 'only the host starts room games');
     await ana.click('#teamsBtn');
@@ -909,36 +909,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ben, (r) => lpc.toasts().includes(`Role roulette: you’re ${r}.`), POS[rls[0].map[1]], 'Ben told which role');
     assert(await ben.isHidden('#rolesSet'), 'no League lobby to set it in, in a browser');
     console.log(`room games: teams ${JSON.stringify(tms[0])}, roles ${JSON.stringify(rls[0].map)}`);
-    // the queue quiz: Ana and Cat get it right, Ben doesn't
-    await ana.click('#quizBtn');
-    for (const p of trio) await waitFor(p, () => lpc.qv() && lpc.qv().i === 0 && document.querySelectorAll('#quizOpts button').length === 4, null, 'the first question on every page');
-    const asked = await Promise.all(trio.map((p) => p.evaluate(() => { const q = lpc.qv(); return JSON.stringify([q.n, q.of, q.q, q.img, q.opts]); })));
-    assert(asked.every((q) => q === asked[0]), `the same question for everyone: ${asked}`);
-    const right = (await ana.evaluate(() => lpc.quiz())).right, wrong = (right + 1) % 4;
-    for (const [p, a] of [[ana, right], [cat, right], [ben, wrong]]) await p.click(`#quizOpts button:nth-child(${a + 1})`);
-    for (const p of trio) await waitFor(p, (r) => lpc.qv().right === r && document.querySelector(`#quizOpts button:nth-child(${r + 1})`).dataset.s === 'right', right, 'the right answer shown');
-    assert.strictEqual(await ben.$eval(`#quizOpts button:nth-child(${wrong + 1})`, (b) => b.dataset.s), 'wrong', 'Ben\'s answer marked wrong');
-    const sc = await ben.evaluate(() => lpc.qv().scores);
-    assert(sc[0] > 100 && sc[2] > 100 && !sc[1], `100 and a bit for speed: ${JSON.stringify(sc)}`);
-    assert.match(await ben.textContent('#quizHead'), /^Question 1 of 10: right: (Ana, Cat|Cat, Ana)\.$/);
-    console.log(`queue quiz: "${JSON.parse(asked[0])[2]}" scored ${JSON.stringify(sc)}`);
-    for (const p of trio) await waitFor(p, () => lpc.qv().i === 1 && lpc.qv().right < 0, null, 'the next question', 10000);
-    await ana.click('#quizStop');
-    for (const p of trio) await waitFor(p, () => document.getElementById('quizHead').textContent === 'Quiz over. The host ended it.' && !document.getElementById('quizClose').hidden, null, 'the quiz over on every page');
-    assert.strictEqual(await ben.$eval('#quizScores li:last-child', (l) => l.textContent), 'Ben (you): 0');
-    await waitFor(ben, () => lpc.toasts().some((t) => /^(Ana|Cat) won the queue quiz with \d+ points\.$/.test(t)), null, 'who won, on Ben\'s page');
-    for (const p of trio) await p.click('#quizClose');
-    // the quiz's new questions: ability icons, splash art close-ups, item pictures, and stories with the name blanked out
-    const qs = await ana.evaluate(async () => lpc.quizQuestions(80, await lpc.champSpells(4)));
-    const ofKind = (re) => qs.filter((q) => re.test(q.q)), named = (q) => q.opts[q.right];
-    const [abQ, spQ, loQ, itQ] = [/^Whose ability is this\?$/, /^Whose splash art is this close-up from\?$/, /^Whose story is this\? “/, /^Which item is this\?$/].map(ofKind);
-    const idOf = (name) => Object.values(CHAMPS).find((c) => c.name === name).id; // the picture is of the answer's own ability
-    assert(abQ.length && abQ.every((q) => new RegExp(`/cdn/1\\.0/img/(spell|passive)/${idOf(named(q))}(Q|W|E|R|_P)\\.png$`).test(q.img)), `ability icons: ${JSON.stringify(abQ)}`);
-    assert(spQ.length && spQ.every((q) => /\/cdn\/img\/champion\/splash\/\w+_0\.jpg$/.test(q.img) && q.zoom[0] >= 0.25 && q.zoom[0] <= 0.75 && q.zoom[1] >= 0.3 && q.zoom[1] <= 0.7), `splash close-ups: ${JSON.stringify(spQ[0])}`);
-    assert(loQ.length && loQ.every((q) => q.q.includes('____') && !q.q.includes(named(q))), `stories without the name: ${JSON.stringify(loQ[0])}`);
-    assert(itQ.length && itQ.every((q) => /\/cdn\/1\.0\/img\/item\/\d+\.png$/.test(q.img) && Object.values(ITEMS).some((it) => it.name === named(q))), `item pictures: ${JSON.stringify(itQ[0])}`);
-    assert(qs.every((q) => q.opts.length === 4 && new Set(q.opts).size === 4 && q.right >= 0), 'four different answers, one right');
-    console.log(`queue quiz: ${qs.length} questions, with ${abQ.length} ability icons, ${spQ.length} splash close-ups, ${loQ.length} stories and ${itQ.length} items`);
     // the mock draft: blue and red are the balanced teams; whoever's turn it is chooses, the host's clock does the rest
     await ana.click('#draftBtn');
     for (const p of trio) await waitFor(p, () => lpc.dv() && document.querySelectorAll('#draftGrid button').length === 22, null, 'the draft with every champion');

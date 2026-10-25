@@ -1,9 +1,9 @@
 // Test of Your group and the rest of the October 20 batch in site/index.html, in Chromium: two players with League
 // open, Rayan (desktop app 1.14) and Duo (app 1.13), each with a fake League client, and our server's /squad and
-// /esports faked here (server/squad.test.js tests the real ones): the goal board and Best roles in a voice room, a squad
+// /friends faked here (server/squad.test.js tests the real ones): the goal board and Best roles in a voice room, a squad
 // made and joined from the room, which pings each one wants, a call answered In 10 and joined from Duo's Premade, the
-// pings for a game and a rank-up, a Discord test post and the game's result there, pick'em's matches, guesses and
-// points, League chat on Pregame (a message sent, a new one and an invite popping up, the invite accepted, the room in
+// pings for a game and a rank-up, a Discord test post and the game's result there,
+// League chat on Pregame (a message sent, a new one and an invite popping up, the invite accepted, the room in
 // your League status and the old status back after), the note for Duo's old app, League chat on the phone remote, a
 // squad call's notification with In 10 and Not tonight (remote-sw.js), the call opened on the remote, and only calls
 // the desktop app lets through (client/main.js LCU_OK).
@@ -39,13 +39,8 @@ http.createServer((req, res) => {
   req.on('end', () => { answered.push([req.url, b]); res.writeHead(200, cors); res.end('{}'); });
 }).listen(9106, '127.0.0.1');
 
-// ---- our server, faked: squads as server/squad.js keeps them, and LoL Esports' matches (server/esports.js): Week 1 of
-// the LCK and LEC, a Worlds match whose teams aren't known yet, an LCK match being played and an LEC one played
+// ---- our server, faked: squads as server/squad.js keeps them
 const H = 36e5, T = Date.now();
-const match = (id, lg, st, at, bo, [a, b], [wa, wb] = [0, 0]) => ({ id, at, st, lg, bl: lg === 'Worlds' ? 'Quarterfinals' : 'Week 1', bo,
-  t: [[a, wa, wb], [b, wb, wa]].map(([c, w, them]) => ({ c, n: `${c} Esports`, w, o: st === 'completed' ? (w > them ? 'win' : 'loss') : '' })) });
-const EV = [match('m1', 'LCK', 'unstarted', T + 2 * H, 3, ['T1', 'GEN']), match('m2', 'LEC', 'unstarted', T + 3 * H, 1, ['G2', 'FNC']), match('m3', 'Worlds', 'unstarted', T + 5 * H, 5, ['TBD', 'TBD']),
-  match('m4', 'LCK', 'inProgress', T - H / 2, 3, ['HLE', 'KT'], [1, 0]), match('m5', 'LEC', 'completed', T - 24 * H, 3, ['FNC', 'G2'], [1, 2])];
 const S = { squads: {}, pings: [], apps: {}, inv: [] };
 function fakeServer(r) {
   const q = r.request(), [, what, code, act = ''] = new URL(q.url()).pathname.split('/'), reply = (json, status = 200) => r.fulfill({ status, json, headers: cors });
@@ -63,11 +58,9 @@ function fakeServer(r) {
     S.inv = [...S.inv.filter((v) => !(v.to === low(b.to) && v.src === b.id)), { to: low(b.to), src: b.id, room: b.room, key: b.key, lob: b.lob, at: now }];
     return reply({ ok: true });
   }
-  if (what === 'esports') return reply({ ev: EV });
-  const s = (S.squads[code] ||= { m: {}, call: null, picks: {} });
+  const s = (S.squads[code] ||= { m: {}, call: null });
   if (q.method() === 'GET') {
-    for (const [id, x] of Object.entries(s.picks)) { const e = EV.find((v) => v.id === id && v.st === 'completed'); if (e) x.w = e.t.find((t) => t.o === 'win').c; } // the winner, once it's over
-    return reply({ m: Object.entries(s.m).map(([id, x]) => ({ id, n: x.n, phone: !!x.c, g: x.g, r: x.r })), call: s.call, picks: s.picks });
+    return reply({ m: Object.entries(s.m).map(([id, x]) => ({ id, n: x.n, phone: !!x.c, g: x.g, r: x.r })), call: s.call });
   }
   const b = JSON.parse(q.postData());
   if (!act) { if (b.leave) delete s.m[b.id]; else s.m[b.id] = { n: b.n, c: b.c, g: b.g, r: b.r }; return reply({ ok: true }); }
@@ -75,7 +68,6 @@ function fakeServer(r) {
   if (act === 'call') { s.call = { n: (s.call ? s.call.n : 0) + 1, from: b.id, room: b.room, at: Date.now(), ans: {} }; return reply({ call: s.call.n, sent: Object.entries(s.m).filter(([id, x]) => id !== b.id && x.c).length }); }
   if (act === 'answer') { s.call.ans[b.id] = b.a; return reply({ ok: true }); }
   if (act === 'ping') { S.pings.push([s.m[b.id].n, b]); return reply({ sent: 1 }); }
-  if (act === 'pick') { const e = EV.find((v) => v.id === b.match); s.picks[b.match] = { t: e.t.map((t) => t.c), at: e.at, w: '', p: { ...(s.picks[b.match] || {}).p, [b.id]: b.team } }; return reply({ ok: true }); }
 }
 
 // ---- the fake League clients: Rayan is Gold III with 90 LP, going for Gold I since Gold IV, and won 5 of 6 games in
@@ -136,7 +128,7 @@ const DDATA = Object.fromEntries([['Ahri', 103, 'Mage'], ['Zed', 238, 'Assassin'
 async function routes(ctx) {
   await ctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', ...cors } }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|communitydragon\.org/, (r) => r.abort());
-  await ctx.route(/127\.0\.0\.1:9006\/(squad|esports|hello|friends|invite)/, fakeServer);
+  await ctx.route(/127\.0\.0\.1:9006\/(squad|hello|friends|invite)/, fakeServer);
   await ctx.route(/127\.0\.0\.1:9006\/(riot|stats|push)/, (r) => r.fulfill({ status: 404, json: {}, headers: cors }));
 }
 async function context(browser, who, version, store) {
@@ -337,31 +329,6 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await ray.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
     console.log('Discord and pings: a test post; a game pinged when it started and for the rank-up after, and its result posted');
 
-    // ---- pick'em: live first, then the next ones and the last results; a guess each, and a point for Rayan once T1 won
-    await ray.click('.nav[data-view="voice"]');
-    await ray.click('#groupBox .tab[data-gt="pickem"]');
-    await wait(ray, () => document.querySelectorAll('#peRows tr').length === 5, null, 'the matches');
-    const rows = (page) => page.$$eval('#peRows tr', (l) => l.map((tr) => [...tr.cells].slice(1).map((c) => c.textContent).join(' | ')));
-    assert.deepStrictEqual(await rows(ray), ['LCK · Week 1 | HLE 1–0 KT | ', 'LCK · Week 1 | T1 Bo3 GEN | ', 'LEC · Week 1 | G2 Bo1 FNC | ', 'Worlds · Quarterfinals | TBD Bo5 TBD | ', 'LEC · Week 1 | FNC 1–2 G2 | ']);
-    assert.strictEqual(await ray.locator('#peRows td').first().textContent(), 'Live');
-    assert.strictEqual(await ray.$$eval('#peRows button', (l) => l.map((b) => +!b.disabled).join('')), '0011110000', 'guesses until a match starts, once both teams are known');
-    assert.strictEqual(await text(ray, '#peRows button[data-s="won"]'), 'G2');
-    assert.strictEqual(await text(ray, '#peNote'), 'Pick the winner of each match before it starts: a point for every right one.');
-    await ray.locator('#peRows tr').nth(1).getByRole('button', { name: 'T1' }).click();
-    await wait(ray, () => document.querySelector('#peRows tr:nth-child(2) td:last-child').textContent === 'You T1', null, 'Rayan’s guess');
-    assert.strictEqual(await ray.locator('#peRows tr').nth(1).getByRole('button', { name: 'T1' }).getAttribute('aria-pressed'), 'true');
-    await duo.click('#groupBox .tab[data-gt="pickem"]');
-    await wait(duo, () => document.querySelectorAll('#peRows tr').length === 5, null, 'the matches on Duo’s page');
-    await duo.locator('#peRows tr').nth(1).getByRole('button', { name: 'GEN' }).click();
-    await wait(duo, () => document.querySelector('#peRows tr:nth-child(2) td:last-child').textContent === 'Rayan T1 · You GEN', null, 'Duo’s guess');
-    Object.assign(EV[0], match('m1', 'LCK', 'completed', T - H, 3, ['T1', 'GEN'], [2, 0]));
-    await ray.evaluate(() => lpc.groupNow());
-    await wait(ray, () => document.getElementById('peBoard').textContent === 'Points: you 1 · Duo 0', null, 'the points');
-    assert.deepStrictEqual((await rows(ray)).slice(3), ['LCK · Week 1 | T1 2–0 GEN | You T1 ✓ · Duo GEN ✗', 'LEC · Week 1 | FNC 1–2 G2 | ']);
-    await ray.selectOption('#peLeague', 'LEC');
-    assert.deepStrictEqual((await rows(ray)).map((r) => r.split(' | ')[1]), ['G2 Bo1 FNC', 'FNC 1–2 G2'], 'one league');
-    await shot(ray, 'group-pickem');
-    console.log('pick’em: live, next and last matches, a guess each, a point for the right one, one league at a time');
 
     // ---- League chat on Pregame: chats with friends, Duo#EUW's opened and answered, a new message and an invite pop up,
     // the invite accepted; your room in your League status

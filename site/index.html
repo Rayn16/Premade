@@ -557,17 +557,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .lookup { display: grid; gap: 10px; justify-items: start; }
 .stack { display: grid; gap: 10px; }
 .plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
-.quizq { font: 600 18px/1.35 var(--body); color: var(--gold-hi); }
-.quizimg { width: 96px; height: 96px; border-radius: 8px; border: 2px solid var(--gold-line); }
-.quizimg.close { width: 160px; height: 160px; object-fit: cover; }
 .quizopts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 8px; }
 .quizopts .btn { line-height: 1.3; text-align: left; }
 .quizopts .btn[data-s="picked"] { border-color: var(--gold); opacity: 1; }
 .quizopts .btn[data-s="right"] { border-color: var(--good); color: var(--good); opacity: 1; }
-.quizopts .btn[data-s="wrong"] { border-color: var(--bad); color: var(--bad); opacity: 1; }
-/* Your group: your pick'em guess in gold, a match's winner in green; and the goal board's bars */
-.pickem .btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
-.pickem .btn[data-s="won"] { border-color: var(--good); color: var(--good); opacity: 1; }
 .goals li { display: grid; gap: 4px; }
 .goals progress { width: 100%; height: 8px; accent-color: var(--gold); }
 .draftrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
@@ -980,7 +973,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <button id="teamsBtn" class="btn" type="button">Balance teams</button>
               <button id="rolesBtn" class="btn" type="button">Role roulette</button>
               <button id="bestBtn" class="btn" type="button">Best roles</button>
-              <button id="quizBtn" class="btn" type="button">Queue quiz</button>
               <button id="draftBtn" class="btn" type="button">Mock draft</button>
               <button id="mvpBtn" class="btn" type="button">MVP vote</button>
               <button id="fsBtn" class="btn" type="button">Fearless series</button>
@@ -995,14 +987,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <p id="rolesMine" class="phase"></p>
               <ul id="rolesList" class="plain"></ul>
               <div><button id="rolesSet" class="btn small" type="button" hidden>Set it in League’s lobby</button></div>
-            </div>
-            <div id="quizBox" class="stack" hidden>
-              <p id="quizHead" class="hint"></p>
-              <p id="quizQ" class="quizq"></p>
-              <img id="quizImg" class="quizimg" alt="The picture this question is about" hidden>
-              <div id="quizOpts" class="quizopts"></div>
-              <ol id="quizScores" class="plain"></ol>
-              <div class="toolbar"><button id="quizStop" class="btn small" type="button" hidden>End the quiz</button><button id="quizClose" class="btn small" type="button" hidden>Close</button></div>
             </div>
             <div id="draftBox" class="stack" hidden>
               <p id="draftHead" class="phase"></p>
@@ -1025,20 +1009,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
           <section class="panel" aria-labelledby="h-customs">
             <h2 id="h-customs" class="ph">Customs <button class="tip" type="button" popovertarget="t-customs" aria-label="About customs">?</button></h2>
-            <div class="duo">
-              <div>
-                <h3 class="ph">Inhouse ladder</h3>
-                <ol id="ladderList" class="plain"></ol>
-              </div>
-              <div>
-                <h3 class="ph">1v1 referee</h3>
-                <p class="hint">In a custom game of one player a side, the first of these to happen wins:</p>
-                <label class="check"><input id="optDuelFb" type="checkbox"> First blood</label>
-                <label class="check"><input id="optDuelCs" type="checkbox"> 100 CS</label>
-                <label class="check"><input id="optDuelTower" type="checkbox"> First tower</label>
-                <ul id="duelList" class="plain"></ul>
-              </div>
-            </div>
+            <h3 class="ph">Inhouse ladder</h3>
+            <ol id="ladderList" class="plain"></ol>
           </section>
           <section class="panel" aria-labelledby="h-track">
             <h2 id="h-track" class="ph">Your tracking <button class="tip" type="button" popovertarget="t-track" aria-label="About tracking">?</button></h2>
@@ -1063,7 +1035,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </div>
       <section id="groupBox" class="panel" aria-labelledby="h-group">
         <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
-        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button><button class="tab" type="button" role="tab" data-gt="pickem">Pick’em</button></div>
+        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button></div>
         <div class="stack" data-gt="friends">
           <div id="frInvBox" class="stack" hidden></div>
           <p id="frNote" class="hint" role="status"></p>
@@ -1084,12 +1056,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
             <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
           </div>
-        </div>
-        <div class="stack" data-gt="pickem" hidden>
-          <div class="toolbar"><label class="field">League <select id="peLeague"></select></label></div>
-          <p id="peNote" class="hint" role="status"></p>
-          <p id="peBoard" class="phase" hidden></p>
-          <div class="tablewrap"><table class="ready pickem"><tbody id="peRows"></tbody></table></div>
         </div>
       </section>
       <details id="voiceSet" class="voiceset">
@@ -1946,7 +1912,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read callouts out loud is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
 <div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read callouts out loud uses your computer’s own voice.</div>
 <div id="t-coach" class="tipbox" popover><b>Enemy timers</b>: during a game, say “Premade, mid flash”, “Premade, top ultimate” (top, jungle, mid, bot or support) or “Premade, their red” (or blue), or tap them on your phone remote, and the countdown shows with the objective timers on the overlay, the Game page and your phone, for everyone in your voice room in that game who has them on. Flash takes 5 minutes and an ultimate its cooldown at their level, less the haste in their items; a buff is back 5 minutes after it’s taken. Tap a running one on your phone to take it off. Premade listens for these phrases on your computer, as it does for clips by voice. <b>Power spikes</b>: “Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”. <b>Coach</b>: a tip now and then at the top of the screen: when you have the gold for the next item of your build (app 1.15), an objective in 60 seconds, 3 or more of them dead (app 1.15), or 2 levels down on your lane opponent. <b>I’m new</b> adds why, and what to do. <b>Jungle clock</b>: at 2:45, where their jungler likely is when their first clear ends, from their own last games and where your minimap first showed them. These show at the top of the screen (app 1.10), and Read callouts out loud reads them too.</div>
-<div id="t-customs" class="tipbox" popover><b>Inhouse ladder</b>: every custom game you play to the end with the desktop app counts, for everyone in it: a rating that goes up when you win and down when you lose, more against a stronger team. Everyone in the room shares the games they have, so the ladder is the same for all of you, and Balance teams uses it once two of the room are on it. <b>1v1 referee</b>: in a custom game of one player a side, the first of the rules you tick to happen wins, called at the top of the screen and kept in everyone’s 1v1 record. <b>Fearless series</b> (Room games, the host starts it): in the custom games after it starts, nobody picks a champion already played in it; champ select shows the ones used up.</div>
+<div id="t-customs" class="tipbox" popover><b>Inhouse ladder</b>: every custom game you play to the end with the desktop app counts, for everyone in it: a rating that goes up when you win and down when you lose, more against a stronger team. Everyone in the room shares the games they have, so the ladder is the same for all of you, and Balance teams uses it once two of the room are on it. <b>Fearless series</b> (Room games, the host starts it): in the custom games after it starts, nobody picks a champion already played in it; champ select shows the ones used up.</div>
 <div id="t-compact" class="tipbox" popover>While a game is on, this window shrinks to a strip with your mic and who's talking, and grows back when the game ends.</div>
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
@@ -1964,14 +1930,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, go through champ select (both teams, picks and bans, trades, runes, spells, skins and dodge), start enemy timers and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found or my squad calls” on the phone and it gets a notification even with its screen off or the page closed, also for your squad’s calls and pings (Your group, on the Voice page) (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-nem" class="tipbox" popover>From your games League's client has in detail (the app reads them one at a time while League is open, the newest 150): the champions you met in your lane at least three times and lost to more often than not, and your teammates' champions you won with most. Only on this computer.</div>
-<div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>Queue quiz</b>: ten quick questions from Riot's champion and item lists (titles, pictures, abilities, splash art close-ups, stories with the name blanked out, items and their costs), where fast right answers score most; it ends when the host's League finds a match. <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
+<div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here. <b>Pick’em</b>: guess the winners of Worlds’ and the big leagues’ matches, from LoL Esports’ schedule, until each one starts. Each right guess is a point.</div>
+<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -2019,7 +1985,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
-    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, duelFb: true, duelCs: true, duelTower: true,
+    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
@@ -2533,10 +2499,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // vq: your voice connection setting, Normal, Faster or Less data (see callPeer), sq: the squad you're in (Your group),
   // {t:'face', img} when it changes, {t:'pos', x, y} on every tracked frame, {t:'talk', s, g} every 5 s,
   // {t:'chat', id, text, re, att} and the rest of the room chat's (below), {t:'ready?'} for a ready check, {t:'guess'} to the host for Guess the voice, {t:'echo'} when your
-  // speakers send their voice back (echo check), {t:'timer'} for an enemy timer, {t:'cg'} and {t:'duel'} for custom games
-  // and 1v1s (Customs), and {t:'bye'} when leaving. The host sends {t:'lock', key, remove} and {t:'removed'}, and its
+  // speakers send their voice back (echo check), {t:'timer'} for an enemy timer, {t:'cg'} for custom games
+  // (Customs), and {t:'bye'} when leaving. The host sends {t:'lock', key, remove} and {t:'removed'}, and its
   // 'me' adds the voice swap (sw), the room games' teams (tm) and roles (ro), the mics it muted for everyone (hm), the
-  // last game's MVP (mv) and a Fearless series (fs); the quiz, the mock draft and the MVP vote have messages of their own
+  // last game's MVP (mv) and a Fearless series (fs); the mock draft and the MVP vote have messages of their own
   // (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
   const meMsg = () => ({
@@ -2560,7 +2526,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
     if (m.t === 'see') { p.wantSee = m.on === true; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done
     if (m.t === 'guess') return takeGuess(p.slot, m);
-    if (/^(quiz|quizA|quizR|quizEnd|draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
+    if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
       if (!roomKey) notify(`${nameOf(p)} locked the room`);
@@ -2571,11 +2537,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.t === 'removed' && p.slot === hostSlot()) { leaveRoom(); return say('The host removed you from the room.'); }
     if (m.t === 'timer' && typeof m.k === 'string' && TIMER_K.test(m.k) && Number.isFinite(m.end)) { if (league && m.g === league.room && teamOf(p) !== 'enemy') addTimer(m.g, m.k, Math.min(7200, m.end)); return; }
     if (m.t === 'cg') return void takeCustoms(m.g);
-    if (m.t === 'duel') { // a 1v1 just called (alone), or the room's record for a newcomer
-      const d = Array.isArray(m.d) && m.d.length === 1 && m.d[0] && Date.now() - m.d[0].at < 600000 && m.d[0];
-      if (takeDuels(m.d) && d && !(curGame && curGame.id === d.id)) notify(`${d.w.split('#')[0]} won a 1v1 against ${d.l.split('#')[0]}: ${d.why}.`);
-      return;
-    }
     if (m.t === 'pos' && Number.isFinite(m.x) && Number.isFinite(m.y)) p.pos = { x: clamp(m.x), y: clamp(m.y), t: performance.now() };
     if (m.t === 'me') {
       p.champ = typeof m.champ === 'string' && /^[A-Za-z0-9]{1,30}$/.test(m.champ) ? m.champ : '';
@@ -2633,8 +2594,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     c.send(meMsg());
     if (faceSent) c.send({ t: 'face', img: faceSent });
     if (fresh(me)) c.send(posMsg());
-    if (customs.length) c.send({ t: 'cg', g: customs }); // the inhouse ladder's games and 1v1s (Customs)
-    if (duels.length) c.send({ t: 'duel', d: duels });
+    if (customs.length) c.send({ t: 'cg', g: customs }); // the inhouse ladder's games (Customs)
   };
   // The voice call's own settings, for your side of it. Either of you on Less data: 60 ms packets (fewer packets, so
   // much less overhead) at 16 kbps, and nothing sent while silent (DTX), both ways. You on Faster: your friends send you
@@ -4793,7 +4753,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   // the line's callouts waiting their turn (calls) and the one showing (callCur), this game (callRoom)
   let calls = [], callCur = null, callRoom = '';
-  function sayCall(text, pri, who) { // one waiting a champion, the most urgent: a 1v1's winner 5, a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
+  function sayCall(text, pri, who) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
     if (who && calls.some((c) => c.who === who && c.pri >= pri)) return;
     calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, at: performance.now() });
   }
@@ -4879,8 +4839,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (window.speechSynthesis) { voiceList(); speechSynthesis.addEventListener('voiceschanged', voiceList); }
   $('optCallVoice').addEventListener('change', (e) => { opts.callVoice = e.target.value; saveOpts(); speak('Jungler on topside'); });
   $('callVoiceTry').addEventListener('click', () => speak('Zed missing from mid'));
-  // the callouts that aren't from your minimap: power spikes, the coach, the jungle clock and the 1v1 referee
-  const callsOn = () => !!league && boardOk() && (opts.spikeCall || opts.coach || opts.jgClock || duelOn());
+  // the callouts that aren't from your minimap: power spikes, the coach and the jungle clock
+  const callsOn = () => !!league && boardOk() && (opts.spikeCall || opts.coach || opts.jgClock);
   function callNow() { // the line at the top of the screen: null with no reminder or callouts this game, else what it says now, or ''
     const n = nudgeNow(), now = performance.now();
     if (!league || (n === null && !(share && share.foes) && !callsOn())) return null;
@@ -11846,10 +11806,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- room games (Voice page), started by the host: Balance teams (two even custom-game teams from everyone's Solo/Duo
-  // rank), Role roulette, a Queue quiz, a Mock draft and an MVP vote; and Room awards after each game. The host's 'me'
+  // rank), Role roulette, a Mock draft and an MVP vote; and Room awards after each game. The host's 'me'
   // message carries the teams (tm), roles (ro) and the MVP's crown (mv), numbered (n) so the newest wins and newcomers
-  // get them. The quiz, the draft and the vote run on the host's page: {t:'quiz'} a question, {t:'quizA'} an answer for
-  // the host, {t:'quizR'} the right answer and the scores, {t:'quizEnd'}; {t:'draft'} the draft so far, {t:'draftA'} a
+  // get them. The draft and the vote run on the host's page: {t:'draft'} the draft so far, {t:'draftA'} a
   // ban or pick for the host, {t:'draftEnd'}; {t:'mvp'} a vote, {t:'mvpV'} a vote for the host, {t:'mvpR'} the result.
   // The host's page takes its own messages too (hostSay), so the host plays like everyone else.
   const isHost = () => !!peer && hostSlot() === slot;
@@ -11861,24 +11820,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function hostSay(m) { sendOnce(m); gameMsg(slot, m); }
   function gameMsg(from, m) { // from: the sender's slot
     const host = from === hostSlot(), now = performance.now();
-    if (m.t === 'quiz' && host && Number.isFinite(m.n) && Number.isInteger(m.i) && Array.isArray(m.opts) && m.opts.length === 4 && m.opts.every((o) => typeof o === 'string')) {
-      qv = { n: m.n, i: m.i, of: m.of | 0, q: String(m.q).slice(0, 400), img: typeof m.img === 'string' && m.img.startsWith(`${DD}/`) ? m.img : '', opts: m.opts.map((o) => o.slice(0, 60)),
-        zoom: Array.isArray(m.zoom) && m.zoom.length === 2 && m.zoom.every((v) => Number.isFinite(v) && v >= 0 && v <= 1) ? m.zoom : null,
-        ends: now + Math.min(QUIZ_MS, +m.left || 0), mine: -1, right: -1, got: [], scores: qv && qv.n === m.n ? qv.scores : {}, over: false, why: '' };
-    } else if (m.t === 'quizR' && host && qv && qv.n === m.n && qv.i === m.i) {
-      qv.right = Math.max(0, Math.min(3, m.right | 0));
-      qv.got = slotsOk(m.got) ? m.got : [];
-      qv.scores = scoresOk(m.scores);
-    } else if (m.t === 'quizEnd' && host && qv && qv.n === m.n) {
-      qv.over = true;
-      qv.scores = scoresOk(m.scores);
-      qv.why = typeof m.why === 'string' ? m.why.slice(0, 120) : '';
-      const [top, pts] = Object.entries(qv.scores).sort((a, b) => b[1] - a[1])[0] || [];
-      notify(!pts ? 'Queue quiz over.' : +top === slot ? `You won the queue quiz with ${pts} points.` : `${slotName(+top)} won the queue quiz with ${pts} points.`, true);
-    } else if (m.t === 'quizA' && isHost() && quiz && m.n === quiz.n && m.i === quiz.i && !quiz.shown && !quiz.answers.has(from) && Number.isInteger(m.a) && m.a >= 0 && m.a < 4) {
-      quiz.answers.set(from, [m.a, Math.max(0, quiz.ends - now)]);
-      quizCheck();
-    } else if (m.t === 'draft' && host && Number.isFinite(m.n) && slotsOk(m.blue) && slotsOk(m.red) && Number.isInteger(m.step) && m.step >= 0 && m.step <= DRAFT.length
+    if (m.t === 'draft' && host && Number.isFinite(m.n) && slotsOk(m.blue) && slotsOk(m.red) && Number.isInteger(m.step) && m.step >= 0 && m.step <= DRAFT.length
       && Array.isArray(m.acts) && m.acts.length === m.step && m.acts.every((c) => typeof c === 'string' && /^[A-Za-z0-9]{0,30}$/.test(c))) {
       if (!dv || dv.n !== m.n) { ddSoon(); $('draftFind').value = ''; }
       dv = { n: m.n, blue: m.blue, red: m.red, step: m.step, acts: m.acts, ends: now + Math.min(DRAFT_MS, +m.left || 0), over: false };
@@ -11973,14 +11915,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     notify(okStatus(res) ? `League: ${POS[r]} first, Fill second.` : 'League didn’t take the role. It only works in a lobby where you pick roles.', true);
   }
 
-  // ---- customs with friends (Voice page): the inhouse ladder, Fearless series and the 1v1 referee. Each custom game you
+  // ---- customs with friends (Voice page): the inhouse ladder and Fearless series. Each custom game you
   // play to the end (League's client says it's a custom game) is kept (lpc-customs, the last 500: its id, when it ended,
   // and each team's Riot IDs and champions, bots left out) and shared with the room, where everyone keeps the games
   // they didn't have: {t:'cg', g: [games]} to each newcomer and after a game. So the ladder is the same on every page.
   // ponytail: anyone in the room could send made-up games; fine among friends, signed results if strangers ever join
-  let customs = load('lpc-customs', []), duels = load('lpc-duels', []);
+  let customs = load('lpc-customs', []);
   if (!Array.isArray(customs)) customs = [];
-  if (!Array.isArray(duels)) duels = [];
   const riotIdOk = (n) => typeof n === 'string' && n.length <= 40 && /^[^#]+#[^#]+$/.test(n);
   const sideOk = (t) => Array.isArray(t) && t.length >= 1 && t.length <= 5 && t.every((x) => Array.isArray(x) && riotIdOk(x[0]) && typeof x[1] === 'string' && /^[A-Za-z0-9]{0,30}$/.test(x[1]));
   function takeCustoms(list) { // true when any were new
@@ -12028,151 +11969,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     takeFs({ n: fs.n + 1, at: Date.now(), on: !fs.on });
     send(meMsg());
   }
-  // the 1v1 referee (Customs): in a custom game of one player a side, the first of the rules ticked there to happen
-  // (first blood, 100 CS, first tower) decides who wins. It's called on the line at the top and kept (lpc-duels, the last
-  // 200: the game's id, when, winner, loser, why), shared with the room like the ladder's games: {t:'duel', d: [results]}.
-  const DUEL_WHY = ['first blood', '100 CS', 'first tower'];
-  const duelOn = () => !!league && !!curGame && curGame.custom && (league.players || []).length === 2 && (opts.duelFb || opts.duelCs || opts.duelTower);
-  function takeDuels(list) { // true when any were new
-    const all = new Map(duels.map((d) => [d.id, d]));
-    for (const d of Array.isArray(list) ? list.slice(-200) : []) if (d && Number.isSafeInteger(d.id) && d.id > 0 && !all.has(d.id) && Number.isFinite(d.at) && riotIdOk(d.w) && riotIdOk(d.l) && DUEL_WHY.includes(d.why)) all.set(d.id, { id: d.id, at: d.at, w: d.w, l: d.l, why: d.why });
-    if (all.size === duels.length) return false;
-    duels = [...all.values()].sort((a, b) => a.at - b.at).slice(-200);
-    store.set('lpc-duels', JSON.stringify(duels));
-    renderCustoms();
-    return true;
-  }
-  function duelTick() {
-    if (!duelOn() || duels.some((d) => d.id === curGame.id)) return;
-    const a = league.players.find((p) => p.team === mine.team), b = league.players.find((p) => p.team !== mine.team), ev = league.events || [];
-    if (!a || !b || !riotIdOk(a.name) || !riotIdOk(b.name)) return;
-    const k = opts.duelFb && ev.find((e) => e.e === 'kill'), tw = opts.duelTower && ev.find((e) => e.e === 'tower'), cs = opts.duelCs && Math.max(a.cs, b.cs) >= 100;
-    const [, w, why] = [k && [k.t, k.on ? b : a, 0], cs && [gameNow(), a.cs >= b.cs ? a : b, 1], tw && [tw.t, tw.of === a.team ? b : a, 2]].filter(Boolean).sort((x, y) => x[0] - y[0])[0] || [];
-    if (!w) return;
-    const d = { id: curGame.id, at: Date.now(), w: w.name, l: (w === a ? b : a).name, why: DUEL_WHY[why] };
-    takeDuels([d]);
-    send({ t: 'duel', d: [d] });
-    sayCall(`${w === a ? 'You win' : `${champName(w.champ)} wins`} the 1v1: ${d.why}`, 5);
-    notify(`${w === a ? 'You won' : `${w.name.split('#')[0]} won`} the 1v1: ${d.why}.`, true);
-  }
   function renderCustoms() {
     if (!peer || document.hidden) return;
-    const rows = [...inhouse().values()].sort((a, b) => b.r - a.r).slice(0, 20), rec = new Map();
+    const rows = [...inhouse().values()].sort((a, b) => b.r - a.r).slice(0, 20);
     $('ladderList').replaceChildren(...(rows.length ? rows.map((e) => Object.assign(document.createElement('li'), { textContent: `${e.name.split('#')[0]}: ${Math.round(e.r)} · ${e.w}W ${e.l}L` }))
       : [Object.assign(document.createElement('li'), { className: 'hint', textContent: 'No custom games yet. Each one played to the end counts, for everyone in it with the desktop app.' })]));
-    for (const d of duels) for (const [n, won] of [[d.w, 1], [d.l, 0]]) { const k = n.toLowerCase(), r = rec.get(k) || { n, w: 0, l: 0 }; r[won ? 'w' : 'l']++; rec.set(k, r); }
-    $('duelList').replaceChildren(...[...rec.values()].sort((a, b) => b.w - a.w || a.l - b.l).slice(0, 20).map((r) => Object.assign(document.createElement('li'), { textContent: `${r.n.split('#')[0]}: ${r.w}W ${r.l}L in 1v1s` })));
   }
 
-  // Queue quiz: ten questions from Riot's Data Dragon (champions' titles, pictures, classes, ranges, abilities, splash
-  // art close-ups and stories with the name blanked out; items' pictures and costs), 15 seconds each; a right answer
-  // scores 100, plus up to 50 for speed (timed on the host's page). It ends early once the host's League finds a match.
-  const QUIZ_MS = 15000, QUIZ_SHOW = 4000;
-  let quiz = null, qv = null; // the host's quiz, with the right answers; and the quiz as this page shows it
+  // the MVP vote's counts as the host sends them: slot -> number
   const scoresOk = (o) => Object.fromEntries(Object.entries(o && typeof o === 'object' ? o : {}).filter(([k, v]) => /^\d$/.test(k) && Number.isFinite(v)).map(([k, v]) => [k, Math.max(0, Math.round(v))]));
-  // spells: a few champions' abilities, [{ c, spells: [{ name, img }] }] (champSpells)
-  function quizQuestions(n, spells = []) {
-    const cs = allChamps().filter((c) => c.name), pick = (l, k) => shuffled(l).slice(0, k), out = [];
-    const items = ddItems ? Object.entries(ddItems).filter(([, it]) => it.done && it.rift && it.name && it.gold).map(([id, it]) => ({ id, ...it })) : [], gold = (g) => `${g.toLocaleString('en-US')} gold`;
-    const others = (c) => pick(cs.filter((x) => x.id !== c.id), 3).map((x) => x.name);
-    const make = {
-      title: () => { const [c, ...o] = pick(cs.filter((x) => x.title), 4); return o.length === 3 && { q: `Which champion is “${c.title}”?`, a: c.name, o: o.map((x) => x.name) }; },
-      face: () => { const [c, ...o] = pick(cs, 4); return o.length === 3 && !!ddVersion && { q: 'Who is this?', img: champPic(c.id), a: c.name, o: o.map((x) => x.name) }; },
-      role: () => {
-        const tag = shuffled(['Assassin', 'Fighter', 'Mage', 'Marksman', 'Support', 'Tank'])[0], [c] = pick(cs.filter((x) => (x.tags || [])[0] === tag), 1), o = pick(cs.filter((x) => !(x.tags || []).includes(tag)), 3);
-        return !!c && o.length === 3 && { q: `Which of these champions is ${/^[AEIOU]/.test(tag) ? 'an' : 'a'} ${tag.toLowerCase()}?`, a: c.name, o: o.map((x) => x.name) };
-      },
-      range: () => {
-        const four = [];
-        for (const x of pick(cs.filter((y) => y.stats && y.stats.attackrange > 0), 12)) if (four.length < 4 && !four.some((y) => y.stats.attackrange === x.stats.attackrange)) four.push(x);
-        if (four.length < 4) return null;
-        const [c, ...o] = four.sort((x, y) => y.stats.attackrange - x.stats.attackrange);
-        return { q: 'Which of these champions has the longest attack range?', a: c.name, o: o.map((x) => x.name) };
-      },
-      cost: () => {
-        const [it] = pick(items, 1), o = it ? pick([...new Set(items.map((x) => x.gold))].filter((g) => g !== it.gold), 3) : [];
-        return o.length === 3 && { q: `How much does ${it.name} cost?`, a: gold(it.gold), o: o.map(gold) };
-      },
-      item: () => {
-        const [it, ...o] = pick([...new Map(items.map((x) => [x.name, x])).values()], 4);
-        return o.length === 3 && !!ddVersion && { q: 'Which item is this?', img: `${DD}/cdn/${ddVersion}/img/item/${it.id}.png`, a: it.name, o: o.map((x) => x.name) };
-      },
-      ability: () => {
-        const [x] = pick(spells, 1), [sp] = x ? pick(x.spells, 1) : [];
-        return !!sp && { q: 'Whose ability is this?', img: sp.img, a: x.c.name, o: others(x.c) };
-      },
-      // a close-up of the default splash art: a square about a quarter of its width, somewhere around the middle
-      splash: () => {
-        const [c] = pick(cs, 1), x = 0.25 + Math.random() * 0.5, y = 0.3 + Math.random() * 0.4;
-        return !!c && { q: 'Whose splash art is this close-up from?', img: `${DD}/cdn/img/champion/splash/${c.id}_0.jpg`, zoom: [+x.toFixed(3), +y.toFixed(3)], a: c.name, o: others(c) };
-      },
-      lore: () => {
-        const [c] = pick(cs.filter((x) => x.blurb && x.blurb.length > 80), 1);
-        if (!c) return null;
-        const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), names = [c.name, c.id, ...c.name.split(/[\s.]+/).filter((w) => w.length > 3)];
-        let text = c.blurb.replace(/<[^>]+>/g, ' ').replace(new RegExp(`\\b(${names.map(esc).join('|')})\\b`, 'gi'), '____').replace(/\s+/g, ' ').trim();
-        if (text.length > 300) text = text.slice(0, (text.lastIndexOf('. ', 300) + 1) || 300).trim() + (text.lastIndexOf('. ', 300) > 0 ? '' : '…');
-        return { q: `Whose story is this? “${text}”`, a: c.name, o: others(c) };
-      },
-    };
-    for (let i = 0; out.length < n && i < n * 5; i++) {
-      const q = make[shuffled(Object.keys(make))[0]]();
-      if (q && !out.some((x) => x.q === q.q && x.a === q.a)) { const opts = shuffled([q.a, ...q.o]); out.push({ q: q.q, img: q.img || '', zoom: q.zoom || null, opts, right: opts.indexOf(q.a) }); }
-    }
-    return out;
-  }
-  // a few champions' abilities (their own Data Dragon files), for the quiz's ability pictures
-  async function champSpells(n) {
-    const out = [];
-    await Promise.all(shuffled(allChamps()).slice(0, n).map(async (c) => {
-      try {
-        const d = (await (await fetch(`${DD}/cdn/${ddVersion}/data/en_US/champion/${c.id}.json`)).json()).data[c.id], img = (kind, x) => `${DD}/cdn/${ddVersion}/img/${kind}/${x.image.full}`;
-        out.push({ c, spells: [...(d.spells || []).map((x) => ({ name: x.name, img: img('spell', x) })), ...(d.passive ? [{ name: d.passive.name, img: img('passive', d.passive) }] : [])] });
-      } catch {}
-    }));
-    return out;
-  }
-  async function startQuiz() {
-    if (!isHost()) return;
-    await ddragon().catch(() => null);
-    itemsSoon();
-    const qs = quizQuestions(10, ddVersion ? await champSpells(4) : []);
-    if (qs.length < 3) return notify('The quiz needs Riot’s champion list, which didn’t load. Try again in a minute.', true);
-    quiz = { n: Date.now(), qs, i: -1, scores: {}, answers: new Map(), ends: 0, shown: 0 };
-    nextQuestion();
-  }
-  function nextQuestion() {
-    if (++quiz.i >= quiz.qs.length) return endQuiz('');
-    const q = quiz.qs[quiz.i];
-    quiz.answers = new Map();
-    quiz.ends = performance.now() + QUIZ_MS;
-    quiz.shown = 0;
-    hostSay({ t: 'quiz', n: quiz.n, i: quiz.i, of: quiz.qs.length, q: q.q, img: q.img, ...(q.zoom && { zoom: q.zoom }), opts: q.opts, left: QUIZ_MS });
-  }
-  function quizCheck() { // the host: the answer once everyone answered or time's up, and the next question 4 s later
-    if (!quiz || quiz.i < 0) return;
-    const now = performance.now();
-    if (lcu && /^(ReadyCheck|ChampSelect|GameStart|InProgress)$/.test(lcu)) return endQuiz('A match was found, so it ends here. Good luck!');
-    if (!quiz.shown && (now >= quiz.ends || roomSlots().every((s) => quiz.answers.has(s)))) {
-      const q = quiz.qs[quiz.i], got = [];
-      for (const [s, [a, left]] of quiz.answers) if (a === q.right) { got.push(s); quiz.scores[s] = (quiz.scores[s] || 0) + 100 + Math.round((50 * left) / QUIZ_MS); }
-      quiz.shown = now;
-      hostSay({ t: 'quizR', n: quiz.n, i: quiz.i, right: q.right, got, scores: quiz.scores });
-    } else if (quiz.shown && now - quiz.shown >= QUIZ_SHOW) nextQuestion();
-  }
-  function endQuiz(why) {
-    if (!quiz) return;
-    const m = { t: 'quizEnd', n: quiz.n, scores: quiz.scores, why };
-    quiz = null;
-    hostSay(m);
-  }
-  function quizAnswer(a) {
-    if (!qv || qv.over || qv.mine >= 0 || qv.right >= 0) return;
-    qv.mine = a;
-    const m = { t: 'quizA', n: qv.n, i: qv.i, a };
-    if (isHost()) gameMsg(slot, m); else sendOnce(m);
-    renderQuiz();
-  }
 
   // Mock draft: a tournament draft like Clash's (three bans each, three picks each, two more bans, two more picks), 30
   // seconds a turn, on the balanced teams or every other player. Anyone on the side whose turn it is can choose, and
@@ -12295,7 +12100,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function renderRoomGames() {
     if (!peer || document.hidden) return;
     const host = isHost(), n = roomSlots().length;
-    for (const id of ['rolesBtn', 'bestBtn', 'quizBtn', 'draftBtn']) $(id).disabled = !host;
+    for (const id of ['rolesBtn', 'bestBtn', 'draftBtn']) $(id).disabled = !host;
     $('teamsBtn').disabled = $('mvpBtn').disabled = !host || n < 2 || !!vote;
     $('fsBtn').disabled = !host || (n < 2 && !fs.on);
     $('fsBtn').textContent = fs.on ? 'End the Fearless series' : 'Fearless series';
@@ -12309,7 +12114,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderCustoms();
     renderTeams();
     renderRoles();
-    renderQuiz();
     renderDraft();
     renderMvp();
     const g = games[0], on = !!g && g.room === room && Array.isArray(g.awards) && g.awards.length > 0 && Date.now() - g.at - g.ms < 3600e3;
@@ -12343,32 +12147,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('rolesMine').textContent = r ? `Your role: ${POS[r]}.${roles.b ? ' Best roles: from everyone’s wins in each role lately.' : ''}` : 'You joined after the roles were handed out.';
     $('rolesList').replaceChildren(...here.map((s) => Object.assign(document.createElement('li'), { textContent: `${slotName(s)}: ${POS[roles.map[s]]}${roles.b ? ` (${roleRecord(s, roles.map[s])})` : ''}` })));
     $('rolesSet').hidden = !canSetRole();
-  }
-  function renderQuiz() {
-    $('quizBox').hidden = !qv;
-    if (!qv) return;
-    const left = Math.max(0, Math.ceil((qv.ends - performance.now()) / 1000)), box = $('quizOpts');
-    $('quizHead').textContent = qv.over ? `Quiz over.${qv.why ? ' ' + qv.why : ''}` : `Question ${qv.i + 1} of ${qv.of}: ${qv.right < 0 ? `${left} s left` : qv.got.length ? `right: ${qv.got.map(slotName).join(', ')}` : 'nobody got it'}.`;
-    $('quizQ').textContent = qv.q;
-    $('quizQ').hidden = qv.over;
-    $('quizImg').hidden = qv.over || !qv.img;
-    if (qv.img && $('quizImg').getAttribute('src') !== qv.img) $('quizImg').src = qv.img;
-    // a splash art close-up shows a square around zoom (fractions of the picture), a quarter of its width
-    const z = qv.zoom, pc = (v) => `${(100 * v).toFixed(1)}%`;
-    $('quizImg').classList.toggle('close', !!z);
-    $('quizImg').style.setProperty('object-view-box', z ? `inset(${pc(z[1] - 0.21)} ${pc(1 - z[0] - 0.125)} ${pc(1 - z[1] - 0.21)} ${pc(z[0] - 0.125)})` : '');
-    if (box.dataset.q !== `${qv.n}/${qv.i}`) {
-      box.dataset.q = `${qv.n}/${qv.i}`;
-      box.replaceChildren(...qv.opts.map((o, i) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: o }); b.addEventListener('click', () => quizAnswer(i)); return b; }));
-    }
-    box.hidden = qv.over;
-    [...box.children].forEach((b, i) => {
-      b.disabled = qv.mine >= 0 || qv.right >= 0;
-      b.dataset.s = qv.right === i ? 'right' : qv.mine === i ? (qv.right >= 0 ? 'wrong' : 'picked') : '';
-    });
-    $('quizScores').replaceChildren(...roomSlots().map((s) => [s, qv.scores[s] || 0]).sort((a, b) => b[1] - a[1]).map(([s, pts]) => Object.assign(document.createElement('li'), { textContent: `${slotName(s)}: ${pts}` })));
-    $('quizStop').hidden = !(isHost() && quiz);
-    $('quizClose').hidden = !qv.over;
   }
   let gridOf = 0; // how many champions the draft's grid was made with
   function renderDraft() {
@@ -12425,9 +12203,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('rolesBtn').addEventListener('click', spinRoles);
   $('bestBtn').addEventListener('click', bestRoles);
   $('rolesSet').addEventListener('click', setRole);
-  $('quizBtn').addEventListener('click', startQuiz);
-  $('quizStop').addEventListener('click', () => endQuiz('The host ended it.'));
-  $('quizClose').addEventListener('click', () => { qv = null; renderQuiz(); });
   $('draftBtn').addEventListener('click', startDraft);
   $('draftAgain').addEventListener('click', startDraft);
   $('draftStop').addEventListener('click', () => {
@@ -12440,14 +12215,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('mvpClose').addEventListener('click', () => { vv = null; renderMvp(); });
   function gamesTick() {
     const now = performance.now();
-    if (isHost()) { quizCheck(); voteCheck(); if (draft && draft.ends && now >= draft.ends) draftTimeout(); }
+    if (isHost()) { voteCheck(); if (draft && draft.ends && now >= draft.ends) draftTimeout(); }
     // nothing came from the host on time: the host left, so it ends here
-    if (qv && !qv.over && !quiz && now > qv.ends + QUIZ_SHOW + 5000) Object.assign(qv, { over: true, why: 'The host left, so it ends here.' });
     if (dv && !dv.over && !draft && dv.step < DRAFT.length && now > dv.ends + 5000) dv.over = 'left';
     if (vv && !vv.over && !vote && now > vv.ends + 5000) vv.over = 'left';
     renderRoomGames();
   }
-  function resetGames() { teams = { n: 0, a: [], b: [] }; roles = { n: 0, map: {} }; quiz = draft = qv = dv = vote = vv = null; mv = { n: 0, s: -1, name: '' }; mvBy = -1; }
+  function resetGames() { teams = { n: 0, a: [], b: [] }; roles = { n: 0, map: {} }; draft = dv = vote = vv = null; mv = { n: 0, s: -1, name: '' }; mvBy = -1; }
 
   // ---- the goal board in your room: everyone with a rank goal (lolShare's g), the closest first, with a bar from where
   // they were when they picked it
@@ -12680,13 +12454,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     renderFriends();
   });
 
-  let gTab = ['squad', 'pickem'].includes(store.get('lpc-group-tab')) ? store.get('lpc-group-tab') : 'friends';
+  let gTab = ['squad'].includes(store.get('lpc-group-tab')) ? store.get('lpc-group-tab') : 'friends';
   function renderGroup() {
     if (document.hidden) return;
     for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.setAttribute('aria-selected', String(b.dataset.gt === gTab));
     for (const d of $('groupBox').querySelectorAll('div[data-gt]')) d.hidden = d.dataset.gt !== gTab;
     renderInvites();
-    if (gTab === 'friends') renderFriends(); else if (gTab === 'squad') renderSquad(); else renderPickem();
+    if (gTab === 'friends') renderFriends(); else renderSquad();
   }
   function renderSquad() {
     const c = squad && sq && sq.call, theirs = !!c && c.from !== squad.id, others = new Map(); // the squads friends in your room are in: code -> their names
@@ -12710,64 +12484,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('sqIn10').hidden = $('sqNo').hidden = !theirs;
   }
   $('sqMake').addEventListener('click', () => joinSquad(id12()));
-  $('sqLeave').addEventListener('click', () => { if (confirm('Leave your squad? Its calls and pings stop, and your pick’em guesses go.')) leaveSquad(); });
+  $('sqLeave').addEventListener('click', () => { if (confirm('Leave your squad? Its calls and pings stop.')) leaveSquad(); });
   $('sqCallBtn').addEventListener('click', callSquad);
   $('sqIn10').addEventListener('click', () => sqAnswer('in10'));
   $('sqNo').addEventListener('click', () => sqAnswer('no'));
   $('sqJoin').addEventListener('click', () => { const c = sq && sq.call; if (!c) return; if (peer && room !== c.room) leaveRoom(); joinRoom(c.room); });
   for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.addEventListener('click', () => { gTab = b.dataset.gt; store.set('lpc-group-tab', gTab); renderGroup(); });
 
-  // Pick'em: Worlds' and the big leagues' matches from LoL Esports, through our server (server/esports.js; asked every
-  // minute while it shows): live ones with their games won, the next ones with a guess on either team until they start,
-  // and the last results. Each right guess is a point for that squad member (server/squad.js keeps the guesses).
-  let ev = null, evAt = -Infinity; // ev: null until our server first answers
-  async function evLoad() {
-    evAt = performance.now();
-    const j = await fetch(`${serverUrl}/esports`).then((r) => r.json()).catch(() => null);
-    ev = j && Array.isArray(j.ev) ? j.ev.slice().sort((a, b) => a.at - b.at) : ev || [];
-    renderGroup();
-  }
-  async function pickTeam(match, team) {
-    const r = await sqPost('pick', { match, team });
-    if (r.error) notify(`Pick’em: ${r.error}.`, true);
-    sqAt = -Infinity;
-  }
-  function renderPickem() {
-    const sel = $('peLeague'), now = Date.now(), picks = (squad && sq && sq.picks) || {}, all = ev || [], lgs = [...new Set(all.map((e) => e.lg))].sort();
-    if (sel.dataset.key !== lgs.join('|')) { const v = sel.value; sel.dataset.key = lgs.join('|'); sel.replaceChildren(new Option('All of them', ''), ...lgs.map((n) => new Option(n, n))); sel.value = lgs.includes(v) ? v : ''; }
-    const live = (e) => e.st === 'inProgress' || (e.st === 'unstarted' && e.at <= now), l = all.filter((e) => !sel.value || e.lg === sel.value);
-    const shown = [...l.filter(live), ...l.filter((e) => e.st === 'unstarted' && e.at > now).slice(0, 15), ...l.filter((e) => e.st === 'completed').reverse().slice(0, 10)];
-    const pts = {};
-    for (const x of Object.values(picks)) if (x.w) for (const [id, t] of Object.entries(x.p)) pts[id] = (pts[id] || 0) + (t === x.w ? 1 : 0);
-    $('peBoard').hidden = !squad || !sq || !Object.keys(pts).length;
-    if (!$('peBoard').hidden) $('peBoard').textContent = `Points: ${sq.m.map((m) => [m, pts[m.id] || 0]).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m.id === squad.id ? 'you' : m.n} ${n}`).join(' · ')}`;
-    $('peNote').textContent = !ev ? 'Loading the matches…' : !ev.length ? 'No matches from Worlds or the big leagues these two weeks, or LoL Esports didn’t answer.'
-      : !squad ? 'Make or join a squad (the Squad tab) to guess the winners with your friends.' : 'Pick the winner of each match before it starts: a point for every right one.';
-    const key = JSON.stringify([shown, picks, squad && squad.id, Math.floor(now / 60000)]);
-    if ($('peRows').dataset.key === key) return;
-    $('peRows').dataset.key = key;
-    $('peRows').replaceChildren(...shown.map((e) => {
-      const tr = document.createElement('tr'), x = picks[e.id], mine = squad && x && x.p[squad.id], open = !!squad && e.st === 'unstarted' && e.at > now && !e.t.some((t) => t.c === 'TBD');
-      const [a, b] = e.t.map((t) => {
-        const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: t.c, title: t.n, disabled: !open, onclick: () => pickTeam(e.id, t.c) });
-        btn.setAttribute('aria-pressed', String(mine === t.c));
-        if (e.st === 'completed' && t.o === 'win') btn.dataset.s = 'won';
-        return btn;
-      });
-      for (let i = 0; i < 4; i++) tr.append(document.createElement('td'));
-      tr.children[0].textContent = live(e) ? 'Live' : whenText(e.at);
-      tr.children[1].textContent = [e.lg, e.bl].filter(Boolean).join(' · ');
-      tr.children[2].append(a, ` ${live(e) || e.st === 'completed' ? `${e.t[0].w}–${e.t[1].w}` : `Bo${e.bo}`} `, b);
-      tr.children[3].textContent = x ? Object.entries(x.p).map(([id, t]) => `${sqName(id)} ${t}${x.w ? (t === x.w ? ' ✓' : ' ✗') : ''}`).join(' · ') : '';
-      return tr;
-    }));
-  }
-  $('peLeague').addEventListener('change', renderPickem);
   async function groupTick() { // once a second
     friendsLoop();
     if (!profView.hidden) renderProFriends();
     const shown = !!$('groupBox').offsetParent;
-    if (shown && gTab === 'pickem' && performance.now() - evAt > 60000) evLoad();
     if (shown) renderGroup();
     if (!squad || sqBusy) return;
     sqBusy = true;
@@ -12954,14 +12681,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
-    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, duelFb: renderCustoms, duelCs: renderCustoms, duelTower: renderCustoms, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
+    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optDuelFb', 'duelFb'], ['optDuelCs', 'duelCs'], ['optDuelTower', 'duelTower'],
+    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optHistory', 'history'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo']]) {
     $(id).checked = opts[k];
@@ -13138,6 +12865,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [78, 'October 25: a tidier Premade', [
+      'Pick’em, the 1v1 referee and the Queue quiz are gone, so the Voice page has less in it.',
+      'The Features page has fewer, clearer cards: features that showed the same thing in several places are now one card each, like Callouts, Scouting, Screen share, Your build and Your patterns.',
+    ]],
     [77, 'October 25: screen shares and rooms stay connected', [
       'A screen share in the room no longer cuts off and reconnects when the picture stays still or a Premade window is minimized. It only restarts when its connection really breaks.',
       'A short hiccup in someone’s connection, like a busy upload while sharing a screen, no longer drops them from the room. Premade waits 10 seconds before reconnecting them.',
@@ -13557,15 +13288,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
       ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
         'Type Name#TAG in the box beside your name. In a live game, click a name to open that player.', '#proId'],
-      ['Ladder place', 'Where a Solo/Duo rank stands on its server’s ladder at every rank, not just Master and up, like “Top 14% of EUW · about #420,000”, for you and anyone you look up.',
-        'Under the Solo/Duo rank on Profile, for EUW, NA and KR. Our server counts the ladder once a day.', '#proRanks'],
-      ['Hidden MMR', 'A rough idea of your hidden MMR: the average rank in your last 20 Solo/Duo games against yours, and the LP you win against the LP you lose, like “Your games are around Gold I while you’re Silver II, so you should climb fast”.',
-        'Under your Solo/Duo rank on Profile, once Premade has read a few of your Solo/Duo games.', '#proRanks', 'app'],
       ['Queues and older games', 'A tab for each queue (All, Solo/Duo, Flex, Normal, ARAM and TFT), each with its own record. Show more games goes back months, 20 games at a time.',
         'Pick a tab above Recent games. TFT comes from League’s client, so it needs the desktop app.', '#proQueues'],
-      ['Rank cards', 'Each rank with Riot’s emblem, this season’s peak and your past seasons, and League’s warnings: placement games left, days until decay from Diamond up, and when one loss can drop you a division.',
-        'Nothing to set up. A goal you pick in Stats, You, shows on its card too.', '#proRanks'],
-      ['Live game', 'When you or a player you look up is in a game, all ten players in it with their rank.', 'Nothing to set up. Click a name to open their profile.', '#proLiveBox'],
+      ['Rank cards', 'Each rank with Riot’s emblem, this season’s peak and your past seasons, and League’s warnings: placement games left, days until decay from Diamond up, and when one loss can drop you a division. Under Solo/Duo, where it stands on its server’s ladder at every rank, like “Top 14% of EUW · about #420,000”, and in the desktop app a rough idea of your hidden MMR, like “Your games are around Gold I while you’re Silver II, so you should climb fast”.',
+        'Nothing to set up. Ladder places are for EUW, NA and KR, counted once a day. A goal you pick in Stats, You, shows on its card too.', '#proRanks'],
+      ['Live game', 'When you or a player you look up is in a game, all ten players in it with their rank, each team’s average rank and which team is favored.',
+        'Nothing to set up. Click a name to open their profile.', '#proLiveBox'],
       ['Tags and roles', 'Tags from the last 20 games, like a win streak, a first game on a champion or a possible smurf, and gold ones just for fun. Roles shows the games and wins in each role.', 'Nothing to set up.', '#proTagsBox'],
       ['Compare with me', 'Any player next to you: rank, top champions, CS a minute, KDA, vision and your record together.', 'Look a player up, then press Compare with me.', '#proCmp'],
       ['Share my profile', 'A web page with your rank, record and top champions that anyone can open, without the app.', 'Share my profile, on your own profile while League is open, then Copy.', '#profileBtn', 'app'],
@@ -13578,13 +13306,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share quality', 'Your shared screen at 720p, 1080p or 1440p and 30, 60 or 120 fps, for everyone watching it in the room.', 'Under Players on the Voice page: Screen share quality and Frame rate. A change takes effect at once.', '#optShareQ'],
-      ['Screens in the room', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off.',
-        'Screens show at the top of the Voice page; Hide one, and Show screen on their card brings it back. On unless you turn it off: Let the room watch my screen, under Players on the Voice page.', '#optRoomScreen, #createBtn'],
+      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off. In the Windows app, the Discord desktop app is filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+        'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
-      ['Sound with your screen', 'Screen audio is on by default. In the Windows app, the Discord desktop app is filtered out while game and other system audio remain. Discord in a browser can still be included. Premade tells you when screen audio is shared or muted. In the Windows app, Choose a different screen takes you to Settings > Screen; on the website, it reopens the browser screen picker.',
-        'Share my screen’s sound with the room is under Players. Each screen tile has its own volume; browser sharing uses the browser’s Share audio option.', '#roomScreens, #optRoomSound, #changeShareBtn'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
@@ -13603,22 +13328,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat on the Voice page. On unless you untick Keep my voice sessions.', '#optHistory'],
       ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
       ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'In your room. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
-      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles, a Queue quiz, a Mock draft, an MVP vote and a Fearless series. Room awards come after each game with friends in voice.',
-        'Room games, in your room.', '#h-games, #createBtn'],
-      ['Best roles', 'For a 5-stack or Clash: who should play which role, from the roles each of you wins most in lately, instead of Role roulette’s random pick.', 'Room games, in your room: the host presses Best roles.', '#bestBtn, #createBtn', 'app'],
+      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles (who should play which role, from the roles each of you wins most in lately), a Mock draft, an MVP vote and a Fearless series (custom games where nobody picks a champion already played in it; champ select shows the ones used up). Room awards come after each game with friends in voice.',
+        'Room games, in your room. Best roles and the Fearless series need the desktop app.', '#h-games, #createBtn'],
       ['Inhouse ladder', 'A rating for everyone in your custom games with friends, up for a win and down for a loss, with a leaderboard. Balance teams uses it once two of the room are on it.',
         'Nothing to set up: play custom games to the end with the desktop app. Customs, in your room.', '#h-customs, #createBtn', 'app'],
-      ['Fearless series', 'Custom games where nobody picks a champion already played in the series. Champ select shows the ones used up.', 'The host presses Fearless series in Room games, and again to end it.', '#fsBtn, #createBtn', 'app'],
-      ['1v1 referee', 'In a custom game of one player a side, Premade calls the winner by the rules you tick (first blood, 100 CS, first tower) and keeps everyone’s 1v1 record.', 'Customs, in your room: tick the rules.', '#optDuelFb, #createBtn', 'app'],
       ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in your room.', '#h-goals, #createBtn', 'app'],
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade to join your voice room, no code needed.',
+      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade to join your voice room, no code needed. They’re under your profile too: click one to see their profile, rank and games.',
         'Your group, on the Voice page: Friends. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
-      ['Friends on Profile', 'Your friends under your profile: click one to see their profile, rank and games.', 'Profile, under your own profile. Your League friends show in the desktop app with League open; add others in Friends, on the Voice page.', '#proFriends'],
       ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
         'On unless you turn it off: Your group, on the Voice page, Friends, under the list.', '#optLobbyRoom', 'app'],
       ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
         'Your group, on the Voice page: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
-      ['Pick’em', 'Guess the winners of Worlds’ and the big leagues’ matches with your squad: a point for every right guess, with live scores and the last results.', 'Your group, on the Voice page: Pick’em. It needs a squad.', '#groupBox'],
       ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
         'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling or Bluetooth mic.',
@@ -13645,14 +13365,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Pregame settings: type your champions, first choice first, then your bans.', '#optHoverPicks', 'app'],
       ['Lock in before time runs out', 'When your pick is about to run out of time with a champion hovered, Premade locks it in for you, so you never dodge by accident.',
         'Pregame settings, Match found and champ select. Off until you tick it.', '#optAutoLock', 'app'],
-      ['Runes, spells and builds', 'When you lock in: a rune page (the most popular, Riot’s, or your own usual one), your summoner spells with Flash on your key, and the most popular build and yours in League’s shop. Another button puts on the page those players take against your laner.',
-        'On unless you turn it off: Pregame settings, Runes and items.', '#optRunes', 'app'],
-      ['Builds at your rank', 'Our server counts Emerald and Diamond games too. Below Master, the most popular runes, spells and build in champ select come from those once your champion has enough of them, and the tier list and champion pages can switch between them and Challenger and Grandmaster games.',
-        'Nothing to set up. Pregame settings, Runes and items, can pick the games once our server has some.', '#optRuneSrc', 'app'],
-      ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, off-role, a possible smurf), and everyone’s from the loading screen on. Names Riot hides in Solo/Duo champ select stay hidden.',
-        'On unless you turn it off: Settings, League.', '#optScout', 'app'],
-      ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too.',
-        'In champ select and on the loading screen, once both champions are known. Riot’s rules keep tips out of the game itself.', '#csTips', 'app'],
+      ['Runes, spells and builds', 'When you lock in: a rune page (the most popular, Riot’s, or your own usual one), your summoner spells with Flash on your key, and the most popular build and yours in League’s shop. Another button puts on the page those players take against your laner. Below Master they come from Emerald and Diamond games once your champion has enough of them, and the tier list and champion pages can switch between those and Challenger and Grandmaster games.',
+        'On unless you turn it off: Pregame settings, Runes and items, which also picks the games.', '#optRunes', 'app'],
+      ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, off-role, a possible smurf) in champ select, and everyone’s from the loading screen on. On League’s loading screen the overlay shows all ten like Porofessor: your team at the top left and theirs below, with the tips for your lane on the right. Names Riot hides in Solo/Duo champ select stay hidden.',
+        'On unless you turn it off: Settings, League, and the Overlay page, What it shows. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optScout', 'app'],
+      ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
+        'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, What it shows.', '#csTips', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
       ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, at the top of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
@@ -13666,11 +13384,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Game', 'What’s going on in your game, and how you played once it’s over.', [
       ['In game', 'From the loading screen on: everyone’s rank and last 20 games, when the next Dragon, Elder and Baron come, inhibitors coming back, the gold difference, and your CS and lane against your opponent.',
         'Nothing to set up: Game opens by itself when a game loads (Pregame settings).', '#liveBox', 'app'],
-      ['Lobby rank', 'Each team’s average rank and which team is favored, in your game from the loading screen on and in any live game you look up.', 'Nothing to set up: on Game, on the loading screen overlay and in Live game on Profile.', '#liveAvg', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
-      ['ARAM: Mayhem augments', 'When you pick an augment, what kind suits your champion, on the overlay and on Game.', 'Nothing to set up.', '#augTips', 'app'],
-      ['Mayhem augment ratings', 'When you pick an augment in ARAM: Mayhem, each card shows its champion-specific pick rate and tier, or tier only. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
-        'Tick “Show each augment’s rating” on the Overlay page. Choose pick rate and tier or tier only. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs', 'app'],
+      ['ARAM: Mayhem augments', 'When you pick an augment in ARAM: Mayhem, what kind suits your champion, on the overlay and on Game, and on each card its champion-specific pick rate and tier, or tier only. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
+        'Tick “Show each augment’s rating” on the Overlay page. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs, #augTips', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
@@ -13682,10 +13398,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
       ['LP tracker and rank goal', 'Your LP after each ranked game, today’s wins, losses and LP, a chart of your rank, and how many wins your goal takes at the LP you usually win.',
         'Stats, You, Ranked: pick a Goal. It counts the games you play with the app open.', '#lpGoal', 'app'],
-      ['Trends', 'Your CS a minute, vision and deaths over your last 20 games, with Riot’s extra numbers: skillshots hit and dodged, allies saved and turret plates.', 'Stats, You.', '#h-trends', 'app'],
-      ['Comebacks, throws and game length', 'The games you won from 1,000 gold behind at 15 minutes or lost from 1,000 ahead, and your win rate in short and long games, overall and on each champion.', 'Stats, You.', '#h-swings', 'app'],
-      ['Hall of fame and best time to play', 'Your pentakills, best KDA, most kills and damage, longest win streak and longest game, and your win rate by time of day and day of the week.', 'Stats, You.', '#h-fame', 'app'],
-      ['When to stop', 'Your win rate after a loss and after 2 or 3 losses in a row, and in your first to fifth game of the day, so you know when to call it a night.', 'Stats, You.', '#h-stop', 'app'],
+      ['Your patterns', 'Your CS a minute, vision and deaths over your last 20 games with Riot’s extra numbers; the games you won from 1,000 gold behind at 15 minutes or lost from 1,000 ahead; your win rate in short and long games, by time of day and day of the week, and after 1, 2 or 3 losses in a row, so you know when to call it a night; and your hall of fame: pentakills, best KDA, most kills and damage, longest win streak and longest game.',
+        'Stats, You.', '#h-trends', 'app'],
       ['Season recap', 'Your last 100 games on one picture to save and share: your record, top champions, best game and who you played with most.', 'Stats, You: Make my recap.', '#recapBtn', 'app'],
       ['Champion pages', 'Your runes, build, skill order, matchups and notes on each champion, and how it does in high elo (or Emerald and Diamond) in each role.', 'Stats, Champions: pick a champion. Champions in the tier list open their page too.', '#h-mychamps', 'app'],
       ['One-tricks and pro builds', 'On each champion’s page: the high elo players with the most games on it and what they take, and pro players’ latest solo queue games on it with their items, from Leaguepedia’s player list.',
@@ -13721,34 +13435,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
-      ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Each card shows your champion and K/D/A. Saved clips are never binned when the folder gets too big.', 'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
-      ['The clip player', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen on the video, then a timeline with the highlights over the timestamps, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor opens it in Windows’ own app; Audio sets the volume.',
-        'Play or cut on a clip, or Watch on a match video (app 1.19). Drag the handles, then Save the cut.', '#h-clips', 'app'],
-      ['The clip editor', 'Cut a clip or a match video, change its speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
-        'Open in Editor in the clip player.', '#h-clips', 'app'],
-      ['Recording quality', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate.',
-        'Clip settings, Recording: Quality and Frame rate. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
-      ['Saved clips and videos', 'Press Save on a clip or a match video and it goes in Saved, at the top of the Clips page, and is never moved to the Recycle Bin.', 'The Clips page, Saved.', '#h-saved', 'app'],
-      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself at the quality in Clip settings, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
-        'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Watching highlights in Premade needs app 1.18.', '#optGameVideo', 'app'],
-      ['Match video cards', 'Each match video is a card with a picture from the game, its length, when, its size and how many highlights. Click the picture to watch it with its highlights on the timeline, or ▶ Highlights to play them one after another.',
-        'The Clips page, Whole matches and highlights. Pictures need app 1.20.', '#vidBox', 'app'],
-      ['Clips folder', 'Pick where clips and match videos are saved, instead of Videos\\Premade. What’s already saved stays where it was.', 'Clip settings, Recording, Change folder (app 1.18).', '#clipSet [data-where="pick"]', 'app'],
+      ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Each card shows your champion and K/D/A. Save puts a clip or a match video in Saved, at the top of the Clips page, and it’s never moved to the Recycle Bin.',
+        'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+      ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
+        'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
+      ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
+        'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
+      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
+        'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
     ]],
     ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
       ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
-      ['Loading screen board', 'On League’s loading screen, all ten players like Porofessor: your team at the top left and theirs below, with their rank, record on their champion and tags, and the tips for your lane on the right.',
-        'On unless you turn it off: the Overlay page, What it shows. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optOverlayBoard', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE) and the clips you saved that game.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayAfter', 'app'],
-      ['Tips while you’re dead', 'While you wait to respawn on Summoner’s Rift, the tips for your lane from champ select on the left of your screen: your notes on the matchup, how high elo players do in it, your own games against them and Riot’s tips.',
-        'On unless you turn it off: the Overlay page, What it shows. Drag it anywhere in Layout.', '#optDeadTips', 'app'],
-      ['What to buy next', 'While you’re dead or in your base, the next item for this game, from what players at your rank build on your champion and the other team’s damage, healing, armor and magic resist, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”.',
-        'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayBuy', 'app'],
-      ['Your build', 'The whole build what to buy next goes by, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion and what those games won. Move items, take them out or add others; it’s kept for that champion and role.',
-        'In champ select once you have a champion, and on the Game page in a game.', '#csBuild', 'app'],
+      ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
+        'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: the Overlay page, What it shows.', '#csBuild', 'app'],
       ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',
         'On unless you turn it off: the Overlay page, What it shows. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
@@ -13757,15 +13460,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
         'Off until you turn it on: the Overlay page, Callouts, Remind me to check the minimap.', '#optMapNudge', 'app'],
-      ['Jungler callout', 'When the other team’s jungler shows up on your minimap after 10 seconds out of sight: “Jungler on topside”, botside or in mid, for 3 seconds. Read from your own minimap.',
-        'Off until you turn it on: the Overlay page, Callouts, Call out their jungler.', '#optJgCall', 'app'],
-      ['Gank warning', '“Lee Sin heading your way” when your minimap shows their jungler walking straight at you (not when you walk toward them, or they pass by).', 'Off until you turn it on: the Overlay page, Callouts.', '#optGankCall', 'app'],
-      ['Missing laners', '“Zed missing from mid” when a player you saw in a lane has been out of sight for 10 seconds, for every lane.', 'Off until you turn it on: the Overlay page, Callouts.', '#optMissCall', 'app'],
-      ['Invades', '“Lee Sin in your jungle”, or how many, when your minimap shows the other team there, like a level 1 invade.', 'Off until you turn it on: the Overlay page, Callouts.', '#optInvadeCall', 'app'],
+      ['Callouts', 'Short lines at the top of the screen, read from your own minimap: “Jungler on topside” when their jungler shows up after 10 seconds out of sight, “Lee Sin heading your way” when your minimap shows them walking straight at you, “Zed missing from mid” when a laner has been out of sight for 10 seconds, and “Lee Sin in your jungle” for an invade. They can be read out loud too, in the voice you pick.',
+        'Off until you turn them on: the Overlay page, Callouts, one tick each. Read callouts out loud and Voice are there too; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
       ['Who’s off your minimap', 'A list by your minimap of everyone on their team you can’t see, how long since you saw them and where they were heading, like “Lee Sin 0:40 toward bot”, and about when a dead one is back.',
         'Off until you turn it on: the Overlay page, Callouts. Drag it anywhere in Layout.', '#optMissList', 'app'],
-      ['Spoken callouts', 'The callouts read out loud in your computer’s own voice, as well as shown.', 'Off until you turn it on: the Overlay page, Callouts, Read callouts out loud.', '#optSpeakCalls', 'app'],
-      ['Callout voice', 'Pick the voice that reads callouts out loud: your computer’s usual one, a girl’s voice, or any other voice it has.', 'The Overlay page, Callouts, Voice. Try it plays one.', '#optCallVoice', 'app'],
       ['Enemy timers', 'Say “Premade, mid flash”, “Premade, top ultimate” or “Premade, their red” in a game, or tap them on your phone remote: the countdown shows with the objective timers for everyone in your room who has them on, from their level and items.',
         'Off until you turn it on: the Overlay page, Timers and coach.', '#optFoeTimers', 'app'],
       ['Power spikes', '“Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”, from League’s scoreboard.', 'Off until you turn it on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
@@ -13775,11 +13473,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Off until you turn it on: the Overlay page, Timers and coach.', '#optJgClock', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
-      ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. It buzzes and rings when a match is found or it’s your turn.',
-        'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
-      ['Champ select on your phone', 'Champ select as League shows it: both teams, the bans and the seconds left. Pick or ban any champion you may, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, summoner spells and skin.',
-        'With the phone remote connected, it fills in after you accept. Runes: start from Riot’s page or the most popular one, or tap rune by rune, then Save. Skins need app 1.15.', '#remoteBox, #optRemote', 'app'],
-      ['Match found on a locked phone', 'A notification when a match is found, or your squad calls or pings, even with your phone’s screen off or the remote closed.', 'On the phone remote, tick “Tell me when a match is found or my squad calls”. On an iPhone, open the remote from its home screen icon first.', '#remoteBox, #optRemote', 'app'],
+      ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
+        'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app; on an iPhone, open it from there for notifications. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
       ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
@@ -13797,9 +13492,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
-      ['See who has Premade', 'For whoever runs Premade: each device that has it, with its League accounts, voice name and app version, and when Premade was first and last opened there.', 'Settings, Our server, Who has Premade, with the owner key. This computer remembers it.', '#whoKey'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
-      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.', 'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept.', '#optHello'],
+      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.',
+        'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept. Whoever runs Premade sees the list in Settings, Our server, with the owner key.', '#optHello, #whoKey'],
     ]],
   ];
   // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and
@@ -13955,7 +13650,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); duelTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -14021,7 +13716,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     lcu: () => ({ phase: lcu, cs: !!cs, rc, curGame, runesNote, live: livePlayers.length, scouted: [...scoutData.keys()], me0, hist: myHist && myHist.length, remote: !!remote, phones: remoteConns.size, seen: [...remoteConns].filter((c) => c.seen).length }),
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
-    said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, duels: () => duels, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
+    said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
@@ -14031,11 +13726,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     crawlAll: async () => { for (let i = 0; i < 400; i++) { if (crawling) { await sleep(20); continue; } crawlAt = -Infinity; if (!(await crawl())) break; } return Object.keys(deep).length; },
     patchNow: () => { patchAt = -Infinity; return patchTick(); }, extras: () => extras, // League's version asked now, not in a minute
     watchNow: async () => { for (const w of watchList) await watchOne(w); renderWatch(); },
-    teams: () => teams, roles: () => roles, split, rating, roomAwards, qv: () => qv, dv: () => dv,
-    groupNow: () => { sqAt = evAt = frAt = -Infinity; }, // your squad and pick'em's matches asked for now, not in a minute
-    quiz: () => quiz && { i: quiz.i, right: quiz.i >= 0 ? quiz.qs[quiz.i].right : -1, scores: quiz.scores },
+    teams: () => teams, roles: () => roles, split, rating, roomAwards, dv: () => dv,
+    groupNow: () => { sqAt = frAt = -Infinity; }, // your squad asked for now, not in a minute
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
-    quizQuestions, champSpells,
     send, // a message to everyone, as a changed page could send it
     headChunk,
     clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],

@@ -6,8 +6,7 @@
 // for your next item, Dragon in 60 seconds, 3 of them dead, 2 levels down, and I'm new's longer lines); the jungle clock
 // from their jungler's last games, and the side it picks with where your minimap first showed them; and customs: custom
 // games kept and shared with the room and a newcomer, the inhouse ladder and Balance teams by it, a Fearless series and
-// its used-up champions in champ select, and the 1v1 referee's calls with everyone's 1v1 record. Only calls the desktop
-// app lets through (client/main.js LCU_OK).
+// its used-up champions in champ select. Only calls the desktop app lets through (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node customs.e2e.js
 const fs = require('fs');
@@ -310,33 +309,13 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await friend.evaluate(() => lpc.league({ inGame: false, phase: 'Lobby' }));
     console.log('a Fearless series: started by the host, the used-up champions on the Voice page and in champ select');
 
-    // ---- the 1v1 referee: a custom game of one a side; Rayan kills Zed first, and everyone hears who won
-    LCU.game = { id: 5004, custom: true };
-    const duel = (t, more = {}) => ({ ...game(t, [P('Rayan', 'ORDER', 'Ahri', ''), P('Zedd', 'CHAOS', 'Zed', '')]), room: 'g00000005004', ...more });
-    await feed(rayan, duel(60));
-    await wait(rayan, () => lpc.lcu().curGame && lpc.lcu().curGame.id === 5004, null, 'the 1v1');
-    await feed(rayan, duel(200, { events: [{ t: 190, team: 'ORDER', me: true, alive: true, e: 'kill', on: false }] }));
-    await saw(rayan, 'You win the 1v1: first blood');
-    await wait(friend, () => lpc.duels().length === 1 && lpc.toasts().includes('Rayan won a 1v1 against Zedd: first blood.'), null, 'Friend told who won');
-    await wait(friend, () => document.getElementById('duelList').textContent.includes('Rayan: 1W 0L in 1v1s'), null, 'the 1v1 record');
-    // the next one: Zed to 100 CS first, with first blood not ticked
-    await rayan.evaluate(() => { document.getElementById('optDuelFb').click(); });
-    await over(rayan);
-    LCU.game = { id: 5005, custom: true };
-    await feed(rayan, { ...duel(60), room: 'g00000005005' });
-    await wait(rayan, () => lpc.lcu().curGame && lpc.lcu().curGame.id === 5005, null, 'the second 1v1');
-    await feed(rayan, { ...duel(400, { events: [{ t: 190, team: 'ORDER', me: true, alive: true, e: 'kill', on: false }], players: [P('Rayan', 'ORDER', 'Ahri', '', { cs: 90 }), P('Zedd', 'CHAOS', 'Zed', '', { cs: 100 })] }), room: 'g00000005005' });
-    await saw(rayan, 'Zed wins the 1v1: 100 CS');
-    await wait(friend, () => document.getElementById('duelList').textContent.includes('Zedd: 1W 1L in 1v1s'), null, 'Zedd’s record');
-    console.log('the 1v1 referee: first blood, then 100 CS with first blood unticked, and everyone’s record');
 
-    // ---- a newcomer gets the room's custom games and 1v1s
+    // ---- a newcomer gets the room's custom games
     const kai = await player(browser, 'Kai');
     await join(kai, ROOM);
-    await wait(kai, () => lpc.customs().length === 2 && lpc.duels().length === 2, null, 'the games and 1v1s for a newcomer');
+    await wait(kai, () => lpc.customs().length === 2, null, 'the games for a newcomer');
     assert.deepStrictEqual(await kai.evaluate(() => lpc.inhouse().map((e) => Math.round(e.r))), await friend.evaluate(() => lpc.inhouse().map((e) => Math.round(e.r))), 'the same ladder');
-    assert(!(await kai.evaluate(() => lpc.toasts())).some((t) => /won a 1v1/.test(t)), 'no popups for old 1v1s');
-    console.log('a newcomer: the same ladder and 1v1 records');
+    console.log('a newcomer: the same ladder');
 
     assert.deepStrictEqual(LCU.refused, [], 'only calls the desktop app lets through');
     console.log('all timers, coach and customs tests passed');
