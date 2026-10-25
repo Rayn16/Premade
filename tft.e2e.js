@@ -103,6 +103,10 @@ const L = { calls: [], refused: [] };
 // a god combo, Mystic Punch a trap
 const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } } };
 const SENT = [];
+const DEEPARAM = { // our server's /mayhem/augments: DeepARAM's rows for a champion (Sneakerhead not listed)
+  Ahri: [{ name: 'Symphony of War', pickRate: 0.4, deepScore: 72, tier: 'S' }, { name: 'Mystic Punch', pickRate: 0.05, deepScore: 40, tier: 'C' }],
+  MissFortune: [{ name: 'Symphony of War', pickRate: 0.1, deepScore: 50, tier: 'B' }],
+};
 const MAYHEM_CHAMP = { c: { Ahri: { 'Symphony of War': 40, 'Mystic Punch': 5 }, MissFortune: { 'Symphony of War': 10 } } };
 const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
@@ -155,6 +159,7 @@ async function context(browser, { app = false, name = 'Rayan' } = {}) {
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
   await ctx.route('**/mayhem-champ.json', (r) => r.fulfill({ json: MAYHEM_CHAMP }));
+  await ctx.route(/127\.0\.0\.1:9004\/mayhem\/augments/, (r) => { const c = new URL(r.request().url()).searchParams.get('champ'); r.fulfill(DEEPARAM[c] ? { json: { source: 'https://deeparam.com/tier-list', champion: c, patch: '26.21', rows: DEEPARAM[c] }, headers: cors } : { status: 502, json: {}, headers: cors }); });
   await ctx.route(/arammayhem\.com\/data\/v1\/latest\/(augments|combos)\.json$/, (r) => r.fulfill({ json: AMD[/(augments|combos)\.json$/.exec(r.request().url())[1]], headers: cors }));
   await ctx.route(/raw\.communitydragon\.org/, (r) => {
     const u = r.request().url();
@@ -417,16 +422,16 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the Mayhem cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y > 0.58 && c.y < 0.7])),
-      [['Symphony of War: picked 40% of the time on Ahri (arammayhem.com)', true, true], ['Mystic Punch: picked 5% of the time on Ahri (arammayhem.com)', true, true], ['Sneakerhead: 0% pick rate on Ahri', true, true]], 'the rating stays on each augment card without drifting to unrelated screen edges');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => [c.p, c.v, c.k, c.s, c.g, c.gk])), [['40%', 1, 'good', 'on Ahri', 'God combo with Ahri', 'good'], ['5%', 0.125, '', 'on Ahri', 'Trap with Ahri', 'bad'], [undefined, undefined, '', undefined, undefined, undefined]],
-      'a bar for each with a pick rate, as long as it against the most picked, which is marked; Ahri’s combos (not Ashe’s)');
+      [['Symphony of War: S tier (72 DeepScore), 40% pick rate on Ahri · DeepARAM patch 26.21', true, true], ['Mystic Punch: C tier (40 DeepScore), 5% pick rate on Ahri · DeepARAM patch 26.21', true, true], ['Sneakerhead: no 26.21 champion data', true, true]], 'the rating stays on each augment card without drifting to unrelated screen edges');
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => [c.p, c.v, c.k, c.s])), [['40%', 1, 'good', 'Ahri · S tier'], ['5%', 0.125, '', 'Ahri · C tier'], [undefined, undefined, '', undefined]],
+      'a bar for each with a pick rate, as long as it against the most picked, which is marked');
     await shot(pc, 'mayhem-augment-cards');
     await mayhemAt(250, false, 3, '', 'Miss Fortune');
-    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: picked 10% of the time on Miss Fortune (arammayhem.com)', 'display names resolve to their champion-specific rates');
+    await wait(pc, () => lpc.mayRate('Symphony of War').t === 'Symphony of War: B tier (50 DeepScore), 10% pick rate on Miss Fortune · DeepARAM patch 26.21', null, 'display names resolve to their champion-specific rates');
     await mayhemAt(260, false, 3, 'UnresolvedChampion', '');
-    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: champion rate unavailable', 'an unresolved champion never gets shown the all-champion rate');
+    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: no 26.21 champion data', 'an unresolved champion never gets another champion’s rate');
     await mayhemAt(265, false, 3, '', '');
-    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: champion rate unavailable', 'a missing champion never gets shown the all-champion rate');
+    assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: no 26.21 champion data', 'a missing champion never gets another champion’s rate');
     await mayhemAt(270);
     await mayhemAt(300);
     await wait(pc, () => !window.lastOverlay.mayhemCards, null, 'none between picks');
@@ -435,6 +440,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the level 7 pick read', 30000);
     await pc.evaluate(drawMayhem, null);
     await wait(pc, () => !window.lastOverlay.mayhemCards, null, 'gone once picked', 30000);
+    await new Promise((r) => setTimeout(r, 4000)); // reading stops after 3.5 s of no cards, so one bad frame never closes it
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await new Promise((r) => setTimeout(r, 5000));
     assert(!(await pc.evaluate(() => window.lastOverlay.mayhemCards)), 'not read again after the pick');
