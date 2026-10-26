@@ -100,6 +100,19 @@ const FRIEND_SCREEN = `(() => { const cv = document.createElement('canvas'); cv.
   setInterval(() => { g.fillStyle = 'hsl(' + (n++ * 7 % 360) + ',60%,40%)'; g.fillRect(0, 0, 1280, 720); g.fillStyle = '#fff'; g.font = '80px sans-serif'; g.fillText(String(n), 100, 200); }, 66);
   navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(15); document.getElementById('shareBtn').click(); 1 })()`;
 
+// each of Premade's processes as Windows has it: HighQoS is control 5 (execution speed and timer resolution), state 0
+function qosNow() {
+  if (process.platform !== 'win32') return 'not Windows';
+  const k = require('koffi').load('kernel32.dll');
+  const open = k.func('void* __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)'), close = k.func('int __stdcall CloseHandle(void* h)');
+  const get = k.func('int __stdcall GetProcessInformation(void* h, int cls, void* info, uint32_t size)');
+  return app.getAppMetrics().map((m) => {
+    const h = open(0x1400, 0, m.pid), b = new Uint32Array([1, 0, 0]); // PROCESS_QUERY_INFORMATION and _LIMITED_
+    const ok = h && get(h, 4, b, 12); // ProcessPowerThrottling
+    if (h) close(h);
+    return `${m.type}:${ok ? `${b[1]}/${b[2]}` : 'unreadable'}`;
+  }).join(' ');
+}
 const results = [];
 let phase = 'joining';
 const say = (line) => { console.log(line); if (process.env.REPRO_LOG) fs.appendFileSync(process.env.REPRO_LOG, line + '\n'); };
@@ -152,7 +165,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     let cover = null;
     await step('covered', 120, () => { cover = new BrowserWindow({ ...win.getBounds(), backgroundColor: '#777777' }); cover.loadURL('data:text/html,<body style="background:#777">cover</body>'); cover.focus(); }, () => cover.destroy());
     await step('front2', 20, () => { win.focus(); });
-    await step('minimized', 150, () => win.minimize(), () => win.restore());
+    await step('minimized', 150, () => { win.minimize(); setTimeout(() => say(`qos while minimized: ${qosNow()}`), 3000); }, () => win.restore());
     await step('restored', 30, () => { win.focus(); });
     await step('unfocused', 60, () => friend.focus());
     if (process.platform === 'win32') {
@@ -162,6 +175,9 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     phase = 'done';
     await sleep(2500);
     summary();
+    await win.webContents.executeJavaScript('document.getElementById("connLogBtn").click(); 1', true);
+    await sleep(1000);
+    say(`\n==== connection log ====\n${require('electron').clipboard.readText()}`);
   } catch (err) { console.error('repro failed:', err); process.exitCode = 1; }
   app.exit(process.exitCode || 0);
 }));

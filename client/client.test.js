@@ -235,6 +235,9 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // the performance meter
     const perf = await js('lpcClient.metrics()');
     assert(perf.cpu >= 0 && perf.cpu <= 100 && perf.mb > 30 && perf.mb < 5000, `the app's CPU and memory: ${JSON.stringify(perf)}`);
+    // the connection log (Settings, App) gets the app's own lines too, the first one saying what this PC is
+    await js('document.getElementById("connLogBtn").click()');
+    await until(() => /\n\d\d:\d\d:\d\d app: .+ threads of .+, full speed for \d+ processes/.test(clipboard.readText()), 'the connection log copied, with the app’s line');
     // test recordings: on from here until League closes
     await js('lpcClient.record(true)');
     await js('document.getElementById("optGameVideo").click()'); // and the whole game on video

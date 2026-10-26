@@ -22,10 +22,11 @@ jobs:
         shell: pwsh
         run: |
           $env:PEER_MODULE = "$env:GITHUB_WORKSPACE\deps\node_modules\peer"
+          $env:FAST = "1"
           $env:REPRO_LOG = "$env:GITHUB_WORKSPACE\repro.log"
           cd client
           npx electron background.repro.js
-          Get-Content $env:REPRO_LOG | Select-String -Pattern '==== summary' -Context 0,200
+          Get-Content $env:REPRO_LOG | Select-String -Pattern '==== summary|qos while' -Context 0,400
       - if: always()
         uses: actions/upload-artifact@v4
         with:

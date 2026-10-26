@@ -42,5 +42,5 @@ contextBridge.exposeInMainWorld('lpcClient', {
   controlStop: () => ipcRenderer.send('control-stop'),
   controlInput: (m) => ipcRenderer.send('control-input', m),
   point: (m) => ipcRenderer.invoke('point', m),
-  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });
