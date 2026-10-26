@@ -25,6 +25,10 @@ const OLD_SITE = process.env.LPC_OLD_SITE || 'https://league-proxchat.netlify.ap
 const LEAGUE = process.env.LPC_LEAGUE || 'https://127.0.0.1:2999'; // League's Live Client Data API, up during a game
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
+// League in front makes Windows count Premade as hidden (occluded) even with the two above, and Chromium then slows it
+// down like a minimized window, which dropped screen shares while the app was in the background
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // voice plays in a room joined for your game
 
 if (!app.requestSingleInstanceLock()) return app.quit();
