@@ -80,7 +80,7 @@ function stopFilteredCapture() {
 }
 ipcMain.handle('filtered-audio-start', async (e) => {
   if (!fromSite(e) || process.platform !== 'win32' || !filteredDiscordPid || filteredCapture) return false;
-  const child = spawn(path.join(__dirname, 'audio-capture.exe'), [String(filteredDiscordPid)], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  const child = spawn(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'audio-capture.exe'), [String(filteredDiscordPid)], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
   let pending = Buffer.alloc(0), ready = false, resolveReady, rejectReady;
   const result = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
   const capture = filteredCapture = { child, timer: setTimeout(() => { if (!ready) { stopFilteredCapture(); rejectReady(new Error('Audio filter timed out')); } }, 4000) };
@@ -952,7 +952,7 @@ app.whenReady().then(async () => {
     shareAudioFiltered = false;
     filteredDiscordPid = filtered ? shareDiscordPid : 0;
     shareDiscordPid = 0;
-    done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && !filtered && { audio: 'loopback' }) } : {}); // clips keep normal loopback; screen-share audio is filtered separately when Discord is active
+    done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
   });
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
 

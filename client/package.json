@@ -1,7 +1,7 @@
 {
   "name": "league-proxchat",
   "productName": "Premade",
-  "version": "1.25.8",
+  "version": "1.25.9",
   "description": "Proximity voice chat and game tools for League of Legends",
   "main": "main.js",
   "author": "Rayan",
@@ -21,6 +21,9 @@
       "preload.js",
       "audio-capture.exe",
       "icon.png"
+    ],
+    "asarUnpack": [
+      "audio-capture.exe"
     ],
     "npmRebuild": false,
     "afterPack": "./afterPack.js",
