@@ -2528,7 +2528,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
     if (m.t === 'see') { p.wantSee = m.on === true; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done
     if (m.t === 'ctl') return void ctlMsg(p, m);
-    if (m.t === 'in') { if (ctlBy === p) client.controlInput(m); return; } // their mouse and keys, while you let them control your PC
+    if (m.t === 'in') { if (ctlBy === p) ctlInput(m); return; } // their mouse and keys, while you let them control your PC
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
@@ -5026,6 +5026,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       else if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
     }
     if (ctlBy && !lends.has(ctlBy)) ctlEnd(); // they stopped watching, left, or your share stopped or changed
+    if (ctlAsk && !lends.has(ctlAsk)) { tellOnce(ctlAsk, { t: 'ctl', ok: false, why: 'They aren’t sharing their screen with you.' }); ctlUnask(); } // the same while their request is in your box
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
       const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
@@ -5068,7 +5069,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const tile = document.createElement('figure');
         tile.className = 'screentile';
         tile.dataset.slot = p.slot;
-        tile.innerHTML = '<figcaption><span></span><span><button class="btn small" type="button">Hide</button> <button class="btn small ctl" type="button">Request control</button></span></figcaption><video autoplay playsinline controls tabindex="0"></video>';
+        tile.innerHTML = '<figcaption><span></span><span><button class="btn small" type="button">Hide</button> <button class="btn small ctl" type="button">Request control</button> <button class="btn small full" type="button" hidden>Full screen</button></span></figcaption><video autoplay playsinline controls tabindex="0"></video>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
         ctlTile(tile, p);
         seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0 }));
@@ -5095,10 +5096,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // app asks them in a Windows box and answers {t:'ctl', ok, why}. While it's on, your mouse and keys over their tile go
   // to them ({t:'in'}: k m, d, u, w, kd or ku; x and y as fractions of their screen, b the button, d the wheel, c the
   // key's code), and their app puts them in. Either side stops it; it stops too when they stop sharing with you.
-  let ctlTo = null, ctlBy = null; // the friend you control or asked { p, on, at, moved, keys }; the friend controlling you
+  // n numbers yours from 1 for each request: PeerJS's data link doesn't keep their order (ordered: false), so a key's up
+  // could beat its down and leave it held, and their side puts them back in order. Taking back a request closes their
+  // box, and a yes to a request you no longer have gets {t:'ctl', on: false} back, so it's never on with nobody in control.
+  let ctlTo = null, ctlBy = null, ctlAsk = null, ctlNext = 1; // the friend you control or asked { p, on, at, n, moved, xy, keys, buttons }; the friend controlling you; the one whose request is in your box; their n to put in next
+  const ctlWait = new Map(); // theirs that came before their turn: n -> message
   const tellOnce = (p, m) => { const c = [...p.conns].find((x) => x.open); if (c) try { c.send(m); } catch {} }; // tell sends on each link: a click mustn't arrive twice
+  const ctlIn = (m) => { if ('x' in m) ctlTo.xy = null; tellOnce(ctlTo.p, { t: 'in', n: ++ctlTo.n, ...m }); }; // a click puts the mouse where it is: no older move after it
   function ctlTile(tile, p) {
-    const vid = tile.querySelector('video'), on = () => !!ctlTo && ctlTo.p === p && ctlTo.on, go = (m) => tellOnce(p, { t: 'in', ...m });
+    const vid = tile.querySelector('video'), on = () => !!ctlTo && ctlTo.p === p && ctlTo.on;
     const at = (ev) => { // where on their screen, past the black bars
       const r = vid.getBoundingClientRect(), w = vid.videoWidth, h = vid.videoHeight, k = Math.min(r.width / w, r.height / h);
       const x = (ev.clientX - r.left - (r.width - w * k) / 2) / (w * k), y = (ev.clientY - r.top - (r.height - h * k) / 2) / (h * k);
@@ -5107,31 +5113,39 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     tile.querySelector('.ctl').addEventListener('click', () => {
       const mine = !!ctlTo && ctlTo.p === p;
       ctlQuit();
-      if (!mine) { ctlTo = { p, on: false, at: performance.now(), moved: 0, keys: new Set() }; tellOnce(p, { t: 'ctl', on: true }); }
+      if (!mine) { ctlTo = { p, on: false, at: performance.now(), n: 0, moved: 0, xy: null, keys: new Set(), buttons: new Set() }; tellOnce(p, { t: 'ctl', on: true }); }
       ctlShow();
     });
-    vid.addEventListener('mousemove', (ev) => { const q = on() && performance.now() - ctlTo.moved > 30 && at(ev); if (q) { ctlTo.moved = performance.now(); go({ k: 'm', ...q }); } });
-    vid.addEventListener('mousedown', (ev) => { if (!on()) return; ev.preventDefault(); const q = at(ev); vid.focus({ preventScroll: true }); if (q) go({ k: 'd', b: ev.button, ...q }); });
-    vid.addEventListener('mouseup', (ev) => { if (on()) go({ k: 'u', b: ev.button, ...at(ev) }); });
+    // Full screen: their whole screen on yours, and Windows' own keys (the Windows key, Alt+Tab, Alt+F4) go to their PC
+    // too where Chromium can take them (keyboard lock); Esc stays yours, to leave full screen
+    tile.querySelector('.full').addEventListener('click', () => { vid.focus({ preventScroll: true }); vid.requestFullscreen().then(() => navigator.keyboard && navigator.keyboard.lock(['MetaLeft', 'MetaRight', 'Tab', 'F4'])).catch(() => {}); });
+    vid.addEventListener('mousemove', (ev) => { const q = on() && at(ev); if (!q) return; if (!ctlTo.xy) setTimeout(ctlMove, Math.max(0, ctlTo.moved + 30 - performance.now())); ctlTo.xy = q; }); // at most every 30 ms, the last one too
+    vid.addEventListener('pointerdown', (ev) => { if (on()) vid.setPointerCapture(ev.pointerId); }); // a button let go off the tile comes here too
+    vid.addEventListener('mousedown', (ev) => { if (!on()) return; ev.preventDefault(); const q = at(ev); vid.focus({ preventScroll: true }); if (q) { ctlTo.buttons.add(ev.button); ctlIn({ k: 'd', b: ev.button, ...q }); } });
+    vid.addEventListener('mouseup', (ev) => { if (on() && ctlTo.buttons.delete(ev.button)) ctlIn({ k: 'u', b: ev.button, ...at(ev) }); });
     vid.addEventListener('contextmenu', (ev) => { if (on()) ev.preventDefault(); });
-    vid.addEventListener('wheel', (ev) => { if (!on()) return; ev.preventDefault(); go({ k: 'w', d: Math.round(-ev.deltaY * (ev.deltaMode ? 40 : 1.2)) }); }, { passive: false });
-    vid.addEventListener('keydown', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.add(ev.code); go({ k: 'kd', c: ev.code }); });
-    vid.addEventListener('keyup', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.delete(ev.code); go({ k: 'ku', c: ev.code }); });
-    vid.addEventListener('blur', () => { if (on()) { for (const c of ctlTo.keys) go({ k: 'ku', c }); ctlTo.keys.clear(); } }); // nothing stays held down
+    vid.addEventListener('wheel', (ev) => { if (!on()) return; ev.preventDefault(); ctlIn({ k: 'w', d: Math.round(-ev.deltaY * (ev.deltaMode ? 40 : 1.2)) }); }, { passive: false });
+    vid.addEventListener('keydown', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.add(ev.code); ctlIn({ k: 'kd', c: ev.code }); });
+    vid.addEventListener('keyup', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.delete(ev.code); ctlIn({ k: 'ku', c: ev.code }); });
+    vid.addEventListener('blur', () => { if (on()) ctlLetGo(); }); // nothing stays held down
+    vid.addEventListener('fullscreenchange', () => { if (document.fullscreenElement !== vid && navigator.keyboard) navigator.keyboard.unlock(); }); // not when you only watch
   }
+  function ctlMove() { const t = ctlTo; if (t && t.on && t.xy) { ctlIn({ k: 'm', ...t.xy }); t.moved = performance.now(); } }
+  function ctlLetGo() { for (const c of ctlTo.keys) ctlIn({ k: 'ku', c }); for (const b of ctlTo.buttons) ctlIn({ k: 'u', b }); ctlTo.keys.clear(); ctlTo.buttons.clear(); }
   function ctlShow() {
     for (const [p, v] of seen) {
       const mine = !!ctlTo && ctlTo.p === p, on = mine && ctlTo.on;
       v.tile.querySelector('.ctl').textContent = on ? 'Stop control' : mine ? 'Asking… (cancel)' : 'Request control';
+      v.tile.querySelector('.full').hidden = !on;
       v.tile.classList.toggle('controlling', on);
       v.vid.controls = !on; // its own clicks would pause it
+      if (!on && document.fullscreenElement === v.vid) document.exitFullscreen().catch(() => {});
     }
   }
   function ctlQuit() { // stop controlling or asking
     if (!ctlTo) return;
-    const { p, keys } = ctlTo;
-    for (const c of keys) tellOnce(p, { t: 'in', k: 'ku', c });
-    tellOnce(p, { t: 'ctl', on: false });
+    ctlLetGo();
+    tellOnce(ctlTo.p, { t: 'ctl', on: false });
     ctlTo = null;
     ctlShow();
   }
@@ -5143,21 +5157,33 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     tellOnce(p, { t: 'ctl', ok: false, why: 'Control ended.' });
     notify(`${nameOf(p)} is no longer controlling your PC.`, true);
   }
+  function ctlUnask() { ctlAsk = null; client.controlStop(); } // closes the box as Don't allow, or undoes a yes that came too late
+  function ctlInput(m) { // theirs in their order; one lost with a link that closed is skipped once 100 wait for it
+    if (!Number.isInteger(m.n) || m.n < ctlNext) return;
+    ctlWait.set(m.n, m);
+    if (ctlWait.size > 100) ctlNext = Math.min(...ctlWait.keys());
+    for (let x; (x = ctlWait.get(ctlNext)); ctlNext++) { ctlWait.delete(ctlNext); client.controlInput(x); }
+  }
   async function ctlMsg(p, m) {
     if ('ok' in m) { // their answer, or they ended it
-      if (!ctlTo || ctlTo.p !== p) return;
+      if (!ctlTo || ctlTo.p !== p) { if (m.ok === true) tellOnce(p, { t: 'ctl', on: false }); return; } // a yes to a request you took back
       if (m.ok === true) { ctlTo.on = true; notify(`You’re controlling ${nameOf(p)}’s PC. Click their screen to use your mouse and keys there.`, true); }
       else { ctlTo = null; notify(`${nameOf(p)}: ${typeof m.why === 'string' ? m.why.slice(0, 120) : 'No control.'}`, true); }
       return ctlShow();
     }
-    if (m.on !== true) { if (ctlBy === p) ctlEnd(); return; }
-    if (ctlBy === p) return tellOnce(p, { t: 'ctl', ok: true });
+    if (m.on !== true) { if (ctlBy === p) ctlEnd(); else if (ctlAsk === p) ctlUnask(); return; }
+    const start = () => { ctlBy = p; ctlNext = 1; ctlWait.clear(); tellOnce(p, { t: 'ctl', ok: true }); }; // their n starts again with each request
+    if (ctlBy === p) return start();
     const no = (why) => tellOnce(p, { t: 'ctl', ok: false, why });
-    if (ctlBy) return no('Someone else is controlling their PC.');
     if (!client || !client.control) return no(client ? 'Their Premade app needs updating to be controlled.' : 'They need the Premade app for Windows to be controlled.');
-    if (!lends.has(p)) return no('They aren’t sharing their screen with you.');
+    if (!lends.has(p)) return no('They aren’t sharing their screen with you.'); // first: who isn't watching learns nothing more
+    if (ctlBy || ctlAsk) return no(ctlBy ? 'Someone else is controlling their PC.' : 'Someone else is asking them. Try again in a bit.');
+    ctlAsk = p;
+    notify(`${nameOf(p)} asks to control your PC. Answer in Premade’s window.`, true);
     const r = await client.control(nameOf(p)) || {};
-    if (r.ok && !ctlBy && lends.has(p)) { ctlBy = p; notify(`${nameOf(p)} is controlling your PC. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.`, true); return tellOnce(p, { t: 'ctl', ok: true }); }
+    if (ctlAsk !== p) { if (r.ok) client.controlStop(); return; } // they took it back, left or stopped watching meanwhile
+    ctlAsk = null;
+    if (r.ok && !ctlBy && lends.has(p)) { start(); return notify(`${nameOf(p)} is controlling your PC. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.`, true); }
     if (r.ok) client.controlStop();
     no(r.why || 'They said no.');
   }
@@ -12945,9 +12971,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [79, 'October 26: control a friend’s PC', [
-      'Request control on a friend’s screen tile, and once they allow it, your mouse and keyboard work their PC, like TeamViewer. Click their screen to start.',
-      'They always say yes or no first, a red bar at the top of their screen shows who’s in control, and Stop on it or Ctrl+Alt+X ends it at once. It also ends when they stop sharing.',
-      'The friend being controlled needs the desktop app, updated, and must be sharing their whole screen.',
+      'Request control on a friend’s screen tile, and once they allow it, your mouse and keyboard work their PC, like TeamViewer. Click their screen to start, or Full screen to see all of it.',
+      'They always say yes or no first, in a box that waits until they open Premade, so a key pressed in a game can’t answer it. A red bar at the top of their screen shows who’s in control, and Stop on it or Ctrl+Alt+X ends it at once. It also ends when they stop sharing.',
+      'The friend being controlled needs the desktop app, updated, and must be sharing their whole screen. Keys go by their place on the keyboard, so with the same layout on both PCs (AZERTY and QWERTZ too) the letters come out right.',
     ]],
     [78, 'October 25: a tidier Premade', [
       'Pick’em, the 1v1 referee and the Queue quiz are gone, so the Voice page has less in it.',
@@ -13392,8 +13418,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off. In the Windows app, the Discord desktop app is filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
-      ['Remote control', 'Use a friend’s PC with your own mouse and keyboard, like TeamViewer, while they share their screen with you. They allow each request first, a red bar on their screen shows who’s in control, and Stop or Ctrl+Alt+X ends it.',
-        'Request control on their screen tile on the Voice page, then click their screen. They need the desktop app and to share their whole screen.', '#roomScreens, #createBtn'],
+      ['Remote control', 'Use a friend’s PC with your own mouse and keyboard, like TeamViewer, while they share their screen with you. They allow each request first, in a box that waits until they open Premade, a red bar on their screen shows who’s in control, and Stop or Ctrl+Alt+X ends it.',
+        'Request control on their screen tile on the Voice page, then click their screen, or Full screen to see all of it. They need the desktop app and to share their whole screen.', '#roomScreens, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
@@ -13805,6 +13831,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
+    ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
     augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
@@ -13816,6 +13843,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     groupNow: () => { sqAt = frAt = -Infinity; }, // your squad asked for now, not in a minute
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
     send, // a message to everyone, as a changed page could send it
+    sendOnce, // the same on one link each (send uses every link, so twice to a player with two)
     headChunk,
     clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
       age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),

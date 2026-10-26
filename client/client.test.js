@@ -81,7 +81,7 @@ process.env.LPC_LEAGUE = 'https://127.0.0.1:8084';
 process.env.LPC_LEAGUE_DIR = tmp; // League's folder, for the window mode in Config/
 fs.mkdirSync(path.join(tmp, 'Config'));
 const { app, BrowserWindow, globalShortcut, screen, shell } = require('electron');
-const { summary, vk, ctlVk, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
+const { summary, vk, CTL_SCAN, controlInput, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
 assert(app.getPath('userData').endsWith(path.sep + 'League Proximity Chat'), 'settings stay in the folder from before the rename to Premade');
 app.setPath('videos', path.join(tmp, 'Videos')); // where clips go
 app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings go
@@ -156,7 +156,9 @@ assert.strictEqual(hide.path('/lol-summoner/v1/alias/lookup?gameName=Rayan&tagLi
 assert.strictEqual(hide.path('/lol-summoner/v2/summoners/puuid/0123456789abcdef0123456789abcdef'), '/lol-summoner/v2/summoners/puuid/id-5', 'an account id not seen before');
 // push-to-talk keys as Windows numbers them, and F2 to F5 (the camera on a teammate)
 assert.deepStrictEqual(['KeyV', 'Digit4', 'Numpad0', 'F13', 'Mouse4', 'CapsLock', 'AltLeft', 'Nope', 'F2', 'F5'].map(vk), [0x56, 0x34, 0x60, 0x7c, 5, 0x14, 0xa4, 0, 0x71, 0x74]);
-assert.deepStrictEqual(['Enter', 'ArrowLeft', 'KeyA', 'Slash', 'Mouse4', 'Nope'].map(ctlVk), [0x0d, 0x25, 0x41, 0xbf, false, 0], 'remote control keys: no mouse buttons as keys');
+// remote control's keys by their place on the keyboard: scan codes, 0xe0.. for extended keys; no mouse buttons or made-up names
+assert.deepStrictEqual(['Escape', 'KeyQ', 'KeyA', 'Enter', 'IntlBackslash', 'F12', 'NumpadEnter', 'ArrowLeft', 'MetaLeft', 'Mouse4', 'constructor', '-', 'Nope'].map((c) => CTL_SCAN.get(c) || 0),
+  [1, 0x10, 0x1e, 0x1c, 0x56, 0x58, 0xe01c, 0xe04b, 0xe05b, 0, 0, 0, 0]);
 
 const until = async (fn, what, ms = 10000) => {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 100))) if (await fn()) return;
@@ -316,6 +318,16 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await js('lpcClient.front()');
     await until(() => win.isVisible() && win.isAlwaysOnTop(), 'the window in front');
     await until(() => !win.isAlwaysOnTop(), 'and not kept on top');
+    // remote control: only the Windows app can be controlled. What a friend's input does there (user32 made up here): the
+    // mouse on the shared screen only, a button or key let go only if they pressed it (not one you hold), keys by scan
+    // code, and nothing from made-up buttons or key names
+    if (process.platform !== 'win32') assert.deepStrictEqual(await js(`lpcClient.control('Ben')`), { ok: false, why: 'Only the Windows app can be controlled.' });
+    const got = [], user32 = { at: (x, y) => got.push(['at', x, y]), mouse: (f, x, y, d) => got.push(['mouse', f, d]), key: (v, s, f) => got.push(['key', s, f]), vk: (s) => s & 0xff };
+    const held = { u: user32, bounds: { x: 0, y: 0, width: 1921, height: 1081 }, keys: new Set(), buttons: new Set() };
+    for (const m of [{ k: 'u', b: 0 }, { k: 'd', b: 0, x: 0.5, y: 2 }, { k: 'd', b: 'constructor' }, { k: 'd', b: '__proto__' }, { k: 'u', b: 0 }, { k: 'u', b: 0 }, { k: 'ku', c: 'KeyA' },
+      { k: 'kd', c: 'toString' }, { k: 'kd', c: 'KeyA' }, { k: 'ku', c: 'KeyA' }, { k: 'kd', c: 'ArrowLeft' }, { k: 'w', d: 5000 }]) controlInput(held, m);
+    assert.deepStrictEqual(got, [['at', 960, 1080], ['mouse', 2, 0], ['mouse', 4, 0], ['key', 0x1e, 8], ['key', 0x1e, 10], ['key', 0x4b, 9], ['mouse', 0x800, 1200]], JSON.stringify(got));
+    assert.deepStrictEqual([...held.keys], ['ArrowLeft'], 'still down, to let go when it ends');
 
     // Discord status through Discord's local pipe; null closes it, which clears the status
     process.env.XDG_RUNTIME_DIR = tmp; // where the fake Discord listens (here, not for the whole app: Chromium reads it too)

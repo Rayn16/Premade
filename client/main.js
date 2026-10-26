@@ -947,26 +947,34 @@ ipcMain.handle('keys', (e, k) => {
 // here, never in the page, a red bar at the top of the shared screen says who with a Stop button, Ctrl+Alt+X stops it
 // too, and only while it's on their mouse and keys go in through user32 (SetCursorPos, mouse_event, keybd_event).
 // Whole screen shares only: their x and y are fractions of the screen they see. Ends when the page reloads, the share
-// changes or either side stops; keys and buttons still down are let go.
-let sharedSource = null, control = null, asking = false, refusedAt = 0, user32 = null;
-const CTL_VK = { Enter: 0x0d, NumpadEnter: 0x0d, Backspace: 8, Escape: 0x1b, Delete: 0x2e, Insert: 0x2d, Home: 0x24, End: 0x23, PageUp: 0x21, PageDown: 0x22,
-  ArrowLeft: 0x25, ArrowUp: 0x26, ArrowRight: 0x27, ArrowDown: 0x28, MetaLeft: 0x5b, MetaRight: 0x5c, ContextMenu: 0x5d, Minus: 0xbd, Equal: 0xbb,
-  BracketLeft: 0xdb, BracketRight: 0xdd, Backslash: 0xdc, Semicolon: 0xba, Quote: 0xde, Comma: 0xbc, Period: 0xbe, Slash: 0xbf, IntlBackslash: 0xe2,
-  NumpadAdd: 0x6b, NumpadSubtract: 0x6d, NumpadMultiply: 0x6a, NumpadDivide: 0x6f, NumpadDecimal: 0x6e, PrintScreen: 0x2c, NumLock: 0x90, ScrollLock: 0x91, Pause: 0x13 };
-const CTL_EXT = new Set(['NumpadEnter', 'Delete', 'Insert', 'Home', 'End', 'PageUp', 'PageDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'MetaLeft', 'MetaRight', 'ContextMenu', 'NumpadDivide', 'ControlRight', 'AltRight']);
-const ctlVk = (code) => typeof code === 'string' && !code.startsWith('Mouse') && (CTL_VK[code] || vk(code));
+// changes or either side stops; keys and buttons still down are let go, and a box still open closes as Don't allow.
+// The box shows only once you're in Premade (till then a notification and its flashing taskbar button say who asks):
+// popping up over a game, Tab (League's scoreboard) could move to Allow and Space press it.
+let sharedSource = null, control = null, asking = null, refusedAt = 0, user32 = null;
+// KeyboardEvent.code -> the key's scan code (0xe0.. for extended keys): keys go in by their place on the keyboard, so
+// two PCs with the same layout type the same letters (AZERTY and QWERTZ too), and games that read scan codes get them
+const CTL_SCAN = new Map([...('Escape Digit1 Digit2 Digit3 Digit4 Digit5 Digit6 Digit7 Digit8 Digit9 Digit0 Minus Equal Backspace Tab KeyQ KeyW KeyE KeyR KeyT KeyY KeyU KeyI KeyO KeyP '
+  + 'BracketLeft BracketRight Enter ControlLeft KeyA KeyS KeyD KeyF KeyG KeyH KeyJ KeyK KeyL Semicolon Quote Backquote ShiftLeft Backslash KeyZ KeyX KeyC KeyV KeyB KeyN KeyM Comma Period '
+  + 'Slash ShiftRight NumpadMultiply AltLeft Space CapsLock F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 - ScrollLock Numpad7 Numpad8 Numpad9 NumpadSubtract Numpad4 Numpad5 Numpad6 NumpadAdd Numpad1 '
+  + 'Numpad2 Numpad3 Numpad0 NumpadDecimal - - IntlBackslash F11 F12').split(' ').map((c, i) => [c, i + 1]),
+  ...Object.entries({ NumpadEnter: 0x1c, ControlRight: 0x1d, NumpadDivide: 0x35, PrintScreen: 0x37, AltRight: 0x38, Home: 0x47, ArrowUp: 0x48, PageUp: 0x49, ArrowLeft: 0x4b,
+    ArrowRight: 0x4d, End: 0x4f, ArrowDown: 0x50, PageDown: 0x51, Insert: 0x52, Delete: 0x53, MetaLeft: 0x5b, MetaRight: 0x5c, ContextMenu: 0x5d }).map(([c, s]) => [c, 0xe000 | s])].filter(([c]) => c !== '-'));
+// KEYEVENTF_SCANCODE (8), with the key's virtual key too in case keybd_event ever drops that flag; 1 extended, 2 up
+const ctlKey = (u, s, up) => u.key(u.vk(s, 3) & 0xff, s & 0xff, 8 | (s > 0xff ? 1 : 0) | (up ? 2 : 0), 0);
 function ctlUser32() {
   if (user32) return user32;
   const l = require('koffi').load('user32.dll');
   return (user32 = { at: l.func('int __stdcall SetCursorPos(int x, int y)'), mouse: l.func('void __stdcall mouse_event(uint32_t flags, uint32_t dx, uint32_t dy, int32_t data, uintptr_t extra)'),
-    key: l.func('void __stdcall keybd_event(uint8_t vk, uint8_t scan, uint32_t flags, uintptr_t extra)'), down: l.func('short __stdcall GetAsyncKeyState(int vKey)') });
+    key: l.func('void __stdcall keybd_event(uint8_t vk, uint8_t scan, uint32_t flags, uintptr_t extra)'), down: l.func('short __stdcall GetAsyncKeyState(int vKey)'),
+    vk: l.func('uint32_t __stdcall MapVirtualKeyW(uint32_t code, uint32_t type)') });
 }
 function controlEnd() {
+  if (asking) asking.abort();
   if (!control) return;
   const c = control;
   control = null;
   clearInterval(c.timer);
-  for (const code of c.keys) c.u.key(ctlVk(code), 0, 2 | (CTL_EXT.has(code) ? 1 : 0), 0);
+  for (const code of c.keys) ctlKey(c.u, CTL_SCAN.get(code), true);
   for (const b of c.buttons) c.u.mouse(b * 2, 0, 0, 0, 0); // a button's up flag is twice its down flag
   c.bar.destroy();
   if (win && !win.isDestroyed()) win.webContents.send('control-end', true);
@@ -980,17 +988,23 @@ ipcMain.handle('control', async (e, name) => {
   if (!d) return { ok: false, why: 'They need to share their whole screen, not one app, to be controlled.' };
   let u;
   try { u = ctlUser32(); } catch (err) { console.error('remote control:', err); return { ok: false, why: 'Their app couldn’t start remote control.' }; }
-  name = String(name || 'A friend').slice(0, 24);
-  asking = true;
+  name = String(name || '').replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend'; // what they call themselves, on one line
+  const ask = (asking = new AbortController());
   try {
-    if (win.isMinimized()) win.restore();
-    win.show();
-    win.focus();
-    const { response } = await dialog.showMessageBox(win, {
-      type: 'warning', title: 'Premade', buttons: ['Don’t allow', 'Allow'], defaultId: 0, cancelId: 0, noLink: true,
+    if (!win.isFocused()) {
+      win.flashFrame(true);
+      const n = Notification.isSupported() && new Notification({ title: 'Premade', body: `${name} wants to control your PC. Open Premade to answer.` });
+      if (n) { n.on('click', () => { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }); n.show(); }
+      await new Promise((go) => { const done = () => { win.off('focus', done); go(); }; win.on('focus', done); ask.signal.addEventListener('abort', done); });
+      win.flashFrame(false);
+      if (n) n.close();
+    }
+    const { response } = ask.signal.aborted ? { response: 0 } : await dialog.showMessageBox(win, {
+      type: 'warning', title: 'Premade', buttons: ['Don’t allow', 'Allow'], defaultId: 0, cancelId: 0, noLink: true, signal: ask.signal,
       message: `${name} wants to control your PC`,
       detail: 'They’ll move your mouse, click and type on the screen you’re sharing, like TeamViewer. Only allow someone you trust.\n\nStop it any time: Stop on the red bar at the top of your screen, or Ctrl+Alt+X.',
     });
+    if (ask.signal.aborted) return { ok: false, why: 'Their screen share changed. Ask again.' }; // or they took it back or left: the page tells them nothing then
     if (response !== 1) { refusedAt = Date.now(); return { ok: false, why: 'They said no.' }; }
     if (sharedSource !== s || control) return { ok: false, why: 'Their screen share changed. Ask again.' };
     const { x, y, width } = d.bounds, esc = (t) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
@@ -1004,7 +1018,7 @@ ipcMain.handle('control', async (e, name) => {
     control = { u, bounds: d.bounds, bar, keys: new Set(), buttons: new Set(),
       timer: setInterval(() => { if ([0x11, 0x12, 0x58].every((v) => (u.down(v) & 0x8000) !== 0)) controlEnd(); }, 50) }; // Ctrl+Alt+X
     return { ok: true };
-  } finally { asking = false; }
+  } finally { asking = null; }
 });
 ipcMain.on('control-stop', (e) => { if (fromSite(e)) controlEnd(); });
 ipcMain.on('control-input', (e, m) => { if (fromSite(e) && control && m && typeof m === 'object') controlInput(control, m); });
@@ -1014,15 +1028,14 @@ function controlInput(c, m) {
     const p = screen.dipToScreenPoint({ x: b.x + f(m.x) * (b.width - 1), y: b.y + f(m.y) * (b.height - 1) }); // SetCursorPos takes real pixels
     c.u.at(Math.round(p.x), Math.round(p.y));
   }
-  const btn = { 0: 2, 1: 0x20, 2: 8 }[m.b]; // left, middle and right's down flags
+  const btn = Number.isInteger(m.b) && [2, 0x20, 8][m.b]; // left, middle and right's down flags
   if (m.k === 'd' && btn) { c.u.mouse(btn, 0, 0, 0, 0); c.buttons.add(btn); }
-  if (m.k === 'u' && btn) { c.u.mouse(btn * 2, 0, 0, 0, 0); c.buttons.delete(btn); }
+  if (m.k === 'u' && c.buttons.delete(btn)) c.u.mouse(btn * 2, 0, 0, 0, 0); // only one they pressed: not one you're holding
   if (m.k === 'w' && Number.isFinite(m.d)) c.u.mouse(0x800, 0, 0, Math.round(Math.min(1200, Math.max(-1200, m.d))), 0);
-  const v = (m.k === 'kd' || m.k === 'ku') && ctlVk(m.c);
-  if (!v) return;
-  c.u.key(v, 0, (m.k === 'ku' ? 2 : 0) | (CTL_EXT.has(m.c) ? 1 : 0), 0);
+  const s = (m.k === 'kd' || (m.k === 'ku' && c.keys.delete(m.c))) && CTL_SCAN.get(m.c); // the same for keys
+  if (!s) return;
+  ctlKey(c.u, s, m.k === 'ku');
   if (m.k === 'kd') c.keys.add(m.c);
-  else c.keys.delete(m.c);
 }
 
 app.whenReady().then(async () => {
@@ -1033,13 +1046,12 @@ app.whenReady().then(async () => {
     const s = requestedId
       ? (await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 0, height: 0 } })).find((x) => x.id === requestedId)
       : chosen(await screens(false));
-    const filtered = shareAudioMode && shareAudioFiltered;
+    const roomShare = shareAudioMode, filtered = shareAudioMode && shareAudioFiltered; // the room share asks for its sound mode just before
     shareAudioMode = false;
     shareAudioFiltered = false;
     filteredDiscordPid = filtered ? shareDiscordPid : 0;
     shareDiscordPid = 0;
-    sharedSource = s || null; // what remote control maps a friend's mouse onto
-    controlEnd();
+    if (roomShare) { sharedSource = s || null; controlEnd(); } // what remote control maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
   });
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
@@ -1101,4 +1113,4 @@ async function moveSaved(ses = session.defaultSession) {
   finally { w.destroy(); for (const s of schemes) ses.protocol.unhandle(s); }
 }
 
-module.exports = { summary, vk, ctlVk, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js
+module.exports = { summary, vk, CTL_SCAN, controlInput, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js
