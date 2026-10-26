@@ -6,7 +6,7 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
 const { execFileSync, spawn } = require('child_process');
 
@@ -951,7 +951,14 @@ ipcMain.handle('keys', (e, k) => {
 // Games with anti-cheat and programs run as administrator take no input from other apps, so it can't work inside them.
 // The box shows only once you're in Premade (till then a notification and its flashing taskbar button say who asks):
 // popping up over a game, Tab (League's scoreboard) could move to Allow and Space press it.
+// 1.27, from AnyDesk: Pause on the bar stops their input until Resume without ending it, it ends by itself after 10
+// minutes with no input from them, their Ctrl+V pastes the text they copied (it goes on your clipboard first), and the
+// page tells them when their input can't land: Windows' secure screen up (a UAC prompt) or an admin window in front.
 let sharedSource = null, control = null, asking = null, refusedAt = 0, user32 = null;
+const sharedDisplay = () => { // the whole screen the room share shows, which friends' mouse and pointer map onto
+  const s = sharedSource, all = screen.getAllDisplays();
+  return s && s.id.startsWith('screen:') && (all.find((x) => String(x.id) === s.display_id) || (all.length === 1 && all[0]));
+};
 // KeyboardEvent.code -> the key's scan code (0xe0.. for extended keys): keys go in by their place on the keyboard, so
 // two PCs with the same layout type the same letters (AZERTY and QWERTZ too), and games that read scan codes get them
 const CTL_SCAN = new Map([...('Escape Digit1 Digit2 Digit3 Digit4 Digit5 Digit6 Digit7 Digit8 Digit9 Digit0 Minus Equal Backspace Tab KeyQ KeyW KeyE KeyR KeyT KeyY KeyU KeyI KeyO KeyP '
@@ -964,28 +971,85 @@ const CTL_SCAN = new Map([...('Escape Digit1 Digit2 Digit3 Digit4 Digit5 Digit6 
 const ctlKey = (u, s, up) => u.key(u.vk(s, 3) & 0xff, s & 0xff, 8 | (s > 0xff ? 1 : 0) | (up ? 2 : 0), 0);
 function ctlUser32() {
   if (user32) return user32;
-  const l = require('koffi').load('user32.dll');
+  const koffi = require('koffi'), l = koffi.load('user32.dll'), k = koffi.load('kernel32.dll'), a = koffi.load('advapi32.dll');
+  const open = k.func('void* __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)'), close = k.func('int __stdcall CloseHandle(void* h)');
+  const token = a.func('int __stdcall OpenProcessToken(void* h, uint32_t access, _Out_ void** token)');
+  const info = a.func('int __stdcall GetTokenInformation(void* token, int cls, _Out_ uint32_t* info, uint32_t size, _Out_ uint32_t* got)');
+  const thread = l.func('uint32_t __stdcall GetWindowThreadProcessId(void* w, _Out_ uint32_t* pid)');
+  const admin = (pid) => { // that program runs as administrator (TokenElevation); null when Windows won't say
+    const h = pid && open(0x1000, 0, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+    if (!h) return null;
+    try { const t = [null], v = [0], n = [0]; if (!token(h, 8, t)) return null; try { return info(t[0], 20, v, 4, n) ? v[0] !== 0 : null; } finally { close(t[0]); } } finally { close(h); }
+  };
   return (user32 = { at: l.func('int __stdcall SetCursorPos(int x, int y)'), mouse: l.func('void __stdcall mouse_event(uint32_t flags, uint32_t dx, uint32_t dy, int32_t data, uintptr_t extra)'),
     key: l.func('void __stdcall keybd_event(uint8_t vk, uint8_t scan, uint32_t flags, uintptr_t extra)'), down: l.func('short __stdcall GetAsyncKeyState(int vKey)'),
-    vk: l.func('uint32_t __stdcall MapVirtualKeyW(uint32_t code, uint32_t type)') });
+    vk: l.func('uint32_t __stdcall MapVirtualKeyW(uint32_t code, uint32_t type)'), fg: l.func('void* __stdcall GetForegroundWindow()'), thread: (w) => { const p = [0]; thread(w, p); return p[0]; },
+    desk: l.func('void* __stdcall OpenInputDesktop(uint32_t flags, int inherit, uint32_t access)'), deskEnd: l.func('int __stdcall CloseDesktop(void* h)'), admin, me: admin(process.pid) === true });
 }
-function controlEnd() {
+// why their mouse and keys can't land: Windows' secure screen (a UAC prompt, or the PC locked) takes no input from
+// apps, and a program run as administrator none from one that isn't (UIPI). Only says so: nothing gets around it
+function ctlBlocked(u) {
+  const d = u.desk(0, 0, 0x100); // DESKTOP_SWITCHDESKTOP: refused while the secure screen is up
+  if (!d) return 'prompt';
+  u.deskEnd(d);
+  const w = u.fg();
+  return w && !u.me && u.admin(u.thread(w)) ? 'admin' : '';
+}
+function controlLetGo(c) {
+  for (const code of c.keys) ctlKey(c.u, CTL_SCAN.get(code), true);
+  for (const b of c.buttons) c.u.mouse(b * 2, 0, 0, 0, 0); // a button's up flag is twice its down flag
+  c.keys.clear();
+  c.buttons.clear();
+}
+function controlEnd(why) {
   if (asking) asking.abort();
   if (!control) return;
   const c = control;
   control = null;
   clearInterval(c.timer);
-  for (const code of c.keys) ctlKey(c.u, CTL_SCAN.get(code), true);
-  for (const b of c.buttons) c.u.mouse(b * 2, 0, 0, 0, 0); // a button's up flag is twice its down flag
+  controlLetGo(c);
   c.bar.destroy();
-  if (win && !win.isDestroyed()) win.webContents.send('control-end', true);
+  if (win && !win.isDestroyed()) win.webContents.send('control-end', why === 'idle' ? 'idle' : true);
+}
+function controlState(c) { // paused, or why their input can't land, for the page to tell them
+  let st = 'paused';
+  if (!c.paused) try { st = ctlBlocked(c.u); } catch { st = ''; }
+  if (st !== c.st && win && !win.isDestroyed()) win.webContents.send('control-state', st);
+  c.st = st;
+}
+function controlBar(c) { // who, Ctrl+Alt+X, and Pause or Resume and Stop
+  const esc = (t) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`), btn = 'background:#fff;color:#b3261e;border-radius:6px;padding:5px 12px;text-decoration:none';
+  c.bar.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><body style="margin:0;height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 0 14px;background:${c.paused ? '#6b4e16' : '#b3261e'};color:#fff;font:600 14px 'Segoe UI',sans-serif;overflow:hidden;user-select:none"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${c.paused ? `Paused: ${esc(c.name)} can’t use your PC` : `${esc(c.name)} is controlling your PC`} &middot; Ctrl+Alt+X stops it</span><span style="display:flex;gap:6px"><a href="https://pause.invalid/" style="${btn}">${c.paused ? 'Resume' : 'Pause'}</a><a href="https://stop.invalid/" style="${btn}">Stop</a></span></body>`));
+}
+function controlStart(u, d, name) { // their yes: the red bar at the top of the shared screen, and their input from now on
+  const { x, y, width } = d.bounds;
+  const bar = new BrowserWindow({ x: Math.round(x + width / 2 - 320), y, width: 640, height: 40, show: false, frame: false, resizable: false, movable: false, minimizable: false,
+    maximizable: false, closable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, webPreferences: { sandbox: true } });
+  bar.setAlwaysOnTop(true, 'screen-saver');
+  bar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  const c = (control = { u, name, bounds: d.bounds, bar, keys: new Set(), buttons: new Set(), paused: false, st: '', last: Date.now(), tick: 0 });
+  bar.webContents.on('will-navigate', (ev, url) => { // its Pause and Stop links
+    ev.preventDefault();
+    if (!url.startsWith('https://pause.invalid/')) return controlEnd();
+    c.paused = !c.paused;
+    controlLetGo(c);
+    controlBar(c);
+    controlState(c);
+  });
+  controlBar(c);
+  bar.showInactive();
+  c.timer = setInterval(() => {
+    if ([0x11, 0x12, 0x58].every((v) => (u.down(v) & 0x8000) !== 0)) return controlEnd(); // Ctrl+Alt+X
+    if (Date.now() - c.last > 600000) return controlEnd('idle'); // 10 minutes without their input
+    if (++c.tick % 20 === 0) controlState(c); // each second
+  }, 50);
+  return c;
 }
 ipcMain.handle('control', async (e, name) => {
   if (!fromSite(e)) return { ok: false };
   if (process.platform !== 'win32') return { ok: false, why: 'Only the Windows app can be controlled.' };
   if (control || asking || Date.now() - refusedAt < 15000) return { ok: false, why: 'They’re busy with another request. Try again in a bit.' };
-  const s = sharedSource, all = screen.getAllDisplays();
-  const d = s && s.id.startsWith('screen:') && (all.find((x) => String(x.id) === s.display_id) || (all.length === 1 && all[0]));
+  const s = sharedSource, d = sharedDisplay();
   if (!d) return { ok: false, why: 'They need to share their whole screen, not one app, to be controlled.' };
   let u;
   try { u = ctlUser32(); } catch (err) { console.error('remote control:', err); return { ok: false, why: 'Their app couldn’t start remote control.' }; }
@@ -1008,22 +1072,16 @@ ipcMain.handle('control', async (e, name) => {
     if (ask.signal.aborted) return { ok: false, why: 'Their screen share changed. Ask again.' }; // or they took it back or left: the page tells them nothing then
     if (response !== 1) { refusedAt = Date.now(); return { ok: false, why: 'They said no.' }; }
     if (sharedSource !== s || control) return { ok: false, why: 'Their screen share changed. Ask again.' };
-    const { x, y, width } = d.bounds, esc = (t) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
-    const bar = new BrowserWindow({ x: Math.round(x + width / 2 - 260), y, width: 520, height: 40, show: false, frame: false, resizable: false, movable: false, minimizable: false,
-      maximizable: false, closable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, webPreferences: { sandbox: true } });
-    bar.setAlwaysOnTop(true, 'screen-saver');
-    bar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    bar.webContents.on('will-navigate', (ev) => { ev.preventDefault(); controlEnd(); }); // its Stop link
-    bar.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><body style="margin:0;height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 0 14px;background:#b3261e;color:#fff;font:600 14px 'Segoe UI',sans-serif;overflow:hidden;user-select:none"><span>${esc(name)} is controlling your PC &middot; Ctrl+Alt+X stops it</span><a href="https://stop.invalid/" style="background:#fff;color:#b3261e;border-radius:6px;padding:5px 14px;text-decoration:none">Stop</a></body>`));
-    bar.showInactive();
-    control = { u, bounds: d.bounds, bar, keys: new Set(), buttons: new Set(),
-      timer: setInterval(() => { if ([0x11, 0x12, 0x58].every((v) => (u.down(v) & 0x8000) !== 0)) controlEnd(); }, 50) }; // Ctrl+Alt+X
+    controlStart(u, d, name);
     return { ok: true };
   } finally { asking = null; }
 });
 ipcMain.on('control-stop', (e) => { if (fromSite(e)) controlEnd(); });
 ipcMain.on('control-input', (e, m) => { if (fromSite(e) && control && m && typeof m === 'object') controlInput(control, m); });
 function controlInput(c, m) {
+  c.last = Date.now();
+  if (c.paused) return;
+  if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText(m.text.slice(0, 20000)); return; } // their Ctrl+V: what they copied, then their V pastes it
   if (Number.isFinite(m.x) && Number.isFinite(m.y)) {
     const b = c.bounds, f = (v) => Math.min(1, Math.max(0, v));
     const p = screen.dipToScreenPoint({ x: b.x + f(m.x) * (b.width - 1), y: b.y + f(m.y) * (b.height - 1) }); // SetCursorPos takes real pixels
@@ -1039,6 +1097,61 @@ function controlInput(c, m) {
   if (m.k === 'kd') c.keys.add(m.c);
 }
 
+// ---- pointing (app 1.27, from AnyDesk's pointer and Whiteboard): a friend watching your whole-screen share points or
+// draws on it, their dot and name and the line they drag fading out in 3 s, on a see-through window over that screen
+// that every click goes through. It only draws, so it shows over games in Borderless too, where remote control can't
+let marks = null;
+const MARKS = `<!doctype html><body style="margin:0;overflow:hidden"><canvas></canvas><script>
+const cv = document.querySelector('canvas'), g = cv.getContext('2d'), who = new Map(), C = ['#f2b630', '#4fc3f7', '#81c784', '#f06292', '#ba68c8', '#ff8a65'];
+function mark(m) { // { x, y } as fractions of the screen, d while their button is down, who, c their colour
+  const now = performance.now(), p = who.get(m.who) || { lines: [] };
+  if (m.d && p.d) p.lines.push([p.x, p.y, m.x, m.y, now]);
+  Object.assign(p, { x: m.x, y: m.y, d: m.d, at: now, c: C[m.c] || C[0] });
+  who.set(m.who, p);
+}
+(function draw() {
+  const k = devicePixelRatio, W = innerWidth, H = innerHeight, now = performance.now();
+  if (cv.width !== W * k || cv.height !== H * k) { cv.width = W * k; cv.height = H * k; cv.style.width = W + 'px'; cv.style.height = H + 'px'; }
+  g.setTransform(k, 0, 0, k, 0, 0);
+  g.clearRect(0, 0, W, H);
+  g.lineCap = 'round';
+  for (const [name, p] of who) {
+    p.lines = p.lines.filter((l) => now - l[4] < 3000);
+    const a = 1 - (now - p.at) / 3000;
+    if (a <= 0 && !p.lines.length) { who.delete(name); continue; }
+    g.strokeStyle = p.c;
+    g.lineWidth = 5;
+    for (const l of p.lines) { g.globalAlpha = 1 - (now - l[4]) / 3000; g.beginPath(); g.moveTo(l[0] * W, l[1] * H); g.lineTo(l[2] * W, l[3] * H); g.stroke(); }
+    if (a <= 0) continue;
+    const x = p.x * W, y = p.y * H;
+    g.globalAlpha = a;
+    g.beginPath(); g.arc(x, y, 9, 0, 7); g.fillStyle = p.c; g.fill(); g.lineWidth = 2; g.strokeStyle = '#fff'; g.stroke();
+    g.font = "600 15px 'Segoe UI', sans-serif"; g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.7)'; g.strokeText(name, x + 14, y - 10); g.fillStyle = p.c; g.fillText(name, x + 14, y - 10);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>`;
+ipcMain.handle('point', (e, m) => { // '' shown, else why not
+  if (!fromSite(e) || !m || typeof m !== 'object' || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return 'No.';
+  const d = sharedDisplay();
+  if (!d) return 'They need to share their whole screen, not one app, to see your pointer.';
+  if (!marks || marks.isDestroyed()) {
+    marks = new BrowserWindow({ show: false, frame: false, transparent: true, resizable: false, movable: false, minimizable: false, maximizable: false, focusable: false, skipTaskbar: true,
+      hasShadow: false, alwaysOnTop: true, webPreferences: { sandbox: true } });
+    marks.setIgnoreMouseEvents(true);
+    marks.setAlwaysOnTop(true, 'screen-saver');
+    marks.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(MARKS));
+  }
+  const b = marks.getBounds();
+  if (b.x !== d.bounds.x || b.y !== d.bounds.y || b.width !== d.bounds.width || b.height !== d.bounds.height) marks.setBounds(d.bounds);
+  if (!marks.isVisible()) marks.showInactive();
+  clearTimeout(marks.idle);
+  marks.idle = setTimeout(() => { if (!marks.isDestroyed()) marks.hide(); }, 4000); // nothing left to draw
+  const f = (v) => Math.min(1, Math.max(0, v)), who = String(m.who || '').replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend';
+  if (!marks.webContents.isLoading()) marks.webContents.executeJavaScript(`mark(${JSON.stringify({ x: f(m.x), y: f(m.y), d: m.d === true, who, c: Math.abs(m.c | 0) % 6 })})`).catch(() => {});
+  return '';
+});
+
 app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.setDisplayMediaRequestHandler(async (req, done) => {
@@ -1052,7 +1165,7 @@ app.whenReady().then(async () => {
     shareAudioFiltered = false;
     filteredDiscordPid = filtered ? shareDiscordPid : 0;
     shareDiscordPid = 0;
-    if (roomShare) { sharedSource = s || null; controlEnd(); } // what remote control maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
+    if (roomShare) { sharedSource = s || null; controlEnd(); if (marks && !marks.isDestroyed()) marks.hide(); } // what remote control and pointing map a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
   });
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'keyboardLock'].includes(perm))); // keyboardLock: remote control's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
@@ -1078,6 +1191,7 @@ app.whenReady().then(async () => {
   win.webContents.on('did-navigate', navigated);
   win.webContents.on('did-finish-load', () => { // a reloaded page hears it all again
     controlEnd();
+    if (marks && !marks.isDestroyed()) marks.hide();
     leagueWas = '';
     if (updateReady) win.webContents.send('update', updateReady);
     join(linkWaiting);
@@ -1114,4 +1228,4 @@ async function moveSaved(ses = session.defaultSession) {
   finally { w.destroy(); for (const s of schemes) ses.protocol.unhandle(s); }
 }
 
-module.exports = { summary, vk, CTL_SCAN, controlInput, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js
+module.exports = { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js

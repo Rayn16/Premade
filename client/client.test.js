@@ -80,8 +80,8 @@ process.env.LPC_OLD_SITE = 'http://localhost:8083/'; // where the page was befor
 process.env.LPC_LEAGUE = 'https://127.0.0.1:8084';
 process.env.LPC_LEAGUE_DIR = tmp; // League's folder, for the window mode in Config/
 fs.mkdirSync(path.join(tmp, 'Config'));
-const { app, BrowserWindow, globalShortcut, screen, shell } = require('electron');
-const { summary, vk, CTL_SCAN, controlInput, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
+const { app, BrowserWindow, globalShortcut, screen, shell, clipboard } = require('electron');
+const { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
 assert(app.getPath('userData').endsWith(path.sep + 'League Proximity Chat'), 'settings stay in the folder from before the rename to Premade');
 app.setPath('videos', path.join(tmp, 'Videos')); // where clips go
 app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings go
@@ -328,6 +328,50 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
       { k: 'kd', c: 'toString' }, { k: 'kd', c: 'KeyA' }, { k: 'ku', c: 'KeyA' }, { k: 'kd', c: 'ArrowLeft' }, { k: 'w', d: 5000 }]) controlInput(held, m);
     assert.deepStrictEqual(got, [['at', 960, 1080], ['mouse', 2, 0], ['mouse', 4, 0], ['key', 0x1e, 8], ['key', 0x1e, 10], ['key', 0x4b, 9], ['mouse', 0x800, 1200]], JSON.stringify(got));
     assert.deepStrictEqual([...held.keys], ['ArrowLeft'], 'still down, to let go when it ends');
+    // 1.27: their Ctrl+V puts the text they copied on your clipboard first (text only); nothing goes in while it's paused
+    controlInput(held, { k: 'clip', text: 'from Ben' });
+    controlInput(held, { k: 'clip', text: { toString: () => 'not text' } });
+    assert.strictEqual(clipboard.readText(), 'from Ben');
+    got.length = 0;
+    controlInput({ ...held, paused: true }, { k: 'kd', c: 'KeyB', x: 0.5, y: 0.5 });
+    assert.deepStrictEqual(got, [], 'paused');
+    // why their input can't land (Windows made up here): the secure screen up (a UAC prompt), or a window run as
+    // administrator in front, unless Premade runs as one too; nothing when Windows won't say
+    const win32 = (o) => ({ desk: () => ({}), deskEnd() {}, fg: () => ({}), thread: () => 7, admin: () => true, me: false, ...o });
+    assert.deepStrictEqual([win32({ desk: () => null }), win32(), win32({ me: true }), win32({ admin: () => null }), win32({ fg: () => null })].map((u) => ctlBlocked(u)), ['prompt', 'admin', '', '', '']);
+    // the red bar after a yes: who, then Pause stops their input (keys they hold let go) until Resume, and it ends by
+    // itself after 10 minutes without their input. The page hears each change, to tell them.
+    const toPage = [], send = win.webContents.send;
+    win.webContents.send = function (ch, v) { if (ch.startsWith('control-')) toPage.push(`${ch} ${v}`); return send.apply(this, arguments); };
+    const c = controlStart({ ...user32, ...win32(), down: () => 0 }, screen.getPrimaryDisplay(), 'Ben'), bar = () => c.bar.webContents.executeJavaScript('document.body.innerText').catch(() => '');
+    await until(async () => (await bar()).startsWith('Ben is controlling your PC') && c.bar.isVisible(), 'the red bar');
+    await until(() => toPage.includes('control-state admin'), 'an admin window in front, for the page');
+    controlInput(c, { k: 'kd', c: 'KeyB' });
+    c.bar.webContents.executeJavaScript('document.querySelector("a").click()');
+    await until(async () => (await bar()).startsWith('Paused: Ben can’t use your PC') && toPage.at(-1) === 'control-state paused', 'Pause');
+    controlInput(c, { k: 'kd', c: 'KeyN' });
+    assert.deepStrictEqual(got, [['key', 0x30, 8], ['key', 0x30, 10]], `B let go on Pause, and no N: ${JSON.stringify(got)}`);
+    c.bar.webContents.executeJavaScript('document.querySelector("a").click()');
+    await until(async () => (await bar()).startsWith('Ben is controlling your PC') && toPage.at(-1) === 'control-state admin', 'Resume');
+    controlInput(c, { k: 'kd', c: 'KeyB' });
+    c.last = 0;
+    await until(() => c.bar.isDestroyed(), 'the end after 10 minutes without input');
+    assert.deepStrictEqual(got.slice(2), [['key', 0x30, 8], ['key', 0x30, 10]], 'let go at the end');
+    assert.strictEqual(toPage.at(-1), 'control-end idle');
+    win.webContents.send = send;
+    // pointing: a friend's dot, name and lines, on a see-through window over the screen the room share shows (clicks go
+    // through it), hidden again once there's nothing left to draw
+    await js('lpcClient.shareAudioMode(), navigator.mediaDevices.getDisplayMedia({ video: true }).then((s) => s.getTracks().forEach((t) => t.stop()))');
+    assert.strictEqual(await js('lpcClient.point({ x: "a", y: 0.5 })'), 'No.');
+    assert.strictEqual(await js('lpcClient.point({ x: 0.5, y: 0.5, who: "Ben", c: 1 })'), '');
+    const marks = BrowserWindow.getAllWindows().find((w) => w !== win && w !== ovWin());
+    assert(marks && marks.isVisible() && marks.isAlwaysOnTop(), 'the pointer window, over everything');
+    assert.deepStrictEqual(marks.getBounds(), screen.getPrimaryDisplay().bounds, 'on the shared screen');
+    await until(() => !marks.webContents.isLoading(), 'the pointer window loaded');
+    assert(marks.webContents.getURL().includes('function%20mark('));
+    for (const x of [0.2, 0.4, 7]) await js(`lpcClient.point({ x: ${x}, y: 0.5, d: true, who: " Ben\\n", c: 7 })`);
+    assert.deepStrictEqual(await marks.webContents.executeJavaScript('[...who].map(([n, p]) => [n, p.lines.length, p.c, p.x])'), [['Ben', 2, '#4fc3f7', 1]], 'a line while the button is down, on the screen');
+    await until(() => !marks.isVisible(), 'the pointer window hidden', 8000);
     // its Full screen on a friend's screen tile: the Windows key, Alt+Tab and Alt+F4 go to their PC (keyboard lock)
     assert.strictEqual(await js(`document.body.requestFullscreen().then(() => navigator.keyboard.lock(['MetaLeft', 'Tab', 'F4'])).then(() => 'locked', (e) => e.message)`), 'locked', 'keyboard lock allowed');
     await js('navigator.keyboard.unlock(); document.exitFullscreen()');
