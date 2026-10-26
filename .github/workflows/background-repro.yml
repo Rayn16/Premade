@@ -1,0 +1,33 @@
+# Runs client/background.repro.js on a Windows PC: the real app and a friend in one room while Premade's window is
+# covered, minimized and unfocused. Temporary, for the background disconnect hunt.
+name: Background disconnect repro
+on:
+  push:
+    branches: [claude/project-thread-9zdhk1]
+jobs:
+  repro:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the app and a PeerServer
+        shell: pwsh
+        run: |
+          cd client; npm ci; cd ..
+          mkdir deps; cd deps; npm init -y | Out-Null; npm i peer@1.0.2
+      - name: Cover, minimize and unfocus Premade in a room
+        shell: pwsh
+        run: |
+          $env:PEER_MODULE = "$env:GITHUB_WORKSPACE\deps\node_modules\peer"
+          $env:REPRO_LOG = "$env:GITHUB_WORKSPACE\repro.log"
+          cd client
+          npx electron background.repro.js
+          Get-Content $env:REPRO_LOG | Select-String -Pattern '==== summary' -Context 0,200
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-log
+          path: repro.log
