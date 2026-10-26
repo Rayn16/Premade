@@ -948,6 +948,7 @@ ipcMain.handle('keys', (e, k) => {
 // too, and only while it's on their mouse and keys go in through user32 (SetCursorPos, mouse_event, keybd_event).
 // Whole screen shares only: their x and y are fractions of the screen they see. Ends when the page reloads, the share
 // changes or either side stops; keys and buttons still down are let go, and a box still open closes as Don't allow.
+// Games with anti-cheat and programs run as administrator take no input from other apps, so it can't work inside them.
 // The box shows only once you're in Premade (till then a notification and its flashing taskbar button say who asks):
 // popping up over a game, Tab (League's scoreboard) could move to Allow and Space press it.
 let sharedSource = null, control = null, asking = null, refusedAt = 0, user32 = null;
@@ -1054,7 +1055,7 @@ app.whenReady().then(async () => {
     if (roomShare) { sharedSource = s || null; controlEnd(); } // what remote control maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
   });
-  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
+  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'keyboardLock'].includes(perm))); // keyboardLock: remote control's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
 
   const last = lastBounds();
   win = new BrowserWindow({
