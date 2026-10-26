@@ -328,6 +328,10 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
       { k: 'kd', c: 'toString' }, { k: 'kd', c: 'KeyA' }, { k: 'ku', c: 'KeyA' }, { k: 'kd', c: 'ArrowLeft' }, { k: 'w', d: 5000 }]) controlInput(held, m);
     assert.deepStrictEqual(got, [['at', 960, 1080], ['mouse', 2, 0], ['mouse', 4, 0], ['key', 0x1e, 8], ['key', 0x1e, 10], ['key', 0x4b, 9], ['mouse', 0x800, 1200]], JSON.stringify(got));
     assert.deepStrictEqual([...held.keys], ['ArrowLeft'], 'still down, to let go when it ends');
+    // its Full screen on a friend's screen tile: the Windows key, Alt+Tab and Alt+F4 go to their PC (keyboard lock)
+    assert.strictEqual(await js(`document.body.requestFullscreen().then(() => navigator.keyboard.lock(['MetaLeft', 'Tab', 'F4'])).then(() => 'locked', (e) => e.message)`), 'locked', 'keyboard lock allowed');
+    await js('navigator.keyboard.unlock(); document.exitFullscreen()');
+    await until(async () => !(await js('!!document.fullscreenElement')) && !win.isFullScreen(), 'out of full screen');
 
     // Discord status through Discord's local pipe; null closes it, which clears the status
     process.env.XDG_RUNTIME_DIR = tmp; // where the fake Discord listens (here, not for the whole app: Chromium reads it too)
