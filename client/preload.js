@@ -38,5 +38,8 @@ contextBridge.exposeInMainWorld('lpcClient', {
   record: (on) => ipcRenderer.send('record', !!on),
   withLeague: (on) => ipcRenderer.invoke('with-league', typeof on === 'boolean' ? on : undefined),
   recordingsFolder: () => ipcRenderer.send('recordings-folder'),
-  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+  control: (name) => ipcRenderer.invoke('control', String(name || '')),
+  controlStop: () => ipcRenderer.send('control-stop'),
+  controlInput: (m) => ipcRenderer.send('control-input', m),
+  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

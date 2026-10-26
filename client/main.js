@@ -943,6 +943,88 @@ ipcMain.handle('keys', (e, k) => {
   return ok;
 });
 
+// ---- remote control (app 1.26): a friend watching your screen share asks for control; you say yes in Windows' own box
+// here, never in the page, a red bar at the top of the shared screen says who with a Stop button, Ctrl+Alt+X stops it
+// too, and only while it's on their mouse and keys go in through user32 (SetCursorPos, mouse_event, keybd_event).
+// Whole screen shares only: their x and y are fractions of the screen they see. Ends when the page reloads, the share
+// changes or either side stops; keys and buttons still down are let go.
+let sharedSource = null, control = null, asking = false, refusedAt = 0, user32 = null;
+const CTL_VK = { Enter: 0x0d, NumpadEnter: 0x0d, Backspace: 8, Escape: 0x1b, Delete: 0x2e, Insert: 0x2d, Home: 0x24, End: 0x23, PageUp: 0x21, PageDown: 0x22,
+  ArrowLeft: 0x25, ArrowUp: 0x26, ArrowRight: 0x27, ArrowDown: 0x28, MetaLeft: 0x5b, MetaRight: 0x5c, ContextMenu: 0x5d, Minus: 0xbd, Equal: 0xbb,
+  BracketLeft: 0xdb, BracketRight: 0xdd, Backslash: 0xdc, Semicolon: 0xba, Quote: 0xde, Comma: 0xbc, Period: 0xbe, Slash: 0xbf, IntlBackslash: 0xe2,
+  NumpadAdd: 0x6b, NumpadSubtract: 0x6d, NumpadMultiply: 0x6a, NumpadDivide: 0x6f, NumpadDecimal: 0x6e, PrintScreen: 0x2c, NumLock: 0x90, ScrollLock: 0x91, Pause: 0x13 };
+const CTL_EXT = new Set(['NumpadEnter', 'Delete', 'Insert', 'Home', 'End', 'PageUp', 'PageDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'MetaLeft', 'MetaRight', 'ContextMenu', 'NumpadDivide', 'ControlRight', 'AltRight']);
+const ctlVk = (code) => typeof code === 'string' && !code.startsWith('Mouse') && (CTL_VK[code] || vk(code));
+function ctlUser32() {
+  if (user32) return user32;
+  const l = require('koffi').load('user32.dll');
+  return (user32 = { at: l.func('int __stdcall SetCursorPos(int x, int y)'), mouse: l.func('void __stdcall mouse_event(uint32_t flags, uint32_t dx, uint32_t dy, int32_t data, uintptr_t extra)'),
+    key: l.func('void __stdcall keybd_event(uint8_t vk, uint8_t scan, uint32_t flags, uintptr_t extra)'), down: l.func('short __stdcall GetAsyncKeyState(int vKey)') });
+}
+function controlEnd() {
+  if (!control) return;
+  const c = control;
+  control = null;
+  clearInterval(c.timer);
+  for (const code of c.keys) c.u.key(ctlVk(code), 0, 2 | (CTL_EXT.has(code) ? 1 : 0), 0);
+  for (const b of c.buttons) c.u.mouse(b * 2, 0, 0, 0, 0); // a button's up flag is twice its down flag
+  c.bar.destroy();
+  if (win && !win.isDestroyed()) win.webContents.send('control-end', true);
+}
+ipcMain.handle('control', async (e, name) => {
+  if (!fromSite(e)) return { ok: false };
+  if (process.platform !== 'win32') return { ok: false, why: 'Only the Windows app can be controlled.' };
+  if (control || asking || Date.now() - refusedAt < 15000) return { ok: false, why: 'They’re busy with another request. Try again in a bit.' };
+  const s = sharedSource, all = screen.getAllDisplays();
+  const d = s && s.id.startsWith('screen:') && (all.find((x) => String(x.id) === s.display_id) || (all.length === 1 && all[0]));
+  if (!d) return { ok: false, why: 'They need to share their whole screen, not one app, to be controlled.' };
+  let u;
+  try { u = ctlUser32(); } catch (err) { console.error('remote control:', err); return { ok: false, why: 'Their app couldn’t start remote control.' }; }
+  name = String(name || 'A friend').slice(0, 24);
+  asking = true;
+  try {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'warning', title: 'Premade', buttons: ['Don’t allow', 'Allow'], defaultId: 0, cancelId: 0, noLink: true,
+      message: `${name} wants to control your PC`,
+      detail: 'They’ll move your mouse, click and type on the screen you’re sharing, like TeamViewer. Only allow someone you trust.\n\nStop it any time: Stop on the red bar at the top of your screen, or Ctrl+Alt+X.',
+    });
+    if (response !== 1) { refusedAt = Date.now(); return { ok: false, why: 'They said no.' }; }
+    if (sharedSource !== s || control) return { ok: false, why: 'Their screen share changed. Ask again.' };
+    const { x, y, width } = d.bounds, esc = (t) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const bar = new BrowserWindow({ x: Math.round(x + width / 2 - 260), y, width: 520, height: 40, show: false, frame: false, resizable: false, movable: false, minimizable: false,
+      maximizable: false, closable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, webPreferences: { sandbox: true } });
+    bar.setAlwaysOnTop(true, 'screen-saver');
+    bar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    bar.webContents.on('will-navigate', (ev) => { ev.preventDefault(); controlEnd(); }); // its Stop link
+    bar.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><body style="margin:0;height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 0 14px;background:#b3261e;color:#fff;font:600 14px 'Segoe UI',sans-serif;overflow:hidden;user-select:none"><span>${esc(name)} is controlling your PC &middot; Ctrl+Alt+X stops it</span><a href="https://stop.invalid/" style="background:#fff;color:#b3261e;border-radius:6px;padding:5px 14px;text-decoration:none">Stop</a></body>`));
+    bar.showInactive();
+    control = { u, bounds: d.bounds, bar, keys: new Set(), buttons: new Set(),
+      timer: setInterval(() => { if ([0x11, 0x12, 0x58].every((v) => (u.down(v) & 0x8000) !== 0)) controlEnd(); }, 50) }; // Ctrl+Alt+X
+    return { ok: true };
+  } finally { asking = false; }
+});
+ipcMain.on('control-stop', (e) => { if (fromSite(e)) controlEnd(); });
+ipcMain.on('control-input', (e, m) => { if (fromSite(e) && control && m && typeof m === 'object') controlInput(control, m); });
+function controlInput(c, m) {
+  if (Number.isFinite(m.x) && Number.isFinite(m.y)) {
+    const b = c.bounds, f = (v) => Math.min(1, Math.max(0, v));
+    const p = screen.dipToScreenPoint({ x: b.x + f(m.x) * (b.width - 1), y: b.y + f(m.y) * (b.height - 1) }); // SetCursorPos takes real pixels
+    c.u.at(Math.round(p.x), Math.round(p.y));
+  }
+  const btn = { 0: 2, 1: 0x20, 2: 8 }[m.b]; // left, middle and right's down flags
+  if (m.k === 'd' && btn) { c.u.mouse(btn, 0, 0, 0, 0); c.buttons.add(btn); }
+  if (m.k === 'u' && btn) { c.u.mouse(btn * 2, 0, 0, 0, 0); c.buttons.delete(btn); }
+  if (m.k === 'w' && Number.isFinite(m.d)) c.u.mouse(0x800, 0, 0, Math.round(Math.min(1200, Math.max(-1200, m.d))), 0);
+  const v = (m.k === 'kd' || m.k === 'ku') && ctlVk(m.c);
+  if (!v) return;
+  c.u.key(v, 0, (m.k === 'ku' ? 2 : 0) | (CTL_EXT.has(m.c) ? 1 : 0), 0);
+  if (m.k === 'kd') c.keys.add(m.c);
+  else c.keys.delete(m.c);
+}
+
 app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.setDisplayMediaRequestHandler(async (req, done) => {
@@ -956,6 +1038,8 @@ app.whenReady().then(async () => {
     shareAudioFiltered = false;
     filteredDiscordPid = filtered ? shareDiscordPid : 0;
     shareDiscordPid = 0;
+    sharedSource = s || null; // what remote control maps a friend's mouse onto
+    controlEnd();
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
   });
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
@@ -980,6 +1064,7 @@ app.whenReady().then(async () => {
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(SITE)) { e.preventDefault(); openOut(url); } });
   win.webContents.on('did-navigate', navigated);
   win.webContents.on('did-finish-load', () => { // a reloaded page hears it all again
+    controlEnd();
     leagueWas = '';
     if (updateReady) win.webContents.send('update', updateReady);
     join(linkWaiting);
@@ -1016,4 +1101,4 @@ async function moveSaved(ses = session.defaultSession) {
   finally { w.destroy(); for (const s of schemes) ses.protocol.unhandle(s); }
 }
 
-module.exports = { summary, vk, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js
+module.exports = { summary, vk, ctlVk, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js
