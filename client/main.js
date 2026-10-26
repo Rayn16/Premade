@@ -6,8 +6,8 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard } = require('electron');
-const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), path = require('path'), zlib = require('zlib');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard, powerMonitor } = require('electron');
+const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), os = require('os'), path = require('path'), zlib = require('zlib');
 const { execFileSync, spawn } = require('child_process');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
@@ -30,6 +30,30 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // voice plays in a room joined for your game
+// Windows itself also puts the programs of a window that's minimized or fully covered on its slow, power-saving cores
+// (Low QoS), whatever Chromium is told, so with another app in front voice, screen shares and the minimap reading
+// could fall behind. Each of Premade's processes asks Windows to treat it like the app in front instead (HighQoS),
+// again every 10 s and on minimize, for new processes and as Chromium resets it now and then. Says how many it reached.
+let qos = null;
+function fullSpeed() {
+  if (process.platform !== 'win32') return 0;
+  try {
+    if (!qos) {
+      const k = require('koffi').load('kernel32.dll');
+      qos = { open: k.func('void* __stdcall OpenProcess(uint32_t access, int inherit, uint32_t pid)'), close: k.func('int __stdcall CloseHandle(void* h)'),
+        set: k.func('int __stdcall SetProcessInformation(void* h, int cls, void* info, uint32_t size)') };
+    }
+    const high = new Uint32Array([1, 1 | 4, 0]); // version 1; execution speed and timer resolution: ours to say, and not throttled
+    let n = 0;
+    for (const { pid } of app.getAppMetrics()) {
+      const h = qos.open(0x200, 0, pid); // PROCESS_SET_INFORMATION
+      if (!h) continue;
+      if (qos.set(h, 4, high, 12)) n++; // ProcessPowerThrottling
+      qos.close(h);
+    }
+    return n;
+  } catch { return 0; }
+}
 
 if (!app.requestSingleInstanceLock()) return app.quit();
 
@@ -1177,6 +1201,13 @@ app.whenReady().then(async () => {
   });
   if (last && last.max && !waiting) win.maximize();
   for (const ev of ['resize', 'move']) win.on(ev, saveBounds);
+  // for the page's connection log (Settings, App): the window going down and back, a part of the app that ended (the
+  // GPU, audio or network process crashing, or killed) and what this PC is
+  const diag = (line) => { if (!win.isDestroyed()) win.webContents.send('diag', line); };
+  win.on('minimize', () => diag(`window minimized, full speed for ${fullSpeed()} processes`));
+  win.on('restore', () => diag('window restored'));
+  app.on('child-process-gone', (e, d) => diag(`${d.name || d.type} process ended: ${d.reason}, exit code ${d.exitCode}`));
+  setInterval(fullSpeed, 10000);
   if (app.isPackaged) app.setAsDefaultProtocolClient('lolprox');
   win.removeMenu();
   await moveSaved(ses); // once, from 1.16 (win first: closing the only window would quit)
@@ -1197,6 +1228,8 @@ app.whenReady().then(async () => {
     join(linkWaiting);
     linkWaiting = '';
     if (pendingNotificationAction) { win.webContents.send('notification-action', pendingNotificationAction); pendingNotificationAction = null; }
+    const cpu = os.cpus();
+    diag(`${os.version()} ${os.release()}, ${cpu.length} threads of ${cpu[0] ? cpu[0].model.trim() : 'a CPU'}, ${powerMonitor.isOnBatteryPower() ? 'on battery' : 'plugged in'}, full speed for ${fullSpeed()} processes`);
   });
   win.on('closed', () => app.quit());
   app.on('second-instance', (e, argv) => { if (win.isMinimized()) win.restore(); win.show(); win.focus(); join(linkRoom(argv)); });

@@ -1707,7 +1707,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, voice name and app version</label>
-          <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
+          <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="connLogBtn" class="btn small" type="button">Copy connection log</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
           <p class="hint">Premade isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
@@ -3394,6 +3394,38 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const img = c.toDataURL('image/jpeg', 0.8);
     if (img !== faceSent) { faceSent = img; send({ t: 'face', img }); }
   }
+
+  // ---- the connection log (Settings, App: Copy connection log): every second, what the room server, each player's
+  // connections and voice, and the screen shares are doing, written down when it changes, with the window's focus,
+  // the page stalling and the app's own events (app 1.27.1: its window minimized, a part of it that crashed), so a
+  // drop can be worked out afterwards. The last 500 lines, in memory only.
+  const connLog = [];
+  let connWas = '', connAt = performance.now();
+  const clog = (line) => { connLog.push(`${new Date().toISOString().slice(11, 19)} ${line}`); if (connLog.length > 500) connLog.shift(); };
+  const iceOf = (c) => (c && c.peerConnection ? c.peerConnection.iceConnectionState : 'none');
+  setInterval(() => {
+    const now = performance.now();
+    if (now - connAt > 2500) clog(`page stalled ${((now - connAt) / 1000).toFixed(1)} s`);
+    connAt = now;
+    const game = inGameNow(), out = [peer ? `room ${room} slot ${slot + 1}, server ${peer.disconnected ? 'lost' : 'on'}${game ? `, in game, you ${fresh(me) ? 'tracked' : 'not tracked'}` : ''}` : 'no room'];
+    for (const p of peers.values()) out.push(`${nameOf(p)}: data ${[...p.conns].map(iceOf).join('+') || 'none'}, voice ${iceOf(p.call)}${game ? (p.out > 0.01 ? ', heard' : ', silent') : ''}`);
+    if (share) out.push(`your share ${share.track.readyState}`);
+    for (const [p, l] of lends) out.push(`your screen to ${nameOf(p)} ${iceOf(l.call)}`);
+    for (const [p, v] of seen) out.push(`${nameOf(p)}’s screen ${v.call ? iceOf(v.call) : 'asked for'}`);
+    if ($('msg').textContent) out.push(`“${$('msg').textContent}”`);
+    const line = out.join(' | ');
+    if (line !== connWas) clog((connWas = line));
+  }, 1000);
+  addEventListener('focus', () => clog('window in front'));
+  addEventListener('blur', () => clog('window in the background'));
+  addEventListener('offline', () => clog('offline'));
+  addEventListener('online', () => clog('online'));
+  if (client && client.on) client.on('diag', (line) => clog(`app: ${line}`));
+  $('connLogBtn').addEventListener('click', async () => {
+    const text = [`Premade connection log, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, copied ${new Date().toISOString()}`, ...connLog].join('\n');
+    try { await navigator.clipboard.writeText(text); notify('Connection log copied. Paste it to whoever builds the app.', true); }
+    catch { notify('Could not copy the connection log. Allow clipboard access and try again.', true); }
+  });
 
   // ---- joining and leaving
   function reconnectRoomServer(owner = peer, immediate = false) {
@@ -13672,6 +13704,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
       ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
       ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
+      ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The last 500 lines, kept in memory only.',
+        'Settings, App: Copy connection log, right after a drop, then paste it to whoever builds the app.', '#connLogBtn'],
       ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
         'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
