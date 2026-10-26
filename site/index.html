@@ -5184,7 +5184,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function ctlLetGo() { for (const c of ctlTo.keys) ctlIn({ k: 'ku', c }); for (const b of ctlTo.buttons) ctlIn({ k: 'u', b }); ctlTo.keys.clear(); ctlTo.buttons.clear(); }
   function ctlShow() {
     for (const [p, v] of seen) {
-      const mine = !!ctlTo && ctlTo.p === p, on = mine && ctlTo.on;
+      const mine = !!ctlTo && ctlTo.p === p, on = mine && ctlTo.on, was = v.tile.classList.contains('controlling');
       const pt = ptTo === p && !on, st = on && CTL_ST[ctlTo.st], note = v.tile.querySelector('.ctlst');
       v.tile.querySelector('.ctl').textContent = on ? 'Stop control' : mine ? 'Asking… (cancel)' : 'Request control';
       v.tile.querySelector('.full').hidden = !on;
@@ -5195,7 +5195,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       v.vid.controls = !on && !pt; // its own clicks would pause it
       note.hidden = !st;
       note.textContent = st ? st(nameOf(p)) : '';
-      if (!on && document.fullscreenElement === v.vid) document.exitFullscreen().catch(() => {});
+      if (was && !on && document.fullscreenElement === v.vid) document.exitFullscreen().catch(() => {}); // control just ended; not when you only watch (this runs every second)
     }
   }
   function ctlQuit() { // stop controlling or asking

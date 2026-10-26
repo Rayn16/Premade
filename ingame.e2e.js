@@ -328,6 +328,11 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert.strictEqual(await ben.$eval('#screenGrid video', (v) => v.muted), false, 'not muted');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');
       await shot(ben, 'room-screen');
+      // full screen while only watching (the video's own button) stays: the every-second refresh left it at once (2026-10-26)
+      await ben.$eval('#screenGrid video', (v) => v.requestFullscreen());
+      await new Promise((r) => setTimeout(r, 2500));
+      assert.ok(await ben.evaluate(() => document.fullscreenElement === document.querySelector('#screenGrid video')), 'watching full screen stays');
+      await ben.evaluate(() => document.exitFullscreen());
       // remote control (What's new 79): Ben asks, Ana's app says no. Ben takes a request back while Ana's box is open and
       // it closes; a yes that comes just as he does is undone; Ana's yes to a request Ben no longer has (its cancel came
       // first) is ended by Ben. Then yes: Ben's click, key, a drag let go off the tile, a key down when the tile loses
