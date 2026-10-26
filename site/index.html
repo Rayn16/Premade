@@ -186,6 +186,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .screentile { margin: 0; display: grid; gap: 6px; }
 .screentile figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .screentile video { width: 100%; max-height: calc(60vh / var(--zoom, 1)); background: #000; border-radius: 8px; }
+.screentile.controlling { grid-column: 1 / -1; }
+.screentile.controlling video { max-height: calc(85vh / var(--zoom, 1)); outline: 2px solid #b3261e; cursor: crosshair; }
 #face { width: 64px; height: 64px; border-radius: 50%; border: 2px solid #f2b630; background: #000; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pick label { display: grid; gap: 4px; font-size: 14px; }
@@ -2525,6 +2527,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
     if (m.t === 'see') { p.wantSee = m.on === true; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done
+    if (m.t === 'ctl') return void ctlMsg(p, m);
+    if (m.t === 'in') { if (ctlBy === p) client.controlInput(m); return; } // their mouse and keys, while you let them control your PC
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
@@ -5021,6 +5025,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
       else if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
     }
+    if (ctlBy && !lends.has(ctlBy)) ctlEnd(); // they stopped watching, left, or your share stopped or changed
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
       const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
@@ -5063,8 +5068,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const tile = document.createElement('figure');
         tile.className = 'screentile';
         tile.dataset.slot = p.slot;
-        tile.innerHTML = '<figcaption><span></span><button class="btn small" type="button">Hide</button></figcaption><video autoplay playsinline controls></video>';
+        tile.innerHTML = '<figcaption><span></span><span><button class="btn small" type="button">Hide</button> <button class="btn small ctl" type="button">Request control</button></span></figcaption><video autoplay playsinline controls tabindex="0"></video>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
+        ctlTile(tile, p);
         seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0 }));
         bySlot($('screenGrid'), tile, p.slot);
       }
@@ -5081,8 +5087,81 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       v.tile.querySelector('button').setAttribute('aria-label', `Hide ${nameOf(p)}’s screen`);
       if (!v.call && performance.now() - v.asked >= 5000) { v.asked = performance.now(); tell(p, { t: 'see', on: true }); }
     }
+    if (ctlTo && (!seen.has(ctlTo.p) || (!ctlTo.on && performance.now() - ctlTo.at > 60000))) { if (!ctlTo.on && seen.has(ctlTo.p)) notify(`${nameOf(ctlTo.p)} didn’t answer your control request.`, true); ctlQuit(); }
+    ctlShow();
     $('roomScreens').hidden = !seen.size;
   }
+  // Remote control (app 1.26 on their side): Request control on a friend's screen tile asks them ({t:'ctl', on}); their
+  // app asks them in a Windows box and answers {t:'ctl', ok, why}. While it's on, your mouse and keys over their tile go
+  // to them ({t:'in'}: k m, d, u, w, kd or ku; x and y as fractions of their screen, b the button, d the wheel, c the
+  // key's code), and their app puts them in. Either side stops it; it stops too when they stop sharing with you.
+  let ctlTo = null, ctlBy = null; // the friend you control or asked { p, on, at, moved, keys }; the friend controlling you
+  const tellOnce = (p, m) => { const c = [...p.conns].find((x) => x.open); if (c) try { c.send(m); } catch {} }; // tell sends on each link: a click mustn't arrive twice
+  function ctlTile(tile, p) {
+    const vid = tile.querySelector('video'), on = () => !!ctlTo && ctlTo.p === p && ctlTo.on, go = (m) => tellOnce(p, { t: 'in', ...m });
+    const at = (ev) => { // where on their screen, past the black bars
+      const r = vid.getBoundingClientRect(), w = vid.videoWidth, h = vid.videoHeight, k = Math.min(r.width / w, r.height / h);
+      const x = (ev.clientX - r.left - (r.width - w * k) / 2) / (w * k), y = (ev.clientY - r.top - (r.height - h * k) / 2) / (h * k);
+      return w && h && x >= 0 && x <= 1 && y >= 0 && y <= 1 ? { x: +x.toFixed(4), y: +y.toFixed(4) } : null;
+    };
+    tile.querySelector('.ctl').addEventListener('click', () => {
+      const mine = !!ctlTo && ctlTo.p === p;
+      ctlQuit();
+      if (!mine) { ctlTo = { p, on: false, at: performance.now(), moved: 0, keys: new Set() }; tellOnce(p, { t: 'ctl', on: true }); }
+      ctlShow();
+    });
+    vid.addEventListener('mousemove', (ev) => { const q = on() && performance.now() - ctlTo.moved > 30 && at(ev); if (q) { ctlTo.moved = performance.now(); go({ k: 'm', ...q }); } });
+    vid.addEventListener('mousedown', (ev) => { if (!on()) return; ev.preventDefault(); const q = at(ev); vid.focus({ preventScroll: true }); if (q) go({ k: 'd', b: ev.button, ...q }); });
+    vid.addEventListener('mouseup', (ev) => { if (on()) go({ k: 'u', b: ev.button, ...at(ev) }); });
+    vid.addEventListener('contextmenu', (ev) => { if (on()) ev.preventDefault(); });
+    vid.addEventListener('wheel', (ev) => { if (!on()) return; ev.preventDefault(); go({ k: 'w', d: Math.round(-ev.deltaY * (ev.deltaMode ? 40 : 1.2)) }); }, { passive: false });
+    vid.addEventListener('keydown', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.add(ev.code); go({ k: 'kd', c: ev.code }); });
+    vid.addEventListener('keyup', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.delete(ev.code); go({ k: 'ku', c: ev.code }); });
+    vid.addEventListener('blur', () => { if (on()) { for (const c of ctlTo.keys) go({ k: 'ku', c }); ctlTo.keys.clear(); } }); // nothing stays held down
+  }
+  function ctlShow() {
+    for (const [p, v] of seen) {
+      const mine = !!ctlTo && ctlTo.p === p, on = mine && ctlTo.on;
+      v.tile.querySelector('.ctl').textContent = on ? 'Stop control' : mine ? 'Asking… (cancel)' : 'Request control';
+      v.tile.classList.toggle('controlling', on);
+      v.vid.controls = !on; // its own clicks would pause it
+    }
+  }
+  function ctlQuit() { // stop controlling or asking
+    if (!ctlTo) return;
+    const { p, keys } = ctlTo;
+    for (const c of keys) tellOnce(p, { t: 'in', k: 'ku', c });
+    tellOnce(p, { t: 'ctl', on: false });
+    ctlTo = null;
+    ctlShow();
+  }
+  function ctlEnd() { // stop them controlling yours
+    if (!ctlBy) return;
+    const p = ctlBy;
+    ctlBy = null;
+    client.controlStop();
+    tellOnce(p, { t: 'ctl', ok: false, why: 'Control ended.' });
+    notify(`${nameOf(p)} is no longer controlling your PC.`, true);
+  }
+  async function ctlMsg(p, m) {
+    if ('ok' in m) { // their answer, or they ended it
+      if (!ctlTo || ctlTo.p !== p) return;
+      if (m.ok === true) { ctlTo.on = true; notify(`You’re controlling ${nameOf(p)}’s PC. Click their screen to use your mouse and keys there.`, true); }
+      else { ctlTo = null; notify(`${nameOf(p)}: ${typeof m.why === 'string' ? m.why.slice(0, 120) : 'No control.'}`, true); }
+      return ctlShow();
+    }
+    if (m.on !== true) { if (ctlBy === p) ctlEnd(); return; }
+    if (ctlBy === p) return tellOnce(p, { t: 'ctl', ok: true });
+    const no = (why) => tellOnce(p, { t: 'ctl', ok: false, why });
+    if (ctlBy) return no('Someone else is controlling their PC.');
+    if (!client || !client.control) return no(client ? 'Their Premade app needs updating to be controlled.' : 'They need the Premade app for Windows to be controlled.');
+    if (!lends.has(p)) return no('They aren’t sharing their screen with you.');
+    const r = await client.control(nameOf(p)) || {};
+    if (r.ok && !ctlBy && lends.has(p)) { ctlBy = p; notify(`${nameOf(p)} is controlling your PC. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.`, true); return tellOnce(p, { t: 'ctl', ok: true }); }
+    if (r.ok) client.controlStop();
+    no(r.why || 'They said no.');
+  }
+  if (client && client.on) client.on('control-end', ctlEnd); // the red bar's Stop, Ctrl+Alt+X, or the page reloading
   // a screen call that never delivered a stream, or whose connection has been broken for 10 s, gets replaced so the
   // sender can reopen it. Not one that only shows no new frames: a still screen, a minimized window being shared or
   // this window minimized (Windows stops drawing it) all look like that, and restarting cut the share off each time.
@@ -12865,6 +12944,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [79, 'October 26: control a friend’s PC', [
+      'Request control on a friend’s screen tile, and once they allow it, your mouse and keyboard work their PC, like TeamViewer. Click their screen to start.',
+      'They always say yes or no first, a red bar at the top of their screen shows who’s in control, and Stop on it or Ctrl+Alt+X ends it at once. It also ends when they stop sharing.',
+      'The friend being controlled needs the desktop app, updated, and must be sharing their whole screen.',
+    ]],
     [78, 'October 25: a tidier Premade', [
       'Pick’em, the 1v1 referee and the Queue quiz are gone, so the Voice page has less in it.',
       'The Features page has fewer, clearer cards: features that showed the same thing in several places are now one card each, like Callouts, Scouting, Screen share, Your build and Your patterns.',
@@ -13308,6 +13392,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off. In the Windows app, the Discord desktop app is filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
+      ['Remote control', 'Use a friend’s PC with your own mouse and keyboard, like TeamViewer, while they share their screen with you. They allow each request first, a red bar on their screen shows who’s in control, and Stop or Ctrl+Alt+X ends it.',
+        'Request control on their screen tile on the Voice page, then click their screen. They need the desktop app and to share their whole screen.', '#roomScreens, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',

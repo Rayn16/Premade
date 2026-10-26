@@ -81,7 +81,7 @@ process.env.LPC_LEAGUE = 'https://127.0.0.1:8084';
 process.env.LPC_LEAGUE_DIR = tmp; // League's folder, for the window mode in Config/
 fs.mkdirSync(path.join(tmp, 'Config'));
 const { app, BrowserWindow, globalShortcut, screen, shell } = require('electron');
-const { summary, vk, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
+const { summary, vk, ctlVk, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
 assert(app.getPath('userData').endsWith(path.sep + 'League Proximity Chat'), 'settings stay in the folder from before the rename to Premade');
 app.setPath('videos', path.join(tmp, 'Videos')); // where clips go
 app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings go
@@ -156,6 +156,7 @@ assert.strictEqual(hide.path('/lol-summoner/v1/alias/lookup?gameName=Rayan&tagLi
 assert.strictEqual(hide.path('/lol-summoner/v2/summoners/puuid/0123456789abcdef0123456789abcdef'), '/lol-summoner/v2/summoners/puuid/id-5', 'an account id not seen before');
 // push-to-talk keys as Windows numbers them, and F2 to F5 (the camera on a teammate)
 assert.deepStrictEqual(['KeyV', 'Digit4', 'Numpad0', 'F13', 'Mouse4', 'CapsLock', 'AltLeft', 'Nope', 'F2', 'F5'].map(vk), [0x56, 0x34, 0x60, 0x7c, 5, 0x14, 0xa4, 0, 0x71, 0x74]);
+assert.deepStrictEqual(['Enter', 'ArrowLeft', 'KeyA', 'Slash', 'Mouse4', 'Nope'].map(ctlVk), [0x0d, 0x25, 0x41, 0xbf, false, 0], 'remote control keys: no mouse buttons as keys');
 
 const until = async (fn, what, ms = 10000) => {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 100))) if (await fn()) return;

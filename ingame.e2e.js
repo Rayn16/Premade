@@ -67,6 +67,8 @@ function fakeApp([lcu, colour]) {
     overlay(s) { this.lastOverlay = s; },
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
+    allow: true, control(name) { this.asked = name; return Promise.resolve(this.allow ? { ok: true } : { ok: false, why: 'They said no.' }); }, // remote control: Windows' box says allow or not
+    controlStop() { this.stopped = (this.stopped || 0) + 1; }, controlInput(m) { (this.input = this.input || []).push(m); },
     ...(lcu && { lcu: async (method, p) => (p === '/lol-summoner/v1/current-summoner' ? { status: 200, data: { puuid: 'me-puuid', gameName: 'Rayan', tagLine: 'EUW', summonerId: 1 } } : { status: 404, data: null }) }),
   };
   const cv = document.createElement('canvas'), g = cv.getContext('2d');
@@ -323,6 +325,29 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert.strictEqual(await ben.$eval('#screenGrid video', (v) => v.muted), false, 'not muted');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');
       await shot(ben, 'room-screen');
+      // remote control (What's new 79): Ben asks, Ana's app says no, then yes; Ben's click and key reach Ana's app and
+      // Cat's made-up input doesn't; Ana's Stop ends it on both sides
+      const ctl = (p) => p.$eval('#screenGrid .ctl', (b) => b.textContent);
+      await ana.evaluate(() => { lpcClient.allow = false; });
+      await ben.click('#screenGrid .ctl');
+      await wait(ben, () => lpc.toasts().includes('Ana: They said no.') && document.querySelector('#screenGrid .ctl').textContent === 'Request control', null, 'Ana said no');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.asked), 'Ben', 'Ana’s app asked about Ben');
+      await ana.evaluate(() => { lpcClient.allow = true; });
+      await ben.click('#screenGrid .ctl');
+      await wait(ben, () => document.querySelector('#screenGrid .ctl').textContent === 'Stop control' && !document.querySelector('#screenGrid video').controls, null, 'Ben in control');
+      await wait(ana, () => lpc.toasts().some((t) => t.startsWith('Ben is controlling your PC')), null, 'Ana told who controls');
+      await cat.evaluate(() => lpc.send({ t: 'in', k: 'kd', c: 'KeyB' }));
+      const mid = await ben.$eval('#screenGrid video', (v) => { const r = v.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+      await ben.mouse.click(mid[0], mid[1]);
+      await ben.keyboard.press('KeyA');
+      await wait(ana, () => (lpcClient.input || []).filter((m) => m.k !== 'm').map((m) => m.k + (m.c || '')).join() === 'd,u,kdKeyA,kuKeyA', null, 'Ben’s click and key in Ana’s app, each once');
+      const down = await ana.evaluate(() => lpcClient.input.find((m) => m.k === 'd'));
+      assert(down.b === 0 && Math.abs(down.x - 0.5) < 0.02 && Math.abs(down.y - 0.5) < 0.02, `a left click in the middle of Ana’s screen: ${JSON.stringify(down)}`);
+      assert(!(await ana.evaluate(() => lpcClient.input.some((m) => m.c === 'KeyB'))), 'nothing from Cat');
+      await ana.evaluate(() => lpcClient.emit('control-end')); // the red bar's Stop
+      await wait(ben, () => document.querySelector('#screenGrid .ctl').textContent === 'Request control' && lpc.toasts().includes('Ana: Control ended.'), null, 'ended on Ben’s side');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), 1, 'Ana’s app stopped once');
+      assert.strictEqual(await ctl(ben), 'Request control');
       await cat.waitForTimeout(2000);
       assert.deepStrictEqual(await screens(cat), [], 'Cat sees no screen from the other team');
       await cat.evaluate(() => lpc.send({ t: 'see', on: true }));
@@ -338,7 +363,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ana, () => !lpc.lends().length, null, 'turned off, Ana stops sending it');
       await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'and Ben’s screens box closes');
       for (const [c] of ps) await c.close();
-      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat never does, Ana turning hers off ends it');
+      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat never does, Ana turning hers off ends it; remote control asked, refused, allowed, used and stopped');
     }
     console.log('ok');
   } finally {
