@@ -1,0 +1,32 @@
+name: audio-capture check (thread branch only)
+on:
+  push:
+    branches: [claude/project-thread-zsjt4b]
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - run: cl /nologo /EHsc /std:c++17 /O2 /W3 /Fe:client/audio-capture.exe client\audio-capture.cpp /link ole32.lib mmdevapi.lib
+      - shell: pwsh
+        run: |
+          Start-Service audiosrv -ErrorAction SilentlyContinue
+          foreach ($args in @("$PID", "$PID 4")) {
+            $p = New-Object System.Diagnostics.Process
+            $p.StartInfo.FileName = (Resolve-Path client/audio-capture.exe)
+            $p.StartInfo.Arguments = $args
+            $p.StartInfo.UseShellExecute = $false
+            $p.StartInfo.RedirectStandardOutput = $true
+            $p.StartInfo.RedirectStandardError = $true
+            $p.Start() | Out-Null
+            $ms = New-Object System.IO.MemoryStream
+            $copy = $p.StandardOutput.BaseStream.CopyToAsync($ms)
+            Start-Sleep -Seconds 3
+            if (!$p.HasExited) { $p.Kill() }
+            $p.WaitForExit()
+            Start-Sleep -Milliseconds 300
+            $b = $ms.ToArray()
+            $head = if ($b.Length -ge 4) { [Text.Encoding]::ASCII.GetString($b, 0, 4) } else { '' }
+            Write-Host "args '$args': exit $($p.ExitCode), $($b.Length) bytes, header '$head', stderr: $($p.StandardError.ReadToEnd())"
+          }
