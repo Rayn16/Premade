@@ -5088,7 +5088,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     call.on('close', () => { if (c.call === call) { c.call = null; if (c.stop) c.stop(); c.stop = null; } });
   }
   // lending yours: to each teammate who asked and is dead, while you share your screen; you're told once a game who
-  const lends = new Map(), lendSaid = new Set(); // a teammate -> { call, track }: the call carrying your screen to them
+  const lends = new Map(), lendSaid = new Set(); let lendLogAt = 0; // a teammate -> { call, track }: the call carrying your screen to them
   function lendTick() { // every second, and when a teammate asks
     const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
     for (const [p, l] of lends) {
@@ -5109,12 +5109,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (st === 'connected') for (const x of call.peerConnection.getSenders()) {
           const q = x.getParameters();
           if (q.encodings && q.encodings[0]) Object.assign(q.encodings[0], { maxBitrate: rate, maxFramerate: fps, scaleResolutionDownBy: Math.max(1, (track.getSettings().height || h) / h) });
+          // under load (a fight, a busy PC or upload) fewer frames, not a smaller picture: 'motion' alone let WebRTC drop
+          // a 1080p share to 480x270 and keep it there
+          q.degradationPreference = 'maintain-resolution';
           if (q.encodings && q.encodings[0]) x.setParameters(q).catch(() => {});
         }
       });
       call.on('close', () => { track.stop(); if (sound) sound.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
       const k = (league ? league.room : room) + p.slot + !!p.wantSee;
       if (!lendSaid.has(k)) { lendSaid.add(k); notify(p.wantSee ? `${nameOf(p)} is watching your screen.` : `${nameOf(p)} is watching your screen while they’re dead.`, true); }
+    }
+    if (lends.size && performance.now() - lendLogAt > 60000) { // what each watcher gets, once a minute, for the connection log
+      lendLogAt = performance.now();
+      for (const [p, l] of lends) if (l.call.peerConnection) l.call.peerConnection.getStats().then((st) => st.forEach((r) => {
+        if (r.type === 'outbound-rtp' && r.kind === 'video') clog(`screen to ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight || 0} ${Math.round(r.framesPerSecond || 0)} fps, held back by ${r.qualityLimitationReason || '?'}`);
+      })).catch(() => {});
     }
   }
   // Screens in the room (opts.roomScreen, on, the toggle under Players on the Voice page): while you share your screen
@@ -13216,6 +13225,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [85, 'October 28: screen share stays sharp', [
+      'A room screen share no longer turns blurry after a while. When your PC or upload is busy, it sends fewer frames instead of a smaller picture, so it stays at the quality you picked.',
+    ]],
     [84, 'October 27: your main screen shared by itself', [
       'Share my screen by itself now shares your main screen when you join a room, and switches to League’s screen share (with the minimap tracker and callouts) only once a game starts. When the game ends and you’re still in the room, it goes back to your main screen.',
     ]],
@@ -13683,7 +13695,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off. In the Windows app, the Discord desktop app is filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, and a busy PC or connection costs frames, never sharpness. In the Windows app, the Discord desktop app is filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
