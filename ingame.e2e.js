@@ -69,8 +69,9 @@ function fakeApp([lcu, colour]) {
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
     // remote control: Windows' box says allow or not, or stays open ('wait') till answer(); controlStop closes it as
     // Don't allow, as the app does, unless Allow was pressed first (late)
-    allow: true, stopped: 0, control(name) { this.asked = name; return this.allow === 'wait' ? new Promise((res) => { this.answer = (r) => { this.answer = null; res(r); }; }) : Promise.resolve(this.allow ? { ok: true } : { ok: false, why: 'They said no.' }); },
-    controlStop() { this.stopped++; if (this.answer && !this.late) this.answer({ ok: false, why: 'Their screen share changed. Ask again.' }); }, controlInput(m) { (this.input = this.input || []).push(m); },
+    allow: true, stopped: 0, control(name) { this.asked = name; return this.allow === 'wait' ? new Promise((res) => { this.answer = (r) => { this.answer = null; res(r); }; }) : Promise.resolve(this.allow ? { ok: true, source: 'screen:1:0' } : { ok: false, why: 'They said no.' }); },
+    controlStop() { this.stopped++; if (this.answer && !this.late) this.answer({ ok: false, why: 'They took it back.' }); }, controlInput(m) { (this.input = this.input || []).push(m); },
+    captureSource(id) { this.source = id; return Promise.resolve(true); },
     point(m) { (this.points = this.points || []).push(m); return Promise.resolve(''); }, // a friend's pointer on the shared screen (1.27)
     ...(lcu && { lcu: async (method, p) => (p === '/lol-summoner/v1/current-summoner' ? { status: 200, data: { puuid: 'me-puuid', gameName: 'Rayan', tagLine: 'EUW', summonerId: 1 } } : { status: 404, data: null }) }),
   };
@@ -333,85 +334,8 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await new Promise((r) => setTimeout(r, 2500));
       assert.ok(await ben.evaluate(() => document.fullscreenElement === document.querySelector('#screenGrid video')), 'watching full screen stays');
       await ben.evaluate(() => document.exitFullscreen());
-      // remote control (What's new 79): Ben asks, Ana's app says no. Ben takes a request back while Ana's box is open and
-      // it closes; a yes that comes just as he does is undone; Ana's yes to a request Ben no longer has (its cancel came
-      // first) is ended by Ben. Then yes: Ben's click, key, a drag let go off the tile, a key down when the tile loses
-      // focus and a click in full screen reach Ana's app once each and in Ben's order, even sent out of order, and one
-      // lost doesn't hold up the rest; Cat's made-up input never does; Ana's Stop ends it on both sides. 1.27: Ben's
-      // Ctrl+V sends what he copied before its V; Ana's Pause and an admin window in front show on Ben's tile; 10
-      // minutes without input ends it; then Ben points and draws on Ana's screen, Cat can't, and Ana can turn it off
-      const ctl = (p) => p.$eval('#screenGrid .ctl', (b) => b.textContent);
-      await ana.evaluate(() => { lpcClient.allow = false; });
-      await ben.click('#screenGrid .ctl');
-      await wait(ben, () => lpc.toasts().includes('Ana: They said no.') && document.querySelector('#screenGrid .ctl').textContent === 'Request control', null, 'Ana said no');
-      assert.strictEqual(await ana.evaluate(() => lpcClient.asked), 'Ben', 'Ana’s app asked about Ben');
-      await ana.evaluate(() => { lpcClient.allow = 'wait'; });
-      await ben.click('#screenGrid .ctl');
-      await wait(ana, () => !!lpcClient.answer && lpc.toasts().includes('Ben asks to control your PC. Answer in Premade’s window.'), null, 'Ana’s box open, and Ana told');
-      assert.strictEqual(await ctl(ben), 'Asking… (cancel)');
-      await ben.click('#screenGrid .ctl'); // takes it back
-      await wait(ana, () => !lpcClient.answer && lpcClient.stopped === 1, null, 'Ana’s box closed');
-      await ben.click('#screenGrid .ctl');
-      await wait(ana, () => !!lpcClient.answer, null, 'Ana’s box open again');
-      await ana.evaluate(() => { lpcClient.late = true; }); // Ana pressed Allow as Ben took it back
-      await ben.click('#screenGrid .ctl');
-      await wait(ana, () => lpcClient.stopped === 2, null, 'Ben’s cancel at Ana’s');
-      await ana.evaluate(() => { lpcClient.late = false; lpcClient.answer({ ok: true }); });
-      await wait(ana, () => lpcClient.stopped === 3, null, 'the late yes undone');
-      assert(!(await ana.evaluate(() => lpc.toasts().some((t) => t.startsWith('Ben is controlling your PC')))), 'never on for Ana');
-      await ana.evaluate(() => { lpcClient.allow = true; });
-      await ben.evaluate(() => { lpc.sendOnce({ t: 'ctl', on: false }); lpc.sendOnce({ t: 'ctl', on: true }); }); // a request Ben's page doesn't have
-      await wait(ana, () => lpcClient.stopped === 4 && lpc.toasts().includes('Ben is no longer controlling your PC.'), null, 'Ana’s yes ended by Ben');
-      assert.strictEqual(await ctl(ben), 'Request control');
-      await ben.click('#screenGrid .ctl');
-      await wait(ben, () => document.querySelector('#screenGrid .ctl').textContent === 'Stop control' && !document.querySelector('#screenGrid video').controls && !document.querySelector('#screenGrid .full').hidden, null, 'Ben in control, with Full screen');
-      await wait(ana, () => lpc.toasts().at(-1).startsWith('Ben is controlling your PC'), null, 'Ana told who controls');
-      await cat.evaluate(() => lpc.send({ t: 'in', n: 1, k: 'kd', c: 'KeyB' }));
-      const [vx, vy, vw, vh] = await ben.$eval('#screenGrid video', (v) => { const r = v.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }), mid = [vx + vw / 2, vy + vh / 2];
-      await ben.mouse.click(mid[0], mid[1]);
-      await ben.keyboard.press('KeyA');
-      await ben.mouse.down();
-      await ben.mouse.move(mid[0], vy - 20); // off the tile
-      await ben.mouse.up();
-      await ben.keyboard.down('KeyS');
-      await ben.click('#screenGrid figcaption span'); // the tile loses focus
-      await ben.keyboard.up('KeyS');
-      await wait(ana, () => (lpcClient.input || []).filter((m) => m.k !== 'm').map((m) => m.k + (m.c || '')).join() === 'd,u,kdKeyA,kuKeyA,d,u,kdKeyS,kuKeyS', null, 'Ben’s click, key, drag and held key in Ana’s app, each let go once');
-      const down = await ana.evaluate(() => lpcClient.input.find((m) => m.k === 'd'));
-      assert(down.b === 0 && Math.abs(down.x - 0.5) < 0.02 && Math.abs(down.y - 0.5) < 0.02, `a left click in the middle of Ana’s screen: ${JSON.stringify(down)}`);
-      await ben.click('#screenGrid .full');
-      await wait(ben, () => document.fullscreenElement === document.querySelector('#screenGrid video'), null, 'Ben’s full screen');
-      await ben.mouse.click(320, 250); // a quarter in: 1280x720 in the middle of his 1280x860 window
-      await wait(ana, () => lpcClient.input.filter((m) => m.k === 'd').length === 3, null, 'Ben’s click in full screen');
-      const quarter = await ana.evaluate(() => lpcClient.input.filter((m) => m.k === 'd')[2]);
-      assert(Math.abs(quarter.x - 0.25) < 0.02 && Math.abs(quarter.y - 0.25) < 0.02, `a quarter in on Ana’s screen: ${JSON.stringify(quarter)}`);
-      await ben.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-      await ben.evaluate(() => navigator.clipboard.writeText('hello from Ben'));
-      await ben.keyboard.press('Control+KeyV');
-      await wait(ana, () => lpcClient.input.filter((m) => m.k !== 'm').slice(-5).map((m) => m.k + (m.c || '')).join() === 'kdControlLeft,clip,kdKeyV,kuKeyV,kuControlLeft', null, 'Ben’s Ctrl+V: his text first, then the V');
-      assert.strictEqual(await ana.evaluate(() => lpcClient.input.find((m) => m.k === 'clip').text), 'hello from Ben');
-      const note = () => ben.$eval('#screenGrid .ctlst', (e) => (e.hidden ? '' : e.textContent));
-      await ana.evaluate(() => lpcClient.emit('control-state', 'paused')); // Pause on Ana's red bar
-      await wait(ben, () => lpc.toasts().at(-1) === 'Ana paused your control: your mouse and keys do nothing there until they press Resume.', null, 'Ben told it’s paused');
-      assert.strictEqual(await note(), 'Ana paused your control: your mouse and keys do nothing there until they press Resume.');
-      await ana.evaluate(() => lpcClient.emit('control-state', 'admin'));
-      await wait(ben, () => document.querySelector('#screenGrid .ctlst').textContent.startsWith('Ana’s window in front runs as administrator'), null, 'and that an admin window is in front');
-      await ana.evaluate(() => lpcClient.emit('control-state', ''));
-      await wait(ben, () => document.querySelector('#screenGrid .ctlst').hidden, null, 'and nothing in the way');
-      await ben.waitForTimeout(500);
-      assert(await ana.evaluate(() => lpcClient.input.every((m, i) => m.n === i + 1)), 'all of Ben’s, in his order');
-      await ben.evaluate(() => {
-        const n = lpc.ctlN(), go = (m) => lpc.send({ t: 'in', ...m });
-        go({ n: n + 2, k: 'ku', c: 'KeyQ' }); // before its down
-        go({ n: n + 1, k: 'kd', c: 'KeyQ' });
-        for (let i = n + 4; i <= n + 104; i++) go({ n: i, k: 'w', d: 120 }); // n + 3 never comes
-      });
-      await wait(ana, () => lpcClient.input.slice(-103).map((m) => m.k + (m.c || '')).join() === ['kdKeyQ', 'kuKeyQ', ...Array(101).fill('w')].join(), null, 'Ben’s order kept, and the lost one skipped');
-      assert(!(await ana.evaluate(() => lpcClient.input.some((m) => m.c === 'KeyB'))), 'nothing from Cat');
-      await ana.evaluate(() => lpcClient.emit('control-end', 'idle')); // 10 minutes without Ben's input (the red bar's Stop is the same, without 'idle')
-      await wait(ben, () => document.querySelector('#screenGrid .ctl').textContent === 'Request control' && lpc.toasts().includes('Ana: Control ended after 10 minutes without use.') && !document.fullscreenElement, null, 'ended on Ben’s side, out of full screen');
-      assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), 5, 'Ana’s app stopped it');
-      assert.strictEqual(await ctl(ben), 'Request control');
+      // Point (What's new 80): Ben points and draws on Ana's screen, Cat can't, and Ana can turn it off
+      assert.strictEqual(await ben.$eval('#screenGrid figcaption', (e) => e.textContent.includes('Request control')), false, 'no Request control on room tiles (What’s new 83)');
       await ben.click('#screenGrid .pt');
       assert.strictEqual(await ben.$eval('#screenGrid .pt', (b) => b.textContent), 'Stop pointing');
       const [tx, ty, tw, th] = await ben.$eval('#screenGrid video', (v) => { const r = v.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }), at = [tx + tw / 2, ty + th / 2];
@@ -442,7 +366,122 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ana, () => !lpc.lends().length, null, 'turned off, Ana stops sending it');
       await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'and Ben’s screens box closes');
       for (const [c] of ps) await c.close();
-      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat never does, Ana turning hers off ends it; remote control asked, refused, taken back with Ana’s box open, allowed, used in order and in full screen, pasted into, paused and stopped; Ben’s pointer on Ana’s screen until Ana turns it off');
+      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat never does, Ana turning hers off ends it; Ben’s pointer on Ana’s screen until Ana turns it off');
+    }
+
+    // ---- Remote help (What's new 83): no room, no screen share. Ana's code, Ben types it in: Ana's app says no; Ben
+    // takes a request back while Ana's box is open and it closes; a yes that comes just as he does is undone; each code
+    // ends with its session. Then yes: only now does Ana's page share her screen with Ben; Cat can't use the same code;
+    // Ben's click, key, a drag let go off her screen, a key down when it loses focus and a click in full screen reach
+    // Ana's app once each and in Ben's order, even sent out of order, and one lost doesn't hold up the rest. Ben's
+    // Ctrl+V sends what he copied before its V; Ana's Pause and an admin window in front show on Ben's side; 10 minutes
+    // without input ends it. Then Ben's Control on Ana in Friends gets him in without a code, and Stop ends it
+    {
+      const invites = []; // our server's /invite and /friends: { to, n, riot, room, key, lob, at }
+      const ps = [];
+      for (const [name, colour] of [['Ana', '#c22'], ['Ben', '#2c2'], ['Cat', '#22c']]) {
+        const [c, page] = await context(browser, name, { colour });
+        await c.route(`http://127.0.0.1:${PEER}/invite`, async (r) => {
+          const b = JSON.parse(r.request().postData());
+          invites.push({ to: b.to.toLowerCase(), n: name, riot: `${name}#EUW`, room: b.room, key: b.key, lob: b.lob, at: Math.round(Date.now() / 1000) });
+          r.fulfill({ json: { ok: true }, headers: { 'access-control-allow-origin': '*' } });
+        });
+        await c.route(`http://127.0.0.1:${PEER}/friends`, (r) => r.fulfill({ json: { has: { 'ana#euw': Date.now() / 1000, 'ben#euw': Date.now() / 1000 }, inv: invites.filter((v) => v.to === `${name}#euw`.toLowerCase()) }, headers: { 'access-control-allow-origin': '*' } }));
+        await page.evaluate((n) => { localStorage.setItem('lpc-friends', JSON.stringify([n === 'Ana' ? 'Ben#EUW' : 'Ana#EUW'])); lpcClient.version = '1.28.0'; }, name);
+        await page.reload();
+        await page.evaluate(() => { lpcClient.version = '1.28.0'; });
+        await page.click('.nav[data-view="help"]');
+        ps.push([c, page]);
+      }
+      const [ana, ben, cat] = ps.map(([, p]) => p);
+      const offer = async () => { await ana.click('#helpOffer'); await wait(ana, () => !!lpc.help() && !document.getElementById('helpMine').hidden, null, 'Ana’s code'); return ana.evaluate(() => lpc.help().code); };
+      const connect = async (p, code) => { await p.fill('#helpCode', code.replace(/(\d{3})/g, '$1 ')); await p.click('#helpGo'); };
+      let code = await offer();
+      assert.match(await ana.$eval('#helpMine', (e) => e.textContent), /^\d{3} \d{3} \d{3}$/, 'shown in threes');
+      await ana.evaluate(() => { lpcClient.allow = false; });
+      await connect(ben, code);
+      await wait(ben, () => lpc.toasts().includes('Ana: They said no.') && document.getElementById('helpTile').hidden, null, 'Ana said no');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.asked), 'Ben', 'Ana’s app asked about Ben');
+      await wait(ana, () => !lpc.help(), null, 'Ana’s code gone with it');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.source), undefined, 'and Ana’s screen never shared');
+      await ana.evaluate(() => { lpcClient.allow = 'wait'; });
+      code = await offer();
+      await connect(ben, code);
+      await wait(ana, () => !!lpcClient.answer && lpc.toasts().includes('Ben asks to control your PC. Answer in Premade’s window.'), null, 'Ana’s box open, and Ana told');
+      assert.strictEqual(await ben.$eval('#helpSt', (e) => e.textContent), 'Asking Ana: their Premade asks them to allow it.');
+      await ben.click('#helpStop'); // Cancel: takes it back
+      await wait(ana, () => !lpcClient.answer && lpcClient.stopped === 1 && !lpc.help(), null, 'Ana’s box closed');
+      code = await offer();
+      await connect(ben, code);
+      await wait(ana, () => !!lpcClient.answer, null, 'Ana’s box open again');
+      await ana.evaluate(() => { lpcClient.late = true; }); // Ana pressed Allow as Ben took it back
+      await ben.click('#helpStop');
+      await wait(ana, () => lpcClient.stopped === 2, null, 'Ben’s cancel at Ana’s');
+      await ana.evaluate(() => { lpcClient.late = false; lpcClient.answer({ ok: true, source: 'screen:1:0' }); });
+      await wait(ana, () => lpcClient.stopped === 3, null, 'the late yes undone');
+      assert(!(await ana.evaluate(() => lpc.toasts().some((t) => t.startsWith('Ben is controlling your PC')) || !!lpcClient.source)), 'never on for Ana, her screen never shared');
+      await ana.evaluate(() => { lpcClient.allow = true; });
+      code = await offer();
+      await connect(ben, code);
+      await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && !document.getElementById('helpFull').hidden && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control, seeing Ana’s screen, with Full screen', 30000);
+      await wait(ana, () => lpc.toasts().at(-1).startsWith('Ben is controlling your PC') && lpcClient.source === 'screen:1:0', null, 'Ana told who controls; the screen her app said shared');
+      await connect(cat, code);
+      await wait(cat, () => lpc.toasts().includes('Someone else is already using that code.') && document.getElementById('helpTile').hidden, null, 'Cat can’t use Ana’s code too');
+      const [vx, vy, vw, vh] = await ben.$eval('#helpVid', (v) => { const r = v.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }), mid = [vx + vw / 2, vy + vh / 2];
+      await ben.mouse.click(mid[0], mid[1]);
+      await ben.keyboard.press('KeyA');
+      await ben.mouse.down();
+      await ben.mouse.move(mid[0], vy - 20); // off her screen
+      await ben.mouse.up();
+      await ben.keyboard.down('KeyS');
+      await ben.click('#helpName'); // her screen loses focus
+      await ben.keyboard.up('KeyS');
+      await wait(ana, () => (lpcClient.input || []).filter((m) => m.k !== 'm').map((m) => m.k + (m.c || '')).join() === 'd,u,kdKeyA,kuKeyA,d,u,kdKeyS,kuKeyS', null, 'Ben’s click, key, drag and held key in Ana’s app, each let go once');
+      const down = await ana.evaluate(() => lpcClient.input.find((m) => m.k === 'd'));
+      assert(down.b === 0 && Math.abs(down.x - 0.5) < 0.02 && Math.abs(down.y - 0.5) < 0.02, `a left click in the middle of Ana’s screen: ${JSON.stringify(down)}`);
+      await ben.click('#helpFull');
+      await wait(ben, () => document.fullscreenElement === document.getElementById('helpVid'), null, 'Ben’s full screen');
+      await ben.mouse.click(320, 250); // a quarter in: 1280x720 in the middle of his 1280x860 window
+      await wait(ana, () => lpcClient.input.filter((m) => m.k === 'd').length === 3, null, 'Ben’s click in full screen');
+      const quarter = await ana.evaluate(() => lpcClient.input.filter((m) => m.k === 'd')[2]);
+      assert(Math.abs(quarter.x - 0.25) < 0.02 && Math.abs(quarter.y - 0.25) < 0.02, `a quarter in on Ana’s screen: ${JSON.stringify(quarter)}`);
+      await ben.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      await ben.evaluate(() => navigator.clipboard.writeText('hello from Ben'));
+      await ben.keyboard.press('Control+KeyV');
+      await wait(ana, () => lpcClient.input.filter((m) => m.k !== 'm').slice(-5).map((m) => m.k + (m.c || '')).join() === 'kdControlLeft,clip,kdKeyV,kuKeyV,kuControlLeft', null, 'Ben’s Ctrl+V: his text first, then the V');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.input.find((m) => m.k === 'clip').text), 'hello from Ben');
+      const note = () => ben.$eval('#helpSt', (e) => e.textContent);
+      await ana.evaluate(() => lpcClient.emit('control-state', 'paused')); // Pause on Ana's red bar
+      await wait(ben, () => lpc.toasts().at(-1) === 'Ana paused your control: your mouse and keys do nothing there until they press Resume.', null, 'Ben told it’s paused');
+      assert.strictEqual(await note(), 'Ana paused your control: your mouse and keys do nothing there until they press Resume.');
+      await ana.evaluate(() => lpcClient.emit('control-state', 'admin'));
+      await wait(ben, () => document.getElementById('helpSt').textContent.startsWith('Ana’s window in front runs as administrator'), null, 'and that an admin window is in front');
+      await ana.evaluate(() => lpcClient.emit('control-state', ''));
+      await wait(ben, () => document.getElementById('helpSt').textContent === 'Click their screen to use your mouse and keys there.', null, 'and nothing in the way');
+      await ben.waitForTimeout(500);
+      assert(await ana.evaluate(() => lpcClient.input.every((m, i) => m.n === i + 1)), 'all of Ben’s, in his order');
+      await ben.evaluate(() => {
+        const n = lpc.ctlN(), go = (m) => lpc.helpSend({ t: 'in', ...m });
+        go({ n: n + 2, k: 'ku', c: 'KeyQ' }); // before its down
+        go({ n: n + 1, k: 'kd', c: 'KeyQ' });
+        for (let i = n + 4; i <= n + 104; i++) go({ n: i, k: 'w', d: 120 }); // n + 3 never comes
+      });
+      await wait(ana, () => lpcClient.input.slice(-103).map((m) => m.k + (m.c || '')).join() === ['kdKeyQ', 'kuKeyQ', ...Array(101).fill('w')].join(), null, 'Ben’s order kept, and the lost one skipped');
+      const stopped = await ana.evaluate(() => lpcClient.stopped);
+      await ana.evaluate(() => lpcClient.emit('control-end', 'idle')); // 10 minutes without Ben's input (the red bar's Stop is the same, without 'idle')
+      await wait(ben, () => document.getElementById('helpTile').hidden && lpc.toasts().includes('Ana: Control ended after 10 minutes without use.') && !document.fullscreenElement, null, 'ended on Ben’s side, out of full screen');
+      await wait(ana, () => !lpc.help() && lpc.toasts().includes('Ben is no longer controlling your PC.'), null, 'and on Ana’s, her code gone');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), stopped + 1, 'Ana’s app stopped it');
+      // Control in Friends, on the Voice page: Ana's page takes Ben's code by itself (she has Ben in her Friends)
+      await ben.click('.nav[data-view="voice"]');
+      await wait(ben, () => [...document.querySelectorAll('#frRows button')].some((b) => b.textContent === 'Control'), null, 'Control next to Ana in Ben’s Friends', 40000);
+      await ben.evaluate(() => [...document.querySelectorAll('#frRows button')].find((b) => b.textContent === 'Control').click());
+      await wait(ben, () => !document.querySelector('.view[data-view="help"]').hidden && document.getElementById('helpName').textContent === 'Ana’s PC', null, 'Ben on Remote help, asking Ana');
+      await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control of Ana’s PC from Friends', 60000);
+      await ben.click('#helpStop');
+      await wait(ana, (n) => !lpc.help() && lpcClient.stopped === n && lpc.toasts().filter((t) => t === 'Ben is no longer controlling your PC.').length === 2, stopped + 2, 'Ben’s Stop ends it at Ana’s');
+      for (const [c] of ps) await c.close();
+      console.log('remote help: by Ana’s code, refused, taken back with Ana’s box open, a late yes undone, then allowed: Ana’s screen only after her yes, Cat kept out, Ben’s input in order and in full screen, pasted into, paused, ended after 10 idle minutes; then from Friends without a code, and Ben’s Stop');
     }
     console.log('ok');
   } finally {

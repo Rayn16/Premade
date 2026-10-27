@@ -967,11 +967,12 @@ ipcMain.handle('keys', (e, k) => {
   return ok;
 });
 
-// ---- remote control (app 1.26): a friend watching your screen share asks for control; you say yes in Windows' own box
-// here, never in the page, a red bar at the top of the shared screen says who with a Stop button, Ctrl+Alt+X stops it
-// too, and only while it's on their mouse and keys go in through user32 (SetCursorPos, mouse_event, keybd_event).
-// Whole screen shares only: their x and y are fractions of the screen they see. Ends when the page reloads, the share
-// changes or either side stops; keys and buttons still down are let go, and a box still open closes as Don't allow.
+// ---- remote control (app 1.26; 1.28: Remote help, its own connection, no room screen share): a friend asks for
+// control; you say yes in Windows' own box here, never in the page, and only then does the page share your screen with
+// them (the one picked in Settings, its id in the answer). A red bar at the top of that screen says who with a Stop
+// button, Ctrl+Alt+X stops it too, and only while it's on their mouse and keys go in through user32 (SetCursorPos,
+// mouse_event, keybd_event). Their x and y are fractions of that screen. Ends when the page reloads or either side
+// stops; keys and buttons still down are let go, and a box still open closes as Don't allow.
 // Games with anti-cheat and programs run as administrator take no input from other apps, so it can't work inside them.
 // The box shows only once you're in Premade (till then a notification and its flashing taskbar button say who asks):
 // popping up over a game, Tab (League's scoreboard) could move to Allow and Space press it.
@@ -979,7 +980,7 @@ ipcMain.handle('keys', (e, k) => {
 // minutes with no input from them, their Ctrl+V pastes the text they copied (it goes on your clipboard first), and the
 // page tells them when their input can't land: Windows' secure screen up (a UAC prompt) or an admin window in front.
 let sharedSource = null, control = null, asking = null, refusedAt = 0, user32 = null;
-const sharedDisplay = () => { // the whole screen the room share shows, which friends' mouse and pointer map onto
+const sharedDisplay = () => { // the whole screen the room share shows, which friends' pointer maps onto
   const s = sharedSource, all = screen.getAllDisplays();
   return s && s.id.startsWith('screen:') && (all.find((x) => String(x.id) === s.display_id) || (all.length === 1 && all[0]));
 };
@@ -1073,8 +1074,8 @@ ipcMain.handle('control', async (e, name) => {
   if (!fromSite(e)) return { ok: false };
   if (process.platform !== 'win32') return { ok: false, why: 'Only the Windows app can be controlled.' };
   if (control || asking || Date.now() - refusedAt < 15000) return { ok: false, why: 'They’re busy with another request. Try again in a bit.' };
-  const s = sharedSource, d = sharedDisplay();
-  if (!d) return { ok: false, why: 'They need to share their whole screen, not one app, to be controlled.' };
+  const s = chosen(await screens(false)), d = s && screen.getAllDisplays().find((x) => String(x.id) === s.display_id);
+  if (!d) return { ok: false, why: 'Their screen couldn’t be found.' };
   let u;
   try { u = ctlUser32(); } catch (err) { console.error('remote control:', err); return { ok: false, why: 'Their app couldn’t start remote control.' }; }
   name = String(name || '').replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend'; // what they call themselves, on one line
@@ -1091,13 +1092,13 @@ ipcMain.handle('control', async (e, name) => {
     const { response } = ask.signal.aborted ? { response: 0 } : await dialog.showMessageBox(win, {
       type: 'warning', title: 'Premade', buttons: ['Don’t allow', 'Allow'], defaultId: 0, cancelId: 0, noLink: true, signal: ask.signal,
       message: `${name} wants to control your PC`,
-      detail: 'They’ll move your mouse, click and type on the screen you’re sharing, like TeamViewer. Only allow someone you trust.\n\nStop it any time: Stop on the red bar at the top of your screen, or Ctrl+Alt+X.',
+      detail: 'They’ll see your screen and move your mouse, click and type on it, like AnyDesk. Only allow someone you trust.\n\nStop it any time: Stop on the red bar at the top of your screen, or Ctrl+Alt+X.',
     });
-    if (ask.signal.aborted) return { ok: false, why: 'Their screen share changed. Ask again.' }; // or they took it back or left: the page tells them nothing then
+    if (ask.signal.aborted) return { ok: false, why: 'They took it back.' }; // or they left: the page tells them nothing then
     if (response !== 1) { refusedAt = Date.now(); return { ok: false, why: 'They said no.' }; }
-    if (sharedSource !== s || control) return { ok: false, why: 'Their screen share changed. Ask again.' };
+    if (control) return { ok: false, why: 'They’re busy with another request. Try again in a bit.' };
     controlStart(u, d, name);
-    return { ok: true };
+    return { ok: true, source: s.id }; // the page shares this screen with them
   } finally { asking = null; }
 });
 ipcMain.on('control-stop', (e) => { if (fromSite(e)) controlEnd(); });
@@ -1189,10 +1190,10 @@ app.whenReady().then(async () => {
     shareAudioFiltered = false;
     filteredDiscordPid = filtered ? shareDiscordPid : 0;
     shareDiscordPid = 0;
-    if (roomShare) { sharedSource = s || null; controlEnd(); if (marks && !marks.isDestroyed()) marks.hide(); } // what remote control and pointing map a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
+    if (roomShare) { sharedSource = s || null; if (marks && !marks.isDestroyed()) marks.hide(); } // what pointing maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
   });
-  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'keyboardLock'].includes(perm))); // keyboardLock: remote control's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
+  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'keyboardLock'].includes(perm))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
 
   const last = lastBounds();
   win = new BrowserWindow({
