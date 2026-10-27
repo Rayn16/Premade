@@ -5229,11 +5229,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         t.conn = c;
         c.send({ t: 'hi', name: myName || 'A friend' });
         c.send({ t: 'ctl', on: true });
-        renderHelp();
+        renderRemoteHelp();
       });
       c.on('data', (m) => {
         if (ctlTo !== t || t.conn !== c || !m) return;
-        if (m.t === 'hi' && typeof m.name === 'string' && !name) { t.name = m.name.replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || t.name; renderHelp(); } // who has the code
+        if (m.t === 'hi' && typeof m.name === 'string' && !name) { t.name = m.name.replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || t.name; renderRemoteHelp(); } // who has the code
         if (m.t === 'ctl') helpMsg(t, m);
       });
       c.on('close', () => { if (ctlTo === t && t.conn === c) { notify(t.on ? `Control of ${t.name}’s PC ended.` : `${t.name} left.`, true); helpQuit(); } });
@@ -5250,7 +5250,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       call.answer();
       call.on('stream', (s) => { if (ctlTo === t) $('helpVid').srcObject = s; });
     });
-    renderHelp();
+    renderRemoteHelp();
   }
   function helpMsg(t, m) {
     if ('st' in m) { // paused, or why your input can't land there, from their app
@@ -5258,9 +5258,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (!t.on || t.st === st) return;
       t.st = st;
       if (st) notify(CTL_ST[st](t.name), true);
-      return renderHelp();
+      return renderRemoteHelp();
     }
-    if (m.ok === true) { if (!t.on) { t.on = true; notify(`You’re controlling ${t.name}’s PC. Click their screen to use your mouse and keys there.`, true); } return renderHelp(); }
+    if (m.ok === true) { if (!t.on) { t.on = true; notify(`You’re controlling ${t.name}’s PC. Click their screen to use your mouse and keys there.`, true); } return renderRemoteHelp(); }
     if ('ok' in m) { notify(`${t.name}: ${typeof m.why === 'string' ? m.why.slice(0, 120) : 'No control.'}`, true); helpQuit(); }
   }
   function helpQuit() { // stop controlling or asking
@@ -5272,7 +5272,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     setTimeout(() => t.peer.destroy(), 300); // lets that last word go out
     $('helpVid').srcObject = null;
     if (document.fullscreenElement === $('helpVid')) document.exitFullscreen().catch(() => {});
-    renderHelp();
+    renderRemoteHelp();
   }
   function helpTick() { // every second
     const t = ctlTo;
@@ -5300,11 +5300,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       c.on('open', () => hSend(c, { t: 'hi', name: myName || 'Your friend' }));
       c.on('data', (m) => { if (hs === h && m && typeof m === 'object') hostMsg(h, m); });
       c.on('close', () => { if (hs === h) hostStop(); });
-      renderHelp();
+      renderRemoteHelp();
     });
     pr.on('disconnected', () => setTimeout(() => { if (hs === h && !pr.destroyed) pr.reconnect(); }, 3000));
     pr.on('error', (err) => { if (hs === h && err.type === 'unavailable-id') { hostStop(); notify('That code is taken. Get a new one.', true); } });
-    renderHelp();
+    renderRemoteHelp();
   }
   function hostStop(why) { // ('idle': your app ended it after 10 minutes without their input)
     const h = hs;
@@ -5315,11 +5315,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (h.call) h.call.close();
     if (h.track) h.track.stop();
     setTimeout(() => h.peer.destroy(), 300);
-    renderHelp();
+    renderRemoteHelp();
   }
   async function hostMsg(h, m) {
     const say = (x) => hSend(h.conn, x);
-    if (m.t === 'hi' && typeof m.name === 'string') { h.name = m.name.replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend'; return renderHelp(); }
+    if (m.t === 'hi' && typeof m.name === 'string') { h.name = m.name.replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend'; return renderRemoteHelp(); }
     if (m.t === 'in') { if (h.on) ctlInput(m); return; } // their mouse and keys, once you let them
     if (m.t !== 'ctl') return;
     if (m.on !== true) return hostStop(); // they took it back or stopped
@@ -5327,14 +5327,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (h.asking) return;
     if (!helpOk()) return say({ t: 'ctl', ok: false, why: client && client.control ? 'Their Premade app needs updating to be controlled.' : 'They need the Premade app for Windows to be controlled.' });
     h.asking = true;
-    renderHelp();
+    renderRemoteHelp();
     notify(`${h.name} asks to control your PC. Answer in Premade’s window.`, true);
     const r = await client.control(h.name) || {};
     if (hs !== h) { if (r.ok) client.controlStop(); return; } // they took it back or left meanwhile
     h.asking = false;
     let s = null;
     if (r.ok) try { await client.captureSource(r.source); s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false }); } catch {}
-    if (hs !== h || !s) { if (r.ok) client.controlStop(); if (s) for (const x of s.getTracks()) x.stop(); if (hs === h) { say({ t: 'ctl', ok: false, why: r.ok ? 'Their screen couldn’t be shared.' : r.why || 'They said no.' }); renderHelp(); } return; }
+    if (hs !== h || !s) { if (r.ok) client.controlStop(); if (s) for (const x of s.getTracks()) x.stop(); if (hs === h) { say({ t: 'ctl', ok: false, why: r.ok ? 'Their screen couldn’t be shared.' : r.why || 'They said no.' }); renderRemoteHelp(); } return; }
     h.track = s.getVideoTracks()[0];
     h.track.contentHint = 'detail'; // sharp text over a smooth frame rate
     h.track.addEventListener('ended', () => { if (hs === h) hostStop(); });
@@ -5344,9 +5344,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     h.call = h.peer.call(`lolprox-h${h.code}-1`, s);
     say({ t: 'ctl', ok: true });
     notify(`${h.name} is controlling your PC. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.`, true);
-    renderHelp();
+    renderRemoteHelp();
   }
-  function renderHelp() {
+  function renderRemoteHelp() {
     const t = ctlTo, st = t && t.on && CTL_ST[t.st];
     $('helpTile').hidden = !t;
     $('helpTile').classList.toggle('controlling', !!t && t.on);
@@ -5402,7 +5402,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     vid.addEventListener('keyup', (ev) => { if (!on()) return; ev.preventDefault(); ctlTo.keys.delete(ev.code); ctlIn({ k: 'ku', c: ev.code }); });
     vid.addEventListener('blur', () => { if (on()) ctlLetGo(); }); // nothing stays held down
     vid.addEventListener('fullscreenchange', () => { if (document.fullscreenElement !== vid && navigator.keyboard) navigator.keyboard.unlock(); });
-    renderHelp();
+    renderRemoteHelp();
   }
   function ctlMove() { const t = ctlTo; if (t && t.on && t.xy) { ctlIn({ k: 'm', ...t.xy }); t.moved = performance.now(); } }
   function ctlPaste(text) { // your Ctrl+V: the text you copied goes on their clipboard, then the V pastes it there (just the V when there's none)
@@ -5774,7 +5774,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
     if (name === 'overlay') ovOpen();
-    if (name === 'help') renderHelp();
+    if (name === 'help') renderRemoteHelp();
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = 'https://rayn16.github.io/aion2-tracker/?embed';
     if (name === 'voice') refreshOpenRooms();
     main.scrollTop = 0;
