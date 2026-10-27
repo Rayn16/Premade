@@ -90,5 +90,22 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.deepEqual(inv.map(({ at, ...v }) => v), [{ n: 'Rayan the very long voic', riot: 'Rayan#EUW', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) }]);
   assert.deepEqual((await fr({ id: B, riot: [] })).inv, []);
   assert.deepEqual((await fr({ id: '', riot: [] })).inv, [], 'no device, no invites');
+  // Aion 2 characters: only for a Riot ID the device said hello with, ten each, a new claim takes the character over
+  const aion = async (b) => (await post('/aion', b)).json(), chars = async () => (await (await fetch(BASE + '/aion')).json()).chars;
+  assert.deepEqual(await chars(), []);
+  for (const bad of [{}, { id: B, o: 'Rayan#EUW', n: 'a,b', s: 'Tassin' }, { id: B, o: 'no tag', n: 'Yasuo', s: 'Tassin' }, { id: B, o: 'Rayan#EUW', n: 'Yasuo', s: '<b>' }])
+    assert.equal((await post('/aion', bad)).status, 400, JSON.stringify(bad));
+  assert.match((await aion({ id: B, o: 'Kev#NA1', n: 'Yasuo', s: 'Tassin' })).error, /^Turn on/, 'not B’s Riot ID');
+  assert.match((await aion({ id: C, o: 'Rayan#EUW', n: 'Yasuo', s: 'Tassin' })).error, /^Turn on/, 'never said hello');
+  assert.deepEqual(await aion({ id: B, o: 'rayan#euw', n: 'Yasuo', s: 'Tassin' }), { ok: true });
+  assert.deepEqual(await aion({ id: B, o: 'Rayan#EUW', n: 'Yasuo', s: 'Tassin' }), { ok: true }); // again: still one
+  assert.deepEqual(await chars(), [{ n: 'Yasuo', s: 'Tassin', o: 'Rayan#EUW' }]);
+  for (let i = 0; i < 9; i++) assert.deepEqual(await aion({ id: B, o: 'Rayan#EUW', n: 'Alt' + i, s: 'Ariel' }), { ok: true });
+  assert.match((await aion({ id: B, o: 'Rayan#EUW', n: 'Alt9', s: 'Ariel' })).error, /^Ten/);
+  assert.deepEqual(await aion({ id: A, o: 'Kev#NA1', n: 'Yasuo', s: 'Tassin' }), { ok: true }); // Kev takes it over
+  assert.deepEqual(await aion({ id: B, o: 'Rayan#EUW', n: 'Yasuo', s: 'Tassin', del: true }), { ok: true }); // not Rayan's any more: nothing
+  assert.deepEqual((await chars()).filter((c) => c.n === 'Yasuo'), [{ n: 'Yasuo', s: 'Tassin', o: 'Kev#NA1' }]);
+  assert.deepEqual(await aion({ id: A, o: 'Kev#NA1', n: 'Yasuo', s: 'Tassin', del: true }), { ok: true });
+  assert.equal((await chars()).length, 9);
   console.log('stats ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} fs.rmSync(persist, { recursive: true, force: true }); });

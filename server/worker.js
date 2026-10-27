@@ -6,7 +6,7 @@
 // are who has Premade, and /friends and /invite which of your friends have it and invites to your room (all in the Stats
 // object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
-// own. /riot/... is Riot data (the Riot object, at the end).
+// own. /riot/... is Riot data (the Riot object, at the end). /aion is the Aion 2 tracker's claimed characters (Stats).
 import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
@@ -85,6 +85,13 @@ export default {
       if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
       if (!LOCAL.test(req.headers.get('origin') || '')) await stats(env).hello(h);
       return new Response(null, { status: 204, headers: CORS });
+    }
+    if (url.pathname === '/aion') { // the Aion 2 tracker (github.com/Rayn16/aion2-tracker): who plays which character
+      if (req.method !== 'POST') return Response.json({ chars: await stats(env).aion() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
+      const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1);
+      const n = b && typeof b.n === 'string' && /^[^\s,<>#]{1,24}$/.test(b.n) ? b.n : '', s = b && typeof b.s === 'string' && /^[A-Za-z' -]{2,20}$/.test(b.s) ? b.s : '';
+      if (!b || !DEVICE.test(b.id) || !o || !n || !s) return Response.json({ error: 'Not a character' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).aion(b.id, o, n, s, b.del === true), { headers: CORS });
     }
     if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) { // a plain text body too
       const b = await req.json().catch(() => null), id = b && DEVICE.test(b.id) ? b.id : '';
@@ -222,6 +229,20 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, lob TEXT NOT NULL DEFAULT '', PRIMARY KEY (dest, src))");
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aion (n TEXT, s TEXT, o TEXT, PRIMARY KEY (n, s)) WITHOUT ROWID');
+  }
+  // Aion 2 characters (/aion): with no id, every claim [{ n: name, s: server, o: owner's Riot ID }]; else o claims n on s,
+  // or lets it go (del), when o is one of the Riot IDs that device's last hello gave. A new claim takes a character from
+  // whoever had it. Ten for each Riot ID. ponytail: trusts the Riot ID like /invite does; fine among friends
+  aion(id, o, n, s, del) {
+    const sql = this.ctx.storage.sql;
+    if (!id) return sql.exec('SELECT n, s, o FROM aion ORDER BY o, n').toArray();
+    const me = sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    if (!me || !JSON.parse(me.riot).some((x) => low(x) === low(o))) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Premade’s Settings > App, then open the Aion 2 page again' };
+    if (del) sql.exec('DELETE FROM aion WHERE n = ? AND s = ? AND lower(o) = ?', n, s, low(o));
+    else if (sql.exec('SELECT COUNT(*) AS c FROM aion WHERE lower(o) = ? AND NOT (n = ? AND s = ?)', low(o), n, s).one().c >= 10) return { error: 'Ten characters at most' };
+    else sql.exec('INSERT OR REPLACE INTO aion VALUES (?, ?, ?)', n, s, o);
+    return { ok: true };
   }
   friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, lob, at }] }
     const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
