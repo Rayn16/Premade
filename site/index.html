@@ -86,6 +86,9 @@ a { color: var(--link); }
 main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32px; }
 .view, #msg, #lolNote { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
+/* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
+.view[data-view="aion"] { max-width: none; height: 100%; align-content: stretch; }
+#aionFrame { width: 100%; height: 100%; min-height: calc(420px / var(--zoom, 1)); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
 #lolNote { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--warn); color: var(--warn); font-size: 14px; }
@@ -752,6 +755,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
     <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
     <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
+    <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
     <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
@@ -1729,6 +1733,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </details>
         </section>
       </div>
+    </section>
+
+    <section class="view" data-view="aion" aria-label="Aion 2" hidden>
+      <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
     </section>
 
     <section class="view" data-view="features" aria-label="Features" hidden>
@@ -5636,6 +5644,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
     if (name === 'overlay') ovOpen();
+    if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = 'https://rayn16.github.io/aion2-tracker/?embed';
     if (name === 'voice') refreshOpenRooms();
     main.scrollTop = 0;
     render();
@@ -13070,6 +13079,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [82, 'October 27: Aion 2', [
+      'A new Aion 2 page: your group’s Aion 2 tracker, with everyone’s combat power, gear, skills and Daevanion boards.',
+      'Each character’s Overview starts with Next upgrade: which skill your next skill point goes to, the stigma to get next and where to spend Daevanion points, for Gladiator and Templar.',
+    ]],
     [81, 'October 27: faster Mayhem augment ratings', [
       'ARAM: Mayhem’s augment cards are read faster. A rerolled card’s rating shows in about half a second instead of several, since only the card that changed is read again, and nothing is read while the cards sit still.',
       'After you reach level 7, 11 or 15 it keeps watching until you’ve picked (5 minutes at most), so the ratings come up as soon as the cards do, whether you die or walk back to the fountain.',
@@ -13698,6 +13711,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
       ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
         'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app; on an iPhone, open it from there for notifications. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
+    ]],
+    ['Aion 2', 'Your Aion 2 group, from the characters’ public profiles, updated once a day.', [
+      ['Aion 2 group tracker', 'Everyone’s combat power, item level, gear, skills and Daevanion boards, a raid check and a side-by-side compare, and on each character a Next upgrade card: which skill to put your next skill point in, the stigma to get next and where Daevanion points go.',
+        'Open Aion 2. Characters are added in members.txt in the aion2-tracker repository.', '#aionFrame'],
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
       ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
