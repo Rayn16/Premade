@@ -63,7 +63,7 @@ const AHRI = { patch: '16.20', role: 'MIDDLE', roles: { MIDDLE: [40, 20] }, game
 function fakeApp([lcu, colour]) {
   const on = {};
   window.lpcClient = {
-    version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
+    version: '1.13.0', screens: async () => [{ id: 'screen:1:0', main: true }], captureSource: async () => true, useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay(s) { this.lastOverlay = s; },
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
@@ -286,16 +286,15 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       }
       const [ana, ben, cat] = ps.map(([, p]) => p);
       for (const p of [ana, ben, cat]) await wait(p, () => lpc.peers().length === 2 && lpc.peers().every((x) => x.name), null, 'everyone in the room');
-      for (const p of [ana, ben, cat]) await wait(p, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'shared by itself on joining a room, before any game (What’s new 63)');
+      for (const p of [ana, ben, cat]) await wait(p, () => document.querySelector('#generalShareBtn').textContent === 'Stop sharing', null, 'the main screen shared by itself on joining a room, before any game (What’s new 63, 84)');
       for (const p of [ana, ben, cat]) await p.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); }); // screens in the room come later
       const players = [['Ana', 'ORDER', 'Ahri', 'MIDDLE'], ['Ben', 'ORDER', 'Garen', 'TOP'], ['Cat', 'CHAOS', 'Zed', 'MIDDLE']];
       const lol = (p, me) => p.evaluate((g) => lpcClient.emit('league', g), game(me, players));
       await lol(ana, { champ: 'Ahri', team: 'ORDER' });
       await lol(ben, { champ: 'Garen', team: 'ORDER', dead: true, respawn: 40 });
       await lol(cat, { champ: 'Zed', team: 'CHAOS', dead: true, respawn: 40 });
-      await ana.waitForTimeout(3000);
+      for (const p of [ana, ben, cat]) await wait(p, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'swapped to League’s screen share once the game starts (What’s new 50, 84)', 10000);
       assert.deepStrictEqual(await Promise.all([ana, ben, cat].map((p) => p.evaluate(() => [lpc.cam(), lpc.lends(), !!lpcClient.lastOverlay.screen]))), [[null, [], false], [null, [], false], [null, [], false]], 'nothing until Ana lets teammates watch');
-      assert.deepStrictEqual(await Promise.all([ana, ben, cat].map((p) => p.$eval('#shareBtn', (e) => e.textContent))), ['Stop sharing', 'Stop sharing', 'Stop sharing'], 'the app shares League’s screen by itself in a game (What’s new 50)');
       await cat.$eval('#optAutoShare', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
       await wait(cat, () => document.querySelector('#shareBtn').textContent === 'Share League screen', null, 'turned off, it stops');
       await cat.$eval('#optAutoShare', (e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
