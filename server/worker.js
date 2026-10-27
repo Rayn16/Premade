@@ -239,8 +239,10 @@ export class Stats extends DurableObject {
     if (!id) return sql.exec('SELECT n, s, o FROM aion ORDER BY o, n').toArray();
     const me = sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
     if (!me || !JSON.parse(me.riot).some((x) => low(x) === low(o))) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Premade’s Settings > App, then open the Aion 2 page again' };
-    if (del) sql.exec('DELETE FROM aion WHERE n = ? AND s = ? AND lower(o) = ?', n, s, low(o));
-    else if (sql.exec('SELECT COUNT(*) AS c FROM aion WHERE lower(o) = ? AND NOT (n = ? AND s = ?)', low(o), n, s).one().c >= 10) return { error: 'Ten characters at most' };
+    // o's claims found here, not with SQLite's lower(), which leaves capitals like Ö as they are
+    const mine = sql.exec('SELECT n, s, o FROM aion').toArray().filter((r) => low(r.o) === low(o)), had = mine.some((r) => r.n === n && r.s === s);
+    if (del) { if (had) sql.exec('DELETE FROM aion WHERE n = ? AND s = ?', n, s); }
+    else if (!had && mine.length >= 10) return { error: 'Ten characters at most' };
     else sql.exec('INSERT OR REPLACE INTO aion VALUES (?, ?, ?)', n, s, o);
     return { ok: true };
   }

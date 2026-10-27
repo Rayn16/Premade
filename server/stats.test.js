@@ -107,5 +107,11 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.deepEqual((await chars()).filter((c) => c.n === 'Yasuo'), [{ n: 'Yasuo', s: 'Tassin', o: 'Kev#NA1' }]);
   assert.deepEqual(await aion({ id: A, o: 'Kev#NA1', n: 'Yasuo', s: 'Tassin', del: true }), { ok: true });
   assert.equal((await chars()).length, 9);
+  const D = '5e6f7a8b-9c0d-4e1f-8a2b-4c5d6e7f8a9b'; // a Riot ID with a capital that isn't ASCII
+  assert.equal((await post('/hello', { id: D, v: 'web', name: 'Ödön', riot: ['Ödön#EUW'] })).status, 204);
+  assert.deepEqual(await aion({ id: D, o: 'Ödön#EUW', n: 'Odin', s: 'Ariel' }), { ok: true });
+  assert.equal((await chars()).length, 10);
+  assert.deepEqual(await aion({ id: D, o: 'Ödön#EUW', n: 'Odin', s: 'Ariel', del: true }), { ok: true });
+  assert.equal((await chars()).length, 9, 'Remove works for it too');
   console.log('stats ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} fs.rmSync(persist, { recursive: true, force: true }); });
