@@ -4408,13 +4408,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       dlg.showModal();
     });
   }
-  async function startShare(mode = 'league') {
+  async function startShare(mode = 'league', src = '') { // src: a screen or window to share in general mode without the picker
     let stream;
     const previousShare = share;
     const audioMode = client && client.shareAudioMode ? client.shareAudioMode() : { filter: false };
     if (mode === 'general' && client) {
-      let sourceId = '';
-      try { sourceId = await chooseCaptureSource(); } catch (err) {
+      let sourceId = src;
+      if (!sourceId) try { sourceId = await chooseCaptureSource(); } catch (err) {
         if (client.shareAudioCancel) client.shareAudioCancel();
         console.warn('screen source picker:', err);
         notify('Could not open the screen and app picker.');
@@ -4436,7 +4436,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       reuseFilter = activeShare.filteredAudio;
       share = null;
     } else if (activeShare) stopShare();
-    const s = share = { mode, track: stream.getVideoTracks()[0], sound: reuseSound || stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0, ...(reuseFilter && { filteredAudio: reuseFilter }) };
+    const s = share = { mode, src, track: stream.getVideoTracks()[0], sound: reuseSound || stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0, ...(reuseFilter && { filteredAudio: reuseFilter }) };
     for (const l of lends.values()) { l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
     lends.clear();
     $('roomSoundState').textContent = opts.roomSound
@@ -4908,7 +4908,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   // the minimap read for the callouts: the app shares the screen Settings picks by itself in a Summoner's Rift game (in
   // any game in a room when you let teammates watch your screen), and stops once the game ends if it started it; it
-  // tries again 30 s after a share that didn't start
+  // tries again 30 s after a share that didn't start. Out of a game the auto share is your main screen (no minimap to
+  // read); it swaps to League's share when a game starts and back to the main screen when it ends in a room.
   let autoShareAt = -Infinity;
   let shareOff = ''; // the game or room you stopped sharing in yourself: not shared again until the next one
   function autoShare() {
@@ -4916,9 +4917,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (share && share.auto && !at) stopShare();
     // with Share my screen by itself (opts.autoShare, on) every game and every room you join is shared, from launch if
     // Premade opens mid-game; sharing reads the minimap and shows your screen to the room, it never joins one
-    if (!client || share || !(foesOn() || (opts.lendScreen && !!league && !!peer) || (opts.autoShare && !!at && at !== shareOff)) || performance.now() - autoShareAt < 30000) return;
-    autoShareAt = performance.now();
-    startShare().then(() => { if (share) share.auto = true; });
+    const mode = league || !client || !client.captureSource ? 'league' : 'general', swap = !!share && share.auto && share.mode !== mode;
+    if (!client || (share && !swap) || !(foesOn() || (opts.lendScreen && !!league && !!peer) || (opts.autoShare && !!at && at !== shareOff)) || performance.now() - autoShareAt < (swap ? 3000 : 30000)) return;
+    autoShareAt = Infinity; // none again till this one is done
+    (mode === 'league' ? Promise.resolve('') : client.screens().then((l) => (l.find((x) => x.main) || l[0] || {}).id || ''))
+      .then((id) => (mode === 'league' || id) && startShare(mode, id)).then(() => { if (share) share.auto = true; })
+      .finally(() => { autoShareAt = performance.now(); });
   }
   $('optJgCall').checked = !!opts.jgCall;
   $('optJgCall').addEventListener('change', (e) => { opts.jgCall = e.target.checked; saveOpts(); ovDraw(); });
@@ -12832,7 +12836,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         store.set('lpc-screen', s.id);
         client.useScreen(s.id);
         loadScreens();
-        if (share) { stopShare(); startShare(); }
+        if (share && share.mode === 'league') { stopShare(); startShare(); }
       });
       return b;
     }));
@@ -12952,10 +12956,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // a new quality starts the recording and your screen share again, together, so the one capture is made anew
   async function recAgain() {
     clipQText();
-    const auto = share && share.auto, again = !!share;
+    const auto = share && share.auto, again = share && { mode: share.mode, src: share.src };
     if (recorder) stopRec();
     stopShare();
-    if (again) await startShare();
+    if (again) await startShare(again.mode, again.src);
     if (share) share.auto = auto;
     clipsCheck();
   }
@@ -13079,6 +13083,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [84, 'October 27: your main screen shared by itself', [
+      'Share my screen by itself now shares your main screen when you join a room, and switches to League’s screen share (with the minimap tracker and callouts) only once a game starts. When the game ends and you’re still in the room, it goes back to your main screen.',
+    ]],
     [82, 'October 27: Aion 2', [
       'A new Aion 2 page: your group’s Aion 2 tracker, with everyone’s combat power, gear, skills and Daevanion boards.',
       'Each character’s Overview starts with Next upgrade: which skill your next skill point goes to, the stigma to get next and where to spend Daevanion points, for Gladiator and Templar.',
@@ -13544,7 +13551,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Request control on their screen tile on the Voice page, then click their screen, or Full screen to see all of it. They need the desktop app and to share their whole screen. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and your tile says when an admin window or a Windows prompt is in the way.', '#roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile on the Voice page, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
-      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares the screen League is on by itself, from the moment Premade opens, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
+      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
