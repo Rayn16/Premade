@@ -82,19 +82,21 @@ async function screens(thumbs) {
   return list;
 }
 const chosen = (list) => list.find((s) => s.id === screenId) || list.find((s) => s.main) || list[0];
-function discordPids() {
+// Discord, and Elgato Wave Link: when Wave Link mixes in its own process, it plays Premade's voices again as its own sound
+function leaveOutPids() {
   try {
     const out = execFileSync('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true, timeout: 2500 });
-    return { pids: [...out.matchAll(/^"Discord(?:PTB|Canary|Development)?\.exe","(\d+)"/gim)].map((m) => +m[1]), error: false };
-  } catch { return { pids: [], error: true }; }
+    const rows = [...out.matchAll(/^"(Discord(?:PTB|Canary|Development)?|WaveLink\w*)\.exe","(\d+)"/gim)];
+    return { pids: rows.map((m) => +m[2]), discord: rows.some((m) => /^discord/i.test(m[1])), error: false };
+  } catch { return { pids: [], discord: false, error: true }; }
 }
 ipcMain.on('share-audio-mode', (e) => {
   if (!fromSite(e)) return;
-  const found = process.platform === 'win32' ? discordPids() : { pids: [], error: false };
+  const found = process.platform === 'win32' ? leaveOutPids() : { pids: [], discord: false, error: false };
   shareAudioMode = true;
   shareAudioFiltered = process.platform === 'win32'; // Premade's own sound (friends' voices and shares) always stays out, so they don't hear themselves
   shareLeaveOut = [process.pid, ...found.pids];
-  e.returnValue = { filter: shareAudioFiltered, discord: found.pids.length > 0, warning: found.error };
+  e.returnValue = { filter: shareAudioFiltered, discord: found.discord, warning: found.error };
 });
 ipcMain.on('share-audio-cancel', (e) => { if (fromSite(e)) { shareAudioMode = false; shareAudioFiltered = false; shareLeaveOut = []; filteredLeaveOut = []; stopFilteredCapture(); } });
 function stopFilteredCapture() {

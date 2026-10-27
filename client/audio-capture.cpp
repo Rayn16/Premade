@@ -1,5 +1,5 @@
 // Capture the Windows output mix without Premade's own sound (friends' voices, their shares) and without Discord.
-// Args: the PIDs to leave out (Premade first, then any Discord ones); 48 kHz stereo PCM16 goes to stdout after "PCM1".
+// Args: the PIDs to leave out (Premade first, then any Discord and Wave Link ones); 48 kHz stereo PCM16 goes to stdout after "PCM1".
 // One PID: Windows' exclude-tree loopback. More: Windows can exclude only one tree per capture, so this captures each
 // other app that has an audio session (include-tree loopback, new apps picked up every 2 s) and mixes them.
 #include <windows.h>
@@ -60,11 +60,12 @@ static const WAVEFORMATEX kFormat{WAVE_FORMAT_PCM, 2, 48000, 192000, 4, 16, 0};
 struct Capture {
   IAudioClient* audio = nullptr;
   IAudioCaptureClient* client = nullptr;
+  HANDLE event = nullptr;   // Windows wants one with event callback; the loop polls every 10 ms instead
   std::vector<short> fifo;  // interleaved samples not yet mixed
   bool primed = false;      // has 30 ms queued, so the 10 ms polls and Windows' packets don't leave gaps
 };
 
-// A started loopback capture of one process tree (include or exclude), polled without an event.
+// A started loopback capture of one process tree (include or exclude), set up as the 1.25.9 helper did.
 static HRESULT openCapture(DWORD pid, PROCESS_LOOPBACK_MODE mode, Capture& c) {
   HANDLE activated = CreateEventW(nullptr, TRUE, FALSE, nullptr);
   if (!activated) return E_OUTOFMEMORY;
@@ -87,14 +88,16 @@ static HRESULT openCapture(DWORD pid, PROCESS_LOOPBACK_MODE mode, Capture& c) {
   callback->Release();
   CloseHandle(activated);
   if (FAILED(hr)) return hr;
-  hr = c.audio->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, 2000000, 0, &kFormat, nullptr);
+  hr = c.audio->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, 0, 0, &kFormat, nullptr);
+  if (SUCCEEDED(hr) && !(c.event = CreateEventW(nullptr, FALSE, FALSE, nullptr))) hr = HRESULT_FROM_WIN32(GetLastError());
+  if (SUCCEEDED(hr)) hr = c.audio->SetEventHandle(c.event);
   if (SUCCEEDED(hr)) hr = c.audio->GetService(IID_PPV_ARGS(&c.client));
   if (SUCCEEDED(hr)) hr = c.audio->Start();
-  if (FAILED(hr)) { if (c.client) c.client->Release(); c.audio->Release(); c = Capture{}; }
+  if (FAILED(hr)) { if (c.client) c.client->Release(); if (c.event) CloseHandle(c.event); c.audio->Release(); c = Capture{}; }
   return hr;
 }
 
-static void closeCapture(Capture& c) { c.audio->Stop(); c.client->Release(); c.audio->Release(); c = Capture{}; }
+static void closeCapture(Capture& c) { c.audio->Stop(); c.client->Release(); c.audio->Release(); CloseHandle(c.event); c = Capture{}; }
 
 // Moves what Windows has captured into the fifo, keeping at most 200 ms; false once the capture is gone.
 static bool drain(Capture& c) {
