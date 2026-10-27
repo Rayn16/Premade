@@ -90,9 +90,11 @@ export default {
       // ?q=: PLAYNC's character search, which turns away other sites' pages (403), so the tracker searches through here
       const q = (url.searchParams.get('q') || '').trim().slice(0, 24);
       if (q) {
-        const r = await fetch(`https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(q)}&region=eu&localeInfo=en-US&page=1&size=20`).then((x) => x.json()).catch(() => null);
+        const r = await fetch(`https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(q)}&region=eu&localeInfo=en-US&page=1&size=20`,
+          { headers: { 'user-agent': 'premade-aion2-tracker (small friends group)' }, cf: { cacheEverything: true, cacheTtl: 300 } }).then((x) => x.json()).catch(() => null);
         if (!r || !Array.isArray(r.list)) return Response.json({ error: 'Search failed' }, { status: 502, headers: CORS });
-        return Response.json({ list: r.list.map((c) => ({ n: String(c.name).replace(/<[^>]+>/g, ''), s: c.serverName, level: c.level })) }, { headers: { ...CORS, 'cache-control': 'public, max-age=300' } });
+        const list = r.list.filter((c) => c && typeof c.name === 'string').map((c) => ({ n: c.name.replace(/<[^>]+>/g, ''), s: c.serverName, level: c.level }));
+        return Response.json({ list }, { headers: { ...CORS, 'cache-control': 'public, max-age=300' } });
       }
       if (req.method !== 'POST') return Response.json({ chars: await stats(env).aion() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
       const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1);
