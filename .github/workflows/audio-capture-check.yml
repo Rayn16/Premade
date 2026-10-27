@@ -12,10 +12,10 @@ jobs:
       - shell: pwsh
         run: |
           Start-Service audiosrv -ErrorAction SilentlyContinue
-          foreach ($args in @("$PID", "$PID 4")) {
+          foreach ($a in @("$PID", "$PID 4")) {
             $p = New-Object System.Diagnostics.Process
             $p.StartInfo.FileName = (Resolve-Path client/audio-capture.exe)
-            $p.StartInfo.Arguments = $args
+            $p.StartInfo.Arguments = $a
             $p.StartInfo.UseShellExecute = $false
             $p.StartInfo.RedirectStandardOutput = $true
             $p.StartInfo.RedirectStandardError = $true
@@ -28,5 +28,5 @@ jobs:
             Start-Sleep -Milliseconds 300
             $b = $ms.ToArray()
             $head = if ($b.Length -ge 4) { [Text.Encoding]::ASCII.GetString($b, 0, 4) } else { '' }
-            Write-Host "args '$args': exit $($p.ExitCode), $($b.Length) bytes, header '$head', stderr: $($p.StandardError.ReadToEnd())"
+            Write-Host "args '$a': exit $($p.ExitCode), $($b.Length) bytes, header '$head', stderr: $($p.StandardError.ReadToEnd())"
           }
