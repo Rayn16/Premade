@@ -104,12 +104,12 @@ const L = { calls: [], refused: [] };
 const RATES = { 'tftaug?s=18': { s: 18, a: { TFT18_Augment_Rich: [12, 40, 9], DA_18_Augment_Rich: [18, 60, 14], DA_18_Cluster: [5, 25, 2] } } };
 const SENT = [];
 const DEEPARAM = { // our server's /mayhem/augments: DeepARAM's rows for a champion (Sneakerhead not listed)
-  Ahri: [{ name: 'Symphony of War', pickRate: 0.4, deepScore: 72, tier: 'S' }, { name: 'Mystic Punch', pickRate: 0.05, deepScore: 40, tier: 'C' }],
+  Ahri: [{ name: 'Symphony of War', pickRate: 0.4, deepScore: 72, tier: 'S' }, { name: 'Mystic Punch', pickRate: 0.05, deepScore: 40, tier: 'C' }, { name: 'Witchful Thinking', pickRate: 0.2, deepScore: 60, tier: 'A' }],
   MissFortune: [{ name: 'Symphony of War', pickRate: 0.1, deepScore: 50, tier: 'B' }],
 };
 const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
-const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
+const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt'], [97, 'Witchful Thinking'], [1097, 'Witchful Thinking']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(method, p) {
   L.calls.push(`${method} ${p}`);
@@ -424,6 +424,18 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => [c.p, c.v, c.k, c.s])), [['40%', 1, 'good', 'Ahri · S tier'], ['5%', 0.125, '', 'Ahri · C tier'], [undefined, undefined, '', undefined]],
       'a bar for each with a pick rate, as long as it against the most picked, which is marked');
     await shot(pc, 'mayhem-augment-cards');
+    // a reroll: only that card is read again, by itself, and its rating shows within a second; the others stay
+    const kept = await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => c.t));
+    const rerolledAt = Date.now();
+    await pc.evaluate(drawMayhem, ['Symphony of War', 'Witchful Thinking', 'Sneakerhead']);
+    await wait(pc, () => /^Witchful Thinking: /.test((window.lastOverlay.mayhemCards || [])[1]?.t), null, 'the rerolled card read', 10000);
+    const rerollMs = Date.now() - rerolledAt;
+    assert(rerollMs < 1000, `the rerolled card read in ${rerollMs} ms`);
+    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c) => [c.t, c.p, c.v])),
+      [[kept[0], '40%', 1], ['Witchful Thinking: A tier (60 DeepScore), 20% pick rate on Ahri · DeepARAM patch 26.21', '20%', 0.5], [kept[2], undefined, undefined]], 'the other cards kept, and the bars measured against the new set');
+    await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
+    await wait(pc, () => /^Mystic Punch: /.test((window.lastOverlay.mayhemCards || [])[1]?.t), null, 'rerolled back', 10000);
+    console.log(`Mayhem reroll read in ${rerollMs} ms`);
     await mayhemAt(250, false, 3, '', 'Miss Fortune');
     await wait(pc, () => lpc.mayRate('Symphony of War').t === 'Symphony of War: B tier (50 DeepScore), 10% pick rate on Miss Fortune · DeepARAM patch 26.21', null, 'display names resolve to their champion-specific rates');
     await mayhemAt(260, false, 3, 'UnresolvedChampion', '');
@@ -433,12 +445,16 @@ async function join(page) { // a voice room by its invite link, which the page r
     await mayhemAt(270);
     await mayhemAt(300);
     await wait(pc, () => !window.lastOverlay.mayhemCards, null, 'none between picks');
-    // reaching level 7 alive: read again until the pick has gone, then not till the next level
+    // reaching level 7 alive: the cards only come once the shop opens (dead or in the fountain), so it keeps looking
+    // until a pick was read and has gone, then not till the next level
+    await pc.evaluate(drawMayhem, null);
     await mayhemAt(400, false, 7);
+    await new Promise((r) => setTimeout(r, 5000)); // longer than the 3.5 s it once gave up after
+    await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the level 7 pick read', 30000);
     await pc.evaluate(drawMayhem, null);
     await wait(pc, () => !window.lastOverlay.mayhemCards, null, 'gone once picked', 30000);
-    await new Promise((r) => setTimeout(r, 4000)); // reading stops after 3.5 s of no cards, so one bad frame never closes it
+    await new Promise((r) => setTimeout(r, 4000)); // reading stops once the read cards are gone (3.5 s, so one bad frame never closes it)
     await pc.evaluate(drawMayhem, ['Symphony of War', 'Mystic Punch', 'Sneakerhead']);
     await new Promise((r) => setTimeout(r, 5000));
     assert(!(await pc.evaluate(() => window.lastOverlay.mayhemCards)), 'not read again after the pick');

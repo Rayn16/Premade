@@ -11006,9 +11006,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   async function augStart() {
     augsAt = performance.now();
-    const a = (augs = { cards: [null, null, null], pending: [null, null, null], emptySince: 0, busy: false, may: mayhem() });
+    const a = (augs = { cards: [null, null, null], busy: false, may: mayhem() });
     let s;
-    try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2 }, audio: false }); } catch (err) {
+    try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: a.may ? 5 : 2 }, audio: false }); } catch (err) {
       console.warn('augment cards:', err);
       if (augs === a) augs = null; // again in 30 s
       return;
@@ -11016,7 +11016,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (augs !== a) return s.getTracks().forEach((t) => t.stop());
     a.track = s.getVideoTracks()[0];
     a.g = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 }).getContext('2d', { willReadFrequently: true });
-    a.stop = CameraBox.watch(s, a.may ? 350 : 1000, (src, w, h) => augFrame(a, src, w, h));
+    a.stop = CameraBox.watch(s, a.may ? 200 : 1000, (src, w, h) => augFrame(a, src, w, h));
     if (lcuOn()) tftGamesLoad(); // your games
   }
   function augStop() {
@@ -11168,10 +11168,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- ARAM: Mayhem's augment cards: three cards in the middle of the screen at the start and after levels 7, 11 and
-  // 15 (mayOpen's times). Their size goes with the UI scale, so Tesseract reads the whole middle of the screen (light text
-  // made dark) every 2 seconds then, and each line that's an augment's name (CommunityDragon's list of Arena and Mayhem
-  // augments, 0.85 alike or better) gets its pick rate and any combo with your champion (mayDataSoon), at the foot of its card (found by its
-  // light frame under the name). Nothing read leaves your PC.
+  // 15 (mayOpen's times). Their size goes with the UI scale, so Tesseract finds them by reading the whole middle of the
+  // screen (light text made dark), and each line that's an augment's name (CommunityDragon's list of Arena and Mayhem
+  // augments, 0.85 alike or better) gets its pick rate and tier on your champion (mayDataSoon) near the foot of its card.
+  // Then each name is watched, not read: one that looks different (a reroll, the pick) is read again by itself, in its own
+  // third of the screen. Nothing read leaves your PC.
   let mayNames = null, mayNamesAt = -Infinity; // [[id, name]]
   function mayNamesSoon() {
     if (mayNames || performance.now() - mayNamesAt < 60000) return;
@@ -11179,21 +11180,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     fetch('https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/cherry-augments.json').then((r) => r.json())
       .then((j) => { mayNames = (Array.isArray(j) ? j : []).filter((x) => x && Number.isInteger(x.id) && x.nameTRA).map((x) => [x.id, String(x.nameTRA)]); }).catch(() => {});
   }
-  const mayCv = document.createElement('canvas');
+  const mayCv = document.createElement('canvas'), mayTv = Object.assign(document.createElement('canvas'), { width: 96, height: 12 });
+  const mayLook = (src, [x, y, w, h]) => { const g = mayTv.getContext('2d', { willReadFrequently: true }); g.drawImage(src, x, y, w, h, 0, 0, 96, 12); return g.getImageData(0, 0, 96, 12).data; }; // a name's look, small, for augDiff
   function mayFrame(a, src, w, h) {
-    if (a.busy || (a.retryAt && performance.now() < a.retryAt) || !mayNames || performance.now() - (a.at || 0) < 700) return;
-    if (!mayOpen()) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
-    a.at = performance.now();
+    if (!mayNames) return;
+    if (!mayOpen()) { a.seen = false; if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
     // The offers occupy the middle band; excluding the rest of the game makes OCR faster and avoids unrelated text.
-    const sx = w * 0.1, sy = h * 0.25, sw = w * 0.8, sh = h * 0.5, k = 1280 / sw;
-    mayCv.width = 1280;
+    const now = performance.now(), sx = w * 0.1, sy = h * 0.25, sw = w * 0.8, sh = h * 0.5, k = 1280 / sw;
+    // a card whose name looks as it did when it was read is still there; one whose name changed (a reroll, the pick) is read again
+    const moved = a.cards.map((c) => !!c && augDiff(c.px, mayLook(src, c.box)) > 8);
+    a.cards.forEach((c, i) => { if (c && !moved[i]) c.seenAt = now; });
+    if (a.busy || (a.retryAt && now < a.retryAt)) return;
+    const redo = [0, 1, 2].filter((i) => moved[i] || !a.cards[i]), one = redo.length === 1 && a.cards[redo[0]];
+    if (!redo.length || (!one && now - (a.at || 0) < 700)) return; // one changed card at once, the whole middle at most every 0.7 s
+    a.at = now;
+    // one card: its own third of the middle, around where its name was (a third of the time); else the whole middle
+    const x0 = one ? Math.min(Math.max(one.x * w - sw / 6, sx), sx + (sw * 2) / 3) : sx, xw = one ? sw / 3 : sw;
+    mayCv.width = Math.round(xw * k);
     mayCv.height = Math.round(sh * k);
     const g = mayCv.getContext('2d', { willReadFrequently: true });
-    g.drawImage(src, sx, sy, sw, sh, 0, 0, mayCv.width, mayCv.height);
+    g.drawImage(src, x0, sy, xw, sh, 0, 0, mayCv.width, mayCv.height);
     const p = g.getImageData(0, 0, mayCv.width, mayCv.height), d = p.data;
     for (let i = 0; i < d.length; i += 4) d[i] = d[i + 1] = d[i + 2] = 255 - Math.max(d[i], d[i + 1], d[i + 2]);
     g.putImageData(p, 0, 0);
     a.busy = true;
+    const still = src.clone ? src.clone() : src; // this frame, kept till it's read: each name's look is taken from it
     (augOcr = augOcr || augLoad('11')).then((ocr) => ocr.recognize(mayCv, {}, { blocks: true })).then((r) => {
       if (augs !== a) return;
       const lines = ((r && r.data && r.data.blocks) || []).flatMap((b) => b.paragraphs || []).flatMap((q) => q.lines || []);
@@ -11204,27 +11215,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (cy < mayCv.height * 0.08 || cy > mayCv.height * 0.4) continue;
         const name = mayMatch(l.text);
         if (!name) continue;
-        const cx = (b.x0 + b.x1) / 2, slot = Math.min(2, Math.floor(cx / (mayCv.width / 3))), y = b.y1 + 0.42 * mayCv.height;
-        found[slot].push({ name, x: +((sx + cx / k) / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now() });
+        const cx = x0 + (b.x0 + b.x1) / 2 / k, slot = one ? redo[0] : Math.min(2, Math.floor((cx - sx) / (sw / 3))), y = b.y1 + 0.42 * mayCv.height;
+        const box = [x0 + b.x0 / k, sy + b.y0 / k, (b.x1 - b.x0) / k, (b.y1 - b.y0) / k];
+        found[slot].push({ name, x: +(cx / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now(), box, px: mayLook(still, box) });
       }
-      const now = performance.now(), next = [null, null, null];
-      for (let i = 0; i < 3; i++) {
-        const candidate = found[i].sort((x, y) => y.confidence - x.confidence)[0], old = a.cards[i];
-        if (!candidate) { if (old && now - old.seenAt < 3500) next[i] = old; a.pending[i] = null; continue; }
-        if (old && augKey(old.name) === augKey(candidate.name)) { next[i] = { ...candidate, y: old.y * 0.7 + candidate.y * 0.3 }; a.pending[i] = null; continue; }
-        const pending = a.pending[i];
-        if (old && now - old.seenAt < 2500 && pending && augKey(pending.name) === augKey(candidate.name)) {
-          next[i] = candidate;
-          a.pending[i] = null;
-        } else if (old && now - old.seenAt < 2500) {
-          next[i] = old;
-          a.pending[i] = { name: candidate.name };
-        } else next[i] = candidate;
+      const now = performance.now(), next = [...a.cards];
+      for (const i of redo) {
+        const c = found[i].sort((x, y) => y.confidence - x.confidence)[0], old = a.cards[i];
+        if (c) next[i] = old && augKey(old.name) === augKey(c.name) ? { ...c, y: old.y * 0.7 + c.y * 0.3 } : c; // a new name shows at once
+        else if (old && now - old.seenAt >= 3500) next[i] = null; // changed and unreadable for 3.5 s: gone, so a moment's miss never drops it
       }
-      if (next.some(Boolean)) a.emptySince = 0;
-      else if (!a.emptySince) a.emptySince = now;
       a.cards = next;
-      if (!next.some(Boolean) && now - a.emptySince >= 3500) mayUntil = 0; // close only after repeated OCR misses, never a single bad frame
+      if (next.some(Boolean)) a.seen = true;
+      else if (a.seen) { a.seen = false; mayUntil = 0; } // picked and gone: no more till the next level
       pushOverlay();
     }).catch((e) => {
       a.retryAt = performance.now() + 5000;
@@ -11232,10 +11235,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       augOcr = null;
       if (broken) Promise.resolve(broken).then((w) => w.terminate()).catch(() => {});
       console.warn('Mayhem augment cards; retrying:', e);
-    }).finally(() => { a.busy = false; });
+    }).finally(() => { a.busy = false; if (still !== src) still.close(); });
   }
   // whether a pick may be up: the first 3 minutes, while dead, and from reaching level 7, 11 or 15 until a pick was read
-  // and has gone (5 minutes at most)
+  // and has gone (5 minutes at most: the cards come only once the shop opens, dead or in the fountain)
   let mayLvl = 0, mayUntil = 0;
   function mayOpen() {
     const m = mayhem() && meIn();
@@ -13067,6 +13070,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [81, 'October 27: faster Mayhem augment ratings', [
+      'ARAM: Mayhem’s augment cards are read faster. A rerolled card’s rating shows in about half a second instead of several, since only the card that changed is read again, and nothing is read while the cards sit still.',
+      'After you reach level 7, 11 or 15 it keeps watching until you’ve picked (5 minutes at most), so the ratings come up as soon as the cards do, whether you die or walk back to the fountain.',
+    ]],
     [80, 'October 26: point at a friend’s screen, and a better remote control', [
       'Point on a friend’s screen tile: your pointer shows on their screen with your name, and a drag draws a line that fades after 3 seconds. It only draws, so it works inside games too (in Borderless), where remote control can’t.',
       'Remote control: they can Pause it from the red bar and Resume without ending it, and it ends by itself after 10 minutes nobody uses it. Your Ctrl+V pastes what you copied on your PC into theirs.',
