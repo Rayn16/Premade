@@ -14,6 +14,10 @@ class_name = "Stats"
 name = "RIOT"
 class_name = "Riot"
 
+[[durable_objects.bindings]]
+name = "DIRECTORY"
+class_name = "Directory"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
@@ -25,6 +29,10 @@ new_sqlite_classes = ["Stats"]
 [[migrations]]
 tag = "v3"
 new_sqlite_classes = ["Riot"]
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["Directory"]
 
 # wakes the Riot object's counting if it ever stopped
 [triggers]

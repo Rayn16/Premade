@@ -33,6 +33,20 @@ const owner = (env, key) => {
   return b.byteLength > 0 && a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
 };
 
+function deepAramAugments(html) {
+  const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
+  const re = /\\"id\\":(\d+),\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\",\\"tags\\":\[[^\]]*\],\\"rarity\\":\\"(silver|gold|prismatic)\\",\\"pickRate\\":([0-9.]+).*?\\"deepScore\\":([0-9]+),\\"href\\":\\"\/augments\/([^\\"]+)\\"/g;
+  const rows = [];
+  for (const m of html.matchAll(re)) {
+    let name;
+    try { name = JSON.parse(`"${m[2]}"`); } catch { continue; }
+    const score = +m[5];
+    rows.push({ id: +m[1], name, rarity: m[3], pickRate: +m[4], deepScore: score,
+      tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D', href: m[6] });
+  }
+  return { patch, rows };
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -42,6 +56,28 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
+      const champion = url.searchParams.get('champ') || '';
+      if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
+      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`;
+      try {
+        const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
+        if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
+        const { patch, rows } = deepAramAugments(await upstream.text());
+        if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
+        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows }, { headers: { ...CORS, 'cache-control': 'public, max-age=1800' } });
+      } catch {
+        return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
+      }
+    }
+    if (url.pathname === '/rooms' && req.method === 'GET') return Response.json(await directory(env).list(), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    if (url.pathname === '/rooms' && req.method === 'POST') {
+      const b = await req.json().catch(() => null);
+      if (!b || !/^[a-z0-9]{4,20}$/.test(b.room) || !DEVICE.test(b.owner) || (b.count != null && (!Number.isInteger(b.count) || b.count < 1 || b.count > 10)) || (b.playing != null && typeof b.playing !== 'boolean')) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
+      if (b.remove === true || b.locked === true) await directory(env).remove(b.room, b.owner);
+      else await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true);
+      return Response.json({ ok: true }, { headers: CORS });
+    }
     if (req.method === 'POST' && (url.pathname === '/hello' || url.pathname === '/who')) { // a plain text body, so no preflight
       const b = await req.json().catch(() => null);
       if (url.pathname === '/who') return owner(env, b && b.key) ? Response.json({ apps: await stats(env).who() }, { headers: CORS }) : new Response('Not the owner key', { status: 403, headers: CORS });
@@ -70,6 +106,28 @@ export default {
     await riot(env).kick();
   },
 };
+
+const directory = (env) => env.DIRECTORY.get(env.DIRECTORY.idFromName('open-rooms'));
+
+// Open room listings use short leases, so a host that closes unexpectedly disappears automatically.
+export class Directory extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec('CREATE TABLE IF NOT EXISTS rooms (room TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL) WITHOUT ROWID');
+    const columns = new Set(this.sql.exec('PRAGMA table_info(rooms)').toArray().map((x) => x.name));
+    if (!columns.has('count')) this.sql.exec('ALTER TABLE rooms ADD COLUMN count INTEGER NOT NULL DEFAULT 1');
+    if (!columns.has('playing')) this.sql.exec('ALTER TABLE rooms ADD COLUMN playing INTEGER NOT NULL DEFAULT 0');
+  }
+  async put(room, owner, count = 1, playing = false) {
+    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing', room, owner, Date.now() + 120000, count, playing ? 1 : 0);
+  }
+  async remove(room, owner) { this.sql.exec('DELETE FROM rooms WHERE room = ? AND owner = ?', room, owner); }
+  async list() {
+    this.sql.exec('DELETE FROM rooms WHERE expires < ?', Date.now());
+    return this.sql.exec('SELECT room, count, playing FROM rooms ORDER BY room').toArray().map(({ room, count, playing }) => ({ room, count, playing: !!playing }));
+  }
+}
 
 // A locked room: each page sends {type: 'LOCK', payload: {key}} whenever its socket opens, key being a hash of the
 // password it knows ('' for none). In a locked room a newcomer is let in (its messages passed on, and others' to it)
@@ -251,7 +309,7 @@ const LOOKUPS = [ // [path, on a region (else a platform), the query parameters 
 // Cloudflare's free plan, each UTC day: Durable Object requests, SQLite rows read and written, and running time
 // (13,000 GB-s at 128 MB is 101,562.5 s). They're for the whole account: the voice rooms use a little too.
 const FREE = { req: 1e5, read: 5e6, write: 1e5, ms: 101562500 };
-const AUG_DAY = 20000; // rows a day the augment games may write (augIn), about 400 real Mayhem games, so with the crawl's ~57k the day stays under FREE.write
+const AUG_DAY = 400; // augment games counted a day (augIn): about 20k rows, so with the crawl's 30k the day stays well under FREE.write
 const LADDER = (p) => (p === 'kr' ? 'ladder' : `ladder:${p}`); // where a server's ladder is kept (Korea's from before the others)
 const KEEP = 500; // games kept for each champion and role: a new one takes a random place, so older ones thin out
 const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
@@ -378,8 +436,7 @@ export class Riot extends DurableObject {
   // A game's augments from a Premade app, which read them from League's client: { g: its id (EUW1_123), ps: each of
   // the 10 players' { c: champion, w: 1 if they won, a: augment ids } } for ARAM: Mayhem, or { g, s: the set, ps: each
   // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 200 an
-  // hour. 'ok', or why not: 'later' once today's (UTC) new games would write more than AUG_DAY rows, so a game to send
-  // again another day. Rows, not games: a made-up game with 8 augments for everyone writes twice a real one's.
+  // hour. 'ok', or why not: 'later' once AUG_DAY new games are in today (UTC), so a game to send again another day.
   // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 200 an hour from each address
   augIn(kind, text, ip) {
     let b;
@@ -397,9 +454,8 @@ export class Riot extends DurableObject {
     if (this.sql.exec('SELECT 1 FROM augseen WHERE g = ?', b.g).toArray().length) return 'ok';
     const d = this.get('augday', {}); // histories sent at once mustn't use up the day's rows written
     if (d.day !== day()) Object.assign(d, { day: day(), n: 0 });
-    const rows = 2 + ps.reduce((n, p) => n + (may ? 1 + p.a.length : new Set(p.a).size), 0); // with augseen's and augday's
-    if (d.n + rows > AUG_DAY) return 'later';
-    d.n += rows;
+    if (d.n >= AUG_DAY) return 'later';
+    d.n++;
     this.put('augday', d);
     this.sql.exec('INSERT INTO augseen VALUES (?, ?)', b.g, Math.round(now / 1000));
     for (const p of ps) {
