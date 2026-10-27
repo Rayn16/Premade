@@ -47,6 +47,38 @@ function deepAramAugments(html) {
   return { patch, rows };
 }
 
+// The Aion 2 tracker's Refresh now (/aion?q=name&s=server): one character's sheet straight from PLAYNC, in the shape
+// the tracker's fetch.py saves, kept 2 minutes so a busy button doesn't hammer PLAYNC
+const AION_SEARCH = (q) => `https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(q)}&region=eu&localeInfo=en-US&page=1&size=20`;
+const AION_FETCH = { headers: { 'user-agent': 'premade-aion2-tracker (small friends group)' }, cf: { cacheEverything: true, cacheTtl: 120 } };
+async function aionLive(req, name, server) {
+  const key = new Request(new URL(`/aion?q=${encodeURIComponent(name.toLowerCase())}&s=${encodeURIComponent(server.toLowerCase())}`, req.url)); // one entry whatever else the ask has
+  const hit = await caches.default.match(key);
+  if (hit) return hit;
+  const get = (u) => fetch(u, AION_FETCH).then((x) => { if (!x.ok) throw new Error(x.status); return x.json(); });
+  const clean = (n) => String(n).replace(/<[^>]+>/g, '');
+  try {
+    const c = (await get(AION_SEARCH(name))).list.find((x) => clean(x.name).toLowerCase() === name.toLowerCase() && String(x.serverName).toLowerCase() === server.toLowerCase());
+    if (!c) return Response.json({ error: 'Not found' }, { status: 404, headers: CORS });
+    const api = (kind) => `https://aion2.plaync.com/api/character/${kind}?region=eu&lang=en-US&characterId=${c.characterId}&serverId=${c.serverId}`; // characterId comes URL-encoded
+    const [info, equip] = await Promise.all([get(api('info')), get(api('equipment'))]);
+    // every node of each open board as "row|col|grade|open|name", the start node counting as open (fetch.py's board())
+    const boards = Object.fromEntries(await Promise.all((info.daevanion?.boardList || []).filter((b) => b.open).map(async (b) =>
+      [b.id, (await get(api('daevanion/detail') + '&boardId=' + b.id)).nodeList.filter((n) => n.grade !== 'None' || n.type === 'Start')
+        .map((n) => `${n.row}|${n.col}|${n.type === 'Start' ? 'Start' : n.grade}|${+!!(n.open || n.type === 'Start')}|${n.name}`)])));
+    const res = Response.json({
+      level: c.level, cp: info.profile.combatPower, il: info.stat.statList.find((x) => x.type === 'ItemLevel')?.value ?? null,
+      gear: equip.equipment.equipmentList.map(({ slotPosName, name, grade, enchantLevel, icon }) => ({ slotPosName, name, grade, enchantLevel, icon })),
+      stats: info.stat.statList, title: info.title ?? null, ranking: info.ranking ?? null, daevanion: info.daevanion ?? null, boards,
+      skill: equip.skill ?? null, petwing: equip.petwing ?? null,
+    }, { headers: { ...CORS, 'cache-control': 'public, max-age=120' } });
+    await caches.default.put(key, res.clone()).catch(() => {});
+    return res;
+  } catch {
+    return Response.json({ error: 'PLAYNC didn’t answer' }, { status: 502, headers: CORS });
+  }
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -89,9 +121,9 @@ export default {
     if (url.pathname === '/aion') { // the Aion 2 tracker (github.com/Rayn16/aion2-tracker): who plays which character
       // ?q=: PLAYNC's character search, which turns away other sites' pages (403), so the tracker searches through here
       const q = (url.searchParams.get('q') || '').trim().slice(0, 24);
+      if (q && url.searchParams.has('s')) return aionLive(req, q, url.searchParams.get('s'));
       if (q) {
-        const r = await fetch(`https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(q)}&region=eu&localeInfo=en-US&page=1&size=20`,
-          { headers: { 'user-agent': 'premade-aion2-tracker (small friends group)' }, cf: { cacheEverything: true, cacheTtl: 300 } }).then((x) => x.json()).catch(() => null);
+        const r = await fetch(AION_SEARCH(q), AION_FETCH).then((x) => x.json()).catch(() => null);
         if (!r || !Array.isArray(r.list)) return Response.json({ error: 'Search failed' }, { status: 502, headers: CORS });
         const list = r.list.filter((c) => c && typeof c.name === 'string').map((c) => ({ n: c.name.replace(/<[^>]+>/g, ''), s: c.serverName, level: c.level }));
         return Response.json({ list }, { headers: { ...CORS, 'cache-control': 'public, max-age=300' } });
