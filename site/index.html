@@ -2904,7 +2904,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const want = store.get('lpc-mic');
     // Studio voice: without the browser's echo cancelling, noise cutting and volume levelling
     const studio = opts.studio ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false } : {};
-    const next = await navigator.mediaDevices.getUserMedia({ audio: { ...(want && { deviceId: { ideal: want } }), ...studio } });
+    let next = await navigator.mediaDevices.getUserMedia({ audio: { ...(want && { deviceId: { ideal: want } }), ...studio } });
+    // a Bluetooth headset's mic switches the whole headset to phone quality, so everything you hear sounds muffled:
+    // unless you picked it, another real mic is used instead when there is one
+    const was = next.getAudioTracks()[0].label;
+    if (!want && phoneQuality(was)) {
+      const other = (await navigator.mediaDevices.enumerateDevices()).find((d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications' && d.label && !phoneQuality(d.label) && !/stereo mix|wave ?link|\bcable\b|voicemeeter|virtual|loopback|\bmix\b/i.test(d.label));
+      if (other) {
+        next.getTracks().forEach((t) => t.stop());
+        next = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: other.deviceId }, ...studio } });
+        if (!phoneQuality(next.getAudioTracks()[0].label) && (!raw || raw.getAudioTracks()[0].label !== next.getAudioTracks()[0].label)) notify(`Premade uses ${other.label} as your mic, because your Bluetooth headset’s mic makes everything sound muffled. Pick another mic in Voice settings.`, true);
+      }
+    }
     if (raw) raw.getTracks().forEach((t) => t.stop());
     raw = next;
     raw.getAudioTracks()[0].addEventListener('ended', micMoved); // unplugged
@@ -3294,7 +3305,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // Bluetooth headset microphones normally expose their hands-free profile in the Windows device label. Use that
   // stable device signal; synthetic beeps and quiet speech can lack high frequencies and must not trigger a warning.
   let btMic = false;
-  const phoneQuality = (label) => /hands-?free|bluetooth|\bAG Audio\b/i.test(label);
+  const phoneQuality = (label) => /hands-?free|bluetooth|\bAG Audio\b|\bHeadset \(/i.test(label); // Headset (…): Windows 11's name for one
   function btCheck() {
     const label = raw.getAudioTracks()[0].label;
     btMic = phoneQuality(label);
@@ -3302,7 +3313,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const seen = load('lpc-btwarned', []);
     if (!btMic || seen.includes(label)) return;
     store.set('lpc-btwarned', JSON.stringify([...seen, label].slice(-20)));
-    notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely). A separate mic, or the headset’s own USB dongle, sounds much better.', true);
+    notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely), which makes everything you hear sound muffled too. Another mic (Voice settings), or the headset’s own USB dongle, fixes it.', true);
   }
   // the raw mic, ten times a second: clipping
   function micCheck() {
@@ -13225,6 +13236,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [87, 'October 28: no more muffled sound with a Bluetooth headset', [
+      'Using a Bluetooth headset’s mic makes Windows play everything through that headset in phone quality, so it all sounds muffled. If you have another mic and haven’t picked one, Premade now uses that one instead and tells you. You can still pick the headset’s mic in Voice settings.',
+    ]],
     [86, 'October 28: screen share stays sharp', [
       'A room screen share no longer turns blurry after a while. When your PC or upload is busy, it sends fewer frames instead of a smaller picture, so it stays at the quality you picked.',
     ]],
@@ -13734,7 +13748,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Your group, on the Voice page: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
       ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
         'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
-      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling or Bluetooth mic.',
+      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, and uses another mic instead of a Bluetooth headset’s, which makes everything sound muffled.',
         'Voice settings, Microphone, at the bottom of the Voice page: Test mic, then Set the gate for me.', '#micTest'],
       ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Faster uses shorter packets and a shorter playback buffer when supported. Help reports measured network and audio-buffer delay. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
         'Voice connection, in Voice settings, Microphone.', '#optVoice'],

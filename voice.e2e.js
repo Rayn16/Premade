@@ -1076,7 +1076,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
       const c = await p.evaluate(() => lpc.checks());
       assert(!c.echoes.length, `${n}: no echo: ${JSON.stringify(c)}`);
       assert(!c.bt && !c.btNote, `${n}: synthetic mic is not misidentified as Bluetooth: ${JSON.stringify(c)}`);
-      assert.deepStrictEqual(await p.evaluate(() => [lpc.phoneQuality('Default microphone'), lpc.phoneQuality('WH-1000XM4 Hands-Free AG Audio')]), [false, true], `${n}: deterministic Bluetooth-label classification`);
+      assert.deepStrictEqual(await p.evaluate(() => [lpc.phoneQuality('Default microphone'), lpc.phoneQuality('WH-1000XM4 Hands-Free AG Audio'), lpc.phoneQuality('Default - Headset (WH-1000XM4)'), lpc.phoneQuality('Headset Microphone (HyperX Cloud II)')]), [false, true, true, false], `${n}: deterministic Bluetooth-label classification`);
     }
     console.log(`voice checks: no echo or false Bluetooth warning on synthetic beeps; headset-label classification is deterministic`);
 
@@ -1100,6 +1100,19 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')))) && (await ivy.inputValue('#gate')) === '0.02', 'the popup only once for that mic; the gate kept');
     await ivy.context().close();
     console.log('mic coach and Bluetooth warning: phone-quality headset spotted (one popup), clipping noted, the gate set from a quiet room');
+
+    // Bo's default mic is a Bluetooth headset's (Windows 11's name for it) and Bo has another mic: Premade uses that one
+    const bo = await player(browser, 'Bo', [1280, 720]);
+    await bo.context().addInitScript(() => {
+      const label = Object.getOwnPropertyDescriptor(MediaStreamTrack.prototype, 'label').get;
+      Object.defineProperty(MediaStreamTrack.prototype, 'label', { get() { return this.getSettings().deviceId === 'default' ? 'Default - Headset (WH-1000XM4)' : label.call(this); } });
+    });
+    await bo.goto(URL_);
+    await bo.$eval('#micTest', (b) => b.click());
+    await waitFor(bo, () => lpc.toasts().some((t) => / as your mic, because your Bluetooth headset’s mic makes everything sound muffled/.test(t)), null, 'Bo’s other mic used');
+    assert(!(await bo.evaluate(() => lpc.checks().bt)) && (await bo.evaluate(() => lpc.raw().getAudioTracks()[0].getSettings().deviceId)) !== 'default', 'not the headset’s mic');
+    await bo.context().close();
+    console.log('Bluetooth headset mic: another mic used instead');
 
     // echo check: Kit is on speakers with no echo cancelling (Kit's mic gets exactly what Kit's page plays), so Jo hears
     // Jo's own voice back, and both are told; Jo's mic talks in bursts (fakeVoice)
