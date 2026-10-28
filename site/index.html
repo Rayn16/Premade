@@ -2055,6 +2055,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
     : { host: 'league-proxchat.league-proxchat-server.workers.dev', port: 443, secure: true, path: '/' };
   const serverUrl = `${peerOpts.secure ? 'https' : 'http'}://${peerOpts.host}:${peerOpts.port}`; // its /stats and /riot/...
+  // Relays for players whose routers can't connect directly (our server's /turn, Cloudflare's TURN): PeerJS's own are
+  // gone. Fetched before a room's first connection (at most 5 s) and again twice a day, as they last a day.
+  const getTurn = () => (local ? Promise.resolve() : fetch(serverUrl + '/turn', { signal: AbortSignal.timeout(5000) }).then((r) => r.json())
+    .then((j) => { if (Array.isArray(j.iceServers) && j.iceServers.length) peerOpts.config = { iceServers: j.iceServers }; }).catch(() => {}));
+  const turnReady = getTurn();
+  setInterval(getTurn, 12 * 3600000);
 
   // Each player takes the first free slot: peer id lolprox-<room>-<slot>. A newcomer dials every other slot.
   let room = '', prefix = '', slot = -1, peer = null, mic = null, myName = store.get('lpc-name') || '';
@@ -2815,7 +2821,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }, 10000);
   });
 
-  function openPeer(id) {
+  async function openPeer(id) {
+    await turnReady;
     return new Promise((resolve, reject) => {
       const p = new Peer(id, peerOpts);
       const fail = (err) => { p.destroy(); reject(err); };
@@ -13329,6 +13336,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [91, 'October 28: voice and screens for friends who couldn’t connect', [
+      'Friends whose home routers can’t reach each other directly now connect through a relay server, for voice and screens. Premade’s old free relay had shut down.',
+    ]],
     [90, 'October 28: smoother screen shares for everyone watching', [
       'Each friend now gets your screen at the size they watch it: a small tile gets a small picture, and full screen or a big Pop out window gets the full quality. So with several friends watching, your upload goes further and every share stays sharper.',
       'Screen shares are now sent in H.264, which your graphics card encodes where it can, so your PC works less and the share stays smooth in big fights. A friend whose Premade can’t play H.264 still gets it the old way.',
@@ -13816,7 +13826,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
