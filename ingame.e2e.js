@@ -325,6 +325,12 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ben, () => { const s = lpc.seen(); return s.length === 1 && s[0].name === 'Ana' && s[0].call && s[0].video > 0; }, null, 'Ana’s screen playing on Ben’s Voice page', 30000);
       await wait(ben, () => document.querySelector('#screenGrid figcaption span').textContent === 'Ana’s screen', null, 'named on its tile');
       assert.strictEqual(await ben.evaluate(() => lpc.seen()[0].sound), 1, 'with its sound (What’s new 63)');
+      // each watcher gets the size they watch, and the tile says what they get (What's new 89)
+      await wait(ben, () => /^\d+p · \d+ fps/.test(document.querySelector('#screenGrid .shq').textContent), null, 'size and frame rate on the tile', 15000);
+      const benH = await ben.evaluate(() => lpc.seen()[0].h);
+      assert.ok([360, 540, 720, 1080, 1440, 2160].includes(benH), `Ben asks for his tile's height: ${benH}`);
+      await wait(ana, (h) => lpc.lendH()[0] === Math.min(1080, h), benH, 'Ana sends Ben that size');
+      assert.strictEqual(await ben.$eval('#screenGrid .pop', (b) => b.textContent), 'Pop out');
       assert.strictEqual(await ben.$eval('#screenGrid video', (v) => v.muted), false, 'not muted');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');
       await shot(ben, 'room-screen');

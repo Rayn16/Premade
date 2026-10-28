@@ -192,6 +192,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .screentile.controlling { grid-column: 1 / -1; }
 .screentile.controlling video { max-height: calc(85vh / var(--zoom, 1)); outline: 2px solid #b3261e; cursor: crosshair; }
 .screentile.pointing video { cursor: crosshair; }
+.screentile .shq { color: var(--muted); }
 #face { width: 64px; height: 64px; border-radius: 50%; border: 2px solid #f2b630; background: #000; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pick label { display: grid; gap: 4px; font-size: 14px; }
@@ -2562,7 +2563,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
-    if (m.t === 'see') { p.wantSee = m.on === true; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done
+    if (m.t === 'see') { p.wantSee = m.on === true; p.seeH = +m.h > 0 ? Math.min(2160, +m.h) : 0; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done; h: how tall their tile is
+    if (m.t === 'shq') { const v = seen.get(p); if (v && typeof m.why === 'string') v.why = m.why; return; } // what holds back their screen you watch
     if (m.t === 'pt') return void ptMsg(p, m);
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
@@ -5134,7 +5136,30 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     call.on('close', () => { if (c.call === call) { c.call = null; if (c.stop) c.stop(); c.stop = null; } });
   }
   // lending yours: to each teammate who asked and is dead, while you share your screen; you're told once a game who
-  const lends = new Map(), lendSaid = new Set(); let lendLogAt = 0; // a teammate -> { call, track }: the call carrying your screen to them
+  const lends = new Map(), lendSaid = new Set(); let lendLogAt = 0, lendStatAt = 0; // a teammate -> { call, track }: the call carrying your screen to them
+  // H.264 first in the offer: Chromium encodes it on the graphics card where it can (VP8 is always the CPU's), and the
+  // watcher's answer keeps that order; a watcher without H.264 answers VP8
+  const h264First = (sdp) => sdp.replace(/^(m=video \d+ [\w/]+ )([\d ]+)$/m, (m, head, pts) => {
+    const h = new Set([...sdp.matchAll(/^a=rtpmap:(\d+) H264\//gm)].map((x) => x[1])), all = pts.split(' ');
+    return head + [...all.filter((x) => h.has(x)), ...all.filter((x) => !h.has(x))].join(' ');
+  });
+  function lendSet(p, l) { // the call's size, frame rate and bit rate; again when a room watcher's tile changes size
+    const pc = l.call.peerConnection;
+    if (!pc) return;
+    const full = l.room ? +opts.shareQ : 720, h = l.room && p.seeH ? Math.min(full, p.seeH) : full; // a dead teammate's is small: they're in a game
+    const fps = l.room ? opts.shareFps : 10, rate = l.room ? Math.max(600000, Math.round((vRate(opts.shareQ, opts.shareFps) / 3) * (h / full) ** 2)) : 1200000;
+    l.h = h;
+    for (const x of pc.getSenders()) {
+      if (!x.track || x.track.kind !== 'video') continue;
+      const q = x.getParameters();
+      if (!q.encodings || !q.encodings[0]) continue;
+      Object.assign(q.encodings[0], { maxBitrate: rate, maxFramerate: fps, scaleResolutionDownBy: Math.max(1, (l.track.getSettings().height || h) / h) });
+      // under load (a fight, a busy PC or upload) fewer frames, not a smaller picture: 'motion' alone let WebRTC drop
+      // a 1080p share to 480x270 and keep it there
+      q.degradationPreference = 'maintain-resolution';
+      x.setParameters(q).catch(() => {});
+    }
+  }
   function lendTick() { // every second, and when a teammate asks
     const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
     for (const [p, l] of lends) {
@@ -5142,36 +5167,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const pc = l.call.peerConnection, down = !!pc && ['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState);
       if (!down) l.okAt = performance.now();
       if (!ok(p) || performance.now() - l.okAt > 10000) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
-      else if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
+      else {
+        if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
+        if (l.on && l.room && l.h !== Math.min(+opts.shareQ, p.seeH || Infinity)) lendSet(p, l);
+      }
     }
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
       const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
       if (sound) sound.enabled = !!opts.roomSound;
-      const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track, sound].filter(Boolean)), { metadata: { screen: true } });
+      const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track, sound].filter(Boolean)), { metadata: { screen: true }, sdpTransform: h264First });
       if (!call) { track.stop(); if (sound) sound.stop(); continue; }
       // scaled by the call, not the track: a track's constraints would change the one capture the recording uses too
-      const [h, fps, rate] = room ? [+opts.shareQ, opts.shareFps, Math.round(vRate(opts.shareQ, opts.shareFps) / 3)] : [720, 10, 1200000]; // a dead teammate's is small: they're in a game
       if (room) track.contentHint = 'motion'; // keeps the frame rate you picked; WebRTC's default for a screen drops it to keep text sharp
-      lends.set(p, { call, track, sound, okAt: performance.now() });
-      call.on('iceStateChanged', (st) => {
-        if (st === 'connected') for (const x of call.peerConnection.getSenders()) {
-          const q = x.getParameters();
-          if (q.encodings && q.encodings[0]) Object.assign(q.encodings[0], { maxBitrate: rate, maxFramerate: fps, scaleResolutionDownBy: Math.max(1, (track.getSettings().height || h) / h) });
-          // under load (a fight, a busy PC or upload) fewer frames, not a smaller picture: 'motion' alone let WebRTC drop
-          // a 1080p share to 480x270 and keep it there
-          q.degradationPreference = 'maintain-resolution';
-          if (q.encodings && q.encodings[0]) x.setParameters(q).catch(() => {});
-        }
-      });
+      const l = { call, track, sound, room, on: false, h: 0, okAt: performance.now() };
+      lends.set(p, l);
+      call.on('iceStateChanged', (st) => { if (st === 'connected') { l.on = true; lendSet(p, l); } });
       call.on('close', () => { track.stop(); if (sound) sound.stop(); if (lends.get(p) && lends.get(p).call === call) lends.delete(p); });
       const k = (league ? league.room : room) + p.slot + !!p.wantSee;
       if (!lendSaid.has(k)) { lendSaid.add(k); notify(p.wantSee ? `${nameOf(p)} is watching your screen.` : `${nameOf(p)} is watching your screen while they’re dead.`, true); }
     }
-    if (lends.size && performance.now() - lendLogAt > 60000) { // what each watcher gets, once a minute, for the connection log
-      lendLogAt = performance.now();
+    if (lends.size && performance.now() - lendStatAt > 3000) { // what holds each watcher's back, for their tile; once a minute for the connection log too
+      const log = performance.now() - lendLogAt > 60000;
+      lendStatAt = performance.now();
+      if (log) lendLogAt = lendStatAt;
       for (const [p, l] of lends) if (l.call.peerConnection) l.call.peerConnection.getStats().then((st) => st.forEach((r) => {
-        if (r.type === 'outbound-rtp' && r.kind === 'video') clog(`screen to ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight || 0} ${Math.round(r.framesPerSecond || 0)} fps, held back by ${r.qualityLimitationReason || '?'}`);
+        if (r.type !== 'outbound-rtp' || r.kind !== 'video') return;
+        if (log) clog(`screen to ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight || 0} ${Math.round(r.framesPerSecond || 0)} fps, held back by ${r.qualityLimitationReason || '?'}, ${r.encoderImplementation || '?'}`);
+        if (l.room) tellOnce(p, { t: 'shq', why: r.qualityLimitationReason || 'none' });
       })).catch(() => {});
     }
   }
@@ -5195,10 +5218,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         const tile = document.createElement('figure');
         tile.className = 'screentile';
         tile.dataset.slot = p.slot;
-        tile.innerHTML = '<figcaption><span></span><span><button class="btn small" type="button">Hide</button> <button class="btn small pt" type="button">Point</button></span></figcaption><video autoplay playsinline controls tabindex="0"></video>';
+        tile.innerHTML = '<figcaption><span></span><span><small class="shq"></small> <button class="btn small" type="button">Hide</button> <button class="btn small pop" type="button">Pop out</button> <button class="btn small pt" type="button">Point</button></span></figcaption><video autoplay playsinline controls tabindex="0"></video>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
         ptTile(tile, p);
-        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0 }));
+        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0, h: 0, why: '', statAt: 0, pip: null }));
+        popTile(v);
         bySlot($('screenGrid'), tile, p.slot);
       }
       if (v.call && screenFrozen(v, performance.now())) {
@@ -5212,7 +5236,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       }
       v.tile.querySelector('span').textContent = v.call ? `${nameOf(p)}’s screen` : `${nameOf(p)}’s screen: connecting…`;
       v.tile.querySelector('button').setAttribute('aria-label', `Hide ${nameOf(p)}’s screen`);
-      if (!v.call && performance.now() - v.asked >= 5000) { v.asked = performance.now(); tell(p, { t: 'see', on: true }); }
+      if (!v.call && performance.now() - v.asked >= 5000) { v.asked = performance.now(); tell(p, { t: 'see', on: true, h: v.h }); }
+      if (v.call && v.streamAt) {
+        const h = seeWant(v);
+        if (h !== v.h) { v.h = h; tell(p, { t: 'see', on: true, h }); } // their app sends only that much
+        if (performance.now() - v.statAt > 3000 && v.call.peerConnection) { v.statAt = performance.now(); seeStats(v); }
+      } else v.tile.querySelector('.shq').textContent = '';
     }
     if (ptTo && !seen.has(ptTo)) ptTo = null;
     ptShow();
@@ -5495,6 +5524,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!pc || !['disconnected', 'failed'].includes(pc.iceConnectionState)) { v.okAt = now; return false; }
     return now - v.okAt > 10000;
   }
+  // Each watcher gets the size they watch (What's new 89): your tile's height, rounded up to 360, 540, 720, 1080 or 1440,
+  // the screen's in full screen or the Pop out window's ({t:'see', h}), so a small tile costs the sharer's upload little.
+  // Their app answers what holds it back every 3 s ({t:'shq', why}), shown on the tile with the size and frame rate you get.
+  function seeWant(v) {
+    const px = document.pictureInPictureElement === v.vid && v.pip ? v.pip.height : document.fullscreenElement === v.vid ? screen.height : v.vid.getBoundingClientRect().height;
+    const h = [360, 540, 720, 1080, 1440].find((x) => x >= px * devicePixelRatio * 0.9) || 2160;
+    return cam && cam.call === v.call ? Math.max(720, h) : h; // the overlay reads the same call
+  }
+  const SHQ_WHY = { bandwidth: 'held back by their upload', cpu: 'held back by their PC', other: 'held back' };
+  function seeStats(v) {
+    v.call.peerConnection.getStats().then((st) => st.forEach((r) => {
+      if (r.type !== 'inbound-rtp' || r.kind !== 'video' || !r.frameHeight) return;
+      v.tile.querySelector('.shq').textContent = [`${r.frameHeight}p`, `${Math.round(r.framesPerSecond || 0)} fps`, SHQ_WHY[v.why]].filter(Boolean).join(' · ');
+    })).catch(() => {});
+  }
+  function popTile(v) { // Pop out: the screen in its own window on top of your other apps (Chromium's picture in picture)
+    const b = v.tile.querySelector('.pop');
+    b.hidden = !document.pictureInPictureEnabled;
+    b.addEventListener('click', () => {
+      if (document.pictureInPictureElement === v.vid) return void document.exitPictureInPicture().catch(() => {});
+      v.vid.requestPictureInPicture().then((w) => { v.pip = w; }).catch((e) => notify(`Couldn’t pop out the screen: ${e.message}`, true));
+    });
+    v.vid.addEventListener('enterpictureinpicture', () => { b.textContent = 'Pop in'; });
+    v.vid.addEventListener('leavepictureinpicture', () => { b.textContent = 'Pop out'; v.pip = null; });
+  }
   function hideScreen(p, hide) {
     if (hide) screensHidden.add(nameOf(p));
     else screensHidden.delete(nameOf(p));
@@ -5505,6 +5559,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function seeOff(p) {
     const v = seen.get(p);
     seen.delete(p);
+    if (document.pictureInPictureElement === v.vid) document.exitPictureInPicture().catch(() => {});
     v.tile.remove();
     tell(p, { t: 'see', on: false });
     if (v.call && !(cam && cam.call === v.call)) v.call.close();
@@ -13274,6 +13329,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [90, 'October 28: smoother screen shares for everyone watching', [
+      'Each friend now gets your screen at the size they watch it: a small tile gets a small picture, and full screen or a big Pop out window gets the full quality. So with several friends watching, your upload goes further and every share stays sharper.',
+      'Screen shares are now sent in H.264, which your graphics card encodes where it can, so your PC works less and the share stays smooth in big fights. A friend whose Premade can’t play H.264 still gets it the old way.',
+      'Each screen tile shows the size and frame rate you’re getting, and what holds it back when something does: their upload or their PC.',
+      'Pop out on a screen tile puts it in its own small window on top of your other apps. Drag its corner to resize it; Pop in brings it back.',
+    ]],
     [89, 'October 28: a friend’s screen share no longer stays stuck loading', [
       'When your screen’s connection to a friend broke, Premade kept waiting on it, so they saw it loading forever. Now it’s sent again by itself within about 10 seconds.',
     ]],
@@ -13755,8 +13816,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, and a busy PC or connection costs frames, never sharpness. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
-        'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
+      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+        'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
@@ -14176,7 +14237,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, h: v.h, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     lendStall: (name) => { const l = [...lends].find(([p]) => nameOf(p) === name)?.[1]; if (l) Object.defineProperty(l.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // your screen call to them stuck, as on Rayan's PC (28 Oct)
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
