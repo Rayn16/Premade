@@ -7,7 +7,8 @@
 // bass far away, in each fade style), that a player whose minimap isn't tracked is silent once a game is on, the live
 // map and player cards (the other team hidden), shortcuts and their beeps, popups and chimes, room chat, quick
 // reconnects, locking the room, studio voice, the limiter, auto voice quality, a headset swap, the echo check, the mic
-// coach and the Bluetooth warning, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room
+// coach and the Bluetooth warning (another mic used instead of a Bluetooth headset's), the mic closing once nothing needs
+// it, the note about Windows turning other sounds down, the game modes (Gibberish, Voice swap), who can hear you, the ready check, the room
 // games (balanced teams, role roulette, a mock draft) and game history with its room awards. Dee and
 // Eve get a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status
 // window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
@@ -91,6 +92,7 @@ function fakeClient(modern) {
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
     ...(modern && { version: '1.5.0', windowMode: async () => 'borderless', update() { this.calls.push(['update']); }, discord(s) { this.calls.push(['discord', s]); } }),
+    ...(modern && { ducking: async () => window.duck ?? 3, soundSettings() { this.calls.push(['sound-settings']); } }), // Windows' Communications setting: 3 is Do nothing
   };
 }
 
@@ -593,9 +595,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(/Minimap not tracked: silent during a game/.test(await ana.textContent('.player .pstate')), 'Ana\'s card for Ben says why');
     console.log('in a game, a player whose minimap isn\'t tracked is silent');
 
-    // Ben leaves and rejoins from the join screen: same slot, voice comes back
+    // Ben leaves and rejoins from the join screen: same slot, voice comes back. Out of the room, Ben's mic closes.
+    await ben.evaluate(() => { window.benMic = lpc.raw().getAudioTracks()[0]; });
     await ben.click('#leaveBtn');
     await waitFor(ana, () => lpc.peers().length === 0, null, 'Ben gone from Ana\'s list');
+    await waitFor(ben, () => !lpc.raw() && window.benMic.readyState === 'ended', null, 'Ben’s mic closed once out of the room');
     assert(await ben.isVisible('#createBtn'), 'Ben back on the join screen');
     await ben.fill('#code', ROOM);
     await ben.click('#joinBtn');
@@ -1076,7 +1080,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
       const c = await p.evaluate(() => lpc.checks());
       assert(!c.echoes.length, `${n}: no echo: ${JSON.stringify(c)}`);
       assert(!c.bt && !c.btNote, `${n}: synthetic mic is not misidentified as Bluetooth: ${JSON.stringify(c)}`);
-      assert.deepStrictEqual(await p.evaluate(() => [lpc.phoneQuality('Default microphone'), lpc.phoneQuality('WH-1000XM4 Hands-Free AG Audio')]), [false, true], `${n}: deterministic Bluetooth-label classification`);
+      assert.deepStrictEqual(await p.evaluate(() => [lpc.phoneQuality('Default microphone'), lpc.phoneQuality('WH-1000XM4 Hands-Free AG Audio'), lpc.phoneQuality('Default - Headset (WH-1000XM4)'), lpc.phoneQuality('Headset Microphone (HyperX Cloud II)')]), [false, true, true, false], `${n}: deterministic Bluetooth-label classification`);
     }
     console.log(`voice checks: no echo or false Bluetooth warning on synthetic beeps; headset-label classification is deterministic`);
 
@@ -1086,7 +1090,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ivy.context().addInitScript(fakeVoice, 1.2);
     await ivy.context().addInitScript(() => Object.defineProperty(MediaStreamTrack.prototype, 'label', { get: () => 'Headset (WH-1000XM4 Hands-Free AG Audio)' }));
     await ivy.goto(URL_);
-    await ivy.$eval('#micTest', (b) => b.click());
+    await ivy.click('.nav[data-view="voice"]');
+    await ivy.click('#voiceSet > summary'); // the mic stays open while its meter is in sight
+    await ivy.click('#micTest');
     await waitFor(ivy, () => lpc.checks().bt && lpc.checks().btNote && lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')), null, 'Ivy’s Bluetooth mic spotted');
     await waitFor(ivy, () => lpc.checks().clip && /^Your mic is too loud/.test(lpc.checks().coach), null, 'Ivy’s mic clipping');
     assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is too loud')))), 'no clipping popup outside a room');
@@ -1095,11 +1101,39 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ivy, () => /^Noise gate set to 2%/.test(lpc.checks().coach), null, 'the gate set from a quiet room');
     assert.strictEqual(await ivy.inputValue('#gate'), '0.02');
     await ivy.reload();
-    await ivy.$eval('#micTest', (b) => b.click());
+    await ivy.click('.nav[data-view="voice"]');
+    await ivy.click('#voiceSet > summary');
+    await ivy.click('#micTest');
     await waitFor(ivy, () => lpc.checks().btNote, null, 'the note by Ivy’s mic again');
     assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')))) && (await ivy.inputValue('#gate')) === '0.02', 'the popup only once for that mic; the gate kept');
     await ivy.context().close();
     console.log('mic coach and Bluetooth warning: phone-quality headset spotted (one popup), clipping noted, the gate set from a quiet room');
+
+    // Bo's Windows mic is a Bluetooth headset's (Windows 11's name for one) and Bo has other mics: Premade opens another
+    // one instead, so the headset keeps its full sound, and keeps it as Bo's pick; out of sight, the mic closes again.
+    // Bo's Windows turns other sounds down by 80% in voice chat (its default): a popup, and a note with Open.
+    const bo = await player(browser, 'Bo', [1280, 720], { client: 'modern' });
+    await bo.context().addInitScript(() => {
+      window.duck = 1;
+      const list = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+      navigator.mediaDevices.enumerateDevices = async () => (await list()).map((d) => (d.kind === 'audioinput' && d.deviceId === 'default' ? { kind: d.kind, deviceId: d.deviceId, groupId: d.groupId, label: 'Default - Headset (WH-1000XM4)' } : d));
+    });
+    await bo.goto(URL_);
+    await bo.click('.nav[data-view="voice"]');
+    await bo.click('#voiceSet > summary');
+    await bo.click('#micTest');
+    await waitFor(bo, () => lpc.raw() && lpc.toasts().some((t) => /^Premade now uses Fake Audio Input 1 as your mic: your Bluetooth headset’s own mic/.test(t)), null, 'Bo’s other mic used');
+    assert(await bo.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; return t.label === 'Fake Audio Input 1' && localStorage.getItem('lpc-mic') === t.getSettings().deviceId && !lpc.checks().bt; }), 'Bo’s mic is the other one, kept as Bo’s pick');
+    await waitFor(bo, () => lpc.toasts().includes('Windows is set to turn every other sound down by 80% while you’re in voice chat, your game too. Voice settings, Microphone can turn that off.') && !document.getElementById('duckNote').hidden, null, 'Bo told about Windows turning sounds down');
+    await bo.click('#duckFix');
+    assert(await bo.evaluate(() => lpcClient.calls.some((c) => c[0] === 'sound-settings')), 'Open opens Windows’ Communications setting');
+    await bo.evaluate(() => { window.duck = 3; window.dispatchEvent(new Event('focus')); }); // Bo picked Do nothing
+    await waitFor(bo, () => document.getElementById('duckNote').hidden, null, 'the note gone once Windows does nothing');
+    await bo.evaluate(() => { window.boMic = lpc.raw().getAudioTracks()[0]; });
+    await bo.click('#voiceSet > summary');
+    await waitFor(bo, () => !lpc.raw() && window.boMic.readyState === 'ended' && !document.getElementById('micTest').hidden, null, 'Bo’s mic closed with Voice settings');
+    await bo.context().close();
+    console.log('Bluetooth headset mic: another mic used instead; the mic closed once out of sight');
 
     // echo check: Kit is on speakers with no echo cancelling (Kit's mic gets exactly what Kit's page plays), so Jo hears
     // Jo's own voice back, and both are told; Jo's mic talks in bursts (fakeVoice)

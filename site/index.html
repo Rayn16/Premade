@@ -1088,7 +1088,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <div class="range"><span>Noise gate</span><button class="tip" type="button" popovertarget="t-gate" aria-label="About the noise gate">?</button><input id="gate" type="range" min="0" max="0.5" step="0.01" aria-label="Noise gate"><output id="gateOut"></output></div>
                 <div class="toolbar"><button id="gateAuto" class="btn small" type="button">Set the gate for me</button></div>
                 <p id="coachNote" class="hint" role="status" hidden></p>
-                <p id="btNote" class="hint" hidden>This mic is in phone quality, as a Bluetooth headset’s mic is on Windows, and while it’s in use the headset plays everything in phone quality too. A separate mic, or the headset’s own USB dongle, sounds much better.</p>
+                <p id="btNote" class="hint" hidden>This mic is in phone quality, as a Bluetooth headset’s mic is on Windows, and while it’s in use the headset plays everything in phone quality too, so it all sounds muffled. Pick any other mic here (a USB, webcam or laptop mic), or use the headset’s own USB dongle or cable. Your mic closes when you leave the room.</p>
+                <p id="duckNote" class="hint" hidden>Windows is set to turn every other sound down while you’re in voice chat, your game too. To keep them loud, press Open, pick Do nothing, then OK. <button id="duckFix" class="btn small" type="button">Open</button></p>
                 <label class="check"><input id="optDenoise" type="checkbox"> Smart noise removal <button class="tip" type="button" popovertarget="t-denoise" aria-label="About smart noise removal">?</button></label>
                 <label class="check"><input id="optStudio" type="checkbox"> Studio voice <button class="tip" type="button" popovertarget="t-studio" aria-label="About studio voice">?</button></label>
                 <div class="toolbar"><label class="field">Voice connection <select id="optVoice"><option value="normal">Normal</option><option value="fast">Faster: less delay, for good internet</option><option value="low">Less data: for slow internet</option></select></label><button class="tip" type="button" popovertarget="t-voice" aria-label="About the voice connection">?</button></div>
@@ -2900,11 +2901,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let myTalk = 0;
   const myHeat = new Float32Array(HEAT * HEAT);
   let gate = +(store.get('lpc-gate') ?? 0.05);
+  let micBusy = 0; // mics being opened, which micIdle leaves alone
   async function getMic() {
-    const want = store.get('lpc-mic');
+    micBusy++;
+    try { await openMic(); } finally { micBusy--; }
+  }
+  async function openMic() {
+    const ins = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+    const want = store.get('lpc-mic') || notBtMic(ins);
     // Studio voice: without the browser's echo cancelling, noise cutting and volume levelling
     const studio = opts.studio ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false } : {};
-    const next = await navigator.mediaDevices.getUserMedia({ audio: { ...(want && { deviceId: { ideal: want } }), ...studio } });
+    // exact, as newer Chrome opens the mic it prefers over an ideal one; a picked mic that isn't plugged in leaves the default
+    const next = await navigator.mediaDevices.getUserMedia({ audio: { ...(want && ins.some((d) => d.deviceId === want) && { deviceId: { exact: want } }), ...studio } });
     if (raw) raw.getTracks().forEach((t) => t.stop());
     raw = next;
     raw.getAudioTracks()[0].addEventListener('ended', micMoved); // unplugged
@@ -2959,7 +2967,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     wireMic();
     await listDevices();
     btCheck();
+    duckCheck();
     $('micTest').hidden = true;
+  }
+  // your mic closes again once nothing needs it: out of a room, with clips by voice and enemy timers not listening, and
+  // its meter out of sight. While a mic is open, a Bluetooth headset plays everything in phone quality (muffled), and
+  // Windows turns other sounds down for voice chat (Chromium marks the mic as voice chat).
+  function micIdle() {
+    if (!raw || micBusy || peer || joining || coach || voiceWant() || (!document.hidden && $('micBox').checkVisibility())) return;
+    raw.getTracks().forEach((t) => t.stop());
+    raw = null;
+    if (micSrc) micSrc.disconnect();
+    micSrc = null;
+    $('micTest').hidden = false;
+    $('micLevel').value = 0;
+    $('gateState').textContent = 'Not tested';
   }
   // the mics and speakers to pick from, again when one is plugged in or out
   async function listDevices() {
@@ -3290,11 +3312,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     coachSay(`Noise gate set to ${pct(gate)}, just above your room’s background noise.`);
   });
   // ---- Bluetooth warning: on Windows a Bluetooth headset's mic works in phone quality, and while it's in use the
-  // headset plays everything in phone quality too.
+  // headset plays everything in phone quality too, so all of it sounds muffled. So while Windows' default mic is a
+  // Bluetooth headset's and you haven't picked one, another real mic is picked for you, as if in Voice settings (where
+  // you can pick the headset's again).
   // Bluetooth headset microphones normally expose their hands-free profile in the Windows device label. Use that
   // stable device signal; synthetic beeps and quiet speech can lack high frequencies and must not trigger a warning.
   let btMic = false;
-  const phoneQuality = (label) => /hands-?free|bluetooth|\bAG Audio\b/i.test(label);
+  const phoneQuality = (label) => /hands-?free|bluetooth|\bAG Audio\b|\bHeadset \(/i.test(label); // Headset (…): Windows 11's name for one
+  const NOT_A_MIC = /stereo mix|wave ?link|\bcable\b|voicemeeter|virtual|loopback|\bmix\b|line in|broadcast|krisp|sonar|steam streaming|mirror|iriun|droidcam/i;
+  function notBtMic(ins) {
+    const def = ins.find((d) => d.deviceId === 'default');
+    const other = def && phoneQuality(def.label) && ins.find((d) => d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications' && d.label && !phoneQuality(d.label) && !NOT_A_MIC.test(d.label));
+    if (!other) return '';
+    store.set('lpc-mic', other.deviceId);
+    notify(`Premade now uses ${other.label} as your mic: your Bluetooth headset’s own mic makes it play everything in phone quality, which sounds muffled. You can pick the headset’s mic again in Voice settings.`, true);
+    return other.deviceId;
+  }
   function btCheck() {
     const label = raw.getAudioTracks()[0].label;
     btMic = phoneQuality(label);
@@ -3302,8 +3335,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const seen = load('lpc-btwarned', []);
     if (!btMic || seen.includes(label)) return;
     store.set('lpc-btwarned', JSON.stringify([...seen, label].slice(-20)));
-    notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely). A separate mic, or the headset’s own USB dongle, sounds much better.', true);
+    notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely), and while it’s on, the headset plays everything in phone quality too, so it all sounds muffled. Any other mic, or the headset’s own USB dongle or cable, fixes it.', true);
   }
+  // ---- Windows' own ducking (app 1.28.4): while a mic is open for voice chat, as Chromium marks yours, Windows turns
+  // every other sound down, your game too, unless its Communications setting (Sound control panel) is Do nothing. A
+  // note by your mic with a button that opens that setting, and a popup the first time.
+  const DUCK = ['mute every other sound', 'turn every other sound down by 80%', 'turn every other sound down by half'];
+  async function duckCheck() {
+    const d = client && client.ducking ? await client.ducking().catch(() => 3) : 3;
+    $('duckNote').hidden = !DUCK[d];
+    if (!DUCK[d] || store.get('lpc-duckwarned')) return;
+    store.set('lpc-duckwarned', '1');
+    notify(`Windows is set to ${DUCK[d]} while you’re in voice chat, your game too. Voice settings, Microphone can turn that off.`, true);
+  }
+  $('duckFix').addEventListener('click', () => client.soundSettings());
+  addEventListener('focus', () => { if (!$('duckNote').hidden) duckCheck(); }); // back from Windows' setting
   // the raw mic, ten times a second: clipping
   function micCheck() {
     if (!micAn || !raw) return;
@@ -13225,6 +13271,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [88, 'October 28: no more muffled sound in voice chat', [
+      'A Bluetooth headset plays everything in phone quality, muffled, while its own mic is on. When Windows’ mic is a Bluetooth headset’s and you have another one (your laptop’s or a webcam’s), Premade now uses that one instead and tells you. You can pick the headset’s mic again in Voice settings.',
+      'Your mic now closes once you leave the room (unless clips by voice or enemy timers are listening), so your sound is back to normal right away.',
+      'App 1.28.4: Windows turns every other sound down by 80% during voice chat unless you’ve changed that. Voice settings now says so, with a button that opens that setting.',
+    ]],
     [87, 'October 28: friends no longer hear themselves on your screen share', [
       'Your screen share’s sound used to pick up everything your PC played, including your friends’ voices coming out of Premade, so they heard themselves back. The Windows app now leaves Premade’s own sound and the Discord desktop app out of the share, and keeps your game and other apps.',
     ]],
@@ -13737,7 +13788,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Your group, on the Voice page: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
       ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
         'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
-      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling or Bluetooth mic.',
+      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, and says when Windows turns other sounds down during voice chat.',
         'Voice settings, Microphone, at the bottom of the Voice page: Test mic, then Set the gate for me.', '#micTest'],
       ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Faster uses shorter packets and a shorter playback buffer when supported. Help reports measured network and audio-buffer delay. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
         'Voice connection, in Voice settings, Microphone.', '#optVoice'],
@@ -14052,7 +14103,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });

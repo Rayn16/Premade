@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('lpcClient', {
   combo: (on) => ipcRenderer.send('combo', !!on),
   record: (on) => ipcRenderer.send('record', !!on),
   withLeague: (on) => ipcRenderer.invoke('with-league', typeof on === 'boolean' ? on : undefined),
+  ducking: () => ipcRenderer.invoke('ducking'),
+  soundSettings: () => ipcRenderer.send('sound-settings'),
   recordingsFolder: () => ipcRenderer.send('recordings-folder'),
   control: (name) => ipcRenderer.invoke('control', String(name || '')),
   controlStop: () => ipcRenderer.send('control-stop'),

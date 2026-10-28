@@ -8,7 +8,7 @@
 // preload.js hands all this to the page as window.lpcClient.
 const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard, powerMonitor } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), os = require('os'), path = require('path'), zlib = require('zlib');
-const { execFileSync, spawn } = require('child_process');
+const { execFile, execFileSync, spawn } = require('child_process');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
 // in the folder of that name; its Videos and Documents folders move to the new name the first time they're used.
@@ -358,6 +358,18 @@ ipcMain.handle('with-league', (e, on) => {
   if (typeof on === 'boolean') app.setLoginItemSettings({ openAtLogin: on, ...WITH_LEAGUE });
   return withLeague();
 });
+
+// ---- Windows' Communications setting (Sound control panel): while an app has a mic open for voice chat, as Chromium
+// marks Premade's, Windows turns every other sound down. 0 mutes them, 1 (the default, also when never set) is 80%, 2
+// is 50% and 3 is Do nothing. The page's note by the mic opens that tab.
+ipcMain.handle('ducking', (e) => {
+  if (!fromSite(e) || process.platform !== 'win32') return 3;
+  return new Promise((res) => execFile('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Multimedia\\Audio', '/v', 'UserDuckingPreference'], { windowsHide: true, timeout: 2500 }, (err, out) => {
+    const m = /0x([0-9a-f]+)/i.exec(out || '');
+    res(m ? parseInt(m[1], 16) : 1);
+  }));
+});
+ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 
 // ---- test recordings (Settings, League): what League sends during your games, its game data every 10 s and what the
 // page asked League's client, so new features can be tried on real games. Every name and account id in it becomes a
