@@ -450,7 +450,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.evaluate(() => lpc.screenStall('Ben', true));
     await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.restarts > 0), null, 'a broken screen call is restarted', 20000);
     await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.call && s.video > 0), null, 'Ben’s screen resumes after reconnecting', 20000);
-    console.log('room screens: a still screen keeps its call, a broken one is replaced and the screen resumes');
+    const lendCall = () => lpc.seen().find((s) => s.name === 'Ben').callAt;
+    const before = await ana.evaluate(lendCall);
+    await ben.evaluate(() => lpc.lendStall('Ana')); // the sender's side stuck in disconnected, the watcher's still waiting
+    await waitFor(ana, (b) => { const s = lpc.seen().find((x) => x.name === 'Ben'); return s && s.call && s.callAt !== b && s.video > 0; }, before, 'Ben redials a stuck screen call by himself', 25000);
+    console.log('room screens: a still screen keeps its call, a broken one is replaced and the screen resumes, also when only the sender’s side is stuck');
     await waitFor(ana, () => lpc.me().fresh, null, 'Ana tracked', 40000); // the first frames are slow on a busy container
     await waitFor(ben, () => lpc.me().fresh, null, 'Ben tracked', 40000);
     const me = await ana.evaluate(() => lpc.me());

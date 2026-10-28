@@ -5138,7 +5138,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function lendTick() { // every second, and when a teammate asks
     const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
     for (const [p, l] of lends) {
-      if (!ok(p)) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
+      // a call whose path is down 10 s is closed, so the one below takes its place: a stuck one never came back
+      const pc = l.call.peerConnection, down = !!pc && ['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState);
+      if (!down) l.okAt = performance.now();
+      if (!ok(p) || performance.now() - l.okAt > 10000) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
       else if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
     }
     for (const p of peers.values()) {
@@ -5150,7 +5153,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       // scaled by the call, not the track: a track's constraints would change the one capture the recording uses too
       const [h, fps, rate] = room ? [+opts.shareQ, opts.shareFps, Math.round(vRate(opts.shareQ, opts.shareFps) / 3)] : [720, 10, 1200000]; // a dead teammate's is small: they're in a game
       if (room) track.contentHint = 'motion'; // keeps the frame rate you picked; WebRTC's default for a screen drops it to keep text sharp
-      lends.set(p, { call, track, sound });
+      lends.set(p, { call, track, sound, okAt: performance.now() });
       call.on('iceStateChanged', (st) => {
         if (st === 'connected') for (const x of call.peerConnection.getSenders()) {
           const q = x.getParameters();
@@ -13271,6 +13274,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [89, 'October 28: a friend’s screen share no longer stays stuck loading', [
+      'When your screen’s connection to a friend broke, Premade kept waiting on it, so they saw it loading forever. Now it’s sent again by itself within about 10 seconds.',
+    ]],
     [88, 'October 28: no more muffled sound in voice chat', [
       'A Bluetooth headset plays everything in phone quality, muffled, while its own mic is on. When Windows’ mic is a Bluetooth headset’s and you have another one (your laptop’s or a webcam’s), Premade now uses that one instead and tells you. You can pick the headset’s mic again in Voice settings.',
       'Your mic now closes once you leave the room (unless clips by voice or enemy timers are listening), so your sound is back to normal right away.',
@@ -13749,7 +13755,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, and a busy PC or connection costs frames, never sharpness. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, and a busy PC or connection costs frames, never sharpness. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
@@ -14170,8 +14176,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
+    lendStall: (name) => { const l = [...lends].find(([p]) => nameOf(p) === name)?.[1]; if (l) Object.defineProperty(l.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // your screen call to them stuck, as on Rayan's PC (28 Oct)
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
     help: () => hs && { code: hs.code, on: hs.on, asking: hs.asking }, // Remote help: yours, offered or controlled
     helpSend: (m) => ctlTo && hSend(ctlTo.conn, m), // as if from your page, to the PC you control or ask for
