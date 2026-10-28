@@ -946,7 +946,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <label class="check"><input id="optRoomScreen" type="checkbox"> Let the room watch my screen while I share it <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
                 <label class="check"><input id="optRoomSound" type="checkbox"> Share my screen’s sound with the room</label>
                 <label class="check"><input id="optLetPoint" type="checkbox"> Let people watching my screen point and draw on it</label>
-                <p id="roomSoundState" class="hint" role="status">Screen audio is on by default. The Windows app filters the Discord desktop app and keeps game audio. Discord in a browser can still be included.</p>
+                <p id="roomSoundState" class="hint" role="status">Screen audio is on by default. The Windows app leaves out Premade’s own voices (so friends don’t hear themselves) and the Discord desktop app, and keeps game audio. Discord in a browser can still be included.</p>
                 <button id="changeShareBtn" class="btn small" type="button" hidden>Change shared screen or audio</button>
                 <div class="toolbar"><label class="field">Screen share quality <select id="optShareQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label><label class="field">Frame rate <select id="optShareFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
               </div>
@@ -4447,7 +4447,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (!await client.captureSource(sourceId)) { if (client.shareAudioCancel) client.shareAudioCancel(); return; }
     }
     try {
-      // Capture source audio as a fallback; on Windows, replace it with the system mix excluding Discord when available.
+      // Capture source audio as a fallback; on Windows, replace it with the system mix without Premade's own sound (so friends don't hear themselves) and Discord.
       stream = await navigator.mediaDevices.getDisplayMedia({ video: { ...capNow(), ...(mode === 'league' ? { displaySurface: 'monitor' } : {}) }, audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
     } catch { if (!share && client && client.shareAudioCancel) client.shareAudioCancel(); return; } // picker cancelled; an existing share stays live
     const activeShare = share === previousShare ? previousShare : null;
@@ -4463,7 +4463,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     for (const l of lends.values()) { l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
     lends.clear();
     $('roomSoundState').textContent = opts.roomSound
-      ? (s.sound ? 'Screen audio is being shared with the room.' : audioMode.filter ? 'Discord filtering is active; starting filtered screen audio.' : 'Screen audio was not selected in the screen picker.')
+      ? (s.sound ? 'Screen audio is being shared with the room.' : audioMode.filter ? 'Starting screen audio without Premade\'s voices.' : 'Screen audio was not selected in the screen picker.')
       : 'Screen audio sharing is off. Turn it on here to share sound.';
     if (audioMode.filter && !s.filteredAudio) {
       try {
@@ -4499,22 +4499,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           node.port.postMessage(f, [f.buffer]);
         };
         await ctx.resume();
-        if (!await client.startFilteredAudio()) throw new Error('Windows could not start Discord audio filtering');
+        if (!await client.startFilteredAudio()) throw new Error('Windows could not start the screen audio filter');
         const capturedTrack = s.sound;
         s.sound = dst.stream.getAudioTracks()[0];
         if (capturedTrack) capturedTrack.stop();
         s.filteredAudio = { ctx, node };
-        $('roomSoundState').textContent = opts.roomSound ? 'Screen audio is being shared with the room; Discord desktop audio is filtered.' : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
+        $('roomSoundState').textContent = opts.roomSound ? `Screen audio is being shared with the room, without Premade's voices${audioMode.discord ? ' or Discord' : ''}.` : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
       } catch (err) {
         filteredAudioSink = null;
         if (client && client.stopFilteredAudio) client.stopFilteredAudio();
-        notify('Discord audio filtering could not start. Screen audio is still shared, but may include Discord.');
-        $('roomSoundState').textContent = s.sound ? 'Screen audio is still shared; Discord filtering could not start, so Discord audio may be included.' : 'Screen audio was not selected in the screen picker.';
+        notify('The screen audio filter could not start. Screen audio is still shared, but friends may hear themselves.');
+        $('roomSoundState').textContent = s.sound ? 'Screen audio is still shared; the filter could not start, so friends may hear their own voices.' : 'Screen audio was not selected in the screen picker.';
         console.warn('screen-share audio filter:', err);
       }
     }
     if (audioMode.warning) notify('Could not check whether Discord is running. Screen audio stays on, but Discord audio may be included.');
-    if (audioMode.filter && s.filteredAudio) $('roomSoundState').textContent = opts.roomSound ? 'Screen audio is being shared with the room; Discord desktop audio is filtered.' : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
+    if (audioMode.filter && s.filteredAudio) $('roomSoundState').textContent = opts.roomSound ? `Screen audio is being shared with the room, without Premade's voices${audioMode.discord ? ' or Discord' : ''}.` : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
     s.stop = mode === 'league' ? CameraBox.watch(stream, 200, (src, w, h) => {
       if (share !== s) return;
@@ -13225,6 +13225,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [87, 'October 28: friends no longer hear themselves on your screen share', [
+      'Your screen share’s sound used to pick up everything your PC played, including your friends’ voices coming out of Premade, so they heard themselves back. The Windows app now leaves Premade’s own sound and the Discord desktop app out of the share, and keeps your game and other apps.',
+    ]],
     [86, 'October 28: screen share stays sharp', [
       'A room screen share no longer turns blurry after a while. When your PC or upload is busy, it sends fewer frames instead of a smaller picture, so it stays at the quality you picked.',
     ]],
@@ -13695,7 +13698,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, and a busy PC or connection costs frames, never sharpness. In the Windows app, the Discord desktop app is filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, and a busy PC or connection costs frames, never sharpness. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],

@@ -60,7 +60,7 @@ if (!app.requestSingleInstanceLock()) return app.quit();
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, additionalArguments: ['--lpc-version=' + app.getVersion()] };
 const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
 const openOut = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
-let win = null, overlay = null, screenId = '', captureSourceId = '', shareAudioMode = false, shareAudioFiltered = false, shareDiscordPid = 0, filteredDiscordPid = 0, filteredCapture = null, pendingNotificationAction = null;
+let win = null, overlay = null, screenId = '', captureSourceId = '', shareAudioMode = false, shareAudioFiltered = false, shareLeaveOut = [], filteredLeaveOut = [], filteredCapture = null, pendingNotificationAction = null;
 
 ipcMain.on('notify', (e, title, body, action) => {
   if (!fromSite(e) || process.platform !== 'win32' || !Notification.isSupported()) return;
@@ -82,24 +82,23 @@ async function screens(thumbs) {
   return list;
 }
 const chosen = (list) => list.find((s) => s.id === screenId) || list.find((s) => s.main) || list[0];
-function discordRootPid() {
+// Discord, and Elgato Wave Link: when Wave Link mixes in its own process, it plays Premade's voices again as its own sound
+function leaveOutPids() {
   try {
     const out = execFileSync('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true, timeout: 2500 });
-    const rows = [...out.matchAll(/^("Discord(?:PTB|Canary|Development)?\.exe"),"(\d+)"/gim)];
-    if (new Set(rows.map((m) => m[1].toLowerCase())).size > 1) return { pid: 0, error: true };
-    const pids = rows.map((m) => +m[2]);
-    return { pid: pids.length ? Math.min(...pids) : 0, error: false };
-  } catch { return { pid: 0, error: true }; }
+    const rows = [...out.matchAll(/^"(Discord(?:PTB|Canary|Development)?|WaveLink\w*)\.exe","(\d+)"/gim)];
+    return { pids: rows.map((m) => +m[2]), discord: rows.some((m) => /^discord/i.test(m[1])), error: false };
+  } catch { return { pids: [], discord: false, error: true }; }
 }
 ipcMain.on('share-audio-mode', (e) => {
   if (!fromSite(e)) return;
-  const found = process.platform === 'win32' ? discordRootPid() : { pid: 0, error: false };
+  const found = process.platform === 'win32' ? leaveOutPids() : { pids: [], discord: false, error: false };
   shareAudioMode = true;
-  shareAudioFiltered = !!found.pid;
-  shareDiscordPid = found.pid;
-  e.returnValue = { filter: shareAudioFiltered, warning: found.error };
+  shareAudioFiltered = process.platform === 'win32'; // Premade's own sound (friends' voices and shares) always stays out, so they don't hear themselves
+  shareLeaveOut = [process.pid, ...found.pids];
+  e.returnValue = { filter: shareAudioFiltered, discord: found.discord, warning: found.error };
 });
-ipcMain.on('share-audio-cancel', (e) => { if (fromSite(e)) { shareAudioMode = false; shareAudioFiltered = false; shareDiscordPid = 0; filteredDiscordPid = 0; stopFilteredCapture(); } });
+ipcMain.on('share-audio-cancel', (e) => { if (fromSite(e)) { shareAudioMode = false; shareAudioFiltered = false; shareLeaveOut = []; filteredLeaveOut = []; stopFilteredCapture(); } });
 function stopFilteredCapture() {
   if (!filteredCapture) return;
   clearTimeout(filteredCapture.timer);
@@ -107,8 +106,8 @@ function stopFilteredCapture() {
   filteredCapture = null;
 }
 ipcMain.handle('filtered-audio-start', async (e) => {
-  if (!fromSite(e) || process.platform !== 'win32' || !filteredDiscordPid || filteredCapture) return false;
-  const child = spawn(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'audio-capture.exe'), [String(filteredDiscordPid)], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  if (!fromSite(e) || process.platform !== 'win32' || !filteredLeaveOut.length || filteredCapture) return false;
+  const child = spawn(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'audio-capture.exe'), filteredLeaveOut.map(String), { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
   let pending = Buffer.alloc(0), ready = false, resolveReady, rejectReady;
   const result = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
   const capture = filteredCapture = { child, timer: setTimeout(() => { if (!ready) { stopFilteredCapture(); rejectReady(new Error('Audio filter timed out')); } }, 4000) };
@@ -132,7 +131,7 @@ ipcMain.handle('filtered-audio-start', async (e) => {
   child.once('exit', () => { if (!ready) rejectReady(new Error('Audio filter stopped')); if (filteredCapture === capture) filteredCapture = null; });
   return result;
 });
-ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredDiscordPid = 0; } });
+ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredLeaveOut = []; } });
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
 ipcMain.handle('capture-sources', async (e) => {
   if (!fromSite(e)) return [];
@@ -1188,10 +1187,10 @@ app.whenReady().then(async () => {
     const roomShare = shareAudioMode, filtered = shareAudioMode && shareAudioFiltered; // the room share asks for its sound mode just before
     shareAudioMode = false;
     shareAudioFiltered = false;
-    filteredDiscordPid = filtered ? shareDiscordPid : 0;
-    shareDiscordPid = 0;
+    filteredLeaveOut = filtered ? shareLeaveOut : [];
+    shareLeaveOut = [];
     if (roomShare) { sharedSource = s || null; if (marks && !marks.isDestroyed()) marks.hide(); } // what pointing maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
-    done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the Discord-filtered sound once that starts, and keeps it if that fails
+    done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the filtered sound (no Premade, no Discord) once that starts, and keeps it if that fails
   });
   ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'keyboardLock'].includes(perm))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
 
