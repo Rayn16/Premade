@@ -1801,6 +1801,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="keyrow"><span>Record key</span><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button><span></span></div>
         <p id="recNote" class="hint" role="status"></p>
       </section>
+      <section id="anyBox" class="panel" aria-labelledby="h-any">
+        <h2 id="h-any" class="ph">Clip anywhere <button class="tip" type="button" popovertarget="t-any" aria-label="About clipping anywhere">?</button></h2>
+        <label class="check"><input id="optClipsAll" type="checkbox"> Keep the last part of my screen in any app or game, so “Premade, clip that” and the clip key save a clip</label>
+        <p id="anyNote" class="hint" role="status"></p>
+        <div id="anyGrid" class="clips"></div>
+      </section>
       <section class="panel" aria-labelledby="h-recs">
         <h2 id="h-recs" class="ph">Your recordings</h2>
         <p id="recsNote" class="hint"></p>
@@ -2009,6 +2015,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
+<div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
@@ -2076,7 +2083,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, gameDays: 7, champLook: false, champMain: null,
+    combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -7883,8 +7890,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the same screen and sound.
   let recorder = null, clipTimer = 0, momentT = -1, momentRoom = '';
   const clipNames = [];
+  // Clip anywhere (Rayan, 2026-10-29: "make it work in everything not just league"): the same recording outside League
+  // too, of the screen the app shares (main.js's chosen); its clips are named "Screen clip ..." and listed on the Recording page
+  const clipsOn = () => !!(opts.clips || opts.clipsAll), isAny = (n) => /^Screen clip /.test(n);
   function clipsCheck() {
-    const vid = vidOn(), kind = `${!!opts.clips} ${vid}`, want = !!((opts.clips || vid) && client && client.clip && league);
+    const vid = vidOn(), kind = `${clipsOn()} ${vid}`, want = !!(client && client.clip && (vid || opts.clipsAll || (opts.clips && league)));
     if (recorder && (!want || recorder.kind !== kind)) stopRec(); // over, or a setting changed: again with it
     if (want && !recorder) startRec(kind);
   }
@@ -7900,7 +7910,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // used to ask 10 fps, so every recording made while it ran was 10 fps). So both ask for the higher of the two
   // settings, the recording takes it as it is, and each watcher's call is scaled down to the share's (lendTick).
   // ponytail: a recording is at the higher of the two when the share's is higher; one capture per process
-  const capNow = () => capOf(Math.max(+opts.clipQ, +opts.shareQ), Math.max(opts.clipFps, opts.shareFps));
+  // With Clip anywhere on it holds the screen all the time, so it asks the Recording page's quality too, for a recording of that screen.
+  const capNow = () => { const a = opts.clipsAll; return capOf(Math.max(+opts.clipQ, +opts.shareQ, a ? +opts.recQ : 0), Math.max(opts.clipFps, opts.shareFps, a ? opts.recFps : 0)); };
   async function startRec(kind) {
     const r = (recorder = { parts: [], pre: [], at: performance.now(), kind });
     let s;
@@ -7922,7 +7933,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     r.mr.onstop = () => r.game && r.game.end();
     r.mr.ondataavailable = (e) => {
       if (e.data.size && r.game) r.game.add(e.data);
-      if (e.data.size && opts.clips) {
+      if (e.data.size && clipsOn()) {
         if (r.head) r.parts.push({ at: performance.now(), blob: e.data });
         else headChunk(r, e.data);
         while (r.parts.length && performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000) { r.parts.shift(); r.trimmed = true; }
@@ -8213,14 +8224,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const CLIP_WHY = { multi: ' of your multikill', penta: ' of your pentakill', steal: ' of the steal', ace: ' of the Ace' };
   async function saveClip(why, secs = opts.clipLen, said = '') {
     const r = recorder;
-    if (!r || !r.mr || !r.head || !opts.clips || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : opts.clips ? 'Clips are kept during a game.' : 'Clips are off: turn them on in Clip settings, on the Clips page.', true));
+    if (!r || !r.mr || !r.head || !clipsOn() || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : clipsOn() ? 'Clips are kept during a game, or anywhere with Clip anywhere on the Recording page.' : 'Clips are off: turn them on in Clip settings, on the Clips page, or Clip anywhere on the Recording page.', true));
     r.saving = true;
+    const lol = !!league;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
       const head = new Uint8Array(await r.head.arrayBuffer());
       const out = cutClip(head, new Uint8Array(await new Blob([...(r.trimmed ? [] : [r.head]), ...r.parts.map((p) => p.blob)]).arrayBuffer()), secs);
-      const name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
+      let name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
       if (!name) throw new Error('nothing to save');
+      if (!lol) name = (await client.clipRename(name, name.replace(/^Clip /, 'Screen clip ').replace(/\.webm$/i, '')).catch(() => '')) || name; // for the Recording page
       keepKda(name);
       clipNames.unshift(name);
       if (curGame) curGame.clips = (curGame.clips || 0) + 1; // for the card after the game
@@ -8260,7 +8273,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
   const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
-  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && opts.clips && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
+  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && clipsOn() && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
   const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
   async function voiceStart() {
@@ -8328,8 +8341,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function renderVoice() {
     const short = opts.clipPhrase && words(opts.clipPhrase).split(' ').length < 2;
     $('voiceNote').textContent = voiceErr || (short ? 'Your own phrase needs two words or more, so it isn’t said by accident.'
-      : !opts.clipVoice ? '' : !opts.clips ? 'Turn on “Keep the last part of each game” too: that’s what a clip is saved from.'
-      : `${ear ? 'Listening' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
+      : !opts.clipVoice ? '' : !clipsOn() ? 'Turn on “Keep the last part of each game” too: that’s what a clip is saved from.'
+      : `${ear ? 'Listening' : opts.clipsAll ? 'It listens' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
   }
   $('voiceTest').addEventListener('click', async () => {
     if (testing || recording) return;
@@ -8466,12 +8479,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (gone.length) notify(`Moved ${gone.length} old clip${gone.length > 1 ? 's' : ''} to the Recycle Bin, to keep the clips folder under ${opts.clipCap} GB.`, true);
   }
   function renderClips() {
-    const g = hasGallery(), n = g ? gallery.length : clipNames.length;
+    const g = hasGallery(), lol = gallery.filter((c) => !isAny(c.name)), n = g ? lol.length : clipNames.length;
     $('clipGrid').hidden = !g;
     $('clipList').hidden = g;
-    if (g) $('clipGrid').replaceChildren(...gallery.filter((c) => !favs.has(c.name)).map(clipCard));
+    if (g) $('clipGrid').replaceChildren(...lol.filter((c) => !favs.has(c.name)).map(clipCard));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
-    $('savedGrid').replaceChildren(...(g ? gallery.filter((c) => favs.has(c.name)).map(clipCard) : []));
+    $('savedGrid').replaceChildren(...(g ? lol.filter((c) => favs.has(c.name)).map(clipCard) : []));
+    $('anyGrid').replaceChildren(...(g ? gallery.filter((c) => isAny(c.name)).map(clipCard) : [])); // Clip anywhere's, on the Recording page
+    $('anyNote').textContent = !client ? 'Clip anywhere needs the Premade app.' : !opts.clipsAll ? '' : `Press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''} in any app or game.${opts.clipVoice ? '' : ' Turn on Clips by voice in Clip settings, on the Clips page, to say it.'} Clips from outside League are listed here.`;
     renderSaved();
     $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
@@ -13431,7 +13446,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
@@ -13442,7 +13457,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic']]) {
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -13619,6 +13634,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [95, 'October 29: “Premade, clip that” anywhere', [
+      'Clip anywhere, on the Recording page: tick it and the clip key and “Premade, clip that” save a clip in any app or game, not only League. Clips from outside League are listed there; League’s stay on the Clips page.',
+    ]],
     [94, 'October 29: record your screen, like OBS', [
       'A new Recording page in the menu: record any screen or app window whenever you like, not only in League, with what you hear and your mic if you tick it, at up to 1440p and 120 fps. Ctrl+Shift+R starts and stops it from any app. Your recordings are listed there, kept until you bin one, to watch, skip around in and cut.',
     ]],
@@ -14306,6 +14324,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
+      ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
+        'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
     ]],
