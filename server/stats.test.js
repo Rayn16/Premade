@@ -4,8 +4,8 @@
 // no line for a page on the same computer (our tests) or like the ones they made before. And
 // Friends: /friends says which Riot IDs have Premade (any case, not your own device) and gives a device the invites to
 // its Riot IDs; /invite needs a device that said hello, and a new invite from the same device replaces the last; lob, a lobby's hash, comes back as it was sent.
-// Aion 2: /aion/boss and /aion/ticks take a kill or a tick only for a Riot ID the device said hello with, and the
-// 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT).
+// Aion 2: /aion/boss, /aion/ticks and /aion/fights take a kill, a tick or a fight only for a Riot ID the device said
+// hello with, and the 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT).
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -147,6 +147,26 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.deepEqual((await ticks()).map(({ at, ...x }) => x).sort((a, b) => a.k.localeCompare(b.k)), [{ o: 'Rayan#EUW', k: 'Tassin:duty', n: 5 }, { o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: 2 }]);
   assert.deepEqual((await tick({ id: B, o: 'Rayan#EUW', k: 'Tassin:duty', n: 0 })).ok, true);
   assert.deepEqual((await ticks()).map((x) => x.k), ['Yasuo:nightmare']);
+  // fights: only a fight that adds up, for your own Riot ID; the same at replaces it, del takes it off, the newest 100 each
+  const fights = async () => (await (await fetch(BASE + '/aion/fights')).json()).fights, fight = async (b) => (await post('/aion/fights', b)).json();
+  assert.deepEqual(await fights(), []);
+  const f0 = { id: B, o: 'Rayan#EUW', at: Date.now() - 6e4, c: 'Yasuo', tg: 'Melee Training Scarecrow', t: 73, d: 15938, dmg: 1175060, k: [['Upward Strike', 331020, 28], ['Rage Burst', 5712, 0]] };
+  for (const bad of [{ ...f0, t: 2 }, { ...f0, d: 20000 }, { ...f0, dmg: 0, d: 0 }, { ...f0, at: 'now' }, { ...f0, at: Date.now() + 864e5 }, { ...f0, at: Date.now() - 61 * 864e5 }, { ...f0, tg: '<b>' },
+    { ...f0, c: 'a b' }, { ...f0, k: [['<b>', 1, 0]] }, { ...f0, k: [['Upward Strike', 1, 101]] }, { ...f0, k: [['Upward Strike', 2e6, 1]] }, { ...f0, k: Array(8).fill(['Upward Strike', 1, 0]) }, { id: B, o: 'Rayan#EUW', del: true }])
+    assert.equal((await post('/aion/fights', bad)).status, 400, JSON.stringify(bad));
+  assert.match((await fight({ ...f0, id: A })).error, /^Turn on/, 'not A’s Riot ID');
+  assert.deepEqual(await fight({ ...f0, o: 'rayan#euw' }), { ok: true });
+  assert.deepEqual(await fight({ ...f0, t: 80, d: 14688, k: [] }), { ok: true }); // the same at: it replaces the first
+  assert.deepEqual(await fights(), [{ o: 'Rayan#EUW', at: f0.at, c: 'Yasuo', tg: 'Melee Training Scarecrow', t: 80, d: 14688, dmg: 1175060, k: [] }]);
+  const t2 = Date.now() - 3e4;
+  for (let i = 0; i < 100; i++) assert.deepEqual(await fight({ ...f0, at: t2 + i }), { ok: true });
+  let fs2 = await fights();
+  assert.equal(fs2.length, 100);
+  assert(!fs2.some((f) => f.at === f0.at), 'the oldest went');
+  assert.deepEqual(await fight({ id: B, o: 'Rayan#EUW', at: t2, del: true }), { ok: true });
+  fs2 = await fights();
+  assert.equal(fs2.length, 99);
+  assert(!fs2.some((f) => f.at === t2), 'taken off');
   // the cron starts the Aion 2 tracker's update on GitHub
   assert.equal((await fetch(BASE + '/__scheduled?cron=*/30+*+*+*+*')).status, 200);
   for (let i = 0; i < 20 && !github.length; i++) await sleep(250);

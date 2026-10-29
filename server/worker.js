@@ -7,7 +7,8 @@
 // object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
 // own. /riot/... is Riot data (the Riot object, at the end). /aion is the Aion 2 tracker's claimed characters, and
-// /aion/boss and /aion/ticks its legion's field boss kills and daily and weekly checklist (all in Stats).
+// /aion/boss, /aion/ticks and /aion/fights its legion's field boss kills, daily and weekly checklist and fights (DPS)
+// (all in Stats).
 import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
@@ -52,6 +53,16 @@ function deepAramAugments(html) {
 // the tracker's fetch.py saves, kept 2 minutes so a busy button doesn't hammer PLAYNC
 const AION_SEARCH = (q) => `https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(q)}&region=eu&localeInfo=en-US&page=1&size=20`;
 const AION_FETCH = { headers: { 'user-agent': 'premade-aion2-tracker (small friends group)' }, cf: { cacheEverything: true, cacheTtl: 120 } };
+// a fight for /aion/fights, as Premade read it off the game's Combat Analysis: c the character (the tracker matches it by
+// its skills, '' if none did), tg the target, t the battle time (s), d DPS, dmg the total damage, k the top skills
+// [[name, damage, %]]; null if it doesn't add up
+function aionFight(b) {
+  const { c = '', tg = '', t, d, dmg, k = [] } = b, int = (x, hi) => Number.isInteger(x) && x >= 0 && x <= hi;
+  if (typeof c !== 'string' || (c && !/^[^\s,<>#]{1,24}$/.test(c)) || typeof tg !== 'string' || !/^[\p{L}\p{N}' :,-]{0,40}$/u.test(tg)) return null;
+  if (!int(t, 86400) || t < 3 || !int(d, 1e9) || !int(dmg, 1e13) || !dmg || d * (t - 1.5) > dmg || dmg > d * (t + 1.5)) return null; // the window shows the time to the second
+  const skill = (x) => Array.isArray(x) && x.length === 3 && typeof x[0] === 'string' && /^[\p{L}\p{N}' :-]{1,32}$/u.test(x[0]) && int(x[1], dmg) && int(x[2], 100);
+  return Array.isArray(k) && k.length <= 7 && k.every(skill) ? { c, tg, t, d, dmg, k } : null;
+}
 async function aionLive(req, name, server) {
   const key = new Request(new URL(`/aion?q=${encodeURIComponent(name.toLowerCase())}&s=${encodeURIComponent(server.toLowerCase())}`, req.url)); // one entry whatever else the ask has
   const hit = await caches.default.match(key);
@@ -155,16 +166,21 @@ export default {
       if (!b || !DEVICE.test(b.id) || !o || !n || !s) return Response.json({ error: 'Not a character' }, { status: 400, headers: CORS });
       return Response.json(await stats(env).aion(b.id, o, n, s, b.del === true), { headers: CORS });
     }
-    const ap = /^\/aion\/(boss|ticks)$/.exec(url.pathname); // the Aion 2 tracker's Timers and Checklist pages
+    const ap = /^\/aion\/(boss|ticks|fights)$/.exec(url.pathname); // the Aion 2 tracker's Timers, Checklist and DPS pages
     if (ap) {
       const boss = ap[1] === 'boss';
-      if (req.method !== 'POST') return Response.json(boss ? { kills: await stats(env).aionBoss() } : { ticks: await stats(env).aionTicks() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
+      if (req.method !== 'POST') return Response.json(boss ? { kills: await stats(env).aionBoss() } : ap[1] === 'ticks' ? { ticks: await stats(env).aionTicks() } : { fights: await stats(env).aionFights() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
       const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1), now = Date.now();
       if (!b || !DEVICE.test(b.id) || !o) return Response.json({ error: 'Not a player' }, { status: 400, headers: CORS });
       if (boss) { // b: the boss, s: its server, at: when it died (ms, now if left out)
         const s = typeof b.s === 'string' && /^[A-Za-z' -]{2,20}$/.test(b.s) ? b.s : '', n = typeof b.b === 'string' && /^[A-Za-z' -]{2,40}$/.test(b.b) ? b.b : '', at = b.at ?? now;
         if (!s || !n || !Number.isFinite(at) || at > now + 6e4 || at < now - 864e5) return Response.json({ error: 'Not a boss kill' }, { status: 400, headers: CORS });
         return Response.json(await stats(env).aionBoss(b.id, o, s, n, Math.min(now, Math.round(at)), b.del === true), { headers: CORS });
+      }
+      if (ap[1] === 'fights') { // at: when Premade saw it (ms), which a fight keeps when it's sent again
+        const f = b.del === true ? null : aionFight(b);
+        if (!Number.isInteger(b.at) || b.at > now + 6e4 || b.at < now - 60 * 864e5 || (b.del !== true && !f)) return Response.json({ error: 'Not a fight' }, { status: 400, headers: CORS });
+        return Response.json(await stats(env).aionFights(b.id, o, b.at, f), { headers: CORS });
       }
       // k: 'Character:item', or 'Server:item' for what a server's characters share; n: how many done
       const k = typeof b.k === 'string' && /^[^\s,<>#:]{1,24}:[a-z]{1,16}$/.test(b.k) ? b.k : '';
@@ -317,6 +333,7 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aion (n TEXT, s TEXT, o TEXT, PRIMARY KEY (n, s)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionboss (s TEXT, b TEXT, at INTEGER, o TEXT, PRIMARY KEY (s, b)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aiontick (o TEXT, k TEXT, n INTEGER, at INTEGER, PRIMARY KEY (o, k)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionfight (o TEXT, at INTEGER, f TEXT, PRIMARY KEY (o, at)) WITHOUT ROWID');
   }
   // o as the device's last hello gave it, when it's one of that hello's Riot IDs; else null
   helloRiot(id, o) {
@@ -368,6 +385,23 @@ export class Stats extends DurableObject {
     else sql.exec('DELETE FROM aiontick WHERE o = ? AND k = ?', who, k);
     sql.exec('DELETE FROM aiontick WHERE at < ?', now - 8 * 864e5);
     return { ok: true, at: now };
+  }
+  // Aion 2 fights (/aion/fights): each player's fights as their Premade read them off Combat Analysis, [{ o, at (ms),
+  // ...aionFight's }]; with id, o adds its fight at at (the same at again replaces it), or takes it off (no f). The
+  // newest 100 for each Riot ID, for 60 days
+  aionFights(id, o, at, f) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    if (!id) return (this.fightMemo ??= sql.exec('SELECT o, at, f FROM aionfight').toArray().map((r) => ({ o: r.o, at: r.at, ...JSON.parse(r.f) }))).filter((r) => r.at > now - 60 * 864e5); // from memory, like aionBoss
+    const who = this.helloRiot(id, o);
+    if (!who) return { error: AION_HELLO };
+    this.fightMemo = null;
+    if (!f) sql.exec('DELETE FROM aionfight WHERE o = ? AND at = ?', who, at);
+    else {
+      sql.exec('INSERT OR REPLACE INTO aionfight VALUES (?, ?, ?)', who, at, JSON.stringify(f));
+      sql.exec('DELETE FROM aionfight WHERE o = ? AND at NOT IN (SELECT at FROM aionfight WHERE o = ? ORDER BY at DESC LIMIT 100)', who, who);
+    }
+    sql.exec('DELETE FROM aionfight WHERE at < ?', now - 60 * 864e5);
+    return { ok: true };
   }
   friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, lob, at }] }
     const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
