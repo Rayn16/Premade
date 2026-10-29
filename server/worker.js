@@ -342,9 +342,12 @@ export class Stats extends DurableObject {
   // the longest respawn is 12 hours
   aionBoss(id, o, s, b, at, del) {
     const sql = this.ctx.storage.sql, now = Date.now();
-    if (!id) return sql.exec('SELECT s, b, at, o FROM aionboss WHERE at > ? ORDER BY at', now - 864e5).toArray();
+    // a GET comes from memory until the next write, so pages asking every few seconds read no rows (the free plan's
+    // 5 million a day are shared with voice rooms)
+    if (!id) return (this.bossMemo ??= sql.exec('SELECT s, b, at, o FROM aionboss ORDER BY at').toArray()).filter((r) => r.at > now - 864e5);
     const who = this.helloRiot(id, o);
     if (!who) return { error: AION_HELLO };
+    this.bossMemo = null;
     if (del) sql.exec('DELETE FROM aionboss WHERE s = ? AND b = ?', s, b);
     else sql.exec('INSERT OR REPLACE INTO aionboss VALUES (?, ?, ?, ?)', s, b, at, who);
     sql.exec('DELETE FROM aionboss WHERE at < ?', now - 864e5);
@@ -355,11 +358,12 @@ export class Stats extends DurableObject {
   // takes it off). A week and a day keeps every one; 300 for each Riot ID
   aionTicks(id, o, k, n) {
     const sql = this.ctx.storage.sql, now = Date.now();
-    if (!id) return sql.exec('SELECT o, k, n, at FROM aiontick WHERE at > ?', now - 8 * 864e5).toArray();
+    if (!id) return (this.tickMemo ??= sql.exec('SELECT o, k, n, at FROM aiontick').toArray()).filter((r) => r.at > now - 8 * 864e5); // from memory, like aionBoss
     const who = this.helloRiot(id, o);
     if (!who) return { error: AION_HELLO };
     const mine = sql.exec('SELECT k FROM aiontick WHERE o = ?', who).toArray();
     if (n && !mine.some((r) => r.k === k) && mine.length >= 300) return { error: 'Too many ticks' };
+    this.tickMemo = null;
     if (n) sql.exec('INSERT OR REPLACE INTO aiontick VALUES (?, ?, ?, ?)', who, k, n, now);
     else sql.exec('DELETE FROM aiontick WHERE o = ? AND k = ?', who, k);
     sql.exec('DELETE FROM aiontick WHERE at < ?', now - 8 * 864e5);
