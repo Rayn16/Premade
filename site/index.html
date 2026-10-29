@@ -11398,11 +11398,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     return out;
   }
-  function augLoad(psm) { // Tesseract and its English model, from our own site, once a game (psm: Tesseract's page mode, 7 one line, 11 lines anywhere)
+  function augLoad(psm, chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.'! ") { // Tesseract and its English model, from our own site, once a game (psm: Tesseract's page mode, 7 one line, 11 lines anywhere; chars: the only ones it may read, '' any)
     const V = new URL('vendor/tesseract-5.1.1/', location.href).href;
     const lib = window.Tesseract ? Promise.resolve() : new Promise((res, rej) => document.head.append(Object.assign(document.createElement('script'), { src: V + 'tesseract.min.js', onload: res, onerror: rej })));
     return lib.then(() => window.Tesseract.createWorker('eng', 1, { workerPath: V + 'worker.min.js', corePath: V + 'tesseract-core-simd-lstm.wasm.js', langPath: V, workerBlobURL: false }))
-      .then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-.'! " }); return w; });
+      .then(async (w) => { await w.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: chars }); return w; });
   }
   const augKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9+]/g, '');
   function lev(a, b) { // the edits from a to b
@@ -11592,6 +11592,148 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const rate = +row.pickRate || 0, score = +row.deepScore || 0, tier = String(row.tier || '');
     const text = `${name}: ${tier} tier (${score} DeepScore), ${pct(rate)} pick rate on ${c.name} · DeepARAM patch ${mayData.patch}`;
     return { t: text, r: rate, p: pct(rate), s: opts.mayhemRating === 'tier' ? `${score} DeepScore · ${c.name}` : `${c.name} · ${tier} tier`, tier, score, tierOnly: opts.mayhemRating === 'tier', k: '' };
+  }
+
+  // ---- Aion 2's Combat Analysis (Ctrl+X in the game), for the Aion 2 page's DPS tracker: for players with Aion 2
+  // characters, the app watches Aion 2's window once a second (that window only, as you see it), finds Combat Analysis
+  // by its header line (cyan figures at set places along it, whatever its size), and once the line stops changing (the
+  // fight is over) Tesseract reads the battle time, DPS, total damage, target and top 7 skills. Each fight is kept on
+  // this PC (lpc-aion-fights) for the Aion 2 page, which shares it with friends.
+  // ponytail: the places are measured on one English screenshot (Rayan's, 29 Oct 2026, the window 1217 px wide); another
+  // language, or a patch that moves them, needs measuring again
+  const AION_WIN = /^\s*aion\s*2(?!.* [-–—|] )/i; // the game's window, not a browser's or a chat's about it
+  const CA_HAS = [[0.01, 0.11], [0.35, 0.37], [0.7, 0.82], [0.96, 1]], CA_GAPS = [[0.13, 0.22], [0.39, 0.52], [0.84, 0.9]]; // the header line's figures and the gaps between them, as shares of its length
+  let dps = null, dpsLookAt = -Infinity, dpsOcr = null; // watching: { track, stop, sig (the line last read), last (what it said), done, busy, readAt, seen, beat }; Tesseract
+  const dpsCv = document.createElement('canvas'), dpsNorm = Object.assign(document.createElement('canvas'), { width: 1217, height: 910 });
+  function dpsTick() { // every second: looks for Aion 2's window every 30 s
+    const want = !!client && !!client.captureSources && !league && !!store.get('lpc-aion') && store.get('aion-dps') !== '0';
+    if (dps && !want) dpsStop();
+    if (dps && dps.track && Date.now() - (dps.beat || 0) > 30000) { dps.beat = Date.now(); dpsSay('w'); }
+    if (dps || !want || performance.now() - dpsLookAt < 30000) return;
+    dpsLookAt = performance.now();
+    client.captureSources().then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); if (w && !dps) dpsStart(w.id); }).catch(() => {});
+  }
+  const dpsSay = (k) => { const o = load('lpc-aion-dps', {}); o[k] = Date.now(); store.set('lpc-aion-dps', JSON.stringify(o)); }; // for the Aion 2 page: w, watching Aion 2's window (every 30 s); s, Combat Analysis seen
+  async function dpsStart(id) {
+    const d = (dps = {});
+    let s = null;
+    try { if (await client.captureSource(id)) s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 }, audio: false }); } catch (err) { console.warn('Aion 2 window:', err); }
+    if (dps !== d || !s) { if (s) s.getTracks().forEach((t) => t.stop()); if (dps === d) dps = null; return; } // again in 30 s
+    d.track = s.getVideoTracks()[0];
+    d.track.addEventListener('ended', () => { if (dps === d) dpsStop(); }); // the game closed
+    d.stop = CameraBox.watch(s, 1000, (src, w, h) => dpsFrame(d, src, w, h));
+  }
+  function dpsStop() {
+    const d = dps;
+    dps = null;
+    if (d.stop) d.stop();
+    if (d.track) d.track.stop();
+    if (dpsOcr) dpsOcr.then((w) => w.terminate()).catch(() => {});
+    dpsOcr = null;
+  }
+  function dpsFrame(d, src, w, h) {
+    const k = Math.min(1, 960 / w), W = Math.round(w * k), H = Math.round(h * k);
+    if (dpsCv.width !== W || dpsCv.height !== H) Object.assign(dpsCv, { width: W, height: H });
+    const g = dpsCv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0, W, H);
+    const f = caFind(g.getImageData(0, 0, W, H), W, H), now = performance.now();
+    if (!f) return;
+    if (Date.now() - (d.seen || 0) > 30000) { d.seen = Date.now(); dpsSay('s'); }
+    if (d.busy || (f.sig === d.sig && d.done) || now - (d.readAt || 0) < 1500) return;
+    // the window, at the size the places were measured on (it's 1195 of its 1217 px across the line, and 146 px down)
+    const u = (f.x1 - f.x0) / k / 1195, n = dpsNorm.getContext('2d', { willReadFrequently: true });
+    n.clearRect(0, 0, 1217, 910);
+    n.imageSmoothingQuality = 'high';
+    n.drawImage(src, f.x0 / k - 13 * u, (f.y0 + f.y1) / 2 / k - 146 * u, 1217 * u, 910 * u, 0, 0, 1217, 910);
+    const same = f.sig === d.sig && d.last, sig = f.sig; // the very line read last time: the same numbers
+    d.busy = true;
+    d.readAt = now;
+    (dpsOcr = dpsOcr || augLoad('7', '')).then(async (ocr) => {
+      const head = same || dpsHead(await dpsText(ocr, 0, 128, 1217, 36, 'max'));
+      if (dps !== d) return;
+      const stopped = !!head && !!d.last && head.t === d.last.t && head.dmg === d.last.dmg; // as it was a read ago: the fight is over
+      Object.assign(d, { sig, last: head, done: !head || stopped }); // unreadable: again once it changes; still counting: again in 1.5 s
+      if (stopped) dpsSave({ ...head, ...(await dpsRest(ocr, head.dmg)) });
+    }).catch((e) => {
+      console.warn('Combat Analysis:', e);
+      const broken = dpsOcr;
+      dpsOcr = null;
+      if (broken) broken.then((x) => x.terminate()).catch(() => {});
+    }).finally(() => { d.busy = false; });
+  }
+  const caCyan = (d, i) => d[i + 1] > 100 && d[i + 2] > 100 && d[i] * 2 < d[i + 1] && Math.abs(d[i + 1] - d[i + 2]) * 4 < d[i + 1];
+  function caFind(img, W, H) { // Combat Analysis's header line: { x0, x1, y0, y1, sig (its cyan pixels, to see it change) }, or null
+    const d = img.data, cy = new Uint8Array(W * H), rows = new Uint16Array(H), col = new Uint8Array(W);
+    for (let p = 0; p < W * H; p++) if (caCyan(d, p * 4)) { cy[p] = 1; rows[(p / W) | 0]++; }
+    const fill = (ya, yb, xa, xb) => { col.fill(0); for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) col[x] |= cy[y * W + x]; };
+    const part = (x0, x1, [a, b]) => { const s = Math.round(x0 + a * (x1 - x0)), e = Math.round(x0 + b * (x1 - x0)); let n = 0; for (let x = s; x <= e; x++) n += col[x]; return n / (e - s + 1); };
+    for (let y0 = 0; y0 < H; y0++) {
+      if (rows[y0] < 3) continue;
+      let y1 = y0;
+      while (y1 + 1 < H && rows[y1 + 1] >= 3) y1++;
+      // a band of rows with cyan: the pairs of its cyan runs with the line's figures at their places between them
+      fill(y0, y1, 0, W - 1);
+      const runs = [], ends = [];
+      for (let x = 0; x < W; x++) if (col[x]) { if (runs.length && x - runs[runs.length - 1][1] <= 7) runs[runs.length - 1][1] = x; else runs.push([x, x]); }
+      for (const [x0] of runs) for (const [, x1] of runs) if (x1 - x0 >= 150 && CA_HAS.every((h) => part(x0, x1, h) > 0.3)) ends.push([x0, x1]);
+      // and within each, rows with cyan between them as tall as the line is at that length, with its gaps empty
+      for (const [x0, x1] of ends)
+        for (let ya = y0; ya <= y1; ya++) {
+          const has = (y) => { let n = 0; for (let x = x0; x <= x1; x++) n += cy[y * W + x]; return n >= 3; };
+          if (!has(ya)) continue;
+          let yb = ya;
+          while (yb + 1 <= y1 && has(yb + 1)) yb++;
+          const tall = yb - ya + 1;
+          if (tall * 120 >= x1 - x0 && tall * 25 <= x1 - x0) {
+            fill(ya, yb, x0, x1);
+            if (CA_HAS.every((h) => part(x0, x1, h) > 0.3) && CA_GAPS.every((h) => part(x0, x1, h) < 0.05)) {
+              let sig = '';
+              for (let y = ya; y <= yb; y++) for (let x = x0; x <= x1; x++) sig += cy[y * W + x];
+              return { x0, x1, y0: ya, y1: yb, sig };
+            }
+          }
+          ya = yb;
+        }
+      y0 = y1;
+    }
+    return null;
+  }
+  function dpsCell(x, y, w, h, mode) { // a part of the window, twice the size, as dark text on white: by brightness (max), or whiteness (min: the skills' names on their teal bars)
+    const c = Object.assign(document.createElement('canvas'), { width: w * 2, height: h * 2 }), g = c.getContext('2d', { willReadFrequently: true });
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(dpsNorm, x, y, w, h, 0, 0, w * 2, h * 2);
+    const p = g.getImageData(0, 0, c.width, c.height), a = p.data;
+    for (let i = 0; i < a.length; i += 4) a[i] = a[i + 1] = a[i + 2] = 255 - (((mode === 'min' ? Math.min : Math.max)(a[i], a[i + 1], a[i + 2]) - 60) * 255) / 140;
+    g.putImageData(p, 0, 0);
+    return c;
+  }
+  const dpsText = async (ocr, ...cell) => (await ocr.recognize(dpsCell(...cell))).data.text.trim();
+  const dpsNum = (s) => +String(s).replace(/\D/g, '');
+  function dpsHead(text) { // "Total Battle Time 01:13 | DPS 15,938 | Total Damage Given 1,175,060" -> { t (s), d, dmg }, or null when it doesn't add up
+    const m = /Battle\s*Time\D*(\d{1,2})\s*:\s*(\d{2})(?:\s*:\s*(\d{2}))?.*?DPS\D*([\d.,]+).*?Given\D*([\d.,]+)/i.exec(text);
+    if (!m) return null;
+    const t = m[3] == null ? +m[1] * 60 + +m[2] : +m[1] * 3600 + +m[2] * 60 + +m[3], d = dpsNum(m[4]), dmg = dpsNum(m[5]);
+    return t >= 3 && dmg > 0 && d * (t - 1.5) <= dmg && dmg <= d * (t + 1.5) ? { t, d, dmg } : null; // the DPS is the damage over the time to the fraction of a second
+  }
+  async function dpsRest(ocr, total) { // the target, and the top 7 skills while the list is where it starts ("Total Damage" heads its column, nothing left of it)
+    const clean = (s, n) => s.replace(/[^\p{L}\p{N}' :-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+    const tg = clean((await dpsText(ocr, 530, 74, 520, 30, 'max')).replace(/^\W*metric\W*/i, ''), 40), k = [];
+    const px = (x, y, w, h, f) => { const a = dpsNorm.getContext('2d', { willReadFrequently: true }).getImageData(x, y, w, h).data; let c = 0; for (let i = 0; i < a.length; i += 4) c += f(a, i) ? 1 : 0; return c; };
+    const listed = px(1050, 572, 125, 24, caCyan) > 250 && px(20, 572, 340, 24, (a, i) => Math.max(a[i], a[i + 1], a[i + 2]) > 150) < 50;
+    for (let i = 0; i < 7 && listed; i++) {
+      const y = 611 + 42.5 * i, m = /([\d.,]+)\s*\((\d{1,3})\s*%\)/.exec(await dpsText(ocr, 1030, y, 175, 32, 'max')), v = m ? dpsNum(m[1]) : 0;
+      if (!v || Math.abs(+m[2] - (v * 100) / total) > 1.5 || (k.length && v > k[k.length - 1][1])) break; // its share of the total, and biggest first
+      const name = clean(await dpsText(ocr, 60, y, 292, 32, 'min'), 32);
+      if (!name) break;
+      k.push([name, v, +m[2]]);
+    }
+    return { tg, k };
+  }
+  function dpsSave(f) { // the last 200 fights: { at (ms), t (s), d (DPS), dmg, tg (target), k: [[skill, damage, %]] }
+    const list = load('lpc-aion-fights', []);
+    if (list.some((x) => x.t === f.t && x.dmg === f.dmg)) return; // seen before: the window opened again, or the game's own record of it
+    store.set('lpc-aion-fights', JSON.stringify([...list, { at: Date.now(), ...f }].slice(-200)));
+    notify(`Aion 2 fight saved: ${f.d.toLocaleString('en-US')} DPS${f.tg ? ` on ${f.tg}` : ''} over ${Math.floor(f.t / 60)}:${String(f.t % 60).padStart(2, '0')}`);
   }
 
   function renderTft() {
@@ -13390,7 +13532,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
-    [93, 'October 29: Aion 2 timers, a daily checklist and a gear checkup', [
+    [93, 'October 29: Aion 2 DPS tracker, timers, a daily checklist and a gear checkup', [
+      'A DPS tracker on the Aion 2 page: while Aion 2 is open, the desktop app reads each fight off the game’s Combat Analysis (Ctrl+X) once it’s over: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and puts your friends’ best next to yours.',
       'Timers on the Aion 2 page: the daily and weekly resets, Shugo Festival, Dimensional Invasion and your server’s field bosses. When anyone in your legion marks a boss kill, everyone sees when it’s back, and Premade warns you 5 minutes before.',
       'Checklist: each character’s dailies and weeklies, ticked off with + and −, and what your friends still have to do.',
       'Each character’s Gear tab has a checkup: empty manastone and Theostone slots, Common manastones and items below max enchant. Compare shows the stones too.',
@@ -13910,6 +14053,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
         'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
+      ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
+        'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
     ]],
@@ -14255,7 +14400,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
