@@ -83,6 +83,10 @@ a { color: var(--link); }
 .nav svg { width: 20px; height: 20px; flex: none; }
 .nav:hover { color: var(--fg); background: var(--raised); }
 .nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 18%, transparent), transparent); }
+/* League: one button at the foot of the rail; its pages are tabs along the top of main */
+.rail .league { margin-top: auto; border-color: var(--gold-line); }
+.ltabs { display: flex; flex-wrap: wrap; gap: 6px; max-width: 1320px; margin: 0 auto 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.ltabs .nav { padding: 8px 12px; }
 main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32px; }
 .view, #msg, #lolNote { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
@@ -95,9 +99,9 @@ main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32p
 #lolNote:empty { display: none; }
 @container app (max-width: 760px) {
   .rail { width: auto; padding-inline: 6px; }
-  .brand span, .nav span { display: none; }
+  .brand span, .rail .nav span { display: none; }
   .brand { padding-inline: 4px; }
-  .nav { justify-content: center; padding: 10px; }
+  .rail .nav { justify-content: center; padding: 10px; }
 }
 
 svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -749,25 +753,30 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div class="app">
   <nav class="rail" aria-label="Sections">
     <div class="brand"><img src="icon-192.png" alt=""><span>Premade</span></div>
-    <button class="nav" type="button" data-view="profile" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
-    <button class="nav" type="button" data-view="voice"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Voice</span></button>
-    <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
-    <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
-    <button class="nav client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
-    <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
-    <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
-    <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
+    <button class="nav" type="button" data-view="voice" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Rooms</span></button>
+    <button class="nav" type="button" data-view="friends"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg><span>Friends</span></button>
     <button class="nav" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
-    <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
+    <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
+    <button id="leagueNav" class="nav league" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>League</span></button>
   </nav>
 
   <main>
+    <nav id="leagueTabs" class="ltabs" aria-label="League" hidden>
+      <button class="nav" type="button" data-view="prox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Proximity voice</span></button>
+      <button class="nav" type="button" data-view="profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
+      <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
+      <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
+      <button class="nav client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
+      <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
+      <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
+      <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
+    </nav>
     <p id="msg" role="alert"></p>
     <p id="lolNote" role="status"></p>
 
-    <section class="view" data-view="profile" aria-label="Profile">
+    <section class="view" data-view="profile" aria-label="Profile" hidden>
       <header class="panel prohead">
         <div class="proicon"><img id="proIcon" alt="" hidden><span id="proLvl" class="lvl"></span></div>
         <div class="proid">
@@ -863,7 +872,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
     </section>
 
-    <section class="view" data-view="voice" aria-label="Voice" hidden>
+    <section class="view" data-view="voice" aria-label="Rooms">
       <div id="joinView" class="join">
         <div class="joincard">
           <img src="icon-192.png" alt="">
@@ -896,8 +905,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <p id="lockNote" class="hint" hidden></p>
             </div>
             <div class="toolbar">
+              <button id="generalShareBtn" class="btn primary" type="button">Share screen or app</button>
               <button id="copyBtn" class="btn" type="button">Copy invite link</button>
-              <button id="readyBtn" class="btn" type="button">Ready check</button>
               <button id="lockBtn" class="btn" type="button" hidden>Lock room</button>
               <button class="tip" type="button" popovertarget="t-lock" aria-label="About locking the room">?</button>
               <button id="leaveBtn" class="btn" type="button">Leave</button>
@@ -905,39 +914,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </header>
           <p id="phase" class="phase" role="status"></p>
           <p id="connectionStatus" class="hint" role="status" hidden></p>
-          <div id="modeRow" class="moderow">
-            <label class="field">Game mode <select id="modeSel"><option value="classic">Classic</option><option value="legends">Legends</option><option value="immersive">Immersive</option><option value="gibberish">Gibberish</option><option value="swap">Voice swap</option><option value="showdown">Showdown</option><option value="chaos">Chaos</option></select></label>
-            <button class="tip" type="button" popovertarget="t-mode" aria-label="About game modes">?</button>
-            <span id="swapOpts" class="moderow" hidden>
-              <label class="field">Swap with <select id="swapWith"><option value="any">Anyone</option><option value="team">Own team only</option><option value="other">Other team only</option></select></label>
-              <label class="field">Reshuffle <select id="swapEvery"><option value="1">Every minute</option><option value="2">Every 2 minutes</option><option value="3">Every 3 minutes</option><option value="4">Every 4 minutes</option><option value="5">Every 5 minutes</option></select></label>
-              <label class="check"><input id="swapDeaths" type="checkbox"> And when someone dies</label>
-              <label class="check"><input id="swapPitch" type="checkbox"> Disguise voices</label>
-            </span>
-            <p id="modeNote" class="hint"></p>
-          </div>
-          <div id="guessBox" class="stack" hidden>
-            <p class="hint">Guess the voice: who’s really talking from each spot? Each right guess is a point at the reveal.</p>
-            <div id="guessRows" class="moderow"></div>
-          </div>
-          <section id="readyBox" class="panel" aria-labelledby="h-ready" hidden>
-            <h2 id="h-ready" class="ph">Ready check</h2>
-            <div class="tablewrap"><table class="ready"><thead><tr><th>Player</th><th>Mic</th><th>Screen</th><th>Minimap</th><th>App</th><th>League window</th></tr></thead><tbody id="readyRows"></tbody></table></div>
-            <div><button id="readyClose" class="btn small" type="button">Close</button></div>
-          </section>
-          <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
-            <h2 id="h-screens" class="ph">Screens</h2>
-            <div id="screenGrid" class="screengrid"></div>
-          </section>
           <div class="dash">
-            <div id="roomMap">
-              <div id="mapBox" class="mapbox">
-                <canvas id="map" width="600" height="600" role="img" aria-label="Live map: each player's champion, your hearing range as a gold ring around you, and a glow on whoever is talking"></canvas>
-                <p id="offmap" class="hint"></p>
-                <div class="range"><span>Hearing range</span><button class="tip" type="button" popovertarget="t-range" aria-label="About the hearing range">?</button><input id="range" type="range" min="600" max="3000" step="50" aria-label="Hearing range"><output id="rangeOut"></output></div>
-                <div class="range"><span>Fade</span><button class="tip" type="button" popovertarget="t-fade" aria-label="About the fade">?</button><select id="optFade" aria-label="How voices fade"><option value="normal">Normal</option><option value="gentle">Gentle</option><option value="real">Realistic</option><option value="sharp">Sharp</option></select><span></span></div>
-                <p id="hearMe" class="hint" role="status"></p>
-              </div>
+            <div class="stack">
+              <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
+                <h2 id="h-screens" class="ph">Screens</h2>
+                <div id="screenGrid" class="screengrid"></div>
+              </section>
+              <section class="panel" aria-labelledby="h-chat">
+                <h2 id="h-chat" class="ph">Chat</h2>
+                <ol id="chatLog" class="chatlog roomchat" data-empty="No messages yet. Send pictures and videos with + or by pasting or dropping them here; @ mentions someone."></ol>
+                <p id="chatTyping" class="hint" aria-live="polite"></p>
+                <p id="chatBar" class="chatbar" hidden><span id="chatBarText"></span> <button id="chatBarX" class="btn small" type="button">Cancel</button></p>
+                <div id="chatPick" class="chatpick"></div>
+                <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture or video (up to 50 MB)" aria-label="Send a picture or video">+</button><input id="chatFile" type="file" accept="image/*,video/*" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
+              </section>
+              <details id="histBox" class="panel">
+                <summary id="h-hist" class="ph">Past sessions</summary>
+                <p class="hint">Every voice room you’re in, who was there and its chat with the pictures and videos, kept on this computer for 30 days, then deleted.</p>
+                <label class="check"><input id="optHistory" type="checkbox"> Keep my voice sessions and their chat</label>
+                <ul id="histRows" class="plain hist"></ul>
+                <p id="histNote" class="hint"></p>
+              </details>
             </div>
             <div id="roomCards">
               <div id="cardBox" class="cardbox">
@@ -953,121 +950,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               </div>
             </div>
           </div>
-          <section class="panel" aria-labelledby="h-status">
-            <h2 id="h-status" class="ph">League status <button class="tip" type="button" popovertarget="t-status" aria-label="About League status">?</button></h2>
-            <div class="tablewrap"><table class="ready"><tbody id="statusRows"></tbody></table></div>
-          </section>
-          <section id="goalBox" class="panel" aria-labelledby="h-goals" hidden>
-            <h2 id="h-goals" class="ph">Goal board <button class="tip" type="button" popovertarget="t-goals" aria-label="About the goal board">?</button></h2>
-            <ul id="goalRows" class="plain goals"></ul>
-            <p id="goalNote" class="hint"></p>
-          </section>
-          <section class="panel" aria-labelledby="h-chat">
-            <h2 id="h-chat" class="ph">Chat</h2>
-            <ol id="chatLog" class="chatlog roomchat" data-empty="No messages yet. Send pictures and videos with + or by pasting or dropping them here; @ mentions someone."></ol>
-            <p id="chatTyping" class="hint" aria-live="polite"></p>
-            <p id="chatBar" class="chatbar" hidden><span id="chatBarText"></span> <button id="chatBarX" class="btn small" type="button">Cancel</button></p>
-            <div id="chatPick" class="chatpick"></div>
-            <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture or video (up to 50 MB)" aria-label="Send a picture or video">+</button><input id="chatFile" type="file" accept="image/*,video/*" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
-          </section>
-          <details id="histBox" class="panel">
-            <summary id="h-hist" class="ph">Past sessions</summary>
-            <p class="hint">Every voice room you’re in, who was there and its chat with the pictures and videos, kept on this computer for 30 days, then deleted.</p>
-            <label class="check"><input id="optHistory" type="checkbox"> Keep my voice sessions and their chat</label>
-            <ul id="histRows" class="plain hist"></ul>
-            <p id="histNote" class="hint"></p>
-          </details>
-          <section class="panel" aria-labelledby="h-games">
-            <h2 id="h-games" class="ph">Room games <button class="tip" type="button" popovertarget="t-games" aria-label="About room games">?</button></h2>
-            <div class="toolbar">
-              <button id="teamsBtn" class="btn" type="button">Balance teams</button>
-              <button id="rolesBtn" class="btn" type="button">Role roulette</button>
-              <button id="bestBtn" class="btn" type="button">Best roles</button>
-              <button id="draftBtn" class="btn" type="button">Mock draft</button>
-              <button id="mvpBtn" class="btn" type="button">MVP vote</button>
-              <button id="fsBtn" class="btn" type="button">Fearless series</button>
-            </div>
-            <p id="gamesNote" class="hint"></p>
-            <div id="fsBox" class="stack" hidden>
-              <p id="fsHead" class="phase"></p>
-              <div id="fsUsed" class="fsused"></div>
-            </div>
-            <div id="teamsBox" class="duo" hidden></div>
-            <div id="rolesBox" class="stack" hidden>
-              <p id="rolesMine" class="phase"></p>
-              <ul id="rolesList" class="plain"></ul>
-              <div><button id="rolesSet" class="btn small" type="button" hidden>Set it in League’s lobby</button></div>
-            </div>
-            <div id="draftBox" class="stack" hidden>
-              <p id="draftHead" class="phase"></p>
-              <div id="draftBoard" class="duo"></div>
-              <div id="draftPicker" class="stack">
-                <label class="field">Find a champion <input id="draftFind" autocomplete="off" spellcheck="false"></label>
-                <div id="draftGrid" class="champgrid"></div>
-              </div>
-              <div class="toolbar"><button id="draftAgain" class="btn small" type="button" hidden>Draft again</button><button id="draftStop" class="btn small" type="button">Close</button></div>
-            </div>
-            <div id="mvpBox" class="stack" hidden>
-              <p id="mvpHead" class="phase"></p>
-              <div id="mvpOpts" class="quizopts"></div>
-              <div><button id="mvpClose" class="btn small" type="button" hidden>Close</button></div>
-            </div>
-            <div id="awardsBox" class="stack" hidden>
-              <h3 class="ph">Last game’s awards</h3>
-              <ul id="awardsList" class="awards"></ul>
-            </div>
-          </section>
-          <section class="panel" aria-labelledby="h-customs">
-            <h2 id="h-customs" class="ph">Customs <button class="tip" type="button" popovertarget="t-customs" aria-label="About customs">?</button></h2>
-            <h3 class="ph">Inhouse ladder</h3>
-            <ol id="ladderList" class="plain"></ol>
-          </section>
-          <section class="panel" aria-labelledby="h-track">
-            <h2 id="h-track" class="ph">Your tracking <button class="tip" type="button" popovertarget="t-track" aria-label="About tracking">?</button></h2>
-            <div class="me">
-              <canvas id="mini" width="280" height="280" hidden aria-label="Your minimap. The gold circle is where the page thinks your champion is."></canvas>
-              <div class="me-text">
-                <p id="me"></p>
-                <div class="toolbar"><button id="shareBtn" class="btn primary" type="button">Share League screen</button><button id="generalShareBtn" class="btn" type="button">Share screen or app</button></div>
-                <div class="facerow">
-                  <canvas id="face" width="128" height="128" hidden aria-label="Close-up of the champion icon the page follows as you."></canvas>
-                  <button id="relearnBtn" class="btn" type="button" hidden>Not my champion</button>
-                </div>
-                <form id="pickForm" class="pick" hidden>
-                  <label>Or tell it your champion <input id="champ" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
-                  <button class="btn" type="submit">Find me</button>
-                  <datalist id="champs"></datalist><datalist id="itemList"></datalist>
-                </form>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
-      <section id="groupBox" class="panel" aria-labelledby="h-group">
-        <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
-        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button></div>
-        <div class="stack" data-gt="friends">
-          <div id="frInvBox" class="stack" hidden></div>
-          <p id="frNote" class="hint" role="status"></p>
-          <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
-          <div class="toolbar"><button id="frOffBtn" class="btn small" type="button" hidden></button></div>
-          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn" type="submit">Add</button></form>
-          <label class="check"><input id="optLobbyRoom" type="checkbox"> Friends in my League lobby who have Premade join my voice room by themselves, and I join theirs</label>
-        </div>
-        <div class="stack" data-gt="squad" hidden>
-          <p id="sqNote" class="hint" role="status"></p>
-          <ul id="sqList" class="plain"></ul>
-          <div id="sqCallBox" class="stack" hidden>
-            <p id="sqCall" class="phase" data-game="1"></p>
-            <div class="toolbar"><button id="sqJoin" class="btn primary small" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
-          </div>
-          <div class="toolbar"><button id="sqCallBtn" class="btn primary" type="button" hidden>Call the squad</button><button id="sqMake" class="btn" type="button">Make a squad</button><span id="sqJoins" class="toolbar"></span><button id="sqLeave" class="btn small" type="button" hidden>Leave the squad</button></div>
-          <div id="sqPings" class="stack" hidden>
-            <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
-            <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
-          </div>
-        </div>
-      </section>
       <details id="voiceSet" class="voiceset">
         <summary><span class="ph">Voice settings</span><span class="hint">Mic, push to talk and sounds</span></summary>
         <div class="settings">
@@ -1123,6 +1007,147 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           </section>
         </div>
       </details>
+    </section>
+    <section class="view" data-view="friends" aria-label="Friends" hidden>
+      <section id="groupBox" class="panel" aria-labelledby="h-group">
+        <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
+        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button></div>
+        <div class="stack" data-gt="friends">
+          <div id="frInvBox" class="stack" hidden></div>
+          <p id="frNote" class="hint" role="status"></p>
+          <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
+          <div class="toolbar"><button id="frOffBtn" class="btn small" type="button" hidden></button></div>
+          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn" type="submit">Add</button></form>
+          <label class="check"><input id="optLobbyRoom" type="checkbox"> Friends in my League lobby who have Premade join my voice room by themselves, and I join theirs</label>
+        </div>
+        <div class="stack" data-gt="squad" hidden>
+          <p id="sqNote" class="hint" role="status"></p>
+          <ul id="sqList" class="plain"></ul>
+          <div id="sqCallBox" class="stack" hidden>
+            <p id="sqCall" class="phase" data-game="1"></p>
+            <div class="toolbar"><button id="sqJoin" class="btn primary small" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
+          </div>
+          <div class="toolbar"><button id="sqCallBtn" class="btn primary" type="button" hidden>Call the squad</button><button id="sqMake" class="btn" type="button">Make a squad</button><span id="sqJoins" class="toolbar"></span><button id="sqLeave" class="btn small" type="button" hidden>Leave the squad</button></div>
+          <div id="sqPings" class="stack" hidden>
+            <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
+            <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
+          </div>
+        </div>
+      </section>
+    </section>
+    <section class="view" data-view="prox" aria-label="Proximity voice" hidden>
+      <p id="proxNote" class="hint">Join or create a room on Rooms first. Proximity voice works on the room you’re in: once a League game starts, you hear each other by where your champions are, and after it everyone hears everyone again.</p>
+      <div id="proxRoom" class="view" hidden>
+        <div class="toolbar">
+          <button id="readyBtn" class="btn" type="button">Ready check</button>
+        </div>
+        <div id="modeRow" class="moderow">
+          <label class="field">Game mode <select id="modeSel"><option value="classic">Classic</option><option value="legends">Legends</option><option value="immersive">Immersive</option><option value="gibberish">Gibberish</option><option value="swap">Voice swap</option><option value="showdown">Showdown</option><option value="chaos">Chaos</option></select></label>
+          <button class="tip" type="button" popovertarget="t-mode" aria-label="About game modes">?</button>
+          <span id="swapOpts" class="moderow" hidden>
+            <label class="field">Swap with <select id="swapWith"><option value="any">Anyone</option><option value="team">Own team only</option><option value="other">Other team only</option></select></label>
+            <label class="field">Reshuffle <select id="swapEvery"><option value="1">Every minute</option><option value="2">Every 2 minutes</option><option value="3">Every 3 minutes</option><option value="4">Every 4 minutes</option><option value="5">Every 5 minutes</option></select></label>
+            <label class="check"><input id="swapDeaths" type="checkbox"> And when someone dies</label>
+            <label class="check"><input id="swapPitch" type="checkbox"> Disguise voices</label>
+          </span>
+          <p id="modeNote" class="hint"></p>
+        </div>
+        <div id="guessBox" class="stack" hidden>
+          <p class="hint">Guess the voice: who’s really talking from each spot? Each right guess is a point at the reveal.</p>
+          <div id="guessRows" class="moderow"></div>
+        </div>
+        <section id="readyBox" class="panel" aria-labelledby="h-ready" hidden>
+          <h2 id="h-ready" class="ph">Ready check</h2>
+          <div class="tablewrap"><table class="ready"><thead><tr><th>Player</th><th>Mic</th><th>Screen</th><th>Minimap</th><th>App</th><th>League window</th></tr></thead><tbody id="readyRows"></tbody></table></div>
+          <div><button id="readyClose" class="btn small" type="button">Close</button></div>
+        </section>
+        <div class="dash">
+          <div id="roomMap">
+            <div id="mapBox" class="mapbox">
+              <canvas id="map" width="600" height="600" role="img" aria-label="Live map: each player's champion, your hearing range as a gold ring around you, and a glow on whoever is talking"></canvas>
+              <p id="offmap" class="hint"></p>
+              <div class="range"><span>Hearing range</span><button class="tip" type="button" popovertarget="t-range" aria-label="About the hearing range">?</button><input id="range" type="range" min="600" max="3000" step="50" aria-label="Hearing range"><output id="rangeOut"></output></div>
+              <div class="range"><span>Fade</span><button class="tip" type="button" popovertarget="t-fade" aria-label="About the fade">?</button><select id="optFade" aria-label="How voices fade"><option value="normal">Normal</option><option value="gentle">Gentle</option><option value="real">Realistic</option><option value="sharp">Sharp</option></select><span></span></div>
+              <p id="hearMe" class="hint" role="status"></p>
+            </div>
+          </div>
+          <div class="stack">
+            <section class="panel" aria-labelledby="h-status">
+              <h2 id="h-status" class="ph">League status <button class="tip" type="button" popovertarget="t-status" aria-label="About League status">?</button></h2>
+              <div class="tablewrap"><table class="ready"><tbody id="statusRows"></tbody></table></div>
+            </section>
+            <section id="goalBox" class="panel" aria-labelledby="h-goals" hidden>
+              <h2 id="h-goals" class="ph">Goal board <button class="tip" type="button" popovertarget="t-goals" aria-label="About the goal board">?</button></h2>
+              <ul id="goalRows" class="plain goals"></ul>
+              <p id="goalNote" class="hint"></p>
+            </section>
+          </div>
+        </div>
+        <section class="panel" aria-labelledby="h-games">
+          <h2 id="h-games" class="ph">Room games <button class="tip" type="button" popovertarget="t-games" aria-label="About room games">?</button></h2>
+          <div class="toolbar">
+            <button id="teamsBtn" class="btn" type="button">Balance teams</button>
+            <button id="rolesBtn" class="btn" type="button">Role roulette</button>
+            <button id="bestBtn" class="btn" type="button">Best roles</button>
+            <button id="draftBtn" class="btn" type="button">Mock draft</button>
+            <button id="mvpBtn" class="btn" type="button">MVP vote</button>
+            <button id="fsBtn" class="btn" type="button">Fearless series</button>
+          </div>
+          <p id="gamesNote" class="hint"></p>
+          <div id="fsBox" class="stack" hidden>
+            <p id="fsHead" class="phase"></p>
+            <div id="fsUsed" class="fsused"></div>
+          </div>
+          <div id="teamsBox" class="duo" hidden></div>
+          <div id="rolesBox" class="stack" hidden>
+            <p id="rolesMine" class="phase"></p>
+            <ul id="rolesList" class="plain"></ul>
+            <div><button id="rolesSet" class="btn small" type="button" hidden>Set it in League’s lobby</button></div>
+          </div>
+          <div id="draftBox" class="stack" hidden>
+            <p id="draftHead" class="phase"></p>
+            <div id="draftBoard" class="duo"></div>
+            <div id="draftPicker" class="stack">
+              <label class="field">Find a champion <input id="draftFind" autocomplete="off" spellcheck="false"></label>
+              <div id="draftGrid" class="champgrid"></div>
+            </div>
+            <div class="toolbar"><button id="draftAgain" class="btn small" type="button" hidden>Draft again</button><button id="draftStop" class="btn small" type="button">Close</button></div>
+          </div>
+          <div id="mvpBox" class="stack" hidden>
+            <p id="mvpHead" class="phase"></p>
+            <div id="mvpOpts" class="quizopts"></div>
+            <div><button id="mvpClose" class="btn small" type="button" hidden>Close</button></div>
+          </div>
+          <div id="awardsBox" class="stack" hidden>
+            <h3 class="ph">Last game’s awards</h3>
+            <ul id="awardsList" class="awards"></ul>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="h-customs">
+          <h2 id="h-customs" class="ph">Customs <button class="tip" type="button" popovertarget="t-customs" aria-label="About customs">?</button></h2>
+          <h3 class="ph">Inhouse ladder</h3>
+          <ol id="ladderList" class="plain"></ol>
+        </section>
+        <section class="panel" aria-labelledby="h-track">
+          <h2 id="h-track" class="ph">Your tracking <button class="tip" type="button" popovertarget="t-track" aria-label="About tracking">?</button></h2>
+          <div class="me">
+            <canvas id="mini" width="280" height="280" hidden aria-label="Your minimap. The gold circle is where the page thinks your champion is."></canvas>
+            <div class="me-text">
+              <p id="me"></p>
+              <div class="toolbar"><button id="shareBtn" class="btn primary" type="button">Share League screen</button></div>
+              <div class="facerow">
+                <canvas id="face" width="128" height="128" hidden aria-label="Close-up of the champion icon the page follows as you."></canvas>
+                <button id="relearnBtn" class="btn" type="button" hidden>Not my champion</button>
+              </div>
+              <form id="pickForm" class="pick" hidden>
+                <label>Or tell it your champion <input id="champ" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
+                <button class="btn" type="submit">Find me</button>
+                <datalist id="champs"></datalist><datalist id="itemList"></datalist>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
     </section>
 
     <section class="view" data-view="pregame" aria-label="Pregame" hidden>
@@ -1747,7 +1772,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <input id="helpCode" inputmode="numeric" maxlength="11" autocomplete="off" spellcheck="false" placeholder="Their code" aria-label="Your friend’s code">
           <button id="helpGo" class="btn primary">Connect</button>
         </form>
-        <p class="hint">Or press Control next to an online friend in Friends, on the Voice page. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps.</p>
+        <p class="hint">Or press Control next to an online friend on the Friends page. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps.</p>
         <figure id="helpTile" class="screentile" hidden>
           <figcaption><span id="helpName"></span><span><button id="helpFull" class="btn small" type="button" hidden>Full screen</button> <button id="helpStop" class="btn small" type="button">Cancel</button></span></figcaption>
           <p id="helpSt" class="hint" role="status"></p>
@@ -1827,7 +1852,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <section class="step" data-step="4" hidden>
       <span class="eyebrow">Step 4 of 4</span>
       <h2 class="title">You're all set</h2>
-      <p>Create a room on the Voice page and send your friends its code, or join theirs. You can change your name and mic later in Voice settings, at the bottom of that page.</p>
+      <p>Create a room on the Rooms page and send your friends its code, or join theirs. You can change your name and mic later in Voice settings, at the bottom of that page.</p>
       <p class="hint">Features, at the bottom of the menu, shows everything else Premade can do and how to set it up.</p>
     </section>
     <footer><button id="wSkip" class="btn ghost" type="button">Skip setup</button><button id="wBack" class="btn" type="button" hidden>Back</button><button id="wNext" class="btn primary" type="button">Next</button></footer>
@@ -1930,12 +1955,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   </div>
 </dialog>
 
-<div id="t-code" class="tipbox" popover>Friends can join by choosing an open room on the Voice page, typing this code on the site or in the Windows client, or opening your invite link. Rooms you create are listed while they are active and unlocked. Everyone in the same game should be in the same room.</div>
+<div id="t-code" class="tipbox" popover>Friends can join by choosing an open room on the Rooms page, typing this code on the site or in the Windows client, or opening your invite link. Rooms you create are listed while they are active and unlocked. Everyone in the same game should be in the same room.</div>
 <div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Voices fade to silent at the edge, the way Fade says. It only changes what you hear.</div>
 <div id="t-fade" class="tipbox" popover>How voices fade as their champions move away; all of them reach silence at the edge of your hearing range. Normal: full volume up to two thirds of the range, then down to silent. Gentle: quieter little by little from close by. Realistic: like real sound, half as loud each time the distance doubles. Sharp: full volume until just before the edge. The dashed ring on the map shows where the fade starts.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
-<div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it on their Voice page, straight from your PC. In a game only your own team does, never the other team. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
+<div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it in their room, straight from your PC. In a game only your own team does, never the other team. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
 <div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
 <div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of about 32, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
@@ -2371,6 +2396,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (document.hidden) return;
     $('joinView').hidden = !!peer;
     $('roomView').hidden = !peer;
+    $('proxRoom').hidden = !peer;
+    $('proxNote').hidden = !!peer;
     $('roomName').textContent = room;
     $('lockBtn').hidden = !peer || !!roomKey || hostSlot() !== slot;
     $('lockNote').hidden = !roomKey;
@@ -4412,7 +4439,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (r.bt) add('ok', 'Their mic is in phone quality (a Bluetooth headset’s mic, most likely), which makes what they hear sound like a phone call too. A separate mic, or the headset’s own USB dongle, fixes it.');
     if (r.clip) add('ok', 'Their mic is too loud, so their voice crackles: they should turn it down in Windows’ sound settings.');
     if (r.ptt) add('', 'They use push to talk, so they’re heard only while they hold their key.');
-    if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen on the Voice page.');
+    if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen in League, Proximity voice.');
     else if (!r.map) add('ok', 'Their minimap isn’t found: they should share the screen League is on, set League to Borderless, and be in a game, not the client.');
     else add('good', 'Their minimap is found.');
     if (playsNow(p) && !fresh(p.pos)) add('bad', 'This game their champion isn’t tracked, so you can’t hear them.');
@@ -5118,7 +5145,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (c.stop) c.stop();
     if (c.call && ![...seen.values()].some((v) => v.call === c.call)) c.call.close();
   }
-  function screenIn(call) { // a screen coming in: taken only from the one you asked, for the overlay, the Voice page or both
+  function screenIn(call) { // a screen coming in: taken only from the one you asked, for the overlay, your room or both
     const p = peers.get(call.peer), forCam = !!cam && cam.p === p, forSee = seen.has(p);
     if (!forCam && !forSee) return call.close();
     call.answer(); // nothing goes back
@@ -5205,8 +5232,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       })).catch(() => {});
     }
   }
-  // Screens in the room (opts.roomScreen, on, the toggle under Players on the Voice page): while you share your screen
-  // ('me' says see), everyone in the room sees it by itself in a tile on their Voice page (#roomScreens), sent the same
+  // Screens in the room (opts.roomScreen, on, the toggle under Players in your room): while you share your screen
+  // ('me' says see), everyone in the room sees it by itself in a tile in their room (#roomScreens), sent the same
   // way as lending above, to each one who asks ({t:'see', on}). Hide on a tile stops theirs and puts Show screen on
   // their card; hidden names are kept (lpc-screens-hidden). In a game only your own team, so the other team never sees
   // your screen (the same ponytail as lending: each app's own word on its team). Off: yours isn't shown; you still see
@@ -5215,7 +5242,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const sameSide = (p) => (league ? mate(p) : !p.team);
   const canSee = (p) => !!p.see && sameSide(p) && peers.get(idFor(p.slot)) === p;
   const screensHidden = new Set(load('lpc-screens-hidden', []));
-  const seen = new Map(); // a screen on the Voice page -> { call, asked, tile, vid }
+  const seen = new Map(); // a screen in your room -> { call, asked, tile, vid }
   function seeTick() { // every second
     for (const p of seen.keys()) if (!canSee(p) || screensHidden.has(nameOf(p))) seeOff(p);
     for (const p of peers.values()) {
@@ -5282,7 +5309,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : await client.point({ x: m.x, y: m.y, d: m.d === true, who: nameOf(p), c: p.slot });
     if (why) { if (!p.ptNo) tellOnce(p, { t: 'pt', no: why }); p.ptNo = true; return; } // once
     p.ptNo = false;
-    if (!p.ptSaid) { p.ptSaid = true; notify(`${nameOf(p)} is pointing at your screen. Turn it off under Players on the Voice page.`, true); }
+    if (!p.ptSaid) { p.ptSaid = true; notify(`${nameOf(p)} is pointing at your screen. Turn it off under Players in your room.`, true); }
   }
   function ptShow() {
     for (const [p, v] of seen) {
@@ -5888,9 +5915,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   });
 
   // ---- sections: Room (the live map and player cards are on it), Players and Map (the same, full size), Stats, Settings
+  let leaguePage = 'prox'; // the League page the League button opens: the last one shown
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    const lol = $('leagueTabs').contains(document.querySelector(`.nav[data-view="${name}"]`)); // a League page: its tabs show and League is lit
+    $('leagueTabs').hidden = !lol;
+    if (lol) { leaguePage = name; $('leagueNav').setAttribute('aria-current', 'page'); }
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
     if (name === 'clips') { loadClips(); loadVids(); }
@@ -5906,8 +5937,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'game' || name === 'pregame') renderGame();
   }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
-  for (const b of document.querySelectorAll('.nav')) b.addEventListener('click', () => view(b.dataset.view));
-  $('sbTrack').addEventListener('click', () => view('voice'));
+  for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view));
+  $('leagueNav').addEventListener('click', () => view(leaguePage));
+  $('sbTrack').addEventListener('click', () => view('prox'));
 
   // ---- League's own client (desktop app 1.6+): the ready check, champ select with everyone's rank and recent games,
   // your best champions for your role, Riot's recommended runes and spells, the loading screen's players, objective
@@ -10429,17 +10461,24 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const t = lpOf(acctOf(p.n)).filter((e) => e.q === k && new Date(e.at).toDateString() === new Date().toDateString()), d = t.reduce((n, e) => n + e.delta, 0), w = t.filter((e) => e.win).length;
     return t.length ? `today ${w}W ${t.length - w}L, ${d >= 0 ? '+' : '−'}${Math.abs(d)} LP` : '';
   }
-  function renderProfile() {
+  // your account, rank and games from League (or Riot), kept on every page, not only Profile: Friends, the hello and
+  // Stats go by them. Each part asks again only after its own wait.
+  function profileData() {
     const lm = liveMine();
     if (lm && lm.rk) { const key = JSON.stringify([lm.n, lm.lvl, lm.icon, lm.plat, lm.rk, lm.games.map((x) => x.id), lm.m]); if (key !== proSaved) { proSaved = key; saveMine(lm); } }
+    const mine = !proOther, was = rankNow;
+    riotCheck();
+    if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
+    if (mine && !isLive(shownPro())) riotMine();
+    const ru = lm && riotU(lm), day = ru + new Date().toDateString();
+    if (ru && pastSent !== day) { pastSent = day; riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${ru}`).catch(() => {}); } // once a day, so our server keeps your rank
+  }
+  function renderProfile() {
+    profileData();
+    const lm = liveMine();
     const p = shownPro(), mine = !proOther, live = mine && isLive(p), pages = live, [name, tag] = p ? p.n.split('#') : [], was = rankNow; // live: League's account now; pages: champion pages are its games in League's client
     if (!ddVersion) ddragon().then(() => { if (!profView.hidden) renderProfile(); }).catch(() => {});
     itemsSoon();
-    riotCheck();
-    if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
-    if (mine && !live) riotMine();
-    const ru = lm && riotU(lm), day = ru + new Date().toDateString();
-    if (ru && pastSent !== day) { pastSent = day; riotGet(lm.plat, `/lol/league/v4/entries/by-puuid/${ru}`).catch(() => {}); } // once a day, so our server keeps your rank
     $('proName').textContent = p ? name : 'Your League profile';
     $('proTag').textContent = tag ? '#' + tag : '';
     $('proIcon').hidden = !(p && p.icon && ddVersion);
@@ -12274,7 +12313,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return quiet.length ? `Talk and win: when the room talked more than usual, you won ${won(loud)} of ${loud.length} games (${pc(loud)}%). When it was quieter, ${won(quiet)} of ${quiet.length} (${pc(quiet)}%).` : '';
   }
 
-  // ---- room games (Voice page), started by the host: Balance teams (two even custom-game teams from everyone's Solo/Duo
+  // ---- room games (League, Proximity voice), started by the host: Balance teams (two even custom-game teams from everyone's Solo/Duo
   // rank), Role roulette, a Mock draft and an MVP vote; and Room awards after each game. The host's 'me'
   // message carries the teams (tm), roles (ro) and the MVP's crown (mv), numbered (n) so the newest wins and newcomers
   // get them. The draft and the vote run on the host's page: {t:'draft'} the draft so far, {t:'draftA'} a
@@ -12297,7 +12336,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (m.t === 'draftEnd' && host && dv && dv.n === m.n) dv.over = true;
     else if (m.t === 'mvp' && host && Number.isFinite(m.n) && slotsOk(m.c) && m.c.length >= 2) {
       vv = { n: m.n, c: m.c, ends: now + Math.min(MVP_MS, +m.left || 0), mine: -1, over: false, w: -1, counts: {} };
-      notify('Vote for the MVP of the last game, on the Voice page.', true);
+      notify('Vote for the MVP of the last game, in League, Proximity voice.', true);
     } else if (m.t === 'mvpV' && isHost() && vote && m.n === vote.n && vote.c.includes(m.v) && m.v !== from && roomSlots().includes(from)) {
       vote.votes.set(from, m.v);
       voteCheck();
@@ -12384,7 +12423,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     notify(okStatus(res) ? `League: ${POS[r]} first, Fill second.` : 'League didn’t take the role. It only works in a lobby where you pick roles.', true);
   }
 
-  // ---- customs with friends (Voice page): the inhouse ladder and Fearless series. Each custom game you
+  // ---- customs with friends (League, Proximity voice): the inhouse ladder and Fearless series. Each custom game you
   // play to the end (League's client says it's a custom game) is kept (lpc-customs, the last 500: its id, when it ended,
   // and each team's Riot IDs and champions, bots left out) and shared with the room, where everyone keeps the games
   // they didn't have: {t:'cg', g: [games]} to each newcomer and after a game. So the ladder is the same on every page.
@@ -12713,7 +12752,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }));
   }
 
-  // ---- Your group (Voice page). A squad: friends who call each other to play, kept by our server (server/squad.js, up
+  // ---- Your group (Friends page). A squad: friends who call each other to play, kept by our server (server/squad.js, up
   // to 12) under a code only its members' apps know. Call the squad puts "<name> wants to play" with your room's code in
   // the others' Premade, which asks our server every minute (every 10 s for 10 minutes after a call), and on their
   // phones through the phone remote's notifications (remote-sw.js, with In 10 and Not tonight on Android). Members
@@ -12743,7 +12782,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (c && c.from !== squad.id && c.n > (squad.seen | 0)) { // a call you haven't seen yet
       squad.seen = c.n;
       saveSquad();
-      if (Date.now() - c.at < 1800000) { notify(`${sqName(c.from)} wants to play: room ${String(c.room).toUpperCase()}. Join from Your group, on the Voice page.`, true); if (opts.chimes) chime('call'); }
+      if (Date.now() - c.at < 1800000) { notify(`${sqName(c.from)} wants to play: room ${String(c.room).toUpperCase()}. Join from the Friends page, Squad.`, true); if (opts.chimes) chime('call'); }
     }
     if (c && c.from === squad.id && was && was.call && was.call.n === c.n) for (const [id, a] of Object.entries(c.ans)) if (!was.call.ans[id]) notify(`${sqName(id)}: ${a === 'in10' ? 'in 10' : 'not tonight'}.`, true);
     renderGroup();
@@ -12829,7 +12868,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           if (peer && room === v.room) notify(`Joined ${v.n || v.riot}’s voice room, ${v.room.toUpperCase()}, as you’re in their League lobby`, true);
         } else {
           const inviter = v.n || v.riot, body = `${inviter} invites you to their voice room, ${v.room.toUpperCase()}.`;
-          notify(`${body} Join from Friends, on the Voice page.`, true);
+          notify(`${body} Join from the Friends page.`, true);
           if (client && client.notify) client.notify('Voice room invite', body, { type: 'room-invite', room: v.room, key: v.key || '' });
           if (opts.chimes) chime('call');
         }
@@ -12964,7 +13003,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   async function groupTick() { // once a second
     friendsLoop();
-    if (!profView.hidden) renderProFriends();
+    if (!profView.hidden) renderProFriends(); else profileData();
     const shown = !!$('groupBox').offsetParent;
     if (shown) renderGroup();
     if (!squad || sqBusy) return;
@@ -13115,7 +13154,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('wShare').hidden = !!share;
     $('wMini').hidden = !found;
     if (found) $('wMini').getContext('2d').drawImage(mini, 0, 0, 160, 160);
-    $('wScreen').textContent = !share ? 'Not checked yet. You can also do this later on the Voice page.'
+    $('wScreen').textContent = !share ? 'Not checked yet. You can also do this later in League, Proximity voice.'
       : !found ? share.hint || 'Looking for your minimap…'
       : fresh(me) ? 'Found your minimap and your champion. Tracking works.'
       : 'Found your minimap. Now it looks for your champion: hold Space for a moment while you walk.';
@@ -13336,6 +13375,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [92, 'October 29: Premade is now a place to hang out, with League on its own page', [
+      'Premade now opens on Rooms: join a friend’s room or make one, talk, share your screens and chat. Share screen or app sits at the top of your room, with the screens and chat beside everyone in it.',
+      'Friends has its own page in the menu: who’s online, invites and your squad.',
+      'Everything League is under the League button at the bottom of the menu, with a tab for each part: Proximity voice (the live map, hearing range, game modes, ready check, League status, room games and your tracking), Profile, Pregame, Game, Overlay, Stats, TFT and Clips. You stay in the same room either way, and proximity still turns on by itself when a League game starts.',
+    ]],
     [91, 'October 28: voice and screens for friends who couldn’t connect', [
       'Friends whose home routers can’t reach each other directly now connect through a relay server, for voice and screens. Premade’s old free relay had shut down.',
     ]],
@@ -13803,7 +13847,95 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // showing now goes to the part of the page it's on), and 'app' when it needs the desktop app or 'web' when it's only
   // on the website. Add a line here with every new feature.
   const FEATURES = [
-    ['Profile', 'You in League, like a stats site. Premade opens on it.', [
+    ['Rooms', 'Hang out with friends: join a room, talk, share your screens and chat. Premade opens on it.', [
+      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
+        'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
+      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+        'Under Players in your room: Share screen or app at the top of the room, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
+      ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
+        'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
+      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
+        'On unless you turn it off: Voice settings, In a game. Stop sharing at the top of your room and that room or game stays unshared.', '#optAutoShare', 'app'],
+      ['Player cards', 'Each friend’s champion, rank, record with you and connection. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
+        'In your room, beside the screens and chat.', '#cardBox, #createBtn'],
+      ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
+        'Lock room, at the top of your room. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
+      ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
+      ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
+      ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat in your room. On unless you untick Keep my voice sessions.', '#optHistory'],
+      ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
+      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, and says when Windows turns other sounds down during voice chat.',
+        'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],
+      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Faster uses shorter packets and a shorter playback buffer when supported. Help reports measured network and audio-buffer delay. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
+        'Voice connection, in Voice settings, Microphone.', '#optVoice'],
+      ['Mute and push to talk', 'Mute with Ctrl+Shift+M or the mic in the status bar, or set a push-to-talk key (mouse side buttons work too). The desktop app catches them while League is in front.',
+        'Voice settings, Talking: Change or Set key.', '#kMute'],
+      ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
+        'Voice settings, Popups and sounds.', '#optNotify'],
+      ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
+        'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
+    ]],
+    ['Friends', 'Your friends, who’s online, invites and your squad.', [
+      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade to join your voice room, no code needed. They’re under your profile too: click one to see their profile, rank and games.',
+        'The Friends page. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
+      ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
+        'On unless you turn it off: the Friends page, under the list.', '#optLobbyRoom', 'app'],
+      ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
+        'The Friends page, Squad: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
+    ]],
+    ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated once a day.', [
+      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters, a compare that picks a friend and then one of their characters, on each character its gear, skills, Daevanion boards and a Next upgrade card, and a Classes page with a guide for each of the 8 classes: skills to level, Daevanion picks and the legion’s best gear.',
+        'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
+    ]],
+    ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
+      ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
+        'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app; on an iPhone, open it from there for notifications. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
+    ]],
+    ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
+      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
+        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift.', '#kShow', 'app'],
+      ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
+      ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
+      ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
+      ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
+      ['Your Discord server', 'Your game results with your LP and rank-ups, and your clips under 10 MB, post themselves in a channel of your Discord server.', 'Settings, Your Discord server: paste a webhook link from Discord (Server Settings, Integrations, Webhooks).', '#optHook', 'app'],
+      ['Start with League', 'Premade waits in the background from when Windows starts and opens when League’s client does.', 'Off until you tick it: Settings, App: Start with League.', '#optWithLeague', 'app'],
+      ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
+      ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
+      ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
+      ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The last 500 lines, kept in memory only.',
+        'Settings, App: Copy connection log, right after a drop, then paste it to whoever builds the app.', '#connLogBtn'],
+      ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
+        'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
+      ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
+      ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
+      ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
+      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.',
+        'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept. Whoever runs Premade sees the list in Settings, Our server, with the owner key.', '#optHello, #whoKey'],
+    ]],
+    ['League: Proximity voice', 'In League, Proximity voice: your room hears each other by where your champions are once a League game starts.', [
+      ['Proximity voice', 'Friends sound louder the closer their champions are to yours on the minimap, and fade to silent at the edge of your hearing range. Before a game starts, everyone hears everyone. The live map shows everyone, your range as a gold ring and who can hear you.',
+        'Join a room with your friends on Rooms, then share your League screen in League, Proximity voice. That’s all it takes.', '#map, #createBtn'],
+      ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
+        'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
+      ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
+        'League, Proximity voice: under the live map.', '#range, #createBtn'],
+      ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass.',
+        'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Voice settings, Popups and sounds.', '#optSurround'],
+      ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
+        'Share League screen in League, Proximity voice, Your tracking. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
+      ['Game modes', 'The host picks one for the whole room: Classic, Legends (your voice changes with Baron, dragons, towers and sprees), Immersive, Gibberish, Voice swap (guess who’s really talking), Showdown and Chaos.',
+        'Game mode, in League, Proximity voice. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],
+      ['Ready check', 'Everyone’s mic, screen, minimap, app version and League window mode in one table, so you can fix problems before you queue.', 'Ready check, at the top of League, Proximity voice.', '#readyBtn, #createBtn'],
+      ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'League, Proximity voice. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
+      ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in League, Proximity voice.', '#h-goals, #createBtn', 'app'],
+      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles (who should play which role, from the roles each of you wins most in lately), a Mock draft, an MVP vote and a Fearless series (custom games where nobody picks a champion already played in it; champ select shows the ones used up). Room awards come after each game with friends in voice.',
+        'Room games, in League, Proximity voice. Best roles and the Fearless series need the desktop app.', '#h-games, #createBtn'],
+      ['Inhouse ladder', 'A rating for everyone in your custom games with friends, up for a win and down for a loss, with a leaderboard. Balance teams uses it once two of the room are on it.',
+        'Nothing to set up: play custom games to the end with the desktop app. Customs, in League, Proximity voice.', '#h-customs, #createBtn', 'app'],
+      ['Hurt voice', 'Your voice turns shaky and rough while your champion is low on health.', 'On unless you turn it off: Voice settings, In a game.', '#optHurt', 'app'],
+    ]],
+    ['League: Profile', 'You in League, like a stats site. Premade opens on it.', [
       ['Your League profile', 'Your icon, Riot ID, level and ranks, where you are in League right now, your recent games with their items, your roles, champions and mastery.',
         'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
       ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
@@ -13821,61 +13953,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Sign in to each one in League once, then switch with Account, here or in Stats, Ranked. On someone else’s profile, Add to my accounts makes it one of yours.', '#proAcct'],
       ['Your week', 'Every Monday, a card about the week before: your games, LP, best champion and the stat you improved most.', 'Nothing to set up. Got it puts it away until next week.', '#weekBox'],
     ]],
-    ['Voice', 'Proximity voice for your game: your room, its games and every voice setting.', [
-      ['Proximity voice', 'Friends sound louder the closer their champions are to yours on the minimap, and fade to silent at the edge of your hearing range. Before a game starts, everyone hears everyone. The live map shows everyone, your range as a gold ring and who can hear you.',
-        'Join a room with your friends and share your League screen. That’s all it takes.', '#map, #createBtn'],
-      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Voice page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
-        'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it on their Voice page, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
-        'Under Players on the Voice page: Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
-      ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
-        'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
-      ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
-        'Point on their screen tile on the Voice page, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
-      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
-        'On unless you turn it off: Voice settings, In a game. Stop sharing on the Voice page and that room or game stays unshared.', '#optAutoShare', 'app'],
-      ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself.',
-        'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
-      ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
-        'Under the live map in your room.', '#range, #createBtn'],
-      ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass.',
-        'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Voice settings, Popups and sounds.', '#optSurround'],
-      ['Player cards', 'Each friend’s champion, rank, record with you and connection. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
-        'In your room, beside the map.', '#cardBox, #createBtn'],
-      ['Ready check', 'Everyone’s mic, screen, minimap, app version and League window mode in one table, so you can fix problems before you queue.', 'Ready check, at the top of your room.', '#readyBtn, #createBtn'],
-      ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
-        'Lock room, at the top of your room. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #readyBtn, #createBtn'],
-      ['Game modes', 'The host picks one for the whole room: Classic, Legends (your voice changes with Baron, dragons, towers and sprees), Immersive, Gibberish, Voice swap (guess who’s really talking), Showdown and Chaos.',
-        'Game mode, at the top of your room. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],
-      ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
-      ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
-      ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat on the Voice page. On unless you untick Keep my voice sessions.', '#optHistory'],
-      ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
-      ['League status', 'Where everyone is in League: in the client, a lobby, queue, champ select, loading or in a game.', 'In your room. It can only tell for players with the desktop app.', '#h-status, #createBtn'],
-      ['Room games', 'Games the host starts while you wait: Balance teams for a custom game, Role roulette, Best roles (who should play which role, from the roles each of you wins most in lately), a Mock draft, an MVP vote and a Fearless series (custom games where nobody picks a champion already played in it; champ select shows the ones used up). Room awards come after each game with friends in voice.',
-        'Room games, in your room. Best roles and the Fearless series need the desktop app.', '#h-games, #createBtn'],
-      ['Inhouse ladder', 'A rating for everyone in your custom games with friends, up for a win and down for a loss, with a leaderboard. Balance teams uses it once two of the room are on it.',
-        'Nothing to set up: play custom games to the end with the desktop app. Customs, in your room.', '#h-customs, #createBtn', 'app'],
-      ['Goal board', 'Everyone in the room who has a rank goal: how many LP they have to go, and a bar for how far they’ve come since they picked it.', 'Pick your goal in Stats, You: Goal. It shows in your room.', '#h-goals, #createBtn', 'app'],
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade to join your voice room, no code needed. They’re under your profile too: click one to see their profile, rank and games.',
-        'Your group, on the Voice page: Friends. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
-      ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
-        'On unless you turn it off: Your group, on the Voice page, Friends, under the list.', '#optLobbyRoom', 'app'],
-      ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
-        'Your group, on the Voice page: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
-      ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
-        'Share League screen in your room. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
-      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, and says when Windows turns other sounds down during voice chat.',
-        'Voice settings, Microphone, at the bottom of the Voice page: Test mic, then Set the gate for me.', '#micTest'],
-      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Faster uses shorter packets and a shorter playback buffer when supported. Help reports measured network and audio-buffer delay. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
-        'Voice connection, in Voice settings, Microphone.', '#optVoice'],
-      ['Mute and push to talk', 'Mute with Ctrl+Shift+M or the mic in the status bar, or set a push-to-talk key (mouse side buttons work too). The desktop app catches them while League is in front.',
-        'Voice settings, Talking: Change or Set key.', '#kMute'],
-      ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
-        'Voice settings, Popups and sounds.', '#optNotify'],
-      ['Hurt voice', 'Your voice turns shaky and rough while your champion is low on health.', 'On unless you turn it off: Voice settings, In a game.', '#optHurt', 'app'],
-    ]],
-    ['Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
+    ['League: Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online, Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox', 'app'],
       ['League chat', 'Your League friends’ messages and party invites: read and answer them here or on the phone remote, accept or decline an invite, and message any friend who’s online.', 'League chat, on Pregame, while League is open.', '#lolChatBox', 'app'],
       ['Your room in your League status', 'While you’re in a room, your League status says “Premade room KAYN”, so friends know where to join. Your old status comes back when you leave.', 'Off until you turn it on: League chat on Pregame, Show my Premade room.', '#optLolStatus', 'app'],
@@ -13905,7 +13983,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Clash', 'Your next Clash match’s other team: their ranks, recent games and tags.', 'On Pregame while you’re in Clash, once the bracket is out.', '#clashBox', 'app'],
       ['Borderless in one click', 'When League is in Fullscreen, where the overlay can’t show, one button switches it to Borderless through League’s own settings.', 'Switch to Borderless, on Pregame or in your ready check, outside a game.', '#winFix', 'app'],
     ]],
-    ['Game', 'What’s going on in your game, and how you played once it’s over.', [
+    ['League: Game', 'What’s going on in your game, and how you played once it’s over.', [
       ['In game', 'From the loading screen on: everyone’s rank and last 20 games, when the next Dragon, Elder and Baron come, inhibitors coming back, the gold difference, and your CS and lane against your opponent.',
         'Nothing to set up: Game opens by itself when a game loads (Pregame settings).', '#liveBox', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
@@ -13919,7 +13997,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['How you played', 'After a game: you against your usual games, high elo players and your lane opponent, your gold and CS minute by minute, where you got kills and died, and the objectives each team took.',
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
     ]],
-    ['Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
+    ['League: Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
       ['LP tracker and rank goal', 'Your LP after each ranked game, today’s wins, losses and LP, a chart of your rank, and how many wins your goal takes at the LP you usually win.',
         'Stats, You, Ranked: pick a Goal. It counts the games you play with the app open.', '#lpGoal', 'app'],
       ['Your patterns', 'Your CS a minute, vision and deaths over your last 20 games with Riot’s extra numbers; the games you won from 1,000 gold behind at 15 minutes or lost from 1,000 ahead; your win rate in short and long games, by time of day and day of the week, and after 1, 2 or 3 losses in a row, so you know when to call it a night; and your hall of fame: pentakills, best KDA, most kills and damage, longest win streak and longest game.',
@@ -13938,7 +14016,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Stats, Games.', '#talkMap'],
       ['Rank watch', 'Follow friends by Riot ID to see their rank and LP go up and down, with a feed of their games, rank-ups and pentakills and a popup when something changes.', 'Stats, Players: type their Riot ID and press Follow.', '#watchId', 'app'],
     ]],
-    ['TFT', 'Teamfight Tactics: team codes for League’s Team Planner, your comps, your games, the shop odds, a roll calculator and item recipes.', [
+    ['League: TFT', 'Teamfight Tactics: team codes for League’s Team Planner, your comps, your games, the shop odds, a roll calculator and item recipes.', [
       ['Team codes', 'Build a comp from this set’s champions, with its traits counted, or open a team code from a friend, a streamer or a site. Copy team code puts it on your clipboard for League’s Team Planner, which marks the comp’s champions in your shop during a game.',
         'On TFT, pick champions or paste a code, press Copy team code, then in League open the Team Planner (TFT tab, beside Play, or top right in a game) and press Paste.', '#tftBuild'],
       ['My comps', 'Comps you save, to open or copy again any time. With champions on the board, the comps you’re closest to come first, with who you still need.',
@@ -13953,7 +14031,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Ratings on augment cards', 'When you pick an augment in a TFT game, each card shows its tier from Premade players’ games this set, or your own average place with it until it has 20 games.',
         'Tick “Each augment’s tier” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text on a 16:9 screen), with League in Borderless mode.', '#optTftAugs', 'app'],
     ]],
-    ['Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
+    ['League: Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
       ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade.',
         'Ctrl+Shift+K in a game. Change the key, the length and the quality in Clip settings.', '#kClip', 'app'],
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
@@ -13968,7 +14046,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
     ]],
-    ['Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
+    ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
       ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
@@ -13996,36 +14074,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Jungle clock', 'At 2:45, where their jungler likely is when their first clear ends, like “Lee Sin likely topside around 3:15”, from their own last games and where your minimap first showed them.',
         'Off until you turn it on: the Overlay page, Timers and coach.', '#optJgClock', 'app'],
     ]],
-    ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
-      ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
-        'Pregame settings: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app; on an iPhone, open it from there for notifications. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
-    ]],
-    ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated once a day.', [
-      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters, a compare that picks a friend and then one of their characters, on each character its gear, skills, Daevanion boards and a Next upgrade card, and a Classes page with a guide for each of the 8 classes: skills to level, Daevanion picks and the legion’s best gear.',
-        'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
-    ]],
-    ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
-      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
-        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift.', '#kShow', 'app'],
-      ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
-      ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
-      ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
-      ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
-      ['Your Discord server', 'Your game results with your LP and rank-ups, and your clips under 10 MB, post themselves in a channel of your Discord server.', 'Settings, Your Discord server: paste a webhook link from Discord (Server Settings, Integrations, Webhooks).', '#optHook', 'app'],
-      ['Start with League', 'Premade waits in the background from when Windows starts and opens when League’s client does.', 'Off until you tick it: Settings, App: Start with League.', '#optWithLeague', 'app'],
-      ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
-      ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
-      ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
-      ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The last 500 lines, kept in memory only.',
-        'Settings, App: Copy connection log, right after a drop, then paste it to whoever builds the app.', '#connLogBtn'],
-      ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
-        'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
-      ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
-      ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
-      ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
-      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.',
-        'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept. Whoever runs Premade sees the list in Settings, Our server, with the owner key.', '#optHello, #whoKey'],
-    ]],
   ];
   // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and
   // what to press
@@ -14036,9 +14084,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Your name', 'What friends see on your card and in the chat.', () => (myName ? ['good', myName] : ['bad', 'Not set yet']), () => goBtn('#name')],
     ['Your mic', 'Press Test mic and talk: the bar moves. Then press Set the gate for me, so typing and fans stay out. Headphones keep friends from hearing themselves.',
       () => { const m = readyNow().mic; return m === 'off' ? ['bad', 'Not tested yet'] : CELLS.mic[m]; }, () => goBtn('#micTest')],
-    ['A room with your friends', 'Create room on the Voice page and send your friends the invite link, or join theirs with its code. With the desktop app you can also just start a game: everyone in it with the app lands in its room.',
+    ['A room with your friends', 'Create room on the Rooms page and send your friends the invite link, or join theirs with its code. With the desktop app you can also just start a game: everyone in it with the app lands in its room.',
       () => (room ? ['good', `In room ${room.toUpperCase()}`] : ['', 'Not in a room']), () => goBtn('#copyBtn, #createBtn')],
-    ['Your League screen', 'In your room, press Share League screen, so friends hear you by where your champion is. The desktop app shares the screen picked in Settings, Screen, without asking. Early in a game, hold Space for a moment while you walk.',
+    ['Your League screen', 'In League, Proximity voice, press Share League screen, so friends hear you by where your champion is. The desktop app shares the screen picked in Settings, Screen, without asking. Early in a game, hold Space for a moment while you walk.',
       () => { const r = readyNow(); return r.map ? ['good', 'Minimap found'] : r.share ? ['ok', 'Looking for your minimap'] : ['bad', 'Not shared']; }, () => goBtn('#shareBtn, #createBtn')],
     ['League in Borderless', 'In League: Settings, Video, Window Mode, Borderless. The overlay only shows over League in Borderless, and your screen share finds the minimap best in it.',
       () => CELLS.win[windowMode] || ['', client ? 'Not known until League is open' : 'The desktop app checks it'],
@@ -14177,7 +14225,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   renderPatch();
   checkWindow();
   renderAvoid();
-  view(cleanRoom(hashRoom || '') ? 'voice' : 'profile'); // an invite link opens on its room
+  view('voice');
   renderGames();
   remoteCheck();
   setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives

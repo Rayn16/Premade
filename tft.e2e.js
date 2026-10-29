@@ -220,7 +220,7 @@ async function join(page) { // a voice room by its invite link, which the page r
   try {
     // ---- the website: build a comp, copy its code, open a pasted one, save comps, the shop odds
     const [actx, ana] = await context(browser, { name: 'Ana' });
-    await ana.click('.nav[data-view="tft"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="tft"]');
     await wait(ana, () => document.querySelectorAll('#tftPool .tftunit').length === 7, null, 'Set 18’s Team Planner champions');
     assert.deepStrictEqual(await texts(ana, '#tftPool .tftunit span'), ['Ornn', 'Rakan', 'Xayah', 'Hecarim', 'Ahri', 'Ashe', 'Lux (Solar)'], 'by cost, then name; no row without a number');
     assert.deepStrictEqual(await ana.$$eval('#tftPool .tftunit', (l) => l.map((b) => b.dataset.cost).join('')), '1113455');
@@ -265,7 +265,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     await ana.locator('#tftMine li').getByRole('button', { name: 'Open' }).click();
     assert.deepStrictEqual(await texts(ana, '#tftBoard .tftunit span'), ['Xayah', 'Rakan', 'Lux (Solar)'], 'the saved comp back');
     await ana.reload();
-    await ana.click('.nav[data-view="tft"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="tft"]');
     await wait(ana, () => document.querySelectorAll('#tftBoard .tftunit').length === 3 && document.querySelectorAll('#tftMine li').length === 1, null, 'the comp and My comps after a restart');
     await ana.locator('#tftMine li').getByRole('button', { name: 'Delete' }).click();
     assert.strictEqual(await ana.locator('#tftMine li').count(), 0);
@@ -278,7 +278,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     const [bctx, ben] = await context(browser, { name: 'Ben' });
     await join(ben);
     await wait(ana, () => lpc.peers().some((p) => p.name === 'Ben'), null, 'Ben in Ana’s room', 30000);
-    await ana.click('.nav[data-view="tft"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="tft"]');
     await wait(ana, () => document.querySelectorAll('#tftBoard .tftunit').length === 3, null, 'Ana’s comp');
     await ana.click('#tftShare');
     await wait(ana, () => lpc.toasts().includes('Sent to your room'), null, 'sent');
@@ -296,7 +296,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     // ---- the roll calculator, the item recipes, and My comps closest to the board first
     const [cctx, cam] = await context(browser, { name: 'Cam' });
     cdragonLoads = 0;
-    await cam.click('.nav[data-view="tft"]');
+    await cam.click('#leagueNav'); await cam.click('.nav[data-view="tft"]');
     await wait(cam, () => !document.getElementById('tftRollBox').hidden && !document.getElementById('tftItemsBox').hidden, null, 'the roll calculator and the item recipes');
     assert.deepStrictEqual(await texts(cam, '#tftRollUnit option'), ['Ornn (1)', 'Rakan (1)', 'Xayah (1)', 'Hecarim (3)', 'Ahri (4)', 'Ashe (5)', 'Lux (Solar) (5)'], 'by cost, then name');
     assert.deepStrictEqual([await cam.inputValue('#tftRollUnit'), await cam.inputValue('#tftRollLvl')], ['TFT18_Ornn', '8'], 'the first champion and level 8 to start');
@@ -332,7 +332,7 @@ async function join(page) { // a voice room by its invite link, which the page r
       ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-item/DA_InfinityEdge.png', 'https://raw.communitydragon.org/latest/game/assets/maps/tft/icons/items/hexcore/da_deathblade.tft_set13.png'], 'Data Dragon’s picture, else CommunityDragon’s');
     assert.strictEqual(await cam.locator('#tftWant li').count(), 0, 'no games on the website, so no gold rings');
     await cam.reload();
-    await cam.click('.nav[data-view="tft"]');
+    await cam.click('#leagueNav'); await cam.click('.nav[data-view="tft"]');
     await wait(cam, () => document.querySelectorAll('#tftRec img').length === 16, null, 'the recipes after a restart');
     assert.strictEqual(cdragonLoads, 1, 'kept for the patch');
     // My comps: with champions on the board, the comps sharing most of them first, with who's still needed
@@ -357,7 +357,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     const [pctx, pc] = await context(browser, { app: true });
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
     await wait(pc, () => lpc.lcu().me0, null, 'you in League');
-    await pc.click('.nav[data-view="tft"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="tft"]');
     await wait(pc, () => document.querySelectorAll('#tftGames > li').length === 4 && document.querySelectorAll('#tftGames .gbody button').length === 3, null, 'your TFT games with their team codes');
     assert(await pc.locator('#tftNote').isHidden(), 'no note with League open');
     assert.match(await text(pc, '#tftRanks'), /TFT[\s\S]*Gold II[\s\S]*Double Up[\s\S]*Unranked[\s\S]*Hyper Roll[\s\S]*Blue[\s\S]*3200 rating/);
@@ -379,7 +379,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     await pc.locator('#tftItemsBox').scrollIntoViewIfNeeded();
     await shot(pc, 'tft-recipes');
     // the recipes over a TFT game, when the Overlay page says so: the Layout's sample, then a game from League's client
-    await pc.click('.nav[data-view="overlay"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
     await pc.check('#optOverlayTft');
     await wait(pc, () => [...document.querySelectorAll('#ovHandles .ovhandle')].some((b) => b.textContent === 'TFT items'), null, 'TFT items on the Layout');
     assert.strictEqual(await pc.frameLocator('#ovFrame').locator('.rec img.want').count(), 3, 'drawn by overlay.html');
@@ -462,7 +462,7 @@ async function join(page) { // a voice room by its invite link, which the page r
     await new Promise((r) => setTimeout(r, 2000));
     assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');
     // the same boards on Profile's TFT tab
-    await pc.click('.nav[data-view="profile"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');
     await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');

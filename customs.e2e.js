@@ -160,7 +160,7 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await join(friend, ROOM);
     await wait(rayan, () => lpc.peers().length === 1 && lpc.peers()[0].name === 'Friend', null, 'Friend in the room');
     // the Timers and coach settings on the Overlay page, off until turned on
-    await friend.click('.nav[data-view="overlay"]');
+    await friend.click('#leagueNav'); await friend.click('.nav[data-view="overlay"]');
     assert.deepStrictEqual(await friend.evaluate(() => ['optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'].map((id) => document.getElementById(id).checked)), [true, false, false, false, false]);
     assert.match(await friend.textContent('#h-ovcoach'), /Timers and coach/);
 
@@ -276,11 +276,11 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await wait(friend, () => lpc.customs().length === 1, null, 'the custom game on Friend’s page');
     assert.deepStrictEqual(await rayan.evaluate(() => lpc.customs().map(({ id, w, l }) => ({ id, w, l }))), [{ id: 5001, w: [['Rayan#EUW', 'Ahri'], ['Friend#EUW', 'Jinx']], l: [['Zedd#EUW', 'Zed'], ['Jungler#EUW', 'LeeSin']] }]);
     assert.deepStrictEqual(await friend.evaluate(() => lpc.inhouse().map((e) => [e.name, Math.round(e.r), e.w, e.l])), [['Rayan#EUW', 1016, 1, 0], ['Friend#EUW', 1016, 1, 0], ['Zedd#EUW', 984, 0, 1], ['Jungler#EUW', 984, 0, 1]]);
-    await friend.click('.nav[data-view="voice"]');
+    await friend.click('#leagueNav'); await friend.click('.nav[data-view="prox"]');
     await wait(friend, () => document.getElementById('ladderList').textContent.includes('Rayan: 1016 · 1W 0L'), null, 'the ladder on Friend’s Voice page');
     // Balance teams by the ladder: both of them are on it
     await wait(rayan, () => lpc.peers()[0].ready && lpc.lcu().me0, null, 'Friend’s Riot ID');
-    await rayan.click('.nav[data-view="voice"]');
+    await rayan.click('#leagueNav'); await rayan.click('.nav[data-view="prox"]');
     await rayan.click('#teamsBtn');
     await wait(friend, () => /on the ladder/.test(document.getElementById('teamsBox').textContent), null, 'teams by the ladder');
     for (const who of ['Rayan', 'Friend']) assert.match(await friend.textContent('#teamsBox'), new RegExp(`${who}( \\(you\\))?: 1016 on the ladder`));
@@ -302,7 +302,7 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     LCU.cs = { gameId: 5003, localPlayerCellId: 1, timer: { adjustedTimeLeftInPhase: 30000 }, myTeam: [{ cellId: 0, puuid: 'me-Rayan', gameName: 'Rayan', tagLine: 'EUW', championId: 103, assignedPosition: '' },
       { cellId: 1, puuid: 'me-Friend', gameName: 'Friend', tagLine: 'EUW', championPickIntent: 238, championId: 0, assignedPosition: '' }], theirTeam: [], actions: [[{ id: 1, actorCellId: 1, type: 'pick', completed: false, isInProgress: true, championId: 238 }]], trades: [], positionSwaps: [], pickOrderSwaps: [] };
     await friend.evaluate(() => lpc.league({ inGame: false, phase: 'ChampSelect' }));
-    await friend.click('.nav[data-view="pregame"]');
+    await friend.click('#leagueNav'); await friend.click('.nav[data-view="pregame"]');
     await wait(friend, () => !document.getElementById('fsLine').hidden && /Zed was played earlier in the series: pick another\./.test(document.getElementById('fsLine').textContent), null, 'the used-up champions in champ select');
     assert.match(await friend.textContent('#fsLine'), /^Fearless series, game 2: nobody picks Zed, Lee Sin, Ahri, Jinx\./);
     LCU.cs = null;

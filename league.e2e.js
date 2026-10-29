@@ -498,11 +498,11 @@ const leagueData = (over = {}) => ({
       await ctx.close();
       const [ctx2, old] = await context(browser, { version: '1.5.0' });
       await old.goto(URL_);
-      await old.click('.nav[data-view="pregame"]');
+      await old.click('#leagueNav'); await old.click('.nav[data-view="pregame"]');
       assert.match(await text(old, '#preNote'), /Restart the app to finish its update/);
-      await old.click('.nav[data-view="game"]');
+      await old.click('#leagueNav'); await old.click('.nav[data-view="game"]');
       assert.match(await text(old, '#lcuNote'), /Restart the app to finish its update/);
-      await old.click('.nav[data-view="stats"]');
+      await old.click('#leagueNav'); await old.click('.nav[data-view="stats"]');
       assert(!(await old.locator('#lpQueue').isVisible()) && !(await old.locator('#clipsFolder').isVisible()), 'an old app has no Ranked, Match history or Clips');
       await ctx2.close();
       console.log('Pregame and Game pages: only in the desktop app; an old app is told to restart for its update');
@@ -522,7 +522,7 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await card(page, 'Auto hover').locator('[data-go]').count(), 0, 'no Show me for what needs the desktop app');
       await page.fill('#featFind', 'push talk');
       assert.deepStrictEqual(await texts(page, '.feat:not([hidden]) h3'), ['Mute and push to talk']);
-      assert.deepStrictEqual(await page.$$eval('.fgroup:not([hidden]) h2', (l) => l.map((e) => e.textContent)), ['Voice']);
+      assert.deepStrictEqual(await page.$$eval('.fgroup:not([hidden]) h2', (l) => l.map((e) => e.textContent)), ['Rooms']);
       await page.fill('#featFind', 'qwerty');
       assert(await page.locator('#featNone').isVisible(), 'nothing found');
       await page.fill('#featFind', '');
@@ -627,6 +627,7 @@ const leagueData = (over = {}) => ({
         return p in RIOT ? r.fulfill({ json: RIOT[p], headers: cors }) : r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       });
       await page.goto(URL_);
+      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
       await wait(page, () => window.lpc && lpc.riotOn() && !document.getElementById('proFindBox').hidden, null, 'the Riot ID form');
       assert.match(await text(page, '#proNote'), /^Type your Riot ID above/);
       assert.strictEqual(await page.getAttribute('#proId', 'placeholder'), 'Your Riot ID: Name#TAG');
@@ -721,6 +722,7 @@ const leagueData = (over = {}) => ({
       assert(await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('lpc-profile')); return p.n === 'Ana B#EUW' && p.plat === 'euw1' && !('live' in p); }), 'Ana kept, without whether she’s in a game');
       const before = riotCalls.length;
       await page.reload();
+      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
       await wait(page, () => window.lpc && document.getElementById('proName').textContent === 'Ana B', null, 'Ana kept');
 
       await until(() => riotCalls.length === before + 10, 'Ana updated from Riot, with Bob’s rank in her game');
@@ -750,7 +752,7 @@ const leagueData = (over = {}) => ({
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, Sniper in a game, and Riot's copies of four of your games
-    const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$/.test(k)); // without the copies
+    const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$|\/status\/v4\/platform-data$/.test(k)); // without the copies and Riot's server notices (asked whenever your server is known)
     const MY_RIOT = 'riot-me-'.padEnd(78, '0'), SNIPER = 'riot-sniper-'.padEnd(78, '0'), FOE = 'riot-foe-'.padEnd(78, '0');
     const RIOT = {
       '/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW': { puuid: MY_RIOT, gameName: 'Rayan', tagLine: 'EUW' },
@@ -782,7 +784,7 @@ const leagueData = (over = {}) => ({
       return name;
     });
     const league = (d) => pc.evaluate((d) => lpcClient.emit('league', d), d);
-    const preSettings = async () => { await pc.click('.nav[data-view="pregame"]'); if (!(await pc.$eval('#preSet', (d) => d.open))) await pc.click('#preSet summary'); }; // Pregame settings, opened
+    const preSettings = async () => { await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]'); if (!(await pc.$eval('#preSet', (d) => d.open))) await pc.click('#preSet summary'); }; // Pregame settings, opened
     await pc.goto(URL_);
     await wait(pc, () => window.lpc, null, 'the page');
     lcu.phase = 'None';
@@ -796,7 +798,8 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(deep[9001].ps.map((p) => p.l), ['MIDDLE', 'TOP', 'JUNGLE', 'BOTTOM', 'UTILITY', 'TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'], 'lanes from the timeline');
     assert.deepStrictEqual(deep[9001].tl.lane, [[10, [80, 4000, 5000], [70, 3500, 5200]], [15, [120, 6000, 7500], [105, 5250, 7800]]]);
     console.log('your games in detail: 20 games with their timelines, one game’s lanes guessed right');
-    // ---- Profile, the first page: you in League like a stats site's profile, from League's client
+    // ---- Profile, under League: you in League like a stats site's profile, from League's client
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
     await wait(pc, () => !document.querySelector('.view[data-view="profile"]').hidden && document.getElementById('proName').textContent === 'Rayan' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'your profile');
     assert.strictEqual(await text(pc, '#proTag'), '#EUW');
     assert.strictEqual(await text(pc, '#proSub'), 'EUW · Level 300');
@@ -886,10 +889,10 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Aion 2', 'Remote help', 'Clips', 'Settings', 'Features'], 'the menu in the app');
-    await pc.click('.nav[data-view="game"]');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League'], 'the menu in the app');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
-    await pc.click('.nav[data-view="pregame"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
     assert.match(await text(pc, '#preNote'), /Find a match and this page fills in/);
     // Clash: the other team in your next match, with their ranks and best champions
     await wait(pc, () => !document.getElementById('clashBox').hidden && document.querySelectorAll('#clashRows tr').length === 2 && [...document.querySelectorAll('#clashRows tr')].every((tr) => /LP[\s\S]*Garen/.test(tr.textContent)), null, 'Clash scouting');
@@ -924,7 +927,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpc.slot() >= 0, null, 'a room');
 
     // ---- the phone remote on Pregame: a QR code and a link, and the phone connects
-    await pc.click('.nav[data-view="pregame"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
     await wait(pc, () => !document.getElementById('remoteBox').hidden && /remote\.html/.test(document.getElementById('remoteLink').href), null, 'the phone remote panel');
     const dark = await pc.evaluate(() => { const d = document.getElementById('qr').getContext('2d').getImageData(0, 0, 232, 232).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 50) n++; return n; });
     assert(dark > 3000, `the QR code is drawn (${dark} dark pixels)`);
@@ -1322,7 +1325,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.textContent('#gameTips h3'), 'Tips: Ahri against Zed');
     assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
     await shot(pc, 'loading-screen');
-    await pc.click('.nav[data-view="overlay"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
     await pc.uncheck('#optOverlayBoard');
     await wait(pc, () => !lpcClient.lastOverlay.board, null, 'no ranks on the loading screen when Settings says so');
     await pc.check('#optOverlayBoard');
@@ -1331,7 +1334,7 @@ const leagueData = (over = {}) => ({
     await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => !!lpcClient.lastOverlay.board && lpc.toasts().includes('Overlay back on.'), null, 'and back');
-    await pc.click('.nav[data-view="game"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane, also on the Game page; off on the Overlay page, hidden by the key');
 
     // ---- in game: everyone scouted, timers, gold, the overlay and the phone
@@ -1361,7 +1364,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
     await wait(pc, () => lpcClient.lastOverlay.lane === 'vs Zed: CS +10 · gold +3.1k', null, 'your lane on the overlay: CS and item gold against Zed');
     // the overlay picker, see-through slider and key
-    await pc.click('.nav[data-view="overlay"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
     await pc.uncheck('#optOverlayCs');
     await wait(pc, () => lpcClient.lastOverlay.cs === '' && !!lpcClient.lastOverlay.game, null, 'the CS counter off the overlay');
     await pc.check('#optOverlayCs');
@@ -1381,7 +1384,7 @@ const leagueData = (over = {}) => ({
     await league(leagueData({ t: 672 }));
     await wait(pc, () => lpc.toasts().includes('Dragon in 30 seconds') && lpc.played().includes('spawn'), null, 'the Dragon warning');
     // ARAM: Mayhem: what kind of augment suits Ahri, on the overlay at the start and while dead, on the Game page all game
-    await pc.click('.nav[data-view="game"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     assert(await pc.evaluate(() => !lpcClient.lastOverlay.aug && document.getElementById('augTips').hidden), 'no augment tips in a ranked game');
     const AHRI_AUG = 'Augments for Ahri: look for ability power, ability haste, magic penetration and mana; skip attack speed and critical strikes.';
     await league(leagueData({ mode: 'KIWI', t: 30 }));
@@ -1394,7 +1397,7 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'in-game');
     await shot(phone, 'phone-in-game');
     console.log(`in game: all ten scouted (one found by Riot ID), timers and gold: ${await pc.evaluate(() => lpcClient.lastOverlay.game)}`);
-    await pc.click('.nav[data-view="profile"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
     await wait(pc, () => /^In game as Ahri · 1\d min$/.test(document.getElementById('proStatus').textContent), null, 'in game on your profile');
 
     // ---- clips: the key saves what was recorded, a multikill saves a clip by itself; both play
@@ -1442,7 +1445,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpc.toasts().some((t) => /^Clip saved of your multikill: Clip 3\.webm$/.test(t)), null, 'the multikill clip', 15000);
     console.log(`clips: the key (${full.d.toFixed(1)} s), a 4 s cut (${short.d.toFixed(1)} s, plays from 0) and a multikill, all WebM with video and sound`);
     // the gallery: each clip with its picture; keep one, rename one, drag one out, play and cut one, bin one
-    await pc.click('.nav[data-view="clips"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="clips"]');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip .cname')].map((e) => e.textContent).join() === 'Clip 3,Clip 2,Clip 1', null, 'the gallery');
     assert(await pc.$$eval('#clipGrid .shot', (imgs) => imgs.every((i) => i.src.startsWith('data:image/jpeg;base64,') && i.naturalWidth === 320)), 'a picture of the screen with each clip');
     const card = (n) => `:is(#clipGrid, #savedGrid) .clip:has(.cname:text-is("${n}"))`;
@@ -1557,7 +1560,7 @@ const leagueData = (over = {}) => ({
     assert(r.players.every((p) => p.score >= 0 && p.score <= 100) && r.players[0].score === Math.max(...r.players.map((p) => p.score)), 'scores out of 100, yours the best');
     assert(r.gold && r.gold.length >= 1, 'the gold over the game was kept');
     assert.deepStrictEqual(await pc.evaluate(() => lpc.lpLog().map((e) => [e.id, e.delta, e.win])), [[1, -15, false], [GAME, 18, true]]);
-    await pc.click('.nav[data-view="game"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     await wait(pc, () => document.querySelector('#postBox .analysis .duo'), null, 'how you played, on the Game page');
     // how you played, against your usual Ahri games, high elo Ahri players and Zed: what stood out, the table (▲ better
     // and ▼ worse than your usual, else high elo, else Zed), your damage and wards, your gold and CS against Zed, the
@@ -1580,7 +1583,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#postBox .duo .stack .hint'), 'Objectives: your team took 2 dragons, 1 Baron, 3 towers; theirs 1 Rift Herald, 1 tower.');
     assert(await pc.evaluate(() => document.querySelector('#postBody .report').firstElementChild.matches('.rmore')), 'how you played first, then everyone’s scores');
     await shot(pc, 'post-game');
-    await pc.click('.nav[data-view="stats"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
     await wait(pc, () => /Gold II · 63 LP/.test(document.getElementById('rankNow').textContent), null, 'the rank');
     assert.deepStrictEqual(await embs(pc, '#rankNow .emb'), ['TFT_Regalia_Gold.png']);
     assert.strictEqual(await text(pc, '#lpToday'), 'Today: 1W 0L, +18 LP.');
@@ -1606,7 +1609,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !document.getElementById('recapSave').hidden && document.getElementById('recapSave').href.startsWith('data:image/png'), null, 'the season recap');
     // your profile with today's LP; and the profile link: your rank, record and top champions on a page anyone can
     // open, all of it in the link
-    await pc.click('.nav[data-view="profile"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
     await wait(pc, () => /\+18 LP/.test(document.getElementById('proRanks').textContent), null, 'today’s LP on your profile');
     assert.deepStrictEqual((await proRanks())[0], 'Solo/Duo|Gold II|63 LP · 31W 25L · 55% · today 1W 0L, +18 LP|Peak this season: Gold I');
     await pc.click('#profileBtn');
@@ -1630,7 +1633,7 @@ const leagueData = (over = {}) => ({
     await vctx.close();
     console.log(`profile link: ${plink.length} characters, opened on a phone`);
     await shot(pc, 'profile');
-    await pc.click('.nav[data-view="stats"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
     await shot(pc, 'stats-you');
     // the Champions tab: your champions, nemeses and allies, the collection, patch changes, and a champion's page
     await pc.click('.tab[data-tab="champs"]');
@@ -1826,7 +1829,7 @@ const leagueData = (over = {}) => ({
     Object.assign(lcu.cs, { actions: [], benchEnabled: true, allowRerolling: true, rerollsRemaining: 1, benchChampions: [{ championId: 37, isPriority: false }, { championId: 103, isPriority: false }] });
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
-    await pc.click('.nav[data-view="pregame"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
     const BENCH = [['Ahri You: 8 games, 75% won · Mastery 7', 'false'], ['Garen Yours now · You: 4 games, 25% won · Mastery 4', 'true'], ['Sona You: 3 games, 100% won', 'false']];
     await wait(pc, (b) => !document.getElementById('rerollBtn').hidden && b === JSON.stringify([...document.querySelectorAll('#bench .champ')].map((e) => [e.innerText.replace(/\s+/g, ' '), e.getAttribute('aria-pressed')])), JSON.stringify(BENCH), 'the bench'); // as shown: innerText needs it on screen
     assert.strictEqual(await text(pc, '#rerollBtn'), 'Reroll (1 left)');
@@ -1861,7 +1864,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#sbVersion'), 'App 1.11.0 (2.0.0 is out)');
     await pc.click('#sbVersion');
     assert(await pc.evaluate(() => document.getElementById('newsDlg').open), 'What’s new');
-    assert.match(await text(pc, '#newsList'), /^October 28: voice and screens for friends who couldn’t connect\s+Friends whose home routers can’t reach each other[\s\S]*October 28: smoother screen shares for everyone watching\s+Each friend now gets your screen at the size they watch it[\s\S]*October 28: a friend’s screen share no longer stays stuck loading\s+When your screen’s connection to a friend broke[\s\S]*October 28: no more muffled sound in voice chat\s+A Bluetooth headset plays everything in phone quality[\s\S]*October 28: friends no longer hear themselves on your screen share\s+Your screen share’s sound used to pick up[\s\S]*October 28: screen share stays sharp\s+A room screen share no longer turns blurry[\s\S]*October 27: your main screen shared by itself\s+Share my screen by itself now shares your main screen[\s\S]*October 27: Remote help\s+Remote control is now its own page[\s\S]*October 27: Aion 2\s+A new Aion 2 page[\s\S]*October 27: faster Mayhem augment ratings\s+ARAM: Mayhem’s augment cards are read faster[\s\S]*October 23: Mayhem ratings inside the cards\s+Mayhem pick rates now sit inside each augment card near its bottom edge[\s\S]*October 23: a dedicated ARAM: Mayhem overlay\s+Premade detects ARAM: Mayhem from League’s game mode or queue[\s\S]*October 23: Mayhem rates use your champion\s+The overlay now matches champion pick-rate data by Riot ID or display name[\s\S]*October 23: smaller Mayhem ratings on the augment cards\s+Mayhem ratings now sit higher on the augment cards and take up less space[\s\S]*October 23: Mayhem augment rates show zero clearly\s+When ARAM: Mayhem has no recorded pick rate for an augment on your champion[\s\S]*October 23: share any screen, and cleaner Mayhem overlay ratings\s+In a voice room, Share screen or app lets you share an open app window or an entire display[\s\S]*October 23: remembered voice controls and easier room and screen sharing[\s\S]*October 22: clearer voice recovery, room status and louder voices\s+Voice cards now show when someone is reconnecting[\s\S]*October 22: Windows voice invites and open rooms\s+Voice-room invites can now arrive as Windows notifications[\s\S]*October 22: Discord audio filtered from screen shares\s+In the Windows app, screen-share sound now keeps game and other system audio while excluding the Discord desktop app and its child processes[\s\S]*October 22: screen-share sound controls and voice recovery\s+Screen-share sound is now off by default[\s\S]*October 22: sound with screen share, and sharing as you join\s+A shared screen can come with its sound[\s\S]*October 22: a clip editor in Premade, and K\/D\/A on your clips\s+Open in Editor, in the clip player[\s\S]*October 22: past voice sessions\s+Past sessions, under the chat[\s\S]*October 22: match videos as cards, and highlight icons\s+Each match video on the Clips page is now a card[\s\S]*October 22: only friends who are online\s+Friends on the Voice page lists only friends with Premade online now[\s\S]*October 22: room chat like Discord\s+Send pictures, GIFs and videos in the room chat[\s\S]*October 22: friends with League closed, and who’s online\s+Friends on the Voice page now keeps your League friends[\s\S]*October 22: ARAM: Mayhem pick rates from arammayhem\.com\s+The bars on ARAM: Mayhem’s augment cards now show[\s\S]*October 21: a new video player, and sharper, smoother recordings\s+Clips and match videos now play in a new player[\s\S]*October 21: who has Premade, in Settings\s+Whoever runs Premade can now see who has it right in Settings[\s\S]*October 21: more ARAM: Mayhem games for the augment pick rates\s+Premade now also sends[\s\S]*October 21: watch each other’s screens in the room\s+While you share your screen, everyone in your room[\s\S]*October 21: your friends, and invites to your room\s+Your group, on the Voice page, has a Friends tab[\s\S]*October 21: your League screen shared by itself\s+In the desktop app your League screen is now shared[\s\S]*October 21: overlay fixes\s+Hiding the overlay with Alt\+V now lasts for that game only[\s\S]*October 21: a voice for your callouts\s+Spoken callouts can use any voice[\s\S]*October 21: see and change your build\s+What to buy next no longer suggests[\s\S]*October 21: Premade starts with League\s+Tick “Start with League”[\s\S]*October 21: every match recorded, with its highlights\s+The Clips page has Whole matches and highlights[\s\S]*October 20: righter callouts, and Alt\+V for the overlay\s+Alt\+V now shows everyone’s rank[\s\S]*October 20: augment ratings for TFT and ARAM: Mayhem\s+TFT’s augment cards now show each augment’s tier[\s\S]*October 20: Premade moves to GitHub\s+Premade’s site is now at rayn16\.github\.io\/Premade[\s\S]*October 20: ratings on TFT’s augment cards\s+When you pick an augment in a TFT game[\s\S]*October 20: your chance to win in a surrender vote\s+When a surrender vote starts, your team’s chance to win pops up[\s\S]*October 20: champ select on your phone\s+After you accept a match, the phone remote shows champ select[\s\S]*October 20: practice tools, whole games on video and champion colours\s+Combo trainer: in Practice Tool[\s\S]*October 20: your group, League chat and Discord\s+Your group, on the Voice page: make a squad[\s\S]*October 20: builds at your rank, one-tricks and pros\s+Builds at your rank: our server now counts Emerald and Diamond games[\s\S]*October 20: help while you’re dead, and your chance to win\s+While you’re dead on Summoner’s Rift[\s\S]*October 20: dodge, an avoid list and ladder places\s+Dodge leaves champ select in one click[\s\S]*October 20: timers, a coach and customs\s+Enemy timers: say “Premade, mid flash”[\s\S]*October 20: TFT helpers\s+A roll calculator on TFT[\s\S]*October 20: who has Premade\s+Our server now keeps a list of who has Premade[\s\S]*October 20: the Overlay page\s+The overlay has a page of its own[\s\S]*October 20: a TFT page\s+TFT has a page of its own[\s\S]*October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? The Overlay page can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
+    assert.match(await text(pc, '#newsList'), /^October 29: Premade is now a place to hang out, with League on its own page\s+Premade now opens on Rooms[\s\S]*October 28: voice and screens for friends who couldn’t connect\s+Friends whose home routers can’t reach each other[\s\S]*October 28: smoother screen shares for everyone watching\s+Each friend now gets your screen at the size they watch it[\s\S]*October 28: a friend’s screen share no longer stays stuck loading\s+When your screen’s connection to a friend broke[\s\S]*October 28: no more muffled sound in voice chat\s+A Bluetooth headset plays everything in phone quality[\s\S]*October 28: friends no longer hear themselves on your screen share\s+Your screen share’s sound used to pick up[\s\S]*October 28: screen share stays sharp\s+A room screen share no longer turns blurry[\s\S]*October 27: your main screen shared by itself\s+Share my screen by itself now shares your main screen[\s\S]*October 27: Remote help\s+Remote control is now its own page[\s\S]*October 27: Aion 2\s+A new Aion 2 page[\s\S]*October 27: faster Mayhem augment ratings\s+ARAM: Mayhem’s augment cards are read faster[\s\S]*October 23: Mayhem ratings inside the cards\s+Mayhem pick rates now sit inside each augment card near its bottom edge[\s\S]*October 23: a dedicated ARAM: Mayhem overlay\s+Premade detects ARAM: Mayhem from League’s game mode or queue[\s\S]*October 23: Mayhem rates use your champion\s+The overlay now matches champion pick-rate data by Riot ID or display name[\s\S]*October 23: smaller Mayhem ratings on the augment cards\s+Mayhem ratings now sit higher on the augment cards and take up less space[\s\S]*October 23: Mayhem augment rates show zero clearly\s+When ARAM: Mayhem has no recorded pick rate for an augment on your champion[\s\S]*October 23: share any screen, and cleaner Mayhem overlay ratings\s+In a voice room, Share screen or app lets you share an open app window or an entire display[\s\S]*October 23: remembered voice controls and easier room and screen sharing[\s\S]*October 22: clearer voice recovery, room status and louder voices\s+Voice cards now show when someone is reconnecting[\s\S]*October 22: Windows voice invites and open rooms\s+Voice-room invites can now arrive as Windows notifications[\s\S]*October 22: Discord audio filtered from screen shares\s+In the Windows app, screen-share sound now keeps game and other system audio while excluding the Discord desktop app and its child processes[\s\S]*October 22: screen-share sound controls and voice recovery\s+Screen-share sound is now off by default[\s\S]*October 22: sound with screen share, and sharing as you join\s+A shared screen can come with its sound[\s\S]*October 22: a clip editor in Premade, and K\/D\/A on your clips\s+Open in Editor, in the clip player[\s\S]*October 22: past voice sessions\s+Past sessions, under the chat[\s\S]*October 22: match videos as cards, and highlight icons\s+Each match video on the Clips page is now a card[\s\S]*October 22: only friends who are online\s+Friends on the Voice page lists only friends with Premade online now[\s\S]*October 22: room chat like Discord\s+Send pictures, GIFs and videos in the room chat[\s\S]*October 22: friends with League closed, and who’s online\s+Friends on the Voice page now keeps your League friends[\s\S]*October 22: ARAM: Mayhem pick rates from arammayhem\.com\s+The bars on ARAM: Mayhem’s augment cards now show[\s\S]*October 21: a new video player, and sharper, smoother recordings\s+Clips and match videos now play in a new player[\s\S]*October 21: who has Premade, in Settings\s+Whoever runs Premade can now see who has it right in Settings[\s\S]*October 21: more ARAM: Mayhem games for the augment pick rates\s+Premade now also sends[\s\S]*October 21: watch each other’s screens in the room\s+While you share your screen, everyone in your room[\s\S]*October 21: your friends, and invites to your room\s+Your group, on the Voice page, has a Friends tab[\s\S]*October 21: your League screen shared by itself\s+In the desktop app your League screen is now shared[\s\S]*October 21: overlay fixes\s+Hiding the overlay with Alt\+V now lasts for that game only[\s\S]*October 21: a voice for your callouts\s+Spoken callouts can use any voice[\s\S]*October 21: see and change your build\s+What to buy next no longer suggests[\s\S]*October 21: Premade starts with League\s+Tick “Start with League”[\s\S]*October 21: every match recorded, with its highlights\s+The Clips page has Whole matches and highlights[\s\S]*October 20: righter callouts, and Alt\+V for the overlay\s+Alt\+V now shows everyone’s rank[\s\S]*October 20: augment ratings for TFT and ARAM: Mayhem\s+TFT’s augment cards now show each augment’s tier[\s\S]*October 20: Premade moves to GitHub\s+Premade’s site is now at rayn16\.github\.io\/Premade[\s\S]*October 20: ratings on TFT’s augment cards\s+When you pick an augment in a TFT game[\s\S]*October 20: your chance to win in a surrender vote\s+When a surrender vote starts, your team’s chance to win pops up[\s\S]*October 20: champ select on your phone\s+After you accept a match, the phone remote shows champ select[\s\S]*October 20: practice tools, whole games on video and champion colours\s+Combo trainer: in Practice Tool[\s\S]*October 20: your group, League chat and Discord\s+Your group, on the Voice page: make a squad[\s\S]*October 20: builds at your rank, one-tricks and pros\s+Builds at your rank: our server now counts Emerald and Diamond games[\s\S]*October 20: help while you’re dead, and your chance to win\s+While you’re dead on Summoner’s Rift[\s\S]*October 20: dodge, an avoid list and ladder places\s+Dodge leaves champ select in one click[\s\S]*October 20: timers, a coach and customs\s+Enemy timers: say “Premade, mid flash”[\s\S]*October 20: TFT helpers\s+A roll calculator on TFT[\s\S]*October 20: who has Premade\s+Our server now keeps a list of who has Premade[\s\S]*October 20: the Overlay page\s+The overlay has a page of its own[\s\S]*October 20: a TFT page\s+TFT has a page of its own[\s\S]*October 20: the Features page\s+Features, the new page at the bottom of the menu[\s\S]*October 20: minimap reminders and their jungler\s+New to League\? The Overlay page can remind you[\s\S]*October 20: voice fixes\s+Unplug or switch your headset mid-game[\s\S]*October 20: room passwords, host mutes and new modes\s+Locked rooms are safer[\s\S]*October 20: Profile and Stats\s+Pick a rank goal in Stats > You[\s\S]*October 20: app 1\.13 and the test version\s+Settings > App has “Use the test version”[\s\S]*October 20: more in your game reports and trends\s+Game reports have Riot’s extra numbers for everyone[\s\S]*October 20: champ select helpers\s+The draft board ranks safe blind picks higher[\s\S]*October 20: phone notifications, chat on your phone and a CS drill\s+The phone remote can tell you when a match is found[\s\S]*October 20: the minimap tracker\s+Premade finds your minimap on the left side[\s\S]*October 20: clips by voice\s+Say “Premade, clip that” in a game[\s\S]*October 19: a Custom theme, App size and a new logo\s+Settings > Look has a Custom theme[\s\S]*October 19: app 1\.11, your lobby on Pregame\s+Pregame runs your lobby now[\s\S]*October 19: red and black, the draft, past ranks and how you played\s+Premade is red and black now[\s\S]*October 19: everyone’s rank on the loading screen, and tips for your lane\s+On League’s loading screen the overlay shows all ten players[\s\S]*October 19: queues, TFT and live games\s+Profile has a tab for each queue[\s\S]*October 19: older games on Profile\s+Profile lists your last 20 games[\s\S]*October 19: Pregame\s+Pregame is a new page in the app[\s\S]*October 19: voice in one place\s+Room, Players and Map are now one Voice page[\s\S]*October 19: high elo runes and builds\s+In champ select you now get the most popular runes[\s\S]*October 19: your League profile first\s+Premade now opens on your League profile[\s\S]*October 19: League Proximity Chat is now Premade\s+Same app, new name[\s\S]*October 19: profile link and server stats\s+Profile link on the Stats page[\s\S]*October 19: room games\s+Room games on the Voice page[\s\S]*October 19: League stats\s+Champ select: your own runes[\s\S]*October 19: app 1\.7[\s\S]*Clips page/i);
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
@@ -1872,7 +1875,7 @@ const leagueData = (over = {}) => ({
     lcu.replay[9003] = 'error';
     await pc.evaluate(() => lpc.patchNow());
     await wait(pc, () => /^Patch check for League 16\.21: .*, replays \(not seen yet\)\.$/.test(document.getElementById('patchNote').textContent), null, 'the new patch');
-    await pc.click('.nav[data-view="stats"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
     await pc.click('.tab[data-tab="games"]');
     await pc.click('#matches li:nth-child(3) summary');
     await wait(pc, () => document.querySelector('#matches li:nth-child(3) .replay')?.textContent === 'Download the replay', null, 'a replay to download');
@@ -1910,7 +1913,7 @@ const leagueData = (over = {}) => ({
     const practice = (room, t, cs) => league(leagueData({ mode: 'PRACTICETOOL', room, t, events: [],
       players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl: 9, k: 0, d: 0, a: 0, cs, items: [] }] }));
     lcu.phase = 'InProgress';
-    await pc.click('.nav[data-view="game"]');
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     for (const [t, cs] of [[300, 30], [480, 60], [601, 80]]) await practice('gdrill000001', t, cs);
     await wait(pc, () => lpc.toasts().includes('CS drill: 80+ CS at 10:00. You can type your exact CS on the Game page.'), null, 'the first drill');
     for (const [t, cs] of [[300, 40], [450, 60], [602, 90]]) await practice('gdrill000001', t, cs); // the same champion again: the same room code, its clock started again
@@ -1956,6 +1959,7 @@ const leagueData = (over = {}) => ({
     await sp.goto(URL_);
     await wait(sp, () => window.lpc, null, 'the page');
     await sp.evaluate(() => lpcClient.emit('league', { inGame: false, phase: '' }));
+    await sp.click('#leagueNav'); await sp.click('.nav[data-view="profile"]');
     await wait(sp, () => document.getElementById('proName').textContent === 'Rayan' && document.getElementById('proStatus').textContent === 'League isn’t running', null, 'your saved profile with League closed');
     assert.match(await text(sp, '#proNote'), /^As of .+\. Start League to update it\.$/);
     await wait(sp, () => !document.getElementById('proPast').hidden, null, 'your past ranks kept');
@@ -1986,7 +1990,7 @@ const leagueData = (over = {}) => ({
       await wait(hp, () => window.lpc, null, 'the page');
       await hl({ inGame: false, phase: 'None' });
       await wait(hp, () => lpc.lcu().me0 && lpc.lcu().hist === 20, null, 'your account and match history');
-      await hp.click('.nav[data-view="pregame"]');
+      await hp.click('#leagueNav'); await hp.click('.nav[data-view="pregame"]');
       await wait(hp, () => !document.getElementById('winFix').hidden, null, 'League in Fullscreen, on Pregame');
       // the tier list: arrows for Ahri, rising since last patch, and Zed, falling; how often each was banned; a row
       // opens that champion's page in the role
@@ -2061,7 +2065,7 @@ const leagueData = (over = {}) => ({
       await hp.click('#readyRows tr td:last-child button');
       await wait(hp, () => document.querySelector('#readyRows tr td:last-child').textContent === 'Borderless', null, 'Borderless now');
       assert.deepStrictEqual([lcu.general, lcu.saved], [{ WindowMode: 2, Width: 1920, Height: 1080 }, { WindowMode: 2, Width: 1920, Height: 1080 }], 'League’s own settings, saved');
-      await hp.click('.nav[data-view="pregame"]');
+      await hp.click('#leagueNav'); await hp.click('.nav[data-view="pregame"]');
       await wait(hp, () => document.getElementById('winFix').hidden, null, 'no Fullscreen fix any more');
       console.log('Fullscreen fix: Borderless in one click from the ready check, through League’s own settings');
       // in a game the explorer hides, like all advice
@@ -2106,7 +2110,7 @@ const leagueData = (over = {}) => ({
       await wait(ep, () => window.lpc, null, 'the page');
       await el({ inGame: false, phase: 'None' });
       await wait(ep, () => lpc.lcu().me0 && lpc.lcu().hist === 20, null, 'your account and match history');
-      await ep.click('.nav[data-view="pregame"]');
+      await ep.click('#leagueNav'); await ep.click('.nav[data-view="pregame"]');
       // the tier list on Emerald and Diamond's games, for your rank; Challenger and Grandmaster's a click away
       await wait(ep, () => !document.getElementById('tierBox').hidden && !document.getElementById('tierEloBox').hidden && document.querySelectorAll('#tierRows tr').length === 2, null, 'the tier list for your rank');
       assert.strictEqual(await ep.inputValue('#tierElo'), 'ed');
@@ -2154,7 +2158,7 @@ const leagueData = (over = {}) => ({
       assert(await ep.isVisible('#eloBox') || (await ep.click('#preSet summary'), await ep.isVisible('#eloBox')), 'Most popular in, in Pregame settings');
       assert.strictEqual(await ep.inputValue('#optElo'), 'auto');
       // Stats: when to stop, then champions to try for Ahri (you play Zed already)
-      await ep.click('.nav[data-view="stats"]');
+      await ep.click('#leagueNav'); await ep.click('.nav[data-view="stats"]');
       await ep.click('.tab[data-tab="you"]');
       await wait(ep, () => !document.getElementById('stops').hidden, null, 'when to stop');
       assert.deepStrictEqual(await texts(ep, '#stops tbody tr'), ['After a win 7 2W 5L · 29%', 'After a loss 5 1W 4L · 20%', 'After 2 losses in a row 3 2W 1L · 67%', 'After 3 or more in a row 1 1W 0L · 100%',

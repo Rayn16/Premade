@@ -331,7 +331,7 @@ const game = (over = {}) => ({
         Object.assign(speechSynthesis, { getVoices: () => voices, speak: (u) => spoken.push([u.text, u.voice ? u.voice.name : '', u.pitch || 1]), cancel: () => {} });
         speechSynthesis.dispatchEvent(new Event('voiceschanged'));
       });
-      await page.click('.nav[data-view="overlay"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
       assert.deepStrictEqual(await page.$$eval('#optCallVoice option', (l) => l.map((o) => o.textContent)), ['My computer’s usual voice', 'A girl’s voice', 'David', 'Zira (woman)']);
       assert.strictEqual(await page.inputValue('#optCallVoice'), 'girl');
       await page.click('#callVoiceTry');
@@ -350,7 +350,7 @@ const game = (over = {}) => ({
     {
       const [c, page] = await context(browser, {});
       await page.evaluate((d) => lpcClient.emit('league', d), game());
-      await page.click('.nav[data-view="overlay"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
       const handles = () => page.$$eval('#ovHandles .ovhandle', (l) => l.map((b) => b.dataset.part));
       await wait(page, () => document.querySelectorAll('#ovHandles .ovhandle').length === 11, null, 'a box over each part');
       assert.deepStrictEqual(await handles(), ['', 'game', 'cs', 'me', 'talk', 'chat', 'toasts', 'buy', 'after', 'tips', 'screen']);

@@ -179,7 +179,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
     // ---- while you're dead: your lane's tips, and what to buy next against their team
     {
       const [c, page] = await context(browser, 'Rayan', { lcu: true, notes: { '103|238': 'stay out of the shadow’s range at level 6' } });
-      await page.click('.nav[data-view="game"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
       await wait(page, () => !!lpc.lcu().me0, null, 'you, from League’s client');
       await wait(page, () => lpc.winChance() != null, null, 'the items, for the gold');
@@ -348,7 +348,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await ben.mouse.down();
       await ben.mouse.move(at[0] + 40, at[1], { steps: 4 });
       await ben.mouse.up();
-      await wait(ana, () => (lpcClient.points || []).some((m) => m.d) && lpcClient.points.at(-1).d === false && lpc.toasts().includes('Ben is pointing at your screen. Turn it off under Players on the Voice page.'), null, 'Ben’s pointer and line in Ana’s app');
+      await wait(ana, () => (lpcClient.points || []).some((m) => m.d) && lpcClient.points.at(-1).d === false && lpc.toasts().includes('Ben is pointing at your screen. Turn it off under Players in your room.'), null, 'Ben’s pointer and line in Ana’s app');
       const pt = await ana.evaluate(() => lpcClient.points[0]);
       assert(pt.who === 'Ben' && Math.abs(pt.x - 0.5) < 0.02 && Math.abs(pt.y - 0.5) < 0.02, `Ben’s pointer in the middle of Ana’s screen: ${JSON.stringify(pt)}`);
       await cat.evaluate(() => lpc.send({ t: 'pt', x: 0.1, y: 0.1 }));

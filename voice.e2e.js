@@ -143,6 +143,8 @@ function fakeSpeakers() {
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
 // Data Dragon's champions: Test Champ and 21 more for the room games' draft, each with a story (blurb)
 const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
+const toProx = async (p) => { await p.click('#leagueNav'); await p.click('.nav[data-view="prox"]'); }; // League, Proximity voice: the map, modes, room games, tracking
+const toRooms = (p) => p.click('.nav[data-view="voice"]');
 const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
 ['Annie', 'Ashe', 'Garen', 'Lux', 'Darius', 'Jinx', 'Leona', 'Zed', 'Ahri', 'Thresh', 'Vayne', 'Malphite', 'Ezreal', 'Sona', 'Yasuo', 'Teemo', 'Caitlyn', 'Nasus', 'Morgana', 'Riven', 'Braum'].forEach((n, i) => {
   CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i }, blurb: story(n) };
@@ -288,9 +290,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log(`smart noise removal: fan noise down to ${(kept.fan * 100).toFixed(1)}%, the voiced sound kept at ${(kept.voice * 100).toFixed(0)}%`);
     assert(kept.fan < 0.1 && kept.voice > 0.7, 'noise removal takes out the noise and keeps the voice');
 
-    // the first page is your League profile; in a browser, with no League and no Riot data, it says where it comes from
-    assert(await ana.isVisible('.view[data-view="profile"]') && await ana.isHidden('#createBtn'), 'Profile first');
-    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Voice', 'Stats', 'TFT', 'Aion 2', 'Remote help', 'Settings', 'Features'], 'the menu in a browser: all of voice on one page');
+    // the first page is Rooms; League's pages are under League. Its profile, in a browser with no League and no Riot data, says where it comes from
+    assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isHidden('#leagueTabs'), 'Rooms first');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League'], 'the menu in a browser: hangout pages, then League');
+    await ana.click('#leagueNav');
+    assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
+    await ana.click('.nav[data-view="profile"]');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
     // Settings > App links Premade's Terms of Use and Privacy Policy (Riot wants both for a production key)
@@ -439,9 +444,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // screen share: Ana shares again (her real minimap through the browser's video pipeline)
     await ana.selectOption('#optShareQ', '720');
     await ben.selectOption('#optShareQ', '720'); // keep the test's reciprocal room shares light on the headless browser
+    await toProx(ana); await toProx(ben);
     await ana.click('#shareBtn');
     await ben.evaluate(() => setBox(0.4, 0.6));
     await ben.click('#shareBtn');
+    await toRooms(ana); await toRooms(ben);
     await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.video > 0), null, 'Ben’s screen shown in Ana’s Voice page');
     await waitFor(ben, () => lpc.seen().some((s) => s.name === 'Ana' && s.video > 0), null, 'Ana’s screen shown in Ben’s Voice page');
     await ana.evaluate(() => lpc.screenStall('Ben'));
@@ -473,6 +480,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     await hears(ana, ['Ben'], 1, 'Ben close by: full volume');
     await hears(ben, ['Ana'], 1, 'Ana close by: full volume');
+    await toProx(ana);
     await waitFor(ana, () => lpc.map().some((m) => m.name === 'You') && lpc.map().some((m) => m.name === 'Ben'), null, 'Ana and Ben on the live map'); // it's drawn once a second
     const marks = await ana.evaluate(() => lpc.map());
     assert(marks.some((m) => m.name === 'You' && Math.abs(m.x - me.x) < 0.01) && marks.some((m) => m.name === 'Ben'), `live map shows Ana and Ben: ${JSON.stringify(marks)}`);
@@ -542,6 +550,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.$eval('#range', (el) => { el.value = 1200; el.dispatchEvent(new Event('input')); });
 
     // Ben's card on Ana's page: mute, and a volume slider
+    await toRooms(ana);
     await ana.click('#players .player .mute');
     assert.strictEqual((await volOf(ana, 'Ben')).volume, 0, 'muted player is silent');
     await ana.click('#players .player .mute');
@@ -554,6 +563,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('player card: mute and volume slider work');
 
     // "Not my champion" makes Ben's page forget the icon and use the camera box until it learns again
+    await toProx(ben);
     assert(await ben.isVisible('#mini') && await ben.isVisible('#relearnBtn'), 'minimap preview and Not my champion button shown');
     await ben.click('#relearnBtn');
     await waitFor(ben, () => !lpc.me().learned && lpc.me().by === 'camera', null, 'Ben\'s icon forgotten');
@@ -593,6 +603,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('shortcuts: mute toggle and push to talk');
 
     // Ben stops sharing: Ana is in a game (her minimap is tracked), so Ben, whose spot isn't known now, is silent both ways
+    await toProx(ben);
     await ben.click('#shareBtn');
     await hears(ben, ['Ana'], 0, 'Ben (not sharing) doesn\'t hear Ana, who is in a game');
     await hears(ana, ['Ben'], 0, 'Ana doesn\'t hear Ben once Ben\'s position is stale');
@@ -601,6 +612,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // Ben leaves and rejoins from the join screen: same slot, voice comes back. Out of the room, Ben's mic closes.
     await ben.evaluate(() => { window.benMic = lpc.raw().getAudioTracks()[0]; });
+    await toRooms(ben);
     await ben.click('#leaveBtn');
     await waitFor(ana, () => lpc.peers().length === 0, null, 'Ben gone from Ana\'s list');
     await waitFor(ben, () => !lpc.raw() && window.benMic.readyState === 'ended', null, 'Ben’s mic closed once out of the room');
@@ -633,7 +645,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // talk time: the fake mics beep, so everyone talks; Ana sees the others' totals and the stats list
     await ana.waitForFunction(() => lpc.talk().peers.length === 2 && lpc.talk().peers.every((s) => s > 0) && lpc.talk().me > 0, null, { timeout: 15000 });
-    await ana.click('.nav[data-view="stats"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="stats"]');
     assert.strictEqual(await ana.$$eval('#talk li', (l) => l.length), 3, 'talk time for all three');
     await ana.click('.nav[data-view="voice"]');
     assert((await ana.textContent('#phase')).startsWith('In game'), 'Ana is in game: proximity on');
@@ -759,6 +771,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // game modes: only the host (Ana) picks; everyone gets it
     assert(await ben.$eval('#modeSel', (el) => el.disabled) && !(await ana.$eval('#modeSel', (el) => el.disabled)), 'only the host picks the mode');
+    await toProx(ana);
     await ana.selectOption('#modeSel', 'gibberish');
     for (const p of [ben, cat]) await waitFor(p, () => lpc.mode().mode === 'gibberish' && lpc.toasts().includes('Game mode: Gibberish'), null, 'the mode sent to everyone');
     // only the host's mode, voice swap, mutes and crown count: what Ben's page sends, changed to send them, does nothing
@@ -771,6 +784,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     }
     // the host mutes Ben's noisy mic for everyone: his mic goes off and he's told why, and nobody hears him
     assert(await ben.$$eval('.hmute', (l) => l.every((b) => b.hidden)), 'only the host can');
+    await toRooms(ana);
     await ana.click('#players .player[data-slot="1"] .hmute');
     await waitFor(ben, () => !lpc.micOn() && /Muted by the host/.test(document.getElementById('muteBtn').textContent) && lpc.toasts().some((t) => t.startsWith('The host muted your mic for everyone')), null, 'Ben told the host muted him');
     await waitFor(cat, () => lpc.peers().find((p) => p.name === 'Ben').volume === 0 && /Muted for everyone by the host/.test(document.querySelector('#players .player[data-slot="1"] .pstate').textContent), null, 'Ben silent for Cat');
@@ -783,6 +797,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     for (const p of [ben, cat]) await p.$eval('#optCompact', (el) => { el.checked = false; el.dispatchEvent(new Event('change')); });
     // Cat shares a minimap next to Ana, Ben one across the map
     await cat.evaluate(() => setBox(0.4, 0.6));
+    await toProx(cat); await toProx(ben);
     await cat.click('#shareBtn');
     await ben.evaluate(() => setBox(0.85, 0.15));
     await ben.click('#shareBtn');
@@ -801,6 +816,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ana, () => document.getElementById('hearMe').textContent === 'Can hear you now: Cat.', null, 'who can hear Ana on her page');
     // Showdown: Ben comes over to Ana and Cat walks off, so Ana and Ben, enemies, are alone together and Cat fades for both
     const catSlot = (await others(ana)).find((p) => p.name === 'Cat').slot;
+    await toProx(ana);
     await ana.selectOption('#modeSel', 'showdown');
     await ben.evaluate(() => setBox(0.4, 0.6));
     await cat.evaluate(() => setBox(0.85, 0.15));
@@ -878,6 +894,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ben, () => lpc.toasts().includes('Ana started a ready check'), null, 'the ready check popup for Ben');
     await ana.click('#readyClose');
     // help a friend: what's wrong with Ben's setup, from Ana's card for Ben
+    await toRooms(ana);
     await ana.click(`#players .player[data-slot="1"] .help`);
     await waitFor(ana, () => document.getElementById('helpDlg').open && document.getElementById('helpTitle').textContent === 'Help Ben', null, 'the help for Ben');
     const help = await ana.$$eval('#helpList li', (l) => l.map((li) => [li.querySelector('.dot').dataset.h, li.textContent]));
@@ -896,6 +913,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // browser), role roulette and a mock draft
     const trio = [ana, ben, cat], bySlot = Object.fromEntries(await Promise.all(trio.map(async (p) => [await p.evaluate(() => lpc.slot()), p])));
     assert(await ben.$eval('#teamsBtn', (b) => b.disabled) && (await ben.textContent('#gamesNote')) === 'The host starts these.', 'only the host starts room games');
+    await toProx(ana);
     await ana.click('#teamsBtn');
     for (const p of trio) await waitFor(p, () => lpc.teams().n === 1 && !document.getElementById('teamsBox').hidden, null, 'the teams on every page');
     const tms = await Promise.all(trio.map((p) => p.evaluate(() => lpc.teams())));
@@ -1071,7 +1089,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(aw.length === want.length && aw.every(([t, n], i) => t === want[i] && near(t === 'Chatterbox' ? most : least).includes(n)), `room awards: ${JSON.stringify(aw)}, talk ${JSON.stringify(ppl)}`);
     assert(await ana.$eval('#awardsBox', (el) => !el.hidden) && (await ana.$$eval('#awardsList li', (l) => l.length)) === aw.length, 'the awards on the Room page');
     assert((await ana.evaluate(() => lpc.toasts())).some((t) => t.startsWith('Room awards: ')), 'and a popup');
-    await ana.click('.nav[data-view="stats"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="stats"]');
     await ana.click('#games summary');
     assert(await ana.isVisible('#games img'), 'game history lists it with its talk map');
     assert.strictEqual(await ana.$$eval('#games > li:first-child .awards li', (l) => l.length), aw.length, 'with its awards');
