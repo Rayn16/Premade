@@ -938,6 +938,7 @@ ipcMain.handle('keys', (e, k) => {
   const ok = {
     mute: reg(k.mute, () => win.webContents.send('key', 'mute')),
     clip: reg(k.clip, () => win.webContents.send('key', 'clip')),
+    rec: reg(k.rec, () => win.webContents.send('key', 'rec')), // app 1.28.6: Record your screen
     overlay: false, // below
     show: reg(k.show, () => {
       if (win.isMinimized() || !win.isFocused()) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } else win.minimize();
