@@ -890,6 +890,15 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
     assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
+    // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
+    await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
+    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await wait(pc, () => lpcClient.lastOverlay && lpcClient.lastOverlay.visible && String(lpcClient.lastOverlay.aion) === 'Melted Danar in 4 min,Daily reset in 2 h 10 min' && lpc.toasts().includes('Aion 2 is on the overlay. Alt+V again hides it.'), null, 'the Aion 2 card on the overlay');
+    await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
+    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await wait(pc, () => !lpcClient.lastOverlay.aion && lpc.toasts().includes('Aion 2 is off the overlay.'), null, 'and off it');
+    await pc.evaluate(() => localStorage.removeItem('lpc-aion'));
+    console.log('Aion 2 on the overlay by its key, out of a League game');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
@@ -1869,16 +1878,6 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#newsVersion'), 'You have: App 1.11.0 (2.0.0 is out).');
     await pc.click('#newsClose');
     console.log('patch check, performance meter, test recordings, your version and What’s new');
-    // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
-    await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
-    await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => lpcClient.lastOverlay.visible && String(lpcClient.lastOverlay.aion) === 'Melted Danar in 4 min,Daily reset in 2 h 10 min' && lpc.toasts().includes('Aion 2 is on the overlay. Alt+V again hides it.'), null, 'the Aion 2 card on the overlay');
-    await pc.waitForTimeout(650);
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => !lpcClient.lastOverlay.aion && lpc.toasts().includes('Aion 2 is off the overlay.'), null, 'and off it');
-    await pc.evaluate(() => localStorage.removeItem('lpc-aion'));
-    console.log('Aion 2 on the overlay by its key, out of a League game');
     // patch 26.21: Riot keeps replay downloads for League's own match history. A download League refuses says where to
     // get it and marks the patch check; a replay League won't offer says so on its button
     lcu.version = '16.21.612.1';
