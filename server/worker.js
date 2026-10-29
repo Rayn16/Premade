@@ -79,6 +79,25 @@ async function aionLive(req, name, server) {
   }
 }
 
+// Cloudflare Realtime TURN (free up to 1,000 GB a month): the TURN_KEY_ID and TURN_KEY_TOKEN secrets make credentials
+// for a day, shared by everyone for an hour. No secrets: stun only, as before.
+// ponytail: anyone can fetch these, like the rest of the server; a per-room credential if the relay is ever misused
+let turnAt = 0, turnBody = null;
+async function turn(env) {
+  if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return Response.json({ iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] }, { headers: CORS });
+  if (!turnBody || Date.now() - turnAt > 3600000) {
+    const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+      method: 'POST', headers: { authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({ ttl: 86400 }),
+    });
+    if (!r.ok) return Response.json({ error: `TURN ${r.status}` }, { status: 502, headers: CORS });
+    const { iceServers } = await r.json();
+    // port 53 is blocked by browsers and only slows the connection down (Cloudflare's docs)
+    turnBody = { iceServers: iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:53\b/.test(u)) })) };
+    turnAt = Date.now();
+  }
+  return Response.json(turnBody, { headers: CORS });
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -87,6 +106,7 @@ export default {
       if (!ID.test(id) || !url.searchParams.get('token')) return new Response('Not a proximity chat player', { status: 400 });
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
+    if (url.pathname === '/turn') return turn(env); // relay servers for voice and screens, for players whose routers can't connect directly
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
       const champion = url.searchParams.get('champ') || '';
