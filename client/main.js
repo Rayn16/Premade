@@ -477,7 +477,7 @@ async function placeOverlay(s, revision = ++overlayRevision) {
         if (win && !win.isDestroyed()) win.webContents.send('overlay-moved', { x: f((b.x - d.x) / d.width), y: f((b.y - d.y) / d.height) });
       }, 250);
     });
-    overlay.loadURL(freshPageUrl(base + 'overlay.html'));
+    loadFresh(overlay, base + 'overlay.html');
   }
   if (editing !== !!s.edit) {
     editing = !!s.edit;
@@ -883,14 +883,15 @@ const join = (r) => { if (r && win && !win.isDestroyed()) win.webContents.send('
 // comes from the same copy. With no test copy on the site, it's the normal page again.
 const testFile = () => path.join(app.getPath('userData'), 'test-version');
 let base = SITE;
-const freshPageUrl = (url) => { const u = new URL(url); u.searchParams.set('_lpc_reload', String(Date.now())); return u.href; };
+// max-age=0: the cached page is used once the site says it hasn't changed (a 304), instead of downloading it all again
+const loadFresh = (w, url) => w.loadURL(url, { extraHeaders: 'Cache-Control: max-age=0\n' });
 function navigated(e, url, code) {
   const test = url.startsWith(SITE + 'test/');
-  if (test && code >= 400) return void win.loadURL(freshPageUrl(SITE));
+  if (test && code >= 400) return void loadFresh(win, SITE);
   if (!url.startsWith(SITE) || test === (base !== SITE)) return;
   base = test ? SITE + 'test/' : SITE;
   (test ? fs.promises.writeFile(testFile(), '') : fs.promises.rm(testFile(), { force: true })).catch(() => {});
-  if (overlay) overlay.loadURL(freshPageUrl(base + 'overlay.html'));
+  if (overlay) loadFresh(overlay, base + 'overlay.html');
 }
 
 // ---- the window opens where and how big you left it (window.json in the app's folder), if that's still on a screen
@@ -1224,7 +1225,7 @@ app.whenReady().then(async () => {
   win.removeMenu();
   await moveSaved(ses); // once, from 1.16 (win first: closing the only window would quit)
   if (fs.existsSync(testFile())) base = SITE + 'test/';
-  win.loadURL(freshPageUrl(base));
+  loadFresh(win, base);
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith(SITE)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true } }; // the tracker page
     openOut(url);
