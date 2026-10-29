@@ -4,6 +4,8 @@
 // no line for a page on the same computer (our tests) or like the ones they made before. And
 // Friends: /friends says which Riot IDs have Premade (any case, not your own device) and gives a device the invites to
 // its Riot IDs; /invite needs a device that said hello, and a new invite from the same device replaces the last; lob, a lobby's hash, comes back as it was sent.
+// Aion 2: /aion/boss and /aion/ticks take a kill or a tick only for a Riot ID the device said hello with, and the
+// 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT).
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -11,8 +13,10 @@ const WebSocket = require('ws');
 
 const PORT = 8787, BASE = `http://127.0.0.1:${PORT}`;
 const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-stats-'));
-const OWNER = 'the owner key';
-const wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist, '--var', `OWNER_KEY:${OWNER}`], { cwd: __dirname, detached: true, stdio: 'ignore' });
+const OWNER = 'the owner key', GH_PORT = 8790, github = [];
+require('http').createServer((q, r) => { let body = ''; q.on('data', (d) => (body += d)).on('end', () => { github.push({ method: q.method, url: q.url, auth: q.headers.authorization, ua: q.headers['user-agent'], body }); r.writeHead(204).end(); }); }).listen(GH_PORT).unref();
+const wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist, '--var', `OWNER_KEY:${OWNER}`,
+  '--var', 'GH_TOKEN:the token', '--var', `GH_API:http://127.0.0.1:${GH_PORT}`, '--test-scheduled'], { cwd: __dirname, detached: true, stdio: 'ignore' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function join(id, token, ip) { // resolves with the server's first message type: OPEN or ID-TAKEN
   return new Promise((ok, bad) => {
@@ -113,5 +117,39 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.equal((await chars()).length, 10);
   assert.deepEqual(await aion({ id: D, o: 'Ödön#EUW', n: 'Odin', s: 'Ariel', del: true }), { ok: true });
   assert.equal((await chars()).length, 9, 'Remove works for it too');
+  // Aion 2 boss kills: a device marks one for a Riot ID it said hello with; a new mark replaces the last, del takes it off
+  const kills = async () => (await (await fetch(BASE + '/aion/boss')).json()).kills, boss = async (b) => (await post('/aion/boss', b)).json();
+  assert.deepEqual(await kills(), []);
+  const t0 = Date.now();
+  for (const bad of [{}, { id: B, o: 'Rayan#EUW', s: 'Tassin' }, { id: B, o: 'Rayan#EUW', s: 'Tassin', b: '<b>' }, { id: B, o: 'Rayan#EUW', s: 'Tassin', b: 'Melted Danar', at: t0 + 864e5 },
+    { id: B, o: 'Rayan#EUW', s: 'Tassin', b: 'Melted Danar', at: t0 - 2 * 864e5 }, { id: B, o: 'Rayan#EUW', s: 'Tassin', b: 'Melted Danar', at: 'soon' }])
+    assert.equal((await post('/aion/boss', bad)).status, 400, JSON.stringify(bad));
+  assert.match((await boss({ id: C, o: 'Rayan#EUW', s: 'Tassin', b: 'Melted Danar' })).error, /^Turn on/, 'never said hello');
+  assert.deepEqual(await boss({ id: B, o: 'rayan#euw', s: 'Tassin', b: "Sentinel K'nash", at: t0 - 6e5 }), { ok: true });
+  assert.deepEqual(await boss({ id: A, o: 'Kev#NA1', s: 'Tassin', b: 'Melted Danar' }), { ok: true });
+  let k = await kills();
+  assert.deepEqual(k.map(({ at, ...x }) => x), [{ s: 'Tassin', b: "Sentinel K'nash", o: 'Rayan#EUW' }, { s: 'Tassin', b: 'Melted Danar', o: 'Kev#NA1' }]); // oldest first, o as its hello gave it
+  assert.equal(k[0].at, t0 - 6e5);
+  assert(Math.abs(k[1].at - Date.now()) < 5000, 'now when at is left out');
+  assert.deepEqual(await boss({ id: B, o: 'Rayan#EUW', s: 'Tassin', b: 'Melted Danar', del: true }), { ok: true }); // anyone can take a wrong mark off
+  assert.deepEqual((await kills()).map((x) => x.b), ["Sentinel K'nash"]);
+  // the checklist: a tick is set (0 takes it off) only for your own Riot ID
+  const ticks = async () => (await (await fetch(BASE + '/aion/ticks')).json()).ticks, tick = async (b) => (await post('/aion/ticks', b)).json();
+  assert.deepEqual(await ticks(), []);
+  for (const bad of [{ id: B, o: 'Rayan#EUW', k: 'Yasuo', n: 1 }, { id: B, o: 'Rayan#EUW', k: 'Yasuo:Night', n: 1 }, { id: B, o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: -1 },
+    { id: B, o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: 100 }, { id: B, o: 'Rayan#EUW', k: 'Ya suo:nightmare', n: 1 }, { id: B, o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: 1.5 }])
+    assert.equal((await post('/aion/ticks', bad)).status, 400, JSON.stringify(bad));
+  assert.match((await tick({ id: A, o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: 1 })).error, /^Turn on/, 'not A’s Riot ID');
+  const t1 = await tick({ id: B, o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: 1 });
+  assert(t1.ok && Math.abs(t1.at - Date.now()) < 5000, JSON.stringify(t1));
+  assert.deepEqual((await tick({ id: B, o: 'RAYAN#euw', k: 'Yasuo:nightmare', n: 2 })).ok, true); // the same tick, counted up
+  assert.deepEqual((await tick({ id: B, o: 'Rayan#EUW', k: 'Tassin:duty', n: 5 })).ok, true);
+  assert.deepEqual((await ticks()).map(({ at, ...x }) => x).sort((a, b) => a.k.localeCompare(b.k)), [{ o: 'Rayan#EUW', k: 'Tassin:duty', n: 5 }, { o: 'Rayan#EUW', k: 'Yasuo:nightmare', n: 2 }]);
+  assert.deepEqual((await tick({ id: B, o: 'Rayan#EUW', k: 'Tassin:duty', n: 0 })).ok, true);
+  assert.deepEqual((await ticks()).map((x) => x.k), ['Yasuo:nightmare']);
+  // the cron starts the Aion 2 tracker's update on GitHub
+  assert.equal((await fetch(BASE + '/__scheduled?cron=*/30+*+*+*+*')).status, 200);
+  for (let i = 0; i < 20 && !github.length; i++) await sleep(250);
+  assert.deepEqual(github, [{ method: 'POST', url: '/repos/Rayn16/aion2-tracker/actions/workflows/update.yml/dispatches', auth: 'Bearer the token', ua: 'Premade (github.com/Rayn16/Premade)', body: '{"ref":"main"}' }]);
   console.log('stats ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} fs.rmSync(persist, { recursive: true, force: true }); });

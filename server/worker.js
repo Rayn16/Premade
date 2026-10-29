@@ -6,7 +6,8 @@
 // are who has Premade, and /friends and /invite which of your friends have it and invites to your room (all in the Stats
 // object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
-// own. /riot/... is Riot data (the Riot object, at the end). /aion is the Aion 2 tracker's claimed characters (Stats).
+// own. /riot/... is Riot data (the Riot object, at the end). /aion is the Aion 2 tracker's claimed characters, and
+// /aion/boss and /aion/ticks its legion's field boss kills and daily and weekly checklist (all in Stats).
 import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
@@ -154,6 +155,22 @@ export default {
       if (!b || !DEVICE.test(b.id) || !o || !n || !s) return Response.json({ error: 'Not a character' }, { status: 400, headers: CORS });
       return Response.json(await stats(env).aion(b.id, o, n, s, b.del === true), { headers: CORS });
     }
+    const ap = /^\/aion\/(boss|ticks)$/.exec(url.pathname); // the Aion 2 tracker's Timers and Checklist pages
+    if (ap) {
+      const boss = ap[1] === 'boss';
+      if (req.method !== 'POST') return Response.json(boss ? { kills: await stats(env).aionBoss() } : { ticks: await stats(env).aionTicks() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
+      const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1), now = Date.now();
+      if (!b || !DEVICE.test(b.id) || !o) return Response.json({ error: 'Not a player' }, { status: 400, headers: CORS });
+      if (boss) { // b: the boss, s: its server, at: when it died (ms, now if left out)
+        const s = typeof b.s === 'string' && /^[A-Za-z' -]{2,20}$/.test(b.s) ? b.s : '', n = typeof b.b === 'string' && /^[A-Za-z' -]{2,40}$/.test(b.b) ? b.b : '', at = b.at ?? now;
+        if (!s || !n || !Number.isFinite(at) || at > now + 6e4 || at < now - 864e5) return Response.json({ error: 'Not a boss kill' }, { status: 400, headers: CORS });
+        return Response.json(await stats(env).aionBoss(b.id, o, s, n, Math.min(now, Math.round(at)), b.del === true), { headers: CORS });
+      }
+      // k: 'Character:item', or 'Server:item' for what a server's characters share; n: how many done
+      const k = typeof b.k === 'string' && /^[^\s,<>#:]{1,24}:[a-z]{1,16}$/.test(b.k) ? b.k : '';
+      if (!k || !Number.isInteger(b.n) || b.n < 0 || b.n > 99) return Response.json({ error: 'Not a tick' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).aionTicks(b.id, o, k, b.n), { headers: CORS });
+    }
     if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) { // a plain text body too
       const b = await req.json().catch(() => null), id = b && DEVICE.test(b.id) ? b.id : '';
       if (url.pathname === '/friends') return Response.json(await stats(env).friends(id, riotIdList(b && b.riot, 300)), { headers: CORS });
@@ -170,7 +187,13 @@ export default {
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });
     return new Response('Not found', { status: 404 });
   },
-  async scheduled(event, env) { // every 30 minutes: wakes the Riot object's counting if it ever stopped
+  async scheduled(event, env, ctx) { // every 30 minutes: wakes the Riot object's counting if it ever stopped, and runs the
+    // Aion 2 tracker's update (GH_TOKEN: a GitHub token that may run its workflow), since GitHub ran the tracker's own
+    // 30-minute schedule only every 4 to 6 hours
+    if (env.GH_TOKEN) ctx.waitUntil(fetch(`${env.GH_API || 'https://api.github.com'}/repos/Rayn16/aion2-tracker/actions/workflows/update.yml/dispatches`, {
+      method: 'POST', body: '{"ref":"main"}',
+      headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'Premade (github.com/Rayn16/Premade)' },
+    }).then((r) => { if (!r.ok) console.error('Aion 2 tracker update:', r.status); }, (e) => console.error('Aion 2 tracker update:', e)));
     await riot(env).kick();
   },
 };
@@ -282,6 +305,7 @@ export class Room extends DurableObject {
 // ponytail: anyone can say hello with anyone's Riot ID and so get their invites, room password included; fine among
 // friends, a sign-in through League's client if strangers ever use it
 const low = (n) => n.toLowerCase();
+const AION_HELLO = 'Turn on “Let whoever runs Premade and my friends see I have it” in Premade’s Settings > App, then open the Aion 2 page again';
 export class Stats extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -291,6 +315,13 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, lob TEXT NOT NULL DEFAULT '', PRIMARY KEY (dest, src))");
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aion (n TEXT, s TEXT, o TEXT, PRIMARY KEY (n, s)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionboss (s TEXT, b TEXT, at INTEGER, o TEXT, PRIMARY KEY (s, b)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aiontick (o TEXT, k TEXT, n INTEGER, at INTEGER, PRIMARY KEY (o, k)) WITHOUT ROWID');
+  }
+  // o as the device's last hello gave it, when it's one of that hello's Riot IDs; else null
+  helloRiot(id, o) {
+    const me = this.ctx.storage.sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    return (me && JSON.parse(me.riot).find((x) => low(x) === low(o))) || null;
   }
   // Aion 2 characters (/aion): with no id, every claim [{ n: name, s: server, o: owner's Riot ID }]; else o claims n on s,
   // or lets it go (del), when o is one of the Riot IDs that device's last hello gave. A new claim takes a character from
@@ -298,14 +329,41 @@ export class Stats extends DurableObject {
   aion(id, o, n, s, del) {
     const sql = this.ctx.storage.sql;
     if (!id) return sql.exec('SELECT n, s, o FROM aion ORDER BY o, n').toArray();
-    const me = sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
-    if (!me || !JSON.parse(me.riot).some((x) => low(x) === low(o))) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Premade’s Settings > App, then open the Aion 2 page again' };
+    if (!this.helloRiot(id, o)) return { error: AION_HELLO };
     // o's claims found here, not with SQLite's lower(), which leaves capitals like Ö as they are
     const mine = sql.exec('SELECT n, s, o FROM aion').toArray().filter((r) => low(r.o) === low(o)), had = mine.some((r) => r.n === n && r.s === s);
     if (del) { if (had) sql.exec('DELETE FROM aion WHERE n = ? AND s = ?', n, s); }
     else if (!had && mine.length >= 10) return { error: 'Ten characters at most' };
     else sql.exec('INSERT OR REPLACE INTO aion VALUES (?, ?, ?)', n, s, o);
     return { ok: true };
+  }
+  // Aion 2 field bosses (/aion/boss): each boss's last kill on each server, [{ s: server, b: boss, at: when it died (ms),
+  // o: who marked it }]; with id, o marks b on s killed at at, or takes the mark off (del). A day keeps every one:
+  // the longest respawn is 12 hours
+  aionBoss(id, o, s, b, at, del) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    if (!id) return sql.exec('SELECT s, b, at, o FROM aionboss WHERE at > ? ORDER BY at', now - 864e5).toArray();
+    const who = this.helloRiot(id, o);
+    if (!who) return { error: AION_HELLO };
+    if (del) sql.exec('DELETE FROM aionboss WHERE s = ? AND b = ?', s, b);
+    else sql.exec('INSERT OR REPLACE INTO aionboss VALUES (?, ?, ?, ?)', s, b, at, who);
+    sql.exec('DELETE FROM aionboss WHERE at < ?', now - 864e5);
+    return { ok: true };
+  }
+  // Aion 2 checklist (/aion/ticks): how many of each daily and weekly thing each player has done, [{ o, k, n, at (ms) }],
+  // k 'Character:item' or 'Server:item'; the page counts one only since its last reset. With id, o sets its k to n (0
+  // takes it off). A week and a day keeps every one; 300 for each Riot ID
+  aionTicks(id, o, k, n) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    if (!id) return sql.exec('SELECT o, k, n, at FROM aiontick WHERE at > ?', now - 8 * 864e5).toArray();
+    const who = this.helloRiot(id, o);
+    if (!who) return { error: AION_HELLO };
+    const mine = sql.exec('SELECT k FROM aiontick WHERE o = ?', who).toArray();
+    if (n && !mine.some((r) => r.k === k) && mine.length >= 300) return { error: 'Too many ticks' };
+    if (n) sql.exec('INSERT OR REPLACE INTO aiontick VALUES (?, ?, ?, ?)', who, k, n, now);
+    else sql.exec('DELETE FROM aiontick WHERE o = ? AND k = ?', who, k);
+    sql.exec('DELETE FROM aiontick WHERE at < ?', now - 8 * 864e5);
+    return { ok: true, at: now };
   }
   friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, lob, at }] }
     const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
