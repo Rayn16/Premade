@@ -756,6 +756,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav" type="button" data-view="voice" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Rooms</span></button>
     <button class="nav" type="button" data-view="friends"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg><span>Friends</span></button>
     <button class="nav" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
+    <button class="nav lcu-only" type="button" data-view="record"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span>Recording</span></button>
     <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
@@ -1569,12 +1570,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="clipList" class="cliplist" hidden></ul>
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
       </section>
-      <section id="recBox" class="panel lcu-only" aria-labelledby="h-rec">
-        <h2 id="h-rec" class="ph">Record your screen <button class="tip" type="button" popovertarget="t-rec" aria-label="About recording your screen">?</button></h2>
-        <div class="toolbar"><button id="recBtn" class="btn" type="button">Record</button><label class="check"><input id="optRecMic" type="checkbox"> With my mic</label></div>
-        <div class="keyrow"><span>Record key</span><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button><span></span></div>
-        <p id="recNote" class="hint" role="status"></p>
-      </section>
       <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
         <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
         <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Clip settings, with its highlights</label>
@@ -1793,6 +1788,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
     </section>
 
+    <section class="view" data-view="record" aria-label="Recording" hidden>
+      <h1 class="title">Recording</h1>
+      <section id="recBox" class="panel" aria-labelledby="h-rec">
+        <h2 id="h-rec" class="ph">Record your screen <button class="tip" type="button" popovertarget="t-rec" aria-label="About recording your screen">?</button></h2>
+        <div class="toolbar"><button id="recBtn" class="btn" type="button">Record</button><label class="check"><input id="optRecMic" type="checkbox"> With my mic</label></div>
+        <div class="toolbar">
+          <label class="field">Quality <select id="optRecQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label>
+          <label class="field">Frame rate <select id="optRecFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label>
+        </div>
+        <p id="recQNote" class="hint"></p>
+        <div class="keyrow"><span>Record key</span><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button><span></span></div>
+        <p id="recNote" class="hint" role="status"></p>
+      </section>
+      <section class="panel" aria-labelledby="h-recs">
+        <h2 id="h-recs" class="ph">Your recordings</h2>
+        <p id="recsNote" class="hint"></p>
+        <ul id="recList" class="clips vidlist"></ul>
+        <div class="toolbar"><button id="recsFolder" class="btn small" type="button">Open the folder</button></div>
+      </section>
+    </section>
+
     <section class="view" data-view="aion" aria-label="Aion 2" hidden>
       <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
     </section>
@@ -1993,7 +2009,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
-<div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate in Clip settings, Recording. It goes in Videos\Premade\Games with your match videos, under Saved, so it’s never binned; it plays there and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
+<div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
@@ -2054,7 +2070,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, lobbyRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
-    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
+    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
     overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
@@ -5945,6 +5961,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
     if (name === 'clips') { loadClips(); loadVids(); }
+    if (name === 'record') loadVids();
     if (name === 'settings') { loadScreens(); serverStats(); }
     if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
@@ -7927,10 +7944,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     g.wall = performance.now();
   }
   // ---- recording your screen (Rayan, 2026-10-29: "like OBS"): a screen or app window you pick, whenever you like,
-  // with what you hear and your mic, at the clip quality, written like a match video (seekable when it stops) and kept
-  // under Saved. A game being recorded by Record every match is already its video; one started meanwhile isn't recorded.
-  // ponytail: one capture per screen in Chromium, so recording the screen League is on gets the clips' size and fps
+  // with what you hear and your mic, at the clip quality, written like a match video (seekable when it stops), on its
+  // own page (Rayan: "leave that clips section for league") and never binned. A game being recorded by Record every match is already its video; one started meanwhile isn't recorded.
+  // ponytail: one capture per screen in Chromium, so a screen already captured (clips, a share) keeps the size and fps it
+  // opened with until those stop
   let screenRec = null;
+  const isRec = (n) => / Recording(?: \(\d\))?\.webm$/.test(n);
   async function toggleScreenRec() {
     if (screenRec) return stopScreenRec();
     if (!client || !client.gameVideo || !client.captureSources) return notify('Recording your screen needs the Premade app.');
@@ -7938,7 +7957,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const id = await chooseCaptureSource();
     if (!id || screenRec || !(await client.captureSource(id))) return;
     let s;
-    try { s = await navigator.mediaDevices.getDisplayMedia({ video: capNow(), audio: true }); } catch (err) { console.warn('recording:', err); return; }
+    const cap = capOf(Math.max(+opts.recQ, +opts.clipQ, +opts.shareQ), Math.max(opts.recFps, opts.clipFps, opts.shareFps)); // one capture per screen in Chromium: the highest asked
+    try { s = await navigator.mediaDevices.getDisplayMedia({ video: cap, audio: true }); } catch (err) { console.warn('recording:', err); return; }
     const r = (screenRec = { stream: s, at: Date.now() }), tracks = [s.getVideoTracks()[0]], heard = s.getAudioTracks()[0];
     if (opts.recMic && ac && mic) {
       r.mix = ac.createMediaStreamDestination();
@@ -7949,13 +7969,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const name = await client.gameVideo('start', 'Recording').catch(() => '');
     if (!name) { notify('Couldn’t start the recording.', true); return stopScreenRec(); }
     let q = Promise.resolve();
-    r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: MIME, videoBitsPerSecond: vRate(opts.clipQ, opts.clipFps), audioBitsPerSecond: 128000, videoKeyFrameIntervalDuration: 2000 });
+    r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: MIME, videoBitsPerSecond: vRate(opts.recQ, opts.recFps), audioBitsPerSecond: 192000, videoKeyFrameIntervalDuration: 2000 });
     r.mr.ondataavailable = (e) => { if (e.data.size) q = q.then(async () => client.gameVideo('add', name, await e.data.arrayBuffer())).catch(() => {}); };
-    r.mr.onstop = () => { q = q.then(() => client.gameVideo('end', name)).catch(() => {}).then(() => { vidSaved.add(name); saveVidSaved(); notify('Recording saved: it’s under Saved on the Clips page.'); loadVids(); }); };
+    r.mr.onstop = () => { q = q.then(() => client.gameVideo('end', name)).catch(() => {}).then(() => { notify('Recording saved: it’s on the Recording page.'); loadVids(); }); };
     r.mr.start(1000);
     tracks[0].addEventListener('ended', stopScreenRec); // the window was closed
     r.tick = setInterval(renderRec, 1000);
-    notify(keysOk.rec || keys.rec ? `Recording. ${keys.rec} or Stop on the Clips page stops it.` : 'Recording. Stop is on the Clips page.');
+    notify(keysOk.rec || keys.rec ? `Recording. ${keys.rec} or Stop on the Recording page stops it.` : 'Recording. Stop is on the Recording page.');
     renderRec();
     loadVids();
   }
@@ -7978,6 +7998,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       : !('rec' in keysOk) && client ? 'The Record key works only while this window is in front until the next app update.' : '';
   }
   $('recBtn').addEventListener('click', toggleScreenRec);
+  $('recsFolder').addEventListener('click', () => client.gameVideo('folder'));
   // a match's highlights, from League's game events (league.events, as client/main.js's moments reads them), read
   // every second (clipMoments) while it records: s is
   // seconds into its video, from the game clock less how long the video had been recording when it was first read
@@ -8032,7 +8053,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const saveVidSaved = () => store.set('lpc-vid-saved', JSON.stringify([...vidSaved]));
   async function vidsDone() {
     const days = opts.gameDays, gone = [];
-    for (const v of (await client.gameVideo('list').catch(() => [])) || []) if (days > 0 && !v.rec && !vidSaved.has(v.name) && Date.now() - v.at > days * 864e5 && (await client.gameVideo('trash', v.name).catch(() => false))) gone.push(v.name);
+    for (const v of (await client.gameVideo('list').catch(() => [])) || []) if (days > 0 && !v.rec && !vidSaved.has(v.name) && !isRec(v.name) && Date.now() - v.at > days * 864e5 && (await client.gameVideo('trash', v.name).catch(() => false))) gone.push(v.name);
     if (gone.length) notify(`Moved ${gone.length} game video${gone.length > 1 ? 's' : ''} older than ${days} day${days > 1 ? 's' : ''} to the Recycle Bin.`, true);
     loadVids();
   }
@@ -8050,11 +8071,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function renderVids() {
     $('vidBox').hidden = !client;
     if ($('vidBox').hidden) return;
-    const rest = vidsList.filter((v) => !vidSaved.has(v.name));
+    const games = vidsList.filter((v) => !isRec(v.name)), recs = vidsList.filter((v) => isRec(v.name)), rest = games.filter((v) => !vidSaved.has(v.name));
+    $('recList').replaceChildren(...recs.map(vidRow));
+    $('recsNote').textContent = recs.length ? 'Kept until you bin one.' : 'Nothing recorded yet: press Record above.';
     $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? 'Tick Record every match and each game you play is kept here, with its highlights.'
       : !rest.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin. Save one to keep it.`;
     $('vidList').replaceChildren(...rest.map(vidRow));
-    $('savedVids').replaceChildren(...vidsList.filter((v) => vidSaved.has(v.name)).map(vidRow));
+    $('savedVids').replaceChildren(...games.filter((v) => vidSaved.has(v.name)).map(vidRow));
     renderSaved();
     nextPic();
   }
@@ -8081,7 +8104,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     watch.append(...thumb.childNodes);
     thumb.replaceWith(watch);
     watch.addEventListener('click', () => playGame(v.name));
-    btn(kept ? '★ Saved' : '☆ Save', 'star', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); }).setAttribute('aria-pressed', String(kept));
+    if (!isRec(v.name)) btn(kept ? '★ Saved' : '☆ Save', 'star', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); }).setAttribute('aria-pressed', String(kept));
     if (marks.length) btn('▶ Highlights', 'primary', () => playGame(v.name, marks), `Play the highlights of ${label}`);
     btn('📁', '', () => client.gameVideo('show', v.name), `Show ${label} in its folder`).title = 'Show in folder';
     btn('🗑', '', async () => {
@@ -13476,8 +13499,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   const clipQText = () => { $('clipQNote').textContent = `About ${(vRate(opts.clipQ, opts.clipFps) * 1800 / 8e9).toFixed(1)} GB for 30 minutes of match video.`; };
   clipQText();
+  const recQText = () => { $('recQNote').textContent = `Never bigger than what you record. About ${(vRate(opts.recQ, opts.recFps) * 3600 / 8e9).toFixed(0)} GB an hour, recorded by your graphics card when it can.`; };
+  recQText();
   for (const [id, k, num, done] of [['optVoice', 'voice', false, voiceChanged], ['optFade', 'fade', false, volumes], ['optClipLen', 'clipLen', true, renderClips], ['optClipCap', 'clipCap', true, cleanClips], ['optGameDays', 'gameDays', true, renderVids],
-    ['optClipQ', 'clipQ', false, recAgain], ['optClipFps', 'clipFps', true, recAgain], ['optShareQ', 'shareQ', false, recAgain], ['optShareFps', 'shareFps', true, recAgain]]) {
+    ['optClipQ', 'clipQ', false, recAgain], ['optClipFps', 'clipFps', true, recAgain], ['optShareQ', 'shareQ', false, recAgain], ['optShareFps', 'shareFps', true, recAgain], ['optRecQ', 'recQ', false, recQText], ['optRecFps', 'recFps', true, recQText]]) {
     $(id).value = String(opts[k]);
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
   }
@@ -13595,7 +13620,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [94, 'October 29: record your screen, like OBS', [
-      'The Clips page has Record your screen: record any screen or app window whenever you like, not only in League, with what you hear and your mic if you tick it, at the quality in Clip settings. Ctrl+Shift+R starts and stops it from any app. Recordings are kept under Saved, where you can watch, skip around and cut them.',
+      'A new Recording page in the menu: record any screen or app window whenever you like, not only in League, with what you hear and your mic if you tick it, at up to 1440p and 120 fps. Ctrl+Shift+R starts and stops it from any app. Your recordings are listed there, kept until you bin one, to watch, skip around in and cut.',
     ]],
     [93, 'October 29: Aion 2 DPS tracker, timers, a daily checklist and a gear checkup', [
       'A DPS tracker on the Aion 2 page: while Aion 2 is open, the desktop app reads each fight off the game’s Combat Analysis (Ctrl+X) once it’s over: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and puts your friends’ best next to yours.',
@@ -14279,8 +14304,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
       ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
-      ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at the clip quality, saved with your match videos and kept until you bin it. Skip around and cut it in Premade or any video player.',
-        'The Clips page, Record your screen: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it.', '#recBtn, #recBox', 'app'],
+      ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
+        'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
     ]],
