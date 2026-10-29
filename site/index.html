@@ -4758,8 +4758,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // mic, who can hear you and the effects on your voice; room chat; the objective timers and gold; your CS a minute;
   // recent popups; in the theme's colours (theme) unless that's Light, as it sits over the game. Move it (edit) shows it
   // with a frame to drag anywhere; the client says where it was left (overlay-moved). The overlay shortcut hides all of
-  // it until it's pressed again (overlayHide); in a game it first shows everyone's rank (boardKey).
-  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false;
+  // it until it's pressed again (overlayHide); in a game it first shows everyone's rank (boardKey); out of a League game,
+  // for those who play Aion 2, it shows or hides the Aion 2 card (aionCard: what the tracker last wrote, lpc-aion-card).
+  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false, aionCard = false;
+  const aionLines = () => { const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
+  addEventListener('storage', (e) => { if (e.key === 'lpc-aion-card' && aionCard) pushOverlay(); }); // every 30 s from its page
   const chats = []; // the last few chat messages, for the overlay
   function pushOverlay() {
     if (!client) return;
@@ -4769,7 +4772,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
     const practice = on(league && league.mode === 'PRACTICETOOL') ? [comboLine(), jgLine()].filter(Boolean) : [];
-    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0;
+    const aion = aionCard && !league && !overlayHide ? aionLines() : null;
+    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
@@ -4783,7 +4787,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     const s = !visible && !full ? { visible: false } : {
-      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, aion, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
       parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
@@ -4804,7 +4808,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ovKeyAt = t;
     if (again) return;
     if (!overlayHide && !boardNow() && boardCan()) { boardKey = true; notify(`Everyone’s rank is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides the overlay.` : ''}`, true); }
-    else {
+    else if (!league && store.get('lpc-aion')) {
+      aionCard = !aionCard;
+      if (aionCard) overlayHide = false;
+      notify(aionCard ? `Aion 2 is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides it.` : ''}` : 'Aion 2 is off the overlay.', true);
+    } else {
       overlayHide = !overlayHide;
       boardKey = false;
       notify(overlayHide ? `Overlay hidden.${keys.overlay ? ` ${keys.overlay} brings it back.` : ''}` : 'Overlay back on.', true);
@@ -5916,6 +5924,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- sections: Room (the live map and player cards are on it), Players and Map (the same, full size), Stats, Settings
   let leaguePage = 'prox'; // the League page the League button opens: the last one shown
+  // Aion 2's page loads in the background for those who play it (the tracker sets lpc-aion), so its boss warnings
+  // (aionNotify) and the overlay card (lpc-aion-card) work without opening it; shown again, it asks for the latest
+  const AION_URL = 'https://rayn16.github.io/aion2-tracker/?embed';
+  window.aionNotify = (text) => { notify(String(text), true); if (client && client.notify) client.notify('Aion 2', String(text)); };
+  if (store.get('lpc-aion')) setTimeout(() => { if (!$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL; }, 5000);
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -5930,7 +5943,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'tft') renderTft();
     if (name === 'overlay') ovOpen();
     if (name === 'help') renderRemoteHelp();
-    if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = 'https://rayn16.github.io/aion2-tracker/?embed';
+    if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
+    else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
     main.scrollTop = 0;
     render();
@@ -13376,6 +13390,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [93, 'October 29: Aion 2 timers, a daily checklist and a gear checkup', [
+      'Timers on the Aion 2 page: the daily and weekly resets, Shugo Festival, Dimensional Invasion and your server’s field bosses. When anyone in your legion marks a boss kill, everyone sees when it’s back, and Premade warns you 5 minutes before.',
+      'Checklist: each character’s dailies and weeklies, ticked off with + and −, and what your friends still have to do.',
+      'Each character’s Gear tab has a checkup: empty manastone and Theostone slots, Common manastones and items below max enchant. Compare shows the stones too.',
+      'Legion and Profile show what each character gained lately, characters have their portraits, and News has Aion 2’s patch notes and maintenance. The tracker now updates every 30 minutes.',
+      'In the desktop app, the overlay shortcut (Alt+V) outside a League game puts Aion 2’s next bosses, the daily reset and your dailies left over the game. Aion 2 has to be in Borderless window mode.',
+    ]],
     [92, 'October 29: Premade is now a place to hang out, with League on its own page', [
       'Premade now opens on Rooms: join a friend’s room or make one, talk, share your screens and chat. Share screen or app sits at the top of your room, with the screens and chat beside everyone in it.',
       'Friends has its own page in the menu: who’s online, invites and your squad.',
@@ -13884,9 +13905,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
         'The Friends page, Squad: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
     ]],
-    ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated once a day.', [
-      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters, a compare that picks a friend and then one of their characters, on each character its gear, skills, Daevanion boards and a Next upgrade card, and a Classes page with a guide for each of the 8 classes: skills to level, Daevanion picks and the legion’s best gear.',
+    ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated every 30 minutes.', [
+      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes: skills to level, Daevanion picks and the legion’s best gear, and News with Aion 2’s patch notes and maintenance.',
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
+      ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
+        'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
+      ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
+        'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
       ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
