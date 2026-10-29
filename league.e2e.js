@@ -1757,6 +1757,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(callsTo(/^\/lol-spectator\/v1\/spectate\/launch$/, 'POST')[0][2], { allowObserveMode: 'ALL', dropInSpectateGameId: 'Friend', gameQueueType: '', puuid: 'ally1', spectatorKey: '' });
     // room games with League's ranks: the balanced teams show everyone's Solo/Duo rank, and role roulette's role goes
     // into League's lobby in one click
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="prox"]'); // Balance teams and Role roulette are on Proximity voice
     await pc.click('#teamsBtn');
     await wait(pc, () => { const t = document.getElementById('teamsBox').textContent; return /Rayan \(you\): Gold II · 63 LP/.test(t) && /Fren: Platinum IV · 12 LP/.test(t) && /about Gold II/.test(t) && /about Platinum IV/.test(t); }, null, 'the teams with ranks');
     await wait(fr, () => /Rayan: Gold II · 63 LP/.test(document.getElementById('teamsBox').textContent), null, 'the teams on the friend’s page');
@@ -2060,6 +2061,7 @@ const leagueData = (over = {}) => ({
       await hp.click('.nav[data-view="voice"]');
       await hp.click('#createBtn');
       await wait(hp, () => lpc.slot() >= 0, null, 'a room');
+      await hp.click('#leagueNav'); await hp.click('.nav[data-view="prox"]');
       await hp.click('#readyBtn');
       await wait(hp, () => (document.querySelector('#readyRows tr td:last-child') || {}).textContent === 'Fullscreen: no overlay Switch to Borderless', null, 'Fullscreen in the ready check, with its button');
       await hp.click('#readyRows tr td:last-child button');
