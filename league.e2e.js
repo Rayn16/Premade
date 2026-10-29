@@ -850,7 +850,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proMore');
     await wait(pc, () => document.getElementById('proMoreNote').textContent === 'No older games.' && document.getElementById('proMore').hidden, null, 'no older games');
     assert.deepStrictEqual([callsTo(/\/enemy4\/matches\?begIndex=20&endIndex=39$/).length, callsTo(/\/enemy4\/matches\?begIndex=30&endIndex=49$/).length], [1, 1]);
-    assert.deepStrictEqual(riotAsked.filter((k) => !asked().includes(k)), [`/europe/lol/match/v5/matches/EUW1_${GAME}`], 'Riot’s copy of the game in the report');
+    assert.deepStrictEqual(riotAsked.filter((k) => !asked().includes(k) && !/\/status\/v4\//.test(k)), [`/europe/lol/match/v5/matches/EUW1_${GAME}`], 'Riot’s copy of the game in the report');
     assert.deepStrictEqual(asked(), ['/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW', `/euw1/lol/league/v4/entries/by-puuid/${MY_RIOT}`, '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW',
       `/euw1/lol/spectator/v5/active-games/by-summoner/${SNIPER}`, `/euw1/lol/league/v4/entries/by-puuid/${FOE}`, `/europe/lol/match/v5/matches/by-puuid/${SNIPER}/ids?start=30&count=20`],
       'your puuid in Riot’s API (League’s client has its own kind) and your rank once, for our server to keep; Sniper’s puuid, game, his opponent’s rank and his older games');
@@ -889,7 +889,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League'], 'the menu in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');

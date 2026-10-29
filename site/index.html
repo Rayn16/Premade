@@ -10467,6 +10467,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const lm = liveMine();
     if (lm && lm.rk) { const key = JSON.stringify([lm.n, lm.lvl, lm.icon, lm.plat, lm.rk, lm.games.map((x) => x.id), lm.m]); if (key !== proSaved) { proSaved = key; saveMine(lm); } }
     const mine = !proOther, was = rankNow;
+    ddSoon(); // champion names, for reports and Stats
     riotCheck();
     if (mine && lcuOn()) { loadMine(); myRank().then(() => { if (JSON.stringify(rankNow) !== JSON.stringify(was) && !profView.hidden) renderProfile(); }); }
     if (mine && !isLive(shownPro())) riotMine();
@@ -14226,6 +14227,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   checkWindow();
   renderAvoid();
   view('voice');
+  ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();
   setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
