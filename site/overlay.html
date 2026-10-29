@@ -284,6 +284,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
     if (s.buy && typeof s.buy === 'object') add('buy', buy(s.buy));
     for (const t of Array.isArray(s.practice) ? s.practice : []) add('practice', el('toast game', String(t)));
+    if (Array.isArray(s.aion)) add('aion', el('toast game', s.aion.map(String).join('\n'))); // over Aion 2: its timers and dailies
     if (s.muted) {
       const m = el('pill muted');
       m.innerHTML = MIC + '<path d="M4 4l16 16"/></svg>';
