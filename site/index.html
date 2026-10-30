@@ -11614,12 +11614,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     dpsLookAt = performance.now();
     client.captureSources().then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); if (w && !dps) dpsStart(w.id); }).catch(() => {});
   }
-  // Abyss DPS Meter's saved fights, if it runs on this PC: every minute the app reads the new ones (read only) and they're
+  // Abyss DPS Meter's saved fights, if it runs on this PC: every 5 s the app reads the new ones (read only) and they're
   // kept here (lpc-aion-abyss, the last 30, each with every player's damage, hits, crits and top skills) for the Aion 2
   // page's party breakdown. Premade itself never reads the game's traffic
   let abyssAt = -Infinity;
   function abyssTick() {
-    if (!client || !client.abyssFights || !store.get('lpc-aion') || performance.now() - abyssAt < 60000) return;
+    if (!client || !client.abyssFights || !store.get('lpc-aion') || performance.now() - abyssAt < 5000) return;
     abyssAt = performance.now();
     const list = load('lpc-aion-abyss', []);
     client.abyssFights(list.reduce((m, f) => Math.max(m, f.m || 0), 0)).then((got) => {
@@ -14072,7 +14072,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day, shows your friends’ best next to yours and groups fights you did together, with each one’s share of the damage. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 party breakdown from Abyss DPS Meter', 'If you run Abyss DPS Meter, the app reads the fights it saves on your PC (read only), and the DPS page shows the whole party for each one: DPS, damage share, crits, back attacks and top skills. Premade itself never reads the game’s traffic.',
-        'On by itself in the desktop app when Abyss DPS Meter is on this PC. Open Aion 2, DPS.', '#aionFrame', 'app'],
+        'On by itself in the desktop app when Abyss DPS Meter is on this PC: a fight shows a few seconds after it ends. Open Aion 2, DPS.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
     ]],
