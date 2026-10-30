@@ -36,10 +36,16 @@ jobs:
         name: Compile the Windows process-loopback helper
         run: cl /nologo /EHsc /std:c++17 /O2 /Fe:client/audio-capture.exe client\audio-capture.cpp /link ole32.lib mmdevapi.lib
       - if: steps.source.outputs.available == 'true'
+        name: Build the RE4 co-op helper (live client 1.28.8+)
+        shell: pwsh
+        run: if (Test-Path client/re4/RE4Helper.csproj) { dotnet build client/re4 -c Release -nologo -o re4-out; Copy-Item re4-out/re4-helper.exe client/ }
+      - if: steps.source.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: audio-capture
-          path: client/audio-capture.exe
+          path: |
+            client/audio-capture.exe
+            client/re4-helper.exe
           if-no-files-found: error
   build:
     needs: build-audio-helper
@@ -76,6 +82,7 @@ jobs:
           mkdir -p live app
           git archive ${{ steps.live.outputs.sha }} client | tar -x -C live
           if [ -f audio-helper/audio-capture.exe ]; then cp audio-helper/audio-capture.exe live/client/; fi
+          if [ -f audio-helper/re4-helper.exe ]; then cp audio-helper/re4-helper.exe live/client/; fi
           cd live/client
           npm ci
           node build.js

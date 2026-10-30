@@ -111,6 +111,17 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--link); }
 .hint { color: var(--muted); font-size: 14px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.re4grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@container app (max-width: 900px) { .re4grid { grid-template-columns: minmax(0, 1fr); } }
+.re4rows { display: grid; gap: 8px; }
+.re4row { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+.re4row small { grid-column: 2; color: var(--muted); }
+.re4row .dot[data-h="idle"] { background: transparent; border: 1.5px solid var(--muted); }
+.re4grow { flex: 1; }
+.re4play { font: 700 17px/1 var(--display); letter-spacing: 0.12em; padding: 14px 34px; text-transform: uppercase; }
+.re4steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: re4; }
+.re4steps li { counter-increment: re4; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--raised); }
+.re4steps li::before { content: counter(re4); font: 500 11px/1 var(--mono); color: var(--gold); margin-right: 8px; }
 .btn { font: 600 14px/1 var(--body); padding: 10px 16px; border-radius: 4px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--gold-hi); cursor: pointer; }
 .btn:hover { border-color: var(--gold); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
@@ -758,6 +769,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
     <button class="nav lcu-only" type="button" data-view="record"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span>Recording</span></button>
     <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
+    <button class="nav client-only" type="button" data-view="re4"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg><span>RE4 co-op</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
     <button id="leagueNav" class="nav league" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>League</span></button>
@@ -1813,6 +1825,22 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="recList" class="clips vidlist"></ul>
         <div class="toolbar"><button id="recsFolder" class="btn small" type="button">Open the folder</button></div>
       </section>
+    </section>
+
+    <section class="view" data-view="re4" aria-label="RE4 co-op" hidden>
+      <p id="re4Role" class="ph"></p>
+      <h1 class="title">Resident Evil 4 co-op</h1>
+      <p class="hint">Play RE4 (2023) with a friend through the co-op mod’s Direct Connect, over your own private link instead of the mod’s server. This page checks every part on this PC, backs up your saves and starts the game.</p>
+      <div class="re4grid">
+        <section class="panel" aria-labelledby="h-re4Conn"><h2 id="h-re4Conn" class="ph">Connection</h2><div id="re4Conn" class="re4rows"></div></section>
+        <section class="panel" aria-labelledby="h-re4Priv"><h2 id="h-re4Priv" class="ph">Privacy</h2><div id="re4Priv" class="re4rows"></div></section>
+        <section class="panel" aria-labelledby="h-re4Game"><h2 id="h-re4Game" class="ph">Game</h2><div id="re4Game" class="re4rows"></div></section>
+      </div>
+      <section class="panel" aria-label="Saves">
+        <div class="toolbar"><span id="re4Saves" class="re4rows re4grow"></span><button id="re4Backup" class="btn small" type="button">Back up now</button><button id="re4Backups" class="btn small" type="button">Open backups</button></div>
+      </section>
+      <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span id="re4Note" class="hint" role="status"></span></div>
+      <section class="panel" aria-labelledby="h-re4Next"><h2 id="h-re4Next" class="ph">Next, in the game</h2><ol id="re4Steps" class="re4steps"></ol></section>
     </section>
 
     <section class="view" data-view="aion" aria-label="Aion 2" hidden>
@@ -5962,6 +5990,39 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const AION_URL = 'https://rayn16.github.io/aion2-tracker/?embed';
   window.aionNotify = (text) => { notify(String(text), true); if (client && client.notify) client.notify('Aion 2', String(text)); };
   if (store.get('lpc-aion')) setTimeout(() => { if (!$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL; }, 5000);
+  // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
+  // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting.
+  let re4Busy = false;
+  function re4Rows(box, rows) {
+    $(box).replaceChildren(...rows.map((r) => {
+      const row = document.createElement('div'), dot = document.createElement('span'), t = document.createElement('span'), d = document.createElement('small');
+      row.className = 're4row'; dot.className = 'dot'; dot.dataset.h = { good: 'good', warn: 'ok', bad: 'bad' }[r.level] || 'idle';
+      t.textContent = r.title; d.textContent = r.detail || '';
+      row.append(dot, t, d);
+      return row;
+    }));
+  }
+  async function re4(what = 'status') {
+    if (!client || !client.re4) { $('re4Play').disabled = true; $('re4Note').textContent = 'Update the app to use this page.'; return; }
+    if (re4Busy) return;
+    re4Busy = true;
+    $('re4Play').disabled = true;
+    if (what !== 'status') $('re4Note').textContent = what === 'play' ? 'Backing up saves, then starting RE4…' : 'Working…';
+    const s = await client.re4(what).catch(() => null);
+    re4Busy = false;
+    if (!s || s.error) { $('re4Note').textContent = s ? `Something went wrong: ${s.error}` : 'Update the app to use this page.'; return; }
+    $('re4Role').textContent = { host: `Host · tunnel ${s.tunnelIp}`, friend: `Friend · tunnel ${s.tunnelIp}`, none: 'Not set up yet' }[s.role];
+    re4Rows('re4Conn', s.connection); re4Rows('re4Priv', s.privacy); re4Rows('re4Game', s.game); re4Rows('re4Saves', [s.saves]);
+    $('re4Play').disabled = !!s.why;
+    $('re4Note').textContent = s.note || s.why || 'Backs up your saves, then starts RE4 through Steam.';
+    const steps = s.mod === 'ours' ? ['Insert', 'RE4 co-op', 'Find Steam friends playing RE4', 'Play with your friend']
+      : ['Continue as Guest', 'Matchmaking', 'Direct Connect', s.role === 'friend' ? 'Join, Host’s IP 10.66.0.1' : 'Host & Wait'];
+    $('re4Steps').replaceChildren(...steps.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+  }
+  $('re4Play').addEventListener('click', () => re4('play'));
+  $('re4Backup').addEventListener('click', () => re4('backup'));
+  $('re4Backups').addEventListener('click', () => re4('backups'));
+  setInterval(() => { if (!document.querySelector('.view[data-view="re4"]').hidden && !document.hidden) re4(); }, 15000);
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -5977,6 +6038,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (name === 'tft') renderTft();
     if (name === 'overlay') ovOpen();
     if (name === 'help') renderRemoteHelp();
+    if (name === 're4') re4();
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
     else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
@@ -13659,6 +13721,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [97, 'October 31: an RE4 co-op page', [
+      'A new RE4 co-op page in the menu of the desktop app: it checks everything for playing Resident Evil 4 with a friend through the co-op mod, backs up your saves and starts the game. Setting up the private link and inviting friends come next. It comes with app 1.28.8, which installs itself.',
+    ]],
     [96, 'October 30: rooms friends can always find, and instant invites', [
       'Open rooms no longer drop off the Rooms page after two minutes, and stay listed after the friend who made them leaves.',
       'Invites reach your friend’s Premade right away, not up to 30 seconds later.',
@@ -14195,6 +14260,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
+    ]],
+    ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over your own private link.', [
+      ['RE4 co-op page', 'Checks every part on this PC: the private link to your friend, the router port, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves, starts RE4 through Steam and shows the next clicks in the game.',
+        'RE4 co-op, in the menu. Setting up the link and inviting friends come next.', '#re4Play', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
       ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',

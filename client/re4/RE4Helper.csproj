@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- re4-helper.exe for the RE4 co-op page: .NET Framework 4.8 (in Windows 10 1903+ and 11), no libraries.
+       Built on Windows by .github/workflows/pages.yml into client/, next to audio-capture.exe. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>re4-helper</AssemblyName>
+    <LangVersion>9.0</LangVersion>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Web.Extensions" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

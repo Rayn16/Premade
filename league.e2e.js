@@ -364,6 +364,9 @@ function fakeApp(version) {
     screens: async () => [{ id: '1', main: true, thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
     useScreen() {}, keys: async (k) => ({ mute: !!k.mute, show: !!k.show, clip: !!k.clip, overlay: !!k.overlay, ptt: !!k.ptt }), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay(s) { this.lastOverlay = s; },
+    re4: async (what) => ({ role: 'host', tunnelIp: '10.66.0.1', mod: 'theirs', running: false, why: null, note: what === 'play' ? 'Saves backed up for 1 Steam account. Starting RE4...' : null,
+      connection: [{ level: 'good', title: 'Tunnel running', detail: 're4coop, starts with Windows' }], privacy: [{ level: 'warn', title: 'Game port open to your friend', detail: 'UDP 39000' }],
+      game: [{ level: 'idle', title: 'Not running', detail: 'Play starts it through Steam' }], saves: { level: 'good', title: 'Saves: last backup just now', detail: '' } }),
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
     ...(from('1.6') && {
@@ -889,7 +892,14 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Aion 2', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Aion 2', 'RE4 co-op', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
+    // RE4 co-op: the helper's checks drawn as rows, and Play's answer
+    await pc.click('.nav[data-view="re4"]');
+    await wait(pc, () => document.getElementById('re4Role').textContent === 'Host · tunnel 10.66.0.1' && document.querySelectorAll('#re4Conn .re4row .dot[data-h="good"]').length === 1
+      && document.querySelector('#re4Priv .dot').dataset.h === 'ok' && document.querySelector('#re4Game .dot').dataset.h === 'idle' && document.getElementById('re4Steps').textContent.includes('Host & Wait'), null, 'RE4 co-op checks');
+    await pc.click('#re4Play');
+    await wait(pc, () => document.getElementById('re4Note').textContent.endsWith('Starting RE4...'), null, 'RE4 Play');
+    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, and Play');
     // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
     await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
