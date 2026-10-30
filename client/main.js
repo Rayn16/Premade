@@ -9,6 +9,7 @@
 const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard, powerMonitor } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), os = require('os'), path = require('path'), zlib = require('zlib');
 const { execFile, execFileSync, spawn } = require('child_process');
+const abyss = require('./abyss');
 
 // Premade was called League Proximity Chat before 1.8.0. Its settings, the site's saved data and the clip pictures stay
 // in the folder of that name; its Videos and Documents folders move to the new name the first time they're used.
@@ -133,6 +134,18 @@ ipcMain.handle('filtered-audio-start', async (e) => {
 });
 ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredLeaveOut = []; } });
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
+// Abyss DPS Meter's saved fights, for the Aion 2 page's party breakdown: read only, the ones changed after `since` (ms),
+// newest 20. Abyss writes each file whole and renames it into place, so a file is never half written
+ipcMain.handle('abyss-fights', async (e, since) => {
+  if (!fromSite(e)) return [];
+  const dir = path.join(os.homedir(), '.abyss-dps-meter', 'segments');
+  const names = (await fs.promises.readdir(dir).catch(() => [])).filter((n) => n.endsWith('.abyss'));
+  const files = (await Promise.all(names.map((n) => fs.promises.stat(path.join(dir, n)).then((s) => ({ n, m: s.mtimeMs }), () => null))))
+    .filter((f) => f && f.m > (+since || 0)).sort((a, b) => b.m - a.m).slice(0, 20);
+  const out = [];
+  for (const f of files) { try { out.push({ ...abyss.parse(await fs.promises.readFile(path.join(dir, f.n))), m: f.m }); } catch (err) { console.warn('Abyss fight', f.n, err.message); } }
+  return out;
+});
 ipcMain.handle('capture-sources', async (e) => {
   if (!fromSite(e)) return [];
   const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 280, height: 158 } });

@@ -11606,12 +11606,27 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let dps = null, dpsLookAt = -Infinity, dpsOcr = null; // watching: { track, stop, sig (the line last read), last (what it said), done, busy, readAt, seen, beat }; Tesseract
   const dpsCv = document.createElement('canvas'), dpsNorm = Object.assign(document.createElement('canvas'), { width: 1217, height: 910 });
   function dpsTick() { // every second: looks for Aion 2's window every 30 s
+    abyssTick();
     const want = !!client && !!client.captureSources && !league && !!store.get('lpc-aion') && store.get('aion-dps') !== '0';
     if (dps && !want) dpsStop();
     if (dps && dps.track && Date.now() - (dps.beat || 0) > 30000) { dps.beat = Date.now(); dpsSay('w'); }
     if (dps || !want || performance.now() - dpsLookAt < 30000) return;
     dpsLookAt = performance.now();
     client.captureSources().then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); if (w && !dps) dpsStart(w.id); }).catch(() => {});
+  }
+  // Abyss DPS Meter's saved fights, if it runs on this PC: every 5 s the app reads the new ones (read only) and they're
+  // kept here (lpc-aion-abyss, the last 30, each with every player's damage, hits, crits and top skills) for the Aion 2
+  // page's party breakdown. Premade itself never reads the game's traffic
+  let abyssAt = -Infinity;
+  function abyssTick() {
+    if (!client || !client.abyssFights || !store.get('lpc-aion') || performance.now() - abyssAt < 5000) return;
+    abyssAt = performance.now();
+    const list = load('lpc-aion-abyss', []);
+    client.abyssFights(list.reduce((m, f) => Math.max(m, f.m || 0), 0)).then((got) => {
+      if (!got || !got.length) return;
+      const had = new Set(list.map((f) => f.id));
+      store.set('lpc-aion-abyss', JSON.stringify([...list, ...got.filter((f) => !had.has(f.id)).reverse()].slice(-30)));
+    }).catch(() => {});
   }
   const dpsSay = (k) => { const o = load('lpc-aion-dps', {}); o[k] = Date.now(); store.set('lpc-aion-dps', JSON.stringify(o)); }; // for the Aion 2 page: w, watching Aion 2's window (every 30 s); s, Combat Analysis seen
   async function dpsStart(id) {
@@ -13534,7 +13549,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const NEWS = [
     [93, 'October 29: Aion 2 DPS tracker, timers, a daily checklist and a gear checkup', [
       'A DPS tracker on the Aion 2 page: while Aion 2 is open, the desktop app reads each fight off the game’s Combat Analysis (Ctrl+X) once it’s over: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and puts your friends’ best next to yours.',
-      'Timers on the Aion 2 page: the daily and weekly resets, Shugo Festival, Dimensional Invasion and your server’s field bosses. When anyone in your legion marks a boss kill, everyone sees when it’s back, and Premade warns you 5 minutes before.',
+      'Timers on the Aion 2 page: the daily and weekly resets, Shugo Festival, Dimensional Invasion and your server’s field bosses. When anyone in your legion marks a boss kill, everyone sees when it’s back. Alerts warn you as early as you choose, with a chime or a spoken line if you like.',
+      'If you run Abyss DPS Meter, the DPS page shows the whole party for each fight it saved: DPS, damage share, crits, back attacks and top skills.',
       'Checklist: each character’s dailies and weeklies, ticked off with + and −, and what your friends still have to do.',
       'Each character’s Gear tab has a checkup: empty manastone and Theostone slots, Common manastones and items below max enchant. Compare shows the stones too.',
       'Legion and Profile show what each character gained lately, characters have their portraits, and News has Aion 2’s patch notes and maintenance. The tracker now updates every 30 minutes.',
@@ -14051,10 +14067,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated every 30 minutes.', [
       ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes: skills to level, Daevanion picks and the legion’s best gear, and News with Aion 2’s patch notes and maintenance.',
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
-      ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
+      ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back. Alerts: your own lead time for bosses, Shugo Festival, Invasion and the daily reset, with a chime or a spoken line if you like. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
         'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
-      ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
+      ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day, shows your friends’ best next to yours and groups fights you did together, with each one’s share of the damage. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
+      ['Aion 2 party breakdown from Abyss DPS Meter', 'If you run Abyss DPS Meter, the app reads the fights it saves on your PC (read only), and the DPS page shows the whole party for each one: DPS, damage share, crits, back attacks and top skills. Premade itself never reads the game’s traffic.',
+        'On by itself in the desktop app when Abyss DPS Meter is on this PC: a fight shows a few seconds after it ends. Open Aion 2, DPS.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
     ]],
