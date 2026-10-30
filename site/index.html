@@ -10350,7 +10350,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     fetch(`${serverUrl}/hello`, { method: 'POST', body }).then(inboxOpen, () => {}); // a plain text body, so no preflight
   }
   // our server's inbox (/inbox): a socket that hears 'inv' the moment someone invites one of the Riot IDs your hello gave,
-  // so Friends asks /friends on its next second instead of its next 30 s round. Opened again after each hello, and a
+  // so Friends asks /friends on its next second instead of its next 60 s round. Opened again after each hello, and a
   // minute after it drops; with no inbox the rounds still bring invites.
   let inbox = null;
   function inboxOpen() {
@@ -13094,7 +13094,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- Friends (Your group's first tab): your League friends (desktop app, from League's client) and friends added by
   // Riot ID (lpc-friends), with who has Premade and who has it open now, from our server (server/worker.js /friends:
   // the Riot IDs each device's hello gave). Invite leaves an invite to your room for that Riot ID's Premade (/invite,
-  // kept 10 minutes); each page asks /friends every 30 s (10 s in a League lobby), which also brings its invites.
+  // kept 10 minutes); each page asks /friends every 60 s (10 s in a League lobby), which also brings its invites (our server's inbox says when to ask sooner).
   // opts.lobbyRoom: friends with Premade in your League lobby get invited by themselves, once each time you join a room
   // (so also when you make one after they joined the lobby, and not again after they leave it), and an invite from
   // someone in your lobby is joined by itself when you aren't in a room you joined yourself. Such an invite carries lob,
@@ -13119,7 +13119,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (Array.isArray(f)) frLol = f.map((x) => ({ riot: riotOf(x), st: x.product === 'league_of_legends' && !['offline', 'mobile'].includes(x.availability) ? (x.lol && GAME_STATUS[x.lol.gameStatus]) || (x.availability === 'away' ? 'Away in League' : 'In League') : '' })).filter((x) => RIOT_ID.test(x.riot));
         if (Array.isArray(f)) store.set('lpc-lolfriends', JSON.stringify(frLol.map((x) => ({ riot: x.riot, st: '' }))));
       }
-      if (performance.now() - frAt < (lobby ? 10000 : 30000)) return;
+      if (performance.now() - frAt < (lobby ? 10000 : 60000)) return;
       frAt = performance.now();
       const ids = [...new Set([...frMine, ...frLol.map((x) => x.riot), ...lobbyIds()])];
       const r = await fetch(`${serverUrl}/friends`, { method: 'POST', body: JSON.stringify({ id: opts.hello ? myDevice : '', riot: ids }) }).then((x) => x.json()).catch(() => null);
@@ -13652,7 +13652,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const NEWS = [
     [96, 'October 30: rooms friends can always find, and instant invites', [
       'Open rooms no longer drop off the Rooms page after two minutes, and stay listed after the friend who made them leaves.',
-      'Invites reach your friend’s Premade right away, not up to 30 seconds later.',
+      'Invites reach your friend’s Premade right away, not up to a minute later.',
       'Click an invite’s Windows notification, or its Join button, to join the room, even from the notification centre. It comes with app 1.28.7, which installs itself.',
     ]],
     [95, 'October 29: “Premade, clip that” anywhere', [
