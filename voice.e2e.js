@@ -325,6 +325,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(finder, () => document.getElementById('openRooms').textContent.includes('2/10 players'), null, 'public open-room size');
     assert(/Waiting in lobby/.test(await finder.textContent('#openRooms')) && await finder.isVisible('#openRooms button'), 'other players can find and join an open room without a code');
     await finder.context().close();
+    OPEN_ROOMS.delete(ROOM); // as if our server's 2-minute lease had run out: Ana's page renews it every 45 s
+    await new Promise((ok) => setTimeout(ok, 47000));
+    assert(OPEN_ROOMS.has(ROOM), 'an open room stays listed while nothing changes in it');
 
     // the fake mic beeps, so sound must arrive at both ends and come out of the speakers (Web Audio)
     const benId = (await others(ana))[0].id, anaId = (await others(ben))[0].id;
