@@ -34,6 +34,12 @@ new_sqlite_classes = ["Riot"]
 tag = "v4"
 new_sqlite_classes = ["Directory"]
 
+# clip links (clips.js); deleted after 30 days by the bucket's lifecycle rule:
+# wrangler r2 bucket create premade-clips && wrangler r2 bucket lifecycle add premade-clips expire-30d --expire-days 30
+[[r2_buckets]]
+binding = "CLIPS"
+bucket_name = "premade-clips"
+
 # wakes the Riot object's counting if it ever stopped
 [triggers]
 crons = ["*/30 * * * *"]

@@ -1,7 +1,7 @@
 {
   "name": "league-proxchat",
   "productName": "Premade",
-  "version": "1.28.7",
+  "version": "1.30.0",
   "description": "Proximity voice chat and game tools for League of Legends",
   "main": "main.js",
   "author": "Rayan",
@@ -44,6 +44,12 @@
       "artifactName": "Premade-Setup.exe",
       "shortcutName": "Premade",
       "include": "installer.nsh"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true
     }
   },
   "scripts": {

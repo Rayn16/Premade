@@ -220,6 +220,15 @@ const game = (over = {}, me = {}) => ({
       await wait(page, () => !document.getElementById('tl').hidden && document.getElementById('clipVideo').duration > 1, null, 'the timeline, on a recording with no length in it');
       await wait(page, () => [...document.querySelectorAll('#tlMarks .mk')].length && [...document.querySelectorAll('#tlMarks .mk')].every((b) => b.querySelector('svg path, svg ellipse')), null, 'each highlight with its icon');
       await shot(page, 'clip-player-highlights', '#clipDlg');
+      assert(await page.locator('#reelSave').isHidden(), 'highlights close together make one, so no reel to save');
+      const reelLen = await page.evaluate(async () => {
+        const out = await lpc.reEncode([[0, 0.5], [1, 1.5]]), v = document.createElement('video');
+        v.muted = true;
+        v.src = URL.createObjectURL(new Blob([out], { type: 'video/webm' }));
+        await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; });
+        return v.duration;
+      });
+      assert(reelLen > 0.6 && reelLen < 1.6, `two half-second highlights recorded one after another: ${reelLen}`);
       await page.click('#clipClose');
       await page.click('#vidBox button:text-is("Change folder")');
       await wait(page, () => document.querySelector('.whereAt').textContent === 'Clips are saved in D:\\Clips, games in its Games folder.', null, 'another folder');

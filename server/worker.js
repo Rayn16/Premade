@@ -11,6 +11,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
 import { events } from './esports.js';
+import { clips } from './clips.js';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
@@ -99,6 +100,7 @@ export default {
     if (sq) return env.ROOMS.get(env.ROOMS.idFromName(`squad:${sq[1]}`)).fetch(req);
     if (url.pathname === '/esports') return env.ROOMS.get(env.ROOMS.idFromName('esports')).fetch(req);
     if (url.pathname.startsWith('/riot/')) return riot(env).fetch(req);
+    if (url.pathname.startsWith('/clips/') || url.pathname.startsWith('/c/')) return clips(req, url, env);
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });
     return new Response('Not found', { status: 404 });
   },

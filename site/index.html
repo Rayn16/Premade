@@ -1945,7 +1945,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <button id="edReset" class="btn small" type="button">Undo all</button>
     </div>
     <p id="trimNote" class="hint" role="status">Move Start and End, then save the cut as a new clip. Cuts land on the nearest second or two.</p>
-    <footer><button id="trimSave" class="btn primary" type="button">Save the cut</button><button id="clipClose" class="btn" type="button">Close</button></footer>
+    <footer><button id="trimSave" class="btn primary" type="button">Save the cut</button><button id="reelSave" class="btn" type="button" hidden>Save highlights as one clip</button><button id="clipClose" class="btn" type="button">Close</button></footer>
   </div>
 </dialog>
 
@@ -7891,7 +7891,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // better, or a big moment (your team's steals and Aces, your pentakills) cuts the clip out of it (cutClip), and the
   // app saves it in Videos\\Premade with a picture of the screen for the gallery. Whole games on video (startVid) record
   // the same screen and sound.
-  let recorder = null, clipTimer = 0, momentT = -1, momentRoom = '';
+  let recorder = null, clipTimer = 0, momentT = -1, momentRoom = '', clipLinks = false; // clipLinks: shareClip's
   const clipNames = [];
   // Clip anywhere (Rayan, 2026-10-29: "make it work in everything not just league"): the same recording outside League
   // too, of the screen the app shares (main.js's chosen); its clips are named "Screen clip ..." and listed on the Recording page
@@ -7915,15 +7915,23 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ponytail: a recording is at the higher of the two when the share's is higher; one capture per process
   // With Clip anywhere on it holds the screen all the time, so it asks the Recording page's quality too, for a recording of that screen.
   const capNow = () => { const a = opts.clipsAll; return capOf(Math.max(+opts.clipQ, +opts.shareQ, a ? +opts.recQ : 0), Math.max(opts.clipFps, opts.shareFps, a ? opts.recFps : 0)); };
-  async function startRec(kind) {
+  // A game's recording is of League's own window (Medal does the same), so a Discord message, a notification or Premade's
+  // overlay on that screen isn't in its clips; with Clip anywhere on, or no such window, it's the screen as before.
+  const leagueWindow = async () => (!opts.clipsAll && league && client.captureSources && ((await client.captureSources()).find((x) => x.type === 'window' && x.name === 'League of Legends (TM) Client') || {}).id) || '';
+  async function startRec(kind, screenOnly) {
     const r = (recorder = { parts: [], pre: [], at: performance.now(), kind });
     let s;
-    try { s = await navigator.mediaDevices.getDisplayMedia({ video: capNow(), audio: true }); } catch (err) {
+    try {
+      r.win = screenOnly ? '' : await leagueWindow();
+      if (r.win) await client.captureSource(r.win); // main.js's capture handler takes it for the next getDisplayMedia
+      s = await navigator.mediaDevices.getDisplayMedia({ video: capNow(), audio: true });
+    } catch (err) {
       console.warn('clips:', err);
-      if (recorder === r) r.failed = true; // not again until the next game
+      if (recorder === r) { if (r.win) return startRec(kind, true); r.failed = true; } // the window refused: the screen; that too: not again until the next game
       return;
     }
     if (recorder !== r) return s.getTracks().forEach((t) => t.stop());
+    if (league) watchFrames(r);
     const tracks = [s.getVideoTracks()[0]], heard = s.getAudioTracks()[0];
     if (ac && mic) { // what you hear and your mic, mixed
       r.mix = ac.createMediaStreamDestination();
@@ -8162,7 +8170,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // video, so it opens in your video player instead.
   // Watch (no marks) plays the whole video with its highlights on the timeline.
   // ponytail: apps before 1.19 read the whole video into memory (clipBytes); 1.19 streams it (client.media)
-  let reel = [];
+  let reel = [], reelAll = [];
   async function playGame(name, marks = []) {
     if (!(await openPlayer('game', name, vidMarks[name] || marks))) {
       if (!(await client.gameVideo('open', name))) return notify('Couldn’t open that video. It may have been moved or deleted.', true);
@@ -8170,6 +8178,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     reel = [];
     for (const m of marks) { const last = reel[reel.length - 1], a = Math.max(0, m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = z; else reel.push([a, z]); }
+    reelAll = reel.map((x) => [...x]);
+    $('reelSave').hidden = reelAll.length < 2;
     if (reel.length) vid.addEventListener('playerready', () => nextMark(), { once: true }); // after the trimmer takes the whole video
     else vid.play().catch(() => {});
     $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}${marks.length ? `: ${marks.length === 1 ? marks[0].text : 'highlights'}` : ''}`;
@@ -8206,9 +8216,49 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       for (const later of r.pre.splice(n)) r.parts.push({ at: performance.now(), blob: later }); // what came while reading
     });
   }
+  // A broken capture, the way Medal checks its recordings: every 5 s a 16 by 9 copy of the picture. Three in a row that
+  // are one colour, unchanged or not there (15 s) during a game means the capture is broken: a window recording goes
+  // back to the screen, a screen recording says so once.
+  // ponytail: a game paused 15 s with nothing moving reads as frozen; League always has something moving
+  const frameBad = (px, last) => {
+    if (!px) return true;
+    let lo = 255, hi = 0, diff = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      const y = (px[i] * 3 + px[i + 1] * 6 + px[i + 2]) / 10;
+      lo = Math.min(lo, y); hi = Math.max(hi, y);
+      if (last) diff += Math.abs(px[i] - last[i]) + Math.abs(px[i + 1] - last[i + 1]) + Math.abs(px[i + 2] - last[i + 2]);
+    }
+    return hi - lo < 6 || (!!last && diff < px.length / 4);
+  };
+  let frozenSaid = false;
+  function watchFrames(r) {
+    const c = document.createElement('canvas'), g = c.getContext('2d', { willReadFrequently: true });
+    c.width = 16; c.height = 9;
+    let last = null, bad = 0;
+    r.watch = setInterval(async () => {
+      if (recorder !== r || !league) return clearInterval(r.watch);
+      const img = await Promise.race([new ImageCapture(r.stream.getVideoTracks()[0]).grabFrame(), new Promise((res) => setTimeout(res, 2000))]).catch(() => null);
+      if (recorder !== r) return;
+      let px = null;
+      if (img) { g.drawImage(img, 0, 0, 16, 9); px = g.getImageData(0, 0, 16, 9).data; img.close(); }
+      bad = frameBad(px, last) ? bad + 1 : 0;
+      last = px;
+      if (bad < 3) return;
+      clearInterval(r.watch);
+      if (r.win) {
+        notify('League’s window was recording black or frozen, so clips now record the screen.', true);
+        stopRec();
+        startRec(r.kind, true);
+      } else if (!frozenSaid) {
+        frozenSaid = true;
+        notify('Your recording looks black or frozen, so clips may be empty. Try League in Borderless.', true);
+      }
+    }, 5000);
+  }
   function stopRec() {
     const r = recorder;
     recorder = null;
+    clearInterval(r.watch);
     if (r.mr && r.mr.state !== 'inactive') r.mr.stop();
     if (r.stream) r.stream.getTracks().forEach((t) => t.stop());
     for (const n of r.srcs || []) n.disconnect();
@@ -8519,6 +8569,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
       if (await sendFile(new File([b], c.name, { type: 'video/webm' }))) notify(`Sent “${label}” to your room`, true);
     });
+    if (clipLinks && client.clipRead) {
+      const b = Object.assign(document.createElement('button'), { className: 'btn small link', type: 'button', textContent: '🔗 Link' });
+      b.setAttribute('aria-label', `Copy a link to ${label}`);
+      b.addEventListener('click', () => shareClip(c.name, b));
+      el.querySelector('.send').after(b);
+    }
     el.querySelector('.ren').addEventListener('click', () => renameClip(c.name, el));
     el.querySelector('.bin').addEventListener('click', async () => {
       if (!confirm(`Move “${label}” to the Recycle Bin?`)) return;
@@ -8526,6 +8582,35 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       loadClips();
     });
     return el;
+  }
+  // a link to a clip that anyone can watch for 30 days (server/clips.js): uploaded in 8 MB parts, each tried up to 5
+  // times, 0.5 s, 1 s, 2 s and 4 s apart (as Medal's uploads do), then the link is copied. The button shows only when
+  // our server has clip links on.
+  fetch(serverUrl + '/clips/on').then((r) => r.json()).then((j) => { if ((clipLinks = !!(j && j.on))) renderClips(); }).catch(() => {});
+  async function shareClip(name, btn) {
+    const label = name.replace(/\.webm$/i, ''), b = await client.clipRead(name).catch(() => null);
+    if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
+    const go = async (p, init) => {
+      for (let i = 0; ; i++) {
+        const r = await fetch(serverUrl + p, init).catch(() => null);
+        if (r && r.ok) return r.json();
+        if ((r && r.status < 500) || i >= 4) throw new Error(r ? await r.text().catch(() => r.status) : 'no connection');
+        await new Promise((res) => setTimeout(res, 500 * 2 ** i));
+      }
+    };
+    btn.disabled = true;
+    try {
+      const s = await go(`/clips/start?size=${b.byteLength}`, { method: 'POST' }), q = `id=${s.id}&up=${encodeURIComponent(s.up)}`, parts = [];
+      for (let o = 0, n = 1; o < b.byteLength; o += s.part, n++) {
+        btn.textContent = `🔗 ${Math.round((100 * o) / b.byteLength)}%`;
+        parts.push(await go(`/clips/part?${q}&n=${n}`, { method: 'PUT', body: b.slice(o, o + s.part) }));
+      }
+      const { url } = await go(`/clips/done?${q}`, { method: 'POST', body: JSON.stringify(parts) });
+      await navigator.clipboard.writeText(url).catch(() => {});
+      notify(`Link to “${label}” copied, for 30 days: ${url}`, true);
+    } catch (err) { notify(`Couldn’t upload “${label}”: ${err.message}`, true); }
+    btn.disabled = false;
+    btn.textContent = '🔗 Link';
   }
   function renameClip(name, el) {
     const form = document.createElement('form'), input = document.createElement('input'), ok = document.createElement('button');
@@ -8726,17 +8811,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('clipEdit').addEventListener('click', () => showEdit($('edit').hidden));
   $('edSpeed').addEventListener('input', () => { vid.playbackRate = ed().speed; });
   $('edReset').addEventListener('click', edReset);
-  // plays the cut once, hidden and silent, drawing each frame through edDraw into a recorder
+  // plays the cut once, hidden and silent, drawing each frame through edDraw into a recorder; given several spans (a
+  // match's highlights, Medal-style), it plays them one after another, the recorder paused while it skips between them
   // ponytail: takes as long as the cut plays (30 s at 2× is 15 s); WebCodecs could do it faster
   let edStop = null;
-  async function reEncode(from, to) {
+  async function reEncode(spans) {
     const e = ed(), ex = Object.assign(document.createElement('video'), { crossOrigin: 'anonymous', preload: 'auto', src: vid.currentSrc });
     const on = (n) => new Promise((res, rej) => { ex.addEventListener(n, res, { once: true }); ex.addEventListener('error', rej, { once: true }); });
     const cv = document.createElement('canvas'), g = cv.getContext('2d'), ac = new AudioContext(), dst = ac.createMediaStreamDestination(), parts = [];
     let gone = false;
     try {
       await on('loadedmetadata');
-      ex.currentTime = from;
+      ex.currentTime = spans[0][0];
       await on('seeked');
       edDraw(g, ex);
       ac.createMediaElementSource(ex).connect(dst);
@@ -8745,19 +8831,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       mr.ondataavailable = (ev) => { if (ev.data.size) parts.push(ev.data); };
       ex.playbackRate = e.speed;
       mr.start(1000);
-      await ex.play();
-      await new Promise((res) => {
-        edStop = () => { gone = true; res(); };
-        ex.addEventListener('ended', res, { once: true });
-        const tick = () => {
-          if (gone || ex.currentTime >= to) return res();
-          edDraw(g, ex);
-          $('trimNote').textContent = `Saving your edit… ${Math.round((100 * (ex.currentTime - from)) / (to - from))}%`;
+      const total = spans.reduce((t, [a, z]) => t + z - a, 0);
+      let done = 0;
+      for (const [i, [from, to]] of spans.entries()) {
+        if (i) { mr.pause(); ex.currentTime = from; await on('seeked'); edDraw(g, ex); mr.resume(); }
+        await ex.play();
+        await new Promise((res) => {
+          edStop = () => { gone = true; res(); };
+          ex.addEventListener('ended', res, { once: true });
+          const tick = () => {
+            if (gone || ex.ended || ex.currentTime >= to) return res();
+            edDraw(g, ex);
+            $('trimNote').textContent = `Saving your edit… ${Math.round((100 * (done + ex.currentTime - from)) / total)}%`;
+            ex.requestVideoFrameCallback(tick);
+          };
           ex.requestVideoFrameCallback(tick);
-        };
-        ex.requestVideoFrameCallback(tick);
-      });
-      ex.pause();
+        });
+        ex.pause();
+        done += to - from;
+        if (gone || ex.ended) break;
+      }
       mr.stop();
       await stopped;
     } finally {
@@ -8813,7 +8906,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('trimSave').addEventListener('click', async () => {
     const from = +$('trimFrom').value, to = +$('trimTo').value, re = edited();
     $('trimSave').disabled = true;
-    const out = await (re ? reEncode(from, to) : cutNow(from, to)).catch(() => null);
+    const out = await (re ? reEncode([[from, to]]) : cutNow(from, to)).catch(() => null);
     $('trimSave').disabled = false;
     if (!clipDlg.open) return;
     if (!out) return void ($('trimNote').textContent = re ? 'Couldn’t save your edit.' : 'Couldn’t cut this clip.');
@@ -8827,9 +8920,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('trimNote').textContent = name ? `Saved the ${re ? 'edit' : 'cut'} as “${name.replace(/\.webm$/i, '')}”.` : 'Couldn’t save the cut.';
     if (name) { await cleanClips(); loadClips(); }
   });
+  // a match's highlights saved as one clip (Medal makes the same after a game), each as ▶ Highlights plays it
+  $('reelSave').addEventListener('click', async () => {
+    $('reelSave').disabled = $('trimSave').disabled = true;
+    const d = dur(), out = await reEncode(reelAll.map(([a, z]) => [Math.min(a, d), Math.min(z, d)]).filter(([a, z]) => z > a)).catch(() => null);
+    $('reelSave').disabled = $('trimSave').disabled = false;
+    if (!clipDlg.open) return;
+    const name = out && (await client.clip(out, await shot(vid), viewing.replace(/\.webm$/i, ' highlights.webm')));
+    if (name) keepKda(name, viewing);
+    $('trimNote').textContent = name ? `Saved the highlights as “${name.replace(/\.webm$/i, '')}”.` : 'Couldn’t save the highlights.';
+    if (name) { await cleanClips(); loadClips(); }
+  });
   $('clipClose').addEventListener('click', () => clipDlg.close());
   clipDlg.addEventListener('close', () => {
     reel = [];
+    $('reelSave').hidden = true;
     stripRun++;
     strip.removeAttribute('src');
     strip.load();
@@ -13657,7 +13762,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
-    [96, 'October 30: rooms friends can always find, and instant invites', [
+    [97, 'October 30: cleaner clips and a highlight reel', [
+      'A game’s clips and match video now record only League’s window, so a Discord message, a notification or Premade’s overlay on that screen stays out of them.',
+      'If a recording goes black or freezes, Premade notices within 15 seconds: it switches from League’s window to the screen, or tells you.',
+      'Save highlights as one clip: in a match video’s ▶ Highlights, one button saves all of them, one after another, as a single clip.',
+      'App 1.30.0 also locks the app down, so other programs can’t run their own code through Premade. It installs itself.',
+    ]],
+    [96,'October 30: rooms friends can always find, and instant invites', [
       'Open rooms no longer drop off the Rooms page after two minutes, and stay listed after the friend who made them leaves.',
       'Invites reach your friend’s Premade right away, not up to 30 seconds later.',
       'Click an invite’s Windows notification, or its Join button, to join the room, even from the notification centre. It comes with app 1.28.7, which installs itself.',
@@ -14348,13 +14459,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
         'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
-      ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
+      ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick. Only League’s window is recorded, so notifications and Discord stay out, and a recording that goes black or freezes switches to the screen or tells you.',
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
-      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
+      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip, and Save highlights as one clip keeps them all in one. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
@@ -14626,9 +14737,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     send, // a message to everyone, as a changed page could send it
     sendOnce, // the same on one link each (send uses every link, so twice to a player with two)
     headChunk,
-    clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), saved: [...clipNames],
+    clips: () => ({ on: !!recorder, head: !!(recorder && recorder.head), parts: recorder ? recorder.parts.length : 0, failed: !!(recorder && recorder.failed), win: recorder ? recorder.win || '' : '', saved: [...clipNames],
       age: recorder ? Math.round((performance.now() - recorder.at) / 1000) : 0, trimmed: !!(recorder && recorder.trimmed) }),
-    saveClip,
+    saveClip, frameBad, reEncode,
     voice: () => ({ on: !!ear, loaded: !!vosk, ears: ears.size, err: voiceErr, phrases: phrases() }), saidIn,
     gate: (v) => { gateNode.parameters.get('threshold').value = v; },
     heard: async (id) => { // loudest sample coming out of the speakers from this player over 1.5 s
