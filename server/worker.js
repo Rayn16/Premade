@@ -3,9 +3,12 @@
 // candidates); voice goes directly between players. Each room is one Durable Object, holding its players' sockets.
 // Only ids the voice page uses are let in: lolprox-<room>-<slot>, and once a room is locked, only those with its
 // password. /stats counts rooms and players each day for the voice page (Settings > Our server), and /hello and /who
-// are who has Premade (both in the Stats object). /push/... is the phone remote's notifications (push.js), /squad/...
+// are who has Premade, and /friends and /invite which of your friends have it and invites to your room (all in the Stats
+// object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
-// own. /riot/... is Riot data (the Riot object, at the end).
+// own. /riot/... is Riot data (the Riot object, at the end). /aion is the Aion 2 tracker's claimed characters, and
+// /aion/boss, /aion/ticks and /aion/fights its legion's field boss kills, daily and weekly checklist and fights (DPS)
+// (all in Stats).
 import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
@@ -18,16 +21,94 @@ const stats = (env) => env.STATS.get(env.STATS.idFromName('all')); // ponytail: 
 const day = (ago = 0) => new Date(Date.now() - ago * 864e5).toISOString().slice(0, 10); // UTC
 // what a page says when Premade opens (/hello): its device's own random id, the app version ('web' on the website,
 // 'old' before 1.3), its voice name and its League accounts' Riot IDs; null for anything else
+const DEVICE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const riotIdList = (a, n) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(x)).slice(0, n) : []);
+// a page served from the same computer: one of our tests, not anyone's Premade, so its hello isn't kept
+const LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
 const helloOf = (b) => {
-  if (!b || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
-  const riot = Array.isArray(b.riot) ? b.riot.filter((n) => typeof n === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(n)).slice(0, 10) : [];
-  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot };
+  if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10) };
 };
 // the owner's key (the secret OWNER_KEY), checked in constant time; nobody is the owner without one
 const owner = (env, key) => {
   const [a, b] = [typeof key === 'string' ? key : '', env.OWNER_KEY || ''].map((s) => new TextEncoder().encode(s));
   return b.byteLength > 0 && a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
 };
+
+function deepAramAugments(html) {
+  const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
+  const re = /\\"id\\":(\d+),\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\",\\"tags\\":\[[^\]]*\],\\"rarity\\":\\"(silver|gold|prismatic)\\",\\"pickRate\\":([0-9.]+).*?\\"deepScore\\":([0-9]+),\\"href\\":\\"\/augments\/([^\\"]+)\\"/g;
+  const rows = [];
+  for (const m of html.matchAll(re)) {
+    let name;
+    try { name = JSON.parse(`"${m[2]}"`); } catch { continue; }
+    const score = +m[5];
+    rows.push({ id: +m[1], name, rarity: m[3], pickRate: +m[4], deepScore: score,
+      tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D', href: m[6] });
+  }
+  return { patch, rows };
+}
+
+// The Aion 2 tracker's Refresh now (/aion?q=name&s=server): one character's sheet straight from PLAYNC, in the shape
+// the tracker's fetch.py saves, kept 2 minutes so a busy button doesn't hammer PLAYNC
+const AION_SEARCH = (q) => `https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(q)}&region=eu&localeInfo=en-US&page=1&size=20`;
+const AION_FETCH = { headers: { 'user-agent': 'premade-aion2-tracker (small friends group)' }, cf: { cacheEverything: true, cacheTtl: 120 } };
+// a fight for /aion/fights, as Premade read it off the game's Combat Analysis: c the character (the tracker matches it by
+// its skills, '' if none did), tg the target, t the battle time (s), d DPS, dmg the total damage, k the top skills
+// [[name, damage, %]]; null if it doesn't add up
+function aionFight(b) {
+  const { c = '', tg = '', t, d, dmg, k = [] } = b, int = (x, hi) => Number.isInteger(x) && x >= 0 && x <= hi;
+  if (typeof c !== 'string' || (c && !/^[^\s,<>#]{1,24}$/.test(c)) || typeof tg !== 'string' || !/^[\p{L}\p{N}' :,-]{0,40}$/u.test(tg)) return null;
+  if (!int(t, 86400) || t < 3 || !int(d, 1e9) || !int(dmg, 1e13) || !dmg || d * (t - 1.5) > dmg || dmg > d * (t + 1.5)) return null; // the window shows the time to the second
+  const skill = (x) => Array.isArray(x) && x.length === 3 && typeof x[0] === 'string' && /^[\p{L}\p{N}' :-]{1,32}$/u.test(x[0]) && int(x[1], dmg) && int(x[2], 100);
+  return Array.isArray(k) && k.length <= 7 && k.every(skill) ? { c, tg, t, d, dmg, k } : null;
+}
+async function aionLive(req, name, server) {
+  const key = new Request(new URL(`/aion?q=${encodeURIComponent(name.toLowerCase())}&s=${encodeURIComponent(server.toLowerCase())}`, req.url)); // one entry whatever else the ask has
+  const hit = await caches.default.match(key);
+  if (hit) return hit;
+  const get = (u) => fetch(u, AION_FETCH).then((x) => { if (!x.ok) throw new Error(x.status); return x.json(); });
+  const clean = (n) => String(n).replace(/<[^>]+>/g, '');
+  try {
+    const c = (await get(AION_SEARCH(name))).list.find((x) => clean(x.name).toLowerCase() === name.toLowerCase() && String(x.serverName).toLowerCase() === server.toLowerCase());
+    if (!c) return Response.json({ error: 'Not found' }, { status: 404, headers: CORS });
+    const api = (kind) => `https://aion2.plaync.com/api/character/${kind}?region=eu&lang=en-US&characterId=${c.characterId}&serverId=${c.serverId}`; // characterId comes URL-encoded
+    const [info, equip] = await Promise.all([get(api('info')), get(api('equipment'))]);
+    // every node of each open board as "row|col|grade|open|name", the start node counting as open (fetch.py's board())
+    const boards = Object.fromEntries(await Promise.all((info.daevanion?.boardList || []).filter((b) => b.open).map(async (b) =>
+      [b.id, (await get(api('daevanion/detail') + '&boardId=' + b.id)).nodeList.filter((n) => n.grade !== 'None' || n.type === 'Start')
+        .map((n) => `${n.row}|${n.col}|${n.type === 'Start' ? 'Start' : n.grade}|${+!!(n.open || n.type === 'Start')}|${n.name}`)])));
+    const res = Response.json({
+      level: c.level, cp: info.profile.combatPower, il: info.stat.statList.find((x) => x.type === 'ItemLevel')?.value ?? null,
+      gear: equip.equipment.equipmentList.map(({ slotPosName, name, grade, enchantLevel, icon }) => ({ slotPosName, name, grade, enchantLevel, icon })),
+      stats: info.stat.statList, title: info.title ?? null, ranking: info.ranking ?? null, daevanion: info.daevanion ?? null, boards,
+      skill: equip.skill ?? null, petwing: equip.petwing ?? null,
+    }, { headers: { ...CORS, 'cache-control': 'public, max-age=120' } });
+    await caches.default.put(key, res.clone()).catch(() => {});
+    return res;
+  } catch {
+    return Response.json({ error: 'PLAYNC didn’t answer' }, { status: 502, headers: CORS });
+  }
+}
+
+// Cloudflare Realtime TURN (free up to 1,000 GB a month): the TURN_KEY_ID and TURN_KEY_TOKEN secrets make credentials
+// for a day, shared by everyone for an hour. No secrets: stun only, as before.
+// ponytail: anyone can fetch these, like the rest of the server; a per-room credential if the relay is ever misused
+let turnAt = 0, turnBody = null;
+async function turn(env) {
+  if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return Response.json({ iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] }, { headers: CORS });
+  if (!turnBody || Date.now() - turnAt > 3600000) {
+    const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+      method: 'POST', headers: { authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({ ttl: 86400 }),
+    });
+    if (!r.ok) return Response.json({ error: `TURN ${r.status}` }, { status: 502, headers: CORS });
+    const { iceServers } = await r.json();
+    // port 53 is blocked by browsers and only slows the connection down (Cloudflare's docs)
+    turnBody = { iceServers: iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:53\b/.test(u)) })) };
+    turnAt = Date.now();
+  }
+  return Response.json(turnBody, { headers: CORS });
+}
 
 export default {
   async fetch(req, env) {
@@ -37,14 +118,82 @@ export default {
       if (!ID.test(id) || !url.searchParams.get('token')) return new Response('Not a proximity chat player', { status: 400 });
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
+    if (url.pathname === '/inbox' && req.headers.get('Upgrade') === 'websocket') return stats(env).fetch(req); // invites the moment they're sent
+    if (url.pathname === '/turn') return turn(env); // relay servers for voice and screens, for players whose routers can't connect directly
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
+    if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
+      const champion = url.searchParams.get('champ') || '';
+      if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
+      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`;
+      try {
+        const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
+        if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
+        const { patch, rows } = deepAramAugments(await upstream.text());
+        if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
+        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows }, { headers: { ...CORS, 'cache-control': 'public, max-age=1800' } });
+      } catch {
+        return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
+      }
+    }
+    if (url.pathname === '/rooms' && req.method === 'GET') return Response.json(await directory(env).list(), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    if (url.pathname === '/rooms' && req.method === 'POST') {
+      const b = await req.json().catch(() => null);
+      if (!b || !/^[a-z0-9]{4,20}$/.test(b.room) || !DEVICE.test(b.owner) || (b.count != null && (!Number.isInteger(b.count) || b.count < 1 || b.count > 10)) || (b.playing != null && typeof b.playing !== 'boolean')) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
+      if (b.remove === true || b.locked === true) await directory(env).remove(b.room, b.owner);
+      else await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true);
+      return Response.json({ ok: true }, { headers: CORS });
+    }
     if (req.method === 'POST' && (url.pathname === '/hello' || url.pathname === '/who')) { // a plain text body, so no preflight
       const b = await req.json().catch(() => null);
       if (url.pathname === '/who') return owner(env, b && b.key) ? Response.json({ apps: await stats(env).who() }, { headers: CORS }) : new Response('Not the owner key', { status: 403, headers: CORS });
       const h = helloOf(b);
       if (!h) return new Response('Not a Premade hello', { status: 400, headers: CORS });
-      await stats(env).hello(h);
+      if (!LOCAL.test(req.headers.get('origin') || '')) await stats(env).hello(h);
       return new Response(null, { status: 204, headers: CORS });
+    }
+    if (url.pathname === '/aion') { // the Aion 2 tracker (github.com/Rayn16/aion2-tracker): who plays which character
+      // ?q=: PLAYNC's character search, which turns away other sites' pages (403), so the tracker searches through here
+      const q = (url.searchParams.get('q') || '').trim().slice(0, 24);
+      if (q && url.searchParams.has('s')) return aionLive(req, q, url.searchParams.get('s'));
+      if (q) {
+        const r = await fetch(AION_SEARCH(q), AION_FETCH).then((x) => x.json()).catch(() => null);
+        if (!r || !Array.isArray(r.list)) return Response.json({ error: 'Search failed' }, { status: 502, headers: CORS });
+        const list = r.list.filter((c) => c && typeof c.name === 'string').map((c) => ({ n: c.name.replace(/<[^>]+>/g, ''), s: c.serverName, level: c.level }));
+        return Response.json({ list }, { headers: { ...CORS, 'cache-control': 'public, max-age=300' } });
+      }
+      if (req.method !== 'POST') return Response.json({ chars: await stats(env).aion() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
+      const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1);
+      const n = b && typeof b.n === 'string' && /^[^\s,<>#]{1,24}$/.test(b.n) ? b.n : '', s = b && typeof b.s === 'string' && /^[A-Za-z' -]{2,20}$/.test(b.s) ? b.s : '';
+      if (!b || !DEVICE.test(b.id) || !o || !n || !s) return Response.json({ error: 'Not a character' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).aion(b.id, o, n, s, b.del === true), { headers: CORS });
+    }
+    const ap = /^\/aion\/(boss|ticks|fights)$/.exec(url.pathname); // the Aion 2 tracker's Timers, Checklist and DPS pages
+    if (ap) {
+      const boss = ap[1] === 'boss';
+      if (req.method !== 'POST') return Response.json(boss ? { kills: await stats(env).aionBoss() } : ap[1] === 'ticks' ? { ticks: await stats(env).aionTicks() } : { fights: await stats(env).aionFights() }, { headers: { ...CORS, 'cache-control': 'no-store' } });
+      const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1), now = Date.now();
+      if (!b || !DEVICE.test(b.id) || !o) return Response.json({ error: 'Not a player' }, { status: 400, headers: CORS });
+      if (boss) { // b: the boss, s: its server, at: when it died (ms, now if left out)
+        const s = typeof b.s === 'string' && /^[A-Za-z' -]{2,20}$/.test(b.s) ? b.s : '', n = typeof b.b === 'string' && /^[A-Za-z' -]{2,40}$/.test(b.b) ? b.b : '', at = b.at ?? now;
+        if (!s || !n || !Number.isFinite(at) || at > now + 6e4 || at < now - 864e5) return Response.json({ error: 'Not a boss kill' }, { status: 400, headers: CORS });
+        return Response.json(await stats(env).aionBoss(b.id, o, s, n, Math.min(now, Math.round(at)), b.del === true), { headers: CORS });
+      }
+      if (ap[1] === 'fights') { // at: when Premade saw it (ms), which a fight keeps when it's sent again
+        const f = b.del === true ? null : aionFight(b);
+        if (!Number.isInteger(b.at) || b.at > now + 6e4 || b.at < now - 60 * 864e5 || (b.del !== true && !f)) return Response.json({ error: 'Not a fight' }, { status: 400, headers: CORS });
+        return Response.json(await stats(env).aionFights(b.id, o, b.at, f), { headers: CORS });
+      }
+      // k: 'Character:item', or 'Server:item' for what a server's characters share; n: how many done
+      const k = typeof b.k === 'string' && /^[^\s,<>#:]{1,24}:[a-z]{1,16}$/.test(b.k) ? b.k : '';
+      if (!k || !Number.isInteger(b.n) || b.n < 0 || b.n > 99) return Response.json({ error: 'Not a tick' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).aionTicks(b.id, o, k, b.n), { headers: CORS });
+    }
+    if (req.method === 'POST' && (url.pathname === '/friends' || url.pathname === '/invite')) { // a plain text body too
+      const b = await req.json().catch(() => null), id = b && DEVICE.test(b.id) ? b.id : '';
+      if (url.pathname === '/friends') return Response.json(await stats(env).friends(id, riotIdList(b && b.riot, 300)), { headers: CORS });
+      const [to] = riotIdList(b && [b.to], 1), room = b && /^[a-z0-9]{1,20}$/.test(b.room) ? b.room : '', key = (b && b.key) ?? '', lob = (b && b.lob) ?? '';
+      if (!id || !to || !room || typeof key !== 'string' || !/^[a-z]{0,12}$/.test(key) || typeof lob !== 'string' || !/^([0-9a-f]{64})?$/.test(lob)) return Response.json({ error: 'Not an invite' }, { status: 400, headers: CORS });
+      return Response.json(await stats(env).invite(id, to, room, key, lob), { headers: CORS });
     }
     const code = /^\/push\/([a-z0-9]{12})(\/ring)?$/.exec(url.pathname); // the phone remote's notifications (push.js)
     if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
@@ -55,10 +204,38 @@ export default {
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });
     return new Response('Not found', { status: 404 });
   },
-  async scheduled(event, env) { // every 30 minutes: wakes the Riot object's counting if it ever stopped
+  async scheduled(event, env, ctx) { // every 30 minutes: wakes the Riot object's counting if it ever stopped, and runs the
+    // Aion 2 tracker's update (GH_TOKEN: a GitHub token that may run its workflow), since GitHub ran the tracker's own
+    // 30-minute schedule only every 4 to 6 hours
+    if (env.GH_TOKEN) ctx.waitUntil(fetch(`${env.GH_API || 'https://api.github.com'}/repos/Rayn16/aion2-tracker/actions/workflows/update.yml/dispatches`, {
+      method: 'POST', body: '{"ref":"main"}',
+      headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'Premade (github.com/Rayn16/Premade)' },
+    }).then((r) => { if (!r.ok) console.error('Aion 2 tracker update:', r.status); }, (e) => console.error('Aion 2 tracker update:', e)));
     await riot(env).kick();
   },
 };
+
+const directory = (env) => env.DIRECTORY.get(env.DIRECTORY.idFromName('open-rooms'));
+
+// Open room listings use short leases, so a host that closes unexpectedly disappears automatically.
+export class Directory extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec('CREATE TABLE IF NOT EXISTS rooms (room TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL) WITHOUT ROWID');
+    const columns = new Set(this.sql.exec('PRAGMA table_info(rooms)').toArray().map((x) => x.name));
+    if (!columns.has('count')) this.sql.exec('ALTER TABLE rooms ADD COLUMN count INTEGER NOT NULL DEFAULT 1');
+    if (!columns.has('playing')) this.sql.exec('ALTER TABLE rooms ADD COLUMN playing INTEGER NOT NULL DEFAULT 0');
+  }
+  async put(room, owner, count = 1, playing = false) {
+    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing', room, owner, Date.now() + 120000, count, playing ? 1 : 0);
+  }
+  async remove(room, owner) { this.sql.exec('DELETE FROM rooms WHERE room = ? AND owner = ?', room, owner); }
+  async list() {
+    this.sql.exec('DELETE FROM rooms WHERE expires < ?', Date.now());
+    return this.sql.exec('SELECT room, count, playing FROM rooms ORDER BY room').toArray().map(({ room, count, playing }) => ({ room, count, playing: !!playing }));
+  }
+}
 
 // A locked room: each page sends {type: 'LOCK', payload: {key}} whenever its socket opens, key being a hash of the
 // password it knows ('' for none). In a locked room a newcomer is let in (its messages passed on, and others' to it)
@@ -134,12 +311,135 @@ export class Room extends DurableObject {
 // Who has Premade (apps), for its owner only (/who): each device that opened it, by the random id it made itself, with
 // what its last hello said (helloOf) and when it first and last opened Premade (seconds); kept a year from the last.
 // ponytail: anyone can add a line, fine for a friends' app; a limit for each address if it ever gets spammed
+// Friends (the Voice page's Friends): /friends says which of the Riot IDs asked about a device opened Premade with in
+// the last 90 days and when it was last open, only for devices that asked /friends themselves (friendly), so ones
+// whose page has Friends and whose Settings say friends can see them. Each /friends call counts as open (kept at most
+// every 45 s, so a page asking every 30 s, or 10 s in a lobby, shows as open now: under 90 s), and it gives that device
+// the invites to its own Riot IDs. /invite keeps an invite to a Riot ID's apps for
+// 10 minutes, from a device that has said hello, one from each device to each Riot ID (a new one replaces it). lob: for
+// an invite to a League lobby's member, a hash of the lobby's party id and the room, which only someone really in that
+// lobby can make, so the invited page joins by itself only when it matches its own lobby ('' for none).
+// ponytail: anyone can say hello with anyone's Riot ID and so get their invites, room password included; fine among
+// friends, a sign-in through League's client if strangers ever use it
+const low = (n) => n.toLowerCase();
+const AION_HELLO = 'Turn on “Let whoever runs Premade and my friends see I have it” in Premade’s Settings > App, then open the Aion 2 page again';
 export class Stats extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
+    ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, lob TEXT NOT NULL DEFAULT '', PRIMARY KEY (dest, src))");
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aion (n TEXT, s TEXT, o TEXT, PRIMARY KEY (n, s)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionboss (s TEXT, b TEXT, at INTEGER, o TEXT, PRIMARY KEY (s, b)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aiontick (o TEXT, k TEXT, n INTEGER, at INTEGER, PRIMARY KEY (o, k)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionfight (o TEXT, at INTEGER, f TEXT, PRIMARY KEY (o, at)) WITHOUT ROWID');
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong')); // the inbox's keep-alive doesn't wake it
+  }
+  // o as the device's last hello gave it, when it's one of that hello's Riot IDs; else null
+  helloRiot(id, o) {
+    const me = this.ctx.storage.sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    return (me && JSON.parse(me.riot).find((x) => low(x) === low(o))) || null;
+  }
+  // Aion 2 characters (/aion): with no id, every claim [{ n: name, s: server, o: owner's Riot ID }]; else o claims n on s,
+  // or lets it go (del), when o is one of the Riot IDs that device's last hello gave. A new claim takes a character from
+  // whoever had it. Ten for each Riot ID. ponytail: trusts the Riot ID like /invite does; fine among friends
+  aion(id, o, n, s, del) {
+    const sql = this.ctx.storage.sql;
+    if (!id) return sql.exec('SELECT n, s, o FROM aion ORDER BY o, n').toArray();
+    if (!this.helloRiot(id, o)) return { error: AION_HELLO };
+    // o's claims found here, not with SQLite's lower(), which leaves capitals like Ö as they are
+    const mine = sql.exec('SELECT n, s, o FROM aion').toArray().filter((r) => low(r.o) === low(o)), had = mine.some((r) => r.n === n && r.s === s);
+    if (del) { if (had) sql.exec('DELETE FROM aion WHERE n = ? AND s = ?', n, s); }
+    else if (!had && mine.length >= 10) return { error: 'Ten characters at most' };
+    else sql.exec('INSERT OR REPLACE INTO aion VALUES (?, ?, ?)', n, s, o);
+    return { ok: true };
+  }
+  // Aion 2 field bosses (/aion/boss): each boss's last kill on each server, [{ s: server, b: boss, at: when it died (ms),
+  // o: who marked it }]; with id, o marks b on s killed at at, or takes the mark off (del). A day keeps every one:
+  // the longest respawn is 12 hours
+  aionBoss(id, o, s, b, at, del) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    // a GET comes from memory until the next write, so pages asking every few seconds read no rows (the free plan's
+    // 5 million a day are shared with voice rooms)
+    if (!id) return (this.bossMemo ??= sql.exec('SELECT s, b, at, o FROM aionboss ORDER BY at').toArray()).filter((r) => r.at > now - 864e5);
+    const who = this.helloRiot(id, o);
+    if (!who) return { error: AION_HELLO };
+    this.bossMemo = null;
+    if (del) sql.exec('DELETE FROM aionboss WHERE s = ? AND b = ?', s, b);
+    else sql.exec('INSERT OR REPLACE INTO aionboss VALUES (?, ?, ?, ?)', s, b, at, who);
+    sql.exec('DELETE FROM aionboss WHERE at < ?', now - 864e5);
+    return { ok: true };
+  }
+  // Aion 2 checklist (/aion/ticks): how many of each daily and weekly thing each player has done, [{ o, k, n, at (ms) }],
+  // k 'Character:item' or 'Server:item'; the page counts one only since its last reset. With id, o sets its k to n (0
+  // takes it off). A week and a day keeps every one; 300 for each Riot ID
+  aionTicks(id, o, k, n) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    if (!id) return (this.tickMemo ??= sql.exec('SELECT o, k, n, at FROM aiontick').toArray()).filter((r) => r.at > now - 8 * 864e5); // from memory, like aionBoss
+    const who = this.helloRiot(id, o);
+    if (!who) return { error: AION_HELLO };
+    const mine = sql.exec('SELECT k FROM aiontick WHERE o = ?', who).toArray();
+    if (n && !mine.some((r) => r.k === k) && mine.length >= 300) return { error: 'Too many ticks' };
+    this.tickMemo = null;
+    if (n) sql.exec('INSERT OR REPLACE INTO aiontick VALUES (?, ?, ?, ?)', who, k, n, now);
+    else sql.exec('DELETE FROM aiontick WHERE o = ? AND k = ?', who, k);
+    sql.exec('DELETE FROM aiontick WHERE at < ?', now - 8 * 864e5);
+    return { ok: true, at: now };
+  }
+  // Aion 2 fights (/aion/fights): each player's fights as their Premade read them off Combat Analysis, [{ o, at (ms),
+  // ...aionFight's }]; with id, o adds its fight at at (the same at again replaces it), or takes it off (no f). The
+  // newest 100 for each Riot ID, for 60 days
+  aionFights(id, o, at, f) {
+    const sql = this.ctx.storage.sql, now = Date.now();
+    if (!id) return (this.fightMemo ??= sql.exec('SELECT o, at, f FROM aionfight').toArray().map((r) => ({ o: r.o, at: r.at, ...JSON.parse(r.f) }))).filter((r) => r.at > now - 60 * 864e5); // from memory, like aionBoss
+    const who = this.helloRiot(id, o);
+    if (!who) return { error: AION_HELLO };
+    this.fightMemo = null;
+    if (!f) sql.exec('DELETE FROM aionfight WHERE o = ? AND at = ?', who, at);
+    else {
+      sql.exec('INSERT OR REPLACE INTO aionfight VALUES (?, ?, ?)', who, at, JSON.stringify(f));
+      sql.exec('DELETE FROM aionfight WHERE o = ? AND at NOT IN (SELECT at FROM aionfight WHERE o = ? ORDER BY at DESC LIMIT 100)', who, who);
+    }
+    sql.exec('DELETE FROM aionfight WHERE at < ?', now - 60 * 864e5);
+    return { ok: true };
+  }
+  friends(id, riot) { // { has: { riot id (lower case): last open (s) }, inv: [{ n, riot, room, key, lob, at }] }
+    const sql = this.ctx.storage.sql, now = Math.round(Date.now() / 1000), want = new Set(riot.map(low)), has = {};
+    sql.exec('DELETE FROM invites WHERE at < ?', now - 600);
+    // ponytail: reads every app each time, fine for hundreds; a table of Riot IDs if it's ever thousands
+    for (const r of sql.exec('SELECT a.id, a.riot, a.last FROM apps a JOIN friendly f ON f.id = a.id WHERE a.last > ?', now - 90 * 86400))
+      if (r.id !== id) for (const n of JSON.parse(r.riot).map(low)) if (want.has(n)) has[n] = Math.max(has[n] || 0, r.last);
+    const me = id && sql.exec('SELECT riot, last FROM apps WHERE id = ?', id).toArray()[0];
+    if (!me) return { has, inv: [] };
+    sql.exec('INSERT OR IGNORE INTO friendly VALUES (?)', id);
+    if (now - me.last >= 45) sql.exec('UPDATE apps SET last = ? WHERE id = ?', now, id);
+    const mine = JSON.parse(me.riot).map(low);
+    const inv = mine.length ? sql.exec(`SELECT a.name AS n, a.riot, i.room, i.key, i.lob, i.at FROM invites i JOIN apps a ON a.id = i.src WHERE i.dest IN (${mine.map(() => '?').join()})`, ...mine).toArray() : [];
+    return { has, inv: inv.map((x) => ({ ...x, riot: JSON.parse(x.riot)[0] || '' })) };
+  }
+  invite(id, to, room, key, lob) {
+    const sql = this.ctx.storage.sql;
+    if (!sql.exec('SELECT 1 FROM apps WHERE id = ?', id).toArray().length) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Settings > App first' };
+    sql.exec('INSERT OR REPLACE INTO invites (dest, src, room, key, at, lob) VALUES (?, ?, ?, ?, ?, ?)', low(to), id, room, key, Math.round(Date.now() / 1000), lob);
+    for (const ws of this.ctx.getWebSockets(low(to))) try { ws.send('inv'); } catch {} // their page asks /friends now
+    return { ok: true };
+  }
+  // /inbox?id=<device>: a page's socket, tagged with the Riot IDs its device's last hello gave, that hears 'inv' when one
+  // of them is invited, so the page asks /friends at once instead of on its next 30 s round. It carries no invite itself.
+  fetch(req) {
+    const id = new URL(req.url).searchParams.get('id') || '';
+    const me = DEVICE.test(id) && this.ctx.storage.sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    if (!me) return new Response('Say hello first', { status: 404, headers: CORS });
+    const [client, server] = Object.values(new WebSocketPair());
+    // no tags while League is closed: a socket that hears nothing until the next hello opens a new one, rather than a
+    // refusal the page would try again every minute
+    this.ctx.acceptWebSocket(server, [...new Set(JSON.parse(me.riot).map(low))].slice(0, 10));
+    return new Response(null, { status: 101, webSocket: client });
+  }
+  webSocketClose(ws, code) {
+    try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
   }
   hello({ id, v, name, riot }) {
     const now = Math.round(Date.now() / 1000);
@@ -148,7 +448,10 @@ export class Stats extends DurableObject {
   }
   who() { // [{ v, name, riot: [Riot ID], first, last }], the last opened first
     const sql = this.ctx.storage.sql;
-    sql.exec('DELETE FROM apps WHERE last < ?', Math.round(Date.now() / 1000) - 365 * 86400);
+    // a year after the last opening, and the lines our tests' pages made before /hello turned away pages on the same
+    // computer: app 1.13 or 1.15, voice name Rayan, no League account, all within 10 minutes (ponytail: drop that half
+    // once who.html shows none)
+    sql.exec("DELETE FROM apps WHERE last < ? OR (name = 'Rayan' AND riot = '[]' AND v IN ('1.13.0', '1.15.0') AND last - first < 600)", Math.round(Date.now() / 1000) - 365 * 86400);
     return sql.exec('SELECT v, name, riot, first, last FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot) }));
   }
   prune() {
@@ -204,6 +507,7 @@ const LOOKUPS = [ // [path, on a region (else a platform), the query parameters 
 // Cloudflare's free plan, each UTC day: Durable Object requests, SQLite rows read and written, and running time
 // (13,000 GB-s at 128 MB is 101,562.5 s). They're for the whole account: the voice rooms use a little too.
 const FREE = { req: 1e5, read: 5e6, write: 1e5, ms: 101562500 };
+const AUG_DAY = 20000; // rows a day the augment games may write (augIn), about 400 real Mayhem games, so with the crawl's ~57k the day stays under FREE.write
 const LADDER = (p) => (p === 'kr' ? 'ladder' : `ladder:${p}`); // where a server's ladder is kept (Korea's from before the others)
 const KEEP = 500; // games kept for each champion and role: a new one takes a random place, so older ones thin out
 const TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'];
@@ -329,9 +633,10 @@ export class Riot extends DurableObject {
   }
   // A game's augments from a Premade app, which read them from League's client: { g: its id (EUW1_123), ps: each of
   // the 10 players' { c: champion, w: 1 if they won, a: augment ids } } for ARAM: Mayhem, or { g, s: the set, ps: each
-  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 30 an
-  // hour. 'ok', or why not.
-  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 30 an hour from each address
+  // of the 8 players' { p: place, a: augment ids } } for TFT. Each game counts once, and an address sends at most 200 an
+  // hour. 'ok', or why not: 'later' once today's (UTC) new games would write more than AUG_DAY rows, so a game to send
+  // again another day. Rows, not games: a made-up game with 8 augments for everyone writes twice a real one's.
+  // ponytail: it trusts what an app says its game was; a changed app could send made-up games, 200 an hour from each address
   augIn(kind, text, ip) {
     let b;
     try { b = JSON.parse(text); } catch { return 'not JSON'; }
@@ -342,10 +647,16 @@ export class Riot extends DurableObject {
       : !(Number.isInteger(b.s) && b.s > 0 && b.s < 100 && ps.length === 8 && ps.every((p) => p && Number.isInteger(p.p) && Array.isArray(p.a) && p.a.length <= 4 && p.a.every((a) => typeof a === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(a)))
         && ps.map((p) => p.p).sort((x, y) => x - y).join() === '1,2,3,4,5,6,7,8')) return 'not a game';
     const now = Date.now(), mine = (this.sent.get(ip) || []).filter((t) => now - t < 3600000);
-    if (mine.length >= 30) return 'too many';
+    if (mine.length >= 200) return 'too many';
     this.sent.set(ip, [...mine, now]);
     if (this.sent.size > 500) for (const [k, t] of this.sent) if (now - t[t.length - 1] > 3600000) this.sent.delete(k);
     if (this.sql.exec('SELECT 1 FROM augseen WHERE g = ?', b.g).toArray().length) return 'ok';
+    const d = this.get('augday', {}); // histories sent at once mustn't use up the day's rows written
+    if (d.day !== day()) Object.assign(d, { day: day(), n: 0 });
+    const rows = 2 + ps.reduce((n, p) => n + (may ? 1 + p.a.length : new Set(p.a).size), 0); // with augseen's and augday's
+    if (d.n + rows > AUG_DAY) return 'later';
+    d.n += rows;
+    this.put('augday', d);
     this.sql.exec('INSERT INTO augseen VALUES (?, ?)', b.g, Math.round(now / 1000));
     for (const p of ps) {
       if (may) for (const a of [0, ...p.a]) this.sql.exec('INSERT INTO mayhem VALUES (?, ?, 1, ?) ON CONFLICT (c, a) DO UPDATE SET n = n + 1, w = w + excluded.w', p.c, a, p.w);
