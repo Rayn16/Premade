@@ -60,18 +60,21 @@ if (!app.requestSingleInstanceLock()) return app.quit();
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, additionalArguments: ['--lpc-version=' + app.getVersion()] };
 const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
 const openOut = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
-let win = null, overlay = null, screenId = '', captureSourceId = '', shareAudioMode = false, shareAudioFiltered = false, shareLeaveOut = [], filteredLeaveOut = [], filteredCapture = null, pendingNotificationAction = null;
+let win = null, overlay = null, screenId = '', captureSourceId = '', shareAudioMode = false, shareAudioFiltered = false, shareLeaveOut = [], filteredLeaveOut = [], filteredCapture = null;
 
+// An invite's notification opens lolprox://join/<room>[.<password>] when it or its Join button is clicked, so Windows
+// hands it to the app (second-instance, or a new app) even from the notification centre, after Electron forgot the toast.
+const xml = (t) => t.replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
 ipcMain.on('notify', (e, title, body, action) => {
   if (!fromSite(e) || process.platform !== 'win32' || !Notification.isSupported()) return;
-  const n = new Notification({ title: String(title || 'Premade').slice(0, 80), body: String(body || '').slice(0, 240), silent: false });
-  if (action && action.type === 'room-invite' && /^[a-z0-9]{4,20}$/.test(action.room) && /^[a-z0-9]{0,20}$/.test(action.key || '')) {
-    n.on('click', () => {
-      pendingNotificationAction = { type: 'room-invite', room: action.room, key: action.key || '' };
-      if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); if (win.webContents.isLoading()) return; win.webContents.send('notification-action', pendingNotificationAction); pendingNotificationAction = null; }
-    });
-  }
-  n.show();
+  title = String(title || 'Premade').slice(0, 80);
+  body = String(body || '').slice(0, 240);
+  const invite = action && action.type === 'room-invite' && /^[a-z0-9]{4,20}$/.test(action.room) && /^[a-z]{0,12}$/.test(action.key || '');
+  const link = invite && xml(`lolprox://join/${action.room}${action.key ? '.' + action.key : ''}`);
+  new Notification(!invite ? { title, body, silent: false } : {
+    toastXml: `<toast activationType="protocol" launch="${link}"><visual><binding template="ToastGeneric"><text>${xml(title)}</text><text>${xml(body)}</text></binding></visual>`
+      + `<actions><action content="Join" activationType="protocol" arguments="${link}"/></actions></toast>`,
+  }).show();
 });
 
 // ---- screens: the one picked in Settings is shared and gets the overlay; until then the main one
@@ -1241,7 +1244,6 @@ app.whenReady().then(async () => {
     if (updateReady) win.webContents.send('update', updateReady);
     join(linkWaiting);
     linkWaiting = '';
-    if (pendingNotificationAction) { win.webContents.send('notification-action', pendingNotificationAction); pendingNotificationAction = null; }
     const cpu = os.cpus();
     diag(`${os.version()} ${os.release()}, ${cpu.length} threads of ${cpu[0] ? cpu[0].model.trim() : 'a CPU'}, ${powerMonitor.isOnBatteryPower() ? 'on battery' : 'plugged in'}, full speed for ${fullSpeed()} processes`);
   });

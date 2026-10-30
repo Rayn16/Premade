@@ -2316,7 +2316,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (left && p.hello) gone(nameOf(p));
     else if (!quiet && p.hello) leftLater(nameOf(p));
     if (!quiet && !left) { dropped.set(p.slot, { at: performance.now(), name: nameOf(p) }); dial(p.slot); } // the room connection broke: dial them again now
-    if (roomCreator) updateRoomListing();
+    updateRoomListing();
     render();
   }
 
@@ -2418,7 +2418,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     setPic(r.querySelector('.pic'), picOf(p), name);
     p.chip.toggleAttribute('data-talking', shownTalking(p));
     p.chip.lastChild.textContent = name;
-    if (roomCreator) updateRoomListing();
+    updateRoomListing();
   }
   const trackText = () => (!share ? 'not sharing your screen' : share.mode === 'general' ? 'sharing a screen or app without League tracking' : !share.sq ? 'looking for your minimap'
     : fresh(me) && me.by === 'icon' ? 'following your champion' : fresh(me) ? 'following your camera box' : 'looking for your champion');
@@ -3612,8 +3612,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       $('createBtn').disabled = $('joinBtn').disabled = false;
     }
     autoJoined = auto;
-    roomCreator = created;
-    if (roomCreator) updateRoomListing();
+    roomCreator = roomListed = created;
+    updateRoomListing();
+    if (!created && !roomKey) fetch(`${serverUrl}/rooms`).then((r) => r.json()).then((l) => { if (room === code && Array.isArray(l) && l.some((x) => x && x.room === code)) { roomListed = true; updateRoomListing(); } }).catch(() => {});
     joinedAt = performance.now();
     sessStart();
     $('key').hidden = true;
@@ -3653,8 +3654,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function leaveRoom() {
     if (!peer) return;
-    if (roomCreator) updateRoomListing(true);
-    roomCreator = false;
+    if (roomListingState) updateRoomListing(true);
+    roomCreator = roomListed = false;
     endGame();
     const old = peer;
     peer = null;
@@ -3698,15 +3699,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('joinForm').addEventListener('submit', (e) => { e.preventDefault(); joinRoom($('code').value, false, $('key').hidden ? '' : $('key').value); });
   $('leaveBtn').addEventListener('click', () => { left = { room, at: Math.round(Date.now() / 1000) }; leaveRoom(); });
 
-  // Only the creator publishes an unlocked room. The Worker lease expires if the app closes unexpectedly.
-  let roomListingState = '';
+  // An unlocked room you made, or one that was listed when you came in, is kept listed by its maker and, once they leave,
+  // by the host. The Worker's lease lasts 2 minutes, so it's renewed every 45 s, and lapses if the app closes unexpectedly.
+  let roomListingState = '', roomListedAt = 0, roomListed = false;
   let openRoomRows = [];
   async function updateRoomListing(remove = false) {
-    if (!room || !roomCreator && !remove || roomKey && !remove) return;
+    if (!room || !remove && (!peer || roomKey || !roomListed || !roomCreator && !isHost())) return;
     const count = Math.min(10, peers.size + 1), playingNow = !!inGameNow();
     const state = `${room}|${count}|${playingNow}|${!!roomKey}|${remove}`;
-    if (!remove && state === roomListingState) return;
+    if (!remove && state === roomListingState && Date.now() - roomListedAt < 40000) return;
     roomListingState = remove ? '' : state;
+    roomListedAt = Date.now();
     await fetch(`${serverUrl}/rooms`, { method: 'POST', body: JSON.stringify({ room, owner: myDevice, count, playing: playingNow, remove, locked: !!roomKey }) }).catch(() => {});
   }
   async function refreshOpenRooms() {
@@ -3740,7 +3743,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   $('openRoomsSearch').addEventListener('input', renderOpenRooms);
   $('refreshOpenRooms').addEventListener('click', refreshOpenRooms);
-  setInterval(() => { if (roomCreator && peer && !roomKey) updateRoomListing(); refreshOpenRooms(); }, 45000);
+  setInterval(() => { updateRoomListing(); refreshOpenRooms(); }, 45000);
   refreshOpenRooms();
 
   client && client.on('notification-action', (action) => {
@@ -4438,7 +4441,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     };
     $('statusRows').replaceChildren(row(`${myName || 'You'} (you)`, myStatus(), league ? Math.floor(gameNow() / 60) : 0), ...[...peers.values()].map((p) => row(nameOf(p), p.st, p.min)));
   }
-  function statusTick() { const st = myStatus(); if (st !== stWas) { stWas = st; send(meMsg()); if (roomCreator) updateRoomListing(); } }
+  function statusTick() { const st = myStatus(); if (st !== stWas) { stWas = st; send(meMsg()); updateRoomListing(); } }
 
   $('readyBtn').addEventListener('click', async () => {
     $('readyBox').hidden = false;
@@ -10339,12 +10342,25 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let myDevice = store.get('lpc-device'), checkedIn = '';
   if (!myDevice) store.set('lpc-device', (myDevice = crypto.randomUUID()));
   function checkIn() {
-    if (!opts.hello) return void (checkedIn = ''); // turned off in Settings > App: nothing goes, and turned on again it says hello at once
+    if (!opts.hello) { if (inbox) inboxOpen(); return void (checkedIn = ''); } // turned off in Settings > App: nothing goes, and turned on again it says hello at once
     const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: Object.values(accounts).map((a) => a && a.n) });
     const k = body + new Date().toISOString().slice(0, 10); // and again on a new day
     if (k === checkedIn) return;
     checkedIn = k;
-    fetch(`${serverUrl}/hello`, { method: 'POST', body }).catch(() => {}); // a plain text body, so no preflight
+    fetch(`${serverUrl}/hello`, { method: 'POST', body }).then(inboxOpen, () => {}); // a plain text body, so no preflight
+  }
+  // our server's inbox (/inbox): a socket that hears 'inv' the moment someone invites one of the Riot IDs your hello gave,
+  // so Friends asks /friends on its next second instead of its next 30 s round. Opened again after each hello, and a
+  // minute after it drops; with no inbox the rounds still bring invites.
+  let inbox = null;
+  function inboxOpen() {
+    const old = inbox;
+    inbox = null;
+    if (old) old.close();
+    if (!opts.hello) return;
+    const ws = inbox = new WebSocket(`${serverUrl.replace(/^http/, 'ws')}/inbox?id=${myDevice}`), ping = setInterval(() => ws.readyState === 1 && ws.send('ping'), 50000);
+    ws.onmessage = (e) => { if (e.data === 'inv') frAt = -Infinity; };
+    ws.onclose = () => { clearInterval(ping); if (inbox === ws) { inbox = null; setTimeout(() => { if (!inbox) inboxOpen(); }, 60000); } };
   }
   checkIn();
   const isLive = (p) => { const lm = liveMine(); return !!p && !!lm && acctOf(p.n) === acctOf(lm.n); };
@@ -13634,6 +13650,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [96, 'October 30: rooms friends can always find, and instant invites', [
+      'Open rooms no longer drop off the Rooms page after two minutes, and stay listed after the friend who made them leaves.',
+      'Invites reach your friend’s Premade right away, not up to 30 seconds later.',
+      'Click an invite’s Windows notification, or its Join button, to join the room, even from the notification centre. It comes with app 1.28.7, which installs itself.',
+    ]],
     [95, 'October 29: “Premade, clip that” anywhere', [
       'Clip anywhere, on the Recording page: tick it and the clip key and “Premade, clip that” save a clip in any app or game, not only League. Clips from outside League are listed there; League’s stay on the Clips page.',
     ]],
@@ -14121,7 +14142,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // on the website. Add a line here with every new feature.
   const FEATURES = [
     ['Rooms', 'Hang out with friends: join a room, talk, share your screens and chat. Premade opens on it.', [
-      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
+      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players in your room: Share screen or app at the top of the room, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
@@ -14149,7 +14170,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
     ['Friends', 'Your friends, who’s online, invites and your squad.', [
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade to join your voice room, no code needed. They’re under your profile too: click one to see their profile, rank and games.',
+      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade right away to join your voice room, no code needed; in the Windows app its notification has a Join button. They’re under your profile too: click one to see their profile, rank and games.',
         'The Friends page. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
       ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
         'On unless you turn it off: the Friends page, under the list.', '#optLobbyRoom', 'app'],

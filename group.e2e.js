@@ -41,7 +41,7 @@ http.createServer((req, res) => {
 
 // ---- our server, faked: squads as server/squad.js keeps them
 const H = 36e5, T = Date.now();
-const S = { squads: {}, pings: [], apps: {}, inv: [] };
+const S = { squads: {}, pings: [], apps: {}, inv: [], inbox: [] }; // inbox: the pages' /inbox sockets, [device id, socket]
 function fakeServer(r) {
   const q = r.request(), [, what, code, act = ''] = new URL(q.url()).pathname.split('/'), reply = (json, status = 200) => r.fulfill({ status, json, headers: cors });
   // who has Premade and Friends, as server/worker.js's Stats object keeps them (server/stats.test.js tests the real ones)
@@ -56,6 +56,7 @@ function fakeServer(r) {
   if (what === 'invite') {
     const b = JSON.parse(q.postData());
     S.inv = [...S.inv.filter((v) => !(v.to === low(b.to) && v.src === b.id)), { to: low(b.to), src: b.id, room: b.room, key: b.key, lob: b.lob, at: now }];
+    for (const [id, ws] of S.inbox) if (S.apps[id] && S.apps[id].riot.map(low).includes(low(b.to))) ws.send('inv');
     return reply({ ok: true });
   }
   const s = (S.squads[code] ||= { m: {}, call: null });
@@ -129,6 +130,7 @@ async function routes(ctx) {
   await ctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', ...cors } }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|communitydragon\.org/, (r) => r.abort());
   await ctx.route(/127\.0\.0\.1:9006\/(squad|hello|friends|invite)/, fakeServer);
+  await ctx.routeWebSocket(/127\.0\.0\.1:9006\/inbox/, (ws) => { S.inbox.push([new URL(ws.url()).searchParams.get('id'), ws]); ws.onMessage((m) => m === 'ping' && ws.send('pong')); });
   await ctx.route(/127\.0\.0\.1:9006\/(riot|stats|push)/, (r) => r.fulfill({ status: 404, json: {}, headers: cors }));
 }
 async function context(browser, who, version, store) {
@@ -231,11 +233,12 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.strictEqual((await frRows(ray)).length, 2, 'Kev removed');
     await ray.click('#frRows tr:first-child button');
     await toast(ray, `Invited Duo#EUW to room ${CODE}: it pops up in their Premade.`, 'the invite sent');
-    await until(async () => { await duo.evaluate(() => lpc.groupNow()); return (await duo.evaluate(() => lpc.toasts())).includes(`Rayan invites you to their voice room, ${CODE}. Join from the Friends page.`); }, 'the invite on Duo’s page');
+    await until(async () => (await duo.evaluate(() => lpc.toasts())).includes(`Rayan invites you to their voice room, ${CODE}. Join from the Friends page.`), 'the invite on Duo’s page at once (our server’s inbox), not on its next 30 s round', 3000);
     assert.strictEqual(await text(duo, '#frInvBox p'), `Rayan invites you to their voice room, ${CODE}.`);
     if (process.env.SHOTS) await duo.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-invite.png') });
     await duo.click('#frInvBox .btn.primary');
     await wait(duo, (c) => lpc.room() === c && lpc.slot() >= 0, code, 'Duo in Rayan’s room from the invite');
+    await duo.evaluate(() => lpc.groupNow()); // Friends redraws on its next round while it's out of sight
     await wait(duo, () => document.getElementById('frInvBox').hidden, null, 'the invite gone once in the room');
     await duo.click('.nav[data-view="voice"]');
     await duo.click('#leaveBtn');
