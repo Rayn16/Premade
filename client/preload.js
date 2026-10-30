@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   version: (process.argv.find((a) => a.startsWith('--lpc-version=')) || '').slice(14),
   screens: () => ipcRenderer.invoke('screens'),
   captureSources: () => ipcRenderer.invoke('capture-sources'),
+  abyssFights: (since) => ipcRenderer.invoke('abyss-fights', +since || 0),
   captureSource: (id) => ipcRenderer.invoke('capture-source', String(id)),
   shareAudioMode: () => ipcRenderer.sendSync('share-audio-mode'),
   shareAudioCancel: () => ipcRenderer.send('share-audio-cancel'),
