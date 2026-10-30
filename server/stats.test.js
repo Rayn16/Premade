@@ -97,6 +97,12 @@ function join(id, token, ip) { // resolves with the server's first message type:
   for (let i = 0; heard.length < 2 && i < 40; i++) await sleep(50);
   assert.deepEqual(heard, ['pong', 'inv'], 'Kev’s page hears the invite at once');
   inbox.close();
+  const E = '5e6f7a8b-9c0d-4e1f-8a2b-4c5d6e7f8a9b', quiet = new WebSocket(`ws://127.0.0.1:${PORT}/inbox?id=${E}`);
+  assert.equal(await new Promise((ok) => quiet.once('unexpected-response', (q, r) => ok(r.statusCode)).once('open', () => ok('open'))), 404);
+  assert.equal((await post('/hello', { id: E, v: 'web', name: '', riot: [] })).status, 204);
+  const quiet2 = new WebSocket(`ws://127.0.0.1:${PORT}/inbox?id=${E}`);
+  assert.equal(await new Promise((ok) => quiet2.once('unexpected-response', (q, r) => ok(r.statusCode)).once('open', () => ok('open'))), 'open', 'League closed: an inbox that hears nothing, not a refusal every minute');
+  quiet2.close();
   assert.deepEqual(await (await post('/invite', { id: B, to: 'Kev#NA1', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) })).json(), { ok: true }); // replaces it
   const { inv } = await fr({ id: A, riot: [] });
   assert.deepEqual(inv.map(({ at, ...v }) => v), [{ n: 'Rayan the very long voic', riot: 'Rayan#EUW', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) }]);

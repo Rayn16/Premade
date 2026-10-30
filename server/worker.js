@@ -431,10 +431,11 @@ export class Stats extends DurableObject {
   fetch(req) {
     const id = new URL(req.url).searchParams.get('id') || '';
     const me = DEVICE.test(id) && this.ctx.storage.sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
-    const tags = me ? [...new Set(JSON.parse(me.riot).map(low))].slice(0, 10) : [];
-    if (!tags.length) return new Response('Say hello first', { status: 404, headers: CORS });
+    if (!me) return new Response('Say hello first', { status: 404, headers: CORS });
     const [client, server] = Object.values(new WebSocketPair());
-    this.ctx.acceptWebSocket(server, tags);
+    // no tags while League is closed: a socket that hears nothing until the next hello opens a new one, rather than a
+    // refusal the page would try again every minute
+    this.ctx.acceptWebSocket(server, [...new Set(JSON.parse(me.riot).map(low))].slice(0, 10));
     return new Response(null, { status: 101, webSocket: client });
   }
   webSocketClose(ws, code) {
