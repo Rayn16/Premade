@@ -436,6 +436,12 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .vidlist { margin: 0; padding: 0; list-style: none; }
 .vidlist:empty { display: none; }
+#dlForm { grid-template-columns: minmax(0, 1fr) auto auto; }
+@container app (max-width: 560px) { #dlForm { grid-template-columns: minmax(0, 1fr); } }
+.dllist { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.dllist:empty { display: none; }
+.dllist li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.dllist .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; flex: 1 1 200px; }
 .vcard .thumb { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 4px; }
 .vcard .thumb .shot { cursor: inherit; }
 .vcard .vlen { position: absolute; right: 8px; bottom: 8px; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 700 13px/1.2 var(--body); }
@@ -1578,6 +1584,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="vidList" class="clips vidlist"></ul>
         <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button><button class="btn small where" type="button" data-where="pick" hidden>Change folder</button></div>
       </section>
+      <section id="dlBox" class="panel" aria-labelledby="h-dl" hidden>
+        <h2 id="h-dl" class="ph">Download from a link <button class="tip" type="button" popovertarget="t-dl" aria-label="About downloads">?</button></h2>
+        <form id="dlForm" class="chatform">
+          <input id="dlUrl" type="url" required autocomplete="off" spellcheck="false" placeholder="Paste a link: YouTube, TikTok, Instagram, X, Reddit…" aria-label="Link to download">
+          <select id="dlKind" aria-label="What to keep"><option value="video">Video</option><option value="audio">Sound only (MP3)</option></select>
+          <button class="btn" type="submit">Download</button>
+        </form>
+        <ul id="dlList" class="dllist"></ul>
+        <div class="toolbar"><button id="dlFolder" class="btn small" type="button">Open the downloads folder</button></div>
+      </section>
       <details id="clipSet" class="voiceset">
         <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
         <div class="settings">
@@ -2015,6 +2031,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
+<div id="t-dl" class="tipbox" popover>Paste a link to a video on almost any site (YouTube, TikTok without its watermark, Instagram, X, Reddit, Facebook, Twitch, SoundCloud and about 1,700 more) and the app saves it in Downloads\Premade, up to 1080p, or just its sound as an MP3. The first download fetches the downloader (yt-dlp and ffmpeg, about 150 MB); after that it keeps itself up to date. Private posts, stories and videos behind a login or DRM (Netflix, Spotify) can’t be downloaded. Only download what you’re allowed to keep.</div>
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
@@ -8195,6 +8212,38 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     loadClips();
     loadVids();
   });
+  // ---- downloads (app 1.31): a link's video or sound, saved by the app in Downloads\\Premade, newest first on the list
+  const dlRows = new Map(); // link -> its row's { li, sub, acts }
+  $('dlBox').hidden = !(client && client.download);
+  function dlRow(url) {
+    const li = document.createElement('li'), sub = Object.assign(document.createElement('span'), { className: 'sub' }), acts = Object.assign(document.createElement('span'), { className: 'cacts' });
+    li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: url }), sub, acts);
+    $('dlList').prepend(li);
+    const r = { li, sub, acts };
+    dlRows.set(url, r);
+    return r;
+  }
+  const dlBtn = (text, fn) => { const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text }); b.addEventListener('click', fn); return b; };
+  if (client && client.download) client.on('download', ({ url, pct }) => { const r = dlRows.get(url); if (r) r.sub.textContent = pct < 0 ? 'Getting ready…' : `Downloading ${Math.round(pct)}%`; });
+  $('dlForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const url = $('dlUrl').value.trim();
+    if (dlRows.has(url) && !dlRows.get(url).done) return;
+    if (dlRows.has(url)) dlRows.get(url).li.remove();
+    const r = dlRow(url);
+    r.sub.textContent = 'Starting…';
+    r.acts.replaceChildren(dlBtn('Stop', () => client.downloadStop(url)));
+    $('dlUrl').value = '';
+    const res = await client.download(url, $('dlKind').value);
+    r.done = true;
+    r.acts.replaceChildren();
+    if (res && res.file) {
+      r.li.querySelector('.cname').textContent = res.file.split(/[\\/]/).pop();
+      r.sub.textContent = 'Saved';
+      r.acts.append(dlBtn('Show in folder', () => client.downloadShow(res.file)));
+    } else r.sub.textContent = (res && res.error) || 'Couldn’t download that.';
+  });
+  $('dlFolder').addEventListener('click', () => client && client.downloadsFolder && client.downloadsFolder());
   // the head is the recording's first chunks up to its first Cluster: on a busy PC Chrome can hand the WebM header over
   // in pieces (even its first byte alone), and every clip needs all of it
   function headChunk(r, blob) {
@@ -14356,6 +14405,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
+      ['Download from a link', 'Paste a link from YouTube, TikTok (without the watermark), Instagram, X, Reddit, Facebook, Twitch and about 1,700 more sites, and the app saves the video up to 1080p, or just its sound as an MP3, in Downloads\\Premade.',
+        'The Clips page, Download from a link. The first one fetches the downloader, about 150 MB.', '#h-dl', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
