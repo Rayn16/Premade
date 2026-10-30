@@ -118,6 +118,7 @@ export default {
       if (!ID.test(id) || !url.searchParams.get('token')) return new Response('Not a proximity chat player', { status: 400 });
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
+    if (url.pathname === '/inbox' && req.headers.get('Upgrade') === 'websocket') return stats(env).fetch(req); // invites the moment they're sent
     if (url.pathname === '/turn') return turn(env); // relay servers for voice and screens, for players whose routers can't connect directly
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
@@ -334,6 +335,7 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionboss (s TEXT, b TEXT, at INTEGER, o TEXT, PRIMARY KEY (s, b)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aiontick (o TEXT, k TEXT, n INTEGER, at INTEGER, PRIMARY KEY (o, k)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionfight (o TEXT, at INTEGER, f TEXT, PRIMARY KEY (o, at)) WITHOUT ROWID');
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong')); // the inbox's keep-alive doesn't wake it
   }
   // o as the device's last hello gave it, when it's one of that hello's Riot IDs; else null
   helloRiot(id, o) {
@@ -421,7 +423,22 @@ export class Stats extends DurableObject {
     const sql = this.ctx.storage.sql;
     if (!sql.exec('SELECT 1 FROM apps WHERE id = ?', id).toArray().length) return { error: 'Turn on “Let whoever runs Premade and my friends see I have it” in Settings > App first' };
     sql.exec('INSERT OR REPLACE INTO invites (dest, src, room, key, at, lob) VALUES (?, ?, ?, ?, ?, ?)', low(to), id, room, key, Math.round(Date.now() / 1000), lob);
+    for (const ws of this.ctx.getWebSockets(low(to))) try { ws.send('inv'); } catch {} // their page asks /friends now
     return { ok: true };
+  }
+  // /inbox?id=<device>: a page's socket, tagged with the Riot IDs its device's last hello gave, that hears 'inv' when one
+  // of them is invited, so the page asks /friends at once instead of on its next 30 s round. It carries no invite itself.
+  fetch(req) {
+    const id = new URL(req.url).searchParams.get('id') || '';
+    const me = DEVICE.test(id) && this.ctx.storage.sql.exec('SELECT riot FROM apps WHERE id = ?', id).toArray()[0];
+    const tags = me ? [...new Set(JSON.parse(me.riot).map(low))].slice(0, 10) : [];
+    if (!tags.length) return new Response('Say hello first', { status: 404, headers: CORS });
+    const [client, server] = Object.values(new WebSocketPair());
+    this.ctx.acceptWebSocket(server, tags);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+  webSocketClose(ws, code) {
+    try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
   }
   hello({ id, v, name, riot }) {
     const now = Math.round(Date.now() / 1000);

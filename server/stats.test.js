@@ -3,7 +3,7 @@
 // each device's version, name and Riot IDs with when it first and last opened, and only the owner's key gets /who, with
 // no line for a page on the same computer (our tests) or like the ones they made before. And
 // Friends: /friends says which Riot IDs have Premade (any case, not your own device) and gives a device the invites to
-// its Riot IDs; /invite needs a device that said hello, and a new invite from the same device replaces the last; lob, a lobby's hash, comes back as it was sent.
+// its Riot IDs, and /inbox is a socket that hears 'inv' the moment one of them is invited; /invite needs a device that said hello, and a new invite from the same device replaces the last; lob, a lobby's hash, comes back as it was sent.
 // Aion 2: /aion/boss, /aion/ticks and /aion/fights take a kill, a tick or a fight only for a Riot ID the device said
 // hello with, and the 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT).
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
@@ -88,7 +88,15 @@ function join(id, token, ip) { // resolves with the server's first message type:
   for (const bad of [{}, { id: B, to: 'Kev', room: 'abcd' }, { id: B, to: 'Kev#NA1', room: 'AB CD' }, { id: B, to: 'Kev#NA1', room: 'abcd', key: 'NO1' }, { id: B, to: 'Kev#NA1', room: 'abcd', key: ['a'] }, { id: B, to: 'Kev#NA1', room: 'abcd', lob: 'abc' }, { id: B, to: 'Kev#NA1', room: 'abcd', lob: 'A'.repeat(64) }])
     assert.equal((await post('/invite', bad)).status, 400, JSON.stringify(bad));
   assert.match((await (await post('/invite', { id: C, to: 'Kev#NA1', room: 'abcd' })).json()).error || '', /^Turn on/); // a device that never said hello
+  assert.equal(await new Promise((ok) => new WebSocket(`ws://127.0.0.1:${PORT}/inbox?id=${C}`).once('unexpected-response', (q, r) => ok(r.statusCode)).once('open', () => ok('open'))), 404, 'no inbox before a hello');
+  const inbox = new WebSocket(`ws://127.0.0.1:${PORT}/inbox?id=${A}`), heard = [];
+  await new Promise((ok, bad) => { inbox.once('open', ok); inbox.once('error', bad); });
+  inbox.on('message', (m) => heard.push(String(m)));
+  inbox.send('ping');
   assert.deepEqual(await (await post('/invite', { id: B, to: 'KEV#na1', room: 'abcd', key: '' })).json(), { ok: true });
+  for (let i = 0; heard.length < 2 && i < 40; i++) await sleep(50);
+  assert.deepEqual(heard, ['pong', 'inv'], 'Kev’s page hears the invite at once');
+  inbox.close();
   assert.deepEqual(await (await post('/invite', { id: B, to: 'Kev#NA1', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) })).json(), { ok: true }); // replaces it
   const { inv } = await fr({ id: A, riot: [] });
   assert.deepEqual(inv.map(({ at, ...v }) => v), [{ n: 'Rayan the very long voic', riot: 'Rayan#EUW', room: 'efgh', key: 'pass', lob: 'c'.repeat(64) }]);
