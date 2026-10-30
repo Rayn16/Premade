@@ -589,6 +589,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ben.click('.nav[data-view="voice"]');
     await ben.click('#voiceSet > summary'); // Voice settings, under the room
     assert.strictEqual(await ben.textContent('#talkNote'), 'In a browser these work while this page is in front.');
+    await ben.click('[data-key="mute"]');
+    await ben.keyboard.press('KeyR');
+    assert.strictEqual(await ben.textContent('[data-key="mute"]'), 'Hold Ctrl, Alt or Shift too…', 'a letter alone gets a hint, not silence');
+    await ben.keyboard.press('Escape');
+    assert.strictEqual(await ben.textContent('#kMute'), 'Ctrl+Shift+M', 'Escape keeps the old keys');
     await ben.click('[data-key="ptt"]');
     await ben.keyboard.press('KeyV');
     assert.strictEqual(await ben.textContent('#kPtt'), 'V', 'push-to-talk key set');

@@ -13297,7 +13297,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
   // ---- keyboard shortcuts. The Windows client registers them system-wide (keysOk says which took); otherwise
   // they work while this page has focus.
-  let keysOk = {}, capture = '';
+  let keysOk = {}, capture = '', lone = false;
   const PTT_KEYS = /^(Key[A-Z]|Digit\d|Numpad\d|F\d{1,2}|Mouse[345]|Backquote|CapsLock|Tab|Space|(Alt|Control|Shift)(Left|Right))$/;
   const keyName = (c) => c.replace(/^(Key|Digit)/, '').replace(/^Numpad/, 'Numpad ').replace(/^Mouse/, 'Mouse ').replace('Backquote', '`').replace('CapsLock', 'Caps Lock')
     .replace(/^(Alt|Control|Shift)(Left|Right)$/, (m, a, b) => `${b} ${a === 'Control' ? 'Ctrl' : a}`);
@@ -13321,7 +13321,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('kOverlay').textContent = keys.overlay || 'Off';
     $('kPtt').textContent = keys.ptt ? keyName(keys.ptt) : 'Off (open mic)';
     for (const b of document.querySelectorAll('.keyrow [data-key]')) { // only these buttons: other boxes keep what they drew in data-key
-      b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
+      b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : lone ? 'Hold Ctrl, Alt or Shift too…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
     }
     $('pttOff').hidden = !keys.ptt;
     const busy = (ks) => ks.filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]), taken = (b) => `Another app already uses ${b.join(' and ')}, so pick something else.`;
@@ -13334,7 +13334,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function onCapture(e) {
     e.preventDefault();
-    if (e.key === 'Escape') { capture = ''; return renderKeys(); }
+    if (e.key === 'Escape') { capture = ''; return applyKeys(); }
     if (capture === 'ptt') {
       const c = e.type === 'mousedown' ? mouseCode(e) : e.code;
       if (PTT_KEYS.test(c)) { keys.ptt = c; capture = ''; applyKeys(); }
@@ -13343,8 +13343,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (e.type !== 'keydown') return;
     const c = comboOf(e);
     if (c.includes('+') || /^F\d/.test(c)) { keys[capture] = c; capture = ''; applyKeys(); }
+    else if (c) { lone = true; renderKeys(); } // a letter alone would fire while you type
   }
-  for (const b of document.querySelectorAll('.keyrow [data-key]')) b.addEventListener('click', () => { capture = b.dataset.key; renderKeys(); });
+  // while a button waits for keys, the app lets go of its Windows hotkeys: Windows hands a hotkey's keys to the app that
+  // took it and never to this page, so pressing one of ours (or picking the same keys again) did nothing
+  for (const b of document.querySelectorAll('.keyrow [data-key]')) b.addEventListener('click', () => {
+    capture = b.dataset.key; lone = false; renderKeys();
+    if (client) client.keys({}).catch(() => {});
+  });
+  addEventListener('mousedown', (e) => { if (capture && !e.target.closest?.('.keyrow [data-key]') && !(capture === 'ptt' && mouseCode(e))) { capture = ''; applyKeys(); } }); // a click elsewhere cancels
   $('pttOff').addEventListener('click', () => { keys.ptt = ''; applyKeys(); });
   const typing = (e) => e.target instanceof Element && !!e.target.closest('input, select, textarea');
   const pushTalk = (down) => { if (pttDown !== down) { pttDown = down; applyMic(); } };
