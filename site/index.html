@@ -7937,7 +7937,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     r.mr.ondataavailable = (e) => {
       if (e.data.size && r.game) r.game.add(e.data);
       if (e.data.size && clipsOn()) {
-        if (r.head) r.parts.push({ at: performance.now(), blob: e.data });
+        // each second is kept as its bytes, not the recorder's Blob: a Blob's data sits in the app's main process, where
+        // the page's clean-up doesn't see its size, so the seconds dropped below piled up there (Rayan, 30 Oct: 3.4 GB)
+        if (r.head) { const p = { at: performance.now(), blob: e.data }; r.parts.push(p); e.data.arrayBuffer().then((a) => { p.blob = new Uint8Array(a); }, () => {}); }
         else headChunk(r, e.data);
         while (r.parts.length && performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000) { r.parts.shift(); r.trimmed = true; }
       }
