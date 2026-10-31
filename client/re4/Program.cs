@@ -164,7 +164,7 @@ namespace RE4Helper
         // Outside input: every field is checked, and the tunnel file is written from these fields only.
         public static string[] ReadCode(string code)
         {
-            code = (code ?? "").Trim();
+            code = (code ?? "").Trim().Trim('\uFEFF').Trim();   // a pasted or piped code may carry a byte-order mark
             bool Endpoint(string e) => System.Text.RegularExpressions.Regex.IsMatch(e, @"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$")
                 && System.Net.IPAddress.TryParse(e.Split(':')[0], out _) && int.Parse(e.Split(':')[1]) is var port && port > 0 && port < 65536;
             if (Endpoint(code)) return new[] { code };
