@@ -299,9 +299,14 @@ namespace RE4Helper
         static string Run(string exe, string args, string input = null, bool check = true)
         {
             var psi = new ProcessStartInfo(exe, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = input != null };
-            if (input != null) psi.StandardInputEncoding = new System.Text.UTF8Encoding(false);   // no BOM: wg reads the key byte for byte
             using var p = Process.Start(psi);
-            if (input != null) { p.StandardInput.Write(input + "\n"); p.StandardInput.Close(); }
+            if (input != null)
+            {
+                // Plain bytes, as the writer would put a byte-order mark first and wg reads the key byte for byte.
+                var bytes = System.Text.Encoding.ASCII.GetBytes(input + "\n");
+                p.StandardInput.BaseStream.Write(bytes, 0, bytes.Length);
+                p.StandardInput.Close();
+            }
             var output = p.StandardOutput.ReadToEnd();
             var err = p.StandardError.ReadToEnd();
             p.WaitForExit();
