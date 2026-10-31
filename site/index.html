@@ -8051,7 +8051,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // too, of the screen the app shares (main.js's chosen); its clips are named "Screen clip ..." and listed on the Recording page
   const clipsOn = () => !!(opts.clips || opts.clipsAll), isAny = (n) => /^Screen clip /.test(n);
   function clipsCheck() {
-    const vid = vidOn(), kind = `${clipsOn()} ${vid}`, want = !!(client && client.clip && (vid || opts.clipsAll || (opts.clips && league)));
+    const vid = vidOn(), kind = `${clipsOn()} ${vid} ${!!screenRec}`, want = !!(client && client.clip && (vid || opts.clipsAll || (opts.clips && league)));
     if (recorder && (!want || recorder.kind !== kind)) stopRec(); // over, or a setting changed: again with it
     if (want && !recorder) startRec(kind);
   }
@@ -8067,8 +8067,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // used to ask 10 fps, so every recording made while it ran was 10 fps). So both ask for the higher of the two
   // settings, the recording takes it as it is, and each watcher's call is scaled down to the share's (lendTick).
   // ponytail: a recording is at the higher of the two when the share's is higher; one capture per process
-  // With Clip anywhere on it holds the screen all the time, so it asks the Recording page's quality too, for a recording of that screen.
-  const capNow = () => { const a = opts.clipsAll; return capOf(Math.max(+opts.clipQ, +opts.shareQ, a ? +opts.recQ : 0), Math.max(opts.clipFps, opts.shareFps, a ? opts.recFps : 0)); };
+  // Clip anywhere holds the screen all the time, at the clip quality only: asking the Recording page's (1440p 60 by
+  // default) too cost Rayan's PC hundreds of MB (31 Oct). A recording frees the screen first and the clips restart with it.
+  const capNow = () => capOf(Math.max(+opts.clipQ, +opts.shareQ, screenRec ? +opts.recQ : 0), Math.max(opts.clipFps, opts.shareFps, screenRec ? opts.recFps : 0));
   async function startRec(kind) {
     const r = (recorder = { parts: [], pre: [], at: performance.now(), kind });
     let s;
@@ -8132,7 +8133,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!id || screenRec || !(await client.captureSource(id))) return;
     let s;
     const cap = capOf(Math.max(+opts.recQ, +opts.clipQ, +opts.shareQ), Math.max(opts.recFps, opts.clipFps, opts.shareFps)); // one capture per screen in Chromium: the highest asked
-    try { s = await navigator.mediaDevices.getDisplayMedia({ video: cap, audio: true }); } catch (err) { console.warn('recording:', err); return; }
+    if (recorder) stopRec(); // the clips hold the screen at their own quality: let go so the recording opens it at its own (clipsCheck below starts them again)
+    try { s = await navigator.mediaDevices.getDisplayMedia({ video: cap, audio: true }); } catch (err) { console.warn('recording:', err); return clipsCheck(); }
     const r = (screenRec = { stream: s, at: Date.now() }), tracks = [s.getVideoTracks()[0]], heard = s.getAudioTracks()[0];
     if (opts.recMic && ac && mic) {
       r.mix = ac.createMediaStreamDestination();
