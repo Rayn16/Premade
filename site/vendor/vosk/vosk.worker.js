@@ -5015,6 +5015,7 @@ var RecognizerWorker = class {
     }).then(() => {
       this.logger.verbose(`Creating model`);
       this.model = new this.module.Model(modelPath);
+      this.module.FS.unmount(storagePath); // Premade: the model is in Kaldi's memory now, so drop the files' 71 MB copy (they stay saved in IndexedDB)
       this.logger.verbose(`Model created`);
     }).then(() => {
       return true;

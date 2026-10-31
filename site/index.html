@@ -3615,6 +3615,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   addEventListener('blur', () => clog('window in the background'));
   addEventListener('offline', () => clog('offline'));
   addEventListener('online', () => clog('online'));
+  setInterval(async () => { const m = client && client.metrics ? await client.metrics().catch(() => null) : null; if (m) clog(`app memory ${m.mb} MB`); }, 600000); // whether it grows over a long session
   if (client && client.on) client.on('diag', (line) => clog(`app: ${line}`));
   $('connLogBtn').addEventListener('click', async () => {
     const text = [`Premade connection log, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, copied ${new Date().toISOString()}`, ...connLog].join('\n');
@@ -8069,7 +8070,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         // the page's clean-up doesn't see its size, so the seconds dropped below piled up there (Rayan, 30 Oct: 3.4 GB)
         if (r.head) { const p = { at: performance.now(), blob: e.data }; r.parts.push(p); e.data.arrayBuffer().then((a) => { p.blob = new Uint8Array(a); }, () => {}); }
         else headChunk(r, e.data);
-        while (r.parts.length && performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000) { r.parts.shift(); r.trimmed = true; }
+        // and no more than twice the bytes asked for: on a busy screen an encoder can make many times its bit rate (a
+        // full screen of noise: 170 Mbps for the 14 asked, so the ring held 1 GB), and then a clip is shorter instead
+        const most = ((opts.clipLen + 15) * vRate(opts.clipQ, opts.clipFps)) / 4, size = (p) => p.blob.size || p.blob.length;
+        let bytes = r.parts.reduce((n, p) => n + size(p), 0);
+        while (r.parts.length && (performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000 || bytes > most)) { bytes -= size(r.parts.shift()); r.trimmed = true; }
       }
       if (r.flushed) { r.flushed(); r.flushed = null; }
     };
@@ -8362,8 +8367,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const lol = !!league;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
-      const head = new Uint8Array(await r.head.arrayBuffer());
-      const out = cutClip(head, new Uint8Array(await new Blob([...(r.trimmed ? [] : [r.head]), ...r.parts.map((p) => p.blob)]).arrayBuffer()), secs);
+      // joined here, not in a Blob: a Blob of the whole ring would copy it to the app's main process until a clean-up
+      const head = new Uint8Array(await r.head.arrayBuffer()), list = [...(r.trimmed ? [] : [head]), ...(await Promise.all(r.parts.map(async (p) => (p.blob instanceof Blob ? new Uint8Array(await p.blob.arrayBuffer()) : p.blob))))];
+      const body = new Uint8Array(list.reduce((n, u) => n + u.length, 0));
+      list.reduce((at, u) => (body.set(u, at), at + u.length), 0);
+      const out = cutClip(head, body, secs);
       let name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
       if (!name) throw new Error('nothing to save');
       if (!lol) name = (await client.clipRename(name, name.replace(/^Clip /, 'Screen clip ').replace(/\.webm$/i, '')).catch(() => '')) || name; // for the Recording page
@@ -9688,9 +9696,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!ok) notify(!watch && replayRule() ? CHECKS.replay[1] : `League didn’t ${watch ? 'start' : 'download'} the replay.`, true);
     await replayState(id, btn, mine);
   }
-  const timelines = new Map(); // game id -> Promise of its timeline, while the page is open
+  // the app stays open for days, so these caches of whole games keep only their newest few: a timeline is a megabyte or
+  // two, and the jungle clock alone asks five a game
+  const keepNewest = (m, n) => { for (const k of m.keys()) { if (m.size <= n) break; m.delete(k); } };
+  const timelines = new Map(); // game id -> Promise of its timeline, the newest 10
   const timelineOf = (id) => { // asked again next time when Riot has none yet
-    if (!timelines.has(id)) timelines.set(id, lcuGet(`/lol-match-history/v1/game-timelines/${id}`).then((tl) => { if (!goodTl(tl)) timelines.delete(id); return tl; }));
+    if (!timelines.has(id)) { timelines.set(id, lcuGet(`/lol-match-history/v1/game-timelines/${id}`).then((tl) => { if (!goodTl(tl)) timelines.delete(id); return tl; })); keepNewest(timelines, 10); }
     return timelines.get(id);
   };
   function reportOpen(box, r) {
@@ -9721,11 +9732,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- a report's parts from Riot, when it opens (no League needed): Riot's extra numbers for all ten, from Riot's
   // copy of the game (League's client leaves them out), and how each player's game ranks among high elo games on their
   // champion in their role
-  const copies = new Map(); // game id -> Riot's copy of it (a promise), while the page is open; asked again when there was none
+  const copies = new Map(); // game id -> Riot's copy of it (a promise), the newest 20 (Trends reads one for each of your games); asked again when there was none
   function riotCopy(id, plat) {
     if (!PLATS[plat]) return Promise.resolve(null);
-    if (!copies.has(id)) copies.set(id, riotCheck().then(() => (riotOn ? riotGet(PLATS[plat][1], `/lol/match/v5/matches/${plat.toUpperCase()}_${id}`) : null)).catch(() => null)
-      .then((m) => (m && m.info && Array.isArray(m.info.participants) ? m : (copies.delete(id), null))));
+    if (!copies.has(id)) {
+      copies.set(id, riotCheck().then(() => (riotOn ? riotGet(PLATS[plat][1], `/lol/match/v5/matches/${plat.toUpperCase()}_${id}`) : null)).catch(() => null)
+        .then((m) => (m && m.info && Array.isArray(m.info.participants) ? m : (copies.delete(id), null))));
+      keepNewest(copies, 20);
+    }
     return copies.get(id);
   }
   // your games' extra numbers, for Trends: game id -> [when, ...EXTRA's], newest 150 (lpc-extra)
@@ -10957,6 +10971,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (old && performance.now() - old.at < 600000) return old.p;
     const t = { at: performance.now(), d: old ? old.d : null }; // the old answer until the new one comes
     t.p = fetch(`${serverUrl}/riot/champ?c=${c}&r=${role}${e ? '&t=' + e : ''}`).then((r) => (r.ok ? r.json() : null)).then(topFrom).catch(() => null).then((d) => (t.d = d || t.d));
+    for (const [x, o] of tops) if (t.at - o.at > 1800000) tops.delete(x); // up to 500 games each: drop the ones nothing asked for in half an hour (one in use is asked again every 10 minutes)
     tops.set(k, t);
     return t.p;
   }
