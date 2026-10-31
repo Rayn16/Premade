@@ -121,7 +121,8 @@ namespace RE4Helper
             Add(rules, Checks.RulePrefix + "tunnel port", 1, 1, 17, Checks.TunnelPort.ToString(), null, null);
             Add(rules, Checks.RuleGameFriends, 1, 1, 17, Checks.GamePort.ToString(), "10.66.0.0/255.255.255.0", re4);
             // Block wins over any allow rule (Windows' own "allow this app" prompt makes one), so only friends get in.
-            Add(rules, Checks.RuleGameOthers, 1, 0, 17, Checks.GamePort.ToString(), "0.0.0.0-10.65.255.255,10.66.1.0-255.255.255.255,::/0", null);
+            // ponytail: IPv4 only (Windows refused a mixed list), as the co-op mod uses IPv4; add an IPv6 rule if that changes
+            Add(rules, Checks.RuleGameOthers, 1, 0, 17, Checks.GamePort.ToString(), "0.0.0.0-10.65.255.255,10.66.1.0-255.255.255.255", null);
         }
 
         static void Add(object rules, string name, int direction, int action, int? protocol, string localPorts, string remote, string program)
