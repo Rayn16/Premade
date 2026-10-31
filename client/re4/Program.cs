@@ -76,6 +76,9 @@ namespace RE4Helper
             if (s.GameDir != null && !s.Re4Running && (s.Mod != Mod.Theirs || !s.ModOk)) { Switch.ToTheirs(); s = Checks.Gather(); }
             var why = WhyNotPlay(s);
             if (why != null) { Log.Write("Play stopped: " + why); return why; }
+            // The adjusted DLL reads this when it goes on as Guest: host and wait, or join the host. No role, no file.
+            var auto = Path.Combine(s.GameDir, @"reframework\data\RE4MP_premade.txt");
+            if (s.IsHost) File.WriteAllText(auto, "H"); else if (s.HostIp != null) File.WriteAllText(auto, "J" + s.HostIp); else File.Delete(auto);
             Log.Write("Starting RE4 through Steam");
             Process.Start("steam://rungameid/" + Checks.AppId);
             return backed + " Starting RE4...";

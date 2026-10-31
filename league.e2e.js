@@ -900,7 +900,7 @@ const leagueData = (over = {}) => ({
     // RE4 co-op: the helper's checks drawn as rows, and Play's answer
     await pc.click('.nav[data-view="re4"]');
     await wait(pc, () => document.getElementById('re4Role').textContent === 'Host · Tailscale 100.101.102.103' && !document.getElementById('re4SignIn').hidden && document.querySelectorAll('#re4Conn .re4row .dot[data-h="good"]').length === 1
-      && document.querySelector('#re4Priv .dot').dataset.h === 'ok' && document.querySelector('#re4Game .dot').dataset.h === 'idle' && document.getElementById('re4Steps').textContent.includes('Host & Wait'), null, 'RE4 co-op checks');
+      && document.querySelector('#re4Priv .dot').dataset.h === 'ok' && document.querySelector('#re4Game .dot').dataset.h === 'idle' && document.getElementById('re4Steps').textContent.includes('it hosts by itself'), null, 'RE4 co-op checks');
     await pc.click('#re4Play');
     await wait(pc, () => document.getElementById('re4Note').textContent.endsWith('Starting RE4...'), null, 'RE4 Play');
     assert(await pc.evaluate(() => !document.getElementById('re4SetupBox').hidden && !document.getElementById('re4FwNote').hidden), 'RE4 Set up shows, with the firewall note');

@@ -78,9 +78,11 @@ namespace RE4Helper
         // Their files that go in the game, with the SHA-256 we checked on 2026-10-30 (same list as re4-switch-mod.ps1).
         public static readonly Dictionary<string, string> TheirFiles = new Dictionary<string, string>
         {
-            // The DLL is his 4529da6d... with one jump turned into NOPs (file offset 0x5031b, 0f 84 88 00 00 00): his welcome
-            // screen goes on as Guest by itself, so no one sees sign-in. Everything else is his, unchanged.
-            ["reframework/plugins/Re4-Co-op.dll"] = "febf6ea2f14354d212ddf9b1b19b0d301992f11ed453566a40617ca25546b508",
+            // The DLL is his 4529da6d... adjusted for Premade: (1) the Guest button's jump is NOPed (file 0x5031b, 0f 84 88 00 00
+            // 00), so his welcome screen goes on as Guest by itself; (2) the end of that Guest path (file 0x5037e) calls a new
+            // .premade section that reads reframework/data/RE4MP_premade.txt ("H" host, "J<ip>" join) and makes the same calls
+            // as his Host & Wait and Join buttons. Everything else is his, unchanged.
+            ["reframework/plugins/Re4-Co-op.dll"] = "0071f697ac34085656d62f3d54daefad86a99ce60fe0889b003d5dc28537af0d",
             ["reframework/autorun/data.lua"] = "b9d5db19afa3162a09b30ed0c8c155752efedade9eeba39e5af48fbe83259b8a",
             ["reframework/autorun/logic.lua"] = "5a7742aee66d7027e772b9c661c6d1c24f7dfdf3cca44d2bf9b8a5b2a9ba737c",
             ["reframework/autorun/module.lua"] = "58963d967a990eee4ad4b0f2e20b5b2e57a54128c4867377951b709fac41f957",
