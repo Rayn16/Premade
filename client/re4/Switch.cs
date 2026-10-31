@@ -6,9 +6,10 @@ using System.Web.Script.Serialization;
 
 namespace RE4Helper
 {
-    // Puts the downloaded co-op mod in the game in place of ours, or switches back. Same rules and record files as the
-    // first switch script, so either can undo the other: their files come from Downloads only if all match the
-    // checked fingerprints; ours and anything theirs would replace are moved aside (never deleted) and put back.
+    // Puts ClayBTV's co-op mod in the game in place of ours, or switches back. Same rules and record files as the
+    // first switch script, so either can undo the other: their files come from Downloads, or else from Premade's site
+    // (shared there, credited, under the mod's Nexus permissions), and go in only if all match the checked
+    // fingerprints; ours and anything theirs would replace are moved aside (never deleted) and put back.
     // REFramework (dinput8.dll) stays, since both mods need it. No admin needed.
     public static class Switch
     {
@@ -32,12 +33,8 @@ namespace RE4Helper
             if (File.Exists(Record(game))) return "Their mod is already in.";
             if (!File.Exists(Path.Combine(game, "dinput8.dll"))) throw new Exception("REFramework (dinput8.dll) isn't in the game folder, and the co-op mod needs it.");
 
-            // 1. Find their files in Downloads and check every fingerprint before touching the game.
-            var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-            var dll = Directory.GetDirectories(downloads, "MULTIPLAYER RE4R*")
-                .SelectMany(d => Directory.GetFiles(d, "Re4-Co-op.dll", SearchOption.AllDirectories)).FirstOrDefault()
-                ?? throw new Exception("Couldn't find the co-op mod in Downloads (a folder whose name starts with \"MULTIPLAYER RE4R\").");
-            var src = Directory.GetParent(Path.GetDirectoryName(dll)).Parent.FullName;
+            // 1. Find their files (Downloads, else Premade's site) and check every fingerprint before touching the game.
+            var src = FromDownloads() ?? FromSite();
             foreach (var f in Checks.TheirFiles)
                 if (Checks.Sha256(Path.Combine(src, f.Key)) != f.Value)
                     throw new Exception($"{f.Key} isn't the version we checked (or is missing). Nothing was changed.");
@@ -80,6 +77,36 @@ namespace RE4Helper
             File.Delete(Record(game));
             Log.Write("Switched back to our mod");
             return "Their mod is out and ours is back.";
+        }
+
+        // A folder from the Nexus download, if one with every checked file is in Downloads.
+        static string FromDownloads()
+        {
+            var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            if (!Directory.Exists(downloads)) return null;
+            return Directory.GetDirectories(downloads, "MULTIPLAYER RE4R*")
+                .SelectMany(d => Directory.GetFiles(d, "Re4-Co-op.dll", SearchOption.AllDirectories))
+                .Select(dll => Directory.GetParent(Path.GetDirectoryName(dll)).Parent.FullName)
+                .FirstOrDefault(src => Checks.TheirFiles.All(f => Checks.Sha256(Path.Combine(src, f.Key)) == f.Value));
+        }
+
+        // Premade's site has each file named by its fingerprint; kept in Documents\RE4 co-op\their-mod after that.
+        public const string Site = "https://rayn16.github.io/Premade/re4/their-mod/";
+        static string FromSite()
+        {
+            var dir = Path.Combine(Checks.Documents, @"RE4 co-op\their-mod");
+            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
+            using var web = new System.Net.WebClient();
+            foreach (var f in Checks.TheirFiles)
+            {
+                var dst = Path.Combine(dir, f.Key);
+                if (Checks.Sha256(dst) == f.Value) continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(dst));
+                try { web.DownloadFile(Site + f.Value, dst); }
+                catch (System.Net.WebException e) { throw new Exception("Couldn't download the co-op mod from Premade's site: " + e.Message); }
+            }
+            Log.Write("Downloaded the co-op mod from Premade's site");
+            return dir;
         }
 
         static Dictionary<string, object> Read(string json) => (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(json));

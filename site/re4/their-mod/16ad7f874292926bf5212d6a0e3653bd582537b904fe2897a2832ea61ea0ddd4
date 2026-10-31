@@ -1,0 +1,65 @@
+local COMPANION_NAME  = "Player 2"
+local CHECK_INTERVAL  = 2.5
+local LAYERS_TO_CLEAR = {0, 1, 4, 5}
+
+local last_check_time = 0
+local last_fixed_go   = nil
+
+local function get_scene()
+    local s
+    pcall(function()
+        s = sdk.call_native_func(
+            sdk.get_native_singleton("via.SceneManager"),
+            sdk.find_type_definition("via.SceneManager"),
+            "get_CurrentScene"
+        )
+    end)
+    return s
+end
+
+local function apply_fix(go)
+    local count = 0
+    pcall(function()
+        local comps = go:call("get_Components"):get_elements()
+        for _, comp in ipairs(comps) do
+            pcall(function()
+                local td = comp:get_type_definition()
+                if not (td and td:get_full_name() == "via.motion.MotionFsm2") then return end
+                for _, li in ipairs(LAYERS_TO_CLEAR) do
+                    pcall(function()
+                        local layer = comp:call("getLayer", li)
+                        if not layer then return end
+                        layer:call("set_MotionFsm2Resource", nil)
+                        count = count + 1
+                        log.info("[P2-FSM-SUPPRESS] Cleared layer " .. li)
+                    end)
+                end
+            end)
+        end
+    end)
+    return count > 0
+end
+
+re.on_frame(function()
+    local now = os.clock()
+    if (now - last_check_time) < CHECK_INTERVAL then return end
+    last_check_time = now
+
+    local scene = get_scene()
+    if not scene then return end
+
+    local go = scene:call("findGameObject(System.String)", COMPANION_NAME)
+    if not go then
+        last_fixed_go = nil
+        return
+    end
+
+    if go == last_fixed_go then return end
+
+    if apply_fix(go) then
+        last_fixed_go = go
+        log.info("[P2-FSM-SUPPRESS] Applied to " .. COMPANION_NAME)
+    end
+end)
+
+log.info("[P2-FSM-SUPPRESS] Loaded")

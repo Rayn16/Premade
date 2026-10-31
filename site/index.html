@@ -1863,6 +1863,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="toolbar"><span id="re4Saves" class="re4rows re4grow"></span><button id="re4Backup" class="btn small" type="button">Back up now</button><button id="re4Backups" class="btn small" type="button">Open backups</button></div>
       </section>
       <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span class="re4seg" role="group" aria-label="Which co-op mod is in the game"><button id="re4Theirs" class="btn small" type="button">Their mod</button><button id="re4Ours" class="btn small" type="button">Our mod</button></span><span id="re4Note" class="hint" role="status"></span></div>
+      <p class="hint">Their mod is <a href="https://www.nexusmods.com/residentevil42023/mods/6539" target="_blank" rel="noopener">Multiplayer Mod by ClayBTV</a>, shared here under its Nexus permissions with credit to its creator. If it isn’t in your Downloads, Premade brings the same files from its own site and checks every one first.</p>
       <section class="panel" aria-labelledby="h-re4Next"><h2 id="h-re4Next" class="ph">Next, in the game</h2><ol id="re4Steps" class="re4steps"></ol></section>
       <div class="toolbar"><button id="re4Remove" class="btn small" type="button" hidden>Remove from this PC</button></div>
     </section>
@@ -13787,6 +13788,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [99, 'October 31: RE4 co-op without downloading the mod', [
+      'RE4 co-op: Their mod no longer needs the mod in your Downloads. Premade brings ClayBTV’s Multiplayer Mod from its own site, shared under the mod’s Nexus permissions with credit, and checks every file before it goes in. It comes with app 1.28.10, which installs itself.',
+    ]],
     [98, 'October 31: RE4 co-op with your friends', [
       'RE4 co-op: Set up makes this PC ready to host after one Windows prompt (private link, firewall rules, router port), and Their mod / Our mod switch which co-op mod is in the game, backing up your saves first.',
       'Invite any friend: Make an invite gives a code for them, they paste it on their own RE4 co-op page and are linked to you after one Windows prompt. Friends shows who is online with their ping, and warns when their game or co-op mod differs from yours. Remove from this PC undoes it all. It comes with app 1.28.9, which installs itself.',
@@ -14335,7 +14339,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['RE4 co-op page', 'Checks every part on this PC: the private link to your friend, the router port, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves, starts RE4 through Steam and shows the next clicks in the game.',
         'RE4 co-op, in the menu.', '#re4Play', 'app'],
       ['Set up to host, and switch mods', 'Set up installs WireGuard if it’s missing, makes your private link, blocks the co-op mod’s own server, lets only your friends reach the game’s port and opens the router port, after one Windows prompt. Their mod / Our mod switches which co-op mod is in the game: the downloaded one goes in only if its files match the checked version, your saves are backed up first, and nothing is deleted.',
-        'RE4 co-op: Set up shows until this PC is ready; Their mod and Our mod are next to Play.', '#re4Theirs', 'app'],
+        'RE4 co-op: Set up shows until this PC is ready; Their mod and Our mod are next to Play. Their mod is ClayBTV’s Multiplayer Mod: Premade brings it from its own site if it isn’t in your Downloads.', '#re4Theirs', 'app'],
       ['Invite friends, see who is online', 'The host makes an invite for each friend: a code with their own key, sent in a private message, that works once. The friend pastes it on their RE4 co-op page and their PC joins the private link after one Windows prompt. Friends lists who is online with their ping and whether they’re in RE4, and warns when their game build or co-op mod isn’t the same as yours. When the host’s internet address changes, Copy new address gives the code friends paste to keep connecting. Remove takes a friend off; Remove from this PC undoes Set up or Join.',
         'RE4 co-op: Friends (host) or Your host (friend), once this PC is set up.', '#re4Invite', 'app'],
     ]],
