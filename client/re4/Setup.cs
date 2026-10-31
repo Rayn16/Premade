@@ -64,7 +64,7 @@ namespace RE4Helper
             names[ip] = string.IsNullOrWhiteSpace(name) ? "Friend " + (n - 1) : name.Trim();
             Checks.SaveFriendNames(names);
             Log.Write($"Added friend {ip}");
-            return ip + " " + Run(Wg, "pubkey", Regex.Match(text, @"PrivateKey\s*=\s*(\S+)").Groups[1].Value).Trim();
+            return ip + " " + X25519.PublicOf(Regex.Match(text, @"PrivateKey\s*=\s*(\S+)").Groups[1].Value);
         }
 
         public static string RemoveFriend(string ip)
@@ -296,30 +296,15 @@ namespace RE4Helper
             catch (InvalidOperationException) { return false; }
         }
 
-        static string Run(string exe, string args, string input = null, bool check = true)
+        static string Run(string exe, string args, bool check = true)
         {
-            var psi = new ProcessStartInfo(exe, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = input != null };
+            var psi = new ProcessStartInfo(exe, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
             using var p = Process.Start(psi);
-            if (input != null)
-            {
-                // Plain bytes, as the writer would put a byte-order mark first and wg reads the key byte for byte.
-                var bytes = System.Text.Encoding.ASCII.GetBytes(input + "\n");
-                p.StandardInput.BaseStream.Write(bytes, 0, bytes.Length);
-                p.StandardInput.Close();
-            }
             var output = p.StandardOutput.ReadToEnd();
             var err = p.StandardError.ReadToEnd();
             p.WaitForExit();
             if (check && p.ExitCode != 0) throw new Exception($"{Path.GetFileName(exe)} failed: {err.Trim()}");
             return output;
-        }
-
-        // A WireGuard key pair, made without admin (wg.exe only does maths here).
-        public static (string Private, string Public) KeyPair()
-        {
-            if (!File.Exists(Wg)) throw new Exception("Set this PC up to host first.");
-            var priv = Run(Wg, "genkey").Trim();
-            return (priv, Run(Wg, "pubkey", priv).Trim());
         }
     }
 }

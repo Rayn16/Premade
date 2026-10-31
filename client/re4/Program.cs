@@ -124,7 +124,7 @@ namespace RE4Helper
             name = (name ?? "").Trim();
             if (name.Length == 0 || name.Length > 40) throw new Exception("Give your friend a name (up to 40 letters).");
             var ip = Checks.PublicIp() ?? throw new Exception("Couldn't look up this PC's internet address, so the invite would have nowhere to go.");
-            var keys = Setup.KeyPair();
+            var keys = X25519.NewKeyPair();
             var added = Elevated(new[] { "addfriend", keys.Public, name }, null);
             var m = System.Text.RegularExpressions.Regex.Match(added, @"^(10\.66\.0\.\d+) (\S{44})$");
             if (!m.Success) return added;
