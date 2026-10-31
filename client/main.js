@@ -379,9 +379,9 @@ ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'w
 // that goes in one, travel on its stdin, never in its command line. re4link.js adds which friends are online.
 const re4link = require('./re4link');
 ipcMain.handle('re4', (e, what, arg) => {
-  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'signin', 'share', 'theirs', 'ours', 'invite', 'unfriend', 'join', 'remove'].includes(what)) return null;
+  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'signin', 'share', 'theirs', 'ours', 'char', 'invite', 'unfriend', 'join', 'remove'].includes(what)) return null;
   arg = String(arg || '').slice(0, 400);
-  const args = what === 'setup' ? [what, process.execPath] : what === 'unfriend' ? [what, arg] : [what];
+  const args = what === 'setup' ? [what, process.execPath] : what === 'unfriend' || what === 'char' ? [what, arg] : [what];
   const slow = ['setup', 'join', 'remove'].includes(what);
   return new Promise((res) => {
     const p = execFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 're4-helper.exe'), args, { windowsHide: true, timeout: slow ? 600000 : 90000, maxBuffer: 1 << 20 }, (err, out) => {

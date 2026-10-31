@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 
 namespace RE4Helper
@@ -14,6 +15,7 @@ namespace RE4Helper
     //   setup [premade.exe]  set this PC up to host: Tailscale and firewall rules (Windows asks for admin once), then status
     //   signin   open Tailscale's sign-in page, then status
     //   share    host: open Tailscale's page for this PC, where Share makes the link that goes in an invite
+    //   char <name>  with their mod in a running game: play as that character (their mod's own command file)
     //   theirs   put the downloaded co-op mod in the game in place of ours, then status
     //   ours     switch back to ours, then status
     //   invite   host: "<name>\n<Tailscale share link>" on stdin; the invite code comes back as "invite"
@@ -38,6 +40,7 @@ namespace RE4Helper
                 else if (what == "unfriend") note = Unfriend(args.ElementAtOrDefault(1));
                 else if (what == "join") note = Join(args);
                 else if (what == "remove") note = Remove(args);
+                else if (what == "char") note = Character(args.ElementAtOrDefault(1));
                 else if (what == "theirs") note = Switch.ToTheirs();
                 else if (what == "ours") note = Switch.ToOurs();
                 else if (what == "backups") { Directory.CreateDirectory(Checks.BackupRoot); Process.Start("explorer.exe", "\"" + Checks.BackupRoot + "\""); }
@@ -219,6 +222,36 @@ namespace RE4Helper
             return f;
         }
 
+        // Their mod's "Change Character (play as selected)" button writes this one-line command for its scripts; Premade
+        // writes the same line. ClayBTV's list, minus Krauser, which his mod marks broken.
+        public static readonly string[] Characters = { "Default", "Leon", "Ada", "Ashley", "Luis", "HUNK", "Wesker" };
+        static string Character(string name)
+        {
+            if (!Characters.Contains(name)) throw new ArgumentException("unknown character " + name);
+            var s = Checks.Gather();
+            if (s.Mod != Mod.Theirs) return "Play as works with Their mod in the game.";
+            if (!s.Re4Running) return "Start RE4 and load into your game first, then pick who you play as.";
+            var file = Path.Combine(s.GameDir, @"reframework\data\RE4MP_mplus_cmd.json");
+            long seq;
+            long.TryParse(Regex.Match(File.Exists(file) ? File.ReadAllText(file) : "", @"""seq"":(\d+)").Groups[1].Value, out seq);
+            File.WriteAllText(file, $"{{\"seq\":{seq + 1},\"action\":\"set_char\",\"enemy\":\"{name}\",\"idx\":-1}}");
+            Log.Write("Play as " + name);
+            return $"Switching you to {name}. Pick once and stay: every switch reloads the game's sounds and animations.";
+        }
+
+        // What their mod says about itself while RE4 runs: connected or not, and how the last character switch went.
+        static object InGame(Snapshot s)
+        {
+            if (s.Mod != Mod.Theirs || !s.Re4Running) return null;
+            Func<string, string> read = (f) => { try { return File.ReadAllText(Path.Combine(s.GameDir, @"reframework\data\" + f)); } catch { return ""; } };
+            var role = read("RE4MP_role.json");
+            return new
+            {
+                connected = Regex.IsMatch(role, @"""connected"":true"),
+                character = Regex.Match(read("RE4MP_charswap_status.json"), @"""status"":""([^""]{0,80})").Groups[1].Value,
+            };
+        }
+
         static object[] Rows(System.Collections.Generic.IEnumerable<Row> rows) =>
             rows.Select(r => (object)new { level = r.Level.ToString().ToLowerInvariant(), title = r.Title, detail = r.Detail }).ToArray();
 
@@ -242,6 +275,7 @@ namespace RE4Helper
             privacy = Rows(s.Privacy),
             game = Rows(s.Game),
             saves = Rows(new[] { s.Saves })[0],
+            inGame = InGame(s),
             note,
         };
 
