@@ -36,7 +36,7 @@ namespace RE4Helper
             {
                 // A refused step says why on the page, with the checks still shown.
                 Log.Write($"{what} failed: {e}");
-                result = Json(Checks.Gather(), e.Message);
+                result = Json(Checks.Gather(), e.GetBaseException().Message);
             }
             catch (Exception e)
             {
@@ -82,7 +82,7 @@ namespace RE4Helper
             if (isElevated)
             {
                 string note;
-                try { note = Setup.Host(); } catch (Exception e) { Log.Write("Set up failed: " + e); note = "Set up stopped: " + e.Message; }
+                try { note = Setup.Host(); } catch (Exception e) { Log.Write("Set up failed: " + e); note = "Set up stopped: " + e.GetBaseException().Message; }
                 File.WriteAllText(result, note);
                 return note;
             }

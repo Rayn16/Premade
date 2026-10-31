@@ -34,7 +34,7 @@ jobs:
         run: |
           $s = & client/re4-helper.exe setup | ConvertFrom-Json
           $s | ConvertTo-Json -Depth 4
-          if ($s.note -notmatch 'set up to host') { throw "Set up: $($s.note)" }
+          if ($s.note -notmatch 'set up to host') { Get-Content "$([Environment]::GetFolderPath('MyDocuments'))\RE4 co-op\log.txt" -ErrorAction SilentlyContinue; throw "Set up: $($s.note)" }
           if ($s.role -ne 'host' -or $s.tunnelIp -ne '10.66.0.1' -or $s.setup) { throw 'after Set up the PC should be the host with nothing left to set up' }
           Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *' | Format-Table DisplayName, Direction, Action
           # again: keeps the key and the tunnel, replaces the rules

@@ -127,7 +127,11 @@ namespace RE4Helper
         static void Add(object rules, string name, int direction, int action, int? protocol, string localPorts, string remote, string program)
         {
             var r = Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FWRule"));
-            void Set(string prop, object v) => r.GetType().InvokeMember(prop, BindingFlags.SetProperty, null, r, new[] { v });
+            void Set(string prop, object v)
+            {
+                try { r.GetType().InvokeMember(prop, BindingFlags.SetProperty, null, r, new[] { v }); }
+                catch (TargetInvocationException e) { throw new Exception($"firewall rule \"{name}\": {prop}: {e.InnerException?.Message}"); }
+            }
             Set("Name", name);
             Set("Direction", direction);   // 1 in, 2 out
             Set("Action", action);         // 0 block, 1 allow
@@ -137,7 +141,8 @@ namespace RE4Helper
             if (program != null && File.Exists(program)) Set("ApplicationName", program);
             Set("Profiles", 0x7FFFFFFF);
             Set("Enabled", true);
-            rules.GetType().InvokeMember("Add", BindingFlags.InvokeMethod, null, rules, new[] { r });
+            try { rules.GetType().InvokeMember("Add", BindingFlags.InvokeMethod, null, rules, new[] { r }); }
+            catch (TargetInvocationException e) { throw new Exception($"firewall rule \"{name}\": {e.InnerException?.Message}"); }
         }
 
         // ---------- Router ----------
