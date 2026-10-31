@@ -1847,7 +1847,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <h2 id="h-re4Friends" class="ph">Friends</h2>
         <div id="re4FriendList" class="re4rows"></div>
         <div class="toolbar"><label class="field">Invite a friend <select id="re4Pick"></select></label><label id="re4NameField" class="field re4grow" hidden>Their name <input id="re4Name" maxlength="40" autocomplete="off" placeholder="Their name"></label><button id="re4Invite" class="btn" type="button">Make an invite</button><button id="re4Address" class="btn small" type="button">Copy new address</button></div>
-        <div id="re4InviteBox" class="toolbar" hidden><label class="field re4grow">Their invite: send it in a private message, it works once <input id="re4InviteCode" readonly spellcheck="false"></label><button id="re4Copy" class="btn small" type="button">Copy</button></div>
+        <div id="re4InviteBox" class="toolbar" hidden><label class="field re4grow"><span id="re4InviteWhat">Their invite: send it in a private message, it works once</span> <input id="re4InviteCode" readonly spellcheck="false"></label><button id="re4Copy" class="btn small" type="button">Copy</button></div>
       </section>
       <section id="re4HostBox" class="panel" aria-labelledby="h-re4Host" hidden>
         <h2 id="h-re4Host" class="ph">Your host</h2>
@@ -6074,9 +6074,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     pick.replaceChildren(...names.map((n) => new Option(n, n)), new Option('Someone else…', '*'));
     pick.value = [...pick.options].some((o) => o.value === had) ? had : pick.options[0].value;
     $('re4NameField').hidden = pick.value !== '*';
-    if (what !== 'status') $('re4InviteBox').hidden = !(s.invite && what === 'invite');
-    if (s.invite && what === 'invite') { $('re4InviteCode').value = s.invite; $('re4Name').value = ''; }
-    if (s.invite && what === 'address') navigator.clipboard.writeText(s.invite).catch(() => notify('Couldn’t copy your new address. Allow clipboard access and try again.', true));
+    // The invite or new address shows with its own Copy button: copying by itself after the helper's wait (and Windows'
+    // prompt) is refused, since the click that asked for it is too long ago
+    const code = s.invite && (what === 'invite' || what === 'address');
+    if (what !== 'status') $('re4InviteBox').hidden = !code;
+    if (code) { $('re4InviteCode').value = s.invite; $('re4InviteWhat').textContent = what === 'invite' ? 'Their invite: send it in a private message, it works once' : 'Your new address: send it to every friend, they paste it under Your host'; }
+    if (s.invite && what === 'invite') $('re4Name').value = '';
     if (what === 'join') { $('re4Code').value = ''; $('re4NewCode').value = ''; }
     $('re4Theirs').setAttribute('aria-pressed', s.mod === 'theirs');
     $('re4Ours').setAttribute('aria-pressed', s.mod === 'ours');
@@ -6094,7 +6097,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('re4Invite').addEventListener('click', () => { const n = $('re4Pick').value === '*' ? $('re4Name').value.trim() : $('re4Pick').value; if (n) re4('invite', n); else $('re4Name').focus(); });
   $('re4Pick').addEventListener('change', () => { $('re4NameField').hidden = $('re4Pick').value !== '*'; if ($('re4Pick').value === '*') $('re4Name').focus(); });
   $('re4Address').addEventListener('click', () => re4('address'));
-  $('re4Copy').addEventListener('click', () => navigator.clipboard.writeText($('re4InviteCode').value).then(() => notify('Invite copied. Send it to your friend in a private message.', true), () => notify('Couldn’t copy the invite. Select it and copy it yourself.', true)));
+  $('re4Copy').addEventListener('click', () => navigator.clipboard.writeText($('re4InviteCode').value).then(() => notify('Copied. Send it to your friend in a private message.', true), () => notify('Couldn’t copy it. Select it and copy it yourself.', true)));
   $('re4Join').addEventListener('click', () => { if ($('re4Code').value.trim()) re4('join', $('re4Code').value.trim()); });
   $('re4Update').addEventListener('click', () => { if ($('re4NewCode').value.trim()) re4('join', $('re4NewCode').value.trim()); });
   $('re4Remove').addEventListener('click', () => { if (confirm('Remove RE4 co-op from this PC? The private link, its keys and the firewall rules go; WireGuard and your saves stay.')) re4('remove'); });

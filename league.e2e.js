@@ -366,7 +366,7 @@ function fakeApp(version) {
     overlay(s) { this.lastOverlay = s; },
     re4: async (what, arg) => (what === 'status' && await new Promise((r) => setTimeout(r, 500)), { role: 'host', tunnelIp: '10.66.0.1', mod: what === 'ours' ? 'ours' : 'theirs', modVersion: what === 'ours' ? '0.6.14-retarget' : '', build: '22377325', running: false, why: null, setup: what !== 'setup', firewallOn: false,
       friends: [{ ip: '10.66.0.2', name: 'cutiecatty' }], peers: [{ ip: '10.66.0.2', online: true, ms: 38, mod: 'theirs', modVersion: '', build: '22377325', running: true }],
-      invite: what === 'invite' ? `RE4COOP1.for-${arg}` : null,
+      invite: what === 'invite' ? `RE4COOP1.for-${arg}` : what === 'address' ? '203.0.113.7:51820' : null,
       note: { play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.', invite: `Invite for ${arg} ready.` }[what] || null,
       connection: [{ level: 'good', title: 'Tunnel running', detail: 're4coop, starts with Windows' }], privacy: [{ level: 'warn', title: 'Game port open to your friend', detail: 'UDP 39000' }],
       game: [{ level: 'idle', title: 'Not running', detail: 'Play starts it through Steam' }], saves: { level: 'good', title: 'Saves: last backup just now', detail: '' } }),
@@ -916,6 +916,8 @@ const leagueData = (over = {}) => ({
     await pc.fill('#re4Name', 'Leon');
     await pc.click('#re4Invite');
     await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === 'RE4COOP1.for-Leon' && document.getElementById('re4Name').value === '', null, 'RE4 invite');
+    await pc.click('#re4Address');
+    await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === '203.0.113.7:51820' && document.getElementById('re4InviteWhat').textContent.startsWith('Your new address'), null, 'RE4 new address, with its Copy button');
     await pc.click('#re4Ours');
     await wait(pc, () => document.getElementById('re4Ours').getAttribute('aria-pressed') === 'true' && document.getElementById('re4Steps').textContent.includes('Insert')
       && document.querySelector('#re4FriendList .dot').dataset.h === 'ok' && document.getElementById('re4FriendList').textContent.includes('a different co-op mod: they have their mod, you have our mod 0.6.14-retarget'), null, 'RE4 switch to our mod');
