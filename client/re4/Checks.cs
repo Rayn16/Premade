@@ -76,6 +76,9 @@ namespace RE4Helper
             return BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes("re4coop " + ip))).Replace("-", "").ToLowerInvariant();
         }
 
+        // REFramework's dinput8.dll (MIT, praydog), our build of commit d4611aef: put in for friends who don't have it.
+        public const string REFramework = "0466ed158a3a3a3ada8debb0320a7eb4774b0e7a9c835928e4c9d101541abb6f";
+
         // Their files that go in the game, with the SHA-256 we checked on 2026-10-30 (same list as re4-switch-mod.ps1).
         public static readonly Dictionary<string, string> TheirFiles = new Dictionary<string, string>
         {

@@ -1863,7 +1863,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div class="toolbar"><span id="re4Saves" class="re4rows re4grow"></span><button id="re4Backup" class="btn small" type="button">Back up now</button><button id="re4Backups" class="btn small" type="button">Open backups</button></div>
       </section>
       <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span class="re4seg" role="group" aria-label="Which co-op mod is in the game"><button id="re4Theirs" class="btn small" type="button">Their mod</button><button id="re4Ours" class="btn small" type="button">Our mod</button></span><span id="re4Note" class="hint" role="status"></span></div>
-      <p class="hint">Their mod is <a href="https://www.nexusmods.com/residentevil42023/mods/6539" target="_blank" rel="noopener">Multiplayer Mod by ClayBTV</a>, shared here under its Nexus permissions with credit to its creator. If it isn’t in your Downloads, Premade brings the same files from its own site and checks every one first.</p>
+      <p class="hint">Their mod is <a href="https://www.nexusmods.com/residentevil42023/mods/6539" target="_blank" rel="noopener">Multiplayer Mod by ClayBTV</a>, shared here under its Nexus permissions with credit to its creator. If it isn’t in your Downloads, Premade brings the same files from its own site, plus <a href="https://github.com/praydog/REFramework" target="_blank" rel="noopener">REFramework</a> (MIT) if the game doesn’t have it, and checks every one first.</p>
       <section class="panel" aria-labelledby="h-re4Next"><h2 id="h-re4Next" class="ph">Next, in the game</h2><ol id="re4Steps" class="re4steps"></ol></section>
       <div class="toolbar"><button id="re4Remove" class="btn small" type="button" hidden>Remove from this PC</button></div>
     </section>
@@ -13789,7 +13789,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [99, 'October 31: RE4 co-op without downloading the mod', [
-      'RE4 co-op: Their mod no longer needs the mod in your Downloads. Premade brings ClayBTV’s Multiplayer Mod from its own site, shared under the mod’s Nexus permissions with credit, and checks every file before it goes in. It comes with app 1.28.10, which installs itself.',
+      'RE4 co-op: Their mod no longer needs the mod in your Downloads. Premade brings ClayBTV’s Multiplayer Mod from its own site, shared under the mod’s Nexus permissions with credit, plus REFramework if the game doesn’t have it yet, and checks every file before it goes in. It comes with app 1.28.10, which installs itself.',
     ]],
     [98, 'October 31: RE4 co-op with your friends', [
       'RE4 co-op: Set up makes this PC ready to host after one Windows prompt (private link, firewall rules, router port), and Their mod / Our mod switch which co-op mod is in the game, backing up your saves first.',

@@ -10,7 +10,7 @@ namespace RE4Helper
     // first switch script, so either can undo the other: their files come from Downloads, or else from Premade's site
     // (shared there, credited, under the mod's Nexus permissions), and go in only if all match the checked
     // fingerprints; ours and anything theirs would replace are moved aside (never deleted) and put back.
-    // REFramework (dinput8.dll) stays, since both mods need it. No admin needed.
+    // REFramework (dinput8.dll) stays, since both mods need it, and goes in from Premade's site if it's missing. No admin.
     public static class Switch
     {
         static string State(string game) => Path.Combine(game, "re4r_coop_install");
@@ -31,7 +31,7 @@ namespace RE4Helper
         {
             var game = Game();
             if (File.Exists(Record(game))) return "Their mod is already in.";
-            if (!File.Exists(Path.Combine(game, "dinput8.dll"))) throw new Exception("REFramework (dinput8.dll) isn't in the game folder, and the co-op mod needs it.");
+            if (!File.Exists(Path.Combine(game, "dinput8.dll"))) AddREFramework(game);
 
             // 1. Find their files (Downloads, else Premade's site) and check every fingerprint before touching the game.
             var src = FromDownloads() ?? FromSite();
@@ -91,22 +91,33 @@ namespace RE4Helper
         }
 
         // Premade's site has each file named by its fingerprint; kept in Documents\RE4 co-op\their-mod after that.
-        public const string Site = "https://rayn16.github.io/Premade/re4/their-mod/";
+        const string Site = "https://rayn16.github.io/Premade/re4/";
         static string FromSite()
         {
             var dir = Path.Combine(Checks.Documents, @"RE4 co-op\their-mod");
-            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
-            using var web = new System.Net.WebClient();
-            foreach (var f in Checks.TheirFiles)
-            {
-                var dst = Path.Combine(dir, f.Key);
-                if (Checks.Sha256(dst) == f.Value) continue;
-                Directory.CreateDirectory(Path.GetDirectoryName(dst));
-                try { web.DownloadFile(Site + f.Value, dst); }
-                catch (System.Net.WebException e) { throw new Exception("Couldn't download the co-op mod from Premade's site: " + e.Message); }
-            }
+            foreach (var f in Checks.TheirFiles) Download("their-mod/" + f.Value, Path.Combine(dir, f.Key), f.Value);
             Log.Write("Downloaded the co-op mod from Premade's site");
             return dir;
+        }
+
+        // A friend who never had our mod has no REFramework, which their mod runs on: ours goes in, checked.
+        static void AddREFramework(string game)
+        {
+            var tmp = Path.Combine(Checks.Documents, @"RE4 co-op\dinput8.dll");
+            Download("reframework/" + Checks.REFramework, tmp, Checks.REFramework);
+            File.Copy(tmp, Path.Combine(game, "dinput8.dll"));
+            Log.Write("Put REFramework in the game");
+        }
+
+        static void Download(string path, string dst, string sha)
+        {
+            if (Checks.Sha256(dst) == sha) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(dst));
+            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
+            using var web = new System.Net.WebClient();
+            try { web.DownloadFile(Site + path, dst); }
+            catch (System.Net.WebException e) { throw new Exception("Couldn't download from Premade's site: " + e.Message); }
+            if (Checks.Sha256(dst) != sha) { File.Delete(dst); throw new Exception("A file from Premade's site isn't the version we checked, so nothing was changed."); }
         }
 
         static Dictionary<string, object> Read(string json) => (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(json));

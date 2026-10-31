@@ -27,11 +27,13 @@ jobs:
           if ($p.note -notmatch 'RE4 isn') { throw 'Play should refuse without RE4' }
           $o = & client/re4-helper.exe theirs | ConvertFrom-Json
           if ($o.note -notmatch 'RE4 isn') { throw 'the mod switch should refuse without RE4' }
-      - name: RE4 co-op their mod's files on the site match the pinned fingerprints
+      - name: RE4 co-op their mod's files and REFramework on the site match the pinned fingerprints
         shell: pwsh
         run: |
           $pins = [regex]::Matches((Get-Content client/re4/Checks.cs -Raw), '\["[^"]+"\] = "([0-9a-f]{64})"') | ForEach-Object { $_.Groups[1].Value }
           if ($pins.Count -ne 10) { throw "expected 10 pins, found $($pins.Count)" }
+          $rf = [regex]::Match((Get-Content client/re4/Checks.cs -Raw), 'REFramework = "([0-9a-f]{64})"').Groups[1].Value
+          if ((Get-FileHash "site/re4/reframework/$rf" -Algorithm SHA256).Hash.ToLower() -ne $rf) { throw 'site/re4/reframework is missing or changed' }
           foreach ($h in $pins) { if ((Get-FileHash "site/re4/their-mod/$h" -Algorithm SHA256).Hash.ToLower() -ne $h) { throw "site/re4/their-mod/$h is missing or changed" } }
       # Set up as host for real (the runner is admin, so Windows doesn't ask): WireGuard, tunnel, firewall rules.
       - name: RE4 co-op Set up on a real Windows
