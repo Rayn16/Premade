@@ -374,13 +374,22 @@ ipcMain.handle('ducking', (e) => {
 });
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 // ---- RE4 co-op page: re4-helper.exe (client/re4) reads the tunnel, firewall, game and saves without admin, backs up
-// saves, starts RE4, switches the co-op mod, and sets the PC up to host (it asks Windows for admin itself, setup only).
-// Only these commands go through; it answers with JSON.
-ipcMain.handle('re4', (e, what) => {
-  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'theirs', 'ours'].includes(what)) return null;
-  return new Promise((res) => execFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 're4-helper.exe'), [what], { windowsHide: true, timeout: what === 'setup' ? 600000 : 90000, maxBuffer: 1 << 20 }, (err, out) => {
-    try { res(JSON.parse(out)); } catch { res(null); }
-  }));
+// saves, starts RE4, switches the co-op mod, sets the PC up to host, invites and removes friends, and joins a host
+// (it asks Windows for admin itself for those). Only these commands go through; it answers with JSON. An invite code
+// to join goes on its stdin, never in its command line. re4link.js adds which friends are online.
+const re4link = require('./re4link');
+ipcMain.handle('re4', (e, what, arg) => {
+  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'theirs', 'ours', 'invite', 'unfriend', 'address', 'join', 'remove'].includes(what)) return null;
+  arg = String(arg || '').slice(0, 400);
+  const args = what === 'setup' ? [what, process.execPath] : what === 'invite' || what === 'unfriend' ? [what, arg] : [what];
+  const slow = ['setup', 'invite', 'unfriend', 'join', 'remove'].includes(what);
+  return new Promise((res) => {
+    const p = execFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 're4-helper.exe'), args, { windowsHide: true, timeout: slow ? 600000 : 90000, maxBuffer: 1 << 20 }, (err, out) => {
+      try { res(re4link.update(JSON.parse(out))); } catch { res(null); }
+    });
+    p.stdin.on('error', () => {});
+    p.stdin.end(what === 'join' ? arg : '');
+  });
 });
 
 // ---- test recordings (Settings, League): what League sends during your games, its game data every 10 s and what the

@@ -34,8 +34,8 @@ namespace RE4Helper
         public List<Row> Connection = new List<Row>(), Privacy = new List<Row>(), Game = new List<Row>();
         public Row Saves;
         public Mod Mod;
-        public bool ModOk, Re4Running, ServerBlocked, GamePortAllowed, OthersBlocked, FirewallOn;
-        public string GameDir;
+        public bool ModOk, Re4Running, ServerBlocked, GamePortAllowed, OthersBlocked, AppLinkAllowed, FirewallOn;
+        public string GameDir, Build = "", ModVersion = "";
     }
 
     public static class Checks
@@ -43,7 +43,7 @@ namespace RE4Helper
         public const int AppId = 2050650;   // Resident Evil 4 (2023) on Steam
         public const string Tunnel = "re4coop";
         public const string HostIp = "10.66.0.1";
-        public const int TunnelPort = 51820, GamePort = 39000;
+        public const int TunnelPort = 51820, GamePort = 39000, AppLinkPort = 39100;
         public const string ModServer = "2.25.197.34";
         public const string RulePrefix = "RE4 co-op WireGuard: ";
         public const string RuleServerOut = RulePrefix + "block their mod server (out)";
@@ -51,10 +51,30 @@ namespace RE4Helper
         public const string RuleGameFriends = RulePrefix + "game, from friends only";   // 10.66.0.0/24, made by Set up
         public const string RuleGameOld = RulePrefix + "game, from cutiecatty only";     // the first setup script's, 10.66.0.2 only
         public const string RuleGameOthers = RulePrefix + "game, everyone else blocked";
+        public const string RuleAppLink = RulePrefix + "Premade app link, from friends only";
 
         public static string Documents => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         public static string BackupRoot => Path.Combine(Documents, @"re4r_coop\save_backups");
-        public static string InviteConf => Path.Combine(Documents, @"RE4 co-op WireGuard\Send to cutiecatty\re4coop.conf");   // ponytail: the first script's one invite
+        public static string AddressFile => Path.Combine(Documents, @"RE4 co-op\address.txt");   // a fingerprint of the internet address in the newest invite
+        static string FriendsFile => Path.Combine(Documents, @"RE4 co-op\friends.json");   // the host's friends: 10.66.0.x -> name
+
+        public static Dictionary<string, string> FriendNames()
+        {
+            try { return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText(FriendsFile)) ?? new Dictionary<string, string>(); }
+            catch (Exception) { return new Dictionary<string, string>(); }
+        }
+
+        public static void SaveFriendNames(Dictionary<string, string> names)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(FriendsFile));
+            File.WriteAllText(FriendsFile, new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(names));
+        }
+
+        public static string Fingerprint(string ip)
+        {
+            using var sha = SHA256.Create();
+            return BitConverter.ToString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes("re4coop " + ip))).Replace("-", "").ToLowerInvariant();
+        }
 
         // Their files that go in the game, with the SHA-256 we checked on 2026-10-30 (same list as re4-switch-mod.ps1).
         public static readonly Dictionary<string, string> TheirFiles = new Dictionary<string, string>
@@ -133,7 +153,7 @@ namespace RE4Helper
             }
         }
 
-        static string PublicIp()
+        public static string PublicIp()
         {
             foreach (var url in new[] { "https://api.ipify.org", "https://icanhazip.com", "https://ifconfig.me/ip" })
             {
@@ -182,12 +202,11 @@ namespace RE4Helper
 
         static void AddressRow(Snapshot s, string publicIp)
         {
-            if (!File.Exists(InviteConf)) { s.Connection.Add(new Row(Level.Idle, "Internet address", "no invite file to compare with")); return; }
+            if (!File.Exists(AddressFile)) { s.Connection.Add(new Row(Level.Idle, "Internet address", "no invite made yet to compare with")); return; }
             if (publicIp == null) { s.Connection.Add(new Row(Level.Warn, "Internet address: can't tell", "couldn't look up this PC's internet address")); return; }
-            var m = File.ReadAllLines(InviteConf).Select(l => Regex.Match(l, @"^\s*Endpoint\s*=\s*([\d.]+):\d+\s*$")).FirstOrDefault(x => x.Success);
-            // The address itself never goes in the log or on screen.
-            if (m != null && m.Groups[1].Value == publicIp) s.Connection.Add(new Row(Level.Good, "Address unchanged", "same internet address as in the invite"));
-            else s.Connection.Add(new Row(Level.Bad, "Internet address changed", "your friend's invite has an old address"));
+            // Only a fingerprint is kept: the address itself never goes in a file, the log or a row.
+            if (File.ReadAllText(AddressFile).Trim() == Fingerprint(publicIp)) s.Connection.Add(new Row(Level.Good, "Address unchanged", "same internet address as in your invites"));
+            else s.Connection.Add(new Row(Level.Bad, "Internet address changed", "send your friends the new address (Friends, Copy new address)"));
         }
 
         // ---------- Privacy ----------
@@ -218,6 +237,8 @@ namespace RE4Helper
             var allow = Rule(RuleGameFriends) ?? Rule(RuleGameOld);
             s.GamePortAllowed = On(allow) && (int)Com(allow, "Action") == 1 && Remote(allow).StartsWith("10.66.0.");
             var othersBlocked = s.OthersBlocked = Blocks(Rule(RuleGameOthers));
+            var link = Rule(RuleAppLink);
+            s.AppLinkAllowed = On(link) && (int)Com(link, "Action") == 1;
             if (s.GamePortAllowed && othersBlocked) s.Privacy.Add(new Row(Level.Good, "Game port: friends only", $"UDP {GamePort}, everyone else blocked"));
             else if (s.GamePortAllowed) s.Privacy.Add(new Row(Level.Warn, "Game port open to your friend", $"UDP {GamePort}, but not yet blocked for everyone else"));
             else s.Privacy.Add(new Row(Level.Bad, "Game port rule missing", $"nothing lets only your friends reach UDP {GamePort}"));
@@ -248,7 +269,7 @@ namespace RE4Helper
                 return;
             }
             var acf = Path.GetFullPath(Path.Combine(s.GameDir, $@"..\..\appmanifest_{AppId}.acf"));
-            var build = File.Exists(acf) ? Regex.Match(File.ReadAllText(acf), "\"buildid\"\\s+\"(\\d+)\"").Groups[1].Value : "";
+            var build = s.Build = File.Exists(acf) ? Regex.Match(File.ReadAllText(acf), "\"buildid\"\\s+\"(\\d+)\"").Groups[1].Value : "";
             s.Game.Add(new Row(Level.Good, "RE4 found", build != "" ? $"Steam build {build}" : "Steam build unknown"));
 
             var state = Path.Combine(s.GameDir, "re4r_coop_install");
@@ -266,7 +287,7 @@ namespace RE4Helper
                 s.Mod = Mod.Ours;
                 s.ModOk = true;
                 var lua = Path.Combine(s.GameDir, @"reframework\autorun\re4r_coop.lua");
-                var v = File.Exists(lua) ? Regex.Match(File.ReadAllText(lua), "local VERSION = \"([^\"]+)\"").Groups[1].Value : "";
+                var v = s.ModVersion = File.Exists(lua) ? Regex.Match(File.ReadAllText(lua), "local VERSION = \"([^\"]+)\"").Groups[1].Value : "";
                 s.Game.Add(new Row(Level.Good, "Our mod is in", v != "" ? v : "version unknown"));
             }
             else s.Game.Add(new Row(Level.Idle, "No co-op mod in the game", "neither theirs nor ours"));

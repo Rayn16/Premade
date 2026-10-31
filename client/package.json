@@ -19,6 +19,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "re4link.js",
       "audio-capture.exe",
       "re4-helper.exe",
       "icon.png"

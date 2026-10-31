@@ -364,8 +364,10 @@ function fakeApp(version) {
     screens: async () => [{ id: '1', main: true, thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
     useScreen() {}, keys: async (k) => ({ mute: !!k.mute, show: !!k.show, clip: !!k.clip, overlay: !!k.overlay, ptt: !!k.ptt }), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay(s) { this.lastOverlay = s; },
-    re4: async (what) => ({ role: 'host', tunnelIp: '10.66.0.1', mod: what === 'ours' ? 'ours' : 'theirs', running: false, why: null, setup: what !== 'setup', firewallOn: false,
-      note: { play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.' }[what] || null,
+    re4: async (what, arg) => ({ role: 'host', tunnelIp: '10.66.0.1', mod: what === 'ours' ? 'ours' : 'theirs', modVersion: what === 'ours' ? '0.6.14-retarget' : '', build: '22377325', running: false, why: null, setup: what !== 'setup', firewallOn: false,
+      friends: [{ ip: '10.66.0.2', name: 'cutiecatty' }], peers: [{ ip: '10.66.0.2', online: true, ms: 38, mod: 'theirs', modVersion: '', build: '22377325', running: true }],
+      invite: what === 'invite' ? `RE4COOP1.for-${arg}` : null,
+      note: { play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.', invite: `Invite for ${arg} ready.` }[what] || null,
       connection: [{ level: 'good', title: 'Tunnel running', detail: 're4coop, starts with Windows' }], privacy: [{ level: 'warn', title: 'Game port open to your friend', detail: 'UDP 39000' }],
       game: [{ level: 'idle', title: 'Not running', detail: 'Play starts it through Steam' }], saves: { level: 'good', title: 'Saves: last backup just now', detail: '' } }),
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
@@ -903,9 +905,15 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => !document.getElementById('re4SetupBox').hidden && !document.getElementById('re4FwNote').hidden && document.getElementById('re4Theirs').getAttribute('aria-pressed') === 'true'), 'RE4 Set up shows, with the firewall note, and their mod is in');
     await pc.click('#re4Setup');
     await wait(pc, () => document.getElementById('re4SetupBox').hidden && document.getElementById('re4Note').textContent === 'This PC is set up to host.', null, 'RE4 Set up');
+    assert(await pc.evaluate(() => document.querySelector('#re4FriendList .dot').dataset.h === 'good' && document.getElementById('re4FriendList').textContent.includes('cutiecatty: online, 38 ms, in RE4')
+      && !document.getElementById('re4Friends').hidden && document.getElementById('re4HostBox').hidden && document.getElementById('re4JoinPart').hidden), 'RE4 Friends: cutiecatty online with her ping');
+    await pc.fill('#re4Name', 'Leon');
+    await pc.click('#re4Invite');
+    await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === 'RE4COOP1.for-Leon' && document.getElementById('re4Name').value === '', null, 'RE4 invite');
     await pc.click('#re4Ours');
-    await wait(pc, () => document.getElementById('re4Ours').getAttribute('aria-pressed') === 'true' && document.getElementById('re4Steps').textContent.includes('Insert'), null, 'RE4 switch to our mod');
-    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and the mod switch');
+    await wait(pc, () => document.getElementById('re4Ours').getAttribute('aria-pressed') === 'true' && document.getElementById('re4Steps').textContent.includes('Insert')
+      && document.querySelector('#re4FriendList .dot').dataset.h === 'ok' && document.getElementById('re4FriendList').textContent.includes('a different co-op mod: they have their mod, you have our mod 0.6.14-retarget'), null, 'RE4 switch to our mod');
+    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up, a friend online, an invite, and the mod switch warning about the friend’s mod');
     // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
     await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
