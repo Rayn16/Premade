@@ -152,8 +152,9 @@ namespace RE4Helper
             return null;
         }
 
+        // Method or property (Rules.Item is a method; GetProperty alone never finds a rule).
         public static object Com(object o, string name, params object[] args) =>
-            o.GetType().InvokeMember(name, BindingFlags.GetProperty, null, o, args);
+            o.GetType().InvokeMember(name, BindingFlags.InvokeMethod | BindingFlags.GetProperty, null, o, args);
 
         static void RouterRow(Snapshot s, string publicIp)
         {
