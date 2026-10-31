@@ -908,6 +908,11 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => document.querySelector('#re4FriendList .dot').dataset.h === 'good' && document.getElementById('re4FriendList').textContent.includes('cutiecatty: online, 38 ms, in RE4')
       && !document.getElementById('re4Friends').hidden && document.getElementById('re4HostBox').hidden && document.getElementById('re4JoinPart').hidden), 'RE4 Friends: cutiecatty online with her ping');
     await pc.click('.nav[data-view="re4"]'); // a slow status check is running: the click waits for it instead of being dropped
+    await wait(pc, () => [...document.getElementById('re4Pick').options].map((o) => o.value).join() === 'Duo,Friend,Gamer,Agent,Sleepy,*' && document.getElementById('re4NameField').hidden, null, 'RE4 invite: pick from your friends');
+    await pc.selectOption('#re4Pick', 'Duo');
+    await pc.click('#re4Invite');
+    await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === 'RE4COOP1.for-Duo', null, 'RE4 invite for a picked friend');
+    await pc.selectOption('#re4Pick', '*');
     await pc.fill('#re4Name', 'Leon');
     await pc.click('#re4Invite');
     await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === 'RE4COOP1.for-Leon' && document.getElementById('re4Name').value === '', null, 'RE4 invite');
