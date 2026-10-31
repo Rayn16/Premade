@@ -73,7 +73,7 @@ jobs:
           $r = Re4 remove
           if ($r.role -ne 'none' -or @(Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *' -ErrorAction SilentlyContinue).Count -ne 0) { Fail 'remove' }
           $j = Re4 join $null $code
-          if ($j.role -ne 'friend' -or $j.hostIp -ne '100.101.102.103' -or ($j.privacy | Where-Object title -eq "Their mod's server blocked").Count -ne 1 -or $j.setup -or $j.why -notmatch 'Tailscale') { Fail 'join' }
+          if ($j.role -ne 'friend' -or $j.hostIp -ne '100.101.102.103' -or ($j.privacy | Where-Object title -eq "Their mod's server blocked").Count -ne 1 -or $j.setup -or ($j.connection | Where-Object title -eq 'Tailscale: sign in').Count -ne 1) { Fail 'join' }
           if ((Re4 setup).note -notmatch 'set up as a friend') { Fail 'a friend should be refused Set up' }
           if ((Re4 remove).role -ne 'none') { Fail 'remove the friend side' }
       - name: Build Windows installer
