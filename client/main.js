@@ -374,10 +374,11 @@ ipcMain.handle('ducking', (e) => {
 });
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 // ---- RE4 co-op page: re4-helper.exe (client/re4) reads the tunnel, firewall, game and saves without admin, backs up
-// saves and starts RE4. Only these commands go through; it answers with JSON.
+// saves, starts RE4, switches the co-op mod, and sets the PC up to host (it asks Windows for admin itself, setup only).
+// Only these commands go through; it answers with JSON.
 ipcMain.handle('re4', (e, what) => {
-  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups'].includes(what)) return null;
-  return new Promise((res) => execFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 're4-helper.exe'), [what], { windowsHide: true, timeout: 90000, maxBuffer: 1 << 20 }, (err, out) => {
+  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'theirs', 'ours'].includes(what)) return null;
+  return new Promise((res) => execFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 're4-helper.exe'), [what], { windowsHide: true, timeout: what === 'setup' ? 600000 : 90000, maxBuffer: 1 << 20 }, (err, out) => {
     try { res(JSON.parse(out)); } catch { res(null); }
   }));
 });

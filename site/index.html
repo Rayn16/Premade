@@ -118,6 +118,8 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .re4row small { grid-column: 2; color: var(--muted); }
 .re4row .dot[data-h="idle"] { background: transparent; border: 1.5px solid var(--muted); }
 .re4grow { flex: 1; }
+.re4seg { display: inline-flex; gap: 4px; }
+.re4seg .btn[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--gold); }
 .re4play { font: 700 17px/1 var(--display); letter-spacing: 0.12em; padding: 14px 34px; text-transform: uppercase; }
 .re4steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: re4; }
 .re4steps li { counter-increment: re4; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--raised); }
@@ -1831,6 +1833,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <p id="re4Role" class="ph"></p>
       <h1 class="title">Resident Evil 4 co-op</h1>
       <p class="hint">Play RE4 (2023) with a friend through the co-op mod’s Direct Connect, over your own private link instead of the mod’s server. This page checks every part on this PC, backs up your saves and starts the game.</p>
+      <section id="re4SetupBox" class="panel" aria-labelledby="h-re4Setup" hidden>
+        <h2 id="h-re4Setup" class="ph">Set up this PC to host</h2>
+        <p class="hint">One button does the rest: installs WireGuard if it’s missing, makes your private link (this PC is 10.66.0.1), blocks the co-op mod’s own server, lets only your friends reach the game’s port, and opens the router port. Windows asks for permission once.</p>
+        <p id="re4FwNote" class="hint" hidden>Windows Firewall is off on this PC, so the firewall rules won’t do anything until it’s on (Windows Security, Firewall &amp; network protection). If another security app does your firewall, block 2.25.197.34 there.</p>
+        <div class="toolbar"><button id="re4Setup" class="btn primary" type="button">Set up (Windows asks once)</button></div>
+      </section>
       <div class="re4grid">
         <section class="panel" aria-labelledby="h-re4Conn"><h2 id="h-re4Conn" class="ph">Connection</h2><div id="re4Conn" class="re4rows"></div></section>
         <section class="panel" aria-labelledby="h-re4Priv"><h2 id="h-re4Priv" class="ph">Privacy</h2><div id="re4Priv" class="re4rows"></div></section>
@@ -1839,7 +1847,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section class="panel" aria-label="Saves">
         <div class="toolbar"><span id="re4Saves" class="re4rows re4grow"></span><button id="re4Backup" class="btn small" type="button">Back up now</button><button id="re4Backups" class="btn small" type="button">Open backups</button></div>
       </section>
-      <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span id="re4Note" class="hint" role="status"></span></div>
+      <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span class="re4seg" role="group" aria-label="Which co-op mod is in the game"><button id="re4Theirs" class="btn small" type="button">Their mod</button><button id="re4Ours" class="btn small" type="button">Our mod</button></span><span id="re4Note" class="hint" role="status"></span></div>
       <section class="panel" aria-labelledby="h-re4Next"><h2 id="h-re4Next" class="ph">Next, in the game</h2><ol id="re4Steps" class="re4steps"></ol></section>
     </section>
 
@@ -6007,13 +6015,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (re4Busy) return;
     re4Busy = true;
     $('re4Play').disabled = true;
-    if (what !== 'status') $('re4Note').textContent = what === 'play' ? 'Backing up saves, then starting RE4…' : 'Working…';
+    if (what !== 'status') $('re4Note').textContent = { play: 'Backing up saves, then starting RE4…', setup: 'Setting up: click Yes in Windows’ prompt…', theirs: 'Checking the co-op mod’s files, backing up saves, then switching…', ours: 'Switching back to our mod…' }[what] || 'Working…';
     const s = await client.re4(what).catch(() => null);
     re4Busy = false;
     if (!s || s.error) { $('re4Note').textContent = s ? `Something went wrong: ${s.error}` : 'Update the app to use this page.'; return; }
     $('re4Role').textContent = { host: `Host · tunnel ${s.tunnelIp}`, friend: `Friend · tunnel ${s.tunnelIp}`, none: 'Not set up yet' }[s.role];
     re4Rows('re4Conn', s.connection); re4Rows('re4Priv', s.privacy); re4Rows('re4Game', s.game); re4Rows('re4Saves', [s.saves]);
     $('re4Play').disabled = !!s.why;
+    $('re4SetupBox').hidden = !s.setup;
+    $('re4FwNote').hidden = s.firewallOn;
+    $('re4Theirs').setAttribute('aria-pressed', s.mod === 'theirs');
+    $('re4Ours').setAttribute('aria-pressed', s.mod === 'ours');
     $('re4Note').textContent = s.note || s.why || 'Backs up your saves, then starts RE4 through Steam.';
     const steps = s.mod === 'ours' ? ['Insert', 'RE4 co-op', 'Find Steam friends playing RE4', 'Play with your friend']
       : ['Continue as Guest', 'Matchmaking', 'Direct Connect', s.role === 'friend' ? 'Join, Host’s IP 10.66.0.1' : 'Host & Wait'];
@@ -6022,6 +6034,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('re4Play').addEventListener('click', () => re4('play'));
   $('re4Backup').addEventListener('click', () => re4('backup'));
   $('re4Backups').addEventListener('click', () => re4('backups'));
+  $('re4Setup').addEventListener('click', () => re4('setup'));
+  $('re4Theirs').addEventListener('click', () => re4('theirs'));
+  $('re4Ours').addEventListener('click', () => re4('ours'));
   setInterval(() => { if (!document.querySelector('.view[data-view="re4"]').hidden && !document.hidden) re4(); }, 15000);
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
@@ -13721,6 +13736,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [98, 'October 31: RE4 co-op Set up and mod switch', [
+      'RE4 co-op: Set up makes this PC ready to host after one Windows prompt (private link, firewall rules, router port), and Their mod / Our mod switch which co-op mod is in the game, backing up your saves first. It comes with app 1.28.9, which installs itself.',
+    ]],
     [97, 'October 31: an RE4 co-op page', [
       'A new RE4 co-op page in the menu of the desktop app: it checks everything for playing Resident Evil 4 with a friend through the co-op mod, backs up your saves and starts the game. Setting up the private link and inviting friends come next. It comes with app 1.28.8, which installs itself.',
     ]],
@@ -14263,7 +14281,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ]],
     ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over your own private link.', [
       ['RE4 co-op page', 'Checks every part on this PC: the private link to your friend, the router port, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves, starts RE4 through Steam and shows the next clicks in the game.',
-        'RE4 co-op, in the menu. Setting up the link and inviting friends come next.', '#re4Play', 'app'],
+        'RE4 co-op, in the menu. Inviting friends comes next.', '#re4Play', 'app'],
+      ['Set up to host, and switch mods', 'Set up installs WireGuard if it’s missing, makes your private link, blocks the co-op mod’s own server, lets only your friends reach the game’s port and opens the router port, after one Windows prompt. Their mod / Our mod switches which co-op mod is in the game: the downloaded one goes in only if its files match the checked version, your saves are backed up first, and nothing is deleted.',
+        'RE4 co-op: Set up shows until this PC is ready; Their mod and Our mod are next to Play.', '#re4Theirs', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
       ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',

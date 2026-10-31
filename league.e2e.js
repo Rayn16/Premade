@@ -364,7 +364,8 @@ function fakeApp(version) {
     screens: async () => [{ id: '1', main: true, thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
     useScreen() {}, keys: async (k) => ({ mute: !!k.mute, show: !!k.show, clip: !!k.clip, overlay: !!k.overlay, ptt: !!k.ptt }), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay(s) { this.lastOverlay = s; },
-    re4: async (what) => ({ role: 'host', tunnelIp: '10.66.0.1', mod: 'theirs', running: false, why: null, note: what === 'play' ? 'Saves backed up for 1 Steam account. Starting RE4...' : null,
+    re4: async (what) => ({ role: 'host', tunnelIp: '10.66.0.1', mod: what === 'ours' ? 'ours' : 'theirs', running: false, why: null, setup: what !== 'setup', firewallOn: false,
+      note: { play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.' }[what] || null,
       connection: [{ level: 'good', title: 'Tunnel running', detail: 're4coop, starts with Windows' }], privacy: [{ level: 'warn', title: 'Game port open to your friend', detail: 'UDP 39000' }],
       game: [{ level: 'idle', title: 'Not running', detail: 'Play starts it through Steam' }], saves: { level: 'good', title: 'Saves: last backup just now', detail: '' } }),
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
@@ -899,7 +900,12 @@ const leagueData = (over = {}) => ({
       && document.querySelector('#re4Priv .dot').dataset.h === 'ok' && document.querySelector('#re4Game .dot').dataset.h === 'idle' && document.getElementById('re4Steps').textContent.includes('Host & Wait'), null, 'RE4 co-op checks');
     await pc.click('#re4Play');
     await wait(pc, () => document.getElementById('re4Note').textContent.endsWith('Starting RE4...'), null, 'RE4 Play');
-    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, and Play');
+    assert(await pc.evaluate(() => !document.getElementById('re4SetupBox').hidden && !document.getElementById('re4FwNote').hidden && document.getElementById('re4Theirs').getAttribute('aria-pressed') === 'true'), 'RE4 Set up shows, with the firewall note, and their mod is in');
+    await pc.click('#re4Setup');
+    await wait(pc, () => document.getElementById('re4SetupBox').hidden && document.getElementById('re4Note').textContent === 'This PC is set up to host.', null, 'RE4 Set up');
+    await pc.click('#re4Ours');
+    await wait(pc, () => document.getElementById('re4Ours').getAttribute('aria-pressed') === 'true' && document.getElementById('re4Steps').textContent.includes('Insert'), null, 'RE4 switch to our mod');
+    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and the mod switch');
     // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
     await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));

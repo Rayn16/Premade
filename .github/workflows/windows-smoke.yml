@@ -25,6 +25,21 @@ jobs:
           if ($s.error -or $s.role -ne 'none' -or ($s.game | Where-Object title -eq 'RE4 not found').Count -ne 1 -or $s.why -notmatch 'RE4 isn') { throw 're4-helper status is not what a PC without RE4 should give' }
           $p = & client/re4-helper.exe play | ConvertFrom-Json
           if ($p.note -notmatch 'RE4 isn') { throw 'Play should refuse without RE4' }
+          $o = & client/re4-helper.exe theirs | ConvertFrom-Json
+          if ($o.note -notmatch 'RE4 isn') { throw 'the mod switch should refuse without RE4' }
+      # Set up as host for real (the runner is admin, so Windows doesn't ask): WireGuard, tunnel, firewall rules.
+      - name: RE4 co-op Set up on a real Windows
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $s = & client/re4-helper.exe setup | ConvertFrom-Json
+          $s | ConvertTo-Json -Depth 4
+          if ($s.note -notmatch 'set up to host') { throw "Set up: $($s.note)" }
+          if ($s.role -ne 'host' -or $s.tunnelIp -ne '10.66.0.1' -or $s.setup) { throw 'after Set up the PC should be the host with nothing left to set up' }
+          Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *' | Format-Table DisplayName, Direction, Action
+          # again: keeps the key and the tunnel, replaces the rules
+          $s = & client/re4-helper.exe setup | ConvertFrom-Json
+          if ($s.note -notmatch 'set up to host' -or @(Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *').Count -ne 5) { throw 'Set up run twice should leave the same 5 rules' }
       - name: Build Windows installer
         working-directory: client
         run: |

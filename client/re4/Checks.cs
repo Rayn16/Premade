@@ -34,7 +34,7 @@ namespace RE4Helper
         public List<Row> Connection = new List<Row>(), Privacy = new List<Row>(), Game = new List<Row>();
         public Row Saves;
         public Mod Mod;
-        public bool ModOk, Re4Running, ServerBlocked, GamePortAllowed;
+        public bool ModOk, Re4Running, ServerBlocked, GamePortAllowed, OthersBlocked, FirewallOn;
         public string GameDir;
     }
 
@@ -42,14 +42,14 @@ namespace RE4Helper
     {
         public const int AppId = 2050650;   // Resident Evil 4 (2023) on Steam
         public const string Tunnel = "re4coop";
-        public const string HostIp = "10.66.0.1", PartnerIp = "10.66.0.2";
+        public const string HostIp = "10.66.0.1";
         public const int TunnelPort = 51820, GamePort = 39000;
         public const string ModServer = "2.25.197.34";
         public const string RulePrefix = "RE4 co-op WireGuard: ";
         public const string RuleServerOut = RulePrefix + "block their mod server (out)";
         public const string RuleServerIn = RulePrefix + "block their mod server (in)";
-        // ponytail: the first setup script's name for the host's game rule; Set up (next step) makes one per invited friend
-        public const string RuleGameHost = RulePrefix + "game, from cutiecatty only";
+        public const string RuleGameFriends = RulePrefix + "game, from friends only";   // 10.66.0.0/24, made by Set up
+        public const string RuleGameOld = RulePrefix + "game, from cutiecatty only";     // the first setup script's, 10.66.0.2 only
         public const string RuleGameOthers = RulePrefix + "game, everyone else blocked";
 
         public static string Documents => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -152,7 +152,7 @@ namespace RE4Helper
             return null;
         }
 
-        static object Com(object o, string name, params object[] args) =>
+        public static object Com(object o, string name, params object[] args) =>
             o.GetType().InvokeMember(name, BindingFlags.GetProperty, null, o, args);
 
         static void RouterRow(Snapshot s, string publicIp)
@@ -197,6 +197,7 @@ namespace RE4Helper
             var off = new List<string>();
             foreach (var (bit, name) in new[] { (1, "Domain"), (2, "Private"), (4, "Public") })
                 if (!(bool)Com(fw, "FirewallEnabled", bit)) off.Add(name);
+            s.FirewallOn = off.Count == 0;
             s.Privacy.Add(off.Count == 0
                 ? new Row(Level.Good, "Windows Firewall on", "all network types")
                 : new Row(Level.Bad, "Windows Firewall off", "for " + string.Join(", ", off) + "; the rules below only work while it's on"));
@@ -213,9 +214,9 @@ namespace RE4Helper
                 : new Row(Level.Bad, "Their mod's server not blocked", "the block rules are missing or off"));
 
             if (!s.IsHost) { s.Privacy.Add(new Row(Level.Idle, "Game port", "only the host needs this rule")); return; }
-            var allow = Rule(RuleGameHost);
-            s.GamePortAllowed = On(allow) && (int)Com(allow, "Action") == 1 && Remote(allow).StartsWith(PartnerIp);
-            var othersBlocked = Blocks(Rule(RuleGameOthers));
+            var allow = Rule(RuleGameFriends) ?? Rule(RuleGameOld);
+            s.GamePortAllowed = On(allow) && (int)Com(allow, "Action") == 1 && Remote(allow).StartsWith("10.66.0.");
+            var othersBlocked = s.OthersBlocked = Blocks(Rule(RuleGameOthers));
             if (s.GamePortAllowed && othersBlocked) s.Privacy.Add(new Row(Level.Good, "Game port: friends only", $"UDP {GamePort}, everyone else blocked"));
             else if (s.GamePortAllowed) s.Privacy.Add(new Row(Level.Warn, "Game port open to your friend", $"UDP {GamePort}, but not yet blocked for everyone else"));
             else s.Privacy.Add(new Row(Level.Bad, "Game port rule missing", $"nothing lets only your friends reach UDP {GamePort}"));
