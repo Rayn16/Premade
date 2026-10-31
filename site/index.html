@@ -6043,7 +6043,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     re4Busy = false;
     if (re4Next) { const n = re4Next; re4Next = null; setTimeout(() => re4(...n)); if (what === 'status') return; }
     if (!s || s.error) { $('re4Note').textContent = s ? `Something went wrong: ${s.error}` : 'Update the app to use this page.'; return; }
-    $('re4Role').textContent = { host: 'Host', friend: 'Friend', none: 'Not set up yet' }[s.role] + (s.tunnelIp ? ` · Tailscale ${s.tunnelIp}` : '');
+    // a friend sees the host's address up top, the one to type in the game, not their own
+    $('re4Role').textContent = s.role === 'friend' ? `Friend · your host is ${s.hostIp}` : { host: 'Host', none: 'Not set up yet' }[s.role] + (s.tunnelIp ? ` · Tailscale ${s.tunnelIp}` : '');
     $('re4SignIn').hidden = !['NeedsLogin', 'NoState'].includes(s.tailscale);
     re4Rows('re4Conn', s.connection); re4Rows('re4Priv', s.privacy); re4Rows('re4Game', s.game); re4Rows('re4Saves', [s.saves]);
     $('re4Play').disabled = !!s.why;
