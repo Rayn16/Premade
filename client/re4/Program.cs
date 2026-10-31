@@ -83,7 +83,7 @@ namespace RE4Helper
         {
             if (s.GameDir == null) return "RE4 isn't installed through Steam on this PC.";
             if (s.Re4Running) return "RE4 is already running.";
-            if (s.Mod == Mod.Theirs && !s.ModOk) return "The co-op mod's files changed from the checked version, so Play won't start them.";
+            if (s.Mod == Mod.Theirs && !s.ModOk) return "The co-op mod's files aren't the checked version. Press Their mod to put the checked version in.";
             if (s.Mod == Mod.Theirs && !s.ServerBlocked) return "Block the co-op mod's own server first (Privacy).";
             if ((s.IsHost || s.HostIp != null) && s.TunnelIp == null) return "Connect Tailscale first (Connection).";
             if (s.Mod == Mod.Theirs && s.IsHost && !s.GamePortAllowed) return "The game port rule is missing (Privacy).";

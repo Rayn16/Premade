@@ -30,7 +30,17 @@ namespace RE4Helper
         public static string ToTheirs()
         {
             var game = Game();
-            if (File.Exists(Record(game))) return "Their mod is already in.";
+            if (File.Exists(Record(game)))
+            {
+                // Already in: only files that aren't the checked version get replaced (e.g. his DLL by the one adjusted
+                // for Premade). Ours stays parked.
+                var old = Checks.TheirFiles.Where(f => Checks.Sha256(Path.Combine(game, f.Key)) != f.Value).ToList();
+                if (old.Count == 0) return "Their mod is already in.";
+                var from = FromDownloads() ?? FromSite();
+                foreach (var f in old) File.Copy(Path.Combine(from, f.Key), Path.Combine(game, f.Key), true);
+                Log.Write($"Their mod: {old.Count} files updated");
+                return "Their mod is updated to the checked version.";
+            }
             if (!File.Exists(Path.Combine(game, "dinput8.dll"))) AddREFramework(game);
 
             // 1. Find their files (Downloads, else Premade's site) and check every fingerprint before touching the game.

@@ -1867,7 +1867,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section id="re4CharBox" class="panel" aria-labelledby="h-re4Char" hidden><h2 id="h-re4Char" class="ph">In the game</h2><div id="re4InGame" class="re4rows"></div>
         <div class="toolbar"><label class="field">Play as <select id="re4Char"><option>Default</option><option>Leon</option><option>Ada</option><option>Ashley</option><option>Luis</option><option>HUNK</option><option>Wesker</option></select></label><button id="re4CharGo" class="btn small" type="button">Switch</button></div>
         <p class="hint">Uses the character swap in ClayBTV’s Multiplayer Mod, no lobby needed: load into your game, pick here, then Direct Connect. Pick once and stay, since every switch reloads the game’s sounds and animations.</p></section>
-      <p class="hint">Their mod is <a href="https://www.nexusmods.com/residentevil42023/mods/6539" target="_blank" rel="noopener">Multiplayer Mod by ClayBTV</a>, shared here under its Nexus permissions with credit to its creator. If it isn’t in your Downloads, Premade brings the same files from its own site, plus <a href="https://github.com/praydog/REFramework" target="_blank" rel="noopener">REFramework</a> (MIT) if the game doesn’t have it, and checks every one first.</p>
+      <p class="hint">Their mod is <a href="https://www.nexusmods.com/residentevil42023/mods/6539" target="_blank" rel="noopener">Multiplayer Mod by ClayBTV</a>, adjusted for Premade so it goes on as Guest by itself with no sign-in, and shared here under its Nexus permissions with credit to its creator. If it isn’t in your Downloads, Premade brings the same files from its own site, plus <a href="https://github.com/praydog/REFramework" target="_blank" rel="noopener">REFramework</a> (MIT) if the game doesn’t have it, and checks every one first.</p>
       <section class="panel" aria-labelledby="h-re4Next"><h2 id="h-re4Next" class="ph">Next, in the game</h2><ol id="re4Steps" class="re4steps"></ol></section>
       <div class="toolbar"><button id="re4Remove" class="btn small" type="button" hidden>Remove from this PC</button></div>
     </section>
@@ -6091,9 +6091,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('re4CharGo').disabled = !s.inGame;
     re4Rows('re4InGame', [!s.inGame ? { level: 'idle', title: 'RE4 isn’t running', detail: 'Play, then load into your game' }
       : s.inGame.connected ? { level: 'good', title: s.role === 'friend' ? 'Connected to your host' : 'Your friend is connected', detail: s.inGame.character }
-      : { level: 'warn', title: 'Not connected yet', detail: s.inGame.character || 'in the mod’s menu: Continue as Guest, Matchmaking, Direct Connect' }]);
+      : { level: 'warn', title: 'Not connected yet', detail: s.inGame.character || 'in the mod’s menu: Matchmaking, Direct Connect' }]);
     const steps = s.mod === 'ours' ? ['Insert', 'RE4 co-op', 'Find Steam friends playing RE4', 'Play with your friend']
-      : ['Continue as Guest', 'Matchmaking', 'Direct Connect', s.role === 'friend' ? `Join, Host’s IP ${s.hostIp}` : 'Host & Wait'];
+      : ['Matchmaking (it goes on as Guest by itself)', 'Direct Connect', s.role === 'friend' ? `Join, Host’s IP ${s.hostIp}` : 'Host & Wait'];
     $('re4Steps').replaceChildren(...steps.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
   }
   $('re4Play').addEventListener('click', () => re4('play'));
@@ -13828,7 +13828,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [101, 'October 31: pick your RE4 character in Premade', [
-      'RE4 co-op: Play as switches you to Ada, Leon, Ashley and the others right from Premade, with no lobby and no reconnecting. It uses the character swap in ClayBTV’s Multiplayer Mod. In the game also shows whether you’re connected, and a friend’s page shows the host’s address up top, the one to type in Direct Connect. It comes with app 1.28.12, which installs itself.',
+      'RE4 co-op: Play as switches you to Ada, Leon, Ashley and the others right from Premade, with no lobby and no reconnecting. It uses the character swap in ClayBTV’s Multiplayer Mod. In the game also shows whether you’re connected, his mod now goes on as Guest by itself so there’s no sign-in screen, and a friend’s page shows the host’s address up top, the one to type in Direct Connect. It comes with app 1.28.12, which installs itself.',
     ]],
     [100, 'October 31: RE4 co-op without touching your router', [
       'RE4 co-op now connects through Tailscale, which gets through any router, so no one forwards a port or sends a new address again. Set up and Join install it, and you sign in once. To invite a friend, Share this PC opens Tailscale’s page for your PC: press Share..., paste its link, and Make the invite. Your friend pastes the invite and accepts the share in their browser. Invites made before this don’t work any more: make a new one. It comes with app 1.28.11, which installs itself.',

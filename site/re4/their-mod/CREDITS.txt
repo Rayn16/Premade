@@ -1,7 +1,9 @@
 Multiplayer Mod - Resident Evil 4, by ClayBTV
 https://www.nexusmods.com/residentevil42023/mods/6539 (version of 28 June 2026)
 
-These are its files, unchanged, each named by its SHA-256. Premade's RE4 co-op page puts them in the game only if
+These are its files, each named by its SHA-256. All are unchanged except Re4-Co-op.dll, which Premade adjusted
+(febf6ea2...): one jump on the welcome screen is skipped so it goes on as Guest by itself, with no sign-in. His
+original DLL is here too (4529da6d...). Premade's RE4 co-op page puts them in the game only if
 every one matches. Shared here under the mod's Nexus permissions: "You are allowed to upload this file to other sites
 but you must credit me as the creator" and "You are allowed to modify my files ... so long as you credit me as the
 original creator". All credit for the mod goes to ClayBTV.
