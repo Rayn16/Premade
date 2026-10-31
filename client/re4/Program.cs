@@ -144,12 +144,13 @@ namespace RE4Helper
 
         static readonly string JoinFile = Path.Combine(Path.GetTempPath(), "re4-join.txt");
 
-        // The code comes on stdin, so it never shows in a process list. Only checked fields go on to the admin step,
-        // through a file in this user's temp folder that the admin step deletes right away.
+        // The code comes on stdin, so it never shows in a process list. A checked code goes on to the admin step through
+        // a file in this user's temp folder, which the admin step deletes right away and checks again.
         static string Join()
         {
-            var fields = ReadCode(Console.In.ReadToEnd());
-            File.WriteAllText(JoinFile, string.Join("|", fields));
+            var code = Console.In.ReadToEnd();
+            ReadCode(code);   // refused here already, before Windows asks
+            File.WriteAllText(JoinFile, code);
             try { return Elevated(new[] { "joinfile" }, null); }
             finally { File.Delete(JoinFile); }
         }
