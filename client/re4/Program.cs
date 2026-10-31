@@ -72,6 +72,8 @@ namespace RE4Helper
         {
             var backed = Backup();
             var s = Checks.Gather();
+            // Their mod is the only one we play: Play puts it in (or the checked version of it) first.
+            if (s.GameDir != null && !s.Re4Running && (s.Mod != Mod.Theirs || !s.ModOk)) { Switch.ToTheirs(); s = Checks.Gather(); }
             var why = WhyNotPlay(s);
             if (why != null) { Log.Write("Play stopped: " + why); return why; }
             Log.Write("Starting RE4 through Steam");
@@ -83,7 +85,6 @@ namespace RE4Helper
         {
             if (s.GameDir == null) return "RE4 isn't installed through Steam on this PC.";
             if (s.Re4Running) return "RE4 is already running.";
-            if (s.Mod == Mod.Theirs && !s.ModOk) return "The co-op mod's files aren't the checked version. Press Their mod to put the checked version in.";
             if (s.Mod == Mod.Theirs && !s.ServerBlocked) return "Block the co-op mod's own server first (Privacy).";
             if ((s.IsHost || s.HostIp != null) && s.TunnelIp == null) return "Connect Tailscale first (Connection).";
             if (s.Mod == Mod.Theirs && s.IsHost && !s.GamePortAllowed) return "The game port rule is missing (Privacy).";

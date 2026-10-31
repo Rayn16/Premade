@@ -118,8 +118,6 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .re4row small { grid-column: 2; color: var(--muted); }
 .re4row .dot[data-h="idle"] { background: transparent; border: 1.5px solid var(--muted); }
 .re4grow { flex: 1; }
-.re4seg { display: inline-flex; gap: 4px; }
-.re4seg .btn[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--gold); }
 .re4play { font: 700 17px/1 var(--display); letter-spacing: 0.12em; padding: 14px 34px; text-transform: uppercase; }
 .re4steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: re4; }
 .re4steps li { counter-increment: re4; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--raised); }
@@ -1863,7 +1861,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <section class="panel" aria-label="Saves">
         <div class="toolbar"><span id="re4Saves" class="re4rows re4grow"></span><button id="re4Backup" class="btn small" type="button">Back up now</button><button id="re4Backups" class="btn small" type="button">Open backups</button></div>
       </section>
-      <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span class="re4seg" role="group" aria-label="Which co-op mod is in the game"><button id="re4Theirs" class="btn small" type="button">Their mod</button><button id="re4Ours" class="btn small" type="button">Our mod</button></span><span id="re4Note" class="hint" role="status"></span></div>
+      <div class="toolbar"><button id="re4Play" class="btn primary re4play" type="button">Play</button><span id="re4Note" class="hint" role="status"></span></div>
       <section id="re4CharBox" class="panel" aria-labelledby="h-re4Char" hidden><h2 id="h-re4Char" class="ph">In the game</h2><div id="re4InGame" class="re4rows"></div>
         <div class="toolbar"><label class="field">Play as <select id="re4Char"><option>Default</option><option>Leon</option><option>Ada</option><option>Ashley</option><option>Luis</option><option>HUNK</option><option>Wesker</option></select></label><button id="re4CharGo" class="btn small" type="button">Switch</button></div>
         <p class="hint">Uses the character swap in ClayBTV’s Multiplayer Mod, no lobby needed: load into your game, pick here, then Direct Connect. Pick once and stay, since every switch reloads the game’s sounds and animations.</p></section>
@@ -6040,7 +6038,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     re4Busy = true;
     $('re4Play').disabled = true;
     const admin = 'click Yes in Windows’ prompt…';
-    if (what !== 'status') $('re4Note').textContent = { play: 'Backing up saves, then starting RE4…', setup: 'Setting up: ' + admin, theirs: 'Checking the co-op mod’s files, backing up saves, then switching…', ours: 'Switching back to our mod…',
+    if (what !== 'status') $('re4Note').textContent = { play: 'Backing up saves, checking the co-op mod, then starting RE4…', setup: 'Setting up: ' + admin, theirs: 'Checking the co-op mod’s files, backing up saves, then switching…', ours: 'Switching back to our mod…',
       char: 'Switching character…', invite: 'Making the invite…', unfriend: 'Taking your friend off…', signin: 'Opening Tailscale’s sign-in…', share: 'Opening Tailscale…', join: 'Joining: ' + admin, remove: 'Removing: ' + admin }[what] || 'Working…';
     const s = await client.re4(what, arg).catch(() => null);
     re4Busy = false;
@@ -6083,8 +6081,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (what !== 'status') $('re4InviteBox').hidden = !(s.invite && what === 'invite');
     if (s.invite && what === 'invite') { $('re4InviteCode').value = s.invite; $('re4Name').value = ''; $('re4Link').value = ''; }
     if (what === 'join') { $('re4Code').value = ''; $('re4NewCode').value = ''; }
-    $('re4Theirs').setAttribute('aria-pressed', s.mod === 'theirs');
-    $('re4Ours').setAttribute('aria-pressed', s.mod === 'ours');
     $('re4Note').textContent = s.note || s.why || 'Backs up your saves, then starts RE4 through Steam.';
     // Their mod in a running game: Play as writes its character swap command, and its own files say if you're connected
     $('re4CharBox').hidden = s.mod !== 'theirs';
@@ -6100,8 +6096,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('re4Backup').addEventListener('click', () => re4('backup'));
   $('re4Backups').addEventListener('click', () => re4('backups'));
   $('re4Setup').addEventListener('click', () => re4('setup'));
-  $('re4Theirs').addEventListener('click', () => re4('theirs'));
-  $('re4Ours').addEventListener('click', () => re4('ours'));
   $('re4CharGo').addEventListener('click', () => re4('char', $('re4Char').value));
   $('re4Invite').addEventListener('click', () => {
     const n = $('re4Pick').value === '*' ? $('re4Name').value.trim() : $('re4Pick').value, link = $('re4Link').value.trim();
@@ -13830,7 +13824,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [101, 'October 31: pick your RE4 character in Premade', [
-      'RE4 co-op: Play as switches you to Ada, Leon, Ashley and the others right from Premade, with no lobby and no reconnecting. It uses the character swap in ClayBTV’s Multiplayer Mod. In the game also shows whether you’re connected, his mod now goes on as Guest by itself so there’s no sign-in screen, and a friend’s page shows the host’s address up top, the one to type in Direct Connect. It comes with app 1.28.12, which installs itself.',
+      'RE4 co-op: Play as switches you to Ada, Leon, Ashley and the others right from Premade, with no lobby and no reconnecting. It uses the character swap in ClayBTV’s Multiplayer Mod. In the game also shows whether you’re connected, his mod now goes on as Guest by itself so there’s no sign-in screen, Play puts his mod in by itself (Their mod / Our mod are gone), and a friend’s page shows the host’s address up top, the one to type in Direct Connect. It comes with app 1.28.12, which installs itself.',
     ]],
     [100, 'October 31: RE4 co-op without touching your router', [
       'RE4 co-op now connects through Tailscale, which gets through any router, so no one forwards a port or sends a new address again. Set up and Join install it, and you sign in once. To invite a friend, Share this PC opens Tailscale’s page for your PC: press Share..., paste its link, and Make the invite. Your friend pastes the invite and accepts the share in their browser. Invites made before this don’t work any more: make a new one. It comes with app 1.28.11, which installs itself.',
@@ -14385,8 +14379,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over Tailscale.', [
       ['RE4 co-op page', 'Checks every part on this PC: Tailscale, which carries the game through any router, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves, starts RE4 through Steam and shows the next clicks in the game.',
         'RE4 co-op, in the menu.', '#re4Play', 'app'],
-      ['Set up to host, and switch mods', 'Set up installs Tailscale if it’s missing, blocks the co-op mod’s own server and lets only your friends reach the game’s port, after one Windows prompt; Sign in to Tailscale opens its sign-in page. Their mod / Our mod switches which co-op mod is in the game: the downloaded one goes in only if its files match the checked version, your saves are backed up first, and nothing is deleted.',
-        'RE4 co-op: Set up shows until this PC is ready; Their mod and Our mod are next to Play. Their mod is ClayBTV’s Multiplayer Mod: Premade brings it from its own site if it isn’t in your Downloads.', '#re4Theirs', 'app'],
+      ['Set up to host, and the co-op mod', 'Set up installs Tailscale if it’s missing, blocks the co-op mod’s own server and lets only your friends reach the game’s port, after one Windows prompt; Sign in to Tailscale opens its sign-in page. Play puts ClayBTV’s Multiplayer Mod in the game if it isn’t there yet, only if its files match the checked version, with your saves backed up first and nothing deleted.',
+        'RE4 co-op: Set up shows until this PC is ready. Play brings ClayBTV’s Multiplayer Mod from Premade’s site if it isn’t in your Downloads.', '#re4Play', 'app'],
       ['Invite friends, see who is online', 'The host picks a friend from their Premade friends (or Someone else, by name) , shares their PC in Tailscale (Share this PC opens its page) and pastes Tailscale’s invite link: Make the invite turns it into a code to send in a private message. The friend pastes it on their RE4 co-op page: after one Windows prompt, Premade opens the share in their browser to accept, and no one touches a router. Friends lists who is online with their ping and whether they’re in RE4, and warns when their game build or co-op mod isn’t the same as yours. Remove takes a friend off the list; Remove from this PC undoes Set up or Join.',
         'RE4 co-op: Friends (host) or Your host (friend), once this PC is set up.', '#re4Invite', 'app'],
       ['Play as, and connected or not', 'With Their mod in the game, In the game shows whether you and your friend are connected, and Play as switches you to Leon, Ada, Ashley, Luis, HUNK or Wesker without a lobby or reconnecting, using the character swap in ClayBTV’s Multiplayer Mod.',

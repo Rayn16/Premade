@@ -903,7 +903,7 @@ const leagueData = (over = {}) => ({
       && document.querySelector('#re4Priv .dot').dataset.h === 'ok' && document.querySelector('#re4Game .dot').dataset.h === 'idle' && document.getElementById('re4Steps').textContent.includes('Host & Wait'), null, 'RE4 co-op checks');
     await pc.click('#re4Play');
     await wait(pc, () => document.getElementById('re4Note').textContent.endsWith('Starting RE4...'), null, 'RE4 Play');
-    assert(await pc.evaluate(() => !document.getElementById('re4SetupBox').hidden && !document.getElementById('re4FwNote').hidden && document.getElementById('re4Theirs').getAttribute('aria-pressed') === 'true'), 'RE4 Set up shows, with the firewall note, and their mod is in');
+    assert(await pc.evaluate(() => !document.getElementById('re4SetupBox').hidden && !document.getElementById('re4FwNote').hidden), 'RE4 Set up shows, with the firewall note');
     await pc.click('#re4Setup');
     await wait(pc, () => document.getElementById('re4SetupBox').hidden && document.getElementById('re4Note').textContent === 'This PC is set up to host.' && document.getElementById('re4SignIn').hidden, null, 'RE4 Set up');
     assert(await pc.evaluate(() => document.querySelector('#re4FriendList .dot').dataset.h === 'good' && document.getElementById('re4FriendList').textContent.includes('cutiecatty: online, 38 ms, in RE4')
@@ -931,10 +931,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('re4Note').textContent === 'Switching you to Ada.' && document.getElementById('re4InGame').textContent.includes('Your friend is connectedNow playing as Ada')
       && document.querySelector('#re4InGame .dot').dataset.h === 'good', null, 'RE4 Play as Ada');
     await pc.evaluate(() => { lpcClient.inRe4 = false; });
-    await pc.click('#re4Ours');
-    await wait(pc, () => document.getElementById('re4Ours').getAttribute('aria-pressed') === 'true' && document.getElementById('re4Steps').textContent.includes('Insert')
-      && document.querySelector('#re4FriendList .dot').dataset.h === 'ok' && document.getElementById('re4FriendList').textContent.includes('a different co-op mod: they have their mod, you have our mod 0.6.14-retarget') && document.getElementById('re4CharBox').hidden, null, 'RE4 switch to our mod');
-    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, Play as Ada with the connected line, and the mod switch warning about the friend’s mod');
+    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, and Play as Ada with the connected line');
     // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
     await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
