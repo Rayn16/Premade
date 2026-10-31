@@ -364,7 +364,7 @@ function fakeApp(version) {
     screens: async () => [{ id: '1', main: true, thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
     useScreen() {}, keys: async (k) => ({ mute: !!k.mute, show: !!k.show, clip: !!k.clip, overlay: !!k.overlay, ptt: !!k.ptt }), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay(s) { this.lastOverlay = s; },
-    re4: async (what, arg) => ({ role: 'host', tunnelIp: '10.66.0.1', mod: what === 'ours' ? 'ours' : 'theirs', modVersion: what === 'ours' ? '0.6.14-retarget' : '', build: '22377325', running: false, why: null, setup: what !== 'setup', firewallOn: false,
+    re4: async (what, arg) => (what === 'status' && await new Promise((r) => setTimeout(r, 500)), { role: 'host', tunnelIp: '10.66.0.1', mod: what === 'ours' ? 'ours' : 'theirs', modVersion: what === 'ours' ? '0.6.14-retarget' : '', build: '22377325', running: false, why: null, setup: what !== 'setup', firewallOn: false,
       friends: [{ ip: '10.66.0.2', name: 'cutiecatty' }], peers: [{ ip: '10.66.0.2', online: true, ms: 38, mod: 'theirs', modVersion: '', build: '22377325', running: true }],
       invite: what === 'invite' ? `RE4COOP1.for-${arg}` : null,
       note: { play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.', invite: `Invite for ${arg} ready.` }[what] || null,
@@ -907,6 +907,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('re4SetupBox').hidden && document.getElementById('re4Note').textContent === 'This PC is set up to host.', null, 'RE4 Set up');
     assert(await pc.evaluate(() => document.querySelector('#re4FriendList .dot').dataset.h === 'good' && document.getElementById('re4FriendList').textContent.includes('cutiecatty: online, 38 ms, in RE4')
       && !document.getElementById('re4Friends').hidden && document.getElementById('re4HostBox').hidden && document.getElementById('re4JoinPart').hidden), 'RE4 Friends: cutiecatty online with her ping');
+    await pc.click('.nav[data-view="re4"]'); // a slow status check is running: the click waits for it instead of being dropped
     await pc.fill('#re4Name', 'Leon');
     await pc.click('#re4Invite');
     await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === 'RE4COOP1.for-Leon' && document.getElementById('re4Name').value === '', null, 'RE4 invite');

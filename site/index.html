@@ -6019,7 +6019,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
   // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting. The host
   // invites each friend with a code made for them; the app link (client/re4link.js) says who is online.
-  let re4Busy = false;
+  let re4Busy = false, re4Next = null; // a button pressed while a status check runs waits for it
   function re4Rows(box, rows) {
     $(box).replaceChildren(...rows.map((r) => {
       const row = document.createElement('div'), dot = document.createElement('span'), t = document.createElement('span'), d = document.createElement('small');
@@ -6031,7 +6031,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   async function re4(what = 'status', arg = '') {
     if (!client || !client.re4) { $('re4Play').disabled = true; $('re4Note').textContent = 'Update the app to use this page.'; return; }
-    if (re4Busy) return;
+    if (re4Busy) { if (what !== 'status') { re4Next = [what, arg]; $('re4Note').textContent = 'One moment…'; } return; }
     re4Busy = true;
     $('re4Play').disabled = true;
     const admin = 'click Yes in Windows’ prompt…';
@@ -6039,6 +6039,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       invite: 'Adding your friend: ' + admin, unfriend: 'Taking your friend off: ' + admin, join: 'Joining: ' + admin, remove: 'Removing: ' + admin }[what] || 'Working…';
     const s = await client.re4(what, arg).catch(() => null);
     re4Busy = false;
+    if (re4Next) { const n = re4Next; re4Next = null; setTimeout(() => re4(...n)); if (what === 'status') return; }
     if (!s || s.error) { $('re4Note').textContent = s ? `Something went wrong: ${s.error}` : 'Update the app to use this page.'; return; }
     $('re4Role').textContent = { host: `Host · tunnel ${s.tunnelIp}`, friend: `Friend · tunnel ${s.tunnelIp}`, none: 'Not set up yet' }[s.role];
     re4Rows('re4Conn', s.connection); re4Rows('re4Priv', s.privacy); re4Rows('re4Game', s.game); re4Rows('re4Saves', [s.saves]);
