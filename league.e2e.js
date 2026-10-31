@@ -367,7 +367,8 @@ function fakeApp(version) {
     re4: async (what, arg) => (what === 'status' && await new Promise((r) => setTimeout(r, 500)), { role: 'host', tunnelIp: '100.101.102.103', tailscale: what === 'setup' ? 'Running' : 'NeedsLogin', mod: what === 'ours' ? 'ours' : 'theirs', modVersion: what === 'ours' ? '0.6.14-retarget' : '', build: '22377325', running: false, why: null, setup: what !== 'setup', firewallOn: false,
       friends: [{ name: 'cutiecatty' }], peers: [{ ip: '100.90.1.2', name: 'cutiecatty', online: true, ms: 38, mod: 'theirs', modVersion: '', build: '22377325', running: true }],
       invite: what === 'invite' ? `RE4COOP2.for-${arg.replace('\n', '-')}` : null,
-      note: { play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.', invite: `Invite for ${arg.split('\n')[0]} ready.` }[what] || null,
+      inGame: window.lpcClient.inRe4 ? { connected: what === 'char', character: what === 'char' ? `Now playing as ${arg}` : '' } : null,
+      note: { char: `Switching you to ${arg}.`, play: 'Saves backed up for 1 Steam account. Starting RE4...', setup: 'This PC is set up to host.', ours: 'Their mod is out and ours is back.', invite: `Invite for ${arg.split('\n')[0]} ready.` }[what] || null,
       connection: [{ level: 'good', title: 'Tailscale connected', detail: 'this PC is 100.101.102.103' }], privacy: [{ level: 'warn', title: 'Game port open to your friend', detail: 'UDP 39000' }],
       game: [{ level: 'idle', title: 'Not running', detail: 'Play starts it through Steam' }], saves: { level: 'good', title: 'Saves: last backup just now', detail: '' } }),
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
@@ -920,10 +921,20 @@ const leagueData = (over = {}) => ({
     await pc.fill('#re4Link', 'https://login.tailscale.com/admin/invite/def');
     await pc.click('#re4Invite');
     await wait(pc, () => !document.getElementById('re4InviteBox').hidden && document.getElementById('re4InviteCode').value === 'RE4COOP2.for-Leon-https://login.tailscale.com/admin/invite/def' && document.getElementById('re4Name').value === '', null, 'RE4 invite');
+    // Play as: off until RE4 runs, then it sends the pick to their mod and the In the game row says connected
+    assert(await pc.evaluate(() => !document.getElementById('re4CharBox').hidden && document.getElementById('re4CharGo').disabled && document.getElementById('re4InGame').textContent.includes('RE4 isn’t running')), 'RE4 Play as waits for the game');
+    await pc.evaluate(() => { lpcClient.inRe4 = true; });
+    await pc.click('.nav[data-view="re4"]');
+    await wait(pc, () => !document.getElementById('re4CharGo').disabled && document.getElementById('re4InGame').textContent.includes('Not connected yet'), null, 'RE4 in game, not connected');
+    await pc.selectOption('#re4Char', 'Ada');
+    await pc.click('#re4CharGo');
+    await wait(pc, () => document.getElementById('re4Note').textContent === 'Switching you to Ada.' && document.getElementById('re4InGame').textContent.includes('Your friend is connectedNow playing as Ada')
+      && document.querySelector('#re4InGame .dot').dataset.h === 'good', null, 'RE4 Play as Ada');
+    await pc.evaluate(() => { lpcClient.inRe4 = false; });
     await pc.click('#re4Ours');
     await wait(pc, () => document.getElementById('re4Ours').getAttribute('aria-pressed') === 'true' && document.getElementById('re4Steps').textContent.includes('Insert')
-      && document.querySelector('#re4FriendList .dot').dataset.h === 'ok' && document.getElementById('re4FriendList').textContent.includes('a different co-op mod: they have their mod, you have our mod 0.6.14-retarget'), null, 'RE4 switch to our mod');
-    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, and the mod switch warning about the friend’s mod');
+      && document.querySelector('#re4FriendList .dot').dataset.h === 'ok' && document.getElementById('re4FriendList').textContent.includes('a different co-op mod: they have their mod, you have our mod 0.6.14-retarget') && document.getElementById('re4CharBox').hidden, null, 'RE4 switch to our mod');
+    console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, Play as Ada with the connected line, and the mod switch warning about the friend’s mod');
     // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
     await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));

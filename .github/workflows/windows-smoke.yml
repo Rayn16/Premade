@@ -27,6 +27,10 @@ jobs:
           if ($p.note -notmatch 'RE4 isn') { throw 'Play should refuse without RE4' }
           $o = & client/re4-helper.exe theirs | ConvertFrom-Json
           if ($o.note -notmatch 'RE4 isn') { throw 'the mod switch should refuse without RE4' }
+          $c = & client/re4-helper.exe char Ada | ConvertFrom-Json
+          if ($c.note -notmatch 'Their mod' -or $c.inGame) { throw 'Play as should wait for their mod in a running game' }
+          $c = & client/re4-helper.exe char Nobody | ConvertFrom-Json
+          if ($c.note -notmatch 'unknown character') { throw 'Play as should refuse a name not in their list' }
       - name: RE4 co-op their mod's files and REFramework on the site match the pinned fingerprints
         shell: pwsh
         run: |
