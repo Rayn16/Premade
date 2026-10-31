@@ -373,22 +373,22 @@ ipcMain.handle('ducking', (e) => {
   }));
 });
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
-// ---- RE4 co-op page: re4-helper.exe (client/re4) reads the tunnel, firewall, game and saves without admin, backs up
-// saves, starts RE4, switches the co-op mod, sets the PC up to host, invites and removes friends, and joins a host
-// (it asks Windows for admin itself for those). Only these commands go through; it answers with JSON. An invite code
-// to join goes on its stdin, never in its command line. re4link.js adds which friends are online.
+// ---- RE4 co-op page: re4-helper.exe (client/re4) reads Tailscale, the firewall, game and saves without admin, backs
+// up saves, starts RE4, switches the co-op mod, sets the PC up to host, makes invites and joins a host (it asks Windows
+// for admin itself when needed). Only these commands go through; it answers with JSON. An invite, and the share link
+// that goes in one, travel on its stdin, never in its command line. re4link.js adds which friends are online.
 const re4link = require('./re4link');
 ipcMain.handle('re4', (e, what, arg) => {
-  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'theirs', 'ours', 'invite', 'unfriend', 'address', 'join', 'remove'].includes(what)) return null;
+  if (!fromSite(e) || process.platform !== 'win32' || !['status', 'backup', 'play', 'backups', 'setup', 'signin', 'share', 'theirs', 'ours', 'invite', 'unfriend', 'join', 'remove'].includes(what)) return null;
   arg = String(arg || '').slice(0, 400);
-  const args = what === 'setup' ? [what, process.execPath] : what === 'invite' || what === 'unfriend' ? [what, arg] : [what];
-  const slow = ['setup', 'invite', 'unfriend', 'join', 'remove'].includes(what);
+  const args = what === 'setup' ? [what, process.execPath] : what === 'unfriend' ? [what, arg] : [what];
+  const slow = ['setup', 'join', 'remove'].includes(what);
   return new Promise((res) => {
     const p = execFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 're4-helper.exe'), args, { windowsHide: true, timeout: slow ? 600000 : 90000, maxBuffer: 1 << 20 }, (err, out) => {
       try { res(re4link.update(JSON.parse(out))); } catch { res(null); }
     });
     p.stdin.on('error', () => {});
-    p.stdin.end(what === 'join' ? arg : '');
+    p.stdin.end(what === 'join' || what === 'invite' ? arg : '');
   });
 });
 

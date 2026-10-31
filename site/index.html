@@ -1832,30 +1832,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <section class="view" data-view="re4" aria-label="RE4 co-op" hidden>
       <p id="re4Role" class="ph"></p>
       <h1 class="title">Resident Evil 4 co-op</h1>
-      <p class="hint">Play RE4 (2023) with friends through the co-op mod’s Direct Connect, over your own private link instead of the mod’s server. One of you hosts and invites the others. This page checks every part on this PC, backs up your saves and starts the game.</p>
+      <p class="hint">Play RE4 (2023) with friends through the co-op mod’s Direct Connect, over Tailscale (free, and it gets through any router) instead of the mod’s server. One of you hosts and invites the others. This page checks every part on this PC, backs up your saves and starts the game.</p>
       <section id="re4SetupBox" class="panel" aria-labelledby="h-re4Setup" hidden>
         <h2 id="h-re4Setup" class="ph">Set up this PC</h2>
-        <p class="hint">To host: one button installs WireGuard if it’s missing, makes your private link (this PC is 10.66.0.1), blocks the co-op mod’s own server, lets only your friends reach the game’s port, and opens the router port. Windows asks for permission once.</p>
+        <p class="hint">To host: one button installs Tailscale if it’s missing, blocks the co-op mod’s own server and lets only your friends reach the game’s port. Windows asks for permission once. Then sign in to Tailscale (a Google or Microsoft account works).</p>
         <p id="re4FwNote" class="hint" hidden>Windows Firewall is off on this PC, so the firewall rules won’t do anything until it’s on (Windows Security, Firewall &amp; network protection). If another security app does your firewall, block 2.25.197.34 there.</p>
         <div class="toolbar"><button id="re4Setup" class="btn primary" type="button">Set up to host (Windows asks once)</button></div>
         <div id="re4JoinPart">
-          <p class="hint">To join a friend who hosts: paste the invite they sent you. It installs WireGuard if it’s missing, links this PC to theirs and blocks the co-op mod’s own server, after one Windows prompt.</p>
-          <div class="toolbar"><label class="field re4grow">Invite from your host <input id="re4Code" type="password" autocomplete="off" spellcheck="false" placeholder="RE4COOP1…"></label><button id="re4Join" class="btn primary" type="button">Join</button></div>
+          <p class="hint">To join a friend who hosts: paste the invite they sent you. It installs Tailscale if it’s missing and blocks the co-op mod’s own server after one Windows prompt, then opens your host’s share in the browser: sign in to Tailscale there and accept it.</p>
+          <div class="toolbar"><label class="field re4grow">Invite from your host <input id="re4Code" type="password" autocomplete="off" spellcheck="false" placeholder="RE4COOP2…"></label><button id="re4Join" class="btn primary" type="button">Join</button></div>
         </div>
       </section>
       <section id="re4Friends" class="panel" aria-labelledby="h-re4Friends" hidden>
         <h2 id="h-re4Friends" class="ph">Friends</h2>
         <div id="re4FriendList" class="re4rows"></div>
-        <div class="toolbar"><label class="field">Invite a friend <select id="re4Pick"></select></label><label id="re4NameField" class="field re4grow" hidden>Their name <input id="re4Name" maxlength="40" autocomplete="off" placeholder="Their name"></label><button id="re4Invite" class="btn" type="button">Make an invite</button><button id="re4Address" class="btn small" type="button">Copy new address</button></div>
-        <div id="re4InviteBox" class="toolbar" hidden><label class="field re4grow"><span id="re4InviteWhat">Their invite: send it in a private message, it works once</span> <input id="re4InviteCode" readonly spellcheck="false"></label><button id="re4Copy" class="btn small" type="button">Copy</button></div>
+        <div class="toolbar"><label class="field">Invite a friend <select id="re4Pick"></select></label><label id="re4NameField" class="field re4grow" hidden>Their name <input id="re4Name" maxlength="40" autocomplete="off" placeholder="Their name"></label></div>
+        <div class="toolbar"><button id="re4Share" class="btn small" type="button">1. Share this PC in Tailscale</button><label class="field re4grow">2. Paste Tailscale’s invite link <input id="re4Link" type="password" autocomplete="off" spellcheck="false" placeholder="https://login.tailscale.com/…"></label><button id="re4Invite" class="btn" type="button">3. Make the invite</button></div>
+        <div id="re4InviteBox" class="toolbar" hidden><label class="field re4grow">Their invite: send it in a private message <input id="re4InviteCode" readonly spellcheck="false"></label><button id="re4Copy" class="btn small" type="button">Copy</button></div>
       </section>
       <section id="re4HostBox" class="panel" aria-labelledby="h-re4Host" hidden>
         <h2 id="h-re4Host" class="ph">Your host</h2>
         <div id="re4HostRow" class="re4rows"></div>
-        <div class="toolbar"><label class="field re4grow">Host’s address changed, or a new invite? <input id="re4NewCode" type="password" autocomplete="off" spellcheck="false" placeholder="Paste what your host sent"></label><button id="re4Update" class="btn" type="button">Update</button></div>
+        <div class="toolbar"><label class="field re4grow">A new invite from your host? <input id="re4NewCode" type="password" autocomplete="off" spellcheck="false" placeholder="Paste what your host sent"></label><button id="re4Update" class="btn" type="button">Update</button></div>
       </section>
       <div class="re4grid">
-        <section class="panel" aria-labelledby="h-re4Conn"><h2 id="h-re4Conn" class="ph">Connection</h2><div id="re4Conn" class="re4rows"></div></section>
+        <section class="panel" aria-labelledby="h-re4Conn"><h2 id="h-re4Conn" class="ph">Connection</h2><div id="re4Conn" class="re4rows"></div><button id="re4SignIn" class="btn primary small" type="button" hidden>Sign in to Tailscale</button></section>
         <section class="panel" aria-labelledby="h-re4Priv"><h2 id="h-re4Priv" class="ph">Privacy</h2><div id="re4Priv" class="re4rows"></div></section>
         <section class="panel" aria-labelledby="h-re4Game"><h2 id="h-re4Game" class="ph">Game</h2><div id="re4Game" class="re4rows"></div></section>
       </div>
@@ -6017,8 +6018,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   window.aionNotify = (text) => { notify(String(text), true); if (client && client.notify) client.notify('Aion 2', String(text)); };
   if (store.get('lpc-aion')) setTimeout(() => { if (!$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL; }, 5000);
   // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
-  // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting. The host
-  // invites each friend with a code made for them; the app link (client/re4link.js) says who is online.
+  // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting, over
+  // Tailscale. The host shares their PC in Tailscale and puts the share link in an invite for each friend; the app link
+  // (client/re4link.js) says who is online.
   let re4Busy = false, re4Next = null; // a button pressed while a status check runs waits for it
   function re4Rows(box, rows) {
     $(box).replaceChildren(...rows.map((r) => {
@@ -6036,12 +6038,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('re4Play').disabled = true;
     const admin = 'click Yes in Windows’ prompt…';
     if (what !== 'status') $('re4Note').textContent = { play: 'Backing up saves, then starting RE4…', setup: 'Setting up: ' + admin, theirs: 'Checking the co-op mod’s files, backing up saves, then switching…', ours: 'Switching back to our mod…',
-      invite: 'Adding your friend: ' + admin, unfriend: 'Taking your friend off: ' + admin, join: 'Joining: ' + admin, remove: 'Removing: ' + admin }[what] || 'Working…';
+      invite: 'Making the invite…', unfriend: 'Taking your friend off…', signin: 'Opening Tailscale’s sign-in…', share: 'Opening Tailscale…', join: 'Joining: ' + admin, remove: 'Removing: ' + admin }[what] || 'Working…';
     const s = await client.re4(what, arg).catch(() => null);
     re4Busy = false;
     if (re4Next) { const n = re4Next; re4Next = null; setTimeout(() => re4(...n)); if (what === 'status') return; }
     if (!s || s.error) { $('re4Note').textContent = s ? `Something went wrong: ${s.error}` : 'Update the app to use this page.'; return; }
-    $('re4Role').textContent = { host: `Host · tunnel ${s.tunnelIp}`, friend: `Friend · tunnel ${s.tunnelIp}`, none: 'Not set up yet' }[s.role];
+    $('re4Role').textContent = { host: 'Host', friend: 'Friend', none: 'Not set up yet' }[s.role] + (s.tunnelIp ? ` · Tailscale ${s.tunnelIp}` : '');
+    $('re4SignIn').hidden = !['NeedsLogin', 'NoState'].includes(s.tailscale);
     re4Rows('re4Conn', s.connection); re4Rows('re4Priv', s.privacy); re4Rows('re4Game', s.game); re4Rows('re4Saves', [s.saves]);
     $('re4Play').disabled = !!s.why;
     $('re4SetupBox').hidden = !s.setup && s.role !== 'none';
@@ -6052,40 +6055,35 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('re4HostBox').hidden = s.role !== 'friend';
     // Who is online over the app link, with their ping, and whether their game and mod match this PC's.
     const re4Mod = (x) => ({ theirs: 'their mod', ours: 'our mod', none: 'no mod' }[x.mod] || 'no mod') + (x.modVersion ? ' ' + x.modVersion : '');
-    const peer = (ip, name) => {
-      const p = (s.peers || []).find((x) => x.ip === ip);
+    const peer = (p, name) => {
       if (!p || !p.online) return { level: 'idle', title: `${name}: offline`, detail: 'their Premade isn’t on the RE4 co-op page, or the link can’t reach them' };
       const diff = p.build && s.build && p.build !== s.build ? `a different game build: theirs is ${p.build}, yours ${s.build}`
         : p.mod !== s.mod || p.modVersion !== s.modVersion ? `a different co-op mod: they have ${re4Mod(p)}, you have ${re4Mod(s)}` : '';
       return { level: diff ? 'warn' : 'good', title: `${name}: online, ${p.ms == null ? '…' : p.ms + ' ms'}${p.running ? ', in RE4' : ''}`, detail: diff || 'same game build and co-op mod as you' };
     };
-    re4Rows('re4FriendList', (s.friends || []).map((f) => peer(f.ip, f.name)));
+    re4Rows('re4FriendList', (s.friends || []).map((f) => peer((s.peers || []).find((x) => x.name === f.name), f.name)));
     [...$('re4FriendList').children].forEach((row, i) => {
       const b = document.createElement('button'), f = s.friends[i];
       b.className = 'btn small'; b.type = 'button'; b.textContent = 'Remove';
-      b.addEventListener('click', () => { if (confirm(`Take ${f.name} off your link? Their invite stops working.`)) re4('unfriend', f.ip); });
+      b.addEventListener('click', () => { if (confirm(`Take ${f.name} off your list?`)) re4('unfriend', f.name); });
       row.querySelector('small').append(' ', b);
     });
     if (!s.friends || !s.friends.length) re4Rows('re4FriendList', [{ level: 'idle', title: 'No friends invited yet', detail: 'Make an invite below for each friend.' }]);
-    if (s.role === 'friend') re4Rows('re4HostRow', [peer('10.66.0.1', 'Host')]);
+    if (s.role === 'friend') re4Rows('re4HostRow', [peer((s.peers || []).find((x) => x.ip === s.hostIp), 'Host')]);
     // Invite a friend: your Premade friends who aren't invited yet (online first), or someone else by name
     const pick = $('re4Pick'), had = pick.value, invited = new Set((s.friends || []).map((f) => f.name));
     const names = [...new Set(frRows().map((x) => x.riot.split('#')[0]))].filter((n) => !invited.has(n));
     pick.replaceChildren(...names.map((n) => new Option(n, n)), new Option('Someone else…', '*'));
     pick.value = [...pick.options].some((o) => o.value === had) ? had : pick.options[0].value;
     $('re4NameField').hidden = pick.value !== '*';
-    // The invite or new address shows with its own Copy button: copying by itself after the helper's wait (and Windows'
-    // prompt) is refused, since the click that asked for it is too long ago
-    const code = s.invite && (what === 'invite' || what === 'address');
-    if (what !== 'status') $('re4InviteBox').hidden = !code;
-    if (code) { $('re4InviteCode').value = s.invite; $('re4InviteWhat').textContent = what === 'invite' ? 'Their invite: send it in a private message, it works once' : 'Your new address: send it to every friend, they paste it under Your host'; }
-    if (s.invite && what === 'invite') $('re4Name').value = '';
+    if (what !== 'status') $('re4InviteBox').hidden = !(s.invite && what === 'invite');
+    if (s.invite && what === 'invite') { $('re4InviteCode').value = s.invite; $('re4Name').value = ''; $('re4Link').value = ''; }
     if (what === 'join') { $('re4Code').value = ''; $('re4NewCode').value = ''; }
     $('re4Theirs').setAttribute('aria-pressed', s.mod === 'theirs');
     $('re4Ours').setAttribute('aria-pressed', s.mod === 'ours');
     $('re4Note').textContent = s.note || s.why || 'Backs up your saves, then starts RE4 through Steam.';
     const steps = s.mod === 'ours' ? ['Insert', 'RE4 co-op', 'Find Steam friends playing RE4', 'Play with your friend']
-      : ['Continue as Guest', 'Matchmaking', 'Direct Connect', s.role === 'friend' ? 'Join, Host’s IP 10.66.0.1' : 'Host & Wait'];
+      : ['Continue as Guest', 'Matchmaking', 'Direct Connect', s.role === 'friend' ? `Join, Host’s IP ${s.hostIp}` : 'Host & Wait'];
     $('re4Steps').replaceChildren(...steps.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
   }
   $('re4Play').addEventListener('click', () => re4('play'));
@@ -6094,13 +6092,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('re4Setup').addEventListener('click', () => re4('setup'));
   $('re4Theirs').addEventListener('click', () => re4('theirs'));
   $('re4Ours').addEventListener('click', () => re4('ours'));
-  $('re4Invite').addEventListener('click', () => { const n = $('re4Pick').value === '*' ? $('re4Name').value.trim() : $('re4Pick').value; if (n) re4('invite', n); else $('re4Name').focus(); });
+  $('re4Invite').addEventListener('click', () => {
+    const n = $('re4Pick').value === '*' ? $('re4Name').value.trim() : $('re4Pick').value, link = $('re4Link').value.trim();
+    if (!n) $('re4Name').focus(); else if (!link) $('re4Link').focus(); else re4('invite', n + '\n' + link);
+  });
+  $('re4Share').addEventListener('click', () => re4('share'));
+  $('re4SignIn').addEventListener('click', () => re4('signin'));
   $('re4Pick').addEventListener('change', () => { $('re4NameField').hidden = $('re4Pick').value !== '*'; if ($('re4Pick').value === '*') $('re4Name').focus(); });
-  $('re4Address').addEventListener('click', () => re4('address'));
   $('re4Copy').addEventListener('click', () => navigator.clipboard.writeText($('re4InviteCode').value).then(() => notify('Copied. Send it to your friend in a private message.', true), () => notify('Couldn’t copy it. Select it and copy it yourself.', true)));
   $('re4Join').addEventListener('click', () => { if ($('re4Code').value.trim()) re4('join', $('re4Code').value.trim()); });
   $('re4Update').addEventListener('click', () => { if ($('re4NewCode').value.trim()) re4('join', $('re4NewCode').value.trim()); });
-  $('re4Remove').addEventListener('click', () => { if (confirm('Remove RE4 co-op from this PC? The private link, its keys and the firewall rules go; WireGuard and your saves stay.')) re4('remove'); });
+  $('re4Remove').addEventListener('click', () => { if (confirm('Remove RE4 co-op from this PC? Its firewall rules and friends list go; Tailscale and your saves stay.')) re4('remove'); });
   setInterval(() => { if (!document.querySelector('.view[data-view="re4"]').hidden && !document.hidden) re4(); }, 15000);
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
@@ -13814,6 +13816,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [100, 'October 31: RE4 co-op without touching your router', [
+      'RE4 co-op now connects through Tailscale, which gets through any router, so no one forwards a port or sends a new address again. Set up and Join install it, and you sign in once. To invite a friend, Share this PC opens Tailscale’s page for your PC: press Share..., paste its link, and Make the invite. Your friend pastes the invite and accepts the share in their browser. Invites made before this don’t work any more: make a new one. It comes with app 1.28.11, which installs itself.',
+    ]],
     [99, 'October 31: RE4 co-op without downloading the mod', [
       'RE4 co-op: Their mod no longer needs the mod in your Downloads. Premade brings ClayBTV’s Multiplayer Mod from its own site, shared under the mod’s Nexus permissions with credit, plus REFramework if the game doesn’t have it yet, and checks every file before it goes in. It comes with app 1.28.10, which installs itself.',
     ]],
@@ -14361,12 +14366,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
     ]],
-    ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over your own private link.', [
-      ['RE4 co-op page', 'Checks every part on this PC: the private link to your friend, the router port, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves, starts RE4 through Steam and shows the next clicks in the game.',
+    ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over Tailscale.', [
+      ['RE4 co-op page', 'Checks every part on this PC: Tailscale, which carries the game through any router, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves, starts RE4 through Steam and shows the next clicks in the game.',
         'RE4 co-op, in the menu.', '#re4Play', 'app'],
-      ['Set up to host, and switch mods', 'Set up installs WireGuard if it’s missing, makes your private link, blocks the co-op mod’s own server, lets only your friends reach the game’s port and opens the router port, after one Windows prompt. Their mod / Our mod switches which co-op mod is in the game: the downloaded one goes in only if its files match the checked version, your saves are backed up first, and nothing is deleted.',
+      ['Set up to host, and switch mods', 'Set up installs Tailscale if it’s missing, blocks the co-op mod’s own server and lets only your friends reach the game’s port, after one Windows prompt; Sign in to Tailscale opens its sign-in page. Their mod / Our mod switches which co-op mod is in the game: the downloaded one goes in only if its files match the checked version, your saves are backed up first, and nothing is deleted.',
         'RE4 co-op: Set up shows until this PC is ready; Their mod and Our mod are next to Play. Their mod is ClayBTV’s Multiplayer Mod: Premade brings it from its own site if it isn’t in your Downloads.', '#re4Theirs', 'app'],
-      ['Invite friends, see who is online', 'The host picks a friend from their Premade friends (or Someone else, by name) and makes an invite: a code with their own key, sent in a private message, that works once. The friend pastes it on their RE4 co-op page and their PC joins the private link after one Windows prompt. Friends lists who is online with their ping and whether they’re in RE4, and warns when their game build or co-op mod isn’t the same as yours. When the host’s internet address changes, Copy new address gives the code friends paste to keep connecting. Remove takes a friend off; Remove from this PC undoes Set up or Join.',
+      ['Invite friends, see who is online', 'The host picks a friend from their Premade friends (or Someone else, by name) , shares their PC in Tailscale (Share this PC opens its page) and pastes Tailscale’s invite link: Make the invite turns it into a code to send in a private message. The friend pastes it on their RE4 co-op page: after one Windows prompt, Premade opens the share in their browser to accept, and no one touches a router. Friends lists who is online with their ping and whether they’re in RE4, and warns when their game build or co-op mod isn’t the same as yours. Remove takes a friend off the list; Remove from this PC undoes Set up or Join.',
         'RE4 co-op: Friends (host) or Your host (friend), once this PC is set up.', '#re4Invite', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [

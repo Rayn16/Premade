@@ -35,45 +35,46 @@ jobs:
           $rf = [regex]::Match((Get-Content client/re4/Checks.cs -Raw), 'REFramework = "([0-9a-f]{64})"').Groups[1].Value
           if ((Get-FileHash "site/re4/reframework/$rf" -Algorithm SHA256).Hash.ToLower() -ne $rf) { throw 'site/re4/reframework is missing or changed' }
           foreach ($h in $pins) { if ((Get-FileHash "site/re4/their-mod/$h" -Algorithm SHA256).Hash.ToLower() -ne $h) { throw "site/re4/their-mod/$h is missing or changed" } }
-      # Set up as host for real (the runner is admin, so Windows doesn't ask): WireGuard, tunnel, firewall rules.
+      # Set up as host for real (the runner is admin, so Windows doesn't ask): Tailscale installed, firewall rules. No
+      # Tailscale sign-in on a test PC, so it shows as needing one.
       - name: RE4 co-op Set up on a real Windows
         shell: pwsh
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
+          $log = "$([Environment]::GetFolderPath('MyDocuments'))\RE4 co-op\log.txt"
           $s = & client/re4-helper.exe setup | ConvertFrom-Json
           $s | ConvertTo-Json -Depth 4
-          if ($s.note -notmatch 'set up to host') { Get-Content "$([Environment]::GetFolderPath('MyDocuments'))\RE4 co-op\log.txt" -ErrorAction SilentlyContinue; throw "Set up: $($s.note)" }
+          if ($s.note -notmatch 'set up to host') { Get-Content $log -ErrorAction SilentlyContinue; throw "Set up: $($s.note)" }
           Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *' | Format-Table DisplayName, Direction, Action
-          if ($s.role -ne 'host' -or $s.tunnelIp -ne '10.66.0.1' -or $s.setup) { throw 'after Set up the PC should be the host with nothing left to set up' }
-          # again: keeps the key and the tunnel, replaces the rules
+          if (-not (Test-Path 'C:\Program Files\Tailscale\tailscale.exe')) { throw 'Set up should install Tailscale' }
+          if ($s.role -ne 'host' -or $s.setup -or $s.tailscale -notin 'NeedsLogin', 'NoState') { throw "after Set up the PC should be the host, waiting for a Tailscale sign-in: $($s.role) $($s.setup) $($s.tailscale)" }
+          # again: replaces the rules
           $s = & client/re4-helper.exe setup | ConvertFrom-Json
-          if ($s.note -notmatch 'set up to host' -or @(Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *').Count -ne 6) { throw 'Set up run twice should leave the same 6 rules' }
-      # Friends: an invite adds a key to the running link, the app link works over it, a friend comes off again, and
-      # after Remove the same PC joins with the invite as a friend.
+          if ($s.note -notmatch 'set up to host' -or @(Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *').Count -ne 5) { throw 'Set up run twice should leave the same 5 rules' }
+      # Friends: invites need Tailscale signed in, so they're refused here; codes are checked; the app link works; after
+      # Remove the same PC joins as a friend (its share link opens in a browser nobody looks at).
       - name: RE4 co-op friends on a real Windows
         shell: pwsh
         timeout-minutes: 10
         run: |
           $log = "$([Environment]::GetFolderPath('MyDocuments'))\RE4 co-op\log.txt"
-          function Re4($what, $arg, $stdin) { $r = if ($stdin) { $stdin | & client/re4-helper.exe $what } else { & client/re4-helper.exe $what $arg }; $o = $r | ConvertFrom-Json; Write-Host "$what -> $($o.role) $($o.tunnelIp): $($o.note)"; $o }
+          function Re4($what, $arg, $stdin) { $r = if ($stdin) { $stdin | & client/re4-helper.exe $what } else { & client/re4-helper.exe $what $arg }; $o = $r | ConvertFrom-Json; Write-Host "$what -> $($o.role) $($o.tunnelIp) $($o.hostIp): $($o.note)"; $o }
           function Fail($why) { Get-Content $log -ErrorAction SilentlyContinue; throw $why }
-          $wg = 'C:\Program Files\WireGuard\wg.exe'
-          $i = Re4 invite 'Test friend'
-          if ($i.invite -notmatch '^RE4COOP1\.' -or $i.friends.Count -ne 1 -or $i.friends[0].ip -ne '10.66.0.2' -or $i.friends[0].name -ne 'Test friend') { Fail 'invite' }
-          if (-not (& $wg show re4coop peers)) { Fail 'the invite should add the friend to the running link' }
-          if ((Re4 status).connection.title -notcontains 'Address unchanged') { Fail 'after an invite the address should match it' }
+          if ((Re4 invite $null "Test friend`nhttps://login.tailscale.com/admin/invite/abc").note -notmatch 'connect Tailscale first') { Fail 'an invite needs Tailscale connected' }
+          if ((Re4 invite $null "Test friend`nhttps://evil.example/x").note -notmatch 'Paste the invite link') { Fail 'a link that is not Tailscale should be refused' }
           node client/re4link.test.js
           if ($LASTEXITCODE) { Fail 'app link' }
-          if ((Re4 join $null 'RE4COOP1.bad').note -notmatch "isn't an RE4 co-op invite") { Fail 'a bad code should be refused' }
-          if ((Re4 join $null $i.invite).note -notmatch 'This PC hosts') { Fail 'the host should refuse to join' }
-          if ((Re4 address).invite -notmatch '^\d+\.\d+\.\d+\.\d+:51820$') { Fail 'address code' }
-          $u = Re4 unfriend '10.66.0.2'
-          if ($u.friends.Count -ne 0 -or (& $wg show re4coop peers)) { Fail 'unfriend' }
+          $code = 'RE4COOP2.' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('Test friend|100.101.102.103|https://login.tailscale.com/admin/invite/abc'))
+          if ((Re4 join $null 'RE4COOP2.bad').note -notmatch "isn't an RE4 co-op invite") { Fail 'a bad code should be refused' }
+          if ((Re4 join $null 'RE4COOP1.abc').note -notmatch 'from before Tailscale') { Fail 'an old invite should say so' }
+          $bad = 'RE4COOP2.' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('Test friend|10.0.0.1|https://login.tailscale.com/admin/invite/abc'))
+          if ((Re4 join $null $bad).note -notmatch "isn't an RE4 co-op invite") { Fail 'an address outside Tailscale should be refused' }
+          if ((Re4 join $null $code).note -notmatch 'This PC hosts') { Fail 'the host should refuse to join' }
           $r = Re4 remove
           if ($r.role -ne 'none' -or @(Get-NetFirewallRule -DisplayName 'RE4 co-op WireGuard: *' -ErrorAction SilentlyContinue).Count -ne 0) { Fail 'remove' }
-          $j = Re4 join $null $i.invite
-          if ($j.role -ne 'friend' -or $j.tunnelIp -ne '10.66.0.2' -or ($j.privacy | Where-Object title -eq "Their mod's server blocked").Count -ne 1 -or $j.setup) { Fail 'join' }
-          if ((Re4 join $null '203.0.113.7:51820').note -notmatch 'new address') { Fail 'a new address' }
+          $j = Re4 join $null $code
+          if ($j.role -ne 'friend' -or $j.hostIp -ne '100.101.102.103' -or ($j.privacy | Where-Object title -eq "Their mod's server blocked").Count -ne 1 -or $j.setup -or $j.why -notmatch 'Tailscale') { Fail 'join' }
+          if ((Re4 setup).note -notmatch 'set up as a friend') { Fail 'a friend should be refused Set up' }
           if ((Re4 remove).role -ne 'none') { Fail 'remove the friend side' }
       - name: Build Windows installer
         working-directory: client
