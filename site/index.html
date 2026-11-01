@@ -86,6 +86,15 @@ a { color: var(--link); }
 .nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 18%, transparent), transparent); }
 /* League: one button at the foot of the rail; its pages are tabs along the top of main */
 .rail .league { margin-top: auto; border-color: var(--gold-line); }
+/* a phone (no screen sharing, see the top): the sections along the bottom like a phone app, their names kept for
+   screen readers, and popups at the top, clear of them */
+.phone .app { grid-template: "main" minmax(0, 1fr) "chips" auto "bar" auto "rail" auto / minmax(0, 1fr); }
+.phone .rail { flex-direction: row; justify-content: space-around; width: auto; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--gold-line); overflow-x: auto; }
+.phone .rail .brand { display: none; }
+.phone .rail .nav { justify-content: center; padding: 10px; }
+.phone .rail .nav span { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.phone .rail .league { margin-top: 0; }
+.phone .steps li:nth-child(3) { display: none; } /* setup has no screen check there */
 .ltabs { display: flex; flex-wrap: wrap; gap: 6px; max-width: 1320px; margin: 0 auto 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .ltabs .nav { padding: 8px 12px; }
 main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32px; }
@@ -326,6 +335,7 @@ body.compact .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12p
 
 /* popups */
 .toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100% - 32px)); pointer-events: none; }
+.phone .toasts { inset: calc(12px + env(safe-area-inset-top)) 16px auto; max-width: none; justify-items: stretch; }
 .toast { white-space: pre-line; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--fg); box-shadow: 0 10px 28px rgb(0 0 0 / 0.4); font-size: 14px; animation: toast-in 0.2s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } .pic { transition: none; } }
@@ -768,7 +778,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <div class="brand"><img src="icon-192.png" alt=""><span>Premade</span></div>
     <button class="nav" type="button" data-view="voice" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Rooms</span></button>
     <button class="nav" type="button" data-view="friends"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg><span>Friends</span></button>
-    <button class="nav" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
+    <button class="nav pc-only" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
     <button class="nav lcu-only" type="button" data-view="record"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span>Recording</span></button>
     <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
     <button class="nav client-only" type="button" data-view="re4"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg><span>RE4 co-op</span></button>
@@ -928,6 +938,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             </div>
           </header>
           <p id="phase" class="phase" role="status"></p>
+          <p class="hint phone-only">Your screen stays on while you’re in a room, as a phone that locks itself can stop your voice.</p>
           <p id="connectionStatus" class="hint" role="status" hidden></p>
           <div class="dash">
             <div class="stack">
@@ -996,7 +1007,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               </div>
             </div>
           </section>
-          <section class="panel">
+          <section class="panel pc-only">
             <h2 class="ph">Talking <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
             <div class="keyrow"><span>Mute or unmute</span><kbd id="kMute"></kbd><button class="btn small" type="button" data-key="mute">Change</button><span></span></div>
             <div class="keyrow"><span>Push to talk <button class="tip" type="button" popovertarget="t-ptt" aria-label="About push to talk">?</button></span><kbd id="kPtt"></kbd><button class="btn small" type="button" data-key="ptt">Set key</button><button id="pttOff" class="btn small" type="button">Turn off</button></div>
@@ -1143,7 +1154,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <h3 class="ph">Inhouse ladder</h3>
           <ol id="ladderList" class="plain"></ol>
         </section>
-        <section class="panel" aria-labelledby="h-track">
+        <section class="panel pc-only" aria-labelledby="h-track">
           <h2 id="h-track" class="ph">Your tracking <button class="tip" type="button" popovertarget="t-track" aria-label="About tracking">?</button></h2>
           <div class="me">
             <canvas id="mini" width="280" height="280" hidden aria-label="Your minimap. The gold circle is where the page thinks your champion is."></canvas>
@@ -1750,7 +1761,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <h2 class="ph">App</h2>
           <div class="toolbar"><button id="setupAgain" class="btn" type="button">Run setup again</button><button id="installBtn" class="btn browser-only" type="button" hidden>Install as an app</button></div>
           <p class="hint phone-only">On a phone, keep Premade on your home screen: Share, then Add to Home Screen on an iPhone, or ⋮, then Add to home screen on Android.</p>
-          <p class="hint browser-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
+          <p class="hint browser-only pc-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
           <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
@@ -1901,7 +1912,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <span class="sb"><span id="sbDot" class="dot"></span><span id="sbServer">Not in a room</span></span>
     <button id="sbTrack" class="sb pc-only" type="button" title="Your tracking"><span class="muted">Tracking:</span><span id="sbTrackText"></span></button>
     <span id="sbLeague" class="sb client-only"></span>
-    <button id="sbVersion" class="sb" type="button" title="What's new"></button>
+    <button id="sbVersion" class="sb pc-only" type="button" title="What's new"></button>
     <a id="sbTest" class="sb new test-only" href="../">Test version: back to normal</a>
     <a id="getNew" class="sb new" href="Premade-Setup.exe" download hidden>New app version: get the installer</a>
     <button id="restartBtn" class="sb new" type="button" hidden>Update ready: restart</button>
@@ -2110,6 +2121,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const client = window.lpcClient || null; // what the Windows client adds (client/preload.js); null in a browser
+  const PHONE = document.documentElement.classList.contains('phone'); // can't share a screen: a phone or tablet
+  let wake = null; // the screen kept on in a room on a phone: its lock, or true while asking (wakeTick)
   if (client) window.addEventListener('pagehide', () => { if (client.stopFilteredAudio) client.stopFilteredAudio(); if (client.shareAudioCancel) client.shareAudioCancel(); });
   // the site's top, also from the test version (test/): on GitHub Pages it's under /Premade/, so paths are relative to it
   const TEST = /\/test\/[^/]*$/.test(location.pathname), ROOT = location.href.replace(/[?#].*$/, '').replace(/(\/test)?\/[^/]*$/, '/');
@@ -2433,7 +2446,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const at = heardAt(p), moved = spotOf(p) !== p.slot ? 'Voice swap, from someone else’s spot: ' : '';
     if (teamOf(p) === 'enemy') return dead + (p.scrambled ? 'Other team, scrambled: ' : 'Other team: ') + (fresh(at) && fresh(me) ? 'heard only when near you' : 'silent until both of your minimaps are tracked');
     if (!fresh(at)) return dead + (moved || (p.vol ? 'In the lobby (no minimap yet): ' : 'Minimap not tracked: ')) + (p.vol ? 'full volume' : 'silent during a game');
-    if (!fresh(me)) return dead + (p.vol ? 'Full volume: your minimap isn’t tracked' : 'Silent until your minimap is tracked');
+    if (!fresh(me)) return dead + (p.vol ? 'Full volume: your minimap isn’t tracked' : PHONE ? 'In a game, so silent: a phone isn’t on the map' : 'Silent until your minimap is tracked');
     const far = `${dead}${moved}${Math.round(dist(at)).toLocaleString('en-US')} units away: `;
     if (p.vol <= 0) return far + 'out of range';
     const side = p.pan < -0.2 ? ', to your left' : p.pan > 0.2 ? ', to your right' : '';
@@ -2481,6 +2494,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const trackText = () => (!share ? 'not sharing your screen' : share.mode === 'general' ? 'sharing a screen or app without League tracking' : !share.sq ? 'looking for your minimap'
     : fresh(me) && me.by === 'icon' ? 'following your champion' : fresh(me) ? 'following your camera box' : 'looking for your champion');
   function render() {
+    wakeTick();
     if (document.hidden) return;
     $('joinView').hidden = !!peer;
     $('roomView').hidden = !peer;
@@ -2607,7 +2621,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     }
     const off = [...peers.values()].filter((p) => !fresh(p.pos)).map(nameOf);
     const hid = [...peers.values()].some((p) => fresh(p.pos) && teamOf(p) === 'enemy');
-    $('offmap').textContent = [fresh(me) ? '' : share ? 'Looking for your champion on your minimap.' : 'Share your League screen to put yourself on the map.',
+    $('offmap').textContent = [fresh(me) ? '' : share ? 'Looking for your champion on your minimap.' : PHONE ? 'A phone isn’t on the map, so you and friends in a game can’t hear each other until it ends.' : 'Share your League screen to put yourself on the map.',
       off.length ? `Not on the map yet, ${inGameNow() ? 'so silent' : 'heard at full volume'}: ${off.join(', ')}.` : '', hid ? 'The other team is hidden on the map.' : ''].filter(Boolean).join(' ');
   }
   const mapTalk = () => (look.dark ? look.talk : '#0ac8b9'); // the theme's talking glow; in Light League's teal, as Light's own is too dark for a minimap
@@ -2708,7 +2722,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       p.fx = Array.isArray(m.fx) ? m.fx.filter((n) => typeof n === 'string' && Object.hasOwn(FX, n)).slice(0, 8) : [];
       p.range = Number.isFinite(m.range) ? Math.max(600, Math.min(3000, m.range)) : 1200;
       const r = m.ready && typeof m.ready === 'object' ? m.ready : null;
-      p.ready = r && { mic: String(r.mic), share: r.share === true, map: r.map === true, app: String(r.app).slice(0, 12), win: String(r.win), ptt: r.ptt === true, bt: r.bt === true, clip: r.clip === true };
+      p.ready = r && { mic: String(r.mic), share: r.share === true, map: r.map === true, app: String(r.app).slice(0, 12), win: String(r.win), ptt: r.ptt === true, bt: r.bt === true, clip: r.clip === true, phone: r.phone === true };
       checkVersion(p);
       const vq = m.vq === 'fast' || m.vq === 'low' ? m.vq : 'normal';
       if (vq !== p.vq) { p.vq = vq; if (p.call && slot < p.slot) callPeer(id); useBitrate(p); } // a new call with their new setting
@@ -3483,8 +3497,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const now = performance.now();
     if (n >= 4 && (clipped = clipped.filter((t) => now - t < 10000)).push(now) >= 5) {
       clipAt = now;
-      coachSay('Your mic is too loud: its loudest sounds get cut off, which crackles. Turn it down in Windows’ sound settings (Recording, your mic, Levels) or move it further from your mouth.');
-      if (peer && !clipWarned) { clipWarned = true; notify('Your mic is too loud, so your voice crackles. Turn it down in Windows’ sound settings.', true); }
+      coachSay(`Your mic is too loud: its loudest sounds get cut off, which crackles. ${PHONE ? 'Hold your phone a little further from your mouth.' : 'Turn it down in Windows’ sound settings (Recording, your mic, Levels) or move it further from your mouth.'}`);
+      if (peer && !clipWarned) { clipWarned = true; notify(PHONE ? 'Your mic is too loud, so your voice crackles. Hold your phone a little further from your mouth.' : 'Your mic is too loud, so your voice crackles. Turn it down in Windows’ sound settings.', true); }
     }
   }
   // ---- echo check: when a friend's mic sends your own voice back to you (their speakers, whose sound their echo
@@ -3628,6 +3642,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     try { await navigator.clipboard.writeText(text); notify('Connection log copied. Paste it to whoever builds the app.', true); }
     catch { notify('Could not copy the connection log. Allow clipboard access and try again.', true); }
   });
+
+  // ---- a phone keeps its screen on while you're in a room: one that locks itself can stop the page, and your voice with it.
+  // The phone lets go of it whenever the page is out of sight, so it's asked for again when the page is back.
+  async function wakeTick() {
+    if (!PHONE || !navigator.wakeLock) return;
+    if (peer && !wake && document.visibilityState === 'visible') {
+      wake = true;
+      try { const w = (wake = await navigator.wakeLock.request('screen')); w.addEventListener('release', () => { if (wake === w) wake = null; }); }
+      catch { setTimeout(() => { wake = null; }, 10000); } // not now (a battery saver, say): asked again in 10 s, not on every render
+    }
+    if (!peer && wake && wake.release) { const w = wake; wake = null; w.release().catch(() => {}); }
+  }
 
   // ---- joining and leaving
   function reconnectRoomServer(owner = peer, immediate = false) {
@@ -4432,7 +4458,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const readyNow = () => ({
     mic: !mic ? 'off' : muted ? 'muted' : performance.now() - micAt < 30000 ? 'ok' : 'quiet',
     share: !!share, map: !!(share && share.sq), app: client ? client.version || 'old' : 'web', win: windowMode, ptt: !!keys.ptt,
-    bt: btMic, clip: performance.now() - clipAt < 60000,
+    bt: btMic, clip: performance.now() - clipAt < 60000, phone: PHONE,
   });
   // League's window mode: from League's own settings while its client is open (app 1.13+; its files change once a game
   // starts), else from its files. Fullscreen hides the overlay, so the ready check and Pregame switch it to Borderless
@@ -4471,7 +4497,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       tr.append(who);
       if (!r) { const td = cell(['', 'Not known yet']); td.colSpan = 5; tr.append(td); return tr; }
       tr.append(cell(CELLS.mic[r.mic] || ['', '—']), cell(r.share ? ['good', 'Shared'] : ['bad', 'Not shared']), cell(r.map ? ['good', 'Found'] : ['bad', 'Not found']),
-        cell(appCell(r.app)), cell(CELLS.win[r.win] || ['', '—']));
+        cell(r.phone ? ['', 'Phone'] : appCell(r.app)), cell(CELLS.win[r.win] || ['', '—']));
       if (mine && winFixable()) tr.lastChild.append(' ', winBtn);
       return tr;
     }));
@@ -4530,13 +4556,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       quiet: ['ok', 'Their mic hasn’t picked up any sound for 30 seconds: they should check the right mic is picked (Voice settings, Microphone) and that the noise gate isn’t too high.'], ok: ['good', 'Their mic picks up sound.'] }[r.mic];
     if (mic) add(...mic);
     if (r.bt) add('ok', 'Their mic is in phone quality (a Bluetooth headset’s mic, most likely), which makes what they hear sound like a phone call too. A separate mic, or the headset’s own USB dongle, fixes it.');
-    if (r.clip) add('ok', 'Their mic is too loud, so their voice crackles: they should turn it down in Windows’ sound settings.');
+    if (r.clip) add('ok', `Their mic is too loud, so their voice crackles: they should ${r.phone ? 'hold their phone a little further from their mouth' : 'turn it down in Windows’ sound settings'}.`);
     if (r.ptt) add('', 'They use push to talk, so they’re heard only while they hold their key.');
-    if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen in League, Proximity voice.');
+    if (r.phone) add('', 'They’re on their phone, which can’t be on the map: once a game starts, nobody in it hears them.');
+    else if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen in League, Proximity voice.');
     else if (!r.map) add('ok', 'Their minimap isn’t found: they should share the screen League is on, set League to Borderless, and be in a game, not the client.');
     else add('good', 'Their minimap is found.');
     if (playsNow(p) && !fresh(p.pos)) add('bad', 'This game their champion isn’t tracked, so you can’t hear them.');
-    if (r.app === 'web') add('', 'They use the website. The desktop app adds League’s own data, the overlay and shortcuts that work in a game.');
+    if (r.app === 'web') { if (!r.phone) add('', 'They use the website. The desktop app adds League’s own data, the overlay and shortcuts that work in a game.'); }
     else if (oldApp(r.app)) add('ok', r.app === 'old' ? 'Their app is very old: they need the installer from the site.' : `Their app is ${r.app} and ${latest} is out: restarting the app installs it.`);
     else add('good', `App ${r.app}.`);
     if (r.win === 'fullscreen') add('bad', 'League is in Fullscreen, so their overlay can’t show: League’s Settings, Video, Window Mode, Borderless, or Switch to Borderless in their ready check (app 1.13).');
@@ -7940,7 +7967,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (remoteProfile.key !== key) { remoteProfile.key = key; profileUrl().then((link) => { if (remoteProfile.key === key) { remoteProfile.link = link || ''; pushRemote(); } }); }
     const today = lpOf(myAcct()).filter((e) => new Date(e.at).toDateString() === day), lp = today.reduce((n, e) => n + e.delta, 0), w = today.filter((e) => e.win).length;
     return {
-      name: `${me0.gameName}#${me0.tagLine || ''}`, ranks: [['Solo/Duo', rankText(rankNow && rankNow.RANKED_SOLO_5x5)], ['Flex', rankText(rankNow && rankNow.RANKED_FLEX_SR)]],
+      name: `${me0.gameName}#${me0.tagLine || ''}`, ranks: rankNow ? [['Solo/Duo', rankText(rankNow.RANKED_SOLO_5x5)], ['Flex', rankText(rankNow.RANKED_FLEX_SR)]] : [], // none until League says
       today: today.length ? `Today: ${w}W ${today.length - w}L, ${lp >= 0 ? '+' : ''}${lp} LP` : '', link: remoteProfile.link,
       games: myHist.slice(0, 10).map((g) => { const e = lpLog.find((x) => x.id === g.id); return { champ: g.champ, win: g.win, line: [`${g.k}/${g.d}/${g.a}`, g.mode === 'CLASSIC' ? `${g.cs} CS` : '', e ? `${e.delta < 0 ? '−' : '+'}${Math.abs(e.delta)} LP` : ''].filter(Boolean).join(' · ') }; }),
     };
@@ -7950,8 +7977,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function gameRemote() {
     const w = winChance(), b = buyNext();
     return {
-      win: w == null ? null : Math.round(100 * Math.min(0.99, Math.max(0.01, w))), lines: [csText(), laneLine()].filter(Boolean), buy: b ? { name: b.name, why: b.why } : null,
-      players: liveList().map((p) => { scoutOf(p.puuid); const s = p.puuid && scoutData.get(p.puuid); return { champ: p.champ, name: p.name.split('#')[0], ally: p.ally, me: p.me, pos: p.pos || '', score: p.score || '', rank: s && s.ranked ? rankText(s.ranked.RANKED_SOLO_5x5) : '' }; }),
+      win: w == null ? null : Math.round(100 * Math.min(0.99, Math.max(0.01, w))), lines: [csText(), laneLine()].filter(Boolean), buy: b ? { name: b.name, why: b.why, pic: b.pic } : null,
+      players: liveList().map((p) => { scoutOf(p.puuid); const s = p.puuid && scoutData.get(p.puuid); return { champ: p.champ, name: String(p.name || '').split('#')[0], ally: p.ally, me: p.me, score: p.score || '', rank: s && s.ranked ? rankText(s.ranked.RANKED_SOLO_5x5) : '' }; }),
     };
   }
   // champ select as the phone shows it (remote.html renderCs), like League's own: both teams with whose turn it is
@@ -13415,7 +13442,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       tr.querySelector('b').textContent = x.riot;
       tr.children[1].textContent = [x.has === 2 ? '🟢 Online' : x.has ? `⚪ Offline, last online ${x.ago < 3600 ? Math.max(2, Math.round(x.ago / 60)) + ' min' : x.ago < 86400 ? Math.round(x.ago / 3600) + ' h' : Math.round(x.ago / 86400) + ' days'} ago` : 'No Premade yet', x.st].filter(Boolean).join(' · ');
       if (x.has) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small' + (x.has === 2 ? ' primary' : ''), textContent: peer ? 'Invite' : 'Make a room and invite', onclick: () => frInvite(x.riot) }));
-      if (x.has === 2) tr.children[2].append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control', title: 'Ask to control their PC (Remote help)', onclick: () => helpFriend(x.riot) }));
+      if (x.has === 2 && !PHONE) tr.children[2].append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control', title: 'Ask to control their PC (Remote help)', onclick: () => helpFriend(x.riot) }));
       if (x.mine) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Remove', onclick: () => { frMine = frMine.filter((n) => acctOf(n) !== acctOf(x.riot)); store.set('lpc-friends', JSON.stringify(frMine)); renderFriends(); } }));
       return tr;
     }));
@@ -13615,8 +13642,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- setup wizard, on first launch and from Settings
   const setup = $('setup');
   let step = 1;
+  if (PHONE) setup.querySelectorAll('.step .eyebrow').forEach((e, i) => { e.textContent = `Step ${[1, 2, 2, 3][i]} of 3`; }); // no screen check on a phone
   function showStep(n) {
-    if (n === 3 && document.documentElement.classList.contains('phone')) n = step < 3 ? 4 : 2; // no screen to check on a phone
+    if (n === 3 && PHONE) n = step < 3 ? 4 : 2; // no screen to check on a phone
     step = n;
     for (const s of setup.querySelectorAll('.step')) s.hidden = +s.dataset.step !== n;
     setup.querySelectorAll('.steps li').forEach((li, i) => li.toggleAttribute('data-done', i < n));
@@ -13857,7 +13885,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [102, 'November 1: Premade on your phone', [
-      'Open Premade’s website on your phone, or tap an invite link, to join a room: talk, chat, watch your friends’ screens and see your friends. Buttons a phone can’t use, like sharing your own screen, are left out there, and setup skips the screen check.',
+      'Open Premade’s website on your phone, or tap an invite link, to join a room: talk, chat, watch your friends’ screens and see your friends. On a phone the menu sits along the bottom, Share invite link opens your phone’s share sheet, your screen stays on while you’re in a room, and what a phone can’t do, like sharing your own screen, is left out.',
       'In a game the phone remote is a second screen: timers, gold, your team’s chance to win, your CS and lane, what to buy next, and all ten players with their rank.',
       'Outside games the phone remote shows your ranks, today’s LP, your last 10 games and a link to your full profile.',
     ]],
@@ -14371,7 +14399,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Rooms', 'Hang out with friends: join a room, talk, share your screens and chat. Premade opens on it.', [
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
-      ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. Phones can’t share their own screen, so those buttons are left out there.',
+      ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
       ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players in your room: Share screen or app at the top of the room, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
@@ -14638,7 +14666,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['League in Borderless', 'In League: Settings, Video, Window Mode, Borderless. The overlay only shows over League in Borderless, and your screen share finds the minimap best in it.',
       () => CELLS.win[windowMode] || ['', client ? 'Not known until League is open' : 'The desktop app checks it'],
       () => winFixable() && Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Switch to Borderless', onclick: () => fixWindow().then(renderFeatures) })],
-  ];
+  ].filter(([name]) => !PHONE || !['Get the desktop app', 'Your League screen', 'League in Borderless'].includes(name)); // a phone can't do these
   const featView = main.querySelector('.view[data-view="features"]');
   function renderFeatures() {
     if (!$('featList').firstChild) { // the cards once: they only change with the app
@@ -14678,7 +14706,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (b) li.append(b);
       return li;
     }));
-    $('setupNote').textContent = done === SETUP.length ? 'All set. Have a good game.' : `${done} of ${SETUP.length} done. Run setup again walks you through your name, mic and screen.`;
+    $('setupNote').textContent = done === SETUP.length ? 'All set. Have a good game.' : `${done} of ${SETUP.length} done. Run setup again walks you through your name${PHONE ? ' and mic' : ', mic and screen'}.`;
     featFilter();
   }
   // Show me: the page a spot is on (and its Stats tab and settings box), then the spot itself with a flash, or the part
@@ -14726,9 +14754,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- the room's own buttons
   const inviteLink = () => ROOT + '#' + room + (roomKey ? '.' + roomKey : ''); // the normal page, also from the test version
   async function copyInvite() {
+    if (PHONE && navigator.share) return navigator.share({ title: 'Premade', text: `Join my Premade room ${room.toUpperCase()}`, url: inviteLink() }).catch(() => {}); // the phone's own share sheet
     try { await navigator.clipboard.writeText(inviteLink()); notify('Invite link copied', true); } catch { say('Copy this link: ' + inviteLink()); }
   }
   $('copyBtn').addEventListener('click', copyInvite);
+  if (PHONE && navigator.share) $('copyBtn').textContent = 'Share invite link';
   $('sbRoom').addEventListener('click', copyInvite);
   $('shareBtn').addEventListener('click', () => { if (share && share.mode === 'league') { shareOff = league ? league.room : room; stopShare(); } else if (!share) startShare('league'); });
   $('generalShareBtn').addEventListener('click', () => { if (share && share.mode === 'general') { shareOff = league ? league.room : room; stopShare(); } else if (!share) startShare('general'); });

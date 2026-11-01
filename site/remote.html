@@ -84,7 +84,7 @@ select, #pageName { padding: 11px; border: 1px solid var(--line); border-radius:
 .recs { display: flex; flex-wrap: wrap; gap: 8px; }
 .recs:empty { display: none; }
 .editor { display: grid; gap: 10px; }
-.editor h3 { margin: 4px 0 0; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+:is(.editor, #roster) h3 { margin: 4px 0 0; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .trees, .runerow { display: flex; justify-content: space-evenly; }
 .rune { padding: 2px; border: 2px solid transparent; border-radius: 50%; background: none; cursor: pointer; }
 .rune img { display: block; width: 36px; height: 36px; filter: grayscale(1); opacity: 0.45; }
@@ -112,8 +112,21 @@ select, #pageName { padding: 11px; border: 1px solid var(--line); border-radius:
 .lockbar { position: sticky; bottom: 12px; z-index: 1; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); } /* Lock in stays in reach */
 .timers { display: flex; flex-wrap: wrap; gap: 8px; }
 .timers span { display: grid; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font: 500 16px/1.2 ui-monospace, Consolas, monospace; }
-.timers b { font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tiles span { display: grid; align-content: start; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font-size: 15px; }
+:is(.timers, .tiles) b { font: 600 11px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
 .foes { display: grid; gap: 10px; margin-top: 12px; }
+.lines { display: grid; gap: 2px; color: var(--muted); font-size: 14px; }
+.lines:empty { display: none; }
+.buy { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--gold-line); border-radius: 8px; background: var(--raised); font-size: 14px; }
+.buy img { flex: none; width: 32px; height: 32px; border-radius: 4px; }
+.buy b { color: var(--gold); }
+/* the game's ten players and your last games: a line each, full width, with a win or a loss on the left edge */
+.roster li { padding: 6px; border: 1px solid var(--line); border-left-width: 3px; background: var(--raised); }
+.roster li[data-win="1"] { border-left-color: var(--good); }
+.roster li[data-win="0"] { border-left-color: var(--bad); }
+.roster .rk { color: var(--fg); }
+a.btn { display: block; text-align: center; text-decoration: none; }
 .check { display: flex; align-items: center; gap: 10px; }
 .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; overflow-wrap: anywhere; }
 .log:empty::before { content: attr(data-empty); color: var(--muted); }
@@ -194,18 +207,10 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   <section id="game" class="panel" aria-labelledby="h-game" hidden>
     <h2 id="h-game">In game</h2>
     <div id="timers" class="timers"></div>
-    <p id="gameLines" class="hint"></p>
-    <p id="buy" class="hint" hidden></p>
-    <div class="teams"><ol id="gTeam" class="side" aria-label="Your team"></ol><ol id="gThem" class="side them" aria-label="Their team"></ol></div>
+    <div id="gameLines" class="lines"></div>
+    <p id="buy" class="buy" hidden></p>
     <div id="foes" class="foes" hidden></div>
-  </section>
-  <section id="me" class="panel" aria-labelledby="h-me" hidden>
-    <h2 id="h-me">Your League</h2>
-    <p id="meName"></p>
-    <div id="meRanks" class="timers"></div>
-    <p id="meToday" class="hint"></p>
-    <ol id="meGames" class="side" aria-label="Your last games"></ol>
-    <a id="meProfile" class="btn" target="_blank" rel="noopener" hidden>Open my full profile</a>
+    <div id="roster" class="tab" hidden><h3>Your team</h3><ol id="gTeam" class="side roster" aria-label="Your team"></ol><h3>Their team</h3><ol id="gThem" class="side roster" aria-label="Their team"></ol></div>
   </section>
   <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
     <h2 id="h-chat">Room chat</h2>
@@ -218,6 +223,14 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     <div id="lolConvs" class="wrap"></div>
     <ol id="lolLog" class="log" data-empty="No messages yet." hidden></ol>
     <form id="lolForm" class="row" hidden><input id="lolText" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message"><button class="btn">Send</button></form>
+  </section>
+  <section id="me" class="panel" aria-labelledby="h-me" hidden>
+    <h2 id="h-me">Your League</h2>
+    <p id="meName"></p>
+    <div id="meRanks" class="tiles"></div>
+    <p id="meToday"></p>
+    <ol id="meGames" class="side roster" aria-label="Your last games"></ol>
+    <a id="meProfile" class="btn" target="_blank" rel="noopener" hidden>Open my full profile</a>
   </section>
   <label class="check"><input id="auto" type="checkbox"> Accept matches for me</label>
   <label id="pushRow" class="check" hidden><input id="push" type="checkbox"> Tell me when a match is found or my squad calls, even with the screen off</label>
@@ -382,15 +395,16 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
       const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : []), ...(g.win != null ? [['Win chance', `${g.win}%`]] : [])];
       $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
       renderFoes(g.foes);
-      $('gameLines').textContent = (g.lines || []).join(' · ');
+      $('gameLines').replaceChildren(...(g.lines || []).map((t) => el('p', '', t)));
       $('buy').hidden = !g.buy;
-      if (g.buy) $('buy').textContent = `Buy next: ${g.buy.name} (${g.buy.why})`;
-      const ps = Array.isArray(g.players) ? g.players : [], row = (p) => seat({ champ: p.champ, me: p.me, name: p.name, pos: p.pos, locked: true }, p.ally, [p.score, p.rank].filter(Boolean).join(' · '));
-      const pk = JSON.stringify(ps) + (ddv ? '+' : '');
-      if ($('gTeam').dataset.k !== pk) { // only when a player's line changes, so the pictures don't flicker
-        $('gTeam').dataset.k = pk;
-        $('gTeam').replaceChildren(...ps.filter((p) => p.ally).map(row));
-        $('gThem').replaceChildren(...ps.filter((p) => !p.ally).map(row));
+      if (g.buy) $('buy').replaceChildren(...(/^https:/.test(g.buy.pic) ? [img(g.buy.pic, '')] : []), el('span', '', el('b', '', 'Buy next: '), g.buy.name, el('br'), g.buy.why));
+      const ps = Array.isArray(g.players) ? g.players : [], pk = JSON.stringify(ps) + (ddv ? '+' : '');
+      $('roster').hidden = !ps.length;
+      if ($('roster').dataset.k !== pk) { // only when a player's line changes, so the pictures don't flicker
+        $('roster').dataset.k = pk;
+        const one = (p) => { const li = entry(p.champ, p.me ? 'You' : p.name || name(p.champ), [name(p.champ), p.score].filter(Boolean).join(' · '), p.rank && el('small', 'rk', p.rank)); li.toggleAttribute('data-me', !!p.me); return li; };
+        $('gTeam').replaceChildren(...ps.filter((p) => p.ally).map(one));
+        $('gThem').replaceChildren(...ps.filter((p) => !p.ally).map(one));
       }
     }
     $('me').hidden = !(s && s.me) || !!(s.cs || s.game); // not in champ select or a game, where those come first
@@ -419,9 +433,9 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     if ($('me').dataset.k === k) return;
     $('me').dataset.k = k;
     $('meName').textContent = m.name;
-    $('meRanks').replaceChildren(...(m.ranks || []).map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
+    $('meRanks').replaceChildren(...(m.ranks || []).map(([n, v]) => el('span', '', el('b', '', n), v)));
     $('meToday').textContent = m.today || '';
-    $('meGames').replaceChildren(...(m.games || []).map((g) => seat({ champ: g.champ, name: g.win ? 'Win' : 'Loss', locked: true }, true, g.line)));
+    $('meGames').replaceChildren(...(m.games || []).map((g) => { const li = entry(g.champ, name(g.champ) || 'A game', `${g.win ? 'Win' : 'Loss'} · ${g.line}`); li.dataset.win = g.win ? '1' : '0'; return li; }));
     $('meProfile').hidden = !m.link;
     if (m.link) $('meProfile').href = m.link;
   }
@@ -498,15 +512,19 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     const a = state && state.cs && state.cs.action;
     if (a) send(a.now && a.champ === k ? { t: 'lock', champ: k } : { t: 'hover', champ: k });
   }
+  // a row of a list: the champion's face, a bold line and smaller ones (text, or an element) under it
+  function entry(champ, title, ...lines) {
+    return el('li', '', face(champ), el('span', 'txt', el('b', '', title), ...lines.filter(Boolean).map((t) => (typeof t === 'string' ? el('small', '', t) : t))));
+  }
   // a teammate or an opponent: their name where League shows it, else their champion; their role, whether it's their
   // turn, their champion (dimmed while it's a hover) and an ally's summoner spells
-  function seat(p, ally, more) { // more: what the game shows under a player instead of champ select's line
+  function seat(p, ally) {
     const li = document.createElement('li'), c = p.champ ? name(p.champ) : '', who = p.me ? 'You' : p.name || c || (ally ? 'Teammate' : 'Opponent');
     const sub = [POS[p.pos], p.now && `${p.now === 'ban' ? 'banning' : 'picking'}…`, c && !p.locked ? `hovering ${c}` : c !== who && c].filter(Boolean).join(' · ');
     li.toggleAttribute('data-me', !!p.me);
     li.toggleAttribute('data-now', !!p.now);
     li.toggleAttribute('data-locked', !!p.locked);
-    li.append(p.champ ? face(p.champ) : el('span', 'face'), el('span', 'txt', el('b', '', who), el('small', '', (more != null ? [c !== who && c, more].filter(Boolean).join(' · ') : sub) || '\u00a0')));
+    li.append(p.champ ? face(p.champ) : el('span', 'face'), el('span', 'txt', el('b', '', who), el('small', '', sub || '\u00a0')));
     if (Array.isArray(p.spells)) li.append(el('span', 'sp', ...p.spells.filter(spellPic).map((k) => img(spellPic(k), spellName(k)))));
     return li;
   }

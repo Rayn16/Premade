@@ -690,8 +690,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hears(cat, ['Ana', 'Ben'], null, 'Cat hears both after ICE failed');
     // the room server drops: tried again a second later
     since = Date.now();
-    await ana.evaluate(() => lpc.serverDrop());
-    await waitFor(ana, () => !lpc.server(), null, 'Ana off the room server');
+    await ana.evaluate(() => new Promise((res, rej) => { // caught as it happens: a local room server takes Ana back within milliseconds, between two polls
+      const msg = document.getElementById('msg'), o = new MutationObserver(() => { if (/Lost the room server/.test(msg.textContent)) { o.disconnect(); res(); } });
+      o.observe(msg, { childList: true, characterData: true, subtree: true });
+      setTimeout(() => rej(new Error('timed out waiting for Ana off the room server')), 30000);
+      lpc.serverDrop();
+    }));
     await waitFor(ana, () => lpc.server(), null, 'Ana back on the room server');
     const serverBack = (Date.now() - since) / 1000;
     console.log(`auto reconnect: Cat back ${kickBack.toFixed(1)} s after the connection broke, ${blipBack.toFixed(1)} s after a Wi-Fi blip, ${failedBack.toFixed(1)} s after ICE failed; the room server back in ${serverBack.toFixed(1)} s`);
