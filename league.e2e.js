@@ -1039,6 +1039,9 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => /Rayan\s*brb, in queue/.test(document.getElementById('chatLog').textContent), null, 'the phone’s message in the room chat');
     await wait(phone, () => /Rayan\s*brb, in queue/.test(document.getElementById('chatLog').textContent) && document.getElementById('chatText').value === '', null, 'the message on the phone');
     console.log('phone remote: notifications on (a push shows Match found) and off, room chat written from the phone');
+    // Your League on the phone: your ranks, last games and a link to your full profile
+    await wait(phone, () => !document.getElementById('me').hidden && /^Rayan#EUW$/.test(document.getElementById('meName').textContent) && document.querySelectorAll('#meGames li').length > 0
+      && /profile\.html#./.test(document.getElementById('meProfile').href) && /Solo\/Duo/i.test(document.getElementById('meRanks').textContent), null, 'your League on the phone');
 
     // ---- the queue: a Practice Tool game in one click outside a lobby, Find match in a lobby you lead, Stop from the phone
     await wait(pc, () => !document.getElementById('queueBox').hidden && !document.getElementById('practiceBtn').hidden && document.getElementById('queueBtn').hidden, null, 'Practice Tool offered outside a lobby');
@@ -1414,6 +1417,10 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => /^Your lane against Zed: level 11 vs 10 · CS 100 vs 90 · kills 3 vs 2\. CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(document.getElementById('laneStats').textContent) && !document.getElementById('laneStats').hidden, null, 'lane stats');
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
     await wait(pc, () => lpcClient.lastOverlay.lane === 'vs Zed: CS +10 · gold +3.1k', null, 'your lane on the overlay: CS and item gold against Zed');
+    // the phone as a second screen: the chance to win, your CS and lane, and all ten players with their rank
+    await wait(phone, () => /Win chance9\d%/.test(document.getElementById('timers').textContent) && /CS 100 · .*vs Zed: CS \+10 · gold \+3\.1k$/.test(document.getElementById('gameLines').textContent)
+      && document.querySelectorAll('#gTeam li').length === 5 && document.querySelectorAll('#gThem li').length === 5 && /LP/.test(document.getElementById('gThem').textContent), null, 'the game on the phone');
+    assert(await phone.evaluate(() => /^You/.test(document.querySelector('#gTeam li[data-me]').textContent)), 'you are marked on the phone');
     // the overlay picker, see-through slider and key
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
     await pc.uncheck('#optOverlayCs');

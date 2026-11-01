@@ -194,7 +194,18 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   <section id="game" class="panel" aria-labelledby="h-game" hidden>
     <h2 id="h-game">In game</h2>
     <div id="timers" class="timers"></div>
+    <p id="gameLines" class="hint"></p>
+    <p id="buy" class="hint" hidden></p>
+    <div class="teams"><ol id="gTeam" class="side" aria-label="Your team"></ol><ol id="gThem" class="side them" aria-label="Their team"></ol></div>
     <div id="foes" class="foes" hidden></div>
+  </section>
+  <section id="me" class="panel" aria-labelledby="h-me" hidden>
+    <h2 id="h-me">Your League</h2>
+    <p id="meName"></p>
+    <div id="meRanks" class="timers"></div>
+    <p id="meToday" class="hint"></p>
+    <ol id="meGames" class="side" aria-label="Your last games"></ol>
+    <a id="meProfile" class="btn" target="_blank" rel="noopener" hidden>Open my full profile</a>
   </section>
   <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
     <h2 id="h-chat">Room chat</h2>
@@ -368,10 +379,22 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     else if (s) ed = null; // champ select is over: a page left half changed goes
     $('game').hidden = !(s && s.game);
     if (s && s.game) {
-      const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])];
+      const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : []), ...(g.win != null ? [['Win chance', `${g.win}%`]] : [])];
       $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
       renderFoes(g.foes);
+      $('gameLines').textContent = (g.lines || []).join(' · ');
+      $('buy').hidden = !g.buy;
+      if (g.buy) $('buy').textContent = `Buy next: ${g.buy.name} (${g.buy.why})`;
+      const ps = Array.isArray(g.players) ? g.players : [], row = (p) => seat({ champ: p.champ, me: p.me, name: p.name, pos: p.pos, locked: true }, p.ally, [p.score, p.rank].filter(Boolean).join(' · '));
+      const pk = JSON.stringify(ps) + (ddv ? '+' : '');
+      if ($('gTeam').dataset.k !== pk) { // only when a player's line changes, so the pictures don't flicker
+        $('gTeam').dataset.k = pk;
+        $('gTeam').replaceChildren(...ps.filter((p) => p.ally).map(row));
+        $('gThem').replaceChildren(...ps.filter((p) => !p.ally).map(row));
+      }
     }
+    $('me').hidden = !(s && s.me) || !!(s.cs || s.game); // not in champ select or a game, where those come first
+    if (!$('me').hidden) renderMe(s.me);
     $('chat').hidden = !(s && Array.isArray(s.chat));
     if (!$('chat').hidden) renderChat(s.chat);
     $('lol').hidden = !(s && s.lol);
@@ -390,6 +413,17 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     const row = (who, ...bs) => { const r = document.createElement('div'), s = document.createElement('span'); r.className = 'trade'; s.textContent = who; r.append(s, ...bs); return r; };
     $('foes').replaceChildren(...list.map((k) => row(name(k), btn('Flash', { what: 'flash', champ: k }), btn('Ultimate', { what: 'r', champ: k }))),
       ...(list.length ? [row('Their jungle', btn('Red buff', { what: 'red' }), btn('Blue buff', { what: 'blue' }))] : []));
+  }
+  function renderMe(m) {
+    const k = JSON.stringify(m) + (ddv ? '+' : '');
+    if ($('me').dataset.k === k) return;
+    $('me').dataset.k = k;
+    $('meName').textContent = m.name;
+    $('meRanks').replaceChildren(...(m.ranks || []).map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
+    $('meToday').textContent = m.today || '';
+    $('meGames').replaceChildren(...(m.games || []).map((g) => seat({ champ: g.champ, name: g.win ? 'Win' : 'Loss', locked: true }, true, g.line)));
+    $('meProfile').hidden = !m.link;
+    if (m.link) $('meProfile').href = m.link;
   }
   let chatWas = '';
   function renderChat(lines) {
@@ -466,13 +500,13 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   }
   // a teammate or an opponent: their name where League shows it, else their champion; their role, whether it's their
   // turn, their champion (dimmed while it's a hover) and an ally's summoner spells
-  function seat(p, ally) {
+  function seat(p, ally, more) { // more: what the game shows under a player instead of champ select's line
     const li = document.createElement('li'), c = p.champ ? name(p.champ) : '', who = p.me ? 'You' : p.name || c || (ally ? 'Teammate' : 'Opponent');
     const sub = [POS[p.pos], p.now && `${p.now === 'ban' ? 'banning' : 'picking'}…`, c && !p.locked ? `hovering ${c}` : c !== who && c].filter(Boolean).join(' · ');
     li.toggleAttribute('data-me', !!p.me);
     li.toggleAttribute('data-now', !!p.now);
     li.toggleAttribute('data-locked', !!p.locked);
-    li.append(p.champ ? face(p.champ) : el('span', 'face'), el('span', 'txt', el('b', '', who), el('small', '', sub || '\u00a0')));
+    li.append(p.champ ? face(p.champ) : el('span', 'face'), el('span', 'txt', el('b', '', who), el('small', '', (more != null ? [c !== who && c, more].filter(Boolean).join(' · ') : sub) || '\u00a0')));
     if (Array.isArray(p.spells)) li.append(el('span', 'sp', ...p.spells.filter(spellPic).map((k) => img(spellPic(k), spellName(k)))));
     return li;
   }
