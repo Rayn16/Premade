@@ -632,7 +632,7 @@ function checkUpdates() {
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   check();
   setInterval(check, 4 * 3600e3);
-  // the page's Update button: installs a downloaded update, or (app 1.34.1) fetches one now instead of at the next 4-hour check
+  // the page's Update button: installs a downloaded update, or (app 1.34.3) fetches one now instead of at the next 4-hour check
   ipcMain.on('update', (e) => { if (!fromSite(e)) return; if (updateReady) autoUpdater.quitAndInstall(true, true); else check(); });
 }
 

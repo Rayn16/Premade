@@ -13891,9 +13891,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (u && u.error) { if (appUpdate === 'getting') { appUpdate = ''; notify(`The update didn't download: ${u.error}. Try again in a bit, or get the installer from the site.`, true); render(); } return; }
       appUpdate = 'ready'; render(); notify('An app update is ready. Restart the app to use it, or it installs when you quit.', true);
     });
-    // Update: installs a downloaded update; 1.34.1 and later fetch it right away, older apps fetch it when they start
+    // Update: installs a downloaded update; 1.34.3 and later fetch it right away, older apps fetch it when they start
     const update = () => {
-      if (appUpdate === 'ready' || !newer('1.34.1', client.version)) { client.update(); if (appUpdate !== 'ready') { appUpdate = 'getting'; render(); } }
+      if (appUpdate === 'ready' || !newer('1.34.3', client.version)) { client.update(); if (appUpdate !== 'ready') { appUpdate = 'getting'; render(); } }
       else notify(`Close Premade and open it again: it fetches ${latest} as it starts, and this button then says Update ready.`, true);
     };
     $('restartBtn').addEventListener('click', update);
@@ -14061,7 +14061,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Aion 2’s Live fight moved into its tabs: DPS has the fight as it happens, its switch and your past fights; Checklist has your entry tickets; Profile has your party right now, with their class, item level, combat power and gear.',
     ]],
     [107, 'November 2: an Update button', [
-      'Desktop app 1.34.1: when a new version is out, Settings, App and the status bar have an Update button. It downloads the update right away instead of at the app’s next check, then restarts into it.',
+      'Desktop app 1.34.3: when a new version is out, Settings, App and the status bar have an Update button. It downloads the update right away instead of at the app’s next check, then restarts into it.',
     ]],
     [106, 'November 2: Aion 2 live fight', [
       'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. Damage over time and pets count for their owner. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
