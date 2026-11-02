@@ -1,0 +1,47 @@
+# Temporary (memory hunt, thread "Cut Premade memory use again"): the real app on Windows watching a friend's shared
+# screen, each process's memory every 30 s. Lives on this thread's branch only.
+name: Memory test
+on:
+  push:
+    branches: [claude/project-thread-cow0rs]
+jobs:
+  mem:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        shell: pwsh
+        run: |
+          cd client; npm ci; cd ..
+          cd memtest; npm init -y | Out-Null; npm i peer@1.0.2 peerjs@1.5.4 playwright@1.56.1; npx playwright install chromium
+      - name: Runs
+        shell: pwsh
+        run: |
+          cd memtest
+          $runs = @(
+            @{ n = 'watch'; o = '{}'; h = '' },
+            @{ n = 'watch-minimized'; o = '{}'; h = '1' },
+            @{ n = 'share-and-watch'; o = '{"autoShare":true}'; h = '1' },
+            @{ n = 'watch-clip-anywhere'; o = '{"clipsAll":true}'; h = '1' }
+          )
+          $srv = Start-Process node -ArgumentList 'serve.js' -PassThru -NoNewWindow
+          foreach ($r in $runs) {
+            $room = "m" + (Get-Random)
+            $env:ROOM = $room; $env:SHARE = '1'
+            $f = Start-Process node -ArgumentList 'friend.js' -PassThru -NoNewWindow -RedirectStandardOutput "friend-$($r.n).log"
+            mkdir "out-$($r.n)" | Out-Null
+            $env:OUT = "$PWD\out-$($r.n)"; $env:OPTS = $r.o; $env:HIDE = $r.h; $env:MINS = '7'
+            Write-Host "==== $($r.n)"
+            ..\client\node_modules\.bin\electron.cmd memwin.js
+            Stop-Process -Id $f.Id -Force -ErrorAction SilentlyContinue
+            Remove-Item Env:HIDE -ErrorAction SilentlyContinue
+          }
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memtest
+          path: memtest/out-*
