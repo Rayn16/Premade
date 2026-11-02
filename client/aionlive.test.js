@@ -22,6 +22,11 @@ const summon = (id, owner) => frame(0x3641, Buffer.concat([varint(id), Buffer.al
 const lz4Literals = (b) => { const n = b.length, head = [n >= 15 ? 0xf0 : n << 4]; if (n >= 15) { let r = n - 15; while (r >= 255) { head.push(255); r -= 255; } head.push(r); } return Buffer.concat([Buffer.from(head), b]); };
 const bundle = (inner) => frame(0xffff, Buffer.concat([u32(inner.length), lz4Literals(inner)]));
 
+// the ticket update caught in a real game (Nightmare, 2 of 14 left), and a made-up login list
+assert.deepStrictEqual(decode(0x610c, Buffer.from('00040c0000000e02', 'hex')), { k: 'tickets', tickets: [{ id: 4, left: 2, max: 14 }] });
+assert.deepStrictEqual(decode(0x610b, Buffer.concat([varint(2), Buffer.from([0x0c]), u32(60000001), varint(90), varint(80), Buffer.from([0x07]), u32(4), u64(0), u64(0), varint(2)])).tickets,
+  [{ id: 60000001, left: 90, extra: 80 }, { id: 4, left: 2, extra: 0 }]);
+
 // framing and the decoders
 const stream = Buffer.concat([appear(0x3633, 11, 'YasuoMain16'), appear(0x3645, 12, 'Akima'), party('YasuoMain16', 'Akima'), hp(500, 1000000), hit(500, 11, 3000, true), hit(500, 12, 1000, false)]);
 const f = frames(stream);

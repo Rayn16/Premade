@@ -14,6 +14,9 @@
 //   0x3641 a mob or summon in view: varint entity ... 8 x 0xFF, 8 bytes, varint owner (itself for a mob)
 //   0x9702 your party: per member u16 server, u8 length, name, u32 class, u32 level, u32 item level (a party title,
 //          if any, comes first as a plain length-prefixed string)
+//   0x610B entry tickets, at login: varint count, then per ticket u8 mask, u32 ticket, [u64 if mask & 1],
+//          [u64 if mask & 2], [varint left if mask & 4], [varint bought/charged if mask & 8] (Abyss's decoder)
+//   0x610C one ticket changed: u8, varint ticket, u32, varint max, varint left (seen: Nightmare 2 of 14)
 // Skill codes are the skill's id plus its level and variant: 16370001 is skill 16370000; a tick's 1637000011 too.
 const { execFile } = require('child_process');
 
@@ -128,6 +131,26 @@ function decode(op, p) {
     for (let k = r.o; !name && k < r.o + 12; k++) name = nameAt(p, k);
     return name ? { k: 'name', id, name, me: op === 0x3633 } : null;
   }
+  if (op === 0x610b) {
+    const n = r.varint(), tickets = [];
+    if (n > 512) return null;
+    for (let i = 0; i < n; i++) {
+      const mask = r.u8(), id = r.b.readUInt32LE(r.o);
+      r.skip(4);
+      if (mask & 1) r.skip(8);
+      if (mask & 2) r.skip(8);
+      const left = mask & 4 ? r.varint() : 0, extra = mask & 8 ? r.varint() : 0;
+      tickets.push({ id, left, extra });
+    }
+    return { k: 'tickets', tickets };
+  }
+  if (op === 0x610c) {
+    r.u8();
+    const id = r.varint();
+    r.skip(4);
+    const max = r.varint(), left = r.varint();
+    return { k: 'tickets', tickets: [{ id, left, max }] };
+  }
   if (op === 0x8a33) { const id = r.varint(); r.skip(8); const name = nameAt(p, r.o); return name ? { k: 'name', id, name } : null; }
   if (op === 0x9702) {
     const members = [];
@@ -184,10 +207,11 @@ class Stream {
 
 // The fight: the target hit the most in the last 15 s, with everyone's damage on it since it was first hit
 class Fight {
-  constructor() { this.names = new Map(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
+  constructor() { this.tickets = new Map(); this.names = new Map(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
   add(e, now) {
     if (e.k === 'name') { this.names.set(e.id, e.name); if (e.me) this.me = e.name; return; }
     if (e.k === 'party') { this.party = new Set(e.names); this.members = e.members || []; return; }
+    if (e.k === 'tickets') { for (const x of e.tickets) this.tickets.set(x.id, { ...this.tickets.get(x.id), ...x, at: Date.now() }); return; }
     if (e.k === 'summon') { this.summons.set(e.id, e.owner); if (this.summons.size > 5000) this.summons.clear(); return; }
     if (e.k === 'hp') { const h = this.hp.get(e.id) || { max: 0 }; h.hp = e.hp; h.max = Math.max(h.max, e.hp); h.at = now; this.hp.set(e.id, h); return; }
     if (e.k !== 'hit') return;
@@ -248,7 +272,7 @@ class Fight {
     const dead = this.last && (this.hp.get(this.last.id) || {}).hp === 0 && now - this.last.lastAt < 15e3;
     if (best && !dead) this.last = best; // a fight just won stays up 15 s, before the trash mobs after it
     const t = this.last;
-    return { members: this.members, ...(t && { active: now - t.lastAt < 15e3, ...this.numbers(t, partyOnly) }) };
+    return { members: this.members, tickets: [...this.tickets.values()], ...(t && { active: now - t.lastAt < 15e3, ...this.numbers(t, partyOnly) }) };
   }
 
 }

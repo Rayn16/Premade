@@ -1957,6 +1957,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div class="alhp"><i id="aionLiveHp"></i></div>
           <div id="aionLiveRows" class="alrows"></div>
         </div>
+        <section id="aionTixBox" hidden><strong>Entry tickets</strong><div id="aionTix" class="toolbar"></div></section>
         <section id="aionPartyBox" hidden><strong>Your party</strong><div id="aionParty"></div></section>
         <details id="aionHistBox" hidden><summary>Past fights</summary><div id="aionHist"></div></details>
       </section>
@@ -6229,13 +6230,31 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return box;
     }));
   }
+  // entry tickets: each as it changes, the whole list at login; kept here for the next start (lpc-aion-tickets).
+  // Names and caps by ticket id, as Abyss DPS Meter lists them.
+  const TICKETS = { 60000001: ['Odyle', 840], 4: ['Nightmare', 14], 80000001: ['Ascension trial', 3], 101: ['Daily dungeon', 14], 1: ['Shugo Festival', 7], 8: ['Dimensional Invasion', 7] };
+  let aionTix = load('lpc-aion-tickets', {});
+  function renderAionTix(list) {
+    if (list && list.length) {
+      for (const x of list) aionTix[x.id] = { ...aionTix[x.id], ...x };
+      store.set('lpc-aion-tickets', JSON.stringify(aionTix));
+    }
+    const known = Object.values(aionTix).filter((x) => TICKETS[x.id]);
+    $('aionTixBox').hidden = !known.length;
+    $('aionTix').replaceChildren(...known.map((x) => {
+      const [name, cap] = TICKETS[x.id];
+      return Object.assign(document.createElement('span'), { className: 'chip', textContent: `${name} ${x.left}${x.extra ? ` (+${x.extra})` : ''}/${x.max || cap}`, title: x.at ? `As of ${new Date(x.at).toLocaleString()}` : '' });
+    }));
+  }
   const aionPartyOpen = new Set();
-  let aionPartyWas = '';
+  let aionPartyWas = '', aionTixWas = '';
   function renderAionLive() {
     const s = aionFight;
     $('aionLiveFight').hidden = !s || !s.players;
     if (!s || !opts.aionLive) return;
     if (s.off) return aionLiveNote('Waiting for Aion 2…');
+    const tix = JSON.stringify(s.tickets || []);
+    if (tix !== aionTixWas) { aionTixWas = tix; renderAionTix(s.tickets); }
     const party = JSON.stringify(s.members || []);
     if (party !== aionPartyWas) { aionPartyWas = party; renderAionParty(s.members); }
     if (!s.players) return aionLiveNote('On. Fight something in Aion 2.');
@@ -6283,6 +6302,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   $('optAionParty').addEventListener('change', (e) => { opts.aionParty = e.target.checked; saveOpts(); if (opts.aionLive) aionLiveSet(); });
   if (client && client.on) client.on('aion-live', (s) => { aionFight = s; renderAionLive(); if (aionCard) pushOverlay(); });
   if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); renderAionHist(); });
+  renderAionTix();
   if (client && client.aionFights) client.aionFights().then((l) => { aionHist = Array.isArray(l) ? l : []; renderAionHist(); });
   if (opts.aionLive) aionLiveSet();
   // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
@@ -14126,6 +14146,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. Damage over time and pets count for their owner. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
       'Click a player to see their top skills, by name for your party. Past fights keeps every boss kill and longer fight on this PC to look back on.',
       'Your party: each member’s class, level, item level, combat power, server and gear, from NC’s own character pages.',
+      'Entry tickets: Odyle, Nightmare, Ascension trial, daily dungeons, Shugo Festival and Dimensional Invasion, updated as you use or gain them, and all of them when you log in.',
     ]],
     [105, 'November 2: a new look', [
       'Premade has a new look: a calmer menu down the left with your name and a mic button at the bottom, and League still at its foot with its pages as tabs along the top. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
@@ -14697,7 +14718,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
         'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
-      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, and your party’s class, level, item level, combat power and gear. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
+      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
         'Aion 2 page, Live fight.', '#optAionLive', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
