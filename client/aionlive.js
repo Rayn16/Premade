@@ -15,7 +15,7 @@
 //   0x9702 your party: per member u16 server, u8 length, name, u32 class, u32 level, u32 item level (a party title,
 //          if any, comes first as a plain length-prefixed string)
 //   0x610B entry tickets, at login: varint count, then per ticket u8 mask, u32 ticket, [u64 if mask & 1],
-//          [u64 if mask & 2], [varint left if mask & 4], [varint bought/charged if mask & 8] (Abyss's decoder)
+//          [u64 if mask & 2], [varint left if mask & 4], [varint bought/charged if mask & 8] (Abyss's decoder; checked on a real login: Odyle 10 (+320))
 //   0x610C one ticket changed: u8, varint ticket, u32, varint max, varint left (seen: Nightmare 2 of 14)
 // Skill codes are the skill's id plus its level and variant: 16370001 is skill 16370000; a tick's 1637000011 too.
 const { execFile } = require('child_process');
