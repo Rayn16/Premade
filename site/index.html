@@ -136,7 +136,19 @@ main > :is(#msg, #lolNote):not(:empty) { margin-top: 16px; }
 #aionLiveRows .alrow > i { position: absolute; inset: 0 auto 0 0; background: var(--line); z-index: 0; }
 #aionLiveRows .alrow > span { position: relative; text-align: right; font-family: var(--mono); }
 #aionLiveRows .alrow > span:first-of-type { text-align: left; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#aionLiveRows .alrow[data-me] { font-weight: 600; }
+#aionLiveRows .alrow[data-me], .alrows .alrow[data-me] { font-weight: 600; }
+.alrows { display: grid; gap: 4px; font-size: 13px; }
+.alrows .alrow { display: grid; grid-template-columns: minmax(0, 1fr) 6em 4em 3.5em; gap: 10px; align-items: center; position: relative; padding: 3px 6px; border-radius: 4px; overflow: hidden; }
+.alrows .alrow > i { position: absolute; inset: 0 auto 0 0; background: var(--line); z-index: 0; }
+.alrows .alrow > span { position: relative; text-align: right; font-family: var(--mono); }
+.alrows .alrow > span:first-of-type { text-align: left; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alrows button.alrow { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; width: 100%; }
+.alrows .alskills { margin: 0 0 6px 12px; color: var(--muted); font-size: 12px; display: grid; gap: 2px; }
+#aionParty { display: grid; gap: 6px; font-size: 13px; }
+#aionParty details > summary { cursor: pointer; }
+#aionParty .algear { color: var(--muted); font-size: 12px; margin: 4px 0 0 12px; display: grid; gap: 2px; }
+#aionHist { display: grid; gap: 8px; }
+#aionHist > details > summary { cursor: pointer; font-size: 13px; }
 #aionFrame { width: 100%; height: 100%; min-height: calc(420px / var(--zoom, 1)); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
@@ -1943,8 +1955,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div id="aionLiveFight" hidden>
           <div class="toolbar"><strong id="aionLiveTarget"></strong><span id="aionLiveInfo" class="hint"></span></div>
           <div class="alhp"><i id="aionLiveHp"></i></div>
-          <div id="aionLiveRows"></div>
+          <div id="aionLiveRows" class="alrows"></div>
         </div>
+        <section id="aionPartyBox" hidden><strong>Your party</strong><div id="aionParty"></div></section>
+        <details id="aionHistBox" hidden><summary>Past fights</summary><div id="aionHist"></div></details>
       </section>
       <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
     </section>
@@ -2123,7 +2137,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 80, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-atten" class="tipbox" popover>Like Discord’s attenuation: while a friend you can hear is talking, every other app’s sound, your game too, goes down by this much, and back up a second after they stop. Unlike Windows’ own setting it only happens while someone talks. Desktop app only.</div>
-<div id="t-aionlive" class="tipbox" popover>While Aion 2 runs, the desktop app reads the game’s messages to this PC (with Npcap, which Abyss DPS Meter installs), never the game itself: everyone’s damage, DPS and crits on what you fight, and the boss’s HP. Names show as players come into view. It’s the same thing damage meters like Abyss do, and NC’s rules can ban accounts for it, so use it at your own risk. Also on the overlay’s Aion 2 card.</div>
+<div id="t-aionlive" class="tipbox" popover>While Aion 2 runs, the desktop app reads the game’s messages to this PC (with Npcap, which Abyss DPS Meter installs), never the game itself: everyone’s damage, DPS and crits on what you fight, and the boss’s HP. Names show as players come into view, and your party once it changes or you join one. Damage over time and pets count for their owner; click a player for their top skills. Past fights keeps boss kills and fights of 20 seconds or more on this PC. It’s the same thing damage meters like Abyss do, and NC’s rules can ban accounts for it, so use it at your own risk. Also on the overlay’s Aion 2 card.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't. Or press Set the gate for me and stay quiet for 3 seconds: it listens to your room and puts the gate just above its noise.</div>
 <div id="t-out" class="tipbox" popover>Where everyone's voices come out. Using Wave Link? Pick its Voice Chat channel here, the same way you would in Discord.</div>
 <div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
@@ -6162,29 +6176,90 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const bigNum = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
   const fightClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const aionLiveNote = (text) => { $('aionLiveNote').textContent = text; };
+  // a fight's players as rows (DPS bar, DPS, share, crit); a row opens that player's top skills, named from the
+  // party's own skill lists (aionChar) once they're in
+  const aionOpen = new Set(), aionChars = new Map(), aionSkills = new Map();
+  function fightRows(box, players, key) {
+    const top = Math.max(1, ...players.map((p) => p.dps));
+    const head = document.createElement('div');
+    head.className = 'alrow hint';
+    head.append(...['Player', 'DPS', 'Share', 'Crit'].map((v) => Object.assign(document.createElement('span'), { textContent: v })));
+    box.replaceChildren(head, ...players.flatMap((p) => {
+      const row = document.createElement('button'), bar = document.createElement('i'), id = `${key}|${p.name}`;
+      row.type = 'button';
+      row.className = 'alrow';
+      if (p.me) row.dataset.me = '';
+      row.setAttribute('aria-expanded', String(aionOpen.has(id)));
+      bar.style.width = `${(p.dps / top) * 100}%`;
+      row.append(bar, ...[p.name, `${bigNum(p.dps)}/s`, `${p.share}%`, `${p.crit}%`].map((v) => Object.assign(document.createElement('span'), { textContent: v })));
+      row.addEventListener('click', () => { if (!aionOpen.delete(id)) aionOpen.add(id); fightRows(box, players, key); });
+      if (!aionOpen.has(id)) return [row];
+      const skills = document.createElement('div');
+      skills.className = 'alskills';
+      skills.append(...(p.skills || []).map((k) => Object.assign(document.createElement('span'), { textContent: `${aionSkills.get(k.id) || `Skill ${k.id}`}: ${bigNum(k.damage)} (${k.share}%), ${k.hits} hits` })));
+      if (!(p.skills || []).length) skills.textContent = 'No skills yet.';
+      return [row, skills];
+    }));
+  }
+  // party members: server, level and item level come with the party; class, combat power and gear from NC's pages
+  function renderAionParty(members) {
+    $('aionPartyBox').hidden = !members || !members.length;
+    if (!members || !members.length) return;
+    $('aionParty').replaceChildren(...members.map((m) => {
+      const key = `${m.name}@${m.server}`, c = aionChars.get(key);
+      if (c === undefined && client && client.aionChar) {
+        aionChars.set(key, null); // asked once
+        client.aionChar(m.name, m.server).then((v) => {
+          aionChars.set(key, v || false);
+          if (v) for (const [id, n] of Object.entries(v.skills || {})) aionSkills.set(+id, n);
+          if (aionFight) renderAionParty(aionFight.members);
+        });
+      }
+      const box = document.createElement('details'), sum = document.createElement('summary');
+      sum.textContent = [m.name, c && c.className, `Lv ${m.level}`, `IL ${m.il}`, c && `CP ${c.cp.toLocaleString()}`, c && c.server].filter(Boolean).join(' · ') + (c === null ? ' · looking up…' : '');
+      box.append(sum);
+      if (c && c.gear) {
+        const gear = document.createElement('div');
+        gear.className = 'algear';
+        gear.append(...c.gear.map((g) => Object.assign(document.createElement('span'), { textContent: `${g.slot}: ${g.name}${g.enchant ? ` +${g.enchant}` : ''} (${g.grade})` })));
+        box.append(gear);
+      }
+      if (aionPartyOpen.has(key)) box.open = true;
+      box.addEventListener('toggle', () => { if (box.open) aionPartyOpen.add(key); else aionPartyOpen.delete(key); });
+      return box;
+    }));
+  }
+  const aionPartyOpen = new Set();
+  let aionPartyWas = '';
   function renderAionLive() {
     const s = aionFight;
     $('aionLiveFight').hidden = !s || !s.players;
     if (!s || !opts.aionLive) return;
     if (s.off) return aionLiveNote('Waiting for Aion 2…');
+    const party = JSON.stringify(s.members || []);
+    if (party !== aionPartyWas) { aionPartyWas = party; renderAionParty(s.members); }
     if (!s.players) return aionLiveNote('On. Fight something in Aion 2.');
     aionLiveNote(s.active ? '' : 'Last fight:');
     $('aionLiveTarget').textContent = s.target || 'Target';
     $('aionLiveInfo').textContent = `${fightClock(s.secs)}${s.hp != null ? ` · HP ${bigNum(s.hp)}${s.pct != null ? ` (${s.pct}%)` : ''}` : ''}`;
     $('aionLiveHp').style.width = `${s.pct ?? 0}%`;
-    const top = Math.max(1, ...s.players.map((p) => p.dps));
-    const head = document.createElement('div');
-    head.className = 'alrow hint';
-    head.append(...['Player', 'DPS', 'Share', 'Crit'].map((v) => Object.assign(document.createElement('span'), { textContent: v })));
-    $('aionLiveRows').replaceChildren(head, ...s.players.map((p) => {
-      const row = document.createElement('div'), bar = document.createElement('i');
-      row.className = 'alrow';
-      if (p.me) row.dataset.me = '';
-      bar.style.width = `${(p.dps / top) * 100}%`;
-      row.append(bar, ...[p.name, `${bigNum(p.dps)}/s`, `${p.share}%`, `${p.crit}%`].map((v) => Object.assign(document.createElement('span'), { textContent: v })));
-      return row;
+    fightRows($('aionLiveRows'), s.players, 'live');
+  }
+  // past fights, newest first: each opens to its players, and a player to their skills
+  let aionHist = [];
+  function renderAionHist() {
+    $('aionHistBox').hidden = !aionHist.length;
+    $('aionHist').replaceChildren(...aionHist.slice(0, 30).map((f) => {
+      const box = document.createElement('details'), sum = document.createElement('summary'), rows = document.createElement('div'), key = String(f.at);
+      const best = f.players.find((p) => p.me) || f.players[0];
+      sum.textContent = `${new Date(f.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${f.target || 'Target'} · ${fightClock(f.secs)}${f.killed ? ' · killed' : ''}${best ? ` · ${best.name} ${bigNum(best.dps)}/s` : ''}`;
+      rows.className = 'alrows';
+      box.addEventListener('toggle', () => { if (box.open) fightRows(rows, f.players, key); });
+      box.append(sum, rows);
+      return box;
     }));
   }
+
   async function aionLiveSet() {
     if (!client || !client.aionLive) { $('optAionLive').checked = false; return aionLiveNote(client ? 'Comes with the next app update.' : ''); }
     const r = await client.aionLive(opts.aionLive, opts.aionParty);
@@ -6207,6 +6282,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   });
   $('optAionParty').addEventListener('change', (e) => { opts.aionParty = e.target.checked; saveOpts(); if (opts.aionLive) aionLiveSet(); });
   if (client && client.on) client.on('aion-live', (s) => { aionFight = s; renderAionLive(); if (aionCard) pushOverlay(); });
+  if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); renderAionHist(); });
+  if (client && client.aionFights) client.aionFights().then((l) => { aionHist = Array.isArray(l) ? l : []; renderAionHist(); });
   if (opts.aionLive) aionLiveSet();
   // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
   // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting, over
@@ -14046,7 +14123,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [106, 'November 2: Aion 2 live fight', [
-      'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
+      'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. Damage over time and pets count for their owner. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
+      'Click a player to see their top skills, by name for your party. Past fights keeps every boss kill and longer fight on this PC to look back on.',
+      'Your party: each member’s class, level, item level, combat power, server and gear, from NC’s own character pages.',
     ]],
     [105, 'November 2: a new look', [
       'Premade has a new look: a calmer menu down the left with your name and a mic button at the bottom, and League still at its foot with its pages as tabs along the top. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
@@ -14618,7 +14697,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
         'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
-      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
+      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, and your party’s class, level, item level, combat power and gear. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
         'Aion 2 page, Live fight.', '#optAionLive', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],

@@ -10,7 +10,11 @@
 //   0x8D00 HP: varint entity, varint 2, varint, varint, u64 HP
 //   0x3645 a character in view, 0x3633 your own: varint entity, 5 bytes, u8 length, name
 //   0x8A33 a name on entering a zone: varint entity, u64, u8 length, name
-//   0x9702 your party: length-prefixed strings, the party's title (if any) and each member's name
+//   0x3805 damage over time: varint target, u8 0x0A, varint source, varint, u32 skill, varint damage
+//   0x3641 a mob or summon in view: varint entity ... 8 x 0xFF, 8 bytes, varint owner (itself for a mob)
+//   0x9702 your party: per member u16 server, u8 length, name, u32 class, u32 level, u32 item level (a party title,
+//          if any, comes first as a plain length-prefixed string)
+// Skill codes are the skill's id plus its level and variant: 16370001 is skill 16370000; a tick's 1637000011 too.
 const { execFile } = require('child_process');
 
 class Reader {
@@ -82,6 +86,7 @@ function unbundle(list, out = [], depth = 0) {
   return out;
 }
 
+const FF8 = Buffer.alloc(8, 255);
 const nameAt = (b, o) => { const n = b[o]; if (!(n >= 2 && n <= 32) || o + 1 + n > b.length) return ''; const s = b.subarray(o + 1, o + 1 + n).toString('utf8'); return /^[^\x00-\x1f\ufffd]+$/.test(s) ? s : ''; };
 function decode(op, p) {
   const r = new Reader(p);
@@ -95,6 +100,21 @@ function decode(op, p) {
     if (flags & 2) { r.u8(); r.varint(); r.u8(); }
     r.skip(8); r.varint();
     return { k: 'hit', target, source, skill, crit: type === 3, damage: r.varint() };
+  }
+  if (op === 0x3805) {
+    const target = r.varint();
+    if (r.u8() !== 0x0a) return null;
+    const source = r.varint();
+    r.varint();
+    const skill = r.b.readUInt32LE(r.o); r.skip(4);
+    return { k: 'hit', target, source, skill, crit: false, damage: r.varint(), dot: true };
+  }
+  if (op === 0x3641) {
+    const id = r.varint(), i = p.indexOf(FF8);
+    if (i < 0) return null;
+    r.o = i + 16;
+    const owner = r.varint();
+    return owner !== id ? { k: 'summon', id, owner } : null;
   }
   if (op === 0x8d00) {
     const id = r.varint();
@@ -110,10 +130,18 @@ function decode(op, p) {
   }
   if (op === 0x8a33) { const id = r.varint(); r.skip(8); const name = nameAt(p, r.o); return name ? { k: 'name', id, name } : null; }
   if (op === 0x9702) {
-    const names = [];
-    for (let o = 0; o < p.length; o++) { const s = nameAt(p, o); if (s && /^[\p{L}\p{N}$#_.-]+$/u.test(s)) { names.push(s); o += s.length; } }
-    return { k: 'party', names: names.slice(0, 8) }; // a one-word party title can come along: no player has it
+    const members = [];
+    for (let o = 2; o < p.length; o++) {
+      const s = nameAt(p, o), end = o + 1 + Buffer.byteLength(s);
+      if (!s || end + 12 > p.length) continue;
+      const server = p.readUInt16LE(o - 2), cls = p.readUInt32LE(end), level = p.readUInt32LE(end + 4), il = p.readUInt32LE(end + 8);
+      if (server < 1000 || server > 9999 || !(level >= 1 && level <= 99) || cls > 99 || il > 99999) continue; // the party's title
+      members.push({ name: s, server, cls, level, il });
+      o = end - 1;
+    }
+    return { k: 'party', names: members.map((m) => m.name), members: members.slice(0, 8) };
   }
+
   return null;
 }
 
@@ -156,19 +184,58 @@ class Stream {
 
 // The fight: the target hit the most in the last 15 s, with everyone's damage on it since it was first hit
 class Fight {
-  constructor() { this.names = new Map(); this.party = new Set(); this.me = ''; this.hp = new Map(); this.targets = new Map(); this.last = null; }
+  constructor() { this.names = new Map(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
   add(e, now) {
     if (e.k === 'name') { this.names.set(e.id, e.name); if (e.me) this.me = e.name; return; }
-    if (e.k === 'party') { this.party = new Set(e.names); return; }
+    if (e.k === 'party') { this.party = new Set(e.names); this.members = e.members || []; return; }
+    if (e.k === 'summon') { this.summons.set(e.id, e.owner); if (this.summons.size > 5000) this.summons.clear(); return; }
     if (e.k === 'hp') { const h = this.hp.get(e.id) || { max: 0 }; h.hp = e.hp; h.max = Math.max(h.max, e.hp); h.at = now; this.hp.set(e.id, h); return; }
-    if (e.k !== 'hit' || e.source === e.target) return;
+    if (e.k !== 'hit') return;
+    const source = this.summons.get(e.source) ?? e.source; // a pet's or summon's damage is its owner's
+    if (source === e.target) return;
     let t = this.targets.get(e.target);
     if (!t || now - t.lastAt > 30e3) this.targets.set(e.target, (t = { id: e.target, firstAt: now, lastAt: now, recent: [], by: new Map() }));
     t.lastAt = now;
     t.recent.push([now, e.damage]);
-    let s = t.by.get(e.source);
-    if (!s) t.by.set(e.source, (s = { id: e.source, damage: 0, hits: 0, crits: 0, firstAt: now }));
-    s.damage += e.damage; s.hits++; if (e.crit) s.crits++; s.lastAt = now;
+    let s = t.by.get(source);
+    if (!s) t.by.set(source, (s = { id: source, damage: 0, hits: 0, crits: 0, firstAt: now, skills: new Map() }));
+    s.damage += e.damage; s.lastAt = now;
+    if (!e.dot) { s.hits++; if (e.crit) s.crits++; } // ticks aren't hits: crit % stays per hit, as in Abyss
+    const code = e.skill >= 1e9 ? Math.floor(e.skill / 100) : e.skill; // ticks carry the code times 100
+    const id = Math.floor(code / 10000) * 10000, k = s.skills.get(id) || { id, damage: 0, hits: 0 };
+    k.damage += e.damage; k.hits++; s.skills.set(id, k);
+  }
+  // one fight's numbers: everyone on target t (or your party only), each with their top skills
+  numbers(t, partyOnly) {
+    const secs = Math.max(1, (t.lastAt - t.firstAt) / 1000);
+    const name = (id) => this.names.get(id) || '';
+    const inParty = (p) => this.party.has(name(p.id)) || (!!this.me && name(p.id) === this.me);
+    let players = [...t.by.values()];
+    if (partyOnly && this.party.size) players = players.filter(inParty);
+    const total = players.reduce((a, p) => a + p.damage, 0) || 1;
+    const h = this.hp.get(t.id);
+    return {
+      secs: Math.round(secs), target: name(t.id),
+      hp: h ? h.hp : null, pct: h && h.max ? Math.round((h.hp / h.max) * 1000) / 10 : null,
+      players: players.sort((a, b) => b.damage - a.damage).slice(0, 12).map((p) => ({
+        name: name(p.id) || `Player ${p.id}`, me: !!this.me && name(p.id) === this.me, party: inParty(p), damage: p.damage,
+        dps: Math.round(p.damage / secs), share: Math.round((p.damage / total) * 1000) / 10, crit: p.hits ? Math.round((p.crits / p.hits) * 100) : 0,
+        skills: [...p.skills.values()].sort((a, b) => b.damage - a.damage).slice(0, 8).map((k) => ({ id: k.id, damage: k.damage, hits: k.hits, share: Math.round((k.damage / (p.damage || 1)) * 1000) / 10 })),
+      })),
+    };
+  }
+  // fights that just ended, for the history: a boss killed, or 20 s or more of fighting that stopped 30 s ago
+  finished(now, partyOnly) {
+    const out = [];
+    for (const t of this.targets.values()) {
+      if (t.saved) continue;
+      const killed = (this.hp.get(t.id) || {}).hp === 0, secs = (t.lastAt - t.firstAt) / 1000;
+      if (!(killed ? now - t.lastAt > 3e3 && secs >= 10 : now - t.lastAt > 30e3 && secs >= 20)) continue;
+      t.saved = true;
+      const n = this.numbers(t, partyOnly);
+      if (n.players.length) out.push({ ...n, killed, at: Date.now() - (now - t.firstAt) });
+    }
+    return out;
   }
   snapshot(now, partyOnly) {
     let best = null, most = 0;
@@ -181,23 +248,9 @@ class Fight {
     const dead = this.last && (this.hp.get(this.last.id) || {}).hp === 0 && now - this.last.lastAt < 15e3;
     if (best && !dead) this.last = best; // a fight just won stays up 15 s, before the trash mobs after it
     const t = this.last;
-    if (!t) return null;
-    const secs = Math.max(1, (t.lastAt - t.firstAt) / 1000);
-    const name = (id) => this.names.get(id) || '';
-    let players = [...t.by.values()];
-    const inParty = (p) => this.party.has(name(p.id)) || (!!this.me && name(p.id) === this.me);
-    if (partyOnly && this.party.size) players = players.filter(inParty);
-    const total = players.reduce((a, p) => a + p.damage, 0) || 1;
-    const h = this.hp.get(t.id);
-    return {
-      active: now - t.lastAt < 15e3, secs: Math.round(secs), target: name(t.id),
-      hp: h ? h.hp : null, pct: h && h.max ? Math.round((h.hp / h.max) * 1000) / 10 : null,
-      players: players.sort((a, b) => b.damage - a.damage).slice(0, 12).map((p) => ({
-        name: name(p.id) || `Player ${p.id}`, me: !!this.me && name(p.id) === this.me, party: inParty(p), damage: p.damage,
-        dps: Math.round(p.damage / secs), share: Math.round((p.damage / total) * 1000) / 10, crit: Math.round((p.crits / p.hits) * 100),
-      })),
-    };
+    return { members: this.members, ...(t && { active: now - t.lastAt < 15e3, ...this.numbers(t, partyOnly) }) };
   }
+
 }
 
 // ---- capture (Windows): Npcap's wpcap.dll through koffi, polled without blocking; the game's connections are found
@@ -267,7 +320,11 @@ function start(onSnapshot, opts = {}) {
       s.push(b.readUInt32BE(t + 4), b.subarray(t + (b[t + 12] >> 4) * 4, end), !!(b[t + 13] & 2));
     }
   };
-  const timers = [setInterval(poll, 20), setInterval(look, 5000), setInterval(() => onSnapshot(conns.length ? fight.snapshot(Date.now(), opts.partyOnly !== false) : { off: 'game' }), 500)];
+  const timers = [setInterval(poll, 20), setInterval(look, 5000), setInterval(() => {
+    const now = Date.now();
+    onSnapshot(conns.length ? fight.snapshot(now, opts.partyOnly !== false) : { off: 'game' });
+    if (opts.onFight) for (const f of fight.finished(now, opts.partyOnly !== false)) opts.onFight(f);
+  }, 500)];
   return { stop() { timers.forEach(clearInterval); for (const x of handles) close(x.h); handles.length = 0; }, set partyOnly(v) { opts.partyOnly = v; } };
 }
 
