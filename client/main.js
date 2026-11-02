@@ -393,6 +393,17 @@ ipcMain.on('attenuate', (e, by) => {
 `);
 });
 if (process.platform === 'win32' && fs.existsSync(path.join(app.getPath('temp'), 'premade-volume.txt')) && volumeHelper()) volume.stdin.end();
+// ---- Aion 2 live fight (Aion 2 page, off until turned on past its ban warning): client/aionlive.js reads the game's
+// traffic through Npcap and the fight goes to the page twice a second. 'npcap' when Npcap isn't installed.
+let aionLive = null;
+ipcMain.handle('aion-live', (e, on, partyOnly) => {
+  if (!fromSite(e) || process.platform !== 'win32') return 'error';
+  if (!on) { if (aionLive) aionLive.stop(); aionLive = null; return 'off'; }
+  if (aionLive) { aionLive.partyOnly = !!partyOnly; return 'on'; }
+  if (!fs.existsSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'Npcap', 'wpcap.dll'))) return 'npcap';
+  try { aionLive = require('./aionlive').start((s) => { if (win && !win.isDestroyed()) win.webContents.send('aion-live', s); }, { partyOnly: !!partyOnly }); return 'on'; }
+  catch (err) { console.error('aion live:', err.message); return 'error'; }
+});
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 // ---- RE4 co-op page: re4-helper.exe (client/re4) reads Tailscale, the firewall, game and saves without admin, backs
 // up saves, starts RE4, switches the co-op mod, sets the PC up to host, makes invites and joins a host (it asks Windows

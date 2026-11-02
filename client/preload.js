@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   withLeague: (on) => ipcRenderer.invoke('with-league', typeof on === 'boolean' ? on : undefined),
   ducking: () => ipcRenderer.invoke('ducking'),
   soundSettings: () => ipcRenderer.send('sound-settings'),
+  aionLive: (on, partyOnly) => ipcRenderer.invoke('aion-live', !!on, !!partyOnly),
   attenuate: (by) => ipcRenderer.send('attenuate', +by || 0),
   re4: (what, arg) => ipcRenderer.invoke('re4', String(what), arg == null ? '' : String(arg)),
   recordingsFolder: () => ipcRenderer.send('recordings-folder'),
@@ -46,5 +47,5 @@ contextBridge.exposeInMainWorld('lpcClient', {
   controlStop: () => ipcRenderer.send('control-stop'),
   controlInput: (m) => ipcRenderer.send('control-input', m),
   point: (m) => ipcRenderer.invoke('point', m),
-  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

@@ -127,7 +127,16 @@ main > :is(#msg, #lolNote):not(:empty) { margin-top: 16px; }
 .prohead:first-child { margin-top: 18px; } /* Profile: its own head, no page head above it */
 .view { display: grid; gap: 18px; align-content: start; }
 /* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
-.view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
+.view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
+/* Aion 2 live fight: its switch, then the boss's HP and each player's damage on it */
+#aionLiveBox .alhp { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+#aionLiveBox .alhp > i { display: block; height: 100%; background: var(--bad); }
+#aionLiveRows { display: grid; gap: 4px; font-size: 13px; }
+#aionLiveRows .alrow { display: grid; grid-template-columns: minmax(0, 1fr) 6em 4em 3.5em; gap: 10px; align-items: center; position: relative; padding: 3px 6px; border-radius: 4px; overflow: hidden; }
+#aionLiveRows .alrow > i { position: absolute; inset: 0 auto 0 0; background: var(--line); z-index: 0; }
+#aionLiveRows .alrow > span { position: relative; text-align: right; font-family: var(--mono); }
+#aionLiveRows .alrow > span:first-of-type { text-align: left; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#aionLiveRows .alrow[data-me] { font-weight: 600; }
 #aionFrame { width: 100%; height: 100%; min-height: calc(420px / var(--zoom, 1)); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
@@ -1925,6 +1934,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
     <section class="view" data-view="aion" aria-label="Aion 2" hidden>
       <header class="pagehead"><div><h1 class="title">Aion 2</h1><p class="sub">Your group tracker: characters, gear and Abyss fights.</p></div></header>
+      <section id="aionLiveBox" class="panel pc-only" aria-labelledby="h-aionlive">
+        <h2 id="h-aionlive" class="ph">Live fight</h2>
+        <label class="check"><input id="optAionLive" type="checkbox"> Show damage and boss HP live while I fight <button class="tip" type="button" popovertarget="t-aionlive" aria-label="About live fight">?</button></label>
+        <p class="hint">Ban risk: this reads Aion 2’s traffic, as Abyss DPS Meter does. NC’s rules allow banning accounts for programs like this, so it’s off until you turn it on.</p>
+        <label class="check"><input id="optAionParty" type="checkbox"> Only my party</label>
+        <p id="aionLiveNote" class="hint" role="status"></p>
+        <div id="aionLiveFight" hidden>
+          <div class="toolbar"><strong id="aionLiveTarget"></strong><span id="aionLiveInfo" class="hint"></span></div>
+          <div class="alhp"><i id="aionLiveHp"></i></div>
+          <div id="aionLiveRows"></div>
+        </div>
+      </section>
       <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
     </section>
 
@@ -2102,6 +2123,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 80, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-atten" class="tipbox" popover>Like Discord’s attenuation: while a friend you can hear is talking, every other app’s sound, your game too, goes down by this much, and back up a second after they stop. Unlike Windows’ own setting it only happens while someone talks. Desktop app only.</div>
+<div id="t-aionlive" class="tipbox" popover>While Aion 2 runs, the desktop app reads the game’s messages to this PC (with Npcap, which Abyss DPS Meter installs), never the game itself: everyone’s damage, DPS and crits on what you fight, and the boss’s HP. Names show as players come into view. It’s the same thing damage meters like Abyss do, and NC’s rules can ban accounts for it, so use it at your own risk. Also on the overlay’s Aion 2 card.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't. Or press Set the gate for me and stay quiet for 3 seconds: it listens to your room and puts the gate just above its noise.</div>
 <div id="t-out" class="tipbox" popover>Where everyone's voices come out. Using Wave Link? Pick its Voice Chat channel here, the same way you would in Discord.</div>
 <div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
@@ -2194,7 +2216,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -4958,7 +4980,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // it until it's pressed again (overlayHide); in a game it first shows everyone's rank (boardKey); out of a League game,
   // for those who play Aion 2, it shows or hides the Aion 2 card (aionCard: what the tracker last wrote, lpc-aion-card).
   let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false, aionCard = false;
-  const aionLines = () => { const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
+  const aionLines = () => {
+    const f = aionFight && aionFight.players && opts.aionLive ? aionFight : null; // the live fight first, while it's on
+    if (f) return [`${f.target || 'Fight'}${f.pct != null ? ` ${f.pct}%` : ''} · ${fightClock(f.secs)}`, ...f.players.slice(0, 5).map((p) => `${p.name} ${bigNum(p.dps)}/s ${p.share}%`)];
+    const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
   addEventListener('storage', (e) => { if (e.key === 'lpc-aion-card' && aionCard) pushOverlay(); }); // every 30 s from its page
   const chats = []; // the last few chat messages, for the overlay
   function pushOverlay() {
@@ -6131,6 +6156,58 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const AION_URL = 'https://rayn16.github.io/aion2-tracker/?embed';
   window.aionNotify = (text) => { notify(String(text), true); if (client && client.notify) client.notify('Aion 2', String(text)); };
   if (store.get('lpc-aion')) setTimeout(() => { if (!$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL; }, 5000);
+  // ---- Aion 2 live fight (desktop app 1.34): client.aionLive turns client/aionlive.js on, which reads the game's
+  // traffic through Npcap, and the fight comes back twice a second. Off until you turn it on past the ban warning.
+  let aionFight = null;
+  const bigNum = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
+  const fightClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const aionLiveNote = (text) => { $('aionLiveNote').textContent = text; };
+  function renderAionLive() {
+    const s = aionFight;
+    $('aionLiveFight').hidden = !s || !s.players;
+    if (!s || !opts.aionLive) return;
+    if (s.off) return aionLiveNote('Waiting for Aion 2…');
+    if (!s.players) return aionLiveNote('On. Fight something in Aion 2.');
+    aionLiveNote(s.active ? '' : 'Last fight:');
+    $('aionLiveTarget').textContent = s.target || 'Target';
+    $('aionLiveInfo').textContent = `${fightClock(s.secs)}${s.hp != null ? ` · HP ${bigNum(s.hp)}${s.pct != null ? ` (${s.pct}%)` : ''}` : ''}`;
+    $('aionLiveHp').style.width = `${s.pct ?? 0}%`;
+    const top = Math.max(1, ...s.players.map((p) => p.dps));
+    const head = document.createElement('div');
+    head.className = 'alrow hint';
+    head.append(...['Player', 'DPS', 'Share', 'Crit'].map((v) => Object.assign(document.createElement('span'), { textContent: v })));
+    $('aionLiveRows').replaceChildren(head, ...s.players.map((p) => {
+      const row = document.createElement('div'), bar = document.createElement('i');
+      row.className = 'alrow';
+      if (p.me) row.dataset.me = '';
+      bar.style.width = `${(p.dps / top) * 100}%`;
+      row.append(bar, ...[p.name, `${bigNum(p.dps)}/s`, `${p.share}%`, `${p.crit}%`].map((v) => Object.assign(document.createElement('span'), { textContent: v })));
+      return row;
+    }));
+  }
+  async function aionLiveSet() {
+    if (!client || !client.aionLive) { $('optAionLive').checked = false; return aionLiveNote(client ? 'Comes with the next app update.' : ''); }
+    const r = await client.aionLive(opts.aionLive, opts.aionParty);
+    if (opts.aionLive && r !== 'on') {
+      opts.aionLive = $('optAionLive').checked = false;
+      saveOpts();
+      return aionLiveNote(r === 'npcap' ? 'Npcap isn’t installed: Abyss DPS Meter installs it, or get it from npcap.com.' : 'Couldn’t start reading Aion 2’s traffic on this PC.');
+    }
+    aionFight = null;
+    renderAionLive();
+    aionLiveNote(opts.aionLive ? 'On. Fight something in Aion 2.' : '');
+  }
+  $('optAionLive').checked = !!opts.aionLive && !!client && !!client.aionLive;
+  $('optAionParty').checked = opts.aionParty;
+  $('optAionLive').addEventListener('change', (e) => {
+    if (e.target.checked && !confirm('Live fight reads Aion 2’s traffic, the way damage meters like Abyss DPS Meter do. NC’s rules allow banning accounts for programs like this. Turn it on at your own risk?')) { e.target.checked = false; return; }
+    opts.aionLive = e.target.checked;
+    saveOpts();
+    aionLiveSet();
+  });
+  $('optAionParty').addEventListener('change', (e) => { opts.aionParty = e.target.checked; saveOpts(); if (opts.aionLive) aionLiveSet(); });
+  if (client && client.on) client.on('aion-live', (s) => { aionFight = s; renderAionLive(); if (aionCard) pushOverlay(); });
+  if (opts.aionLive) aionLiveSet();
   // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
   // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting, over
   // Tailscale. The host shares their PC in Tailscale and puts the share link in an invite for each friend; the app link
@@ -13968,6 +14045,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [106, 'November 2: Aion 2 live fight', [
+      'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
+    ]],
     [105, 'November 2: a new look', [
       'Premade has a new look: a calmer menu down the left with your name and a mic button at the bottom, and League still at its foot with its pages as tabs along the top. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
       'Ticks are now switches, green when on. All seven themes, Custom included, get the new look.',
@@ -14538,6 +14618,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
         'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
+      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
+        'Aion 2 page, Live fight.', '#optAionLive', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
