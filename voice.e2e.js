@@ -358,7 +358,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(shut < 0.01 && open > 0.05, 'gate cuts the mic');
     await ben.$eval('#gate', (el) => { el.value = 0.12; el.dispatchEvent(new Event('input')); });
 
-    // studio voice: Ana's mic without the browser's processing, sent at 96 kbps; off again, back to WebRTC's own rate
+    // in a room (no positions) voices come straight, without 3D sound's filter, which muffled them (What's new 103)
+    assert.strictEqual((await ben.evaluate((id) => lpc.panner(id), anaId)).model, 'equalpower', 'a room voice without 3D sound');
+    // studio voice: Ana's mic without the browser's processing, sent at 96 kbps; off again, back to 80 kbps
     const bitrate = async (ok, what) => {
       for (let i = 0; i < 50; i++, await ana.waitForTimeout(200)) { const b = await ana.evaluate((id) => lpc.bitrate(id), benId); if (ok(b)) return b; }
       throw new Error('timed out waiting for ' + what);
@@ -367,7 +369,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const studio = await bitrate((b) => b.max === 96000 && b.target === 96000 && b.mic.echoCancellation === false && b.mic.autoGainControl === false, 'Ana\'s studio voice at 96 kbps');
     console.log(`studio voice: sent at ${studio.target / 1000} kbps, mic ${JSON.stringify(studio.mic)}`);
     await ana.$eval('#optStudio', (el) => el.click());
-    const normal = await bitrate((b) => b.max === 0 && b.target > 0 && b.target < 96000 && b.mic.echoCancellation === true, 'Ana\'s studio voice off');
+    const normal = await bitrate((b) => b.max === 80000 && b.target === 80000 && b.mic.echoCancellation === true, 'Ana\'s studio voice off, at 80 kbps');
     console.log(`studio voice off: ${normal.target / 1000} kbps`);
     await hears(ben, ['Ana'], 1, 'Ben still hears Ana after her mic reopened');
 
@@ -417,7 +419,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert((await ana.evaluate(() => lpc.checks().weak)).some(([n, weak]) => n === 'Ben' && weak), 'Ben’s connection marked weak');
     await ana.evaluate(() => { window.fakeLoss = 0; });
     for (let i = 0; i < 3; i++) await ana.evaluate(() => lpc.health());
-    await bitrate((b) => b.max === 0, 'Ana back to the full rate for Ben');
+    await bitrate((b) => b.max === 80000, 'Ana back to the full rate for Ben');
     assert.strictEqual(await ana.evaluate((id) => lpc.callId(id), benId), callWas, 'the same call all along');
     await ana.evaluate(() => { window.fakeLoss = null; });
     console.log('auto voice quality: 16 kbps to Ben while Ben lost 20% of Ana’s voice, the full rate after three clean checks, on the same call');
@@ -1158,7 +1160,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await bo.click('#micTest');
     await waitFor(bo, () => lpc.raw() && lpc.toasts().some((t) => /^Premade now uses Fake Audio Input 1 as your mic: your Bluetooth headset’s own mic/.test(t)), null, 'Bo’s other mic used');
     assert(await bo.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; return t.label === 'Fake Audio Input 1' && localStorage.getItem('lpc-mic') === t.getSettings().deviceId && !lpc.checks().bt; }), 'Bo’s mic is the other one, kept as Bo’s pick');
-    await waitFor(bo, () => lpc.toasts().includes('Windows is set to turn every other sound down by 80% while you’re in voice chat, your game too. Voice settings, Microphone can turn that off.') && !document.getElementById('duckNote').hidden, null, 'Bo told about Windows turning sounds down');
+    await waitFor(bo, () => lpc.toasts().includes('Windows is set to turn every other sound down by 80% while you’re in voice chat, your game too, and it can make your friends’ voices quiet as well. Voice settings, Microphone can turn that off.') && !document.getElementById('duckNote').hidden, null, 'Bo told about Windows turning sounds down');
     await bo.click('#duckFix');
     assert(await bo.evaluate(() => lpcClient.calls.some((c) => c[0] === 'sound-settings')), 'Open opens Windows’ Communications setting');
     await bo.evaluate(() => { window.duck = 3; window.dispatchEvent(new Event('focus')); }); // Bo picked Do nothing
