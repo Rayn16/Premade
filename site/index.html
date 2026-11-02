@@ -1825,7 +1825,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div class="toolbar"><button id="setupAgain" class="btn" type="button">Run setup again</button><button id="installBtn" class="btn browser-only" type="button" hidden>Install as an app</button></div>
           <p class="hint phone-only">On a phone, keep Premade on your home screen: Share, then Add to Home Screen on an iPhone, or ⋮, then Add to home screen on Android.</p>
           <p class="hint browser-only pc-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
-          <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
+          <p class="hint client-only">Version <span id="appVersion"></span> <button id="updateBtn" class="btn small" type="button" hidden></button>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, voice name and app version</label>
@@ -2283,6 +2283,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let leagueAt = 0;     // when League's data last came, for the game clock in between (gameNow)
   let lcu = null;       // where League's client is (its gameflow phase, desktop app 1.5+): null not known, '' League isn't running
   let stWas = '';       // your status as last sent (statusTick)
+  let appUpdate = '';   // the app's own update: '', 'getting' (downloading after Update was clicked) or 'ready'
   let latest = '';      // the newest app version, from the site's latest.yml (the version check)
 
   const say = (text) => { $('msg').textContent = text || ''; };
@@ -2640,6 +2641,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('sbTrackText').textContent = trackText();
     $('sbLeague').textContent = !league ? `League: ${lcu ? STATUS[PHASES[lcu] || 'client'][1].toLowerCase() : 'no game'}` : `League: ${(league.me && (league.me.champName || league.me.champ)) || 'in game'}${mine.dead ? ', dead' : ''}`;
     $('sbVersion').textContent = myVersion();
+    const upd = appUpdate === 'ready' || (client && client.update && client.version && latest && newer(latest, client.version));
+    for (const b of [$('restartBtn'), $('updateBtn')]) { b.hidden = !upd; b.textContent = appUpdate === 'ready' ? 'Update ready: restart' : appUpdate === 'getting' ? 'Downloading the update…' : `Update to ${latest}`; b.disabled = appUpdate === 'getting'; }
     $('railMic').dataset.state = mb.dataset.state; // the rail's foot: your name and the same mic button
     $('railMicText').textContent = mb.lastChild.textContent;
     $('railName').textContent = myName || 'Player';
@@ -13981,8 +13984,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (client) {
     $('appVersion').textContent = client.version || '1.2 or older';
     $('getNew').hidden = !!client.update;
-    client.on('update', () => { $('restartBtn').hidden = false; notify('An app update is ready. Restart the app to use it, or it installs when you quit.', true); });
-    $('restartBtn').addEventListener('click', () => client.update());
+    client.on('update', (u) => {
+      if (u && u.error) { if (appUpdate === 'getting') { appUpdate = ''; notify(`The update didn't download: ${u.error}. Try again in a bit, or get the installer from the site.`, true); render(); } return; }
+      appUpdate = 'ready'; render(); notify('An app update is ready. Restart the app to use it, or it installs when you quit.', true);
+    });
+    // Update: installs a downloaded update; 1.34.1 and later fetch it right away, older apps fetch it when they start
+    const update = () => {
+      if (appUpdate === 'ready' || !newer('1.34.1', client.version)) { client.update(); if (appUpdate !== 'ready') { appUpdate = 'getting'; render(); } }
+      else notify(`Close Premade and open it again: it fetches ${latest} as it starts, and this button then says Update ready.`, true);
+    };
+    $('restartBtn').addEventListener('click', update);
+    $('updateBtn').addEventListener('click', update);
   }
   // Test version first: the site's test/ folder gets page changes before everyone else. The page's address is the
   // switch, and the app (1.13 and later) opens the same copy next time.
@@ -14142,6 +14154,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [107, 'November 2: an Update button', [
+      'Desktop app 1.34.1: when a new version is out, Settings, App and the status bar have an Update button. It downloads the update right away instead of at the app’s next check, then restarts into it.',
+    ]],
     [106, 'November 2: Aion 2 live fight', [
       'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. Damage over time and pets count for their owner. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
       'Click a player to see their top skills, by name for your party. Past fights keeps every boss kill and longer fight on this PC to look back on.',
@@ -14758,7 +14773,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The last 500 lines, kept in memory only.',
         'Settings, App: Copy connection log, right after a drop, then paste it to whoever builds the app.', '#connLogBtn'],
       ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
-        'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
+        'Nothing to set up. When a new version is out, Update to it in Settings, App, or in the status bar.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],

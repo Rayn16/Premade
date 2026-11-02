@@ -628,11 +628,12 @@ function checkUpdates() {
   if (!app.isPackaged) return;
   const { autoUpdater } = require('electron-updater');
   autoUpdater.on('update-downloaded', (info) => { updateReady = { version: info.version }; if (!win.isDestroyed()) win.webContents.send('update', updateReady); });
-  autoUpdater.on('error', (err) => console.error('update:', err.message));
+  autoUpdater.on('error', (err) => { console.error('update:', err.message); if (!win.isDestroyed()) win.webContents.send('update', { error: err.message }); });
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   check();
   setInterval(check, 4 * 3600e3);
-  ipcMain.on('update', (e) => { if (fromSite(e) && updateReady) autoUpdater.quitAndInstall(true, true); });
+  // the page's Update button: installs a downloaded update, or (app 1.34.1) fetches one now instead of at the next 4-hour check
+  ipcMain.on('update', (e) => { if (!fromSite(e)) return; if (updateReady) autoUpdater.quitAndInstall(true, true); else check(); });
 }
 
 // ---- a match found (Pregame settings): the window in front of League's client. Windows hands the keyboard only to
