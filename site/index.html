@@ -77,31 +77,56 @@ a { color: var(--link); }
    .app, whose width shrinks as the page zooms in */
 :root { zoom: var(--zoom, 1); }
 .app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100%; container: app / inline-size; }
-.rail { grid-area: rail; display: flex; flex-direction: column; gap: 4px; width: 196px; padding: 14px 10px; background: var(--panel); border-right: 1px solid var(--gold-line); overflow-y: auto; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 18px; font: 700 14px/1.15 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
-.brand img { width: 34px; height: 34px; border-radius: 6px; flex: none; }
-.nav { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); font: 600 12.5px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; text-align: left; cursor: pointer; }
-.nav svg { width: 20px; height: 20px; flex: none; }
+/* the rail: Premade's own sections, then League's, and you with your mic at its foot */
+.rail { grid-area: rail; display: flex; flex-direction: column; gap: 2px; width: 212px; padding: 0 10px; background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; }
+.brand { display: flex; align-items: center; gap: 10px; flex: none; min-height: 64px; margin: 0 -10px 6px; padding: 0 18px; border-bottom: 1px solid var(--line); font: 700 17px/1 var(--display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-hi); }
+.brand img { display: none; }
+.rail .group { margin: 12px 8px 4px; font: 600 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.nav { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); font: 500 13.5px/1.2 var(--body); text-align: left; cursor: pointer; }
+.nav svg { width: 16px; height: 16px; flex: none; }
 .nav:hover { color: var(--fg); background: var(--raised); }
-.nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 18%, transparent), transparent); }
-/* League: one button at the foot of the rail; its pages are tabs along the top of main */
-.rail .league { margin-top: auto; border-color: var(--gold-line); }
+.nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: color-mix(in srgb, var(--gold) 10%, var(--raised)); box-shadow: inset 2px 0 var(--gold); }
+.nav[aria-current="page"] svg { color: var(--gold); }
+/* a phone: one League button in the bar along the bottom, its pages as tabs along the top of main */
+.rail .league { border-color: var(--gold-line); }
+.me-box { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin: auto -10px 0; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--panel); }
+.me-box .pic { width: 32px; height: 32px; font-size: 13px; border-width: 1px; }
+.me-id { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
+.me-id b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-id small { font-size: 11.5px; color: var(--good); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.micbtn { width: 32px; height: 32px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--good); cursor: pointer; }
+.micbtn svg { width: 16px; height: 16px; }
+.micbtn .slash { display: none; }
+.micbtn:hover { border-color: var(--gold-line); }
+.micbtn[data-state="muted"] { color: var(--bad); border-color: var(--bad); }
+.micbtn[data-state="muted"] .slash { display: inline; }
+.micbtn[data-state="talk"] { color: var(--talk); border-color: var(--talk); }
+.me-box:has([data-state="muted"]) small { color: var(--bad); }
+.me-box:has([data-state="ptt"]) small { color: var(--muted); }
 /* a phone (no screen sharing, see the top): the sections along the bottom like a phone app, their names kept for
    screen readers, and popups at the top, clear of them */
 .phone .app { grid-template: "main" minmax(0, 1fr) "chips" auto "bar" auto "rail" auto / minmax(0, 1fr); }
 .phone .rail { flex-direction: row; justify-content: space-around; width: auto; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--gold-line); overflow-x: auto; }
-.phone .rail .brand { display: none; }
+.phone .rail :is(.brand, .group, .me-box) { display: none; }
 .phone .rail .nav { justify-content: center; padding: 10px; }
 .phone .rail .nav span { display: block; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .phone .rail .league { margin-top: 0; }
 .phone .steps li:nth-child(3) { display: none; } /* setup has no screen check there */
-.ltabs { display: flex; flex-wrap: wrap; gap: 6px; max-width: 1320px; margin: 0 auto 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.ltabs { display: flex; flex-wrap: wrap; gap: 6px; max-width: 1320px; margin: 16px auto 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .ltabs .nav { padding: 8px 12px; }
-main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32px; }
+main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding: 0 var(--pad) 32px; }
+/* each page's head: its name and what it's for along the top, its main buttons on the right */
+.pagehead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; min-height: 64px; margin: 0 calc(-1 * var(--pad)); padding: 12px var(--pad); border-bottom: 1px solid var(--line); }
+.pagehead > div:first-child { display: grid; gap: 3px; flex: 1 1 320px; min-width: 0; }
+.pagehead .title { font-size: 23px; }
+.pagehead .sub { color: var(--muted); font-size: 13px; max-width: 80ch; }
+.pagehead .toolbar { gap: 8px; }
+main > :is(#msg, #lolNote):not(:empty) { margin-top: 16px; }
 .view, #msg, #lolNote { max-width: 1320px; margin-inline: auto; }
+.prohead:first-child { margin-top: 18px; } /* Profile: its own head, no page head above it */
 .view { display: grid; gap: 18px; align-content: start; }
 /* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
-.view[data-view="aion"] { max-width: none; height: 100%; align-content: stretch; }
+.view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
 #aionFrame { width: 100%; height: 100%; min-height: calc(420px / var(--zoom, 1)); border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 #msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--bad); color: var(--bad); font-size: 14px; }
 #msg:empty { display: none; }
@@ -109,15 +134,18 @@ main { grid-area: main; overflow: auto; padding: 22px clamp(16px, 3vw, 32px) 32p
 #lolNote:empty { display: none; }
 @container app (max-width: 760px) {
   .rail { width: auto; padding-inline: 6px; }
-  .brand span, .rail .nav span { display: none; }
-  .brand { padding-inline: 4px; }
+  .brand span, .rail .nav span, .rail .group, .me-id, .me-box .pic { display: none; }
+  .me-box { justify-content: center; padding-inline: 6px; }
+  .brand img { display: block; width: 26px; height: 26px; border-radius: 5px; }
+  .brand { justify-content: center; margin-inline: -6px; padding-inline: 4px; }
   .rail .nav { justify-content: center; padding: 10px; }
 }
 
 svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 14px; min-width: 0; align-content: start; }
-.title { font: 700 clamp(22px, 2.6vw, 30px)/1.15 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold-hi); }
-.ph { display: flex; align-items: center; gap: 8px; font: 600 12px/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 14px; min-width: 0; align-content: start; }
+.title { font: 700 clamp(22px, 2.6vw, 30px)/1.15 var(--display); letter-spacing: 0.04em; color: var(--gold-hi); }
+.ph { display: flex; align-items: center; gap: 8px; font: 700 13.5px/1.2 var(--display); letter-spacing: 0.06em; color: var(--gold-hi); }
+.panel > .ph:first-child { margin: -16px -16px 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--link); }
 .hint { color: var(--muted); font-size: 14px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -132,8 +160,8 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .re4steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: re4; }
 .re4steps li { counter-increment: re4; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--raised); }
 .re4steps li::before { content: counter(re4); font: 500 11px/1 var(--mono); color: var(--gold); margin-right: 8px; }
-.btn { font: 600 14px/1 var(--body); padding: 10px 16px; border-radius: 4px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--gold-hi); cursor: pointer; }
-.btn:hover { border-color: var(--gold); }
+.btn { font: 600 13.5px/1 var(--body); padding: 9px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); cursor: pointer; }
+.btn:hover { border-color: var(--gold-line); color: var(--gold-hi); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .btn.primary:hover { filter: brightness(1.1); }
 .btn.small { padding: 7px 12px; font-size: 13px; }
@@ -143,13 +171,19 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .who > .avoid { margin-left: auto; }
 .tags + .avoid { margin-top: 6px; }
 .btn:disabled { opacity: 0.6; cursor: default; }
-.field { display: grid; gap: 6px; font-weight: 500; }
-.field input, .codeform input, .chatform input, select { font: 15px/1.2 var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; }
+.field { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.field input, .codeform input, .chatform input, select { font: 14px/1.2 var(--body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; }
 input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
 :is(.btn, .nav, .sb, .tip, .screen, input, select, summary, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .range { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 14px; }
 .range output { font: 500 13px/1 var(--mono); color: var(--muted); min-width: 6.5em; text-align: right; }
 .check { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+/* ticks as switches, green when on */
+.check > input[type="checkbox"] { appearance: none; position: relative; flex: none; width: 32px; height: 18px; margin: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.check > input[type="checkbox"]::before { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform 0.15s, background 0.15s; }
+.check > input[type="checkbox"]:checked { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: color-mix(in srgb, var(--good) 22%, var(--raised)); }
+.check > input[type="checkbox"]:checked::before { transform: translateX(14px); background: var(--good); }
+.check > input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--muted); flex: none; }
 .dot[data-h="good"] { background: var(--good); }
 .dot[data-h="ok"] { background: var(--warn); }
@@ -162,21 +196,18 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
   .tipbox { position-anchor: --tip; inset: auto; top: anchor(bottom); left: anchor(left); margin: 8px 0 0; position-try-fallbacks: flip-block, flip-inline; }
 }
 
-/* the big join screen */
-.join { min-height: calc(72vh / var(--zoom, 1)); display: grid; place-items: center; }
-.joincard { width: min(460px, 100%); display: grid; gap: 18px; padding: 34px 28px; text-align: center; background: var(--panel); border: 1px solid var(--gold-line); border-radius: 10px; box-shadow: 0 24px 60px rgb(0 0 0 / 0.3); }
-.joincard img { width: 64px; height: 64px; margin: 0 auto; border-radius: 12px; }
+/* the lobby: Create room and a friend's code in the head, the open rooms below */
+.join { display: grid; gap: 18px; align-content: start; }
 .huge { font-size: 20px; padding: 18px 24px; letter-spacing: 0.04em; }
-.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
-.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
-.codeform { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
-.codeform input { font: 500 20px/1 var(--mono); letter-spacing: 0.2em; text-align: center; text-transform: uppercase; padding: 13px 10px; }
-.codeform .key { grid-column: 1 / -1; }
+.codeform { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.codeform input { font: 500 14px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; padding: 9px 10px; width: 10em; }
+.codeform .key { grid-column: 1 / -1; width: auto; }
+#openRoomsBox .toolbar { justify-content: flex-start; }
 
 /* the room: header, then the live map with the player cards beside it, then your tracking */
-.roomhead { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
-.roomid { display: grid; gap: 8px; }
-.code { font: 600 clamp(28px, 4vw, 40px)/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-hi); overflow-wrap: anywhere; }
+.roomhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.roomid { display: grid; gap: 6px; }
+.code { font: 600 clamp(22px, 3vw, 30px)/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-hi); overflow-wrap: anywhere; }
 .phase { padding: 10px 14px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--panel); font-size: 14px; }
 .phase[data-game="1"] { border-left-color: var(--good); }
 .voiceset { margin-top: 20px; }
@@ -228,7 +259,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .moderow > .hint { flex: 1 1 260px; }
 .ready { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ready th, .ready td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-.ready th { font: 600 12px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.ready th { font: 600 11px/1.2 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .ready .dot { margin-right: 6px; }
 .tablewrap { overflow-x: auto; }
 
@@ -311,7 +342,7 @@ fieldset.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax
 .sw::after { content: ""; position: absolute; right: 7px; bottom: 7px; width: 30%; height: 10px; border-radius: 3px; background: var(--accent); }
 
 /* status bar along the bottom, and the compact strip */
-.statusbar { grid-area: bar; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 5px 10px; background: var(--panel); border-top: 1px solid var(--gold-line); font-size: 13px; }
+.statusbar { grid-area: bar; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); font-size: 12.5px; }
 .sb { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--fg); font: 500 13px/1.2 var(--body); white-space: nowrap; }
 button.sb { cursor: pointer; }
 button.sb:hover { background: var(--raised); border-color: var(--line); }
@@ -319,6 +350,7 @@ button.sb:hover { background: var(--raised); border-color: var(--line); }
 .sb b { font: 500 13px/1 var(--mono); letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
 .sb .muted { color: var(--muted); }
 .grow { flex: 1; }
+:root:not(.phone) body:not(.compact) #muteBtn { display: none; } /* the rail's foot has it */
 #muteBtn .slash { display: none; }
 #muteBtn[data-state="muted"] { color: var(--bad); border-color: var(--bad); }
 #muteBtn[data-state="muted"] .slash { display: inline; }
@@ -525,10 +557,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
 /* Stats' tabs, trends, hall of fame, the champion collection and pages, patch changes and rank watch; matchup notes,
    and a report's laning and item timeline */
-.tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-.tab { padding: 8px 14px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); font: 600 14px/1 var(--body); cursor: pointer; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px 18px; border-bottom: 1px solid var(--line); }
+.tab { margin-bottom: -1px; padding: 10px 2px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: 600 13.5px/1 var(--body); cursor: pointer; }
 .tab:hover { color: var(--fg); }
-.tab[aria-selected="true"] { color: var(--gold); border-color: var(--gold-line); background: var(--raised); }
+.tab[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
 .trends { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
 .trends figure { margin: 0; display: grid; gap: 6px; }
 .chart .avg { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
@@ -776,6 +808,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div class="app">
   <nav class="rail" aria-label="Sections">
     <div class="brand"><img src="icon-192.png" alt=""><span>Premade</span></div>
+    <p class="group">Premade</p>
     <button class="nav" type="button" data-view="voice" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Rooms</span></button>
     <button class="nav" type="button" data-view="friends"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg><span>Friends</span></button>
     <button class="nav pc-only" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
@@ -784,20 +817,25 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav client-only" type="button" data-view="re4"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg><span>RE4 co-op</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
-    <button id="leagueNav" class="nav league" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>League</span></button>
+    <p class="group">League</p>
+    <button class="nav lol" type="button" data-view="prox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Proximity voice</span></button>
+    <button class="nav lol" type="button" data-view="profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
+    <button class="nav lol client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
+    <button class="nav lol client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
+    <button class="nav lol client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
+    <button class="nav lol" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
+    <button class="nav lol" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
+    <button class="nav lol lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
+    <button id="leagueNav" class="nav league phone-only" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>League</span></button>
+    <div class="me-box">
+      <span id="railPic" class="pic" aria-hidden="true"></span>
+      <span class="me-id"><b id="railName"></b><small id="railMicText"></small></span>
+      <button id="railMic" class="micbtn" type="button" title="Mute or unmute your mic" aria-label="Mute or unmute your mic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path class="slash" d="M4 4l16 16"/></svg></button>
+    </div>
   </nav>
 
   <main>
-    <nav id="leagueTabs" class="ltabs" aria-label="League" hidden>
-      <button class="nav" type="button" data-view="prox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Proximity voice</span></button>
-      <button class="nav" type="button" data-view="profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
-      <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
-      <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
-      <button class="nav client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
-      <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
-      <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
-      <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
-    </nav>
+    <nav id="leagueTabs" class="ltabs" aria-label="League" hidden></nav>
     <p id="msg" role="alert"></p>
     <p id="lolNote" role="status"></p>
 
@@ -899,17 +937,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
     <section class="view" data-view="voice" aria-label="Rooms">
       <div id="joinView" class="join">
-        <div class="joincard">
-          <img src="icon-192.png" alt="">
-          <h1 class="title">Premade</h1>
-          <button id="createBtn" class="btn primary huge" type="button">Create room</button>
-          <div class="or">or join with a code</div>
-          <form id="joinForm" class="codeform">
+        <header class="pagehead">
+          <div><h1 class="title">Rooms</h1><p class="sub">Hop in a room and your friends get louder as you walk up to them.</p></div>
+          <div class="toolbar">
+          <button id="createBtn" class="btn primary" type="button">Create room</button>
+          <form id="joinForm" class="codeform" aria-label="Have a code?">
             <input id="code" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Code" aria-label="Room code">
             <button id="joinBtn" class="btn">Join</button>
             <input id="key" class="key" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Password" aria-label="Room password" hidden>
           </form>
-          <section id="openRoomsBox" class="stack" aria-label="Open voice rooms">
+          </div>
+        </header>
+          <section id="openRoomsBox" class="panel" aria-label="Open voice rooms">
             <h2 class="ph">Open voice rooms</h2>
             <p id="openRoomsNote" class="hint">Looking for rooms…</p>
             <div class="toolbar"><label class="field">Find a room <input id="openRoomsSearch" type="search" autocomplete="off" placeholder="Code, players, or status" aria-label="Find an open room"></label><button id="refreshOpenRooms" class="btn small" type="button">Refresh</button></div>
@@ -918,12 +957,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <a id="appLink" class="btn browser-only pc-only" hidden>Open this room in the desktop app</a>
           <p id="autoNote" class="hint client-only">Or just start a game: you join your game's room by itself.</p>
           <p class="hint browser-only pc-only">On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a> for the in-game overlay, push to talk and League's own game data.</p>
-        </div>
       </div>
 
       <div id="roomView" hidden>
         <div class="view">
-          <header class="roomhead">
+          <header class="roomhead pagehead">
             <div class="roomid">
               <span class="eyebrow">Room <button class="tip" type="button" popovertarget="t-code" aria-label="About the room code">?</button></span>
               <h1 id="roomName" class="code"></h1>
@@ -1036,6 +1074,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </details>
     </section>
     <section class="view" data-view="friends" aria-label="Friends" hidden>
+      <header class="pagehead"><div><h1 class="title">Friends</h1><p class="sub">Who is around, and who you can drop in on right now.</p></div></header>
       <section id="groupBox" class="panel" aria-labelledby="h-group">
         <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
         <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button></div>
@@ -1063,6 +1102,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
     </section>
     <section class="view" data-view="prox" aria-label="Proximity voice" hidden>
+      <header class="pagehead"><div><h1 class="title">Proximity voice</h1><p class="sub">Friends in your game only hear you when your champions are close. Walk apart and the voices fade out on their own.</p></div></header>
       <p id="proxNote" class="hint">Join or create a room on Rooms first. Proximity voice works on the room you’re in: once a League game starts, you hear each other by where your champions are, and after it everyone hears everyone again.</p>
       <div id="proxRoom" class="view" hidden>
         <div class="toolbar">
@@ -1178,7 +1218,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="pregame" aria-label="Pregame" hidden>
-      <h1 class="title">Pregame</h1>
+      <header class="pagehead"><div><h1 class="title">Pregame</h1><p class="sub">The queue, the ready check and champ select: your team, picks, bans and runes.</p></div></header>
       <p id="preNote" class="phase" role="status"></p>
       <p id="winFix" class="hint" hidden>League is in Fullscreen, so the overlay can’t show over it. <button id="winFixBtn" class="btn small" type="button">Switch to Borderless</button></p>
       <section id="queueBox" class="panel" aria-labelledby="h-queue" hidden>
@@ -1331,7 +1371,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="game" aria-label="Game" hidden>
-      <h1 class="title">Game</h1>
+      <header class="pagehead"><div><h1 class="title">Game</h1><p class="sub">Everyone in your game, objective timers and the gold difference, then how you played.</p></div></header>
       <p id="lcuNote" class="phase" role="status"></p>
       <section id="liveBox" class="panel" aria-labelledby="h-live" hidden>
         <h2 id="h-live" class="ph">In game <button class="tip" type="button" popovertarget="t-live" aria-label="About the game">?</button></h2>
@@ -1373,7 +1413,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="stats" aria-label="Stats" hidden>
-      <h1 class="title">Stats</h1>
+      <header class="pagehead"><div><h1 class="title">Stats</h1><p class="sub">Your games, champions and the players you meet, from League’s own client.</p></div></header>
       <div class="tabs lcu-only" role="tablist" aria-label="Stats">
         <button class="tab" type="button" role="tab" data-tab="you">You</button>
         <button class="tab" type="button" role="tab" data-tab="champs">Champions</button>
@@ -1519,7 +1559,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="tft" aria-label="TFT" hidden>
-      <h1 class="title">TFT</h1>
+      <header class="pagehead"><div><h1 class="title">TFT</h1><p class="sub">Teamfight Tactics: your ranks, shop odds, team codes and your lobby.</p></div></header>
       <p id="tftNote" class="phase" role="status" hidden></p>
       <div id="tftRanks" class="ranks"></div>
       <div class="prodash">
@@ -1582,7 +1622,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="clips" aria-label="Clips" hidden>
-      <h1 class="title">Clips</h1>
+      <header class="pagehead"><div><h1 class="title">Clips</h1><p class="sub">Your saved plays and recordings: watch, cut, rename and share them.</p></div></header>
       <section id="savedBox" class="panel lcu-only" aria-labelledby="h-saved" hidden>
         <h2 id="h-saved" class="ph">Saved</h2>
         <p id="savedNote" class="hint"></p>
@@ -1638,7 +1678,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="overlay" aria-label="Overlay" hidden>
-      <h1 class="title">Overlay</h1>
+      <header class="pagehead"><div><h1 class="title">Overlay</h1><p class="sub">What Premade draws on top of your game, and where it sits.</p></div></header>
       <p id="ovNote" class="phase" role="status" hidden></p>
       <div class="prodash">
         <section class="panel" aria-labelledby="h-ovlayout">
@@ -1705,7 +1745,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="settings" aria-label="Settings" hidden>
-      <h1 class="title">Settings</h1>
+      <header class="pagehead"><div><h1 class="title">Settings</h1><p class="sub">Shortcuts, screens, League, and how Premade looks.</p></div></header>
       <div class="settings">
         <section class="panel client-only">
           <h2 class="ph">Keyboard shortcuts <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
@@ -1792,8 +1832,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="help" aria-label="Remote help" hidden>
-      <h1 class="title">Remote help</h1>
-      <p class="hint">Use a friend’s PC from yours, or let a friend use yours, like AnyDesk. No voice room or screen share needed, and their Premade asks them first, every time.</p>
+      <header class="pagehead"><div><h1 class="title">Remote help</h1><p class="sub">Use a friend’s PC from yours, or let a friend use yours, like AnyDesk. No voice room or screen share needed, and their Premade asks them first, every time.</p></div></header>
       <section class="panel" aria-labelledby="h-helpTo">
         <h2 id="h-helpTo" class="ph">Control a friend’s PC</h2>
         <form id="helpForm" class="codeform">
@@ -1816,7 +1855,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="record" aria-label="Recording" hidden>
-      <h1 class="title">Recording</h1>
+      <header class="pagehead"><div><h1 class="title">Recording</h1><p class="sub">Grab your screen, or let Premade hold on to the last part in case something good happens.</p></div></header>
       <section id="recBox" class="panel" aria-labelledby="h-rec">
         <h2 id="h-rec" class="ph">Record your screen <button class="tip" type="button" popovertarget="t-rec" aria-label="About recording your screen">?</button></h2>
         <div class="toolbar"><button id="recBtn" class="btn" type="button">Record</button><label class="check"><input id="optRecMic" type="checkbox"> With my mic</label></div>
@@ -1843,9 +1882,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="re4" aria-label="RE4 co-op" hidden>
-      <p id="re4Role" class="ph"></p>
-      <h1 class="title">Resident Evil 4 co-op</h1>
-      <p class="hint">Play RE4 (2023) with friends through the co-op mod’s Direct Connect, over Tailscale (free, and it gets through any router) instead of the mod’s server. One of you hosts and invites the others. This page checks every part on this PC, backs up your saves and starts the game.</p>
+      <header class="pagehead"><div><h1 class="title">RE4 co-op</h1><p class="sub">Play RE4 (2023) with friends through the co-op mod’s Direct Connect, over Tailscale (free, and it gets through any router) instead of the mod’s server. One of you hosts and invites the others. This page checks every part on this PC, backs up your saves and starts the game.</p></div><p id="re4Role" class="ph"></p></header>
       <section id="re4SetupBox" class="panel" aria-labelledby="h-re4Setup" hidden>
         <h2 id="h-re4Setup" class="ph">Set up this PC</h2>
         <p class="hint">To host: one button installs Tailscale if it’s missing, blocks the co-op mod’s own server and lets only your friends reach the game’s port. Windows asks for permission once. Then sign in to Tailscale (a Google or Microsoft account works).</p>
@@ -1886,12 +1923,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     </section>
 
     <section class="view" data-view="aion" aria-label="Aion 2" hidden>
+      <header class="pagehead"><div><h1 class="title">Aion 2</h1><p class="sub">Your group tracker: characters, gear and Abyss fights.</p></div></header>
       <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
     </section>
 
     <section class="view" data-view="features" aria-label="Features" hidden>
-      <h1 class="title">Features</h1>
-      <p class="hint">Everything Premade can do, where it is and how to set it up. Show me takes you straight there.</p>
+      <header class="pagehead"><div><h1 class="title">Features</h1><p class="sub">Everything Premade can do, where it is and how to set it up. Show me takes you straight there.</p></div></header>
       <p class="hint browser-only">Features marked Desktop app need the Windows app. <a href="Premade-Setup.exe" download>Get the desktop app</a></p>
       <label class="field featfind">Find a feature <input id="featFind" type="search" autocomplete="off" spellcheck="false" placeholder="Runes, clips, push to talk…"></label>
       <nav id="featJump" class="toolbar" aria-label="Feature groups"></nav>
@@ -2565,6 +2602,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('sbTrackText').textContent = trackText();
     $('sbLeague').textContent = !league ? `League: ${lcu ? STATUS[PHASES[lcu] || 'client'][1].toLowerCase() : 'no game'}` : `League: ${(league.me && (league.me.champName || league.me.champ)) || 'in game'}${mine.dead ? ', dead' : ''}`;
     $('sbVersion').textContent = myVersion();
+    $('railMic').dataset.state = mb.dataset.state; // the rail's foot: your name and the same mic button
+    $('railMicText').textContent = mb.lastChild.textContent;
+    $('railName').textContent = myName || 'Player';
+    $('railPic').textContent = (myName || 'P')[0].toUpperCase();
   }
 
   // ---- the big live map: your minimap (or a drawing of the Rift), everyone's champion, your hearing range, who's talking
@@ -6183,8 +6224,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
-    const lol = $('leagueTabs').contains(document.querySelector(`.nav[data-view="${name}"]`)); // a League page: its tabs show and League is lit
-    $('leagueTabs').hidden = !lol;
+    const lol = !!document.querySelector(`.nav.lol[data-view="${name}"]`); // a League page: on a phone its tabs show and League is lit
+    $('leagueTabs').hidden = !lol || !PHONE;
     if (lol) { leaguePage = name; $('leagueNav').setAttribute('aria-current', 'page'); }
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
@@ -6206,6 +6247,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
   for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view));
   $('leagueNav').addEventListener('click', () => view(leaguePage));
+  if (PHONE) $('leagueTabs').append(...document.querySelectorAll('.rail .nav.lol')); // a phone's bar along the bottom has room for one League button, its pages are tabs along the top
   $('sbTrack').addEventListener('click', () => view('prox'));
 
   // ---- League's own client (desktop app 1.6+): the ready check, champ select with everyone's rank and recent games,
@@ -13653,6 +13695,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   addEventListener('mouseup', (e) => { if (keys.ptt && !keysOk.ptt && mouseCode(e) === keys.ptt) { e.preventDefault(); pushTalk(false); } });
   addEventListener('blur', () => { if (!keysOk.ptt) pushTalk(false); });
   $('muteBtn').addEventListener('click', toggleMute);
+  $('railMic').addEventListener('click', toggleMute);
 
   // ---- screens to share (Windows client)
   async function loadScreens() {
@@ -13925,6 +13968,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [105, 'November 2: a new look', [
+      'Premade has a new look: every page in the menu down the left, Premade’s own pages first and League’s below them, with your name and a mic button at the bottom. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
+      'Ticks are now switches, green when on. All seven themes, Custom included, get the new look.',
+    ]],
     [104, 'November 2: voice first, a privacy code, and quieter games while friends talk', [
       'Your voice goes ahead of everything else on your connection, as Discord’s packet priority does, so a screen share or a file doesn’t make it choppy.',
       'Help shows a privacy code for each friend. Calls go straight between your PCs, end-to-end encrypted; if you and your friend see the same code, nobody is listening in between.',
