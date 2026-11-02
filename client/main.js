@@ -930,6 +930,51 @@ ipcMain.on('downloads-folder', async (e) => {
   shell.openPath(dlDir());
 });
 
+// ---- convert a file (app 1.35): a video, a song or a picture to another format with the downloader's ffmpeg, saved next
+// to it. The page only sees an id for each file picked here, never a path it could choose itself.
+const conv = require('./convert');
+const picked = new Map(), made = new Set(), convs = new Map(); // id -> { file, kind, duration }; files we wrote; id -> ffmpeg
+ipcMain.handle('convert-pick', async (e) => {
+  if (!fromSite(e)) return [];
+  const r = await dialog.showOpenDialog(win, { title: 'Pick files to convert', properties: ['openFile', 'multiSelections'] });
+  if (r.canceled || !r.filePaths.length) return [];
+  let t;
+  try { t = await getTools(); } catch { return { error: 'Couldn’t get the converter. Check your internet and try again.' }; }
+  const ffprobe = path.join(path.dirname(t.ffmpeg), 'ffprobe.exe');
+  return Promise.all(r.filePaths.map(async (file) => {
+    const id = crypto.randomUUID(), name = path.basename(file);
+    try {
+      const out = await run(ffprobe, ['-v', 'error', '-show_entries', 'format=format_name,duration:stream=codec_type:stream_disposition=attached_pic', '-of', 'json', file]);
+      const info = conv.kindOf(JSON.parse(out));
+      if (!info.kind) throw new Error();
+      picked.set(id, { file, ...info });
+      return { id, name, kind: info.kind, targets: conv.targetsFor(info.kind) };
+    } catch { return { id, name, error: 'Premade can’t convert this kind of file yet.' }; }
+  }));
+});
+// progress goes to the page as 'convert' { id, pct }; the answer is { file } or { error }
+ipcMain.handle('convert', async (e, id, target) => {
+  const p = picked.get(id);
+  if (!fromSite(e) || !p || !conv.FOR[p.kind].includes(target)) return { error: 'Pick the file again.' };
+  if (convs.has(id)) return { error: 'That one is already converting.' };
+  const args = conv.convertArgs(target, p.duration);
+  if (!args) return { error: 'Too long to fit in 10 MB. Cut it shorter first.' };
+  const { ffmpeg } = await getTools(), out = conv.outPath(p.file, target, fs.existsSync); // got when it was picked
+  const send = (v) => { if (!e.sender.isDestroyed()) e.sender.send('convert', { id, ...v }); };
+  return new Promise((res) => {
+    const f = execFile(ffmpeg, ['-hide_banner', '-v', 'error', '-i', p.file, ...args, '-progress', 'pipe:1', '-nostats', '-n', out], { windowsHide: true, maxBuffer: 64e6 }, (err, so, errOut) => {
+      convs.delete(id);
+      if (!err && fs.existsSync(out)) { made.add(out); return res({ file: out }); }
+      fs.promises.unlink(out).catch(() => {}); // a half-made file
+      res({ error: f.killed ? 'Stopped.' : String(errOut).trim().split(/\r?\n/).pop() || 'Couldn’t convert that.' });
+    });
+    convs.set(id, f);
+    f.stdout.on('data', (d) => { const m = String(d).match(/out_time_us=(\d+)/g); if (m && p.duration) send({ pct: Math.min(99, parseInt(m.pop().slice(12)) / 1e4 / p.duration) }); });
+  });
+});
+ipcMain.on('convert-stop', (e, id) => { if (fromSite(e) && convs.has(id)) convs.get(id).kill(); });
+ipcMain.on('convert-show', (e, file) => { if (fromSite(e) && made.has(file)) shell.showItemInFolder(file); });
+
 // ---- the performance meter: how much of the computer this app uses now, all its parts together. CPU is a share of
 // the whole computer, as Task Manager shows it; memory in MB.
 ipcMain.handle('metrics', (e) => {
