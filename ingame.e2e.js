@@ -325,6 +325,9 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ben, () => { const s = lpc.seen(); return s.length === 1 && s[0].name === 'Ana' && s[0].call && s[0].video > 0; }, null, 'Ana’s screen playing on Ben’s Voice page', 30000);
       await wait(ben, () => document.querySelector('#screenGrid figcaption span').textContent === 'Ana’s screen', null, 'named on its tile');
       assert.strictEqual(await ben.evaluate(() => lpc.seen()[0].sound), 1, 'with its sound (What’s new 63)');
+      let snd = null; // in stereo at 128 kbps, as Ben's answer asks (What's new 103)
+      for (let i = 0; i < 40 && !(snd && snd.target === 128000 && /stereo=1/.test(snd.fmtp)); i++) { await ana.waitForTimeout(250); snd = await ana.evaluate(() => lpc.lendSound()); }
+      assert(snd && snd.target === 128000 && /stereo=1/.test(snd.fmtp), `its sound in stereo at 128 kbps: ${JSON.stringify(snd)}`);
       // each watcher gets the size they watch, and the tile says what they get (What's new 89)
       await wait(ben, () => /^\d+p · \d+ fps/.test(document.querySelector('#screenGrid .shq').textContent), null, 'size and frame rate on the tile', 15000);
       const benH = await ben.evaluate(() => lpc.seen()[0].h);

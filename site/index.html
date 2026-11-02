@@ -1000,7 +1000,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <div class="toolbar"><button id="gateAuto" class="btn small" type="button">Set the gate for me</button></div>
                 <p id="coachNote" class="hint" role="status" hidden></p>
                 <p id="btNote" class="hint" hidden>This mic is in phone quality, as a Bluetooth headset’s mic is on Windows, and while it’s in use the headset plays everything in phone quality too, so it all sounds muffled. Pick any other mic here (a USB, webcam or laptop mic), or use the headset’s own USB dongle or cable. Your mic closes when you leave the room.</p>
-                <p id="duckNote" class="hint" hidden>Windows is set to turn every other sound down while you’re in voice chat, your game too. To keep them loud, press Open, pick Do nothing, then OK. <button id="duckFix" class="btn small" type="button">Open</button></p>
+                <p id="duckNote" class="hint" hidden>Windows is set to turn every other sound down while you’re in voice chat, your game too, and it can make your friends’ voices quiet as well. To keep them loud, press Open, pick Do nothing, then OK. <button id="duckFix" class="btn small" type="button">Open</button></p>
                 <div id="attenRow" class="toolbar"><label class="field">Lower other apps while friends talk <select id="optAtten"><option value="0">Off</option><option value="0.2">By 20%</option><option value="0.5">By half</option><option value="0.8">By 80%</option></select></label><button class="tip" type="button" popovertarget="t-atten" aria-label="About lowering other apps">?</button></div>
                 <label class="check"><input id="optDenoise" type="checkbox"> Smart noise removal <button class="tip" type="button" popovertarget="t-denoise" aria-label="About smart noise removal">?</button></label>
                 <label class="check"><input id="optStudio" type="checkbox"> Studio voice <button class="tip" type="button" popovertarget="t-studio" aria-label="About studio voice">?</button></label>
@@ -1020,7 +1020,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <label class="check"><input id="optChimes" type="checkbox"> Chime when someone joins or leaves</label>
             <label class="check"><input id="optBeeps" type="checkbox"> Beep when I mute or unmute</label>
             <label class="check"><input id="optEcho" type="checkbox"> Far-away voices lose their bass</label>
-            <label class="check"><input id="optSurround" type="checkbox"> 3D sound: voices from their direction, in front and behind too (headphones)</label>
+            <label class="check"><input id="optSurround" type="checkbox"> 3D sound in a game: voices from their direction, in front and behind too (headphones)</label>
             <label class="check"><input id="optMutedWarn" type="checkbox"> Tell me when I talk while muted</label>
             <label class="check"><input id="optEchoCheck" type="checkbox"> Echo check: tell me, and that friend, when a friend’s mic sends my voice back</label>
             <div class="browser-only"><button id="notifyAllow" class="btn small" type="button" hidden>Also when this tab is in the background</button></div>
@@ -2061,7 +2061,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it in their room, straight from your PC. In a game only your own team does, never the other team. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
 <div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
 <div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
-<div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 64, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
+<div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 80, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-atten" class="tipbox" popover>Like Discord’s attenuation: while a friend you can hear is talking, every other app’s sound, your game too, goes down by this much, and back up a second after they stop. Unlike Windows’ own setting it only happens while someone talks. Desktop app only.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't. Or press Set the gate for me and stay quiet for 3 seconds: it listens to your room and puts the gate just above its noise.</div>
@@ -2297,11 +2297,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const now = ac.currentTime;
       p.clear.gain.setTargetAtTime(p.scrambled ? 0 : 1, now, 0.05);
       p.scr.out.gain.setTargetAtTime(p.scrambled ? 2.5 : 0, now, 0.05);
-      p.gain.gain.setTargetAtTime(p.out, now, p.faded ? 0.4 : 0.05); // a showdown fades the others out slowly
+      // a showdown fades the others out slowly; in a room (no positions) 3 dB louder: friends found voices quiet there
+      p.gain.gain.setTargetAtTime(p.out * (known ? 1 : Math.SQRT2), now, p.faded ? 0.4 : 0.05);
       p.lp.frequency.setTargetAtTime(20000 * Math.pow(600 / 20000, p.muffle), now, 0.05); // 20 kHz clear, 600 Hz fully muffled
       p.hp.frequency.setTargetAtTime(20 * Math.pow(15, p.far), now, 0.1); // the bass goes: 20 Hz close by, 300 Hz at the edge
-      // where the voice comes from: with 3D sound its direction on the minimap; else left or right as far as pan says
-      const model = opts.surround ? 'HRTF' : 'equalpower', dx = known ? at.x - me.x : 0, dz = known ? at.y - me.y : 0, len = Math.hypot(dx, dz);
+      // where the voice comes from: with 3D sound its direction on the minimap; else left or right as far as pan says.
+      // In a room, straight: 3D sound put everyone in front, where Chrome's head filter takes 10 to 15 dB off the high
+      // tones (6 to 12 kHz) and adds bass, so every voice sounded muffled
+      const model = opts.surround && known ? 'HRTF' : 'equalpower', dx = known ? at.x - me.x : 0, dz = known ? at.y - me.y : 0, len = Math.hypot(dx, dz);
       if (p.panner.panningModel !== model) p.panner.panningModel = model;
       const [x, z] = opts.surround ? (len > 1e-4 ? [dx / len, dz / len] : [0, -1]) : [Math.sin((p.pan * Math.PI) / 2), -Math.cos((p.pan * Math.PI) / 2)];
       p.panner.positionX.setTargetAtTime(x, now, 0.05);
@@ -3406,14 +3409,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     a.connect(mul).connect(b).connect(d).connect(out);
     return { in: a, out, osc };
   }
-  // Studio voice: your mic again without the browser's processing, and every call at 96 kbps; otherwise 64 kbps, as
-  // Discord sends a voice (WebRTC's own choice is about 30); Less data: 16 kbps
+  // Studio voice: your mic again without the browser's processing, and every call at 96 kbps; Less data: 16 kbps; else
+  // 80: WebRTC's own choice for a voice, about 32, mixes in its speech coder, which takes 2 to 4 dB off 3 to 7 kHz
   function studio() {
     if (raw) getMic().catch(() => say('Could not reopen your microphone.'));
     for (const p of peers.values()) useBitrate(p);
   }
   async function useBitrate(p) {
-    const want = lowCall(p) || p.weak ? 16000 : opts.studio ? 96000 : 64000, s = p.call && p.call.peerConnection && p.call.peerConnection.getSenders().find((x) => x.track && x.track.kind === 'audio');
+    const want = lowCall(p) || p.weak ? 16000 : opts.studio ? 96000 : 80000, s = p.call && p.call.peerConnection && p.call.peerConnection.getSenders().find((x) => x.track && x.track.kind === 'audio');
     if (!s || p.rate === want) return;
     try {
       const q = s.getParameters();
@@ -3493,15 +3496,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     notify('Your mic is in phone quality (a Bluetooth headset’s mic, most likely), and while it’s on, the headset plays everything in phone quality too, so it all sounds muffled. Any other mic, or the headset’s own USB dongle or cable, fixes it.', true);
   }
   // ---- Windows' own ducking (app 1.28.4): while a mic is open for voice chat, as Chromium marks yours, Windows turns
-  // every other sound down, your game too, unless its Communications setting (Sound control panel) is Do nothing. A
-  // note by your mic with a button that opens that setting, and a popup the first time.
+  // every other sound down, your game too, unless its Communications setting (Sound control panel) is Do nothing. It
+  // turns down the sounds already playing when the mic opens, and Chromium opens its speakers before the mic, so most
+  // likely Premade's voices too. A note by your mic with a button that opens that setting, and a popup the first time
+  // (again since What's new 103, which says it can quiet your friends' voices).
   const DUCK = ['mute every other sound', 'turn every other sound down by 80%', 'turn every other sound down by half'];
   async function duckCheck() {
     const d = client && client.ducking ? await client.ducking().catch(() => 3) : 3;
     $('duckNote').hidden = !DUCK[d];
-    if (!DUCK[d] || store.get('lpc-duckwarned')) return;
-    store.set('lpc-duckwarned', '1');
-    notify(`Windows is set to ${DUCK[d]} while you’re in voice chat, your game too. Voice settings, Microphone can turn that off.`, true);
+    if (!DUCK[d] || store.get('lpc-duckwarned2')) return;
+    store.set('lpc-duckwarned2', '1');
+    notify(`Windows is set to ${DUCK[d]} while you’re in voice chat, your game too, and it can make your friends’ voices quiet as well. Voice settings, Microphone can turn that off.`, true);
   }
   $('duckFix').addEventListener('click', () => client.soundSettings());
   addEventListener('focus', () => { if (!$('duckNote').hidden) duckCheck(); }); // back from Windows' setting
@@ -5303,10 +5308,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (c.stop) c.stop();
     if (c.call && ![...seen.values()].some((v) => v.call === c.call)) c.call.close();
   }
+  // a screen's sound in stereo at 128 kbps, not a voice's mono 32: the sharer's encoder does what the watcher's answer asks
+  const stereoSound = (sdp) => {
+    const pt = (/a=rtpmap:(\d+) opus\/48000\/2/i.exec(sdp) || [])[1];
+    return pt ? sdp.replace(new RegExp(`a=fmtp:${pt} [^\r\n]*`), (f) => f + ';stereo=1;maxaveragebitrate=128000') : sdp;
+  };
   function screenIn(call) { // a screen coming in: taken only from the one you asked, for the overlay, your room or both
     const p = peers.get(call.peer), forCam = !!cam && cam.p === p, forSee = seen.has(p);
     if (!forCam && !forSee) return call.close();
-    call.answer(); // nothing goes back
+    call.answer(undefined, { sdpTransform: stereoSound }); // nothing goes back
     if (forCam) camCall(call);
     if (forSee) seeCall(call, p);
   }
@@ -13915,11 +13925,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
-    [103, 'November 2: voice as good as Discord’s', [
-      'Voices now go at 64 kbps, the rate Discord uses, instead of about 30, so everyone sounds fuller and clearer. Less data still drops to 16 kbps, and Studio voice stays at 96.',
+    [104, 'November 2: voice first, a privacy code, and quieter games while friends talk', [
       'Your voice goes ahead of everything else on your connection, as Discord’s packet priority does, so a screen share or a file doesn’t make it choppy.',
       'Help shows a privacy code for each friend. Calls go straight between your PCs, end-to-end encrypted; if you and your friend see the same code, nobody is listening in between.',
       'Desktop app 1.33: Lower other apps while friends talk (Voice settings, Microphone), as Discord’s attenuation. Your game and music go down while someone you can hear is talking, and come back a second after. It’s off until you pick how much.',
+    ]],
+    [103, 'November 2: clear, louder voices in rooms', [
+      'Voices in a room no longer sound muffled. 3D sound put everyone right in front of you, and there its filter takes most of a voice’s high tones away, so in a room voices now come straight to you, and 3 dB louder. In a game 3D sound works as before.',
+      'Your voice now goes out at 80 kbps instead of about 32, so s, f and t sounds come through clearly. Less data and Studio voice stay as they were.',
+      'A shared screen’s sound now comes in stereo at 128 kbps.',
+      'If Windows is set to turn other sounds down during voice chat, that can make your friends’ voices quiet too. The app tells you once more, and the Open button in Voice settings, Microphone turns it off.',
     ]],
     [102, 'November 1: Premade on your phone', [
       'Open Premade’s website on your phone, or tap an invite link, to join a room: talk, chat, watch your friends’ screens and see your friends. On a phone the menu sits along the bottom, Share invite link opens your phone’s share sheet, your screen stays on while you’re in a room, and what a phone can’t do, like sharing your own screen, is left out.',
@@ -14438,7 +14453,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'Under Players in your room: Share screen or app at the top of the room, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
@@ -14452,9 +14467,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
       ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat in your room. On unless you untick Keep my voice sessions.', '#optHistory'],
       ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
-      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
+      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
         'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],
-      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Faster uses shorter packets and a shorter playback buffer when supported. Voices go at 64 kbps, as on Discord, ahead of everything else on your connection. Help reports measured network and audio-buffer delay, and a privacy code: the call is end-to-end encrypted, and if you and a friend see the same code, nobody is listening in between. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
+      ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Normal and Faster send your voice at 80 kbps, so it stays clear up to its high tones. Faster uses shorter packets and a shorter playback buffer when supported. Your voice goes ahead of everything else on your connection, as on Discord. Help reports measured network and audio-buffer delay, and a privacy code: the call is end-to-end encrypted, and if you and a friend see the same code, nobody is listening in between. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
         'Voice connection, in Voice settings, Microphone.', '#optVoice'],
       ['Mute and push to talk', 'Mute with Ctrl+Shift+M or the mic in the status bar, or set a push-to-talk key (mouse side buttons work too). The desktop app catches them while League is in front.',
         'Voice settings, Talking: Change or Set key.', '#kMute'],
@@ -14528,7 +14543,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',
         'League, Proximity voice: under the live map.', '#range, #createBtn'],
-      ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass.',
+      ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass. In a room, with no map, voices come straight and clear.',
         'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Voice settings, Popups and sounds.', '#optSurround'],
       ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
         'Share League screen in League, Proximity voice, Your tracking. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
@@ -14911,7 +14926,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, h: v.h, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
+    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), lendSound: async () => { // the screen's sound to the first watcher
+      const l = [...lends.values()][0], st = l && l.call.peerConnection && await l.call.peerConnection.getStats(), o = st && [...st.values()].find((r) => r.type === 'outbound-rtp' && r.kind === 'audio');
+      return o ? { target: o.targetBitrate || 0, fmtp: (st.get(o.codecId) || {}).sdpFmtpLine || '' } : null;
+    }, seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, h: v.h, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     lendStall: (name) => { const l = [...lends].find(([p]) => nameOf(p) === name)?.[1]; if (l) Object.defineProperty(l.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // your screen call to them stuck, as on Rayan's PC (28 Oct)
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
