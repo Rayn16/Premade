@@ -289,7 +289,10 @@ function gameConnections() {
     });
   }));
 }
-function start(onSnapshot, opts = {}) {
+// wpcap.dll's functions, made once: koffi refuses a type name made twice, so turning it on again would fail
+let pcap = null;
+function wpcap() {
+  if (pcap) return pcap;
   const koffi = require('koffi');
   const lib = koffi.load(require('path').join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'Npcap', 'wpcap.dll'));
   const dev = koffi.struct('pcap_if_t', { next: 'void *', name: 'char *', description: 'char *', addresses: 'void *', flags: 'uint32' });
@@ -305,6 +308,10 @@ function start(onSnapshot, opts = {}) {
   const nextEx = lib.func('int pcap_next_ex(void *p, _Out_ void **hdr, _Out_ void **data)');
   const datalink = lib.func('int pcap_datalink(void *p)');
   const close = lib.func('void pcap_close(void *p)');
+  return (pcap = { koffi, dev, hdr, findalldevs, freealldevs, openLive, compile, setfilter, freecode, setnonblock, nextEx, datalink, close });
+}
+function start(onSnapshot, opts = {}) {
+  const { koffi, dev, hdr, findalldevs, freealldevs, openLive, compile, setfilter, freecode, setnonblock, nextEx, datalink, close } = wpcap();
   const err = Buffer.alloc(512), list = [null];
   if (findalldevs(list, err) !== 0) throw new Error(err.toString('latin1').replace(/\0.*$/s, ''));
   const handles = [];
@@ -332,7 +339,8 @@ function start(onSnapshot, opts = {}) {
   const hp = [null], dp = [null];
   const poll = () => {
     for (const x of handles) for (let n = 0; n < 2000 && nextEx(x.h, hp, dp) === 1; n++) {
-      const H = koffi.decode(hp[0], hdr), b = Buffer.from(koffi.view(dp[0], H.caplen));
+      // copied out of Npcap's memory: Electron stops the app on a view of outside memory (koffi.view), as 1.34.0 did
+      const H = koffi.decode(hp[0], hdr), b = Buffer.from(koffi.decode(dp[0], koffi.array('uint8_t', H.caplen, 'Typed')));
       let o = x.dl === 1 ? 14 : x.dl === 0 ? 4 : 0;
       if (x.dl === 1 && b.readUInt16BE(12) === 0x8100) o += 4;
       if (b.length < o + 20 || b[o] >> 4 !== 4) continue;
