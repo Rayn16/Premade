@@ -393,6 +393,47 @@ ipcMain.on('attenuate', (e, by) => {
 `);
 });
 if (process.platform === 'win32' && fs.existsSync(path.join(app.getPath('temp'), 'premade-volume.txt')) && volumeHelper()) volume.stdin.end();
+// ---- Aion 2 live fight (Aion 2 page, off until turned on past its ban warning): client/aionlive.js reads the game's
+// traffic through Npcap and the fight goes to the page twice a second. 'npcap' when Npcap isn't installed.
+let aionLive = null;
+ipcMain.handle('aion-live', (e, on, partyOnly) => {
+  if (!fromSite(e) || process.platform !== 'win32') return 'error';
+  if (!on) { if (aionLive) aionLive.stop(); aionLive = null; return 'off'; }
+  if (aionLive) { aionLive.partyOnly = !!partyOnly; return 'on'; }
+  if (!fs.existsSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'Npcap', 'wpcap.dll'))) return 'npcap';
+  const send = (name, v) => { if (win && !win.isDestroyed()) win.webContents.send(name, v); };
+  try { aionLive = require('./aionlive').start((s) => send('aion-live', s), { partyOnly: !!partyOnly, onFight: (f) => { saveAionFight(f); send('aion-fight', f); } }); return 'on'; }
+  catch (err) { console.error('aion live:', err.message); return 'error'; }
+});
+// finished fights (a boss killed, or 20 s or more of fighting), the newest 200, in the app's own folder
+const aionFightsFile = () => path.join(app.getPath('userData'), 'aion-fights.json');
+const aionFights = () => { try { const l = JSON.parse(fs.readFileSync(aionFightsFile(), 'utf8')); return Array.isArray(l) ? l : []; } catch { return []; } };
+function saveAionFight(f) { try { fs.writeFileSync(aionFightsFile(), JSON.stringify([f, ...aionFights()].slice(0, 200))); } catch (err) { console.error('aion fights:', err.message); } }
+ipcMain.handle('aion-fights', (e) => (fromSite(e) ? aionFights() : []));
+// a party member's combat power, gear and skill names from NC's own character pages (what the Aion 2 tracker reads),
+// found by name and server id; kept 10 minutes
+const aionChars = new Map();
+const plaync = async (url) => { const r = await fetch(url, { headers: { 'User-Agent': 'Premade (Aion 2 party card)' }, signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error(`${r.status}`); return r.json(); };
+ipcMain.handle('aion-char', async (e, name, server) => {
+  if (!fromSite(e) || typeof name !== 'string' || !/^[\p{L}\p{N}$#_.-]{2,32}$/u.test(name) || !(server >= 1000 && server <= 9999)) return null;
+  const key = `${name}@${server}`, kept = aionChars.get(key);
+  if (kept && Date.now() - kept.at < 600e3) return kept.v;
+  try {
+    const found = await plaync(`https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(name)}&region=eu&localeInfo=en-US&page=1&size=20`);
+    const c = (found.list || []).find((x) => String(x.name).replace(/<[^>]+>/g, '').toLowerCase() === name.toLowerCase() && x.serverId === server);
+    if (!c) return null;
+    const q = `region=eu&lang=en-US&characterId=${c.characterId}&serverId=${server}`; // characterId comes URL-encoded already
+    const [info, equip] = await Promise.all([plaync(`https://aion2.plaync.com/api/character/info?${q}`), plaync(`https://aion2.plaync.com/api/character/equipment?${q}`)]);
+    const v = {
+      server: c.serverName, className: info.profile.className, cp: info.profile.combatPower,
+      il: ((info.stat && info.stat.statList) || []).find((s) => s.type === 'ItemLevel')?.value ?? null,
+      gear: ((equip.equipment && equip.equipment.equipmentList) || []).map((g) => ({ slot: g.slotPosName, name: g.name, grade: g.grade, enchant: g.enchantLevel })),
+      skills: Object.fromEntries(((equip.skill && equip.skill.skillList) || []).map((s) => [s.id, s.name])),
+    };
+    aionChars.set(key, { at: Date.now(), v });
+    return v;
+  } catch (err) { console.error('aion char:', err.message); return null; }
+});
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 // ---- RE4 co-op page: re4-helper.exe (client/re4) reads Tailscale, the firewall, game and saves without admin, backs
 // up saves, starts RE4, switches the co-op mod, sets the PC up to host, makes invites and joins a host (it asks Windows
