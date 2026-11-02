@@ -2,7 +2,7 @@
 // own game data, League's client (scouting, runes, champ select, the queue, trades, ranked and match history), sharing
 // the screen picked in Settings without a picker, the in-game overlay, the compact strip, shortcuts that work while
 // League is in front, push to talk, clips (saving, the gallery, dragging into Discord, cleaning up), whole games on
-// video, starting with League, the combo trainer's key presses, Discord status, lolprox:// app links, test recordings, a performance meter
+// video, starting with League, the combo trainer's key presses, Discord status, lowering other apps while friends talk, lolprox:// app links, test recordings, a performance meter
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
@@ -372,6 +372,27 @@ ipcMain.handle('ducking', (e) => {
     res(m ? parseInt(m[1], 16) : 1);
   }));
 });
+// ---- lowering other apps while friends talk (Voice settings), as Discord's attenuation: volume-helper.exe (client/volume)
+// turns every app's sound down but Premade's (and its helpers') and Discord's. Each line it gets is the share of their
+// volume the apps keep; when Premade quits its input closes and it puts them back. One killed with Premade (a crash)
+// left its list in %TEMP%, so a helper started now puts those back too.
+const VOLUME_HELPER = path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'volume-helper.exe');
+let volume = null;
+function volumeHelper() {
+  if (volume || process.platform !== 'win32' || !fs.existsSync(VOLUME_HELPER)) return volume;
+  volume = spawn(VOLUME_HELPER, [path.basename(process.execPath), 'audio-capture', 're4-helper', 'Discord', 'DiscordPTB', 'DiscordCanary'], { windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] });
+  volume.stdin.on('error', () => {});
+  volume.on('exit', () => { volume = null; });
+  return volume;
+}
+ipcMain.on('attenuate', (e, by) => {
+  if (!fromSite(e)) return;
+  by = Math.min(0.9, Math.max(0, +by || 0));
+  const v = by || volume ? volumeHelper() : null;
+  if (v) v.stdin.write(`${1 - by}
+`);
+});
+if (process.platform === 'win32' && fs.existsSync(path.join(app.getPath('temp'), 'premade-volume.txt')) && volumeHelper()) volume.stdin.end();
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 // ---- RE4 co-op page: re4-helper.exe (client/re4) reads Tailscale, the firewall, game and saves without admin, backs
 // up saves, starts RE4, switches the co-op mod, sets the PC up to host, makes invites and joins a host (it asks Windows
@@ -1227,7 +1248,9 @@ app.whenReady().then(async () => {
     if (roomShare) { sharedSource = s || null; if (marks && !marks.isDestroyed()) marks.hide(); } // what pointing maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the filtered sound (no Premade, no Discord) once that starts, and keeps it if that fails
   });
-  ses.setPermissionRequestHandler((wc, perm, ok) => ok(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen', 'keyboardLock'].includes(perm))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
+  // only Premade's own pages get the mic, screens and the clipboard, as Discord gives them only to discord.com; a video
+  // from a chat link (YouTube) may still go full screen
+  ses.setPermissionRequestHandler((wc, perm, ok, d) => ok(perm === 'fullscreen' || (String(d && d.requestingUrl || wc.getURL()).startsWith(SITE) && ['media', 'display-capture', 'clipboard-sanitized-write', 'keyboardLock'].includes(perm)))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
 
   const last = lastBounds();
   win = new BrowserWindow({

@@ -92,7 +92,7 @@ function fakeClient(modern) {
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
     ...(modern && { version: '1.5.0', windowMode: async () => 'borderless', update() { this.calls.push(['update']); }, discord(s) { this.calls.push(['discord', s]); } }),
-    ...(modern && { ducking: async () => window.duck ?? 3, soundSettings() { this.calls.push(['sound-settings']); } }), // Windows' Communications setting: 3 is Do nothing
+    ...(modern && { ducking: async () => window.duck ?? 3, soundSettings() { this.calls.push(['sound-settings']); }, attenuate(by) { this.calls.push(['attenuate', by]); } }), // Windows' Communications setting: 3 is Do nothing
   };
 }
 
@@ -369,8 +369,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const studio = await bitrate((b) => b.max === 96000 && b.target === 96000 && b.mic.echoCancellation === false && b.mic.autoGainControl === false, 'Ana\'s studio voice at 96 kbps');
     console.log(`studio voice: sent at ${studio.target / 1000} kbps, mic ${JSON.stringify(studio.mic)}`);
     await ana.$eval('#optStudio', (el) => el.click());
-    const normal = await bitrate((b) => b.max === 80000 && b.target === 80000 && b.mic.echoCancellation === true, 'Ana\'s studio voice off, at 80 kbps');
+    const normal = await bitrate((b) => b.max === 80000 && b.target === 80000 && b.priority === 'high' && b.mic.echoCancellation === true, 'Ana\'s studio voice off, at 80 kbps at high priority');
     console.log(`studio voice off: ${normal.target / 1000} kbps`);
+    const code = await (await waitFor(ana, (id) => lpc.privacy(id), benId, 'Ana’s privacy code for Ben')).jsonValue();
+    assert.match(code, /^\d{5}( \d{5}){5}$/, 'a 30-digit privacy code for the call');
+    await waitFor(ben, ([id, c]) => lpc.privacy(id) === c, [anaId, code], 'Ben sees the same privacy code as Ana');
     await hears(ben, ['Ana'], 1, 'Ben still hears Ana after her mic reopened');
 
     // the voice connection: Faster has the others send Ben 10 ms packets; Less data (either side) 60 ms ones at 16 kbps,
@@ -1218,6 +1221,13 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hears(dee, ['Eve'], null, 'Dee hears Eve');
     await hears(eve, ['Dee'], null, 'Eve hears Dee');
     console.log('League data: Dee and Eve joined their game\'s room by themselves');
+    // lowering other apps while friends talk: Eve's app turns them down by half while Dee talks, and back when it's off
+    assert(await dee.evaluate(() => document.getElementById('optAtten').disabled), 'an app without it can\'t pick it');
+    await eve.evaluate((v) => { const s = document.getElementById('optAtten'); s.value = v; s.dispatchEvent(new Event('change')); }, '0.5');
+    await waitFor(eve, () => lpcClient.calls.some(([k, by]) => k === 'attenuate' && by === 0.5), null, 'Eve\'s other apps lowered by half while Dee talks');
+    await eve.evaluate((v) => { const s = document.getElementById('optAtten'); s.value = v; s.dispatchEvent(new Event('change')); }, '0');
+    await waitFor(eve, () => { const c = lpcClient.calls.filter(([k]) => k === 'attenuate'); return c[c.length - 1][1] === 0; }, null, 'Eve\'s other apps back to normal with it off');
+    console.log('lowering other apps while friends talk: on while Dee talks, back when turned off');
     // the version check: each hears once that the other's app is out of date, and sees their own version
     await waitFor(eve, () => lpc.toasts().includes('Dee has a very old version of the app: they need the installer from the site.'), null, 'Eve told Dee’s app is old');
     await waitFor(dee, () => lpc.toasts().includes('Eve has app 1.5.0, and 1.7.0 is out: restarting the app installs it.'), null, 'Dee told Eve’s app is out of date');

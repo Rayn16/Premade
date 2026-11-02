@@ -31,6 +31,15 @@ jobs:
           if ($c.note -notmatch 'Their mod' -or $c.inGame) { throw 'Play as should wait for their mod in a running game' }
           $c = & client/re4-helper.exe char Nobody | ConvertFrom-Json
           if ($c.note -notmatch 'unknown character') { throw 'Play as should refuse a name not in their list' }
+      # the runner has no sound device: the helper still has to run, take its input and end cleanly
+      - name: Build and check the volume helper
+        shell: pwsh
+        run: |
+          dotnet build client/volume -c Release -nologo -o volume-out
+          Copy-Item volume-out/volume-helper.exe client/
+          '0.5', '1' | & client/volume-helper.exe pwsh
+          if ($LASTEXITCODE) { throw 'volume-helper should end cleanly when its input closes' }
+          if (Test-Path "$env:TEMP\premade-volume.txt") { throw 'volume-helper should leave no volumes lowered' }
       - name: RE4 co-op their mod's files and REFramework on the site match the pinned fingerprints
         shell: pwsh
         run: |
