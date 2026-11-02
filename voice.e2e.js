@@ -143,7 +143,7 @@ function fakeSpeakers() {
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
 // Data Dragon's champions: Test Champ and 21 more for the room games' draft, each with a story (blurb)
 const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
-const toProx = async (p) => { await p.click('.nav[data-view="prox"]'); }; // League, Proximity voice: the map, modes, room games, tracking
+const toProx = async (p) => { await p.click('#leagueNav'); await p.click('.nav[data-view="prox"]'); }; // League, Proximity voice: the map, modes, room games, tracking
 const toRooms = (p) => p.click('.nav[data-view="voice"]');
 const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
 ['Annie', 'Ashe', 'Garen', 'Lux', 'Darius', 'Jinx', 'Leona', 'Zed', 'Ahri', 'Thresh', 'Vayne', 'Malphite', 'Ezreal', 'Sona', 'Yasuo', 'Teemo', 'Caitlyn', 'Nasus', 'Morgana', 'Riven', 'Braum'].forEach((n, i) => {
@@ -290,11 +290,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log(`smart noise removal: fan noise down to ${(kept.fan * 100).toFixed(1)}%, the voiced sound kept at ${(kept.voice * 100).toFixed(0)}%`);
     assert(kept.fan < 0.1 && kept.voice > 0.7, 'noise removal takes out the noise and keeps the voice');
 
-    // the first page is Rooms; the rail lists Premade's pages, then League's. Its profile, in a browser with no League and no Riot data, says where it comes from
+    // the first page is Rooms; League's pages are under League. Its profile, in a browser with no League and no Riot data, says where it comes from
     assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isHidden('#leagueTabs'), 'Rooms first');
-    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'Proximity voice', 'Profile', 'Stats', 'TFT'], 'the menu in a browser: hangout pages, then League');
-    await ana.click('.nav[data-view="prox"]');
-    assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'Proximity voice asks for a room first');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League'], 'the menu in a browser: hangout pages, then League');
+    await ana.click('#leagueNav');
+    assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
     await ana.click('.nav[data-view="profile"]');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
@@ -658,7 +658,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // talk time: the fake mics beep, so everyone talks; Ana sees the others' totals and the stats list
     await ana.waitForFunction(() => lpc.talk().peers.length === 2 && lpc.talk().peers.every((s) => s > 0) && lpc.talk().me > 0, null, { timeout: 15000 });
-    await ana.click('.nav[data-view="stats"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="stats"]');
     assert.strictEqual(await ana.$$eval('#talk li', (l) => l.length), 3, 'talk time for all three');
     await ana.click('.nav[data-view="voice"]');
     assert((await ana.textContent('#phase')).startsWith('In game'), 'Ana is in game: proximity on');
@@ -1106,7 +1106,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(aw.length === want.length && aw.every(([t, n], i) => t === want[i] && near(t === 'Chatterbox' ? most : least).includes(n)), `room awards: ${JSON.stringify(aw)}, talk ${JSON.stringify(ppl)}`);
     assert(await ana.$eval('#awardsBox', (el) => !el.hidden) && (await ana.$$eval('#awardsList li', (l) => l.length)) === aw.length, 'the awards on the Room page');
     assert((await ana.evaluate(() => lpc.toasts())).some((t) => t.startsWith('Room awards: ')), 'and a popup');
-    await ana.click('.nav[data-view="stats"]');
+    await ana.click('#leagueNav'); await ana.click('.nav[data-view="stats"]');
     await ana.click('#games summary');
     assert(await ana.isVisible('#games img'), 'game history lists it with its talk map');
     assert.strictEqual(await ana.$$eval('#games > li:first-child .awards li', (l) => l.length), aw.length, 'with its awards');

@@ -141,7 +141,7 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     await page.evaluate(() => lpc.crawlAll());
     assert.deepStrictEqual(await page.evaluate(() => [9101, 9102, 9103, 9104].map((id) => lpc.deep()[id].lb)), [1550, 1550, 1550, 1550], 'each game’s average rank: Gold I 50 LP');
     assert.strictEqual(calls(/ranked-stats\/m9101-/).length, 9, 'the other nine asked once each');
-    await page.click('.nav[data-view="profile"]');
+    await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
     const solo = page.locator('#proRanks .rank', { hasText: 'Solo/Duo' });
     await wait(page, () => /Your games are around/.test(document.getElementById('proRanks').textContent) && /Top/.test(document.getElementById('proRanks').textContent), null, 'the MMR and ladder lines');
     assert.strictEqual(await solo.locator('.mmr').textContent(), 'Your games are around Gold I while you’re Silver II, so you should climb fast. You win about 28 LP and lose about 16, so your hidden MMR is above your rank.');

@@ -179,7 +179,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
     // ---- while you're dead: your lane's tips, and what to buy next against their team
     {
       const [c, page] = await context(browser, 'Rayan', { lcu: true, notes: { '103|238': 'stay out of the shadow’s range at level 6' } });
-      await page.click('.nav[data-view="game"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
       await wait(page, () => !!lpc.lcu().me0, null, 'you, from League’s client');
       await wait(page, () => lpc.winChance() != null, null, 'the items, for the gold');

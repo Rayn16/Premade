@@ -87,9 +87,10 @@ a { color: var(--link); }
 .nav:hover { color: var(--fg); background: var(--raised); }
 .nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: color-mix(in srgb, var(--gold) 10%, var(--raised)); box-shadow: inset 2px 0 var(--gold); }
 .nav[aria-current="page"] svg { color: var(--gold); }
-/* a phone: one League button in the bar along the bottom, its pages as tabs along the top of main */
-.rail .league { border-color: var(--gold-line); }
-.me-box { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin: auto -10px 0; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--panel); }
+/* League: one button at the foot of the rail, as before; its pages are tabs along the top of main */
+.rail .league { margin: auto 0 10px; padding: 10px 12px; gap: 12px; border-color: var(--gold-line); font: 600 12.5px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; }
+.rail .league svg { width: 20px; height: 20px; }
+.me-box { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin: 0 -10px; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--panel); }
 .me-box .pic { width: 32px; height: 32px; font-size: 13px; border-width: 1px; }
 .me-id { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
 .me-id b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -817,16 +818,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <button class="nav client-only" type="button" data-view="re4"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg><span>RE4 co-op</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
-    <p class="group">League</p>
-    <button class="nav lol" type="button" data-view="prox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Proximity voice</span></button>
-    <button class="nav lol" type="button" data-view="profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
-    <button class="nav lol client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
-    <button class="nav lol client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
-    <button class="nav lol client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
-    <button class="nav lol" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
-    <button class="nav lol" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
-    <button class="nav lol lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
-    <button id="leagueNav" class="nav league phone-only" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>League</span></button>
+    <button id="leagueNav" class="nav league" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>League</span></button>
     <div class="me-box">
       <span id="railPic" class="pic" aria-hidden="true"></span>
       <span class="me-id"><b id="railName"></b><small id="railMicText"></small></span>
@@ -835,7 +827,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   </nav>
 
   <main>
-    <nav id="leagueTabs" class="ltabs" aria-label="League" hidden></nav>
+    <nav id="leagueTabs" class="ltabs" aria-label="League" hidden>
+      <button class="nav" type="button" data-view="prox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Proximity voice</span></button>
+      <button class="nav" type="button" data-view="profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
+      <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
+      <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
+      <button class="nav client-only" type="button" data-view="overlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Overlay</span></button>
+      <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
+      <button class="nav" type="button" data-view="tft"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 8.5l3 1.75v3.5L12 15.5l-3-1.75v-3.5z"/></svg><span>TFT</span></button>
+      <button class="nav lcu-only" type="button" data-view="clips"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/></svg><span>Clips</span></button>
+    </nav>
     <p id="msg" role="alert"></p>
     <p id="lolNote" role="status"></p>
 
@@ -6224,8 +6225,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function view(name) {
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
-    const lol = !!document.querySelector(`.nav.lol[data-view="${name}"]`); // a League page: on a phone its tabs show and League is lit
-    $('leagueTabs').hidden = !lol || !PHONE;
+    const lol = $('leagueTabs').contains(document.querySelector(`.nav[data-view="${name}"]`)); // a League page: its tabs show and League is lit
+    $('leagueTabs').hidden = !lol;
     if (lol) { leaguePage = name; $('leagueNav').setAttribute('aria-current', 'page'); }
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
@@ -6247,7 +6248,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
   for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view));
   $('leagueNav').addEventListener('click', () => view(leaguePage));
-  if (PHONE) $('leagueTabs').append(...document.querySelectorAll('.rail .nav.lol')); // a phone's bar along the bottom has room for one League button, its pages are tabs along the top
   $('sbTrack').addEventListener('click', () => view('prox'));
 
   // ---- League's own client (desktop app 1.6+): the ready check, champ select with everyone's rank and recent games,
@@ -13969,7 +13969,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // the version in the status bar any time
   const NEWS = [
     [105, 'November 2: a new look', [
-      'Premade has a new look: every page in the menu down the left, Premade’s own pages first and League’s below them, with your name and a mic button at the bottom. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
+      'Premade has a new look: a calmer menu down the left with your name and a mic button at the bottom, and League still at its foot with its pages as tabs along the top. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
       'Ticks are now switches, green when on. All seven themes, Custom included, get the new look.',
     ]],
     [104, 'November 2: voice first, a privacy code, and quieter games while friends talk', [

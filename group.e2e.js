@@ -200,7 +200,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(await board(ray), [['Rayan (you): Gold I in Solo/Duo, 110 LP to go', 190, 300], ['Duo: Platinum IV in Solo/Duo, 410 LP to go', 0, 410]]);
     await wait(duo, () => document.querySelectorAll('#goalRows li').length === 2, null, 'the goal board on Duo’s page');
     assert.deepStrictEqual((await board(duo)).map(([t]) => t), ['Rayan: Gold I in Solo/Duo, 110 LP to go', 'Duo (you): Platinum IV in Solo/Duo, 410 LP to go']);
-    await ray.click('.nav[data-view="prox"]');
+    await ray.click('#leagueNav'); await ray.click('.nav[data-view="prox"]');
     await ray.click('#bestBtn');
     await wait(ray, () => !document.getElementById('rolesBox').hidden, null, 'the roles');
     assert.strictEqual(await text(ray, '#rolesMine'), 'Your role: Middle. Best roles: from everyone’s wins in each role lately.');
@@ -221,7 +221,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | 🟢 Online · In League | Invite Control', 'Sleepy#EUW | No Premade yet | '], 'and offline ones');
     if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
     assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => x.riot).sort(), ['Duo#EUW', 'Sleepy#EUW'], 'League friends kept for when League is closed');
-    await ray.click('.nav[data-view="profile"]'); // Profile's friends, each opening their profile
+    await ray.click('#leagueNav'); await ray.click('.nav[data-view="profile"]'); // Profile's friends, each opening their profile
     await wait(ray, () => [...document.querySelectorAll('#proFrList button')].map((b) => b.textContent).join() === 'Duo#EUW,Sleepy#EUW', null, 'friends on Profile');
     await ray.click('#proFrList button');
     await wait(ray, () => /Duo#EUW/.test(document.getElementById('proFindNote').textContent) || document.getElementById('proName').textContent === 'Duo', null, 'Duo’s profile looked up');
@@ -342,7 +342,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 
     // ---- League chat on Pregame: chats with friends, Duo#EUW's opened and answered, a new message and an invite pop up,
     // the invite accepted; your room in your League status
-    await ray.click('.nav[data-view="pregame"]');
+    await ray.click('#leagueNav'); await ray.click('.nav[data-view="pregame"]');
     await wait(ray, () => !!document.querySelector('#lolConvs button'), null, 'League chat');
     assert.deepStrictEqual(await texts(ray, '#lolConvs button'), ['Duo#EUW (1)'], 'not champ select’s chat');
     assert.deepStrictEqual(await texts(ray, '#lolFriend option'), ['Pick a friend', 'Duo#EUW'], 'friends online');
@@ -367,7 +367,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(chat.puts, [`Premade room ${CODE}`]);
     assert.strictEqual(await ray.evaluate(() => localStorage.getItem('lpc-lol-status')), '"ranked grind"', 'the old status kept');
     await shot(ray, 'group-lolchat');
-    await duo.click('.nav[data-view="pregame"]');
+    await duo.click('#leagueNav'); await duo.click('.nav[data-view="pregame"]');
     await wait(duo, () => !document.getElementById('lolChatBox').hidden, null, 'League chat on Duo’s Pregame');
     assert(await duo.locator('#lolChatNote').isVisible() && await duo.locator('#lolChatMain').isHidden(), 'app 1.13 is told to update');
     assert(!L.calls.some(([who, , p]) => who === 'Duo' && /^\/lol-(chat|lobby\/v2\/received)/.test(p) && p !== '/lol-chat/v1/friends'), 'and doesn’t try'); // Friends reads the friends list (app 1.11)

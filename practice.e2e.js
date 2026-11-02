@@ -140,7 +140,7 @@ const game = (over = {}, me = {}) => ({
       const press = (keys) => page.evaluate((keys) => { for (const [k, t] of keys) lpcClient.emit('press', { k, t }); }, keys);
       const practice = () => page.evaluate(() => (lpcClient.lastOverlay && lpcClient.lastOverlay.practice) || []);
       await emit(game());
-      await page.click('.nav[data-view="game"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
       await wait(page, () => !document.getElementById('comboBox').hidden && /^Tick the box/.test(document.getElementById('comboNow').textContent), null, 'the combo trainer in Practice Tool');
       assert(!(await page.evaluate(() => lpcClient.calls.some((x) => x.startsWith('combo')))), 'no keys read until it’s ticked');
       await page.check('#optCombo');
@@ -195,7 +195,7 @@ const game = (over = {}, me = {}) => ({
       await emit(game());
       await page.waitForTimeout(2500);
       assert(!(await page.evaluate(() => lpcClient.shared || lpcClient.calls.some((x) => x.startsWith('video start')))), 'not in Practice Tool');
-      await page.click('.nav[data-view="clips"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="clips"]');
       await wait(page, () => !document.getElementById('vidBox').hidden && document.querySelectorAll('#vidList li').length === 1, null, 'the old game on the Clips page');
       const events = [{ t: 61, e: 'kill', me: true, team: 'ORDER' }, { t: 62, e: 'kill', me: true, team: 'ORDER' }, { t: 62, e: 'multi', n: 2, me: true, team: 'ORDER' },
         { t: 65, e: 'kill', on: true, team: 'CHAOS' }, { t: 66, e: 'dragon', team: 'ORDER', type: 'Fire' }, { t: 67, e: 'baron', team: 'CHAOS', stolen: true }, { t: 68, e: 'tower', of: 'CHAOS', team: 'ORDER' }];
@@ -270,7 +270,7 @@ const game = (over = {}, me = {}) => ({
     {
       const [c, page] = await context(browser, {}, false);
       await page.evaluate((d) => lpcClient.emit('league', d), game({}, { gold: undefined }));
-      await page.click('.nav[data-view="game"]');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
       await wait(page, () => /^Restart the app to finish its update: version 1\.15 adds the combo trainer\.$/.test(document.getElementById('comboNow').textContent)
         && /^Restart the app to finish its update: version 1\.15 times jungle clears\.$/.test(document.getElementById('jgNow').textContent), null, 'the notes for app 1.13');
       for (const id of ['optCombo', 'optGameVideo']) assert(await page.evaluate((id) => document.getElementById(id).disabled && document.getElementById(id).parentElement.textContent.includes('(comes with the next app update)'), id), id);
