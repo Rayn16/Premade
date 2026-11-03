@@ -12194,7 +12194,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (dps && dps.track && Date.now() - (dps.beat || 0) > 30000) { dps.beat = Date.now(); dpsSay('w'); }
     if (dps || !want || performance.now() - dpsLookAt < 30000) return;
     dpsLookAt = performance.now();
-    client.captureSources().then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); if (w && !dps) dpsStart(w.id); }).catch(() => {});
+    client.captureSources(false).then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); // names only: pictures leaked in the app (1.35.1) if (w && !dps) dpsStart(w.id); }).catch(() => {});
   }
   const dpsSay = (k) => { const o = load('lpc-aion-dps', {}); o[k] = Date.now(); store.set('lpc-aion-dps', JSON.stringify(o)); }; // for the Aion 2 page: w, watching Aion 2's window (every 30 s); s, Combat Analysis seen
   async function dpsStart(id) {
