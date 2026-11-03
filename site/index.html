@@ -9612,11 +9612,14 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const LADDER_DIV = ['IV', 'III', 'II', 'I'];
   const ladder = (e) => { const i = TIERS.indexOf(e.tier); return i < 0 ? null : i >= 7 ? 2800 + (e.lp | 0) : i * 400 + Math.max(0, LADDER_DIV.indexOf(e.div)) * 100 + (e.lp | 0); };
   let rankNow = null, rankAt = -Infinity;
+  let rankAsk = null; // the ask in flight, so Stats' top and Ranked both wait for the same answer
   async function myRank() { // your rank from League's client, asked once a minute at most
-    if (!lcuOn() || performance.now() - rankAt < 60000) return;
-    rankAt = performance.now();
-    const r = await lcuGet('/lol-ranked/v1/current-ranked-stats');
-    if (r && r.queueMap) rankNow = r.queueMap;
+    if (!lcuOn()) return;
+    if (performance.now() - rankAt >= 60000) {
+      rankAt = performance.now();
+      rankAsk = lcuGet('/lol-ranked/v1/current-ranked-stats').then((r) => { if (r && r.queueMap) rankNow = r.queueMap; });
+    }
+    return rankAsk;
   }
   async function renderRanked() {
     if (!lcuOn()) return;
