@@ -945,6 +945,117 @@ async function seekable(file) {
   return true;
 }
 
+// ---- downloads (app 1.31): the video or the sound from a link on almost any site (YouTube, TikTok, Instagram, X, Reddit,
+// Facebook, Twitch and about 1,700 more), saved in Downloads\Premade. yt-dlp does the work: it's fetched the first time
+// with ffmpeg (which joins a video's picture and sound), and updates itself once a run, since the sites change often.
+// YouTube's player puzzles run in this app's own Node (ELECTRON_RUN_AS_NODE), so nothing else needs installing.
+// ponytail: videos only; picture posts (carousels, TikTok photos) need gallery-dl next to it
+const { pipeline } = require('stream/promises'), { Readable } = require('stream');
+const toolDir = () => path.join(app.getPath('userData'), 'Downloader'), dlDir = () => appDir('downloads');
+const YTDLP = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
+const FFMPEG = 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip';
+const run = (exe, args, opts) => new Promise((res, rej) => execFile(exe, args, { windowsHide: true, ...opts }, (err, out) => (err ? rej(err) : res(out))));
+async function fetchTo(url, file) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(file + '.part'));
+  await fs.promises.rename(file + '.part', file);
+}
+let tools = null; // { ytdlp, ffmpeg }, once they're there
+function getTools() {
+  return (tools ||= (async () => {
+    const dir = toolDir(), ytdlp = path.join(dir, 'yt-dlp.exe'), ffmpeg = path.join(dir, 'ffmpeg.exe');
+    await fs.promises.mkdir(dir, { recursive: true });
+    if (!fs.existsSync(ytdlp)) await fetchTo(YTDLP, ytdlp);
+    else run(ytdlp, ['-U']).catch(() => {}); // the new one is used from the next download
+    if (!fs.existsSync(ffmpeg)) {
+      const zip = path.join(dir, 'ffmpeg.zip');
+      await fetchTo(FFMPEG, zip);
+      await run('tar', ['-xf', zip, '-C', dir, '--strip-components', '2', '*/bin/ffmpeg.exe', '*/bin/ffprobe.exe']); // Windows' own tar opens zips
+      await fs.promises.unlink(zip).catch(() => {});
+    }
+    return { ytdlp, ffmpeg };
+  })().catch((err) => { tools = null; throw err; }));
+}
+const dls = new Map(); // running: link -> yt-dlp
+// kind 'video' (up to 1080p, H.264 when there is one, so it plays everywhere) or 'audio' (an MP3). Progress goes to the
+// page as 'download' { url, pct }; the answer is { file } or { error }.
+ipcMain.handle('download', async (e, url, kind) => {
+  if (!fromSite(e) || typeof url !== 'string' || url.length > 2000 || !/^https?:\/\/\S+$/i.test(url)) return { error: 'That isn’t a link.' };
+  if (dls.has(url)) return { error: 'That one is already downloading.' };
+  const send = (v) => { if (!e.sender.isDestroyed()) e.sender.send('download', { url, ...v }); };
+  let t;
+  try { send({ pct: -1 }); t = await getTools(); } catch { return { error: 'Couldn’t get the downloader. Check your internet and try again.' }; }
+  const args = [url, '--no-playlist', '--progress', '--newline', '--no-mtime', '--encoding', 'utf-8', '--ffmpeg-location', t.ffmpeg, '--js-runtimes', 'node:' + process.execPath,
+    '-P', dlDir(), '-o', '%(title).80B [%(id)s].%(ext)s', '--print', 'after_move:filepath', '--progress-template', 'download:%(progress._percent_str)s',
+    ...(kind === 'audio' ? ['-x', '--audio-format', 'mp3'] : ['-f', 'bv*+ba/b', '-S', 'res:1080,vcodec:h264,acodec:aac', '--merge-output-format', 'mp4'])];
+  return new Promise((res) => {
+    const p = execFile(t.ytdlp, args, { windowsHide: true, maxBuffer: 64e6, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }, (err, out, errOut) => {
+      dls.delete(url);
+      const file = String(out).trim().split(/\r?\n/).pop() || '';
+      if (!err && file && fs.existsSync(file)) return res({ file });
+      const why = (String(errOut).match(/ERROR: (.*)/g) || []).pop();
+      res({ error: p.killed ? 'Stopped.' : why ? why.replace(/^ERROR: (\[[^\]]*\] )?/, '') : 'Couldn’t download that.' });
+    });
+    dls.set(url, p);
+    p.stdout.on('data', (d) => { const m = String(d).match(/([\d.]+)%/g); if (m) send({ pct: parseFloat(m.pop()) }); });
+  });
+});
+ipcMain.on('download-stop', (e, url) => { if (fromSite(e) && dls.has(url)) dls.get(url).kill(); });
+ipcMain.on('download-show', (e, file) => {
+  if (fromSite(e) && typeof file === 'string' && path.resolve(file).startsWith(dlDir() + path.sep)) shell.showItemInFolder(file);
+});
+ipcMain.on('downloads-folder', async (e) => {
+  if (!fromSite(e)) return;
+  await fs.promises.mkdir(dlDir(), { recursive: true }).catch(() => {});
+  shell.openPath(dlDir());
+});
+
+// ---- convert a file (app 1.35): a video, a song or a picture to another format with the downloader's ffmpeg, saved next
+// to it. The page only sees an id for each file picked here, never a path it could choose itself.
+const conv = require('./convert');
+const picked = new Map(), made = new Set(), convs = new Map(); // id -> { file, kind, duration }; files we wrote; id -> ffmpeg
+ipcMain.handle('convert-pick', async (e) => {
+  if (!fromSite(e)) return [];
+  const r = await dialog.showOpenDialog(win, { title: 'Pick files to convert', properties: ['openFile', 'multiSelections'] });
+  if (r.canceled || !r.filePaths.length) return [];
+  let t;
+  try { t = await getTools(); } catch { return { error: 'Couldn’t get the converter. Check your internet and try again.' }; }
+  const ffprobe = path.join(path.dirname(t.ffmpeg), 'ffprobe.exe');
+  return Promise.all(r.filePaths.map(async (file) => {
+    const id = crypto.randomUUID(), name = path.basename(file);
+    try {
+      const out = await run(ffprobe, ['-v', 'error', '-show_entries', 'format=format_name,duration:stream=codec_type:stream_disposition=attached_pic', '-of', 'json', file]);
+      const info = conv.kindOf(JSON.parse(out));
+      if (!info.kind) throw new Error();
+      picked.set(id, { file, ...info });
+      return { id, name, kind: info.kind, targets: conv.targetsFor(info.kind) };
+    } catch { return { id, name, error: 'Premade can’t convert this kind of file yet.' }; }
+  }));
+});
+// progress goes to the page as 'convert' { id, pct }; the answer is { file } or { error }
+ipcMain.handle('convert', async (e, id, target) => {
+  const p = picked.get(id);
+  if (!fromSite(e) || !p || !conv.FOR[p.kind].includes(target)) return { error: 'Pick the file again.' };
+  if (convs.has(id)) return { error: 'That one is already converting.' };
+  const args = conv.convertArgs(target, p.duration);
+  if (!args) return { error: 'Too long to fit in 10 MB. Cut it shorter first.' };
+  const { ffmpeg } = await getTools(), out = conv.outPath(p.file, target, fs.existsSync); // got when it was picked
+  const send = (v) => { if (!e.sender.isDestroyed()) e.sender.send('convert', { id, ...v }); };
+  return new Promise((res) => {
+    const f = execFile(ffmpeg, ['-hide_banner', '-v', 'error', '-i', p.file, ...args, '-progress', 'pipe:1', '-nostats', '-n', out], { windowsHide: true, maxBuffer: 64e6 }, (err, so, errOut) => {
+      convs.delete(id);
+      if (!err && fs.existsSync(out)) { made.add(out); return res({ file: out }); }
+      fs.promises.unlink(out).catch(() => {}); // a half-made file
+      res({ error: f.killed ? 'Stopped.' : String(errOut).trim().split(/\r?\n/).pop() || 'Couldn’t convert that.' });
+    });
+    convs.set(id, f);
+    f.stdout.on('data', (d) => { const m = String(d).match(/out_time_us=(\d+)/g); if (m && p.duration) send({ pct: Math.min(99, parseInt(m.pop().slice(12)) / 1e4 / p.duration) }); });
+  });
+});
+ipcMain.on('convert-stop', (e, id) => { if (fromSite(e) && convs.has(id)) convs.get(id).kill(); });
+ipcMain.on('convert-show', (e, file) => { if (fromSite(e) && made.has(file)) shell.showItemInFolder(file); });
+
 // ---- the performance meter: how much of the computer this app uses now, all its parts together. CPU is a share of
 // the whole computer, as Task Manager shows it; memory in MB.
 ipcMain.handle('metrics', (e) => {
