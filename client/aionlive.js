@@ -9,8 +9,7 @@
 //          (3 crit, 9 reflected), [if flags & 2: u8 bits, varint heal, u8 direction], u32, u32, varint, varint damage
 //   0x8D00 HP: varint entity, varint 2, varint, varint, u64 HP
 //   0x3645 a character in view, 0x3633 your own: varint entity, 5 bytes, u8 length, name
-//   0x8A33 a name on entering a zone: varint entity, u64, u8 length, name; also a player's title (seen: "Legend" for
-//          a player titled <Legend>), so it only names someone nothing else has named
+//   0x8A33 not a name: a player's title or legion as a string (seen in a dungeon: "Legend" for two players, "HunLords")
 //   0x3805 damage over time: varint target, u8 0x0A, varint source, varint, u32 skill, varint damage
 //   0x3641 a mob or summon in view: varint entity ... 8 x 0xFF, 8 bytes, varint owner (itself for a mob)
 //   0x9702 your party: per member u16 server, u8 length, name, u32 class, u32 level, u32 item level (a party title,
@@ -152,8 +151,7 @@ function decode(op, p) {
     const max = r.varint(), left = r.varint();
     return { k: 'tickets', tickets: [{ id, left, max }] };
   }
-  if (op === 0x8a33) { const id = r.varint(); r.skip(8); const name = nameAt(p, r.o); return name ? { k: 'name', id, name, weak: true } : null; }
-  if (op === 0x9702) {
+    if (op === 0x9702) {
     const members = [];
     for (let o = 2; o < p.length; o++) {
       const s = nameAt(p, o), end = o + 1 + Buffer.byteLength(s);
@@ -208,12 +206,9 @@ class Stream {
 
 // The fight: the target hit the most in the last 15 s, with everyone's damage on it since it was first hit
 class Fight {
-  constructor() { this.tickets = new Map(); this.names = new Map(); this.named = new Set(); this.weak = new Set(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
+  constructor() { this.tickets = new Map(); this.names = new Map(); this.named = new Set(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
   add(e, now) {
-    if (e.k === 'name') {
-      if (e.weak) { if (!this.names.has(e.id)) { this.names.set(e.id, e.name); this.weak.add(e.id); } return; }
-      this.names.set(e.id, e.name); this.named.add(e.name); this.weak.delete(e.id); if (e.me) this.me = e.name; return;
-    }
+    if (e.k === 'name') { this.names.set(e.id, e.name); this.named.add(e.name); if (e.me) this.me = e.name; return; }
     if (e.k === 'party') { this.party = new Set(e.names); this.members = e.members || []; return; }
     if (e.k === 'tickets') { for (const x of e.tickets) this.tickets.set(x.id, { ...this.tickets.get(x.id), ...x, at: Date.now() }); return; }
     if (e.k === 'summon') { this.summons.set(e.id, e.owner); if (this.summons.size > 5000) this.summons.clear(); return; }
@@ -240,7 +235,10 @@ class Fight {
     const name = (id) => this.names.get(id) || '';
     const inParty = (p) => this.party.has(name(p.id)) || (!!this.me && name(p.id) === this.me);
     let players = [...t.by.values()];
-    if (partyOnly && this.party.size) players = players.filter(inParty);
+    // only your party: those named and in it, and those not named yet (a reader started partway through a zone hears a
+    // name only when someone comes into view) unless they're a pet's or summon's crumbs
+    const all = players.reduce((a, p) => a + p.damage, 0);
+    if (partyOnly && this.party.size) players = players.filter((p) => inParty(p) || (!this.names.has(p.id) && p.damage >= 0.02 * all));
     const total = players.reduce((a, p) => a + p.damage, 0) || 1;
     const h = this.hp.get(t.id);
     return {
@@ -254,13 +252,15 @@ class Fight {
     };
   }
   // You're never "a character in view" (0x3645), only 0x3633 when a zone starts. Started partway through a zone, the one
-  // party member nobody has named is you, and the one player on this target named only by a title (or not at all) is
-  // your character. ponytail: one-unknown heuristic; two missed party members leave it unguessed until the next zone.
+  // party member nobody has named is you, and you're the unnamed one doing by far the most damage on this target (the
+  // rest are pets and summons whose owner wasn't seen). ponytail: heuristic; two unnamed party members wait for a zone.
   guessMe(t) {
     if (this.me || !this.party.size) return;
     const left = [...this.party].filter((n) => !this.named.has(n));
-    const ids = [...t.by.keys()].filter((id) => (this.weak.has(id) || !this.names.has(id)) && !this.summons.has(id));
-    if (left.length === 1 && ids.length === 1) { this.me = left[0]; this.names.set(ids[0], left[0]); this.weak.delete(ids[0]); this.named.add(left[0]); }
+    const ids = [...t.by.values()].filter((p) => !this.names.has(p.id)).sort((a, b) => b.damage - a.damage);
+    if (left.length === 1 && ids.length && (ids.length === 1 || ids[0].damage > 3 * ids[1].damage)) {
+      this.me = left[0]; this.names.set(ids[0].id, left[0]); this.named.add(left[0]);
+    }
   }
   // fights that just ended, for the history: a boss killed, or 20 s or more of fighting that stopped 30 s ago
   finished(now, partyOnly) {
