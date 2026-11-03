@@ -22,7 +22,8 @@ jobs:
         shell: pwsh
         run: |
           cd memtest; mkdir out-cap | Out-Null; $env:OUT = "$PWD\out-cap"
-          foreach ($m in 'video','audio','both') { $env:MODE = $m; ..\client\node_modules\.bin\electron.cmd cap.js }
+          $env:MODE = 'send'; ..\client\node_modules\.bin\electron.cmd ipc.js
+          $env:MODE = 'none'; ..\client\node_modules\.bin\electron.cmd ipc.js
       - if: always()
         uses: actions/upload-artifact@v4
         with:
