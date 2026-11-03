@@ -165,7 +165,7 @@ export default {
       const b = await req.json().catch(() => null), [o] = riotIdList(b && [b.o], 1);
       const n = b && typeof b.n === 'string' && /^[^\s,<>#]{1,24}$/.test(b.n) ? b.n : '', s = b && typeof b.s === 'string' && /^[A-Za-z' -]{2,20}$/.test(b.s) ? b.s : '';
       if (!b || !DEVICE.test(b.id) || !o || !n || !s) return Response.json({ error: 'Not a character' }, { status: 400, headers: CORS });
-      return Response.json(await stats(env).aion(b.id, o, n, s, b.del === true), { headers: CORS });
+      return Response.json(await stats(env).aion(b.id, o, n, s, b.del === true, b.m === true), { headers: CORS });
     }
     const ap = /^\/aion\/(boss|ticks|fights)$/.exec(url.pathname); // the Aion 2 tracker's Timers, Checklist and DPS pages
     if (ap) {
@@ -345,15 +345,19 @@ export class Stats extends DurableObject {
   // Aion 2 characters (/aion): with no id, every claim [{ n: name, s: server, o: owner's Riot ID }]; else o claims n on s,
   // or lets it go (del), when o is one of the Riot IDs that device's last hello gave. A new claim takes a character from
   // whoever had it. Ten for each Riot ID. ponytail: trusts the Riot ID like /invite does; fine among friends
-  aion(id, o, n, s, del) {
+  // m: a legion member who doesn't use Premade, added by o and kept as o '+' + o (50 each); never takes a claimed character,
+  // and its player claiming it later makes it theirs
+  aion(id, o, n, s, del, m) {
     const sql = this.ctx.storage.sql;
     if (!id) return sql.exec('SELECT n, s, o FROM aion ORDER BY o, n').toArray();
     if (!this.helloRiot(id, o)) return { error: AION_HELLO };
-    // o's claims found here, not with SQLite's lower(), which leaves capitals like Ö as they are
-    const mine = sql.exec('SELECT n, s, o FROM aion').toArray().filter((r) => low(r.o) === low(o)), had = mine.some((r) => r.n === n && r.s === s);
+    const by = m ? '+' + o : o, all = sql.exec('SELECT n, s, o FROM aion').toArray();
+    // by's claims found here, not with SQLite's lower(), which leaves capitals like Ö as they are
+    const mine = all.filter((r) => low(r.o) === low(by)), had = mine.some((r) => r.n === n && r.s === s);
     if (del) { if (had) sql.exec('DELETE FROM aion WHERE n = ? AND s = ?', n, s); }
-    else if (!had && mine.length >= 10) return { error: 'Ten characters at most' };
-    else sql.exec('INSERT OR REPLACE INTO aion VALUES (?, ?, ?)', n, s, o);
+    else if (m && !had && all.some((r) => r.n === n && r.s === s)) return { error: 'Already in the legion' };
+    else if (!had && mine.length >= (m ? 50 : 10)) return { error: m ? 'Fifty members at most' : 'Ten characters at most' };
+    else sql.exec('INSERT OR REPLACE INTO aion VALUES (?, ?, ?)', n, s, by);
     return { ok: true };
   }
   // Aion 2 field bosses (/aion/boss): each boss's last kill on each server, [{ s: server, b: boss, at: when it died (ms),

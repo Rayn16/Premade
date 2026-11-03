@@ -131,6 +131,14 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.equal((await chars()).length, 10);
   assert.deepEqual(await aion({ id: D, o: 'Ödön#EUW', n: 'Odin', s: 'Ariel', del: true }), { ok: true });
   assert.equal((await chars()).length, 9, 'Remove works for it too');
+  // a legion member without Premade: kept as '+' + who added it, never takes a claimed character, its player can claim it
+  assert.deepEqual(await aion({ id: B, o: 'Rayan#EUW', n: 'Mate', s: 'Tassin', m: true }), { ok: true });
+  assert.deepEqual((await chars()).filter((c) => c.n === 'Mate'), [{ n: 'Mate', s: 'Tassin', o: '+Rayan#EUW' }]);
+  assert.match((await aion({ id: B, o: 'Rayan#EUW', n: 'Alt0', s: 'Ariel', m: true })).error, /^Already/);
+  assert.deepEqual(await aion({ id: A, o: 'Kev#NA1', n: 'Mate', s: 'Tassin', del: true, m: true }), { ok: true }); // not Kev's to remove
+  assert.equal((await chars()).length, 10);
+  assert.deepEqual(await aion({ id: B, o: 'Rayan#EUW', n: 'Mate', s: 'Tassin', del: true, m: true }), { ok: true });
+  assert.equal((await chars()).length, 9);
   // Aion 2 boss kills: a device marks one for a Riot ID it said hello with; a new mark replaces the last, del takes it off
   const kills = async () => (await (await fetch(BASE + '/aion/boss')).json()).kills, boss = async (b) => (await post('/aion/boss', b)).json();
   assert.deepEqual(await kills(), []);
