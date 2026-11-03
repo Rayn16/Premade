@@ -82,4 +82,23 @@ assert.notStrictEqual(fight.snapshot(now + 15500, true).hp, 0);
 const done = fight.finished(now + 4000, true);
 assert.deepStrictEqual(done.map((d) => [d.killed, d.players.length]), [[true, 2]]);
 assert.strictEqual(fight.finished(now + 9000, true).length, 0);
+
+// game-read schedules (Nyerk's layouts): the field boss list as the map sends it, the daily reset, limits, the siege
+const T = Date.UTC(2026, 10, 3, 19, 21, 7, 250), f32 = (x) => { const b = Buffer.alloc(4); b.writeFloatLE(x); return b; };
+const list = Buffer.concat([u16(0), u32(1010), Buffer.from([3]),
+  Buffer.from([0]), varint(101021), u64(T),                                    // dead: respawns at T
+  Buffer.from([1]), varint(101001), f32(1), f32(2), f32(3), u64(0),            // up, no time since the 10-14 patch
+  Buffer.from([0]), varint(101002), Buffer.from([0xff]), u64(T + 6e4)]);       // dead, with the odd byte before its time
+assert.deepStrictEqual(decode(0x9101, list), { k: 'bosses', world: 1010, bosses: [{ id: 101021, up: false, at: T }, { id: 101001, up: true, at: 0 }, { id: 101002, up: false, at: T + 6e4 }] });
+const day = Date.UTC(2026, 10, 4, 7), week = Date.UTC(2026, 10, 4, 7) + Math.ceil((Date.now() - Date.UTC(2026, 10, 4, 7)) / (7 * 864e5)) * 7 * 864e5;
+assert.deepStrictEqual(decode(0xe223, Buffer.concat([u64(day), u32(0)])), { k: 'sched', day });
+assert.strictEqual(decode(0xe223, Buffer.concat([u64(day + 1), u32(0)])), null, 'not on a whole minute: a misread');
+const lim = (id, at) => Buffer.concat([u32(id), u32(1), u64(at)]);
+assert.deepStrictEqual(decode(0x568e, Buffer.concat([u16(0), Buffer.from([3]), lim(1, week), lim(2, week), lim(1262, Date.UTC(2100, 0, 1))])), { k: 'sched', week });
+const siege = Date.UTC(2026, 10, 6, 1);
+assert.deepStrictEqual(decode(0xe307, Buffer.concat([Buffer.alloc(9, 7), Buffer.from('e90300000301', 'hex'), u64(siege - 3 * 864e5), u64(siege), Buffer.alloc(10)])), { k: 'sched', siege, siegeEnded: siege - 3 * 864e5 });
+const g = new Fight();
+for (const [op, p] of [[0x9101, list], [0xe223, Buffer.concat([u64(day), u32(0)])]]) g.add(decode(op, p), 0);
+const gs = g.snapshot(0, true);
+assert.deepStrictEqual([gs.sched, gs.bosses.world, gs.bosses.list.length], [{ day }, 1010, 3]);
 console.log('aionlive ok');

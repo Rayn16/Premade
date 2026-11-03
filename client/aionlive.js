@@ -17,6 +17,12 @@
 //   0x610B entry tickets, at login: varint count, then per ticket u8 mask, u32 ticket, [u64 if mask & 1],
 //          [u64 if mask & 2], [varint left if mask & 4], [varint bought/charged if mask & 8] (Abyss's decoder; checked on a real login: Odyle 10 (+320))
 //   0x610C one ticket changed: u8, varint ticket, u32, varint max, varint left (seen: Nightmare 2 of 14)
+//   0x9101 the map's field boss list for your zone, every ~3 s while the map is open (never with it closed): u16, u32
+//          world, u8 count, then per boss u8 up, varint id, [f32 x, y, z if up], [a byte at times], u64 ms (dead: when it
+//          respawns; up: when it spawned, or 8 zeros). From Nyerk (github.com/xCROv/aion2-nyerk), checked on its captures.
+//   0xE223 the next daily reset, u64 ms (login, zone entry); 0x568E limits: u16, u8 n, n x (u32 id, u32, u64 next reset
+//          ms), most on the weekly reset; 0xE307 / 0xE305 the Artifact Siege: after e9 03 00 00 03 and a byte, u64 last
+//          end and u64 next start (ms). Also Nyerk's.
 // Skill codes are the skill's id plus its level and variant: 16370001 is skill 16370000; a tick's 1637000011 too.
 const { execFile } = require('child_process');
 
@@ -91,6 +97,15 @@ function unbundle(list, out = [], depth = 0) {
 
 const FF8 = Buffer.alloc(8, 255);
 const nameAt = (b, o) => { const n = b[o]; if (!(n >= 2 && n <= 32) || o + 1 + n > b.length) return ''; const s = b.subarray(o + 1, o + 1 + n).toString('utf8'); return /^[^\x00-\x1f\ufffd]+$/.test(s) ? s : ''; };
+const msAt = (b, o) => { if (o + 8 > b.length) return false; const v = Number(b.readBigUInt64LE(o)); return v > 1.6e12 && v < 2.2e12; };
+const gameTime = (v) => v > 1.6e12 && v < 2.2e12 && v % 60000 === 0; // the game's schedules fall on whole minutes
+const SIEGE = Buffer.from('e903000003', 'hex'); // artifact 1001, then the siege's times
+// a boss of this zone's list starts at o (a flag, then an id that's world * 100 + n), or the list ends there
+function bossAt(b, o, world) {
+  if (o >= b.length - 3) return true;
+  if (b[o] !== 0 && b[o] !== 1) return false;
+  try { const r = new Reader(b); r.o = o + 1; return Math.floor(r.varint() / 100) === world; } catch { return false; }
+}
 function decode(op, p) {
   const r = new Reader(p);
   if (op === 0x3804) {
@@ -151,7 +166,42 @@ function decode(op, p) {
     const max = r.varint(), left = r.varint();
     return { k: 'tickets', tickets: [{ id, left, max }] };
   }
-    if (op === 0x9702) {
+  if (op === 0x9101) {
+    const world = p.readUInt32LE(2), n = p[6], bosses = [];
+    let o = 7;
+    for (let i = 0; i < n; i++) {
+      if (p[o] !== 0 && p[o] !== 1) return null;
+      const up = p[o] === 1;
+      r.o = o + 1;
+      const id = r.varint();
+      o = r.o + (up ? 12 : 0);
+      // no time: 8 zeros (after the odd byte, maybe), where what follows starts the next boss or the list ends
+      const z = [0, 1].find((k) => o + k + 8 <= p.length && !p.readBigUInt64LE(o + k) && bossAt(p, o + k + 8, world));
+      if (z !== undefined) { o += z + 8; if (up) bosses.push({ id, up, at: 0 }); continue; }
+      const k = [0, 1, 2, 3, 4].find((k) => msAt(p, o + k));
+      if (k === undefined) return null;
+      o += k;
+      bosses.push({ id, up, at: Number(p.readBigUInt64LE(o)) });
+      o += 8;
+    }
+    return { k: 'bosses', world, bosses };
+  }
+  if (op === 0xe223) { const at = p.length >= 8 && Number(p.readBigUInt64LE(0)); return gameTime(at) ? { k: 'sched', day: at } : null; }
+  if (op === 0x568e) {
+    const n = p[2], soon = [], now = Date.now();
+    if (p.length < 3 + 16 * n) return null;
+    for (let i = 0; i < n; i++) { const at = Number(p.readBigUInt64LE(3 + 16 * i + 8)); if (at > now && at <= now + 8 * 864e5 && gameTime(at)) soon.push(at); }
+    // the weekly reset: the time most limits share in the next 8 days, if it's most of them
+    const best = [...new Set(soon)].map((t) => [t, soon.filter((x) => x === t).length]).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    return best && best[1] * 2 > soon.length ? { k: 'sched', week: best[0] } : null;
+  }
+  if (op === 0xe307 || op === 0xe305) {
+    const i = p.indexOf(SIEGE);
+    if (i < 0 || i + 22 > p.length) return null;
+    const last = Number(p.readBigUInt64LE(i + 6)), next = Number(p.readBigUInt64LE(i + 14));
+    return last > 1.6e12 && last < next && gameTime(next) ? { k: 'sched', siege: next, siegeEnded: last } : null;
+  }
+  if (op === 0x9702) {
     const members = [];
     for (let o = 2; o < p.length; o++) {
       const s = nameAt(p, o), end = o + 1 + Buffer.byteLength(s);
@@ -206,10 +256,12 @@ class Stream {
 
 // The fight: the target hit the most in the last 15 s, with everyone's damage on it since it was first hit
 class Fight {
-  constructor() { this.tickets = new Map(); this.names = new Map(); this.named = new Set(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
+  constructor() { this.sched = {}; this.bosses = null; this.tickets = new Map(); this.names = new Map(); this.named = new Set(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
   add(e, now) {
     if (e.k === 'name') { this.names.set(e.id, e.name); this.named.add(e.name); if (e.me) this.me = e.name; return; }
     if (e.k === 'party') { this.party = new Set(e.names); this.members = e.members || []; return; }
+    if (e.k === 'sched') { Object.assign(this.sched, e); delete this.sched.k; return; }
+    if (e.k === 'bosses') { this.bosses = { world: e.world, list: e.bosses, at: Date.now() }; return; }
     if (e.k === 'tickets') { for (const x of e.tickets) this.tickets.set(x.id, { ...this.tickets.get(x.id), ...x, at: Date.now() }); return; }
     if (e.k === 'summon') { this.summons.set(e.id, e.owner); if (this.summons.size > 5000) this.summons.clear(); return; }
     if (e.k === 'hp') { const h = this.hp.get(e.id) || { max: 0 }; h.hp = e.hp; h.max = Math.max(h.max, e.hp); h.at = now; this.hp.set(e.id, h); return; }
@@ -286,7 +338,7 @@ class Fight {
     const dead = this.last && (this.hp.get(this.last.id) || {}).hp === 0 && now - this.last.lastAt < 15e3;
     if (best && !dead) this.last = best; // a fight just won stays up 15 s, before the trash mobs after it
     const t = this.last;
-    return { members: this.members, tickets: [...this.tickets.values()], ...(t && { active: now - t.lastAt < 15e3, ...this.numbers(t, partyOnly) }) };
+    return { members: this.members, tickets: [...this.tickets.values()], sched: this.sched, bosses: this.bosses, ...(t && { active: now - t.lastAt < 15e3, ...this.numbers(t, partyOnly) }) };
   }
 
 }

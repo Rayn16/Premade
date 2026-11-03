@@ -6165,9 +6165,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // shares this storage) show it all: DPS has the fight, its switch and past fights, Checklist the entry tickets, Profile
   // your party. Written here: lpc-aion-live { at, state, party, fight } at most once a second (state: off, on, game,
   // npcap, error, update), lpc-aion-party ({ at, members }, with class, CP and gear from NC's pages), lpc-aion-skills
-  // ({ id: name }), lpc-aion-history (finished fights, newest 200) and lpc-aion-tickets. The tracker asks with
+  // ({ id: name }), lpc-aion-history (finished fights, newest 200), lpc-aion-tickets, lpc-aion-sched ({ day, week,
+  // siege, siegeEnded, at }: the game's next resets and siege, ms) and lpc-aion-bosses ({ world: { world, at, list: [{ id,
+  // up, at }] } }: each zone's field boss list as its map last showed it; at is a dead boss's respawn). The tracker asks with
   // lpc-aion-want: '1' after its ban warning, '0' to stop, 'party' or 'all' for whose damage, each followed by '|' and a time.
-  let aionFight = null, aionState = 'off', aionWritten = 0, aionPartyWas = '', aionTixWas = '';
+  let aionFight = null, aionState = 'off', aionWritten = 0, aionPartyWas = '', aionTixWas = '', aionSchedWas = '', aionBossesWas = 0;
   const bigNum = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
   const fightClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const aionPut = (k, v) => store.set(k, JSON.stringify(v));
@@ -6217,6 +6219,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     else if (aionState === 'game') aionState = 'on';
     const tix = JSON.stringify((s && s.tickets) || []);
     if (tix !== aionTixWas) { aionTixWas = tix; if (s.tickets.length) aionTickets(s.tickets); }
+    // the game's own schedule and the map's field boss lists (one per zone), as it sends them
+    const sched = JSON.stringify((s && s.sched) || {});
+    if (sched !== aionSchedWas) { aionSchedWas = sched; if (sched !== '{}') aionPut('lpc-aion-sched', { ...load('lpc-aion-sched', {}), ...s.sched, at: Date.now() }); }
+    if (s && s.bosses && s.bosses.at !== aionBossesWas) { aionBossesWas = s.bosses.at; aionPut('lpc-aion-bosses', { ...load('lpc-aion-bosses', {}), [s.bosses.world]: s.bosses }); }
     const party = JSON.stringify((s && s.members) || []);
     if (party !== aionPartyWas) { aionPartyWas = party; aionParty(s.members || []); }
     aionPublish();
@@ -14153,6 +14159,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [111, 'November 3: Aion 2 timers from the game', [
+      'Desktop app 1.37.0, with Live fight on: Aion 2’s Today tab takes the daily and weekly resets from the game itself, adds the Artifact Siege once you enter the Abyss, and lists each field boss’s respawn as the in-game map shows it (open the map in Verteron, Altgard or Lower Reshanta for a few seconds). Premade warns you 5 minutes before one is back. The field boss layout comes from Nyerk (github.com/xCROv/aion2-nyerk).',
+    ]],
     [110, 'November 3: the Aion 2 DPS meter as a pop-up, and three builds per class', [
       'Desktop app 1.36.0: Pop out on Aion 2’s DPS tab puts the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP and a bar per player in their class colour (yours in your theme’s), DPS and share. The party’s total DPS and each player’s share sit on top, the boss’s HP has a trail for the damage just taken, and the bars are ranked, the leader’s catching the light. Click a bar for top skills; the lines button makes it compact. Drag it by its top, resize it from its edges; it opens where you left it. Aion 2 has to be in Borderless or Windowed mode.',
       'Each class guide has three builds: the main one, a second (Damage for Cleric, Chanter and Templar, PvP for the rest) and Farming. Skills, stigmas, stats and the Daevanion paths follow the build you pick.',
@@ -14744,7 +14753,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated every 30 minutes.', [
       ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes with three builds (main, a second one and Farming): skills to level, all six Daevanion boards with a numbered path and node priority, and the legion’s best gear. Aion 2’s patch notes and maintenance news are under Today.',
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
-      ['Aion 2 Today', 'Today: the daily and weekly resets, Shugo Festival and Dimensional Invasion as countdown rings, and under them your entry tickets as the game counts them (with Live fight on).',
+      ['Aion 2 Today', 'Today: the daily and weekly resets, Shugo Festival and Dimensional Invasion as countdown rings, and with Live fight on the resets as the game gives them, the Artifact Siege, each field boss’s respawn from the in-game map (with a warning 5 minutes before) and your entry tickets as the game counts them.',
         'Open Aion 2: Today is in its menu.', '#aionFrame'],
       ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
