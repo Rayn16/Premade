@@ -7,5 +7,5 @@ app.whenReady().then(() => {
   const child = spawn('node', [path.join(__dirname, 'pcm-child.js')], { stdio: ['ignore', 'pipe', 'ignore'] });
   child.stdout.on('data', (c) => { if (MODE === 'send') win.webContents.send('pcm', c); else if (MODE === 'copy') win.webContents.send('pcm', new Uint8Array(c)); });
   const t0 = Date.now();
-  setInterval(async () => { console.log(MODE, Math.round((Date.now() - t0) / 1000) + 's main=' + priv(), 'heap=' + Math.round(process.memoryUsage().heapUsed / 1048576), 'ext=' + Math.round(process.memoryUsage().arrayBuffers / 1048576), 'rx=' + await win.webContents.executeJavaScript('n')); if (Date.now() - t0 > 240000) app.quit(); }, 15000);
+  setInterval(async () => { console.log(MODE, Math.round((Date.now() - t0) / 1000) + 's main=' + priv(), 'heap=' + Math.round(process.memoryUsage().heapUsed / 1048576), 'ext=' + Math.round(process.memoryUsage().arrayBuffers / 1048576), 'rx=' + await win.webContents.executeJavaScript('n')); if (Date.now() - t0 > 240000) { child.kill(); app.exit(0); } }, 15000);
 });
