@@ -762,6 +762,163 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .ovhandle:hover, .ovhandle[aria-pressed="true"] { border-style: solid; border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 .ovhandle span { position: absolute; top: 0; left: 0; padding: 2px 6px; border-radius: 3px 0 4px 0; background: var(--gold); color: var(--bg); font: 600 11px/1.2 var(--body); white-space: nowrap; opacity: 0; pointer-events: none; }
 .ovhandle:is(:hover, :focus-visible, [aria-pressed="true"]) span { opacity: 1; }
+
+/* Open Design layouts: shared pieces */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pills button { font: 500 12.5px/1 var(--mono); padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--muted); cursor: pointer; }
+.pills button:hover { color: var(--fg); border-color: var(--gold-line); }
+.pills button[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--raised)); }
+.pills button:disabled { cursor: default; opacity: 0.7; }
+.pills.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px; }
+.pills.cards button { display: grid; gap: 6px; justify-items: start; text-align: left; padding: 12px 14px; border-radius: 6px; font: 700 14px/1.2 var(--display); color: var(--fg); }
+.pills.cards button small { font: 400 12.5px/1.4 var(--body); color: var(--muted); }
+.pills.cards button[aria-pressed="true"] { color: var(--gold); }
+.modefield { flex: 1 1 100%; }
+.setrows { display: grid; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); min-width: 0; }
+.setrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 14px; font-size: 14px; }
+.setrow + .setrow { border-top: 1px solid var(--line); }
+.setrow > div:first-child { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; }
+.setrow small { color: var(--muted); font-size: 12.5px; }
+.setrow.keyrow { display: flex; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.tile { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); min-width: 0; }
+.tile > span { color: var(--muted); font-size: 13px; }
+.tile > b { font: 600 26px/1 var(--mono); color: var(--fg); }
+.tile > small { font: 500 12px/1.2 var(--mono); color: var(--muted); }
+.tile > small[data-d="up"] { color: var(--good); }
+.tile > small[data-d="down"] { color: var(--bad); }
+.tag { display: inline-block; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; font: 500 11.5px/1 var(--body); color: var(--muted); }
+.tag[data-t="close"] { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.tag[data-t="near"] { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+
+/* Rooms (Open Design): chat and the Current room card on top, everyone in the room as cards below; in a game the
+   players become rows with their distance and volume, beside the minimap, who's in hearing range and your mic */
+.roomgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); grid-template-areas: "players cur" "main cur"; grid-template-rows: auto 1fr; gap: 16px; align-items: start; }
+.roommain { grid-area: main; }
+#curRoom { grid-area: cur; }
+#roomCards { grid-area: players; }
+#roomSide { grid-area: side; display: none; }
+.roombar { grid-area: bar; display: none; }
+#roomView[data-game] .roomgrid { grid-template-areas: "players side" "main side" "main cur" "bar bar"; }
+#roomView[data-game] #roomSide { display: grid; }
+#roomView[data-game] .roombar { display: flex; }
+@container app (max-width: 900px) { .roomgrid, #roomView[data-game] .roomgrid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cur" "players" "side" "main" "bar"; } }
+.roomclock { margin-left: auto; font: 500 13px/1 var(--mono); color: var(--fg); }
+.curcode { display: grid; gap: 6px; }
+.curcode b { padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font: 600 18px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.curbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.curbtns > .btn { width: 100%; }
+.curlock { display: flex; align-items: center; gap: 6px; }
+.curlock > .btn { flex: 1; }
+#generalShareBtn, .curbtns .leave { grid-column: 1 / -1; }
+.btn.leave { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); color: var(--bad); }
+.cursets { display: grid; gap: 10px; }
+.cursets { padding-top: 12px; border-top: 1px solid var(--line); }
+#roomCards .ph .hint { margin-left: auto; font: 400 12px/1 var(--body); letter-spacing: 0; }
+#roomCards .players { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+#roomCards .player { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pic" "main" "vol" "mute"; justify-items: center; text-align: center; border-left-width: 1px; }
+#roomCards .player .pic { width: 64px; height: 64px; }
+#roomCards .pname { justify-content: center; }
+#roomCards .pvol, #roomCards .pmain { width: 100%; }
+#roomCards .acts { justify-content: center; }
+.pmeta { display: flex; flex-wrap: wrap; align-items: center; justify-content: inherit; gap: 8px; }
+#roomCards .pmeta { justify-content: center; }
+.pmeta:has(.ptag[hidden]):has(.pdist:empty) { display: none; }
+.pdist { font: 600 13px/1 var(--mono); color: var(--fg); }
+.pdist:not(:empty)::after { content: " units"; font-weight: 400; color: var(--muted); }
+#roomView[data-game] #roomCards .players { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+#roomView[data-game] #roomCards .player { grid-template-columns: 40px minmax(170px, 1fr) minmax(120px, 200px) auto; grid-template-areas: "pic main vol mute"; justify-items: stretch; text-align: left; padding: 8px 12px; border-left-width: 3px; }
+#roomView[data-game] #roomCards .player .pic { width: 40px; height: 40px; }
+#roomView[data-game] #roomCards :is(.pname, .pmeta, .acts) { justify-content: flex-start; }
+#roomView[data-game] #roomCards .acts { justify-content: flex-end; }
+#roomView[data-game] #roomCards .pvol { grid-template-columns: minmax(0, 1fr) 3.4em; }
+#roomView[data-game] #roomCards .pvol > span { display: none; } /* just the slider and its number in a row */
+#roomView[data-game] #roomCards .pstate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.player[data-team="enemy"] { order: 1; }
+#roomMap { width: 100%; aspect-ratio: 1; display: block; border-radius: 6px; border: 1px solid var(--line); background: #02070c; }
+.inrange { display: grid; gap: 6px; font-size: 14px; }
+.inrange li { display: flex; justify-content: space-between; gap: 10px; }
+.inrange b { font: 500 13px/1 var(--mono); color: var(--muted); }
+.inrange:empty::before { content: attr(data-empty); color: var(--muted); }
+#roomMicLevel { width: 100%; }
+.roombar { align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.roombar #clipNowBtn { margin-left: auto; }
+
+/* Stats (Open Design): the hero card, five number tiles and your best champions */
+.shero { grid-template-columns: 180px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.8fr); align-items: center; gap: 20px; }
+@container app (max-width: 900px) { .shero { grid-template-columns: 120px minmax(0, 1fr); } }
+.sheroart { aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--raised); border: 1px solid var(--line); }
+.sheroart img { width: 100%; height: 100%; object-fit: cover; object-position: 70% 20%; display: block; }
+.sherowho { display: grid; gap: 8px; }
+.sherorank, .sherowr { display: grid; gap: 6px; padding-left: 18px; border-left: 1px solid var(--line); }
+.lpnum { font: 600 22px/1 var(--mono); color: var(--fg); }
+.sherorank .lpnum { font-size: 15px; color: var(--best); }
+.spark { width: 100%; max-width: 200px; height: 40px; }
+.spark polyline { fill: none; stroke: var(--best); stroke-width: 1.5; }
+.wrbar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--bad) 55%, var(--raised)); overflow: hidden; }
+.wrbar span { display: block; height: 100%; background: var(--good); }
+.sherowr small { font: 500 12px/1 var(--mono); color: var(--muted); }
+.tilepanel { padding: 0; background: none; border: 0; }
+.best td.topv { color: var(--best); font-weight: 600; }
+.best td:not(:first-child), .best th:not(:first-child) { text-align: right; }
+
+/* Champ select (Open Design): your team, your pick and the enemy team in three columns, the clock big, Lock in at the foot */
+.cshead { display: flex; align-items: center; gap: 16px; }
+.cshead .phase { flex: 1; margin: 0; }
+.csclock { font: 600 34px/1 var(--mono); color: var(--fg); }
+.csclock:empty { display: none; }
+.cscols { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 1.6fr) minmax(190px, 0.8fr); gap: 14px; align-items: start; }
+@container app (max-width: 1100px) { .cscols { grid-template-columns: minmax(0, 1fr); } }
+.cscol { display: grid; gap: 12px; min-width: 0; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
+.cscol > h3.ph:first-child { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.csus .scout thead { display: none; }
+.csus .scout, .csus .scout tbody { display: block; }
+.csus .scout tr { display: grid; gap: 4px; padding: 8px 10px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.csus .scout td { display: block; padding: 0; border: 0; white-space: normal; }
+.csus .scout td:empty { display: none; }
+.csthemlist { display: grid; gap: 8px; }
+.csthemlist li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.csthemlist li .tag { margin-left: auto; color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.csthemlist img:not([src]) { visibility: hidden; }
+.csbar { position: sticky; bottom: 0; z-index: 2; margin: 0 -16px -16px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); justify-content: flex-end; }
+
+/* Clips (Open Design): the picked clip big beside the list, with a search, a date filter and the folder's fill */
+.clipsgrid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+.clipsgrid:has(#clipStage[hidden]) { grid-template-columns: minmax(0, 1fr); }
+@container app (max-width: 900px) { .clipsgrid { grid-template-columns: minmax(0, 1fr); } }
+.clipstage .clip.big { border: 0; padding: 0; background: none; }
+.clipstage .clip.big .shot { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
+.clipstage .clip.big .play { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.clipstage .clip.big .cname { font: 700 22px/1.2 var(--display); color: var(--gold-hi); }
+#h-clips #clipCount { margin-left: auto; font: 500 12px/1 var(--mono); letter-spacing: 0; }
+.clipfind { display: grid; gap: 10px; }
+.clipfind input { font: 14px/1.2 var(--body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); }
+#clipGrid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+.clipstore { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); }
+.clipstore b { font: 500 13px/1 var(--mono); }
+.wrbar.store { grid-column: 1 / -1; background: var(--raised); }
+.wrbar.store span { background: var(--accent); }
+
+/* Profile (Open Design): the lookup and its buttons in a bar of their own above the player */
+.profind .proside { margin-left: 0; display: flex; flex-wrap: wrap; align-items: start; gap: 10px; justify-content: space-between; }
+.profind #proFindBox:not([hidden]) { flex: 1 1 320px; display: grid; gap: 6px; }
+.profind #proFind { grid-template-columns: minmax(0, 1fr) auto; }
+.prohead #proRanks { margin-left: auto; flex: 1 1 420px; max-width: 640px; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+.prohead .rank { background: var(--raised); padding: 12px; grid-template-columns: 44px minmax(0, 1fr); }
+.prohead .rank img { max-width: 44px; }
+
+/* Recording: the big Record button and its timer beside the settings */
+.recgrid { display: grid; grid-template-columns: minmax(200px, 300px) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+@container app (max-width: 760px) { .recgrid { grid-template-columns: minmax(0, 1fr); } }
+.recstage { display: grid; gap: 12px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
+.recbig { width: 100%; padding: 16px; font-size: 15px; background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.recbig::before { content: "\25CF  "; }
+#recBox[data-on] .recbig { background: var(--raised); color: var(--bad); border-color: var(--bad); }
+#recBox[data-on] .recbig::before { content: none; }
+.rectime { font: 600 28px/1 var(--mono); color: var(--fg); }
+#recBox[data-on] .rectime { color: var(--bad); }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -847,14 +1004,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     <p id="lolNote" role="status"></p>
 
     <section class="view" data-view="profile" aria-label="Profile" hidden>
-      <header class="panel prohead">
-        <div class="proicon"><img id="proIcon" alt="" hidden><span id="proLvl" class="lvl"></span></div>
-        <div class="proid">
-          <h1 class="proname"><span id="proName"></span><small id="proTag"></small></h1>
-          <p id="proSub" class="hint"></p>
-          <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
-          <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
-        </div>
+      <section class="panel profind" aria-label="Look up a player">
         <div class="proside">
           <div id="proFindBox" hidden>
             <form id="proFind" class="chatform" role="search">
@@ -874,6 +1024,16 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
           </div>
         </div>
+      </section>
+      <header class="panel prohead">
+        <div class="proicon"><img id="proIcon" alt="" hidden><span id="proLvl" class="lvl"></span></div>
+        <div class="proid">
+          <h1 class="proname"><span id="proName"></span><small id="proTag"></small></h1>
+          <p id="proSub" class="hint"></p>
+          <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
+          <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
+        </div>
+        <div id="proRanks" class="ranks"></div>
       </header>
       <section id="weekBox" class="panel" aria-labelledby="h-week" hidden>
         <h2 id="h-week" class="ph"></h2>
@@ -887,7 +1047,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
       <p id="proNote" class="phase" role="status" hidden></p>
       <p id="proApp" class="hint browser-only pc-only" hidden>On Windows? <a href="Premade-Setup.exe" download>Get the desktop app</a>: it reads your profile from League while it’s open.</p>
-      <div id="proRanks" class="ranks"></div>
       <section id="proCmpBox" class="panel" aria-labelledby="h-procmp" hidden>
         <h2 id="h-procmp" class="ph">Side by side</h2>
         <p id="cmpNote" class="hint"></p>
@@ -974,19 +1133,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
               <h1 id="roomName" class="code"></h1>
               <p id="lockNote" class="hint" hidden></p>
             </div>
-            <div class="toolbar">
-              <button id="generalShareBtn" class="btn primary pc-only" type="button">Share screen or app</button>
-              <button id="copyBtn" class="btn" type="button">Copy invite link</button>
-              <button id="lockBtn" class="btn" type="button" hidden>Lock room</button>
-              <button class="tip" type="button" popovertarget="t-lock" aria-label="About locking the room">?</button>
-              <button id="leaveBtn" class="btn" type="button">Leave</button>
-            </div>
+            <div class="toolbar"><span id="roomLink" class="tag" data-t="close"></span></div>
           </header>
           <p id="phase" class="phase" role="status"></p>
           <p class="hint phone-only">Your screen stays on while you’re in a room, as a phone that locks itself can stop your voice.</p>
           <p id="connectionStatus" class="hint" role="status" hidden></p>
-          <div class="dash">
-            <div class="stack">
+          <div class="roomgrid">
+            <div class="stack roommain">
               <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
                 <h2 id="h-screens" class="ph">Screens</h2>
                 <div id="screenGrid" class="screengrid"></div>
@@ -1007,18 +1160,49 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
                 <p id="histNote" class="hint"></p>
               </details>
             </div>
-            <div id="roomCards">
+            <section id="curRoom" class="panel" aria-labelledby="h-cur">
+              <h2 id="h-cur" class="ph">Current room <output id="roomClock" class="roomclock">0:00</output></h2>
+              <div class="curcode"><span class="hint">Room code</span><b id="curCode"></b></div>
+              <div class="curbtns">
+                <button id="copyBtn" class="btn" type="button">Copy invite link</button>
+                <span class="curlock"><button id="lockBtn" class="btn" type="button" hidden>Lock room</button><button class="tip" type="button" popovertarget="t-lock" aria-label="About locking the room">?</button></span>
+                <button id="generalShareBtn" class="btn primary pc-only" type="button">Share screen or app</button>
+                <button id="leaveBtn" class="btn leave" type="button">Leave</button>
+              </div>
+              <div class="cursets pc-only">
+                <h3 class="ph">Screen share</h3>
+                <label class="check"><input id="optRoomScreen" type="checkbox"> Let the room watch my screen while I share it <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
+                <label class="check"><input id="optRoomSound" type="checkbox"> Share my screen’s sound with the room</label>
+                <label class="check"><input id="optLetPoint" type="checkbox"> Let people watching my screen point and draw on it</label>
+                <p id="roomSoundState" class="hint" role="status">Screen audio is on by default. The Windows app leaves out Premade’s own voices (so friends don’t hear themselves) and the Discord desktop app, and keeps game audio. Discord in a browser can still be included.</p>
+                <button id="changeShareBtn" class="btn small" type="button" hidden>Change shared screen or audio</button>
+                <div class="setrows"><div class="setrow"><b>Screen share quality</b><label class="field"><span class="sr">Screen share quality</span> <select id="optShareQ" class="pillsel"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label></div><div class="setrow"><b>Frame rate</b><label class="field"><span class="sr">Frame rate</span> <select id="optShareFps" class="pillsel"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div></div>
+              </div>
+            </section>
+            <section id="roomCards" class="panel" aria-labelledby="h-players">
               <div id="cardBox" class="cardbox">
-                <h2 class="ph">Players</h2>
+                <h2 id="h-players" class="ph">In this room <span class="hint">Ring means talking</span></h2>
                 <ul id="players" class="players"></ul>
                 <p id="empty" class="hint"></p>
-                <label class="check pc-only"><input id="optRoomScreen" type="checkbox"> Let the room watch my screen while I share it <button class="tip" type="button" popovertarget="t-screens" aria-label="About screens in the room">?</button></label>
-                <label class="check pc-only"><input id="optRoomSound" type="checkbox"> Share my screen’s sound with the room</label>
-                <label class="check pc-only"><input id="optLetPoint" type="checkbox"> Let people watching my screen point and draw on it</label>
-                <p id="roomSoundState" class="hint pc-only" role="status">Screen audio is on by default. The Windows app leaves out Premade’s own voices (so friends don’t hear themselves) and the Discord desktop app, and keeps game audio. Discord in a browser can still be included.</p>
-                <button id="changeShareBtn" class="btn small pc-only" type="button" hidden>Change shared screen or audio</button>
-                <div class="toolbar pc-only"><label class="field">Screen share quality <select id="optShareQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label><label class="field">Frame rate <select id="optShareFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
               </div>
+            </section>
+            <div id="roomSide" class="stack">
+              <section class="panel" aria-labelledby="h-rmap">
+                <h2 id="h-rmap" class="ph">Minimap <span id="rangeCount" class="hint"></span></h2>
+                <canvas id="roomMap" width="300" height="300" role="img" aria-label="Live map: each player's champion and your hearing range"></canvas>
+                <h3 class="ph">In hearing range</h3>
+                <ul id="inRange" class="plain inrange" data-empty="Nobody close enough to hear."></ul>
+              </section>
+              <section class="panel" aria-labelledby="h-rmic">
+                <h2 id="h-rmic" class="ph">Your mic</h2>
+                <p id="roomMicName" class="hint"></p>
+                <meter id="roomMicLevel" min="0" max="1" value="0" aria-label="Your mic level"></meter>
+              </section>
+            </div>
+            <div id="roomBar" class="roombar pc-only">
+              <kbd id="barPtt"></kbd><span id="barPttText" class="hint"></span>
+              <span id="barNear" class="hint"></span>
+              <button id="clipNowBtn" class="btn primary client-only" type="button">Clip last 30s</button>
             </div>
           </div>
         </div>
@@ -1116,11 +1300,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <button id="readyBtn" class="btn" type="button">Ready check</button>
         </div>
         <div id="modeRow" class="moderow">
-          <label class="field">Game mode <select id="modeSel"><option value="classic">Classic</option><option value="legends">Legends</option><option value="immersive">Immersive</option><option value="gibberish">Gibberish</option><option value="swap">Voice swap</option><option value="showdown">Showdown</option><option value="chaos">Chaos</option></select></label>
+          <label class="field modefield">Game mode <select id="modeSel" class="pillsel cards"><option value="classic" title="Hear whoever’s standing near you. Nothing clever.">Classic</option><option value="legends" title="Voices change with Baron, souls, sprees and Aces.">Legends</option><option value="immersive" title="Hollow while dead, watery in the river.">Immersive</option><option value="gibberish" title="The other team comes out scrambled.">Gibberish</option><option value="swap" title="Your voice lands on someone else’s champion.">Voice swap</option><option value="showdown" title="Only the two of you while you’re trading blows.">Showdown</option><option value="chaos" title="Legends, Immersive and Gibberish at once.">Chaos</option></select></label>
           <button class="tip" type="button" popovertarget="t-mode" aria-label="About game modes">?</button>
           <span id="swapOpts" class="moderow" hidden>
-            <label class="field">Swap with <select id="swapWith"><option value="any">Anyone</option><option value="team">Own team only</option><option value="other">Other team only</option></select></label>
-            <label class="field">Reshuffle <select id="swapEvery"><option value="1">Every minute</option><option value="2">Every 2 minutes</option><option value="3">Every 3 minutes</option><option value="4">Every 4 minutes</option><option value="5">Every 5 minutes</option></select></label>
+            <label class="field">Swap with <select id="swapWith" class="pillsel"><option value="any">Anyone</option><option value="team">Own team only</option><option value="other">Other team only</option></select></label>
+            <label class="field">Reshuffle <select id="swapEvery" class="pillsel"><option value="1">Every minute</option><option value="2">Every 2 minutes</option><option value="3">Every 3 minutes</option><option value="4">Every 4 minutes</option><option value="5">Every 5 minutes</option></select></label>
             <label class="check"><input id="swapDeaths" type="checkbox"> And when someone dies</label>
             <label class="check"><input id="swapPitch" type="checkbox"> Disguise voices</label>
           </span>
@@ -1251,8 +1435,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       </section>
       <section id="csBox" class="panel" aria-labelledby="h-cs" hidden>
         <h2 id="h-cs" class="ph">Champ select <button class="tip" type="button" popovertarget="t-cs" aria-label="About champ select">?</button></h2>
-        <p id="csTurn" class="phase" data-game="1" role="status"></p>
+        <div class="cshead"><p id="csTurn" class="phase" data-game="1" role="status"></p><output id="csClock" class="csclock"></output></div>
         <p id="fsLine" class="phase" hidden></p>
+        <div class="cscols">
+        <div class="cscol csus"><h3 class="ph">Your team</h3>
+        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Your team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th><th>Trade</th></tr></thead><tbody id="csRows"></tbody></table></div>
+        </div>
+        <div class="cscol csmid"><h3 class="ph">Your pick</h3>
         <h3 id="benchHead" class="ph" hidden>Bench picks for you</h3>
         <div id="bench" class="picks" hidden></div>
         <div class="toolbar"><button id="rerollBtn" class="btn small" type="button" hidden>Reroll</button><button id="dodgeBtn" class="btn small" type="button" title="Leave champ select without closing League. League counts it as a dodge: you lose LP and wait before you can queue again.">Dodge</button></div>
@@ -1274,13 +1463,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <div id="bans" class="picks" hidden></div>
         <h3 id="picksHead" class="ph">Best picks for you</h3>
         <div id="picks" class="picks"></div>
-        <form id="champForm" class="pick">
-          <label>Any champion <input id="anyChamp" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
-          <button id="hoverBtn" class="btn" type="submit">Hover</button>
-          <button id="pickLock" class="btn primary" type="button">Lock in</button>
-        </form>
-        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Your team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th><th>Trade</th></tr></thead><tbody id="csRows"></tbody></table></div>
-        <p id="csTheirs" class="hint"></p>
         <div id="mixBox" class="mic" hidden><div class="mixbar" aria-hidden="true"><span id="mixAd"></span><span id="mixAp"></span></div><p id="mixNote" class="hint"></p></div>
         <p id="runesNote" class="hint" role="status"></p>
         <div class="toolbar"><button id="runesOther" class="btn small" type="button" hidden></button><button id="runesVs" class="btn small" type="button" hidden></button></div>
@@ -1290,6 +1472,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <p id="topNote" class="hint"></p>
         <div id="csTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div id="csNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
+        </div>
+        <div class="cscol csthem"><h3 class="ph">Enemy team</h3>
+        <ul id="csThem" class="plain csthemlist"></ul>
+        <p id="csTheirs" class="hint"></p>
+        </div>
+        </div>
+        <form id="champForm" class="pick csbar">
+          <label>Any champion <input id="anyChamp" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
+          <button id="hoverBtn" class="btn" type="submit">Hover</button>
+          <button id="pickLock" class="btn primary" type="button">Lock in</button>
+        </form>
       </section>
       <section id="clashBox" class="panel" aria-labelledby="h-clash" hidden>
         <h2 id="h-clash" class="ph">Clash</h2>
@@ -1427,6 +1620,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <button class="tab" type="button" role="tab" data-tab="games">Games</button>
         <button class="tab" type="button" role="tab" data-tab="players">Players</button>
       </div>
+      <section id="statsHero" class="panel lcu-only shero" data-tab="you" aria-label="You">
+        <div class="sheroart"><img id="heroArt" alt=""></div>
+        <div class="sherowho"><h2 id="heroName" class="title"></h2><p id="heroSub" class="hint"></p></div>
+        <div class="sherorank"><span id="heroRank" class="who"></span><b id="heroLp" class="lpnum"></b><svg id="heroSpark" class="spark" viewBox="0 0 160 40" aria-hidden="true"></svg></div>
+        <div class="sherowr"><span class="hint">Win rate</span><b id="heroWr" class="lpnum"></b><div class="wrbar" aria-hidden="true"><span id="heroWrBar"></span></div><small id="heroWl"></small></div>
+      </section>
+      <section id="statsTiles" class="panel lcu-only tilepanel" data-tab="you" aria-label="Your numbers"><div id="tiles" class="tiles"></div></section>
+      <section class="panel lcu-only" data-tab="you" aria-labelledby="h-best">
+        <h2 id="h-best" class="ph">Champs you’re best on <span class="hint">Gold marks your best number in each column</span></h2>
+        <div class="tablewrap"><table class="ready best"><thead><tr><th>Champion</th><th>Games</th><th>Win rate</th><th>KDA</th><th>CS/min</th></tr></thead><tbody id="bestRows"></tbody></table></div>
+      </section>
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-ranked">
         <h2 id="h-ranked" class="ph">Ranked <button class="tip" type="button" popovertarget="t-lp" aria-label="About the LP tracker">?</button></h2>
         <div id="rankNow" class="timers"></div>
@@ -1630,19 +1834,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 
     <section class="view" data-view="clips" aria-label="Clips" hidden>
       <header class="pagehead"><div><h1 class="title">Clips</h1><p class="sub">Your saved plays and recordings: watch, cut, rename and share them.</p></div></header>
+      <div class="clipsgrid">
+      <section id="clipStage" class="panel clipstage" aria-label="The clip you picked" hidden></section>
+      <div class="stack">
+      <section class="panel" aria-labelledby="h-clips">
+        <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button><span id="clipCount" class="hint"></span></h2>
+        <div id="clipFind" class="clipfind" hidden><input id="clipSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search clips and champions" aria-label="Search clips"><div class="pills" role="group" aria-label="Show"><button type="button" data-cf="all" aria-pressed="true">All</button><button type="button" data-cf="today" aria-pressed="false">Today</button><button type="button" data-cf="week" aria-pressed="false">This week</button></div></div>
+        <p id="clipNote" class="hint"></p>
+        <div id="clipGrid" class="clips"></div>
+        <ul id="clipList" class="cliplist" hidden></ul>
+        <div id="clipStore" class="clipstore" hidden><span class="hint">Clip storage</span><b id="clipStoreText"></b><div class="wrbar store" aria-hidden="true"><span id="clipStoreBar"></span></div></div>
+        <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
+      </section>
       <section id="savedBox" class="panel lcu-only" aria-labelledby="h-saved" hidden>
         <h2 id="h-saved" class="ph">Saved</h2>
         <p id="savedNote" class="hint"></p>
         <div id="savedGrid" class="clips"></div>
         <ul id="savedVids" class="clips vidlist"></ul>
       </section>
-      <section class="panel" aria-labelledby="h-clips">
-        <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
-        <p id="clipNote" class="hint"></p>
-        <div id="clipGrid" class="clips"></div>
-        <ul id="clipList" class="cliplist" hidden></ul>
-        <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
-      </section>
+      </div>
+      </div>
       <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
         <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
         <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Clip settings, with its highlights</label>
@@ -1673,9 +1884,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
             <h2 class="ph">Recording <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
             <label class="check"><input id="optClips" type="checkbox"> Keep the last part of each game, for the clip key</label>
             <div class="toolbar">
-              <label class="field">Clip length <select id="optClipLen"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
-              <label class="field">Quality <select id="optClipQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label>
-              <label class="field">Frame rate <select id="optClipFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label>
+              <label class="field">Clip length <select id="optClipLen" class="pillsel"><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select></label>
+              <label class="field">Quality <select id="optClipQ" class="pillsel"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label>
+              <label class="field">Frame rate <select id="optClipFps" class="pillsel"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label>
             </div>
             <p id="clipQNote" class="hint"></p>
             <p class="hint where" hidden><span class="whereAt"></span> <button class="btn small" type="button" data-where="pick">Change folder</button> <button class="btn small" type="button" data-where="reset">Back to Videos\Premade</button></p>
@@ -1880,14 +2091,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       <header class="pagehead"><div><h1 class="title">Recording</h1><p class="sub">Grab your screen, or let Premade hold on to the last part in case something good happens.</p></div></header>
       <section id="recBox" class="panel" aria-labelledby="h-rec">
         <h2 id="h-rec" class="ph">Record your screen <button class="tip" type="button" popovertarget="t-rec" aria-label="About recording your screen">?</button></h2>
-        <div class="toolbar"><button id="recBtn" class="btn" type="button">Record</button><label class="check"><input id="optRecMic" type="checkbox"> With my mic</label></div>
-        <div class="toolbar">
-          <label class="field">Quality <select id="optRecQ"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label>
-          <label class="field">Frame rate <select id="optRecFps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label>
+        <div class="recgrid">
+          <div class="recstage">
+            <button id="recBtn" class="btn recbig" type="button">Record</button>
+            <output id="recTime" class="rectime">0:00</output>
+            <p id="recNote" class="hint" role="status"></p>
+          </div>
+          <div class="setrows">
+            <div class="setrow"><div><b>With my mic</b><small>Your voice lands on its own track, so you can drop it later.</small></div><label class="check"><input id="optRecMic" type="checkbox"> <span class="sr">With my mic</span></label></div>
+            <div class="setrow"><div><b>Quality</b><small id="recQNote"></small></div><label class="field"><span class="sr">Quality</span> <select id="optRecQ" class="pillsel"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label></div>
+            <div class="setrow"><div><b>Frame rate</b><small>60 is the sweet spot for League.</small></div><label class="field"><span class="sr">Frame rate</span> <select id="optRecFps" class="pillsel"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
+            <div class="setrow keyrow"><div><b>Record key</b><small>Starts and stops without leaving the game.</small></div><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button></div>
+          </div>
         </div>
-        <p id="recQNote" class="hint"></p>
-        <div class="keyrow"><span>Record key</span><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button><span></span></div>
-        <p id="recNote" class="hint" role="status"></p>
       </section>
       <section id="anyBox" class="panel" aria-labelledby="h-any">
         <h2 id="h-any" class="ph">Clip anywhere <button class="tip" type="button" popovertarget="t-any" aria-label="About clipping anywhere">?</button></h2>
@@ -2404,7 +2620,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const li = document.createElement('li');
     li.className = 'player';
     li.dataset.slot = p.slot;
-    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span></div><div class="acts"><button class="btn small screen" type="button" hidden>Show screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol">Volume <input type="range" min="0" max="400" step="5" value="150"><output>150%</output></label>';
+    li.innerHTML = '<span class="pic"></span><div class="pmain"><span class="pname"><span class="dot" role="img"></span><span class="crown" role="img" aria-label="MVP of the last game" title="MVP of the last game" hidden><svg viewBox="0 0 16 12"><path d="M1 3l3.5 3L8 1l3.5 5L15 3l-1.5 8h-11z"/></svg></span><span class="nm"></span></span><span class="pstate"></span><span class="plol"></span><span class="pmeta"><b class="pdist"></b><span class="tag ptag" hidden></span></span></div><div class="acts"><button class="btn small screen" type="button" hidden>Show screen</button><button class="btn small watch" type="button" hidden>Watch</button><button class="btn small help" type="button">Help</button><button class="btn small mute" type="button" aria-pressed="false">Mute</button><button class="btn small hmute" type="button" aria-pressed="false" hidden>Mute for all</button><button class="btn small kick" type="button" hidden>Remove</button></div><label class="pvol"><span>Volume</span> <input type="range" min="0" max="400" step="5" value="150"><output>150%</output></label>';
     li.querySelector('.mute').addEventListener('click', (e) => {
       p.muted = !p.muted;
       e.currentTarget.textContent = p.muted ? 'Unmute' : 'Mute';
@@ -2550,6 +2766,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     r.querySelector('.watch').setAttribute('aria-label', `Watch ${name}’s game`);
     r.querySelector('.pstate').textContent = stateText(p) + (teamOf(p) !== 'enemy' && p.fx.length ? ` · ${[...new Set(p.fx.map((n) => FX[n].name))].join(' + ')} voice` : '');
     r.dataset.vol = p.vol.toFixed(2);
+    const at = heardAt(p), near = fresh(me) && fresh(at) && teamOf(p) !== 'enemy', tag = r.querySelector('.ptag');
+    r.querySelector('.pdist').textContent = near ? Math.round(dist(at)).toLocaleString('en-US') : '';
+    tag.hidden = !near;
+    tag.dataset.t = p.vol >= 0.66 ? 'close' : p.vol > 0 ? 'near' : 'far';
+    tag.textContent = { close: 'Close', near: 'Near', far: 'Far' }[tag.dataset.t];
     r.dataset.team = teamOf(p);
     r.toggleAttribute('data-talking', shownTalking(p));
     r.toggleAttribute('data-dead', p.dead);
@@ -2586,6 +2807,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('empty').textContent = peer ? 'No one else is here yet. Send them the room code or the invite link.' : 'You’re not in a room yet.';
     const inGame = [...peers.values()].filter((p) => fresh(p.pos)).length + (fresh(me) ? 1 : 0);
     $('phase').dataset.game = inGameNow() ? 1 : 0;
+    $('roomView').toggleAttribute('data-game', inGameNow());
+    renderRoomCard();
     $('phase').textContent = inGameNow()
       ? `In game: proximity is on. ${inGame} of ${peers.size + 1} players have their minimap tracked; you hear only those close to you.`
       : 'Lobby: everyone hears everyone at full volume. Once the game starts, you only hear players close to you on the map.';
@@ -2613,6 +2836,28 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if ($('helpDlg').open) renderHelp();
   }
 
+  // the room's own card, side panels and bar (Open Design): the code and time in the room, who you can hear, your mic
+  let roomSince = 0;
+  function renderRoomCard() {
+    if (!peer) return void (roomSince = 0);
+    roomSince = roomSince || Date.now();
+    const t = Math.floor((Date.now() - roomSince) / 1000), mm = (n) => String(n).padStart(2, '0');
+    $('roomClock').textContent = t >= 3600 ? `${Math.floor(t / 3600)}:${mm(Math.floor(t / 60) % 60)}:${mm(t % 60)}` : `${Math.floor(t / 60)}:${mm(t % 60)}`;
+    $('curCode').textContent = room;
+    const near = [...peers.values()].filter((p) => teamOf(p) !== 'enemy' && fresh(me) && fresh(heardAt(p)) && p.vol > 0).sort((a, b) => dist(heardAt(a)) - dist(heardAt(b)));
+    const rows = near.map((p) => { const li = document.createElement('li'); li.append(Object.assign(document.createElement('span'), { textContent: nameOf(p) }), Object.assign(document.createElement('b'), { textContent: Math.round(dist(heardAt(p))).toLocaleString('en-US') })); return li; });
+    const key = near.map((p) => nameOf(p) + Math.round(dist(heardAt(p)) / 50)).join();
+    if ($('inRange').dataset.key !== key) { $('inRange').dataset.key = key; $('inRange').replaceChildren(...rows); }
+    $('rangeCount').textContent = `${near.length} in range`;
+    $('barNear').textContent = inGameNow() ? `${near.length} nearby` : `${peers.size} in voice`;
+    const mic = $('micSel').selectedOptions[0];
+    $('roomMicName').textContent = `Input: ${(mic && mic.textContent) || 'your default mic'}`;
+    $('barPtt').textContent = keys.ptt ? keyName(keys.ptt) : keys.mute || 'Open mic';
+    $('barPttText').textContent = keys.ptt ? 'Push to talk: hold it to talk' : 'Mic is open';
+    $('clipNowBtn').textContent = `Clip last ${opts.clipLen < 60 ? opts.clipLen + 's' : opts.clipLen / 60 + ' min'}`;
+  }
+  $('clipNowBtn').addEventListener('click', () => saveClip('key'));
+
   // ---- status bar
   function renderStatus() {
     const mb = $('muteBtn');
@@ -2624,6 +2869,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const [h, text] = !peer ? ['', 'Not in a room'] : peer.disconnected ? ['bad', 'Reconnecting to the server…'] : peer.open ? ['good', 'Connected'] : ['ok', 'Connecting…'];
     $('sbDot').dataset.h = h;
     $('sbServer').textContent = text;
+    $('roomLink').textContent = text;
+    $('roomLink').dataset.t = h === 'good' ? 'close' : 'near';
     $('sbTrackText').textContent = trackText();
     $('sbLeague').textContent = !league ? `League: ${lcu ? STATUS[PHASES[lcu] || 'client'][1].toLowerCase() : 'no game'}` : `League: ${(league.me && (league.me.champName || league.me.champ)) || 'in game'}${mine.dead ? ', dead' : ''}`;
     $('sbVersion').textContent = myVersion();
@@ -2636,7 +2883,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
 
   // ---- the big live map: your minimap (or a drawing of the Rift), everyone's champion, your hearing range, who's talking
-  const mapEl = $('map'), mapG = mapEl.getContext('2d');
+  const mapEl = $('map'), mapG = mapEl.getContext('2d'), roomMapEl = $('roomMap');
   const mapBg = document.createElement('canvas'); // your minimap from the screen share, without the gold circle
   let mapBgAt = -Infinity;
   const rift = document.createElement('canvas'); // Summoner's Rift from terrain.js: ground, walls, river, brush
@@ -2661,8 +2908,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let markers = []; // what the map shows, for the test hooks
   let myPic = null; // your champion's picture for your own marker
   function drawMap() {
-    if (!mapEl.offsetParent) return; // its section isn't showing
-    const S = Math.round(mapEl.clientWidth * devicePixelRatio * (mapEl.currentCSSZoom || 1)); // sharp at any App size
+    const shown = [mapEl, roomMapEl].find((c) => c.offsetParent); // its section isn't showing: neither the Proximity voice page's nor the room's
+    if (!shown) return;
+    const S = Math.round(shown.clientWidth * devicePixelRatio * (shown.currentCSSZoom || 1)); // sharp at any App size
     if (!S) return;
     if (mapEl.width !== S) mapEl.width = mapEl.height = S;
     const g = mapG, k = S / 420;
@@ -2692,6 +2940,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       marker(g, me.x * S, me.y * S, 12 * k, k, '#c8aa6e', src ? myPic : me.by === 'icon' ? $('face') : null, 'You', myTalking(), false, mine.dead);
       markers.push({ name: 'You', x: me.x, y: me.y, talking: myTalking() });
     }
+    if (shown === roomMapEl) { if (roomMapEl.width !== S) roomMapEl.width = roomMapEl.height = S; roomMapEl.getContext('2d').drawImage(mapEl, 0, 0); }
     const off = [...peers.values()].filter((p) => !fresh(p.pos)).map(nameOf);
     const hid = [...peers.values()].some((p) => fresh(p.pos) && teamOf(p) === 'enemy');
     $('offmap').textContent = [fresh(me) ? '' : share ? 'Looking for your champion on your minimap.' : PHONE ? 'A phone isn’t on the map, so you and friends in a game can’t hear each other until it ends.' : 'Share your League screen to put yourself on the map.',
@@ -3158,6 +3407,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         }
         if (document.hidden) return;
         $('micLevel').value = level;
+        $('roomMicLevel').value = level;
         $('gateState').textContent = open ? 'Heard' : 'Gated';
       };
       // hurt voice: a soft clipper makes it rough and a 9 Hz wobble in volume makes it shaky, both mixed in as your
@@ -4416,6 +4666,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('swapDeaths').checked = rm.deaths;
     $('swapPitch').checked = rm.pitch;
     for (const el of $('modeRow').querySelectorAll('select, input')) el.disabled = !host;
+    for (const el of $('modeRow').querySelectorAll('select.pillsel')) el.dispatchEvent(new Event('pillsync'));
     $('swapOpts').hidden = rm.mode !== 'swap';
     $('modeNote').textContent = MODE_TEXT[rm.mode] + (left ? ` Next reshuffle in ${mmss(left)}.` : '') + (host ? '' : ' The host picks the mode.');
     renderGuess();
@@ -7699,6 +7950,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const a = myAction(), me = myCell(), left = cs.timer ? Math.max(0, Math.round((cs.timer.adjustedTimeLeftInPhase - (performance.now() - csAt)) / 1000)) : 0, st = csStage();
     $('csTurn').textContent = a && a.isInProgress ? `Your turn to ${a.type}${a.championId ? ` (hovering ${champName(a.championId)})` : ''}: ${left} s left.`
       : `${st ? `${st}: ${left} s left. ` : ''}${!a ? (me && me.championId ? `You’re playing ${champName(me.championId)}.` : 'Waiting for the others.') : `Your pick comes later${a.championId ? `; hovering ${champName(a.championId)}` : ''}.`}`;
+    $('csClock').textContent = cs.timer && !cs.timer.isInfinite ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
     const used = usedUp(), fsC = champOf((a && a.championId) || (me && (me.championId || me.championPickIntent))); // a Fearless series: what nobody picks
     $('fsLine').hidden = !fs.on;
     $('fsLine').textContent = !fs.on ? '' : `Fearless series, game ${fsGames().length + 1}: ${used.length ? `nobody picks ${used.map(champName).join(', ')}.` : 'no champions used up yet.'}${fsC && used.includes(fsC.id) ? ` ${fsC.name} was played earlier in the series: pick another.` : ''}`;
@@ -7726,6 +7978,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       return tr;
     }));
     const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => champName(x.championId)), foe = laneFoe(myPos());
+    const them = (cs.theirTeam || []).map((p) => [p.championId | 0, p.championId && p.championId === foe]), themKey = JSON.stringify([ddVersion, them]);
+    if ($('csThem').dataset.key !== themKey) {
+      $('csThem').dataset.key = themKey;
+      $('csThem').replaceChildren(...them.map(([c, lane]) => {
+        const li = document.createElement('li'), img = new Image();
+        img.alt = '';
+        img.className = 'pic0';
+        if (c) img.src = champImg(c);
+        li.append(img, Object.assign(document.createElement('b'), { textContent: c ? champName(c) : 'Still choosing' }));
+        if (lane) li.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Your lane' }));
+        return li;
+      }));
+    }
     $('csTheirs').textContent = [theirs.length ? `Their picks: ${theirs.map((c) => champName(c) + (c === foe ? ' (likely in your lane)' : '')).join(', ')}.` : '', bans.length ? `Banned: ${bans.join(', ')}.` : ''].filter(Boolean).join(' ');
     const ban = a && a.type === 'ban', ideas = ban ? banIdeas() : [];
     $('picksHead').hidden = $('picks').hidden = !a || ban;
@@ -8423,6 +8688,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const t = screenRec && Math.floor((Date.now() - screenRec.at) / 1000);
     $('recBtn').textContent = screenRec ? `■ Stop recording ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : 'Record';
     $('recBtn').classList.toggle('primary', !!screenRec);
+    $('recTime').textContent = screenRec ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : '0:00';
+    $('recBox').toggleAttribute('data-on', !!screenRec);
     $('recNote').textContent = 'rec' in keysOk && keys.rec && !keysOk.rec ? `Another app already uses ${keys.rec}, so pick something else.`
       : !('rec' in keysOk) && client ? 'The Record key works only while this window is in front until the next app update.' : '';
   }
@@ -8969,12 +9236,34 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('anyGrid').replaceChildren(...(g ? gallery.filter((c) => isAny(c.name)).map(clipCard) : [])); // Clip anywhere's, on the Recording page
     $('anyNote').textContent = !client ? 'Clip anywhere needs the Premade app.' : !opts.clipsAll ? '' : `Press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''} in any app or game.${opts.clipVoice ? '' : ' Turn on Clips by voice in Clip settings, on the Clips page, to say it.'} Clips from outside League are listed here.`;
     renderSaved();
+    // Open Design: the picked clip big on the left, a search and date filter over the cards, and how full the folder is
+    const pick = lol.find((c) => c.name === stageName) || lol[0];
+    $('clipStage').hidden = !pick;
+    if (pick) { const card = clipCard(pick); card.classList.add('big'); $('clipStage').replaceChildren(card); }
+    $('clipFind').hidden = !g || !lol.length;
+    $('clipCount').textContent = g && lol.length ? `${lol.length} clip${lol.length > 1 ? 's' : ''}` : '';
+    filterClips();
+    const used = gallery.reduce((t, c) => t + (c.size || 0), 0) / 1e9;
+    $('clipStore').hidden = !g || !gallery.length;
+    $('clipStoreText').textContent = opts.clipCap ? `${used.toFixed(1)} / ${opts.clipCap} GB` : `${used.toFixed(1)} GB`;
+    $('clipStoreBar').style.width = `${opts.clipCap ? Math.min(100, (100 * used) / opts.clipCap) : 0}%`;
     $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
   }
+  let stageName = '', clipFilter = 'all';
+  function filterClips() {
+    const q = $('clipSearch').value.trim().toLowerCase(), since = clipFilter === 'today' ? new Date().setHours(0, 0, 0, 0) : clipFilter === 'week' ? Date.now() - 7 * 864e5 : 0;
+    for (const el of $('clipGrid').children) {
+      const c = gallery.find((x) => x.name === el.dataset.name);
+      el.hidden = !!c && ((q && !el.textContent.toLowerCase().includes(q)) || c.at < since);
+    }
+  }
+  $('clipSearch').addEventListener('input', filterClips);
+  for (const b of document.querySelectorAll('[data-cf]')) b.addEventListener('click', () => { clipFilter = b.dataset.cf; for (const x of document.querySelectorAll('[data-cf]')) x.setAttribute('aria-pressed', String(x === b)); filterClips(); });
   function clipCard(c) {
     const el = document.createElement('div'), fav = favs.has(c.name);
     el.className = 'clip';
+    el.dataset.name = c.name;
     el.toggleAttribute('data-fav', fav);
     el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small send" type="button">Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
     const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(/\.webm$/i, '');
@@ -9059,6 +9348,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     return true;
   }
   async function playClip(name) {
+    if (stageName !== name) { stageName = name; renderClips(); }
     if (!(await openPlayer('clip', name, []))) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
     $('clipTitle').textContent = name.replace(/\.webm$/i, '');
     $('trimNote').textContent = 'Drag the white handles under the video, then save the cut as a new clip. Cuts land on the nearest second or two.';
@@ -10443,7 +10733,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!lcuOn()) statsTab = 'games'; // the rest needs League's client
     for (const b of document.querySelectorAll('.tab[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === statsTab));
     for (const s of statsView.querySelectorAll('.panel[data-tab]')) s.hidden = s.dataset.tab !== statsTab;
-    if (statsTab === 'you') { renderRanked(); renderTrends(); renderSwings(); renderLengths(); renderFame(); renderTimes(); renderStops(); }
+    if (statsTab === 'you') { renderHero(); renderRanked(); renderTrends(); renderSwings(); renderLengths(); renderFame(); renderTimes(); renderStops(); }
     if (statsTab === 'champs' || statsTab === 'games') renderMatches();
     if (statsTab === 'champs') { renderNemeses(); renderPool(); renderTry(); renderDuos(); renderCollection(); patchChanges(); }
     if (statsTab === 'games') { drawStats(); renderGames(); }
@@ -10451,6 +10741,53 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   for (const b of document.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { statsTab = b.dataset.tab; store.set('lpc-stats-tab', statsTab); renderStats(); });
   const dayText = (t) => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  // Stats' top (Open Design): your most played champion's splash, your rank with an LP line, your win rate, five numbers
+  // from your last 20 games on Summoner's Rift (each against the 5 before it) and the champions you're best on
+  async function renderHero() {
+    const all = myHist || [], g = all.filter((x) => x.mode === 'CLASSIC' && x.len > 0).slice(0, 20), by = new Map();
+    for (const x of g) { const c = by.get(x.champ) || { c: x.champ, n: 0, w: 0, k: 0, d: 0, a: 0, cs: 0, min: 0 }; c.n++; c.w += x.win; c.k += x.k; c.d += x.d; c.a += x.a; c.cs += x.cs; c.min += x.len / 60; by.set(x.champ, c); }
+    const champs = [...by.values()].sort((a, b) => b.n - a.n), top = champs[0], id = top && (champOf(top.c) || {}).id;
+    $('heroArt').src = id ? `${DD}/cdn/img/champion/splash/${id}_0.jpg` : '';
+    $('heroArt').hidden = !id;
+    $('heroName').textContent = me0 ? `${me0.gameName}#${me0.tagLine}` : myName || 'You';
+    const lanes = g.map((x) => x.lane).filter(Boolean), lane = lanes.sort((a, b) => lanes.filter((l) => l === b).length - lanes.filter((l) => l === a).length)[0];
+    $('heroSub').textContent = [lane && `${{ TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Mid', BOTTOM: 'Bot', UTILITY: 'Support' }[lane]} lane main`, `${all.length} games in your history`, all[0] && `last game ${dayText(all[0].at)}`].filter(Boolean).join(' · ');
+    await myRank();
+    const q = $('lpQueue').value, r = rankNow && rankNow[q], list = lpOf(myAcct()).filter((e) => e.q === q), pts = list.slice(-14).map(ladder).filter((v) => v != null);
+    $('heroRank').replaceChildren(emblem(r && r.tier), r && TIERS.includes(r.tier) ? rankText({ ...r, wins: 0, losses: 0 }).split(' · ')[0] : 'Unranked');
+    $('heroLp').textContent = r && TIERS.includes(r.tier) ? `${r.leaguePoints | 0} LP` : '';
+    const lo = Math.min(...pts), hi = Math.max(...pts);
+    $('heroSpark').innerHTML = pts.length > 1 ? `<polyline class="gold" points="${pts.map((v, i) => `${((i / (pts.length - 1)) * 156 + 2).toFixed(1)},${(38 - ((v - lo) / Math.max(1, hi - lo)) * 36).toFixed(1)}`).join(' ')}"/>` : '';
+    const w = r && (r.wins | 0), l = r && (r.losses | 0), n = (w || 0) + (l || 0), gw = g.filter((x) => x.win).length;
+    const [W, L] = n ? [w, l] : [gw, g.length - gw], wr = W + L ? Math.round((100 * W) / (W + L)) : null;
+    $('heroWr').textContent = wr == null ? '—' : `${wr}%`;
+    $('heroWrBar').style.width = `${wr || 0}%`;
+    $('heroWl').textContent = W + L ? `${W}W · ${L}L${n ? '' : ' in your last 20'}` : '';
+    const avg = (xs, f) => (xs.length ? xs.reduce((t, x) => t + f(x), 0) / xs.length : null), last = g.slice(0, 5), kp = g.filter((x) => typeof x.kp === 'number'), lastKp = kp.slice(0, 5);
+    const T = [['Your KDA', (x) => (x.k + x.a) / Math.max(1, x.d), (v) => v.toFixed(2), g, last], ['CS per minute', (x) => x.cs / (x.len / 60), (v) => v.toFixed(1), g, last], ['Vision score', (x) => x.vision, (v) => v.toFixed(1), g, last],
+      ['Kill participation', (x) => 100 * x.kp, (v) => `${Math.round(v)}%`, kp, lastKp], ['Average game length', (x) => x.len, (v) => `${Math.floor(v / 60)}:${String(Math.round(v % 60)).padStart(2, '0')}`, g, last]];
+    $('tiles').replaceChildren(...T.map(([what, f, fmt, xs, ys]) => {
+      const t = document.createElement('div'), a = avg(xs, f), b = avg(ys, f), d = a != null && b != null && xs.length > ys.length ? b - a : null;
+      t.className = 'tile';
+      t.append(Object.assign(document.createElement('span'), { textContent: what }), Object.assign(document.createElement('b'), { textContent: a == null ? '—' : fmt(a) }));
+      const sm = document.createElement('small');
+      sm.textContent = d == null ? (a == null ? 'Not in your games' : `Your last ${xs.length}`) : `${d >= 0 ? '+' : '−'}${what === 'Average game length' ? fmt(Math.abs(d)) : what === 'Kill participation' ? Math.round(Math.abs(d)) + '%' : Math.abs(d).toFixed(what === 'Your KDA' ? 2 : 1)} in your last 5`;
+      if (d && what !== 'Average game length') sm.dataset.d = d > 0 ? 'up' : 'down';
+      t.append(sm);
+      return t;
+    }));
+    const rows = champs.slice(0, 6).map((c) => [c, c.n, c.w / c.n, (c.k + c.a) / Math.max(1, c.d), c.cs / Math.max(1, c.min)]), best = [1, 2, 3, 4].map((i) => Math.max(...rows.map((x) => x[i])));
+    $('bestRows').replaceChildren(...rows.map(([c, ...v]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><button type="button" class="who champlink"><img class="pic0" alt=""><b></b></button></td><td></td><td></td><td></td><td></td>';
+      tr.querySelector('img').src = champImg(c.c);
+      tr.querySelector('b').textContent = champName(c.c);
+      tr.querySelector('button').addEventListener('click', () => openChamp(c.c));
+      [v[0], `${Math.round(100 * v[1])}%`, v[2].toFixed(2), v[3].toFixed(1)].forEach((t, i) => { tr.children[i + 1].textContent = t; tr.children[i + 1].classList.toggle('topv', v[i] === best[i] && rows.some((x) => x[i + 1] !== best[i])); });
+      return tr;
+    }));
+  }
 
   // trends: your CS a minute, vision score and deaths in your last 20 Summoner's Rift games, oldest on the left, with
   // your average as a dashed line; and Riot's extra numbers for the games Riot's copy was read for (extraTick)
@@ -14046,6 +14383,24 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $(id).value = String(opts[k]);
     $(id).addEventListener('change', (e) => { opts[k] = num ? +e.target.value : e.target.value; saveOpts(); done(); });
   }
+  // pill buttons for a short choice (Open Design): the select stays, out of sight, and the pills set it
+  for (const sel of document.querySelectorAll('select.pillsel')) {
+    const box = document.createElement('div');
+    box.className = 'pills';
+    box.setAttribute('role', 'group');
+    if (sel.classList.contains('cards')) box.classList.add('cards');
+    const sync = () => { for (const b of box.children) { b.setAttribute('aria-pressed', String(b.value === sel.value)); b.disabled = sel.disabled; } };
+    for (const o of sel.options) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', value: o.value, textContent: o.textContent });
+      if (o.title) b.append(Object.assign(document.createElement('small'), { textContent: o.title }));
+      b.addEventListener('click', () => { if (sel.value !== o.value) { sel.value = o.value; sel.dispatchEvent(new Event('change')); } sync(); });
+      box.append(b);
+    }
+    sel.addEventListener('change', sync);
+    sel.addEventListener('pillsync', sync);
+    sel.after(box);
+    sync();
+  }
   $('recordingsBtn').addEventListener('click', () => client && client.recordingsFolder && client.recordingsFolder());
   // Look: the theme, Custom's background and text, your own main colour and Light with your computer's light mode
   // (lpcLook, at the top, puts them on the page and on the Custom card), then everything drawn in its colours again
@@ -14159,6 +14514,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [112, 'November 3: the Open Design layouts', [
+      'Rooms: a Current room card with the code, your time in the room, the invite link, Lock, Share screen and Leave, and everyone in the room as cards with Close, Near or Far.',
+      'In a game your room becomes a game screen: each player as a row with their distance and volume, the minimap with your hearing range, who’s in hearing range, your mic, and Clip last 30s at the foot.',
+      'Champ select in three columns: your team, your pick and the enemy team, with the clock big and Lock in at the foot. Stats opens on your champion’s splash, your rank and LP line, your win rate, five numbers and your best champions. Clips shows the clip you picked big beside a list you can search. Recording has a big Record button with a timer, and short choices are buttons now, Game modes included.',
+    ]],
     [111, 'November 3: Aion 2 timers from the game', [
       'Desktop app 1.37.0, with Live fight on: Aion 2’s Today tab takes the daily and weekly resets from the game itself, adds the Artifact Siege once you enter the Abyss, and lists each field boss’s respawn as the in-game map shows it (open the map in Verteron, Altgard or Lower Reshanta for a few seconds). Premade warns you 5 minutes before one is back. The field boss layout comes from Nyerk (github.com/xCROv/aion2-nyerk).',
     ]],
@@ -14718,13 +15078,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
       ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
-        'Under Players in your room: Share screen or app at the top of the room, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
+        'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing at the top of your room and that room or game stays unshared.', '#optAutoShare', 'app'],
-      ['Player cards', 'Each friend’s champion, rank, record with you and connection. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
-        'In your room, beside the screens and chat.', '#cardBox, #createBtn'],
+      ['Player cards', 'Each friend’s champion, rank, record with you and connection, with Close, Near or Far once you’re in a game. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
+        'In your room, under In this room.', '#cardBox, #createBtn'],
+      ['Your room in a game', 'Once a game starts your room turns into a game screen: each player as a row with how far away they are and their volume, the minimap with your hearing range, who’s in hearing range, your mic’s level, and a bar at the foot with your mic key and Clip last 30s.',
+        'Nothing to set up: join a room and start a game. The Current room card keeps the code, how long you’ve been in, the invite link, Lock, Share screen and Leave.', '#roomCards, #curRoom, #createBtn'],
       ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
         'Lock room, at the top of your room. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
       ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
@@ -14889,6 +15251,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
     ]],
     ['League: Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
+      ['Your stats at a glance', 'The top of Stats: your most played champion’s splash art, your rank with its LP line, your win rate, five numbers from your last 20 games (KDA, CS a minute, vision, kill participation, game length) each against your last 5, and the champions you’re best on.',
+        'Stats, You. It fills in from League’s client.', '#statsHero, #tiles', 'app'],
       ['LP tracker and rank goal', 'Your LP after each ranked game, today’s wins, losses and LP, a chart of your rank, and how many wins your goal takes at the LP you usually win.',
         'Stats, You, Ranked: pick a Goal. It counts the games you play with the app open.', '#lpGoal', 'app'],
       ['Your patterns', 'Your CS a minute, vision and deaths over your last 20 games with Riot’s extra numbers; the games you won from 1,000 gold behind at 15 minutes or lost from 1,000 ahead; your win rate in short and long games, by time of day and day of the week, and after 1, 2 or 3 losses in a row, so you know when to call it a night; and your hall of fame: pentakills, best KDA, most kills and damage, longest win streak and longest game.',
@@ -14929,7 +15293,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
       ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Each card shows your champion and K/D/A. Save puts a clip or a match video in Saved, at the top of the Clips page, and it’s never moved to the Recycle Bin.',
-        'The Clips page. Clip settings has the folder’s size limit.', '#h-clips', 'app'],
+        'The Clips page: the clip you last played sits big on the left; search the list or show only today’s or this week’s. Clip storage shows how full the folder is; Clip settings has its size limit.', '#h-clips, #clipSearch', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
         'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
       ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
