@@ -1863,8 +1863,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         </form>
         <p class="hint">Or press Control next to an online friend on the Friends page. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps.</p>
         <figure id="helpTile" class="screentile" hidden>
-          <figcaption><span id="helpName"></span><span><button id="helpFull" class="btn small" type="button" hidden>Full screen</button> <button id="helpStop" class="btn small" type="button">Cancel</button></span></figcaption>
+          <figcaption><span id="helpName"></span><span><select id="helpQual" aria-label="Picture" hidden><option value="sharp">Sharp text</option><option value="smooth">Smooth motion</option></select> <select id="helpScr" aria-label="Their screen" hidden></select> <button id="helpSound" class="btn small" type="button" hidden>Sound on</button> <button id="helpSend" class="btn small" type="button" hidden>Send files</button> <button id="helpRec" class="btn small" type="button" hidden>Record</button> <button id="helpPriv" class="btn small" type="button" hidden>Privacy</button> <button id="helpFull" class="btn small" type="button" hidden>Full screen</button> <button id="helpStop" class="btn small" type="button">Cancel</button></span></figcaption>
           <p id="helpSt" class="hint" role="status"></p>
+          <p id="helpQ" class="hint"></p>
           <video id="helpVid" autoplay playsinline muted tabindex="0"></video>
         </figure>
       </section>
@@ -1872,7 +1873,18 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <h2 id="h-helpMe" class="ph">Let a friend control yours</h2>
         <p id="helpMine" class="code" hidden></p>
         <p id="helpMeNote" class="hint" role="status"></p>
-        <div class="toolbar"><button id="helpOffer" class="btn" type="button">Get a code</button></div>
+        <div class="toolbar"><button id="helpOffer" class="btn" type="button">Get a code</button><button id="helpMeSend" class="btn" type="button" hidden>Send files</button></div>
+      </section>
+      <p id="helpXfer" class="hint" role="status"></p>
+      <input id="helpFileIn" type="file" multiple hidden>
+      <section id="helpChatBox" class="panel" aria-labelledby="h-helpChat" hidden>
+        <h2 id="h-helpChat" class="ph">Chat</h2>
+        <div id="helpChatLog" role="log"></div>
+        <form id="helpChatForm" class="codeform"><input id="helpChatText" maxlength="500" autocomplete="off" aria-label="Message"><button class="btn">Send</button></form>
+      </section>
+      <section id="helpPastBox" class="panel" aria-labelledby="h-helpPast" hidden>
+        <h2 id="h-helpPast" class="ph">Recent sessions</h2>
+        <ul id="helpPast"></ul>
       </section>
     </section>
 
@@ -5573,6 +5585,13 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const HELP_ROOM = /^h\d{9}$/, helpOk = () => !!client && !!client.version && !newer('1.28.0', client.version);
   const helpCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e9).padStart(9, '0');
   const hSend = (c, m) => { if (c && c.open) try { c.send(m); } catch {} };
+  // our own relay (1.32, server/turn.js), for when the two PCs can't reach each other directly; PeerJS's own servers
+  // until our server has one, and in tests. Fetched now and each hour: its credentials last a day
+  let helpIce = null;
+  const helpIceGet = () => fetch(`${serverUrl}/turn`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && Array.isArray(j.iceServers)) helpIce = j.iceServers; }).catch(() => {});
+  helpIceGet();
+  setInterval(helpIceGet, 3600000);
+  const helpOpts = () => (helpIce ? { ...peerOpts, config: { iceServers: helpIce } } : peerOpts);
   let ctlTo = null, hs = null, ctlNext = 1; // the friend's PC you control or ask for { code, peer, conn, call, name, on, at, n, moved, xy, keys, buttons, st, paste }; yours, offered or controlled { code, peer, conn, call, track, name, asking, on }; their n to put in next
   const CTL_ST = {
     paused: (n) => `${n} paused your control: your mouse and keys do nothing there until they press Resume.`,
@@ -5583,7 +5602,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const ctlIn = (m) => { if ('x' in m) ctlTo.xy = null; hSend(ctlTo.conn, { t: 'in', n: ++ctlTo.n, ...m }); }; // a click puts the mouse where it is: no older move after it
   function helpConnect(code, name) { // you, to the PC with that code; name: the friend from Friends
     helpQuit();
-    const host = `lolprox-h${code}-0`, pr = new Peer(`lolprox-h${code}-1`, peerOpts);
+    const host = `lolprox-h${code}-0`, pr = new Peer(`lolprox-h${code}-1`, helpOpts());
     const t = (ctlTo = { code, peer: pr, conn: null, call: null, name: name || 'Your friend', on: false, at: performance.now(), n: 0, moved: 0, xy: null, keys: new Set(), buttons: new Set(), st: '', paste: false });
     const dial = () => {
       if (ctlTo !== t || t.conn || pr.destroyed) return;
@@ -5599,6 +5618,9 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         if (ctlTo !== t || t.conn !== c || !m) return;
         if (m.t === 'hi' && typeof m.name === 'string' && !name) { t.name = m.name.replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || t.name; renderRemoteHelp(); } // who has the code
         if (m.t === 'ctl') helpMsg(t, m);
+        if (m.t === 'clip' && t.on && t.files && typeof m.text === 'string') helpClip(t, m.text); // what they copied
+        if (/^f[dex]?$/.test(m.t) && t.on && t.files) fileIn(m, t.name); // a file they send you
+        if (m.t === 'msg' && t.on && typeof m.text === 'string') helpChat(t.name, m.text);
       });
       c.on('close', () => { if (ctlTo === t && t.conn === c) { notify(t.on ? `Control of ${t.name}’s PC ended.` : `${t.name} left.`, true); helpQuit(); } });
     };
@@ -5612,7 +5634,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (ctlTo !== t || call.peer !== host) return call.close();
       t.call = call;
       call.answer();
-      call.on('stream', (s) => { if (ctlTo === t) $('helpVid').srcObject = s; });
+      call.on('stream', (s) => { if (ctlTo === t) { $('helpVid').srcObject = s; renderRemoteHelp(); } });
     });
     renderRemoteHelp();
   }
@@ -5624,17 +5646,26 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (st) notify(CTL_ST[st](t.name), true);
       return renderRemoteHelp();
     }
-    if (m.ok === true) { if (!t.on) { t.on = true; notify(`You’re controlling ${t.name}’s PC. Click their screen to use your mouse and keys there.`, true); } return renderRemoteHelp(); }
+    if (Array.isArray(m.scr)) { t.scr = m.scr.slice(0, 8).map(String); t.cur = Number.isInteger(m.cur) ? m.cur : 0; return renderRemoteHelp(); } // their screens, and the one you see
+    if (m.ok === true) {
+      t.view = m.view === true;
+      t.files = m.files === true;
+      if (!t.on) { t.on = true; t.since = Date.now(); notify(t.view ? `You’re watching ${t.name}’s screen: they allowed watching only.` : `You’re controlling ${t.name}’s PC. Click their screen to use your mouse and keys there.`, true); }
+      return renderRemoteHelp();
+    }
     if ('ok' in m) { notify(`${t.name}: ${typeof m.why === 'string' ? m.why.slice(0, 120) : 'No control.'}`, true); helpQuit(); }
   }
   function helpQuit() { // stop controlling or asking
     const t = ctlTo;
     if (!t) return;
-    if (t.on) ctlLetGo();
+    if (t.on) { ctlLetGo(); helpEnded({ dir: 'to', name: t.name, riot: t.riot, view: t.view, at: t.since }); }
     ctlTo = null;
     hSend(t.conn, { t: 'ctl', on: false });
     setTimeout(() => t.peer.destroy(), 300); // lets that last word go out
+    filesDrop();
+    if (helpRec) helpRec.rec.stop(); // saved as it is
     $('helpVid').srcObject = null;
+    $('helpVid').muted = true;
     if (document.fullscreenElement === $('helpVid')) document.exitFullscreen().catch(() => {});
     renderRemoteHelp();
   }
@@ -5648,6 +5679,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const r = await fetch(`${serverUrl}/invite`, { method: 'POST', body: JSON.stringify({ id: myDevice, to: n, room: 'h' + code, key: '', lob: '' }) }).then((x) => x.json()).catch(() => ({ error: 'our server didn’t answer' }));
     if (r.error) return notify(`Couldn’t ask ${n}: ${r.error}.`, true);
     helpConnect(code, n.split('#')[0]);
+    ctlTo.riot = n; // for Control again in Recent sessions
     view('help');
     notify(`Asked ${n}: their Premade asks them to allow it.`, true);
   }
@@ -5657,7 +5689,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   }
   function hostStart(code = helpCode()) { // yours, offered with that code
     if (hs || !window.Peer) return;
-    const pr = new Peer(`lolprox-h${code}-0`, peerOpts), h = (hs = { code, peer: pr, conn: null, call: null, track: null, name: 'A friend', asking: false, on: false });
+    const pr = new Peer(`lolprox-h${code}-0`, helpOpts()), h = (hs = { code, peer: pr, conn: null, call: null, track: null, name: 'A friend', asking: false, on: false });
     pr.on('connection', (c) => {
       if (hs !== h || c.peer !== `lolprox-h${code}-1` || h.conn) return void c.close(); // one friend a code
       h.conn = c;
@@ -5675,9 +5707,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (!h) return;
     hs = null;
     if (h.on || h.asking) client.controlStop(); // closes the box as Don't allow, or ends it
-    if (h.on) { hSend(h.conn, { t: 'ctl', ok: false, why: why === 'idle' ? 'Control ended after 10 minutes without use.' : 'Control ended.' }); notify(`${h.name} is no longer controlling your PC.`, true); }
+    if (h.on) { hSend(h.conn, { t: 'ctl', ok: false, why: why === 'idle' ? 'Control ended after 10 minutes without use.' : 'Control ended.' }); notify(`${h.name} is no longer controlling your PC.`, true); helpEnded({ dir: 'from', name: h.name, view: h.view, at: h.since }); }
     if (h.call) h.call.close();
     if (h.track) h.track.stop();
+    if (h.sound) h.sound.stop();
+    filesDrop();
     setTimeout(() => h.peer.destroy(), 300);
     renderRemoteHelp();
   }
@@ -5685,9 +5719,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     const say = (x) => hSend(h.conn, x);
     if (m.t === 'hi' && typeof m.name === 'string') { h.name = m.name.replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend'; return renderRemoteHelp(); }
     if (m.t === 'in') { if (h.on) ctlInput(m); return; } // their mouse and keys, once you let them
+    if (m.t === 'scr') { if (h.on && Number.isInteger(m.i)) hostScreen(h, m.i); return; } // another of your screens
+    if (/^f[dex]?$/.test(m.t)) { if (h.on && h.files) fileIn(m, h.name); return; } // a file they send you, with the box's tick
+    if (m.t === 'msg') { if (h.on && typeof m.text === 'string') helpChat(h.name, m.text); return; }
+    if (m.t === 'priv') { if (h.on && !h.view && client.controlPrivacy) { client.controlPrivacy(m.on === true); notify(m.on === true ? `${h.name} turned on privacy mode: your screen is black for you while they use it. Ctrl+Alt+X stops it.` : `${h.name} turned off privacy mode.`, true); } return; } // your screen black for you (main.js)
+    if (m.t === 'q') { if (h.on && /^(sharp|smooth)$/.test(m.v)) { h.q = m.v; helpQuality(h.track, m.v); } return; } // the picture they want
     if (m.t !== 'ctl') return;
     if (m.on !== true) return hostStop(); // they took it back or stopped
-    if (h.on) { ctlNext = 1; ctlWait.clear(); return say({ t: 'ctl', ok: true }); } // their n starts again with each request
+    if (h.on) { ctlNext = 1; ctlWait.clear(); return say({ t: 'ctl', ok: true, view: h.view, files: h.files }); } // their n starts again with each request
     if (h.asking) return;
     if (!helpOk()) return say({ t: 'ctl', ok: false, why: client && client.control ? 'Their Premade app needs updating to be controlled.' : 'They need the Premade app for Windows to be controlled.' });
     h.asking = true;
@@ -5697,7 +5736,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (hs !== h) { if (r.ok) client.controlStop(); return; } // they took it back or left meanwhile
     h.asking = false;
     let s = null;
-    if (r.ok) try { await client.captureSource(r.source); s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false }); } catch {}
+    if (r.ok) try { await client.captureSource(r.source); s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }); } catch {} // with what your PC plays (1.32)
     if (hs !== h || !s) { if (r.ok) client.controlStop(); if (s) for (const x of s.getTracks()) x.stop(); if (hs === h) { say({ t: 'ctl', ok: false, why: r.ok ? 'Their screen couldn’t be shared.' : r.why || 'They said no.' }); renderRemoteHelp(); } return; }
     h.track = s.getVideoTracks()[0];
     h.track.contentHint = 'detail'; // sharp text over a smooth frame rate
@@ -5705,11 +5744,195 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     h.on = true;
     ctlNext = 1;
     ctlWait.clear();
+    h.sound = s.getAudioTracks()[0] || null;
+    h.since = Date.now();
+    h.view = r.view === true;
+    h.files = r.files === true;
     h.call = h.peer.call(`lolprox-h${h.code}-1`, s);
-    say({ t: 'ctl', ok: true });
-    notify(`${h.name} is controlling your PC. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.`, true);
+    say({ t: 'ctl', ok: true, view: h.view, files: h.files });
+    notify(h.view ? `${h.name} is watching your screen. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.` : `${h.name} is controlling your PC. Stop it with the red bar at the top of your screen or Ctrl+Alt+X.`, true);
+    renderRemoteHelp();
+    const all = await client.screens().catch(() => []); // your screens, so they can switch
+    if (hs !== h) return;
+    h.scr = all.map((x) => x.id);
+    h.labels = all.map((x, i) => `Screen ${i + 1}${x.main ? ' (main)' : ''}`);
+    h.cur = Math.max(0, h.scr.indexOf(r.source));
+    say({ t: 'ctl', scr: h.labels, cur: h.cur });
+  }
+  async function hostScreen(h, i) { // their pick of your screens: the bar and their input go there, and the call shows it
+    const id = h.scr && h.scr[i];
+    if (!id || i === h.cur || h.switching || !client.controlScreen) return;
+    h.switching = true;
+    let s = null;
+    try { if (await client.controlScreen(id)) { await client.captureSource(id); s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }); } } catch {}
+    h.switching = false;
+    if (hs !== h || !h.on || !s) { if (s) for (const x of s.getTracks()) x.stop(); return; }
+    const v = s.getVideoTracks()[0], a = s.getAudioTracks()[0], senders = h.call.peerConnection.getSenders();
+    helpQuality(v, h.q);
+    v.addEventListener('ended', () => { if (hs === h && h.track === v) hostStop(); });
+    await senders.find((x) => x.track && x.track.kind === 'video').replaceTrack(v);
+    const as = a && senders.find((x) => x.track && x.track.kind === 'audio');
+    if (as) await as.replaceTrack(a); else if (a) a.stop();
+    h.track.stop();
+    if (as && h.sound) h.sound.stop();
+    [h.track, h.sound, h.cur] = [v, as ? a : h.sound, i];
+    hSend(h.conn, { t: 'ctl', scr: h.labels, cur: i });
+  }
+  // files both ways (1.32, AnyDesk's file transfer), once their box's tick allows it: Send files, or files dropped on
+  // their screen. {t:'f', id, name, size}, then {t:'fd', id, b} 64 KB at a time (no more than 4 MB waiting to go out),
+  // then {t:'fe', id}, or {t:'fx', id} when it stops halfway. The Windows app writes them into Downloads\Premade as they
+  // come; a browser keeps them till the end (up to 1 GB) and downloads them. What they copy comes to you as text too
+  // ({t:'clip', text}), right onto your clipboard.
+  const fileIns = new Map(); // id -> { name, size, got, parts, disk, q }
+  function xfer(text, at) {
+    $('helpXfer').textContent = text;
+    if (at && client && client.helpFileShow) $('helpXfer').append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Show in folder', onclick: () => client.helpFileShow(at) }));
+  }
+  async function sendFiles(c, files, who) {
+    for (const f of files) {
+      const id = helpCode();
+      hSend(c, { t: 'f', id, name: f.name, size: f.size });
+      for (let at = 0; at < Math.max(f.size, 1); at += 65536) {
+        while (c.open && c.dataChannel && c.dataChannel.bufferedAmount > 4e6) await new Promise((r) => setTimeout(r, 50));
+        if (!c.open) return xfer(`${f.name} didn’t finish: the connection ended.`);
+        hSend(c, { t: 'fd', id, b: await f.slice(at, at + 65536).arrayBuffer() });
+        xfer(`Sending ${f.name} to ${who}: ${Math.round((100 * Math.min(at + 65536, f.size)) / Math.max(f.size, 1))}%`);
+      }
+      hSend(c, { t: 'fe', id });
+      xfer(`Sent ${f.name} to ${who}.`);
+    }
+  }
+  function fileIn(m, who) {
+    let f = fileIns.get(m.id);
+    const disk = !!client && !!client.helpFile;
+    if (m.t === 'f') {
+      if (f || typeof m.id !== 'string' || typeof m.name !== 'string' || !(m.size >= 0) || m.size > (disk ? 4e9 : 1e9)) return;
+      fileIns.set(m.id, (f = { name: m.name.replace(/[\p{C}]+/gu, '').slice(0, 120) || 'file', size: m.size, got: 0, parts: [], disk: false, q: Promise.resolve() }));
+      if (disk) f.q = client.helpFile(m.id, 'open', f.name).then((n) => { f.disk = !!n; });
+      return;
+    }
+    if (!f) return;
+    if (m.t === 'fd' && m.b) {
+      const b = new Uint8Array(m.b);
+      f.got += b.length;
+      if (f.got > f.size + 1) return fileIn({ t: 'fx', id: m.id }, who); // more than they said
+      f.q = f.q.then(() => (f.disk ? client.helpFile(m.id, 'data', b) : f.parts.push(b)));
+      return xfer(`Getting ${f.name} from ${who}: ${Math.round((100 * f.got) / Math.max(f.size, 1))}%`);
+    }
+    fileIns.delete(m.id);
+    f.q = f.q.then(async () => {
+      if (m.t !== 'fe' || f.got < f.size) { if (f.disk) await client.helpFile(m.id, 'abort'); return xfer(`${f.name} didn’t finish.`); }
+      if (f.disk) {
+        const at = await client.helpFile(m.id, 'done');
+        xfer(`${who} sent you ${f.name}: it’s in Downloads\\Premade.`, at);
+      } else {
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(f.parts)), download: f.name });
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        xfer(`${who} sent you ${f.name}: it’s in your downloads.`);
+      }
+      notify(`${who} sent you ${f.name}.`, true);
+    });
+  }
+  function filesDrop() { for (const id of [...fileIns.keys()]) fileIn({ t: 'fx', id }, ''); } // the session ended halfway
+  function helpClip(t, text) {
+    navigator.clipboard.writeText(text).then(() => xfer(`Copied from ${t.name}’s PC: “${text.length > 60 ? text.slice(0, 60) + '…' : text}”`), () => xfer(`${t.name} copied something, but this page couldn’t put it on your clipboard. Click the page and they can copy it again.`));
+  }
+  function pickFiles(go) { // Send files: the file picker, then go(files)
+    const inp = $('helpFileIn');
+    inp.value = '';
+    inp.onchange = () => { if (inp.files.length) go([...inp.files]); };
+    inp.click();
+  }
+  if (client && client.on) client.on('control-clip', (text) => { if (hs && hs.on && hs.files && typeof text === 'string') hSend(hs.conn, { t: 'clip', text }); }); // what you copy, for them
+  // chat in a session ({t:'msg', text}, both ways), the picture they want ({t:'q', v}: sharp text at 30 fps, or smooth
+  // motion at 60) and what you get (size, frame rate, direct or through a relay, the delay: the call's stats, each 2 s),
+  // and Recent sessions (lpc-help-past: who, which way, how long; Control again for one started from Friends)
+  const helpLog = [];
+  function helpChat(from, text) {
+    helpLog.push({ from, text: text.slice(0, 500) });
+    if (helpLog.length > 50) helpLog.shift();
+    if (from) notify(`${from}: ${text.slice(0, 120)}`, true);
+    renderHelpChat();
+  }
+  function renderHelpChat() {
+    const on = (ctlTo && ctlTo.on) || (hs && hs.on);
+    $('helpChatBox').hidden = !on;
+    $('helpChatLog').replaceChildren(...helpLog.map((x) => Object.assign(document.createElement('p'), { textContent: `${x.from || 'You'}: ${x.text}` })));
+  }
+  $('helpChatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('helpChatText').value.trim(), c = ctlTo && ctlTo.on ? ctlTo.conn : hs && hs.on ? hs.conn : null;
+    if (!text || !c) return;
+    hSend(c, { t: 'msg', text: text.slice(0, 500) });
+    $('helpChatText').value = '';
+    helpChat('', text);
+  });
+  function helpQuality(track, v) {
+    if (!track) return;
+    track.contentHint = v === 'smooth' ? 'motion' : 'detail';
+    track.applyConstraints({ frameRate: v === 'smooth' ? 60 : 30 }).catch(() => {});
+  }
+  $('helpQual').addEventListener('change', () => { if (ctlTo && ctlTo.on) hSend(ctlTo.conn, { t: 'q', v: $('helpQual').value }); });
+  async function helpStats() {
+    const t = ctlTo, pc = t && t.on && t.call && t.call.peerConnection;
+    if (!pc) return;
+    const st = await pc.getStats().catch(() => null), all = st ? [...st.values()] : [];
+    const v = all.find((r) => r.type === 'inbound-rtp' && r.kind === 'video'), tr = all.find((r) => r.type === 'transport' && r.selectedCandidatePairId);
+    const pair = st && tr && st.get(tr.selectedCandidatePairId), far = pair && st.get(pair.remoteCandidateId), near = pair && st.get(pair.localCandidateId);
+    if (ctlTo !== t) return;
+    $('helpQ').textContent = [v && v.frameHeight && `${v.frameHeight}p`, v && `${Math.round(v.framesPerSecond || 0)} fps`,
+      pair && ([far, near].some((c) => c && c.candidateType === 'relay') ? 'through a relay' : 'direct'), pair && Number.isFinite(pair.currentRoundTripTime) && `${Math.round(pair.currentRoundTripTime * 1000)} ms`].filter(Boolean).join(' · ');
+  }
+  setInterval(helpStats, 2000);
+  // Record (AnyDesk's session recording): their screen and sound as you get them, saved when you stop or the session
+  // ends, as a WebM in Downloads\Premade by the Windows app (help-file), or a download in a browser
+  let helpRec = null; // { rec, id, name, parts, q }
+  function helpRecToggle() {
+    const t = ctlTo, s = $('helpVid').srcObject;
+    if (helpRec) return void helpRec.rec.stop();
+    if (!t || !t.on || !s || !window.MediaRecorder) return;
+    const mime = ['video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)), d = new Date();
+    const name = `Remote help, ${t.name}’s PC, ${d.toISOString().slice(0, 10)} ${String(d.getHours()).padStart(2, '0')}-${String(d.getMinutes()).padStart(2, '0')}.webm`;
+    const r = (helpRec = { rec: new MediaRecorder(s, { mimeType: mime }), id: helpCode(), name, parts: [], q: Promise.resolve(false) });
+    const disk = !!client && !!client.helpFile;
+    if (disk) r.q = client.helpFile(r.id, 'open', name).then((n) => !!n);
+    r.rec.ondataavailable = (e) => { if (e.data.size) r.q = r.q.then(async (ok) => { if (ok) await client.helpFile(r.id, 'data', new Uint8Array(await e.data.arrayBuffer())); else r.parts.push(e.data); return ok; }); };
+    r.rec.onstop = () => {
+      helpRec = null;
+      renderRemoteHelp();
+      r.q.then(async (ok) => {
+        if (ok) return xfer(`Recorded ${name}: it’s in Downloads\\Premade.`, await client.helpFile(r.id, 'done'));
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(r.parts, { type: 'video/webm' })), download: name });
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        xfer(`Recorded ${name}: it’s in your downloads.`);
+      });
+    };
+    r.rec.start(1000);
     renderRemoteHelp();
   }
+  $('helpRec').addEventListener('click', helpRecToggle);
+  $('helpPriv').addEventListener('click', () => { const t = ctlTo; if (t && t.on && !t.view) { t.priv = !t.priv; hSend(t.conn, { t: 'priv', on: t.priv }); renderRemoteHelp(); } }); // their screen black for them
+  function helpEnded(x) { // a session that was on: into Recent sessions; the chat goes
+    const past = load('lpc-help-past', []);
+    past.unshift({ ...x, secs: Math.round((Date.now() - (x.at || Date.now())) / 1000) });
+    store.set('lpc-help-past', JSON.stringify(past.slice(0, 20)));
+    helpLog.length = 0;
+    renderHelpPast();
+  }
+  function renderHelpPast() {
+    const past = load('lpc-help-past', []);
+    $('helpPastBox').hidden = !past.length;
+    $('helpPast').replaceChildren(...past.map((x) => {
+      const li = document.createElement('li'), when = new Date(x.at || 0).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const how = x.dir === 'to' ? `You ${x.view ? 'watched' : 'controlled'} ${x.name}’s PC` : `${x.name} ${x.view ? 'watched' : 'controlled'} your PC`;
+      li.textContent = `${when} · ${how} · ${x.secs < 60 ? `${x.secs} s` : `${Math.round(x.secs / 60)} min`}`;
+      if (x.dir === 'to' && x.riot) li.append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control again', onclick: () => helpFriend(x.riot) }));
+      return li;
+    }));
+  }
+  renderHelpPast();
   function renderRemoteHelp() {
     const t = ctlTo, st = t && t.on && CTL_ST[t.st];
     $('helpTile').hidden = !t;
@@ -5717,21 +5940,43 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('helpName').textContent = t ? `${t.name}’s PC` : '';
     $('helpStop').textContent = t && t.on ? 'Stop control' : 'Cancel';
     $('helpFull').hidden = !t || !t.on;
-    $('helpSt').textContent = !t ? '' : st ? st(t.name) : t.on ? 'Click their screen to use your mouse and keys there.' : t.conn ? `Asking ${t.name}: their Premade asks them to allow it.` : 'Connecting…';
+    $('helpSt').textContent = !t ? '' : st ? st(t.name) : t.on && t.view ? `${t.name} allowed watching only: your mouse and keys stay on your PC.` : t.on ? 'Click their screen to use your mouse and keys there.' : t.conn ? `Asking ${t.name}: their Premade asks them to allow it.` : 'Connecting…';
+    const vid = $('helpVid'), scr = $('helpScr'), list = (t && t.on && t.scr) || [];
+    $('helpSound').hidden = !t || !t.on || !vid.srcObject || !vid.srcObject.getAudioTracks().length;
+    $('helpSound').textContent = vid.muted ? 'Sound on' : 'Sound off';
+    $('helpSend').hidden = !t || !t.on || !t.files;
+    $('helpQual').hidden = !t || !t.on;
+    $('helpRec').hidden = !t || !t.on || !vid.srcObject || !window.MediaRecorder;
+    $('helpRec').textContent = helpRec ? 'Stop recording' : 'Record';
+    $('helpPriv').hidden = !t || !t.on || t.view;
+    $('helpPriv').textContent = t && t.priv ? 'Privacy off' : 'Privacy';
+    if (!t || !t.on) $('helpQ').textContent = '';
+    renderHelpChat();
+    scr.hidden = list.length < 2;
+    if (scr.dataset.k !== list.join()) { scr.replaceChildren(...list.map((l, i) => new Option(l, i))); scr.dataset.k = list.join(); }
+    if (!scr.hidden) scr.value = String(t.cur);
     $('helpGo').disabled = !!t;
     const h = hs;
     $('helpMine').hidden = !h || !!h.conn;
     $('helpMine').textContent = h ? h.code.replace(/(\d{3})(?=\d)/g, '$1 ') : '';
     $('helpOffer').textContent = !h ? 'Get a code' : h.on ? 'Stop control' : 'Cancel';
     $('helpOffer').disabled = !h && !helpOk();
+    $('helpMeSend').hidden = !h || !h.on || !h.files;
     $('helpMeNote').textContent = !helpOk() ? 'Update the Premade app to 1.28 or newer to let a friend control your PC.'
       : !h ? 'Get a code and give it to your friend: they type it in on their Remote help page. Your Premade asks you before they see your screen or control anything.'
-      : h.on ? `${h.name} is controlling your PC. Stop it here, with the red bar at the top of your screen or Ctrl+Alt+X.`
+      : h.on ? `${h.name} is ${h.view ? 'watching your screen' : 'controlling your PC'}. Stop it here, with the red bar at the top of your screen or Ctrl+Alt+X.`
       : h.asking ? `${h.name} asks to control your PC. Answer in Premade’s box.`
       : h.conn ? `${h.name} is connected and about to ask.` : 'Your code, for this time only. Give it to your friend; waiting for them…';
   }
   {
-    const vid = $('helpVid'), on = () => !!ctlTo && ctlTo.on;
+    const vid = $('helpVid'), on = () => !!ctlTo && ctlTo.on && !ctlTo.view; // Watch only: nothing of yours goes to them
+    $('helpSound').addEventListener('click', () => { vid.muted = !vid.muted; renderRemoteHelp(); });
+    $('helpScr').addEventListener('change', () => { if (ctlTo && ctlTo.on) hSend(ctlTo.conn, { t: 'scr', i: +$('helpScr').value }); });
+    $('helpSend').addEventListener('click', () => pickFiles((fs) => { if (ctlTo && ctlTo.on && ctlTo.files) sendFiles(ctlTo.conn, fs, ctlTo.name); }));
+    $('helpMeSend').addEventListener('click', () => pickFiles((fs) => { if (hs && hs.on && hs.files) sendFiles(hs.conn, fs, hs.name); }));
+    const drop = (ev) => !!ctlTo && ctlTo.on && ctlTo.files && ev.dataTransfer && [...ev.dataTransfer.types].includes('Files');
+    $('helpTile').addEventListener('dragover', (ev) => { if (drop(ev)) ev.preventDefault(); });
+    $('helpTile').addEventListener('drop', (ev) => { if (!drop(ev)) return; ev.preventDefault(); sendFiles(ctlTo.conn, [...ev.dataTransfer.files], ctlTo.name); });
     $('helpForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const code = $('helpCode').value.replace(/\D/g, '');
@@ -14730,7 +14975,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Voice settings, Talking: Change or Set key.', '#kMute'],
       ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
         'Voice settings, Popups and sounds.', '#optNotify'],
-      ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
+      ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs. Their box can also allow Watch only, and its tick lets you send each other files (Send files, or drop them on their screen) and puts what they copy on your clipboard. You hear their PC (Sound on), and Screen picks which of their screens you see and use. Chat while it’s on, pick Sharp text or Smooth motion and see what you get (size, frame rate, direct or through a relay, delay), and find your past sessions under Recent sessions, with Control again for a friend. Record saves what you see and hear of their PC as a video, and Privacy makes their screen black for them while you still see it.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
     ['Friends', 'Your friends, who’s online, invites and your squad.', [
@@ -15196,7 +15441,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     lendStall: (name) => { const l = [...lends].find(([p]) => nameOf(p) === name)?.[1]; if (l) Object.defineProperty(l.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // your screen call to them stuck, as on Rayan's PC (28 Oct)
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
-    help: () => hs && { code: hs.code, on: hs.on, asking: hs.asking }, // Remote help: yours, offered or controlled
+    help: () => hs && { code: hs.code, on: hs.on, asking: hs.asking, view: hs.view, files: hs.files, cur: hs.cur, sound: !!hs.sound, q: hs.q }, // Remote help: yours, offered or controlled
+    helpTo: () => ctlTo && { on: ctlTo.on, view: ctlTo.view, files: ctlTo.files, scr: ctlTo.scr, cur: ctlTo.cur }, // the friend's PC you control
     helpSend: (m) => ctlTo && hSend(ctlTo.conn, m), // as if from your page, to the PC you control or ask for
     augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,

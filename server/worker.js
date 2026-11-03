@@ -6,11 +6,12 @@
 // are who has Premade, and /friends and /invite which of your friends have it and invites to your room (all in the Stats
 // object). /push/... is the phone remote's notifications (push.js), /squad/...
 // friends' squads (squad.js) and /esports the matches for their pick'em (esports.js), each kept by a room object of its
-// own. /riot/... is Riot data (the Riot object, at the end).
+// own. /riot/... is Riot data (the Riot object, at the end). /turn is Remote help's own relay (turn.js).
 import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
 import { events } from './esports.js';
+import { turn } from './turn.js';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
@@ -97,6 +98,7 @@ export default {
     if (code) return env.ROOMS.get(env.ROOMS.idFromName(`lolprox-r${code[1]}`)).fetch(req);
     const sq = /^\/squad\/([a-z0-9]{12})(\/(call|answer|ping|pick))?$/.exec(url.pathname); // squads (squad.js)
     if (sq) return env.ROOMS.get(env.ROOMS.idFromName(`squad:${sq[1]}`)).fetch(req);
+    if (url.pathname === '/turn') return turn(env); // Remote help's own relay (turn.js)
     if (url.pathname === '/esports') return env.ROOMS.get(env.ROOMS.idFromName('esports')).fetch(req);
     if (url.pathname.startsWith('/riot/')) return riot(env).fetch(req);
     if (url.pathname === '/') return new Response('League proximity chat connection server', { headers: CORS });

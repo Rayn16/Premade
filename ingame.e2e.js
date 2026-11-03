@@ -69,7 +69,11 @@ function fakeApp([lcu, colour]) {
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
     // remote control: Windows' box says allow or not, or stays open ('wait') till answer(); controlStop closes it as
     // Don't allow, as the app does, unless Allow was pressed first (late)
-    allow: true, stopped: 0, control(name) { this.asked = name; return this.allow === 'wait' ? new Promise((res) => { this.answer = (r) => { this.answer = null; res(r); }; }) : Promise.resolve(this.allow ? { ok: true, source: 'screen:1:0' } : { ok: false, why: 'They said no.' }); },
+    allow: true, stopped: 0, control(name) { this.asked = name; return this.allow === 'wait' ? new Promise((res) => { this.answer = (r) => { this.answer = null; res(r); }; }) : Promise.resolve(this.allow ? { ok: true, source: 'screen:1:0', ...this.perm } : { ok: false, why: 'They said no.' }); },
+    // 1.32: perm is what the box allowed ({ view, files }); switching screens, and files written as they come
+    controlScreen(id) { this.screen = id; return Promise.resolve(true); }, controlPrivacy(on) { (this.priv = this.priv || []).push(on); },
+    saved: {}, helpFile(id, what, v) { const f = (this.saved[id] = this.saved[id] || { bytes: 0 }); if (what === 'open') f.name = v; if (what === 'data') f.bytes += v.length; if (what === 'done' || what === 'abort') f.end = what; return Promise.resolve(what === 'open' ? v : what === 'done' ? `C:\\Downloads\\Premade\\${f.name}` : 'ok'); },
+    helpFileShow(at) { this.shown = at; },
     controlStop() { this.stopped++; if (this.answer && !this.late) this.answer({ ok: false, why: 'They took it back.' }); }, controlInput(m) { (this.input = this.input || []).push(m); },
     captureSource(id) { this.source = id; return Promise.resolve(true); },
     point(m) { (this.points = this.points || []).push(m); return Promise.resolve(''); }, // a friend's pointer on the shared screen (1.27)
@@ -428,7 +432,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await ana.evaluate(() => { lpcClient.late = false; lpcClient.answer({ ok: true, source: 'screen:1:0' }); });
       await wait(ana, () => lpcClient.stopped === 3, null, 'the late yes undone');
       assert(!(await ana.evaluate(() => lpc.toasts().some((t) => t.startsWith('Ben is controlling your PC')) || !!lpcClient.source)), 'never on for Ana, her screen never shared');
-      await ana.evaluate(() => { lpcClient.allow = true; });
+      await ana.evaluate(() => { lpcClient.allow = true; lpcClient.perm = { files: true }; lpcClient.screens = async () => [{ id: 'screen:1:0', main: true }, { id: 'screen:2:0', main: false }]; });
       code = await offer();
       await connect(ben, code);
       await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && !document.getElementById('helpFull').hidden && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control, seeing Ana’s screen, with Full screen', 30000);
@@ -458,6 +462,47 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await ben.keyboard.press('Control+KeyV');
       await wait(ana, () => lpcClient.input.filter((m) => m.k !== 'm').slice(-5).map((m) => m.k + (m.c || '')).join() === 'kdControlLeft,clip,kdKeyV,kuKeyV,kuControlLeft', null, 'Ben’s Ctrl+V: his text first, then the V');
       assert.strictEqual(await ana.evaluate(() => lpcClient.input.find((m) => m.k === 'clip').text), 'hello from Ben');
+      // 1.32: Ana's sound (Sound on), her two screens (Ben switches to the second), files both ways and what she copies,
+      // all with her box's tick (files) on
+      await ben.evaluate(() => document.exitFullscreen()); // Esc, for the buttons over her screen
+      await wait(ben, () => !document.getElementById('helpSound').hidden && document.getElementById('helpVid').muted, null, 'Sound on for Ana’s sound, muted till then');
+      await ben.click('#helpSound');
+      assert.deepStrictEqual(await ben.evaluate(() => [document.getElementById('helpVid').muted, document.getElementById('helpSound').textContent]), [false, 'Sound off'], 'Ben hears Ana’s PC');
+      await wait(ben, () => !document.getElementById('helpScr').hidden && document.getElementById('helpScr').options.length === 2, null, 'Ana’s two screens to pick from');
+      await ben.selectOption('#helpScr', '1');
+      await wait(ana, () => lpcClient.screen === 'screen:2:0' && lpcClient.source === 'screen:2:0' && lpc.help().cur === 1, null, 'Ana’s app on her second screen, shared in the same call');
+      await wait(ben, () => lpc.helpTo().cur === 1 && document.getElementById('helpScr').value === '1' && document.getElementById('helpVid').videoWidth > 0, null, 'and Ben sees it');
+      const big = Buffer.alloc(200000, 7);
+      const pick = async (p, sel, name) => { const [fc] = await Promise.all([p.waitForEvent('filechooser'), p.click(sel)]); await fc.setFiles({ name, mimeType: 'application/octet-stream', buffer: big }); };
+      await wait(ben, () => !document.getElementById('helpSend').hidden, null, 'Send files for Ben');
+      await pick(ben, '#helpSend', 'notes.bin');
+      await wait(ana, () => Object.values(lpcClient.saved).some((f) => f.name === 'notes.bin' && f.bytes === 200000 && f.end === 'done') && /^Ben sent you notes\.bin: it’s in Downloads\\Premade\. Show in folder$/.test(document.getElementById('helpXfer').textContent), null, 'Ben’s file saved on Ana’s PC, whole');
+      await ana.click('#helpXfer button');
+      assert.strictEqual(await ana.evaluate(() => lpcClient.shown), 'C:\\Downloads\\Premade\\notes.bin', 'Show in folder');
+      await pick(ana, '#helpMeSend', 'log.txt');
+      await wait(ben, () => Object.values(lpcClient.saved).some((f) => f.name === 'log.txt' && f.bytes === 200000 && f.end === 'done'), null, 'Ana’s file saved on Ben’s PC');
+      await ana.evaluate(() => lpcClient.emit('control-clip', 'copied on Ana’s PC'));
+      await wait(ben, () => document.getElementById('helpXfer').textContent === 'Copied from Ana’s PC: “copied on Ana’s PC”', null, 'what Ana copied, on Ben’s side');
+      assert.strictEqual(await ben.evaluate(() => navigator.clipboard.readText()), 'copied on Ana’s PC', 'on Ben’s clipboard');
+      // chat both ways, the picture Ben picks, and what he gets
+      await ben.fill('#helpChatText', 'can you open settings?');
+      await ben.press('#helpChatText', 'Enter');
+      await wait(ana, () => document.getElementById('helpChatLog').textContent.includes('Ben: can you open settings?') && lpc.toasts().includes('Ben: can you open settings?'), null, 'Ben’s message at Ana’s');
+      await ana.fill('#helpChatText', 'done');
+      await ana.press('#helpChatText', 'Enter');
+      await wait(ben, () => document.getElementById('helpChatLog').textContent.includes('Ana: done') && document.getElementById('helpChatLog').textContent.includes('You: can you open settings?'), null, 'Ana’s answer at Ben’s');
+      await ben.selectOption('#helpQual', 'smooth');
+      await wait(ana, () => lpc.help().q === 'smooth', null, 'Smooth motion at Ana’s');
+      await wait(ben, () => /^\d+p · \d+ fps · direct · \d+ ms$/.test(document.getElementById('helpQ').textContent), null, 'what Ben gets: size, frame rate, direct, delay');
+      await ben.click('#helpPriv');
+      await wait(ana, () => String(lpcClient.priv) === 'true' && lpc.toasts().at(-1).startsWith('Ben turned on privacy mode'), null, 'privacy mode on at Ana’s');
+      await ben.click('#helpPriv');
+      await wait(ana, () => String(lpcClient.priv) === 'true,false', null, 'and off');
+      await ben.click('#helpRec');
+      await wait(ben, () => document.getElementById('helpRec').textContent === 'Stop recording', null, 'recording');
+      await ben.waitForTimeout(2500);
+      await ben.click('#helpRec');
+      await wait(ben, () => Object.values(lpcClient.saved).some((f) => /^Remote help, Ana’s PC, \d{4}-\d\d-\d\d \d\d-\d\d\.webm$/.test(f.name) && f.bytes > 1000 && f.end === 'done') && /^Recorded Remote help, Ana’s PC/.test(document.getElementById('helpXfer').textContent), null, 'Ben’s recording saved');
       const note = () => ben.$eval('#helpSt', (e) => e.textContent);
       await ana.evaluate(() => lpcClient.emit('control-state', 'paused')); // Pause on Ana's red bar
       await wait(ben, () => lpc.toasts().at(-1) === 'Ana paused your control: your mouse and keys do nothing there until they press Resume.', null, 'Ben told it’s paused');
@@ -479,6 +524,8 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await ana.evaluate(() => lpcClient.emit('control-end', 'idle')); // 10 minutes without Ben's input (the red bar's Stop is the same, without 'idle')
       await wait(ben, () => document.getElementById('helpTile').hidden && lpc.toasts().includes('Ana: Control ended after 10 minutes without use.') && !document.fullscreenElement, null, 'ended on Ben’s side, out of full screen');
       await wait(ana, () => !lpc.help() && lpc.toasts().includes('Ben is no longer controlling your PC.'), null, 'and on Ana’s, her code gone');
+      await wait(ben, () => /· You controlled Ana’s PC · \d+ (s|min)$/.test(document.querySelector('#helpPast li').textContent) && document.getElementById('helpChatBox').hidden, null, 'in Ben’s Recent sessions, the chat gone');
+      assert.match(await ana.$eval('#helpPast li', (e) => e.textContent), /· Ben controlled your PC · \d+ (s|min)$/, 'and in Ana’s');
       assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), stopped + 1, 'Ana’s app stopped it');
       // Control in Friends, on the Voice page: Ana's page takes Ben's code by itself (she has Ben in her Friends)
       await ben.click('.nav[data-view="voice"]');
@@ -488,6 +535,23 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control of Ana’s PC from Friends', 60000);
       await ben.click('#helpStop');
       await wait(ana, (n) => !lpc.help() && lpcClient.stopped === n && lpc.toasts().filter((t) => t === 'Ben is no longer controlling your PC.').length === 2, stopped + 2, 'Ben’s Stop ends it at Ana’s');
+      // Watch only (1.32): Ben sees Ana's screen, but his clicks and keys go nowhere, and there are no files
+      await ana.evaluate(() => { lpcClient.perm = { view: true }; });
+      await ben.click('.nav[data-view="help"]');
+      code = await offer();
+      await connect(ben, code);
+      await wait(ben, () => lpc.helpTo() && lpc.helpTo().view && document.getElementById('helpVid').videoWidth > 0 && document.getElementById('helpSt').textContent === 'Ana allowed watching only: your mouse and keys stay on your PC.', null, 'Ben watching only');
+      assert(await ben.evaluate(() => document.getElementById('helpSend').hidden), 'no Send files');
+      const had = await ana.evaluate(() => lpcClient.input.length);
+      const [wx, wy, ww, wh] = await ben.$eval('#helpVid', (v) => { const r = v.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; });
+      await ben.mouse.click(wx + ww / 2, wy + wh / 2);
+      await ben.keyboard.press('KeyA');
+      await ben.waitForTimeout(1000);
+      assert.strictEqual(await ana.evaluate(() => lpcClient.input.length), had, 'nothing of Ben’s reaches Ana’s app');
+      assert(await ana.evaluate(() => lpc.toasts().at(-1).startsWith('Ben is watching your screen.')), 'Ana told Ben is watching');
+      await ben.click('#helpStop');
+      await wait(ana, () => !lpc.help(), null, 'ended');
+      console.log('remote help 1.32: Ana’s sound, a switch to her second screen, files both ways, what she copies on Ben’s clipboard, chat both ways, Smooth motion and Ben’s readout, privacy mode on and off, his recording saved, Recent sessions on both sides, and Watch only keeping Ben’s input out');
       for (const [c] of ps) await c.close();
       console.log('remote help: by Ana’s code, refused, taken back with Ana’s box open, a late yes undone, then allowed: Ana’s screen only after her yes, Cat kept out, Ben’s input in order and in full screen, pasted into, paused, ended after 10 idle minutes; then from Friends without a code, and Ben’s Stop');
     }
