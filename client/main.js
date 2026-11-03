@@ -408,6 +408,34 @@ ipcMain.handle('aion-live', (e, on, partyOnly) => {
   try { aionLive = require('./aionlive').start((s) => send('aion-live', s), { partyOnly: !!partyOnly, onFight: (f) => { saveAionFight(f); send('aion-fight', f); } }); return 'on'; }
   catch (err) { console.error('aion live:', err.message); return 'error'; }
 });
+// ---- Aion 2 meter: the live fight in its own small window over the game, like Abyss DPS Meter (Aion 2 in Borderless
+// or Windowed mode). meter.html reads the fight from the site's storage (lpc-aion-live, as the Aion 2 tabs do), so here
+// it's only opened, kept on top and put back where it was left, sized as it was.
+let aionMeter = null;
+const meterFile = () => path.join(app.getPath('userData'), 'aion-meter.json');
+ipcMain.handle('aion-meter', (e, on) => {
+  if (!fromSite(e)) return false;
+  if (!on) { if (aionMeter && !aionMeter.isDestroyed()) aionMeter.close(); return false; }
+  if (aionMeter && !aionMeter.isDestroyed()) { aionMeter.showInactive(); return true; }
+  let at = {};
+  try { at = JSON.parse(fs.readFileSync(meterFile(), 'utf8')); } catch {}
+  const fits = screen.getAllDisplays().some((d) => at.x >= d.bounds.x && at.y >= d.bounds.y && at.x < d.bounds.x + d.bounds.width - 40 && at.y < d.bounds.y + d.bounds.height - 40);
+  aionMeter = new BrowserWindow({
+    ...(fits ? { x: at.x, y: at.y } : {}), width: Math.max(260, +at.width || 340), height: Math.max(120, +at.height || 300), minWidth: 260, minHeight: 120,
+    show: false, frame: false, resizable: true, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true,
+    alwaysOnTop: true, backgroundColor: '#0b0809', title: 'Aion 2 meter', webPreferences,
+  });
+  aionMeter.setAlwaysOnTop(true, 'screen-saver');
+  aionMeter.setOpacity(0.94);
+  let saveTimer = null;
+  const keep = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (!aionMeter || aionMeter.isDestroyed()) return; try { fs.writeFileSync(meterFile(), JSON.stringify(aionMeter.getBounds())); } catch {} }, 400); };
+  aionMeter.on('move', keep);
+  aionMeter.on('resize', keep);
+  aionMeter.on('closed', () => { aionMeter = null; if (win && !win.isDestroyed()) win.webContents.send('aion-meter', false); });
+  aionMeter.once('ready-to-show', () => aionMeter.showInactive());
+  loadFresh(aionMeter, base + 'meter.html');
+  return true;
+});
 // finished fights (a boss killed, or 20 s or more of fighting), the newest 200, in the app's own folder
 const aionFightsFile = () => path.join(app.getPath('userData'), 'aion-fights.json');
 const aionFights = () => { try { const l = JSON.parse(fs.readFileSync(aionFightsFile(), 'utf8')); return Array.isArray(l) ? l : []; } catch { return []; } };

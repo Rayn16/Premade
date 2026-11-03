@@ -6225,6 +6225,19 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let aionHist = [];
   if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); aionPut('lpc-aion-history', aionHist); });
   if (client && client.aionFights) client.aionFights().then((l) => { aionHist = Array.isArray(l) ? l : []; aionPut('lpc-aion-history', aionHist); });
+  // the meter pop-up (desktop app 1.36): the DPS tab asks with lpc-aion-meter '1' or '0' (then '|' and a time); this
+  // page gives it the theme's colours (lpc-aion-theme) and says '0' again when it's closed in its own window
+  const aionMeterTheme = () => { const cs = getComputedStyle(document.documentElement), v = {};
+    for (const k of ['--bg', '--panel', '--raised', '--fg', '--muted', '--line', '--gold', '--gold-hi', '--gold-line', '--accent-fg', '--bad']) v[k] = cs.getPropertyValue(k).trim();
+    aionPut('lpc-aion-theme', v); };
+  addEventListener('storage', (e) => {
+    if (e.key !== 'lpc-aion-meter' || !e.newValue) return;
+    const on = e.newValue.split('|')[0] === '1';
+    if (!client || !client.aionMeter) { if (on) notify('The DPS pop-up needs the newest desktop app: Settings, Update.', true); return; }
+    if (on) aionMeterTheme();
+    client.aionMeter(on);
+  });
+  if (client && client.on) client.on('aion-meter', (on) => { if (!on) store.set('lpc-aion-meter', '0|' + Date.now()); });
   addEventListener('storage', (e) => {
     if (e.key !== 'lpc-aion-want' || !e.newValue) return;
     const ask = e.newValue.split('|')[0]; // then a time, so asking the same twice is still a change
@@ -14140,6 +14153,11 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [110, 'November 3: the Aion 2 DPS meter as a pop-up, and three builds per class', [
+      'Desktop app 1.36.0: Pop out on Aion 2’s DPS tab puts the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP and a bar per player in their class colour (yours in your theme’s), DPS and share. The party’s total DPS and each player’s share sit on top, the boss’s HP has a trail for the damage just taken, and the bars are ranked, the leader’s catching the light. Click a bar for top skills; the lines button makes it compact. Drag it by its top, resize it from its edges; it opens where you left it. Aion 2 has to be in Borderless or Windowed mode.',
+      'Each class guide has three builds: the main one, a second (Damage for Cleric, Chanter and Templar, PvP for the rest) and Farming. Skills, stigmas, stats and the Daevanion paths follow the build you pick.',
+      'The Daevanion boards are star charts in Premade’s style: the nodes as cut gems, the numbered stops in gold, the first one pulsing.',
+    ]],
     [109, 'November 3: download from a link, and convert a file', [
       'Desktop app 1.35.0, on the Clips page: Download from a link saves a video from YouTube, TikTok (without the watermark), Instagram, X, Reddit, Twitch and about 1,700 more sites, up to 1080p, or just its sound as an MP3, in Downloads\\Premade. The first one fetches the downloader (about 150 MB); it keeps itself up to date.',
       'Convert a file, under it: pick videos, songs or pictures and make an MP4, an MP4 under 10 MB for Discord, WebM, a GIF, MP3, M4A, WAV, FLAC, Opus, PNG, JPG, WebP or BMP. The new file goes next to the old one, never over a file, and it all happens on your computer.',
@@ -14724,12 +14742,14 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'The Friends page, Squad: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
     ]],
     ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated every 30 minutes.', [
-      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes: skills to level, all six Daevanion boards with a numbered path and node priority, and the legion’s best gear. Aion 2’s patch notes and maintenance news are under Today.',
+      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes with three builds (main, a second one and Farming): skills to level, all six Daevanion boards with a numbered path and node priority, and the legion’s best gear. Aion 2’s patch notes and maintenance news are under Today.',
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 Today', 'Today: the daily and weekly resets, Shugo Festival and Dimensional Invasion as countdown rings, and under them your entry tickets as the game counts them (with Live fight on).',
         'Open Aion 2: Today is in its menu.', '#aionFrame'],
       ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
+      ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with DPS and share, top skills on a click, and a compact mode. It stays on top, opens where you left it and keeps its size.',
+        'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
