@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aion 2 meter</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* The Aion 2 live fight in the desktop app's pop-up window (client/main.js, aion-meter), laid out like Abyss DPS
+   Meter: a boss card, then a bar per player in their class colour, yours in the theme's. Colours are Premade's (the
+   app page writes its theme to lpc-aion-theme); these are the default red theme's. */
+:root { --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a; --gold: #ff4f5a; --gold-hi: #ffffff; --gold-line: #7a1f28; --accent-fg: #ffffff; --bad: #ff6b6b;
+  --display: "Cinzel", Georgia, serif; --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", Consolas, monospace; color-scheme: dark; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { display: flex; flex-direction: column; background: var(--bg); color: var(--fg); font: 400 13px/1.3 var(--body); user-select: none; border: 1px solid var(--line); box-sizing: border-box; }
+header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); -webkit-app-region: drag; }
+header h1 { margin: 0; font: 700 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-hi); }
+header .t { flex: 1; min-width: 0; font: 500 11.5px/1 var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header button { -webkit-app-region: no-drag; width: 24px; height: 22px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+header button:hover { border-color: var(--line); background: var(--raised); color: var(--fg); }
+header button[aria-pressed="true"] { color: var(--gold); }
+svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+main { flex: 1; overflow-y: auto; padding: 8px; display: grid; gap: 6px; align-content: start; scrollbar-width: thin; }
+.boss { padding: 6px 8px 8px; border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); border-radius: 6px; background: color-mix(in srgb, var(--bad) 7%, var(--raised)); }
+.boss .l { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.boss .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boss .pct { font: 600 12px/1.3 var(--mono); color: color-mix(in srgb, var(--bad) 75%, var(--fg)); }
+.track { position: relative; height: 5px; border-radius: 3px; background: rgb(0 0 0 / 0.35); overflow: hidden; }
+.track i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--bad); transition: width 0.3s ease; }
+.bars { display: grid; gap: 3px; }
+.bar { position: relative; display: block; width: 100%; height: 24px; padding: 0; overflow: hidden; border: 1px solid transparent; border-radius: 4px; background: var(--raised); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.bar:hover { border-color: var(--gold-line); }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: rgb(var(--cc, 140 140 150) / 0.42); transition: width 0.4s ease; }
+.bar.me .fill { background: color-mix(in srgb, var(--gold) 55%, transparent); }
+.bar .txt { position: relative; display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 7px; font-size: 12.5px; }
+.bar .dot { width: 8px; height: 8px; flex: none; border-radius: 2px; background: rgb(var(--cc, 140 140 150)); }
+.bar.me .dot { background: var(--gold); }
+.bar .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.bar .n { font: 500 11.5px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); flex: none; }
+.bar .n.dps { width: 52px; font-weight: 600; color: var(--fg); }
+.bar .n.sh { width: 42px; }
+.skills { margin: 0 0 3px 15px; display: grid; gap: 1px; font-size: 11.5px; color: var(--muted); }
+.skills b { color: var(--fg); font: 500 11.5px/1.3 var(--mono); }
+.empty { padding: 14px 6px; text-align: center; color: var(--muted); line-height: 1.5; }
+/* compact: just the bars, names and DPS */
+.compact .boss, .compact .n.sh, .compact .skills { display: none; }
+.compact main { padding: 5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DPS</h1><span class="t" id="t"></span>
+  <button id="compact" title="Compact: only names and DPS" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/></svg></button>
+  <button id="close" title="Close the meter"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</header>
+<main id="main"></main>
+<script>
+const $ = (s) => document.querySelector(s);
+const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const big = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(Math.round(n || 0)));
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+// class colours, the same as the Aion 2 tabs'; a party member's class from lpc-aion-party (name, or pc id 5-8 9-12 ...)
+const CLASS_RGB = { Gladiator: '142 68 173', Templar: '230 126 34', Ranger: '212 160 23', Assassin: '64 192 112', Spiritmaster: '125 200 216', Sorcerer: '41 128 185', Cleric: '26 188 156', Chanter: '241 196 15' };
+const CLASS_OF_PC = ['Gladiator', 'Templar', 'Ranger', 'Assassin', 'Spiritmaster', 'Sorcerer', 'Cleric', 'Chanter'];
+const opened = new Set();
+let compact = false;
+try { compact = localStorage.getItem('lpc-aion-meter-compact') === '1'; } catch {}
+
+function theme() {
+  const vars = read('lpc-aion-theme');
+  if (vars) for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
+}
+function draw() {
+  document.body.classList.toggle('compact', compact);
+  $('#compact').setAttribute('aria-pressed', compact);
+  const live = read('lpc-aion-live'), f = live && live.fight, fresh = live && Date.now() - live.at < 15000;
+  const cls = new Map(((read('lpc-aion-party') || {}).members || []).map((m) => [m.name, m.className || CLASS_OF_PC[Math.floor((m.cls - 5) / 4)]]));
+  const names = read('lpc-aion-skills') || {};
+  if (!live || live.state === 'off' || !fresh) {
+    $('#t').textContent = '';
+    $('#main').innerHTML = `<p class="empty">Live fight is off.<br>Turn it on in Premade: Aion 2, DPS.</p>`;
+    return;
+  }
+  if (!f || !f.players || !f.players.length) {
+    $('#t').textContent = live.state === 'game' ? 'Aion 2 not running' : '';
+    $('#main').innerHTML = `<p class="empty">${live.state === 'game' ? 'Waiting for Aion 2.' : 'Waiting for a fight.'}</p>`;
+    return;
+  }
+  $('#t').textContent = `${f.active ? '' : 'last · '}${esc(f.target || 'Target')} · ${clock(f.secs || 0)}`;
+  const top = Math.max(1, ...f.players.map((p) => p.dps));
+  $('#main').innerHTML = (f.hp != null || f.pct != null ? `<div class="boss"><div class="l"><span class="nm">${esc(f.target || 'Target')}</span><span class="pct">${f.pct != null ? f.pct + '%' : big(f.hp)}</span></div>
+    <div class="track"><i style="width:${f.pct ?? 0}%"></i></div></div>` : '') + `<div class="bars">${f.players.map((p) => {
+    const rgb = CLASS_RGB[cls.get(p.name)];
+    return `<button class="bar${p.me ? ' me' : ''}" data-n="${esc(p.name)}" ${rgb ? `style="--cc:${rgb}"` : ''} title="${esc(cls.get(p.name) || '')} · ${big(p.damage)} damage · click for skills">
+      <i class="fill" style="width:${(p.dps / top) * 100}%"></i><span class="txt"><i class="dot"></i><span class="who">${esc(p.name)}</span>
+      <span class="n dps">${big(p.dps)}</span><span class="n sh">${p.share}%</span></span></button>
+      ${opened.has(p.name) ? `<div class="skills">${(p.skills || []).slice(0, 5).map((k) => `<span>${esc(names[k.id] || 'Skill ' + k.id)} <b>${big(k.damage)}</b> · ${k.share}%</span>`).join('') || '<span>No skills yet.</span>'}</div>` : ''}`;
+  }).join('')}</div>`;
+}
+$('#main').addEventListener('click', (e) => { const b = e.target.closest('.bar'); if (!b) return; const n = b.dataset.n; if (opened.has(n)) opened.delete(n); else opened.add(n); draw(); });
+$('#compact').onclick = () => { compact = !compact; try { localStorage.setItem('lpc-aion-meter-compact', compact ? '1' : '0'); } catch {} draw(); };
+$('#close').onclick = () => { if (window.lpcClient && lpcClient.aionMeter) lpcClient.aionMeter(false); else window.close(); };
+addEventListener('storage', (e) => { if (e.key === 'lpc-aion-theme') theme(); if (/^lpc-aion-(live|party|skills)$/.test(e.key || '')) draw(); });
+setInterval(draw, 1000);  // also when no storage event comes (the fight clock, and "off" once the app stops writing)
+theme();
+draw();
+</script>
+</body>
+</html>
