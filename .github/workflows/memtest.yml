@@ -22,8 +22,7 @@ jobs:
         shell: pwsh
         run: |
           cd memtest; mkdir out-cap | Out-Null; $env:OUT = "$PWD\out-cap"
-          $env:MODE = 'send'; ..\client\node_modules\.bin\electron.cmd ipc.js
-          $env:MODE = 'none'; ..\client\node_modules\.bin\electron.cmd ipc.js
+          foreach ($m in 'app','drop','none') { $env:RING = $m; ..\client\node_modules\.bin\electron.cmd rec.js }
       - if: always()
         uses: actions/upload-artifact@v4
         with:
