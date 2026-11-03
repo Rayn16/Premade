@@ -136,11 +136,14 @@ ipcMain.handle('filtered-audio-start', async (e) => {
 });
 ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredLeaveOut = []; } });
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
-ipcMain.handle('capture-sources', async (e) => {
+// thumbs false: names only. On Windows each picture is a Windows Graphics Capture of that window, and with an NVIDIA
+// card every capture left its driver threads behind in this process (~13 threads and ~30 MB each time), so the Aion 2
+// window lookup every 30 s grew it ~55 MB a minute (Rayan, 3 Nov: 5.5 GB, 2,842 threads)
+ipcMain.handle('capture-sources', async (e, thumbs = true) => {
   if (!fromSite(e)) return [];
-  const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 280, height: 158 } });
+  const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: thumbs ? { width: 280, height: 158 } : { width: 0, height: 0 } });
   const main = String(screen.getPrimaryDisplay().id);
-  return list.map((s) => ({ id: s.id, name: s.name, type: s.id.startsWith('screen:') ? 'screen' : 'window', main: s.id.startsWith('screen:') && s.display_id === main, thumb: s.thumbnail.toDataURL() }));
+  return list.map((s) => ({ id: s.id, name: s.name, type: s.id.startsWith('screen:') ? 'screen' : 'window', main: s.id.startsWith('screen:') && s.display_id === main, thumb: thumbs ? s.thumbnail.toDataURL() : '' }));
 });
 ipcMain.handle('capture-source', (e, id) => {
   if (!fromSite(e) || typeof id !== 'string') return false;
