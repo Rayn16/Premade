@@ -10,7 +10,8 @@ app.whenReady().then(async () => {
     done({ ...(MODE !== 'audio' && { video: s }), ...(MODE !== 'video' && { audio: 'loopback' }), ...(MODE === 'audio' && { video: s }) });
   });
   const win = new BrowserWindow({ width: 800, height: 600 });
-  await win.loadURL('data:text/html,<video autoplay muted style="width:100%"></video>');
+  fs.writeFileSync(path.join(OUT, 'cap.html'), '<video autoplay muted style="width:100%"></video>');
+  await win.loadFile(path.join(OUT, 'cap.html')); // a file page: data: pages have no mediaDevices
   await win.webContents.executeJavaScript(`(async () => {
     const s = await navigator.mediaDevices.getDisplayMedia({ video: { width: { max: 1920 }, height: { max: 1080 }, frameRate: { ideal: 60, max: 60 } }, audio: ${MODE !== 'video'} });
     if (${MODE === 'audio'}) s.getVideoTracks().forEach((t) => { t.stop(); s.removeTrack(t); });
