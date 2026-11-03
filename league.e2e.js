@@ -759,7 +759,7 @@ const leagueData = (over = {}) => ({
     const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, Sniper in a game, and Riot's copies of four of your games
-    const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$|\/status\/v4\/platform-data$/.test(k)); // without the copies and Riot's server notices (asked whenever your server is known)
+    const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$/.test(k)); // without the copies
     const MY_RIOT = 'riot-me-'.padEnd(78, '0'), SNIPER = 'riot-sniper-'.padEnd(78, '0'), FOE = 'riot-foe-'.padEnd(78, '0');
     const RIOT = {
       '/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW': { puuid: MY_RIOT, gameName: 'Rayan', tagLine: 'EUW' },
