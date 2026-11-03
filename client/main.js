@@ -1410,6 +1410,25 @@ ipcMain.handle('help-file', async (e, id, what, v) => {
   return '';
 });
 ipcMain.on('help-file-show', (e, at) => { if (fromSite(e) && typeof at === 'string' && path.dirname(at) === path.join(app.getPath('downloads'), 'Premade')) shell.showItemInFolder(at); });
+// Wake-on-LAN (1.37, AnyDesk's): the PC you let a Remote help friend use tells them its network cards' addresses
+// (wol-macs), and Wake in their Recent sessions sends the magic packet (wol-send): 6 bytes of 0xff and the address 16
+// times, broadcast on UDP port 9. It wakes a PC on the same network whose card and BIOS have Wake-on-LAN on.
+const MAC = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/;
+ipcMain.handle('wol-macs', (e) => (fromSite(e) ? [...new Set(Object.values(os.networkInterfaces()).flat().filter((n) => n && !n.internal && n.family === 'IPv4' && MAC.test(n.mac) && n.mac !== '00:00:00:00:00:00').map((n) => n.mac))].slice(0, 4) : []));
+ipcMain.handle('wol-send', (e, macs) => new Promise((done) => {
+  const list = fromSite(e) && Array.isArray(macs) ? macs.filter((m) => typeof m === 'string' && MAC.test(m)).slice(0, 4) : [];
+  if (!list.length) return done(false);
+  const sock = require('dgram').createSocket('udp4');
+  sock.on('error', () => { sock.close(); done(false); });
+  sock.bind(() => {
+    sock.setBroadcast(true);
+    let left = list.length;
+    for (const m of list) {
+      const hw = Buffer.from(m.replace(/:/g, ''), 'hex');
+      sock.send(Buffer.concat([Buffer.alloc(6, 0xff), ...Array(16).fill(hw)]), 9, '255.255.255.255', () => { if (--left === 0) { sock.close(); done(true); } });
+    }
+  });
+}));
 function controlInput(c, m) {
   c.last = Date.now();
   if (c.paused || c.view) return;

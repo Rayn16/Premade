@@ -61,6 +61,8 @@ contextBridge.exposeInMainWorld('lpcClient', {
   controlPrivacy: (on) => ipcRenderer.send('control-privacy', !!on),
   helpFile: (id, what, v) => ipcRenderer.invoke('help-file', String(id), String(what), v),
   helpFileShow: (at) => ipcRenderer.send('help-file-show', String(at)),
+  wolMacs: () => ipcRenderer.invoke('wol-macs'),
+  wolSend: (macs) => ipcRenderer.invoke('wol-send', Array.isArray(macs) ? macs.map(String) : []),
   point: (m) => ipcRenderer.invoke('point', m),
   on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'control-clip', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

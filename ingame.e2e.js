@@ -74,6 +74,7 @@ function fakeApp([lcu, colour]) {
     controlScreen(id) { this.screen = id; return Promise.resolve(true); }, controlPrivacy(on) { (this.priv = this.priv || []).push(on); },
     saved: {}, helpFile(id, what, v) { const f = (this.saved[id] = this.saved[id] || { bytes: 0 }); if (what === 'open') f.name = v; if (what === 'data') f.bytes += v.length; if (what === 'done' || what === 'abort') f.end = what; return Promise.resolve(what === 'open' ? v : what === 'done' ? `C:\\Downloads\\Premade\\${f.name}` : 'ok'); },
     helpFileShow(at) { this.shown = at; },
+    wolMacs: async () => ['aa:bb:cc:dd:ee:0f'], wolSend(macs) { this.woke = macs; return Promise.resolve(true); }, // 1.37
     controlStop() { this.stopped++; if (this.answer && !this.late) this.answer({ ok: false, why: 'They took it back.' }); }, controlInput(m) { (this.input = this.input || []).push(m); },
     captureSource(id) { this.source = id; return Promise.resolve(true); },
     point(m) { (this.points = this.points || []).push(m); return Promise.resolve(''); }, // a friend's pointer on the shared screen (1.27)
@@ -524,8 +525,10 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await ana.evaluate(() => lpcClient.emit('control-end', 'idle')); // 10 minutes without Ben's input (the red bar's Stop is the same, without 'idle')
       await wait(ben, () => document.getElementById('helpTile').hidden && lpc.toasts().includes('Ana: Control ended after 10 minutes without use.') && !document.fullscreenElement, null, 'ended on Ben’s side, out of full screen');
       await wait(ana, () => !lpc.help() && lpc.toasts().includes('Ben is no longer controlling your PC.'), null, 'and on Ana’s, her code gone');
-      await wait(ben, () => /· You controlled Ana’s PC · \d+ (s|min)$/.test(document.querySelector('#helpPast li').textContent) && document.getElementById('helpChatBox').hidden, null, 'in Ben’s Recent sessions, the chat gone');
+      await wait(ben, () => /· You controlled Ana’s PC · \d+ (s|min) Wake$/.test(document.querySelector('#helpPast li').textContent) && document.getElementById('helpChatBox').hidden, null, 'in Ben’s Recent sessions, the chat gone');
       assert.match(await ana.$eval('#helpPast li', (e) => e.textContent), /· Ben controlled your PC · \d+ (s|min)$/, 'and in Ana’s');
+      await ben.click('#helpPast li button'); // Wake (1.37): Ana's app told Ben's her card's address
+      await wait(ben, () => String(lpcClient.woke) === 'aa:bb:cc:dd:ee:0f' && document.getElementById('helpXfer').textContent.startsWith('Sent a wake-up to Ana’s PC.'), null, 'Ben wakes Ana’s PC');
       assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), stopped + 1, 'Ana’s app stopped it');
       // Control in Friends, on the Voice page: Ana's page takes Ben's code by itself (she has Ben in her Friends)
       await ben.click('.nav[data-view="voice"]');

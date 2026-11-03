@@ -5646,6 +5646,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       if (st) notify(CTL_ST[st](t.name), true);
       return renderRemoteHelp();
     }
+    if (Array.isArray(m.mac)) { t.mac = m.mac.filter((x) => typeof x === 'string' && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(x)).slice(0, 4); return; } // their network cards, for Wake later
     if (Array.isArray(m.scr)) { t.scr = m.scr.slice(0, 8).map(String); t.cur = Number.isInteger(m.cur) ? m.cur : 0; return renderRemoteHelp(); } // their screens, and the one you see
     if (m.ok === true) {
       t.view = m.view === true;
@@ -5658,7 +5659,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   function helpQuit() { // stop controlling or asking
     const t = ctlTo;
     if (!t) return;
-    if (t.on) { ctlLetGo(); helpEnded({ dir: 'to', name: t.name, riot: t.riot, view: t.view, at: t.since }); }
+    if (t.on) { ctlLetGo(); helpEnded({ dir: 'to', name: t.name, riot: t.riot, view: t.view, at: t.since, mac: t.mac }); }
     ctlTo = null;
     hSend(t.conn, { t: 'ctl', on: false });
     setTimeout(() => t.peer.destroy(), 300); // lets that last word go out
@@ -5758,6 +5759,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     h.labels = all.map((x, i) => `Screen ${i + 1}${x.main ? ' (main)' : ''}`);
     h.cur = Math.max(0, h.scr.indexOf(r.source));
     say({ t: 'ctl', scr: h.labels, cur: h.cur });
+    const macs = client.wolMacs ? await client.wolMacs().catch(() => []) : []; // for Wake in their Recent sessions (1.37)
+    if (hs === h && macs.length) say({ t: 'ctl', mac: macs });
   }
   async function hostScreen(h, i) { // their pick of your screens: the bar and their input go there, and the call shows it
     const id = h.scr && h.scr[i];
@@ -5929,6 +5932,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       const how = x.dir === 'to' ? `You ${x.view ? 'watched' : 'controlled'} ${x.name}’s PC` : `${x.name} ${x.view ? 'watched' : 'controlled'} your PC`;
       li.textContent = `${when} · ${how} · ${x.secs < 60 ? `${x.secs} s` : `${Math.round(x.secs / 60)} min`}`;
       if (x.dir === 'to' && x.riot) li.append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control again', onclick: () => helpFriend(x.riot) }));
+      if (x.dir === 'to' && Array.isArray(x.mac) && x.mac.length && client && client.wolSend) li.append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Wake', // Wake-on-LAN (1.37)
+        onclick: () => client.wolSend(x.mac).then((ok) => xfer(ok ? `Sent a wake-up to ${x.name}’s PC. It wakes if it’s on your network and has Wake-on-LAN on.` : `Couldn’t send a wake-up to ${x.name}’s PC.`)) }));
       return li;
     }));
   }
@@ -14975,7 +14980,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Voice settings, Talking: Change or Set key.', '#kMute'],
       ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
         'Voice settings, Popups and sounds.', '#optNotify'],
-      ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs. Their box can also allow Watch only, and its tick lets you send each other files (Send files, or drop them on their screen) and puts what they copy on your clipboard. You hear their PC (Sound on), and Screen picks which of their screens you see and use. Chat while it’s on, pick Sharp text or Smooth motion and see what you get (size, frame rate, direct or through a relay, delay), and find your past sessions under Recent sessions, with Control again for a friend. Record saves what you see and hear of their PC as a video, and Privacy makes their screen black for them while you still see it.',
+      ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs. Their box can also allow Watch only, and its tick lets you send each other files (Send files, or drop them on their screen) and puts what they copy on your clipboard. You hear their PC (Sound on), and Screen picks which of their screens you see and use. Chat while it’s on, pick Sharp text or Smooth motion and see what you get (size, frame rate, direct or through a relay, delay), and find your past sessions under Recent sessions, with Control again for a friend. Record saves what you see and hear of their PC as a video, and Privacy makes their screen black for them while you still see it. Wake, in Recent sessions, wakes a PC you helped on your own network (Wake-on-LAN on in its BIOS).',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
     ['Friends', 'Your friends, who’s online, invites and your squad.', [
