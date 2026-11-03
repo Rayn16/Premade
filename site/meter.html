@@ -3,52 +3,105 @@
 <head>
 <meta charset="utf-8">
 <title>Aion 2 meter</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
 /* The Aion 2 live fight in the desktop app's pop-up window (client/main.js, aion-meter), laid out like Abyss DPS
    Meter: a boss card, then a bar per player in their class colour, yours in the theme's. Colours are Premade's (the
-   app page writes its theme to lpc-aion-theme); these are the default red theme's. */
+   app page writes its theme to lpc-aion-theme); these are the default red theme's. The look is a game HUD: blade-cut
+   bars ranked with a glowing leading edge, the party's total and a share ribbon on top, the boss's HP with a trail. */
 :root { --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a; --gold: #ff4f5a; --gold-hi: #ffffff; --gold-line: #7a1f28; --accent-fg: #ffffff; --bad: #ff6b6b;
-  --display: "Cinzel", Georgia, serif; --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", Consolas, monospace; color-scheme: dark; }
+  --display: "Cinzel", Georgia, serif; --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --mono: "IBM Plex Mono", Consolas, monospace; color-scheme: dark;
+  --cut: 9px; --glow: color-mix(in srgb, var(--gold) 55%, transparent); }
 html, body { margin: 0; height: 100%; overflow: hidden; }
-body { display: flex; flex-direction: column; background: var(--bg); color: var(--fg); font: 400 13px/1.3 var(--body); user-select: none; border: 1px solid var(--line); box-sizing: border-box; }
-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); -webkit-app-region: drag; }
-header h1 { margin: 0; font: 700 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-hi); }
-header .t { flex: 1; min-width: 0; font: 500 11.5px/1 var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body { display: flex; flex-direction: column; color: var(--fg); font: 400 13px/1.3 var(--body); user-select: none; box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line));
+  background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 60%),
+    radial-gradient(90% 60% at 0% 100%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 70%), var(--bg); }
+/* a faint scan texture, so the window reads as a HUD panel over the game */
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px); }
+header { position: relative; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 9px; -webkit-app-region: drag;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 10%, var(--panel)), var(--panel)); }
+header::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--gold), color-mix(in srgb, var(--gold) 30%, transparent) 45%, transparent); }
+.crest { width: 16px; height: 16px; flex: none; color: var(--gold); filter: drop-shadow(0 0 4px var(--glow)); }
+header h1 { margin: 0; font: 900 13px/1 var(--display); letter-spacing: 0.14em; color: var(--gold-hi); }
+.live { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--muted); }
+.live.on { background: var(--gold); box-shadow: 0 0 0 0 var(--glow); animation: beat 1.6s ease-out infinite; }
+@keyframes beat { 0% { box-shadow: 0 0 0 0 var(--glow); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+header .t { flex: 1; min-width: 0; font: 500 11px/1 var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header .t b { color: var(--fg); font-weight: 600; }
 header button { -webkit-app-region: no-drag; width: 24px; height: 22px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
-header button:hover { border-color: var(--line); background: var(--raised); color: var(--fg); }
+header button:hover { border-color: var(--gold-line); background: var(--raised); color: var(--fg); }
 header button[aria-pressed="true"] { color: var(--gold); }
-svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-main { flex: 1; overflow-y: auto; padding: 8px; display: grid; gap: 6px; align-content: start; scrollbar-width: thin; }
-.boss { padding: 6px 8px 8px; border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); border-radius: 6px; background: color-mix(in srgb, var(--bad) 7%, var(--raised)); }
-.boss .l { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-.boss .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.boss .pct { font: 600 12px/1.3 var(--mono); color: color-mix(in srgb, var(--bad) 75%, var(--fg)); }
-.track { position: relative; height: 5px; border-radius: 3px; background: rgb(0 0 0 / 0.35); overflow: hidden; }
-.track i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--bad); transition: width 0.3s ease; }
-.bars { display: grid; gap: 3px; }
-.bar { position: relative; display: block; width: 100%; height: 24px; padding: 0; overflow: hidden; border: 1px solid transparent; border-radius: 4px; background: var(--raised); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
-.bar:hover { border-color: var(--gold-line); }
-.bar .fill { position: absolute; inset: 0 auto 0 0; background: rgb(var(--cc, 140 140 150) / 0.42); transition: width 0.4s ease; }
-.bar.me .fill { background: color-mix(in srgb, var(--gold) 55%, transparent); }
-.bar .txt { position: relative; display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 7px; font-size: 12.5px; }
-.bar .dot { width: 8px; height: 8px; flex: none; border-radius: 2px; background: rgb(var(--cc, 140 140 150)); }
-.bar.me .dot { background: var(--gold); }
-.bar .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.bar .n { font: 500 11.5px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); flex: none; }
-.bar .n.dps { width: 52px; font-weight: 600; color: var(--fg); }
-.bar .n.sh { width: 42px; }
-.skills { margin: 0 0 3px 15px; display: grid; gap: 1px; font-size: 11.5px; color: var(--muted); }
-.skills b { color: var(--fg); font: 500 11.5px/1.3 var(--mono); }
-.empty { padding: 14px 6px; text-align: center; color: var(--muted); line-height: 1.5; }
-/* compact: just the bars, names and DPS */
-.compact .boss, .compact .n.sh, .compact .skills { display: none; }
-.compact main { padding: 5px; }
+header svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+main { position: relative; flex: 1; overflow-y: auto; padding: 8px 8px 10px; display: grid; gap: 7px; align-content: start; scrollbar-width: thin; scrollbar-color: var(--gold-line) transparent; }
+/* the party's total DPS, big, and each player's share of it as one ribbon in their colours */
+.sum { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 2px 10px; }
+.sum .k { font: 600 9.5px/1 var(--body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.sum .v { grid-row: 2; font: 700 25px/0.95 var(--display); letter-spacing: 0.02em; color: var(--gold-hi); text-shadow: 0 0 14px var(--glow); font-variant-numeric: tabular-nums; }
+.sum .v small { margin-left: 3px; font: 600 10px/1 var(--mono); letter-spacing: 0.06em; color: var(--gold); text-shadow: none; }
+.sum .top { grid-row: 1 / 3; grid-column: 2; justify-self: end; text-align: right; font: 500 10.5px/1.35 var(--mono); color: var(--muted); }
+.sum .top b { display: block; font: 700 12px/1.2 var(--body); color: var(--fg); }
+.ribbon { grid-column: 1 / -1; display: flex; gap: 2px; height: 4px; margin-top: 4px; }
+.ribbon i { height: 100%; min-width: 2px; background: rgb(var(--cc, 140 140 150)); transition: flex-grow 0.6s ease; transform: skewX(-30deg); }
+.ribbon i.me { background: var(--gold); box-shadow: 0 0 6px var(--glow); }
+/* the boss: HP in ten segments, the damage just taken trailing behind in a lighter red */
+.boss { position: relative; padding: 7px 9px 8px; background: linear-gradient(100deg, color-mix(in srgb, var(--bad) 16%, var(--raised)), var(--raised) 70%);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
+.boss::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--bad); box-shadow: 0 0 10px var(--bad); }
+.boss .l { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.boss .nm { display: flex; align-items: center; gap: 6px; min-width: 0; font: 700 12px/1.1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.boss .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boss .nm svg { width: 13px; height: 13px; flex: none; fill: var(--bad); }
+.boss .pct { font: 700 16px/1 var(--mono); color: color-mix(in srgb, var(--bad) 70%, var(--fg)); font-variant-numeric: tabular-nums; }
+.hp { position: relative; height: 8px; background: rgb(0 0 0 / 0.45); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.hp i { position: absolute; inset: 0 auto 0 0; }
+.hp .trail { background: color-mix(in srgb, var(--bad) 40%, #fff 30%); transition: width 0.9s ease 0.5s; }
+.hp .now { background: linear-gradient(90deg, color-mix(in srgb, var(--bad) 60%, #000), var(--bad)); box-shadow: 0 0 10px var(--bad); transition: width 0.25s ease; }
+.hp::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgb(0 0 0 / 0.55) calc(10% - 1px) 10%); }
+/* a bar per player, blade-cut, ranked; the fill's front edge glows in the player's colour */
+.bars { display: grid; gap: 4px; }
+.bar { --c: rgb(var(--cc, 140 140 150)); position: relative; display: block; width: 100%; height: 27px; padding: 0; overflow: hidden; border: 0; background: color-mix(in srgb, var(--raised) 85%, transparent); color: var(--fg); font: inherit; text-align: left; cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.bar.me { --c: var(--gold); }
+.bar:hover { background: color-mix(in srgb, var(--c) 14%, var(--raised)); }
+.bar .fill { position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); transition: width 0.6s cubic-bezier(.2,.8,.2,1);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 62%, transparent));
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.bar .fill::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: calc(var(--cut) + 3px); background: linear-gradient(90deg, transparent, var(--c)); filter: brightness(1.5); }
+.bar.me .fill { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent); }
+/* the leader's bar catches the light now and then */
+.bar.lead .fill::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.22) 45%, transparent 60%); background-size: 250% 100%; animation: sheen 3.2s ease-in-out infinite; }
+@keyframes sheen { 0% { background-position: 120% 0; } 55%, 100% { background-position: -120% 0; } }
+.bar .txt { position: relative; display: flex; align-items: center; gap: 7px; height: 100%; padding: 0 12px 0 0; font-size: 12.5px; }
+.bar .rk { display: grid; place-items: center; align-self: stretch; width: 22px; flex: none; font: 700 11px/1 var(--display); color: var(--bg); background: var(--c);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.bar.lead .rk { box-shadow: 0 0 12px var(--c); }
+.bar .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; text-shadow: 0 1px 2px rgb(0 0 0 / 0.8); }
+.bar .cl { font: 500 9.5px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, var(--fg)); margin-left: 5px; font-weight: 600; }
+.bar .n { font: 500 11px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); flex: none; text-shadow: 0 1px 2px rgb(0 0 0 / 0.8); }
+.bar .n.dps { width: 54px; font: 700 13px/1 var(--mono); color: var(--fg); }
+.bar.lead .n.dps { color: var(--gold-hi); text-shadow: 0 0 8px var(--c); }
+.bar .n.sh { width: 30px; }
+.skills { margin: -1px 10px 3px 22px; padding: 5px 8px; display: grid; gap: 3px; font-size: 11.5px; color: var(--muted); border-left: 2px solid var(--c, var(--gold)); background: linear-gradient(90deg, color-mix(in srgb, var(--c, var(--gold)) 10%, transparent), transparent); }
+.skills span { display: grid; grid-template-columns: 1fr auto 34px; gap: 8px; }
+.skills b { color: var(--fg); font: 600 11.5px/1.3 var(--mono); }
+.skills em { font: 500 11px/1.3 var(--mono); font-style: normal; text-align: right; }
+.empty { padding: 22px 10px; text-align: center; color: var(--muted); line-height: 1.6; }
+.empty .crest { width: 30px; height: 30px; display: block; margin: 0 auto 8px; opacity: 0.8; }
+.empty b { display: block; font: 700 12px/1.4 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg); }
+/* compact: just the ranked bars, names and DPS; the party's total moves into the title bar */
+.compact .boss, .compact .sum, .compact .n.sh, .compact .skills, .compact .cl { display: none; }
+.compact main { padding: 5px 5px 6px; gap: 3px; }
+.compact .bars { gap: 3px; }
+.compact .bar { height: 22px; --cut: 7px; }
+.compact .bar .rk { width: 18px; font-size: 10px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>DPS</h1><span class="t" id="t"></span>
+  <svg class="crest" viewBox="0 0 24 24"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="currentColor" stroke="none"/></svg>
+  <h1>DPS</h1><i class="live" id="live"></i><span class="t" id="t"></span>
   <button id="compact" title="Compact: only names and DPS" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/></svg></button>
   <button id="close" title="Close the meter"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 </header>
@@ -62,40 +115,63 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStar
 // class colours, the same as the Aion 2 tabs'; a party member's class from lpc-aion-party (name, or pc id 5-8 9-12 ...)
 const CLASS_RGB = { Gladiator: '142 68 173', Templar: '230 126 34', Ranger: '212 160 23', Assassin: '64 192 112', Spiritmaster: '125 200 216', Sorcerer: '41 128 185', Cleric: '26 188 156', Chanter: '241 196 15' };
 const CLASS_OF_PC = ['Gladiator', 'Templar', 'Ranger', 'Assassin', 'Spiritmaster', 'Sorcerer', 'Cleric', 'Chanter'];
+const CREST = '<svg class="crest" viewBox="0 0 24 24"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="currentColor"/></svg>';
 const opened = new Set();
-let compact = false;
+let compact = false, shape = '';
 try { compact = localStorage.getItem('lpc-aion-meter-compact') === '1'; } catch {}
 
 function theme() {
   const vars = read('lpc-aion-theme');
   if (vars) for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
 }
+function empty(head, line) {
+  if (shape === head + line) return;
+  shape = head + line;
+  $('#main').innerHTML = `<p class="empty">${CREST}<b>${head}</b>${line}</p>`;
+}
+// Built again only when the bars change (order, who's open, compact); otherwise only the numbers and widths change in
+// place, so the bars slide and the leader's sheen runs on instead of starting over every second.
 function draw() {
   document.body.classList.toggle('compact', compact);
   $('#compact').setAttribute('aria-pressed', compact);
   const live = read('lpc-aion-live'), f = live && live.fight, fresh = live && Date.now() - live.at < 15000;
   const cls = new Map(((read('lpc-aion-party') || {}).members || []).map((m) => [m.name, m.className || CLASS_OF_PC[Math.floor((m.cls - 5) / 4)]]));
   const names = read('lpc-aion-skills') || {};
-  if (!live || live.state === 'off' || !fresh) {
-    $('#t').textContent = '';
-    $('#main').innerHTML = `<p class="empty">Live fight is off.<br>Turn it on in Premade: Aion 2, DPS.</p>`;
-    return;
-  }
+  $('#live').classList.toggle('on', !!(fresh && f && f.active));
+  if (!live || live.state === 'off' || !fresh) { $('#t').textContent = ''; return empty('Live fight is off', 'Turn it on in Premade: Aion 2, DPS.'); }
   if (!f || !f.players || !f.players.length) {
     $('#t').textContent = live.state === 'game' ? 'Aion 2 not running' : '';
-    $('#main').innerHTML = `<p class="empty">${live.state === 'game' ? 'Waiting for Aion 2.' : 'Waiting for a fight.'}</p>`;
-    return;
+    return empty(live.state === 'game' ? 'Waiting for Aion 2' : 'Waiting for a fight', live.state === 'game' ? 'Open the game and fight something.' : 'Hit something and the bars fill in.');
   }
-  $('#t').textContent = `${f.active ? '' : 'last · '}${esc(f.target || 'Target')} · ${clock(f.secs || 0)}`;
-  const top = Math.max(1, ...f.players.map((p) => p.dps));
-  $('#main').innerHTML = (f.hp != null || f.pct != null ? `<div class="boss"><div class="l"><span class="nm">${esc(f.target || 'Target')}</span><span class="pct">${f.pct != null ? f.pct + '%' : big(f.hp)}</span></div>
-    <div class="track"><i style="width:${f.pct ?? 0}%"></i></div></div>` : '') + `<div class="bars">${f.players.map((p) => {
-    const rgb = CLASS_RGB[cls.get(p.name)];
-    return `<button class="bar${p.me ? ' me' : ''}" data-n="${esc(p.name)}" ${rgb ? `style="--cc:${rgb}"` : ''} title="${esc(cls.get(p.name) || '')} · ${big(p.damage)} damage · click for skills">
-      <i class="fill" style="width:${(p.dps / top) * 100}%"></i><span class="txt"><i class="dot"></i><span class="who">${esc(p.name)}</span>
-      <span class="n dps">${big(p.dps)}</span><span class="n sh">${p.share}%</span></span></button>
-      ${opened.has(p.name) ? `<div class="skills">${(p.skills || []).slice(0, 5).map((k) => `<span>${esc(names[k.id] || 'Skill ' + k.id)} <b>${big(k.damage)}</b> · ${k.share}%</span>`).join('') || '<span>No skills yet.</span>'}</div>` : ''}`;
-  }).join('')}</div>`;
+  const total = f.players.reduce((s, p) => s + (p.dps || 0), 0), top = Math.max(1, ...f.players.map((p) => p.dps)), lead = f.players[0];
+  $('#t').innerHTML = compact ? `${clock(f.secs || 0)} · <b>${big(total)}</b> · ${esc(f.target || 'Target')}` : `${f.active ? '' : 'last · '}<b>${esc(f.target || 'Target')}</b> · ${clock(f.secs || 0)}`;
+  const boss = f.hp != null || f.pct != null;
+  const now = [compact, boss, ...f.players.map((p) => `${p.name}${opened.has(p.name) ? '+' + (p.skills || []).length : ''}`)].join('|');
+  if (now !== shape) {
+    shape = now;
+    $('#main').innerHTML = `<div class="sum"><span class="k">Party DPS</span><span class="v" id="tot"></span>
+        <span class="top" id="top"></span><div class="ribbon">${f.players.map((p) => `<i class="${p.me ? 'me' : ''}" style="flex-grow:0${CLASS_RGB[cls.get(p.name)] ? `;--cc:${CLASS_RGB[cls.get(p.name)]}` : ''}"></i>`).join('')}</div></div>
+      ${boss ? `<div class="boss"><div class="l"><span class="nm"><svg viewBox="0 0 24 24"><path d="M12 2C7 2 4 5.5 4 10c0 2.6 1.2 4.4 3 5.5V19h2v2h2v-2h2v2h2v-2h2v-3.5c1.8-1.1 3-2.9 3-5.5 0-4.5-3-8-8-8zM9 13a2 2 0 110-4 2 2 0 010 4zm6 0a2 2 0 110-4 2 2 0 010 4z"/></svg><span>${esc(f.target || 'Target')}</span></span><span class="pct" id="pct"></span></div>
+        <div class="hp"><i class="trail" id="trail" style="width:${f.pct ?? 0}%"></i><i class="now" id="hp" style="width:${f.pct ?? 0}%"></i></div></div>` : ''}
+      <div class="bars">${f.players.map((p, i) => {
+        const c = cls.get(p.name), rgb = CLASS_RGB[c];
+        return `<button class="bar${p.me ? ' me' : ''}${i === 0 ? ' lead' : ''}" data-n="${esc(p.name)}" ${rgb ? `style="--cc:${rgb}"` : ''}>
+          <i class="fill"></i><span class="txt"><span class="rk">${i + 1}</span><span class="who">${esc(p.name)}${c ? `<span class="cl">${esc(c)}</span>` : ''}</span>
+          <span class="n dps"></span><span class="n sh"></span></span></button>
+          ${opened.has(p.name) ? `<div class="skills" ${rgb && !p.me ? `style="--c:rgb(${rgb})"` : ''}>${(p.skills || []).slice(0, 5).map((k) => `<span>${esc(names[k.id] || 'Skill ' + k.id)} <b>${big(k.damage)}</b><em>${k.share}%</em></span>`).join('') || '<span>No skills yet.</span>'}</div>` : ''}`;
+      }).join('')}</div>`;
+    void $('#main').offsetWidth;  // so the first widths below slide in from nothing
+  }
+  if ($('#tot')) { $('#tot').innerHTML = `${big(total)}<small>DPS</small>`; $('#top').innerHTML = `<b>${esc(lead.name)}</b>leads · ${lead.share}%`; }
+  document.querySelectorAll('.ribbon i').forEach((el, i) => { el.style.flexGrow = f.players[i].share || 0; });
+  if (boss) { const pct = f.pct ?? 0; $('#pct').textContent = f.pct != null ? f.pct + '%' : big(f.hp); $('#hp').style.width = pct + '%'; $('#trail').style.width = pct + '%'; }
+  document.querySelectorAll('.bar').forEach((el, i) => {
+    const p = f.players[i];
+    el.style.setProperty('--w', `${(p.dps / top) * 100}%`);
+    el.querySelector('.dps').textContent = big(p.dps);
+    el.querySelector('.sh').textContent = p.share + '%';
+    el.title = `${cls.get(p.name) || ''} · ${big(p.damage)} damage · click for skills`;
+  });
 }
 $('#main').addEventListener('click', (e) => { const b = e.target.closest('.bar'); if (!b) return; const n = b.dataset.n; if (opened.has(n)) opened.delete(n); else opened.add(n); draw(); });
 $('#compact').onclick = () => { compact = !compact; try { localStorage.setItem('lpc-aion-meter-compact', compact ? '1' : '0'); } catch {} draw(); };
