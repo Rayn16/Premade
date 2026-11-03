@@ -492,6 +492,12 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .vidlist { margin: 0; padding: 0; list-style: none; }
 .vidlist:empty { display: none; }
+#dlForm { grid-template-columns: minmax(0, 1fr) auto auto; }
+@container app (max-width: 560px) { #dlForm { grid-template-columns: minmax(0, 1fr); } }
+.dllist { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.dllist:empty { display: none; }
+.dllist li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.dllist .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; flex: 1 1 200px; }
 .vcard .thumb { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 4px; }
 .vcard .thumb .shot { cursor: inherit; }
 .vcard .vlen { position: absolute; right: 8px; bottom: 8px; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 700 13px/1.2 var(--body); }
@@ -1645,6 +1651,21 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         <ul id="vidList" class="clips vidlist"></ul>
         <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button><button class="btn small where" type="button" data-where="pick" hidden>Change folder</button></div>
       </section>
+      <section id="dlBox" class="panel" aria-labelledby="h-dl" hidden>
+        <h2 id="h-dl" class="ph">Download from a link <button class="tip" type="button" popovertarget="t-dl" aria-label="About downloads">?</button></h2>
+        <form id="dlForm" class="chatform">
+          <input id="dlUrl" type="url" required autocomplete="off" spellcheck="false" placeholder="Paste a link: YouTube, TikTok, Instagram, X, Reddit…" aria-label="Link to download">
+          <select id="dlKind" aria-label="What to keep"><option value="video">Video</option><option value="audio">Sound only (MP3)</option></select>
+          <button class="btn" type="submit">Download</button>
+        </form>
+        <ul id="dlList" class="dllist"></ul>
+        <div class="toolbar"><button id="dlFolder" class="btn small" type="button">Open the downloads folder</button></div>
+      </section>
+      <section id="cvBox" class="panel" aria-labelledby="h-cv" hidden>
+        <h2 id="h-cv" class="ph">Convert a file <button class="tip" type="button" popovertarget="t-cv" aria-label="About converting">?</button></h2>
+        <div class="toolbar"><button id="cvPick" class="btn" type="button">Pick files to convert</button></div>
+        <ul id="cvList" class="dllist"></ul>
+      </section>
       <details id="clipSet" class="voiceset">
         <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
         <div class="settings">
@@ -1804,7 +1825,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
           <div class="toolbar"><button id="setupAgain" class="btn" type="button">Run setup again</button><button id="installBtn" class="btn browser-only" type="button" hidden>Install as an app</button></div>
           <p class="hint phone-only">On a phone, keep Premade on your home screen: Share, then Add to Home Screen on an iPhone, or ⋮, then Add to home screen on Android.</p>
           <p class="hint browser-only pc-only"><a href="Premade-Setup.exe" download>Download the Windows client</a>: it shares your screen by itself, keeps running at full speed behind League, and adds the overlay, League's own game data and shortcuts that work in game.</p>
-          <p class="hint client-only">Version <span id="appVersion"></span>. The app loads the newest page every time it starts and installs its own updates.</p>
+          <p class="hint client-only">Version <span id="appVersion"></span> <button id="updateBtn" class="btn small" type="button" hidden></button>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, voice name and app version</label>
@@ -2124,6 +2145,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
+<div id="t-cv" class="tipbox" popover>Pick videos, songs or pictures and the format to make: a video to MP4 (plays everywhere), an MP4 under 10 MB for Discord, WebM, a GIF or just its sound (MP3, M4A, WAV); a song to MP3, M4A, WAV, FLAC or Opus; a picture to PNG, JPG, WebP or BMP. The new file goes next to the old one, which stays as it is, and never over another file. It all happens on this computer with ffmpeg, the same one the downloader uses (fetched the first time, about 150 MB). Documents, ebooks and archives can’t be converted yet.</div>
+<div id="t-dl" class="tipbox" popover>Paste a link to a video on almost any site (YouTube, TikTok without its watermark, Instagram, X, Reddit, Facebook, Twitch, SoundCloud and about 1,700 more) and the app saves it in Downloads\Premade, up to 1080p, or just its sound as an MP3. The first download fetches the downloader (yt-dlp and ffmpeg, about 150 MB); after that it keeps itself up to date. Private posts, stories and videos behind a login or DRM (Netflix, Spotify) can’t be downloaded. Only download what you’re allowed to keep.</div>
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
@@ -2194,7 +2217,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -2246,6 +2269,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   let leagueAt = 0;     // when League's data last came, for the game clock in between (gameNow)
   let lcu = null;       // where League's client is (its gameflow phase, desktop app 1.5+): null not known, '' League isn't running
   let stWas = '';       // your status as last sent (statusTick)
+  let appUpdate = '';   // the app's own update: '', 'getting' (downloading after Update was clicked) or 'ready'
   let latest = '';      // the newest app version, from the site's latest.yml (the version check)
 
   const say = (text) => { $('msg').textContent = text || ''; };
@@ -2603,6 +2627,8 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     $('sbTrackText').textContent = trackText();
     $('sbLeague').textContent = !league ? `League: ${lcu ? STATUS[PHASES[lcu] || 'client'][1].toLowerCase() : 'no game'}` : `League: ${(league.me && (league.me.champName || league.me.champ)) || 'in game'}${mine.dead ? ', dead' : ''}`;
     $('sbVersion').textContent = myVersion();
+    const upd = appUpdate === 'ready' || (client && client.update && client.version && latest && newer(latest, client.version));
+    for (const b of [$('restartBtn'), $('updateBtn')]) { b.hidden = !upd; b.textContent = appUpdate === 'ready' ? 'Update ready: restart' : appUpdate === 'getting' ? 'Downloading the update…' : `Update to ${latest}`; b.disabled = appUpdate === 'getting'; }
     $('railMic').dataset.state = mb.dataset.state; // the rail's foot: your name and the same mic button
     $('railMicText').textContent = mb.lastChild.textContent;
     $('railName').textContent = myName || 'Player';
@@ -4958,7 +4984,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // it until it's pressed again (overlayHide); in a game it first shows everyone's rank (boardKey); out of a League game,
   // for those who play Aion 2, it shows or hides the Aion 2 card (aionCard: what the tracker last wrote, lpc-aion-card).
   let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false, aionCard = false;
-  const aionLines = () => { const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
+  const aionLines = () => {
+    const f = aionFight && aionFight.players && opts.aionLive ? aionFight : null; // the live fight first, while it's on
+    if (f) return [`${f.target || 'Fight'}${f.pct != null ? ` ${f.pct}%` : ''} · ${fightClock(f.secs)}`, ...f.players.slice(0, 5).map((p) => `${p.name} ${bigNum(p.dps)}/s ${p.share}%`)];
+    const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
   addEventListener('storage', (e) => { if (e.key === 'lpc-aion-card' && aionCard) pushOverlay(); }); // every 30 s from its page
   const chats = []; // the last few chat messages, for the overlay
   function pushOverlay() {
@@ -6131,6 +6160,80 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   const AION_URL = 'https://rayn16.github.io/aion2-tracker/?embed';
   window.aionNotify = (text) => { notify(String(text), true); if (client && client.notify) client.notify('Aion 2', String(text)); };
   if (store.get('lpc-aion')) setTimeout(() => { if (!$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL; }, 5000);
+  // ---- Aion 2 live fight (desktop app 1.34): client.aionLive turns client/aionlive.js on, which reads the game's
+  // traffic through Npcap; the fight comes back twice a second. The Aion 2 tabs (the tracker, on this same site, so it
+  // shares this storage) show it all: DPS has the fight, its switch and past fights, Checklist the entry tickets, Profile
+  // your party. Written here: lpc-aion-live { at, state, party, fight } at most once a second (state: off, on, game,
+  // npcap, error, update), lpc-aion-party ({ at, members }, with class, CP and gear from NC's pages), lpc-aion-skills
+  // ({ id: name }), lpc-aion-history (finished fights, newest 200) and lpc-aion-tickets. The tracker asks with
+  // lpc-aion-want: '1' after its ban warning, '0' to stop, 'party' or 'all' for whose damage, each followed by '|' and a time.
+  let aionFight = null, aionState = 'off', aionWritten = 0, aionPartyWas = '', aionTixWas = '';
+  const bigNum = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
+  const fightClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const aionPut = (k, v) => store.set(k, JSON.stringify(v));
+  let aionLater = 0;
+  function aionPublish(force) {
+    const now = Date.now();
+    if (!force && now - aionWritten < 1000) { aionLater = aionLater || setTimeout(() => { aionLater = 0; aionPublish(true); }, 1000 - (now - aionWritten)); return; } // the latest goes out a moment later
+    aionWritten = now;
+    aionPut('lpc-aion-live', { at: now, state: aionState, party: opts.aionParty, fight: aionFight && aionFight.players ? aionFight : null });
+  }
+  // party members: server, level and item level come with the party; class, combat power, gear and skill names from
+  // NC's pages, asked once per member
+  const aionChars = new Map(), aionSkills = load('lpc-aion-skills', {});
+  function aionParty(members) {
+    aionPut('lpc-aion-party', { at: Date.now(), members: members.map((m) => ({ ...m, ...(aionChars.get(`${m.name}@${m.server}`) || {}) })) });
+    for (const m of members) {
+      const key = `${m.name}@${m.server}`;
+      if (aionChars.has(key) || !client || !client.aionChar) continue;
+      aionChars.set(key, null);
+      client.aionChar(m.name, m.server).then((v) => {
+        if (!v) return;
+        const { skills, ...rest } = v;
+        aionChars.set(key, rest);
+        Object.assign(aionSkills, skills);
+        aionPut('lpc-aion-skills', aionSkills);
+        if (aionFight && aionFight.members) aionParty(aionFight.members);
+      });
+    }
+  }
+  // entry tickets: each as it changes, all of them at login
+  let aionTix = load('lpc-aion-tickets', {});
+  function aionTickets(list) {
+    for (const x of list) aionTix[x.id] = { ...aionTix[x.id], ...x };
+    aionPut('lpc-aion-tickets', aionTix);
+  }
+  async function aionLiveSet() {
+    if (!client || !client.aionLive) { aionState = client ? 'update' : 'off'; return aionPublish(true); }
+    const r = await client.aionLive(opts.aionLive, opts.aionParty);
+    if (opts.aionLive && r !== 'on') { opts.aionLive = false; saveOpts(); }
+    aionState = opts.aionLive ? 'on' : r === 'npcap' || r === 'error' ? r : 'off';
+    aionFight = null;
+    aionPublish(true);
+  }
+  if (client && client.on) client.on('aion-live', (s) => {
+    aionFight = s;
+    if (s && s.off) aionState = 'game';
+    else if (aionState === 'game') aionState = 'on';
+    const tix = JSON.stringify((s && s.tickets) || []);
+    if (tix !== aionTixWas) { aionTixWas = tix; if (s.tickets.length) aionTickets(s.tickets); }
+    const party = JSON.stringify((s && s.members) || []);
+    if (party !== aionPartyWas) { aionPartyWas = party; aionParty(s.members || []); }
+    aionPublish();
+    if (aionCard) pushOverlay();
+  });
+  let aionHist = [];
+  if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); aionPut('lpc-aion-history', aionHist); });
+  if (client && client.aionFights) client.aionFights().then((l) => { aionHist = Array.isArray(l) ? l : []; aionPut('lpc-aion-history', aionHist); });
+  addEventListener('storage', (e) => {
+    if (e.key !== 'lpc-aion-want' || !e.newValue) return;
+    const ask = e.newValue.split('|')[0]; // then a time, so asking the same twice is still a change
+    if (ask === 'party' || ask === 'all') opts.aionParty = ask === 'party';
+    else opts.aionLive = ask === '1';
+    saveOpts();
+    aionLiveSet();
+  });
+  aionLiveSet();
   // ---- RE4 co-op (desktop app 1.28.8+): client.re4 runs re4-helper.exe (client/re4) and gets every check back as
   // JSON. Play backs up the saves and starts RE4 through Steam; the co-op mod's own menu does the connecting, over
   // Tailscale. The host shares their PC in Tailscale and puts the share link in an invite for each friend; the app link
@@ -8487,6 +8590,66 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     showWhere(p);
     loadClips();
     loadVids();
+  });
+  // ---- downloads (app 1.31): a link's video or sound, saved by the app in Downloads\\Premade, newest first on the list
+  const dlRows = new Map(); // link -> its row's { li, sub, acts }
+  $('dlBox').hidden = !(client && client.download);
+  function dlRow(url) {
+    const li = document.createElement('li'), sub = Object.assign(document.createElement('span'), { className: 'sub' }), acts = Object.assign(document.createElement('span'), { className: 'cacts' });
+    li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: url }), sub, acts);
+    $('dlList').prepend(li);
+    const r = { li, sub, acts };
+    dlRows.set(url, r);
+    return r;
+  }
+  const dlBtn = (text, fn) => { const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text }); b.addEventListener('click', fn); return b; };
+  if (client && client.download) client.on('download', ({ url, pct }) => { const r = dlRows.get(url); if (r) r.sub.textContent = pct < 0 ? 'Getting ready…' : `Downloading ${Math.round(pct)}%`; });
+  $('dlForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const url = $('dlUrl').value.trim();
+    if (dlRows.has(url) && !dlRows.get(url).done) return;
+    if (dlRows.has(url)) dlRows.get(url).li.remove();
+    const r = dlRow(url);
+    r.sub.textContent = 'Starting…';
+    r.acts.replaceChildren(dlBtn('Stop', () => client.downloadStop(url)));
+    $('dlUrl').value = '';
+    const res = await client.download(url, $('dlKind').value);
+    r.done = true;
+    r.acts.replaceChildren();
+    if (res && res.file) {
+      r.li.querySelector('.cname').textContent = res.file.split(/[\\/]/).pop();
+      r.sub.textContent = 'Saved';
+      r.acts.append(dlBtn('Show in folder', () => client.downloadShow(res.file)));
+    } else r.sub.textContent = (res && res.error) || 'Couldn’t download that.';
+  });
+  $('dlFolder').addEventListener('click', () => client && client.downloadsFolder && client.downloadsFolder());
+  // ---- convert a file (app 1.35): files picked in the app's own window, each converted by the app next to itself
+  const cvRows = new Map(); // the app's id for a picked file -> its row's sub
+  $('cvBox').hidden = !(client && client.convert);
+  if (client && client.convert) client.on('convert', ({ id, pct }) => { const sub = cvRows.get(id); if (sub) sub.textContent = `Converting ${Math.round(pct)}%`; });
+  $('cvPick').addEventListener('click', async () => {
+    const files = await client.convertPick();
+    if (!Array.isArray(files)) return alert(files.error);
+    for (const f of files) {
+      const li = document.createElement('li'), sub = Object.assign(document.createElement('span'), { className: 'sub', textContent: f.error || '' }), acts = Object.assign(document.createElement('span'), { className: 'cacts' });
+      li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: f.name }), sub, acts);
+      $('cvList').prepend(li);
+      if (f.error) continue;
+      cvRows.set(f.id, sub);
+      const pick = Object.assign(document.createElement('select'), { ariaLabel: 'Convert to' });
+      for (const t of f.targets) pick.append(new Option(t.label, t.id));
+      const go = dlBtn('Convert', async () => {
+        sub.textContent = 'Starting…';
+        acts.replaceChildren(dlBtn('Stop', () => client.convertStop(f.id)));
+        const res = await client.convert(f.id, pick.value);
+        acts.replaceChildren(pick, go);
+        if (res && res.file) {
+          sub.textContent = 'Saved as ' + res.file.split(/[\\/]/).pop();
+          acts.append(dlBtn('Show in folder', () => client.convertShow(res.file)));
+        } else sub.textContent = (res && res.error) || 'Couldn’t convert that.';
+      });
+      acts.append(pick, go);
+    }
   });
   // the head is the recording's first chunks up to its first Cluster: on a busy PC Chrome can hand the WebM header over
   // in pieces (even its first byte alone), and every clip needs all of it
@@ -12031,7 +12194,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
     if (dps && dps.track && Date.now() - (dps.beat || 0) > 30000) { dps.beat = Date.now(); dpsSay('w'); }
     if (dps || !want || performance.now() - dpsLookAt < 30000) return;
     dpsLookAt = performance.now();
-    client.captureSources().then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); if (w && !dps) dpsStart(w.id); }).catch(() => {});
+    client.captureSources(false).then((list) => { const w = list.find((s) => s.type === 'window' && AION_WIN.test(s.name)); // names only: pictures leaked in the app (1.35.1) if (w && !dps) dpsStart(w.id); }).catch(() => {});
   }
   const dpsSay = (k) => { const o = load('lpc-aion-dps', {}); o[k] = Date.now(); store.set('lpc-aion-dps', JSON.stringify(o)); }; // for the Aion 2 page: w, watching Aion 2's window (every 30 s); s, Combat Analysis seen
   async function dpsStart(id) {
@@ -13807,8 +13970,17 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   if (client) {
     $('appVersion').textContent = client.version || '1.2 or older';
     $('getNew').hidden = !!client.update;
-    client.on('update', () => { $('restartBtn').hidden = false; notify('An app update is ready. Restart the app to use it, or it installs when you quit.', true); });
-    $('restartBtn').addEventListener('click', () => client.update());
+    client.on('update', (u) => {
+      if (u && u.error) { if (appUpdate === 'getting') { appUpdate = ''; notify(`The update didn't download: ${u.error}. Try again in a bit, or get the installer from the site.`, true); render(); } return; }
+      appUpdate = 'ready'; render(); notify('An app update is ready. Restart the app to use it, or it installs when you quit.', true);
+    });
+    // Update: installs a downloaded update; 1.34.3 and later fetch it right away, older apps fetch it when they start
+    const update = () => {
+      if (appUpdate === 'ready' || !newer('1.34.3', client.version)) { client.update(); if (appUpdate !== 'ready') { appUpdate = 'getting'; render(); } }
+      else notify(`Close Premade and open it again: it fetches ${latest} as it starts, and this button then says Update ready.`, true);
+    };
+    $('restartBtn').addEventListener('click', update);
+    $('updateBtn').addEventListener('click', update);
   }
   // Test version first: the site's test/ folder gets page changes before everyone else. The page's address is the
   // switch, and the app (1.13 and later) opens the same copy next time.
@@ -13968,6 +14140,24 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [109, 'November 3: download from a link, and convert a file', [
+      'Desktop app 1.35.0, on the Clips page: Download from a link saves a video from YouTube, TikTok (without the watermark), Instagram, X, Reddit, Twitch and about 1,700 more sites, up to 1080p, or just its sound as an MP3, in Downloads\\Premade. The first one fetches the downloader (about 150 MB); it keeps itself up to date.',
+      'Convert a file, under it: pick videos, songs or pictures and make an MP4, an MP4 under 10 MB for Discord, WebM, a GIF, MP3, M4A, WAV, FLAC, Opus, PNG, JPG, WebP or BMP. The new file goes next to the old one, never over a file, and it all happens on your computer.',
+    ]],
+    [108, 'November 3: Aion 2 live, in its tabs', [
+      'Aion 2’s Live fight moved into its tabs: DPS has the fight as it happens, its switch and your past fights; Today has your entry tickets; Profile has your party right now, with their class, item level, combat power and gear.',
+      'More colour in Aion 2: class icons and colours on the damage bars, each skill’s icon, coloured ticket tiles, and party cards with every gear piece’s icon. Aion 2 has 5 tabs now: Today has the countdown rings, your entry tickets as the game counts them (no more hand-ticked dailies or field bosses) and the news; Settings sits at the end of Profile, and Compare opens from Legion. Your own DPS bar is always in the colour of your Premade theme.',
+      'Each class guide shows all six Daevanion boards as the game draws them, with the nodes to open numbered in order and each board’s node priority.',
+    ]],
+    [107, 'November 2: an Update button', [
+      'Desktop app 1.34.3: when a new version is out, Settings, App and the status bar have an Update button. It downloads the update right away instead of at the app’s next check, then restarts into it.',
+    ]],
+    [106, 'November 2: Aion 2 live fight', [
+      'Desktop app 1.34: the Aion 2 page has Live fight. While you fight, it shows everyone’s damage, DPS, share and crits, and the boss’s HP, live, also on the overlay’s Aion 2 card. Damage over time and pets count for their owner. It reads Aion 2’s traffic like Abyss DPS Meter does, and NC’s rules can ban accounts for that, so it stays off until you turn it on.',
+      'Click a player to see their top skills, by name for your party. Past fights keeps every boss kill and longer fight on this PC to look back on.',
+      'Your party: each member’s class, level, item level, combat power, server and gear, from NC’s own character pages.',
+      'Entry tickets: Odyle, Nightmare, Ascension trial, daily dungeons, Shugo Festival and Dimensional Invasion, updated as you use or gain them, and all of them when you log in.',
+    ]],
     [105, 'November 2: a new look', [
       'Premade has a new look: a calmer menu down the left with your name and a mic button at the bottom, and League still at its foot with its pages as tabs along the top. Each page has its name and what it’s for along the top, and its panels, buttons and tabs are tidier.',
       'Ticks are now switches, green when on. All seven themes, Custom included, get the new look.',
@@ -14534,10 +14724,12 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'The Friends page, Squad: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
     ]],
     ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated every 30 minutes.', [
-      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes: skills to level, Daevanion picks and the legion’s best gear, and News with Aion 2’s patch notes and maintenance.',
+      ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes: skills to level, all six Daevanion boards with a numbered path and node priority, and the legion’s best gear. Aion 2’s patch notes and maintenance news are under Today.',
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
-      ['Aion 2 timers and checklist', 'Timers: the daily and weekly resets, Shugo Festival and Dimensional Invasion, and your server’s field bosses: when someone in your legion marks a kill, everyone sees when it’s back, and Premade warns you 5 minutes before. Checklist: each character’s dailies and weeklies with + and −, and what your friends still have to do.',
-        'Open Aion 2: Timers and Checklist are in its menu.', '#aionFrame'],
+      ['Aion 2 Today', 'Today: the daily and weekly resets, Shugo Festival and Dimensional Invasion as countdown rings, and under them your entry tickets as the game counts them (with Live fight on).',
+        'Open Aion 2: Today is in its menu.', '#aionFrame'],
+      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
+        'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
@@ -14576,7 +14768,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
       ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The last 500 lines, kept in memory only.',
         'Settings, App: Copy connection log, right after a drop, then paste it to whoever builds the app.', '#connLogBtn'],
       ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
-        'Nothing to set up. When the status bar says Update ready, restart.', '#appVersion', 'app'],
+        'Nothing to set up. When a new version is out, Update to it in Settings, App, or in the status bar.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
       ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
@@ -14719,6 +14911,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
         'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
+      ['Download from a link', 'Paste a link from YouTube, TikTok (without the watermark), Instagram, X, Reddit, Facebook, Twitch and about 1,700 more sites, and the app saves the video up to 1080p, or just its sound as an MP3, in Downloads\\Premade.',
+        'The Clips page, Download from a link. The first one fetches the downloader, about 150 MB.', '#h-dl', 'app'],
+      ['Convert a file', 'Turn a video into an MP4, an MP4 under 10 MB for Discord, WebM, a GIF or just its sound; a song into MP3, M4A, WAV, FLAC or Opus; a picture into PNG, JPG, WebP or BMP. The new file goes next to the old one, made on this computer.',
+        'The Clips page, Convert a file. It uses the downloader’s ffmpeg, fetched the first time.', '#h-cv', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],

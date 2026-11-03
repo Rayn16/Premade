@@ -1,7 +1,7 @@
 {
   "name": "league-proxchat",
   "productName": "Premade",
-  "version": "1.33.0",
+  "version": "1.35.1",
   "description": "Proximity voice chat and game tools for League of Legends",
   "main": "main.js",
   "author": "Rayan",
@@ -18,8 +18,10 @@
     "appId": "app.netlify.league-proxchat",
     "files": [
       "main.js",
+      "convert.js",
       "preload.js",
       "re4link.js",
+      "aionlive.js",
       "audio-capture.exe",
       "re4-helper.exe",
       "volume-helper.exe",

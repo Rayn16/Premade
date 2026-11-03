@@ -136,11 +136,14 @@ ipcMain.handle('filtered-audio-start', async (e) => {
 });
 ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredLeaveOut = []; } });
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
-ipcMain.handle('capture-sources', async (e) => {
+// thumbs false: names only. On Windows each picture is a Windows Graphics Capture of that window, and with an NVIDIA
+// card every capture left its driver threads behind in this process (~13 threads and ~30 MB each time), so the Aion 2
+// window lookup every 30 s grew it ~55 MB a minute (Rayan, 3 Nov: 5.5 GB, 2,842 threads)
+ipcMain.handle('capture-sources', async (e, thumbs = true) => {
   if (!fromSite(e)) return [];
-  const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 280, height: 158 } });
+  const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: thumbs ? { width: 280, height: 158 } : { width: 0, height: 0 } });
   const main = String(screen.getPrimaryDisplay().id);
-  return list.map((s) => ({ id: s.id, name: s.name, type: s.id.startsWith('screen:') ? 'screen' : 'window', main: s.id.startsWith('screen:') && s.display_id === main, thumb: s.thumbnail.toDataURL() }));
+  return list.map((s) => ({ id: s.id, name: s.name, type: s.id.startsWith('screen:') ? 'screen' : 'window', main: s.id.startsWith('screen:') && s.display_id === main, thumb: thumbs ? s.thumbnail.toDataURL() : '' }));
 });
 ipcMain.handle('capture-source', (e, id) => {
   if (!fromSite(e) || typeof id !== 'string') return false;
@@ -393,6 +396,47 @@ ipcMain.on('attenuate', (e, by) => {
 `);
 });
 if (process.platform === 'win32' && fs.existsSync(path.join(app.getPath('temp'), 'premade-volume.txt')) && volumeHelper()) volume.stdin.end();
+// ---- Aion 2 live fight (Aion 2 page, off until turned on past its ban warning): client/aionlive.js reads the game's
+// traffic through Npcap and the fight goes to the page twice a second. 'npcap' when Npcap isn't installed.
+let aionLive = null;
+ipcMain.handle('aion-live', (e, on, partyOnly) => {
+  if (!fromSite(e) || process.platform !== 'win32') return 'error';
+  if (!on) { if (aionLive) aionLive.stop(); aionLive = null; return 'off'; }
+  if (aionLive) { aionLive.partyOnly = !!partyOnly; return 'on'; }
+  if (!fs.existsSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'Npcap', 'wpcap.dll'))) return 'npcap';
+  const send = (name, v) => { if (win && !win.isDestroyed()) win.webContents.send(name, v); };
+  try { aionLive = require('./aionlive').start((s) => send('aion-live', s), { partyOnly: !!partyOnly, onFight: (f) => { saveAionFight(f); send('aion-fight', f); } }); return 'on'; }
+  catch (err) { console.error('aion live:', err.message); return 'error'; }
+});
+// finished fights (a boss killed, or 20 s or more of fighting), the newest 200, in the app's own folder
+const aionFightsFile = () => path.join(app.getPath('userData'), 'aion-fights.json');
+const aionFights = () => { try { const l = JSON.parse(fs.readFileSync(aionFightsFile(), 'utf8')); return Array.isArray(l) ? l : []; } catch { return []; } };
+function saveAionFight(f) { try { fs.writeFileSync(aionFightsFile(), JSON.stringify([f, ...aionFights()].slice(0, 200))); } catch (err) { console.error('aion fights:', err.message); } }
+ipcMain.handle('aion-fights', (e) => (fromSite(e) ? aionFights() : []));
+// a party member's combat power, gear and skill names from NC's own character pages (what the Aion 2 tracker reads),
+// found by name and server id; kept 10 minutes
+const aionChars = new Map();
+const plaync = async (url) => { const r = await fetch(url, { headers: { 'User-Agent': 'Premade (Aion 2 party card)' }, signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error(`${r.status}`); return r.json(); };
+ipcMain.handle('aion-char', async (e, name, server) => {
+  if (!fromSite(e) || typeof name !== 'string' || !/^[\p{L}\p{N}$#_.-]{2,32}$/u.test(name) || !(server >= 1000 && server <= 9999)) return null;
+  const key = `${name}@${server}`, kept = aionChars.get(key);
+  if (kept && Date.now() - kept.at < 600e3) return kept.v;
+  try {
+    const found = await plaync(`https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(name)}&region=eu&localeInfo=en-US&page=1&size=20`);
+    const c = (found.list || []).find((x) => String(x.name).replace(/<[^>]+>/g, '').toLowerCase() === name.toLowerCase() && x.serverId === server);
+    if (!c) return null;
+    const q = `region=eu&lang=en-US&characterId=${c.characterId}&serverId=${server}`; // characterId comes URL-encoded already
+    const [info, equip] = await Promise.all([plaync(`https://aion2.plaync.com/api/character/info?${q}`), plaync(`https://aion2.plaync.com/api/character/equipment?${q}`)]);
+    const v = {
+      server: c.serverName, className: info.profile.className, cp: info.profile.combatPower,
+      il: ((info.stat && info.stat.statList) || []).find((s) => s.type === 'ItemLevel')?.value ?? null,
+      gear: ((equip.equipment && equip.equipment.equipmentList) || []).map((g) => ({ slot: g.slotPosName, name: g.name, grade: g.grade, enchant: g.enchantLevel })),
+      skills: Object.fromEntries(((equip.skill && equip.skill.skillList) || []).map((s) => [s.id, s.name])),
+    };
+    aionChars.set(key, { at: Date.now(), v });
+    return v;
+  } catch (err) { console.error('aion char:', err.message); return null; }
+});
 ipcMain.on('sound-settings', (e) => { if (fromSite(e) && process.platform === 'win32') spawn('rundll32.exe', ['shell32.dll,Control_RunDLL', 'mmsys.cpl,,3'], { detached: true, stdio: 'ignore' }).unref(); });
 // ---- RE4 co-op page: re4-helper.exe (client/re4) reads Tailscale, the firewall, game and saves without admin, backs
 // up saves, starts RE4, switches the co-op mod, sets the PC up to host, makes invites and joins a host (it asks Windows
@@ -587,11 +631,12 @@ function checkUpdates() {
   if (!app.isPackaged) return;
   const { autoUpdater } = require('electron-updater');
   autoUpdater.on('update-downloaded', (info) => { updateReady = { version: info.version }; if (!win.isDestroyed()) win.webContents.send('update', updateReady); });
-  autoUpdater.on('error', (err) => console.error('update:', err.message));
+  autoUpdater.on('error', (err) => { console.error('update:', err.message); if (!win.isDestroyed()) win.webContents.send('update', { error: err.message }); });
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   check();
   setInterval(check, 4 * 3600e3);
-  ipcMain.on('update', (e) => { if (fromSite(e) && updateReady) autoUpdater.quitAndInstall(true, true); });
+  // the page's Update button: installs a downloaded update, or (app 1.34.3) fetches one now instead of at the next 4-hour check
+  ipcMain.on('update', (e) => { if (!fromSite(e)) return; if (updateReady) autoUpdater.quitAndInstall(true, true); else check(); });
 }
 
 // ---- a match found (Pregame settings): the window in front of League's client. Windows hands the keyboard only to
@@ -902,6 +947,117 @@ async function seekable(file) {
   await fs.promises.rename(file + '.part', file);
   return true;
 }
+
+// ---- downloads (app 1.31): the video or the sound from a link on almost any site (YouTube, TikTok, Instagram, X, Reddit,
+// Facebook, Twitch and about 1,700 more), saved in Downloads\Premade. yt-dlp does the work: it's fetched the first time
+// with ffmpeg (which joins a video's picture and sound), and updates itself once a run, since the sites change often.
+// YouTube's player puzzles run in this app's own Node (ELECTRON_RUN_AS_NODE), so nothing else needs installing.
+// ponytail: videos only; picture posts (carousels, TikTok photos) need gallery-dl next to it
+const { pipeline } = require('stream/promises'), { Readable } = require('stream');
+const toolDir = () => path.join(app.getPath('userData'), 'Downloader'), dlDir = () => appDir('downloads');
+const YTDLP = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
+const FFMPEG = 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip';
+const run = (exe, args, opts) => new Promise((res, rej) => execFile(exe, args, { windowsHide: true, ...opts }, (err, out) => (err ? rej(err) : res(out))));
+async function fetchTo(url, file) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(file + '.part'));
+  await fs.promises.rename(file + '.part', file);
+}
+let tools = null; // { ytdlp, ffmpeg }, once they're there
+function getTools() {
+  return (tools ||= (async () => {
+    const dir = toolDir(), ytdlp = path.join(dir, 'yt-dlp.exe'), ffmpeg = path.join(dir, 'ffmpeg.exe');
+    await fs.promises.mkdir(dir, { recursive: true });
+    if (!fs.existsSync(ytdlp)) await fetchTo(YTDLP, ytdlp);
+    else run(ytdlp, ['-U']).catch(() => {}); // the new one is used from the next download
+    if (!fs.existsSync(ffmpeg)) {
+      const zip = path.join(dir, 'ffmpeg.zip');
+      await fetchTo(FFMPEG, zip);
+      await run('tar', ['-xf', zip, '-C', dir, '--strip-components', '2', '*/bin/ffmpeg.exe', '*/bin/ffprobe.exe']); // Windows' own tar opens zips
+      await fs.promises.unlink(zip).catch(() => {});
+    }
+    return { ytdlp, ffmpeg };
+  })().catch((err) => { tools = null; throw err; }));
+}
+const dls = new Map(); // running: link -> yt-dlp
+// kind 'video' (up to 1080p, H.264 when there is one, so it plays everywhere) or 'audio' (an MP3). Progress goes to the
+// page as 'download' { url, pct }; the answer is { file } or { error }.
+ipcMain.handle('download', async (e, url, kind) => {
+  if (!fromSite(e) || typeof url !== 'string' || url.length > 2000 || !/^https?:\/\/\S+$/i.test(url)) return { error: 'That isn’t a link.' };
+  if (dls.has(url)) return { error: 'That one is already downloading.' };
+  const send = (v) => { if (!e.sender.isDestroyed()) e.sender.send('download', { url, ...v }); };
+  let t;
+  try { send({ pct: -1 }); t = await getTools(); } catch { return { error: 'Couldn’t get the downloader. Check your internet and try again.' }; }
+  const args = [url, '--no-playlist', '--progress', '--newline', '--no-mtime', '--encoding', 'utf-8', '--ffmpeg-location', t.ffmpeg, '--js-runtimes', 'node:' + process.execPath,
+    '-P', dlDir(), '-o', '%(title).80B [%(id)s].%(ext)s', '--print', 'after_move:filepath', '--progress-template', 'download:%(progress._percent_str)s',
+    ...(kind === 'audio' ? ['-x', '--audio-format', 'mp3'] : ['-f', 'bv*+ba/b', '-S', 'res:1080,vcodec:h264,acodec:aac', '--merge-output-format', 'mp4'])];
+  return new Promise((res) => {
+    const p = execFile(t.ytdlp, args, { windowsHide: true, maxBuffer: 64e6, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }, (err, out, errOut) => {
+      dls.delete(url);
+      const file = String(out).trim().split(/\r?\n/).pop() || '';
+      if (!err && file && fs.existsSync(file)) return res({ file });
+      const why = (String(errOut).match(/ERROR: (.*)/g) || []).pop();
+      res({ error: p.killed ? 'Stopped.' : why ? why.replace(/^ERROR: (\[[^\]]*\] )?/, '') : 'Couldn’t download that.' });
+    });
+    dls.set(url, p);
+    p.stdout.on('data', (d) => { const m = String(d).match(/([\d.]+)%/g); if (m) send({ pct: parseFloat(m.pop()) }); });
+  });
+});
+ipcMain.on('download-stop', (e, url) => { if (fromSite(e) && dls.has(url)) dls.get(url).kill(); });
+ipcMain.on('download-show', (e, file) => {
+  if (fromSite(e) && typeof file === 'string' && path.resolve(file).startsWith(dlDir() + path.sep)) shell.showItemInFolder(file);
+});
+ipcMain.on('downloads-folder', async (e) => {
+  if (!fromSite(e)) return;
+  await fs.promises.mkdir(dlDir(), { recursive: true }).catch(() => {});
+  shell.openPath(dlDir());
+});
+
+// ---- convert a file (app 1.35): a video, a song or a picture to another format with the downloader's ffmpeg, saved next
+// to it. The page only sees an id for each file picked here, never a path it could choose itself.
+const conv = require('./convert');
+const picked = new Map(), made = new Set(), convs = new Map(); // id -> { file, kind, duration }; files we wrote; id -> ffmpeg
+ipcMain.handle('convert-pick', async (e) => {
+  if (!fromSite(e)) return [];
+  const r = await dialog.showOpenDialog(win, { title: 'Pick files to convert', properties: ['openFile', 'multiSelections'] });
+  if (r.canceled || !r.filePaths.length) return [];
+  let t;
+  try { t = await getTools(); } catch { return { error: 'Couldn’t get the converter. Check your internet and try again.' }; }
+  const ffprobe = path.join(path.dirname(t.ffmpeg), 'ffprobe.exe');
+  return Promise.all(r.filePaths.map(async (file) => {
+    const id = crypto.randomUUID(), name = path.basename(file);
+    try {
+      const out = await run(ffprobe, ['-v', 'error', '-show_entries', 'format=format_name,duration:stream=codec_type:stream_disposition=attached_pic', '-of', 'json', file]);
+      const info = conv.kindOf(JSON.parse(out));
+      if (!info.kind) throw new Error();
+      picked.set(id, { file, ...info });
+      return { id, name, kind: info.kind, targets: conv.targetsFor(info.kind) };
+    } catch { return { id, name, error: 'Premade can’t convert this kind of file yet.' }; }
+  }));
+});
+// progress goes to the page as 'convert' { id, pct }; the answer is { file } or { error }
+ipcMain.handle('convert', async (e, id, target) => {
+  const p = picked.get(id);
+  if (!fromSite(e) || !p || !conv.FOR[p.kind].includes(target)) return { error: 'Pick the file again.' };
+  if (convs.has(id)) return { error: 'That one is already converting.' };
+  const args = conv.convertArgs(target, p.duration);
+  if (!args) return { error: 'Too long to fit in 10 MB. Cut it shorter first.' };
+  const { ffmpeg } = await getTools(), out = conv.outPath(p.file, target, fs.existsSync); // got when it was picked
+  const send = (v) => { if (!e.sender.isDestroyed()) e.sender.send('convert', { id, ...v }); };
+  return new Promise((res) => {
+    const f = execFile(ffmpeg, ['-hide_banner', '-v', 'error', '-i', p.file, ...args, '-progress', 'pipe:1', '-nostats', '-n', out], { windowsHide: true, maxBuffer: 64e6 }, (err, so, errOut) => {
+      convs.delete(id);
+      if (!err && fs.existsSync(out)) { made.add(out); return res({ file: out }); }
+      fs.promises.unlink(out).catch(() => {}); // a half-made file
+      res({ error: f.killed ? 'Stopped.' : String(errOut).trim().split(/\r?\n/).pop() || 'Couldn’t convert that.' });
+    });
+    convs.set(id, f);
+    f.stdout.on('data', (d) => { const m = String(d).match(/out_time_us=(\d+)/g); if (m && p.duration) send({ pct: Math.min(99, parseInt(m.pop().slice(12)) / 1e4 / p.duration) }); });
+  });
+});
+ipcMain.on('convert-stop', (e, id) => { if (fromSite(e) && convs.has(id)) convs.get(id).kill(); });
+ipcMain.on('convert-show', (e, file) => { if (fromSite(e) && made.has(file)) shell.showItemInFolder(file); });
 
 // ---- the performance meter: how much of the computer this app uses now, all its parts together. CPU is a share of
 // the whole computer, as Task Manager shows it; memory in MB.
