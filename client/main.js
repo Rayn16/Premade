@@ -1218,6 +1218,9 @@ ipcMain.handle('keys', (e, k) => {
 // 1.27, from AnyDesk: Pause on the bar stops their input until Resume without ending it, it ends by itself after 10
 // minutes with no input from them, their Ctrl+V pastes the text they copied (it goes on your clipboard first), and the
 // page tells them when their input can't land: Windows' secure screen up (a UAC prompt) or an admin window in front.
+// 1.32, more of AnyDesk: the box also offers Watch only (your screen, none of their input), and its tick lets them send
+// you files and copy from your clipboard (what you copy goes to them while it's on); they can switch to your other
+// screens (control-screen), and the files they send land in Downloads\Premade (help-file).
 let sharedSource = null, control = null, asking = null, refusedAt = 0, user32 = null;
 const sharedDisplay = () => { // the whole screen the room share shows, which friends' pointer maps onto
   const s = sharedSource, all = screen.getAllDisplays();
@@ -1279,25 +1282,43 @@ function controlEnd(why) {
   clearInterval(c.timer);
   controlLetGo(c);
   c.bar.destroy();
+  if (c.dark) c.dark.destroy();
   if (win && !win.isDestroyed()) win.webContents.send('control-end', why === 'idle' ? 'idle' : true);
 }
+// Privacy mode (1.32, AnyDesk's): while they control your PC, your screen shows black here and only they see it. A
+// black window over the shared screen that every click goes through, left out of screen captures (Windows 10 2004+:
+// content protection), so their picture shows what's under it; the red bar stays above it. Off with their Privacy
+// button, the bar's Stop or Ctrl+Alt+X.
+function controlDark(c, on) {
+  if (!on) { if (c.dark) c.dark.destroy(); c.dark = null; return; }
+  if (c.dark) return;
+  const b = c.bounds, d = (c.dark = new BrowserWindow({ ...b, show: false, frame: false, resizable: false, movable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true,
+    backgroundColor: '#000', webPreferences: { sandbox: true, javascript: false } }));
+  d.setContentProtection(true);
+  d.setIgnoreMouseEvents(true);
+  d.setAlwaysOnTop(true, 'screen-saver');
+  d.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;color:#777;font:16px 'Segoe UI',sans-serif">Privacy mode: ${c.name.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`)} is using your PC. Ctrl+Alt+X stops it.</body>`));
+  d.showInactive();
+  c.bar.moveTop(); // the bar over it
+}
+ipcMain.on('control-privacy', (e, on) => { if (fromSite(e) && control && !control.view) controlDark(control, !!on); });
 function controlState(c) { // paused, or why their input can't land, for the page to tell them
   let st = 'paused';
   if (!c.paused) try { st = ctlBlocked(c.u); } catch { st = ''; }
   if (st !== c.st && win && !win.isDestroyed()) win.webContents.send('control-state', st);
   c.st = st;
 }
-function controlBar(c) { // who, Ctrl+Alt+X, and Pause or Resume and Stop
+function controlBar(c) { // who (watching, with Watch only), Ctrl+Alt+X, and Pause or Resume and Stop
   const esc = (t) => t.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`), btn = 'background:#fff;color:#b3261e;border-radius:6px;padding:5px 12px;text-decoration:none';
-  c.bar.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><body style="margin:0;height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 0 14px;background:${c.paused ? '#6b4e16' : '#b3261e'};color:#fff;font:600 14px 'Segoe UI',sans-serif;overflow:hidden;user-select:none"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${c.paused ? `Paused: ${esc(c.name)} can’t use your PC` : `${esc(c.name)} is controlling your PC`} &middot; Ctrl+Alt+X stops it</span><span style="display:flex;gap:6px"><a href="https://pause.invalid/" style="${btn}">${c.paused ? 'Resume' : 'Pause'}</a><a href="https://stop.invalid/" style="${btn}">Stop</a></span></body>`));
+  c.bar.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><body style="margin:0;height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 0 14px;background:${c.paused ? '#6b4e16' : '#b3261e'};color:#fff;font:600 14px 'Segoe UI',sans-serif;overflow:hidden;user-select:none"><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${c.paused ? `Paused: ${esc(c.name)} can’t ${c.view ? 'see' : 'use'} your PC` : c.view ? `${esc(c.name)} is watching your screen` : `${esc(c.name)} is controlling your PC`} &middot; Ctrl+Alt+X stops it</span><span style="display:flex;gap:6px"><a href="https://pause.invalid/" style="${btn}">${c.paused ? 'Resume' : 'Pause'}</a><a href="https://stop.invalid/" style="${btn}">Stop</a></span></body>`));
 }
-function controlStart(u, d, name) { // their yes: the red bar at the top of the shared screen, and their input from now on
+function controlStart(u, d, name, view, files) { // their yes: the red bar at the top of the shared screen, and their input from now on
   const { x, y, width } = d.bounds;
   const bar = new BrowserWindow({ x: Math.round(x + width / 2 - 320), y, width: 640, height: 40, show: false, frame: false, resizable: false, movable: false, minimizable: false,
     maximizable: false, closable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, webPreferences: { sandbox: true } });
   bar.setAlwaysOnTop(true, 'screen-saver');
   bar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  const c = (control = { u, name, bounds: d.bounds, scale: d.scaleFactor, bar, keys: new Set(), buttons: new Set(), paused: false, st: '', last: Date.now(), tick: 0 });
+  const c = (control = { u, name, bounds: d.bounds, scale: d.scaleFactor, bar, keys: new Set(), buttons: new Set(), paused: false, st: '', last: Date.now(), tick: 0, view, files, clip: clipboard.readText() });
   bar.webContents.on('will-navigate', (ev, url) => { // its Pause and Stop links
     ev.preventDefault();
     if (!url.startsWith('https://pause.invalid/')) return controlEnd();
@@ -1310,8 +1331,12 @@ function controlStart(u, d, name) { // their yes: the red bar at the top of the 
   bar.showInactive();
   c.timer = setInterval(() => {
     if ([0x11, 0x12, 0x58].every((v) => (u.down(v) & 0x8000) !== 0)) return controlEnd(); // Ctrl+Alt+X
-    if (Date.now() - c.last > 600000) return controlEnd('idle'); // 10 minutes without their input
+    if (!c.view && Date.now() - c.last > 600000) return controlEnd('idle'); // 10 minutes without their input
     if (++c.tick % 20 === 0) controlState(c); // each second
+    if (c.files && !c.view && !c.paused && c.tick % 10 === 0) { // what you copy goes to them, twice a second
+      const t = clipboard.readText();
+      if (t !== c.clip) { c.clip = t; if (t && win && !win.isDestroyed()) win.webContents.send('control-clip', t.slice(0, 20000)); }
+    }
   }, 50);
   return c;
 }
@@ -1334,24 +1359,80 @@ ipcMain.handle('control', async (e, name) => {
       win.flashFrame(false);
       if (n) n.close();
     }
-    const { response } = ask.signal.aborted ? { response: 0 } : await dialog.showMessageBox(win, {
-      type: 'warning', title: 'Premade', buttons: ['Don’t allow', 'Allow'], defaultId: 0, cancelId: 0, noLink: true, signal: ask.signal,
+    const { response, checkboxChecked } = ask.signal.aborted ? { response: 0 } : await dialog.showMessageBox(win, {
+      type: 'warning', title: 'Premade', buttons: ['Don’t allow', 'Watch only', 'Allow'], defaultId: 0, cancelId: 0, noLink: true, signal: ask.signal,
       message: `${name} wants to control your PC`,
-      detail: 'They’ll see your screen and move your mouse, click and type on it, like AnyDesk. Only allow someone you trust.\n\nStop it any time: Stop on the red bar at the top of your screen, or Ctrl+Alt+X.',
+      detail: 'Allow: they’ll see your screen and move your mouse, click and type on it, like AnyDesk. Watch only: they see it and nothing more. Only allow someone you trust.\n\nStop it any time: Stop on the red bar at the top of your screen, or Ctrl+Alt+X.',
+      checkboxLabel: 'Let them send me files and copy what I copy', checkboxChecked: false,
     });
     if (ask.signal.aborted) return { ok: false, why: 'They took it back.' }; // or they left: the page tells them nothing then
-    if (response !== 1) { refusedAt = Date.now(); return { ok: false, why: 'They said no.' }; }
+    if (!response) { refusedAt = Date.now(); return { ok: false, why: 'They said no.' }; }
     if (control) return { ok: false, why: 'They’re busy with another request. Try again in a bit.' };
-    controlStart(u, d, name);
-    return { ok: true, source: s.id }; // the page shares this screen with them
+    const view = response === 1, files = !!checkboxChecked;
+    controlStart(u, d, name, view, files);
+    return { ok: true, source: s.id, view, files }; // the page shares this screen with them
   } finally { asking = null; }
 });
 ipcMain.on('control-stop', (e) => { if (fromSite(e)) controlEnd(); });
 ipcMain.on('control-input', (e, m) => { if (fromSite(e) && control && m && typeof m === 'object') controlInput(control, m); });
+ipcMain.handle('control-screen', async (e, id) => { // they switched to another of your screens: their input and the bar go there
+  if (!fromSite(e) || !control || typeof id !== 'string') return false;
+  const s = (await screens(false)).find((x) => x.id === id), d = s && screen.getAllDisplays().find((x) => String(x.id) === s.display_id);
+  if (!d || !control) return false;
+  control.bounds = d.bounds;
+  control.scale = d.scaleFactor;
+  control.bar.setBounds({ x: Math.round(d.bounds.x + d.bounds.width / 2 - 320), y: d.bounds.y, width: 640, height: 40 });
+  if (control.dark) control.dark.setBounds(d.bounds); // Privacy mode goes along
+  return true;
+});
+// files a Remote help friend sends you, written to Downloads\Premade as they come: open (its name, made safe and not
+// taken: the saved name back), data, done (where it is), abort (deleted); help-file-show shows one in Explorer
+const helpFiles = new Map(); // id -> { fh, at, got }
+ipcMain.handle('help-file', async (e, id, what, v) => {
+  if (!fromSite(e) || typeof id !== 'string' || !/^\w{1,32}$/.test(id)) return '';
+  const f = helpFiles.get(id);
+  if (what === 'open' && !f && typeof v === 'string') {
+    const dir = path.join(app.getPath('downloads'), 'Premade'), base = v.replace(/[\p{C}<>:"/\\|?*]+/gu, '_').replace(/^[\s.]+|[\s.]+$/g, '').slice(0, 120) || 'file';
+    await fs.promises.mkdir(dir, { recursive: true });
+    const ext = path.extname(base), stem = base.slice(0, base.length - ext.length);
+    for (let i = 0; i < 1000; i++) {
+      const at = path.join(dir, i ? `${stem} (${i})${ext}` : base);
+      try { helpFiles.set(id, { fh: await fs.promises.open(at, 'wx'), at, got: 0 }); return path.basename(at); } catch (err) { if (err.code !== 'EEXIST') return ''; }
+    }
+    return '';
+  }
+  if (!f) return '';
+  if (what === 'data' && v instanceof Uint8Array && f.got + v.length <= 4e9) { f.got += v.length; await f.fh.write(v); return 'ok'; }
+  helpFiles.delete(id);
+  await f.fh.close().catch(() => {});
+  if (what === 'done') return f.at;
+  await fs.promises.unlink(f.at).catch(() => {}); // abort, or over 4 GB
+  return '';
+});
+ipcMain.on('help-file-show', (e, at) => { if (fromSite(e) && typeof at === 'string' && path.dirname(at) === path.join(app.getPath('downloads'), 'Premade')) shell.showItemInFolder(at); });
+// Wake-on-LAN (1.37, AnyDesk's): the PC you let a Remote help friend use tells them its network cards' addresses
+// (wol-macs), and Wake in their Recent sessions sends the magic packet (wol-send): 6 bytes of 0xff and the address 16
+// times, broadcast on UDP port 9. It wakes a PC on the same network whose card and BIOS have Wake-on-LAN on.
+const MAC = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/;
+ipcMain.handle('wol-macs', (e) => (fromSite(e) ? [...new Set(Object.values(os.networkInterfaces()).flat().filter((n) => n && !n.internal && n.family === 'IPv4' && MAC.test(n.mac) && n.mac !== '00:00:00:00:00:00').map((n) => n.mac))].slice(0, 4) : []));
+ipcMain.handle('wol-send', (e, macs) => new Promise((done) => {
+  const list = fromSite(e) && Array.isArray(macs) ? macs.filter((m) => typeof m === 'string' && MAC.test(m)).slice(0, 4) : [];
+  if (!list.length) return done(false);
+  const sock = require('dgram').createSocket('udp4');
+  sock.on('error', () => { sock.close(); done(false); });
+  sock.bind(() => {
+    sock.setBroadcast(true);
+    let left = list.length;
+    for (const m of list) {
+      const hw = Buffer.from(m.replace(/:/g, ''), 'hex');
+      sock.send(Buffer.concat([Buffer.alloc(6, 0xff), ...Array(16).fill(hw)]), 9, '255.255.255.255', () => { if (--left === 0) { sock.close(); done(true); } });
+    }
+  });
+}));
 function controlInput(c, m) {
   c.last = Date.now();
-  if (c.paused) return;
-  if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText(m.text.slice(0, 20000)); return; } // their Ctrl+V: what they copied, then their V pastes it
+  if (c.paused || c.view) return;
+  if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText((c.clip = m.text.slice(0, 20000))); return; } // their Ctrl+V: what they copied, then their V pastes it (not sent back to them)
   if (Number.isFinite(m.x) && Number.isFinite(m.y)) {
     const b = c.bounds, k = c.scale || 1, o = screen.dipToScreenPoint({ x: b.x, y: b.y }), f = (v) => Math.min(1, Math.max(0, v)); // that screen in real pixels, from its corner, on any DPI setup
     c.u.at(Math.round(o.x + f(m.x) * (b.width * k - 1)), Math.round(o.y + f(m.y) * (b.height * k - 1)));
