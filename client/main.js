@@ -1209,8 +1209,8 @@ ipcMain.handle('keys', (e, k) => {
 // ---- remote control (app 1.26; 1.28: Remote help, its own connection, no room screen share): a friend asks for
 // control; you say yes in Windows' own box here, never in the page, and only then does the page share your screen with
 // them (the one picked in Settings, its id in the answer). A red bar at the top of that screen says who with a Stop
-// button, Ctrl+Alt+X stops it too, and only while it's on their mouse and keys go in through user32 (SetCursorPos,
-// mouse_event, keybd_event). Their x and y are fractions of that screen. Ends when the page reloads or either side
+// button, Ctrl+Alt+X stops it too, and only while it's on their mouse and keys go in through user32 (mouse_event,
+// keybd_event). Their x and y are fractions of that screen. Ends when the page reloads or either side
 // stops; keys and buttons still down are let go, and a box still open closes as Don't allow.
 // Games with anti-cheat and programs run as administrator take no input from other apps, so it can't work inside them.
 // The box shows only once you're in Premade (till then a notification and its flashing taskbar button say who asks):
@@ -1245,7 +1245,13 @@ function ctlUser32() {
     if (!h) return null;
     try { const t = [null], v = [0], n = [0]; if (!token(h, 8, t)) return null; try { return info(t[0], 20, v, 4, n) ? v[0] !== 0 : null; } finally { close(t[0]); } } finally { close(h); }
   };
-  return (user32 = { at: l.func('int __stdcall SetCursorPos(int x, int y)'), mouse: l.func('void __stdcall mouse_event(uint32_t flags, uint32_t dx, uint32_t dy, int32_t data, uintptr_t extra)'),
+  const mouse = l.func('void __stdcall mouse_event(uint32_t flags, uint32_t dx, uint32_t dy, int32_t data, uintptr_t extra)'), metric = l.func('int __stdcall GetSystemMetrics(int i)');
+  // 1.36.3: the mouse moves like a real one, as AnyDesk does (MOVE | ABSOLUTE | VIRTUALDESK, 0..65535 over all screens),
+  // not by SetCursorPos, which Windows can refuse or other apps never hear as a move: then their clicks landed where
+  // your own mouse was, and only the wheel (which needs no position) seemed to work
+  const at = (x, y) => { const vx = metric(76), vy = metric(77), vw = Math.max(2, metric(78)), vh = Math.max(2, metric(79));
+    mouse(0xc001, Math.round(((x - vx) * 65535) / (vw - 1)), Math.round(((y - vy) * 65535) / (vh - 1)), 0, 0); };
+  return (user32 = { at, mouse,
     key: l.func('void __stdcall keybd_event(uint8_t vk, uint8_t scan, uint32_t flags, uintptr_t extra)'), down: l.func('short __stdcall GetAsyncKeyState(int vKey)'),
     vk: l.func('uint32_t __stdcall MapVirtualKeyW(uint32_t code, uint32_t type)'), fg: l.func('void* __stdcall GetForegroundWindow()'), thread: (w) => { const p = [0]; thread(w, p); return p[0]; },
     desk: l.func('void* __stdcall OpenInputDesktop(uint32_t flags, int inherit, uint32_t access)'), deskEnd: l.func('int __stdcall CloseDesktop(void* h)'), admin, me: admin(process.pid) === true });
@@ -1291,7 +1297,7 @@ function controlStart(u, d, name) { // their yes: the red bar at the top of the 
     maximizable: false, closable: false, focusable: false, skipTaskbar: true, alwaysOnTop: true, webPreferences: { sandbox: true } });
   bar.setAlwaysOnTop(true, 'screen-saver');
   bar.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  const c = (control = { u, name, bounds: d.bounds, bar, keys: new Set(), buttons: new Set(), paused: false, st: '', last: Date.now(), tick: 0 });
+  const c = (control = { u, name, bounds: d.bounds, scale: d.scaleFactor, bar, keys: new Set(), buttons: new Set(), paused: false, st: '', last: Date.now(), tick: 0 });
   bar.webContents.on('will-navigate', (ev, url) => { // its Pause and Stop links
     ev.preventDefault();
     if (!url.startsWith('https://pause.invalid/')) return controlEnd();
@@ -1347,9 +1353,8 @@ function controlInput(c, m) {
   if (c.paused) return;
   if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText(m.text.slice(0, 20000)); return; } // their Ctrl+V: what they copied, then their V pastes it
   if (Number.isFinite(m.x) && Number.isFinite(m.y)) {
-    const b = c.bounds, f = (v) => Math.min(1, Math.max(0, v));
-    const p = screen.dipToScreenPoint({ x: b.x + f(m.x) * (b.width - 1), y: b.y + f(m.y) * (b.height - 1) }); // SetCursorPos takes real pixels
-    c.u.at(Math.round(p.x), Math.round(p.y));
+    const b = c.bounds, k = c.scale || 1, o = screen.dipToScreenPoint({ x: b.x, y: b.y }), f = (v) => Math.min(1, Math.max(0, v)); // that screen in real pixels, from its corner, on any DPI setup
+    c.u.at(Math.round(o.x + f(m.x) * (b.width * k - 1)), Math.round(o.y + f(m.y) * (b.height * k - 1)));
   }
   const btn = Number.isInteger(m.b) && [2, 0x20, 8][m.b]; // left, middle and right's down flags
   if (m.k === 'd' && btn) { c.u.mouse(btn, 0, 0, 0, 0); c.buttons.add(btn); }
