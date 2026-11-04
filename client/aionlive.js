@@ -318,7 +318,7 @@ class Fight {
   finished(now, partyOnly) {
     const out = [];
     for (const t of this.targets.values()) {
-      if (t.saved) continue;
+      if (t.saved || this.names.has(t.id)) continue;
       const killed = (this.hp.get(t.id) || {}).hp === 0, secs = (t.lastAt - t.firstAt) / 1000;
       if (!(killed ? now - t.lastAt > 3e3 && secs >= 10 : now - t.lastAt > 30e3 && secs >= 20)) continue;
       t.saved = true;
@@ -332,7 +332,7 @@ class Fight {
     for (const t of this.targets.values()) {
       t.recent = t.recent.filter(([at]) => now - at < 15e3);
       const sum = t.recent.reduce((a, [, d]) => a + d, 0);
-      if (sum > most) { most = sum; best = t; }
+      if (sum > most && !this.names.has(t.id)) { most = sum; best = t; } // a named character (you, your party, a player) being hit is never the fight: mobs hitting them, or heals
       if (now - t.lastAt > 120e3) this.targets.delete(t.id);
     }
     const dead = this.last && (this.hp.get(this.last.id) || {}).hp === 0 && now - this.last.lastAt < 15e3;
