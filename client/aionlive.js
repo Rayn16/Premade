@@ -429,7 +429,7 @@ function start(onSnapshot, opts = {}) {
     const now = Date.now();
     onSnapshot(conns.length ? fight.snapshot(now, opts.partyOnly !== false) : { off: 'game' });
     if (opts.onFight) for (const f of fight.finished(now, opts.partyOnly !== false)) opts.onFight(f);
-  }, 500)];
+  }, 250)]; // four times a second, so the meter keeps up
   return { stop() { timers.forEach(clearInterval); clearTimeout(soon); for (const x of handles) close(x.h); handles.length = 0; }, set partyOnly(v) { opts.partyOnly = v; } };
 }
 

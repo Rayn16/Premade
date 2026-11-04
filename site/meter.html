@@ -42,7 +42,7 @@ main { position: relative; flex: 1; overflow-y: auto; padding: 8px 8px 10px; dis
 .sum .top { grid-row: 1 / 3; grid-column: 2; justify-self: end; text-align: right; font: 500 10.5px/1.35 var(--mono); color: var(--muted); }
 .sum .top b { display: block; font: 700 12px/1.2 var(--body); color: var(--fg); }
 .ribbon { grid-column: 1 / -1; display: flex; gap: 2px; height: 4px; margin-top: 4px; }
-.ribbon i { height: 100%; min-width: 2px; background: rgb(var(--cc, 140 140 150)); transition: flex-grow 0.6s ease; transform: skewX(-30deg); }
+.ribbon i { height: 100%; min-width: 2px; background: rgb(var(--cc, 140 140 150)); transition: flex-grow 0.25s ease; transform: skewX(-30deg); }
 .ribbon i.me { background: var(--gold); box-shadow: 0 0 6px var(--glow); }
 /* the boss: HP in ten segments, the damage just taken trailing behind in a lighter red */
 .boss { position: relative; padding: 7px 9px 8px; background: linear-gradient(100deg, color-mix(in srgb, var(--bad) 16%, var(--raised)), var(--raised) 70%);
@@ -55,7 +55,7 @@ main { position: relative; flex: 1; overflow-y: auto; padding: 8px 8px 10px; dis
 .boss .pct { font: 700 16px/1 var(--mono); color: color-mix(in srgb, var(--bad) 70%, var(--fg)); font-variant-numeric: tabular-nums; }
 .hp { position: relative; height: 8px; background: rgb(0 0 0 / 0.45); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
 .hp i { position: absolute; inset: 0 auto 0 0; }
-.hp .trail { background: color-mix(in srgb, var(--bad) 40%, #fff 30%); transition: width 0.9s ease 0.5s; }
+.hp .trail { background: color-mix(in srgb, var(--bad) 40%, #fff 30%); transition: width 0.5s ease 0.25s; }
 .hp .now { background: linear-gradient(90deg, color-mix(in srgb, var(--bad) 60%, #000), var(--bad)); box-shadow: 0 0 10px var(--bad); transition: width 0.25s ease; }
 .hp::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgb(0 0 0 / 0.55) calc(10% - 1px) 10%); }
 /* a bar per player, blade-cut, ranked; the fill's front edge glows in the player's colour */
@@ -64,7 +64,7 @@ main { position: relative; flex: 1; overflow-y: auto; padding: 8px 8px 10px; dis
   clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
 .bar.me { --c: var(--gold); }
 .bar:hover { background: color-mix(in srgb, var(--c) 14%, var(--raised)); }
-.bar .fill { position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); transition: width 0.6s cubic-bezier(.2,.8,.2,1);
+.bar .fill { position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); transition: width 0.25s cubic-bezier(.2,.8,.2,1);
   background: linear-gradient(90deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 62%, transparent));
   clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
 .bar .fill::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: calc(var(--cut) + 3px); background: linear-gradient(90deg, transparent, var(--c)); filter: brightness(1.5); }

@@ -6409,9 +6409,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   window.aionNotify = (text) => { notify(String(text), true); if (client && client.notify) client.notify('Aion 2', String(text)); };
   if (store.get('lpc-aion')) setTimeout(() => { if (!$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL; }, 5000);
   // ---- Aion 2 live fight (desktop app 1.34): client.aionLive turns client/aionlive.js on, which reads the game's
-  // traffic through Npcap; the fight comes back twice a second. The Aion 2 tabs (the tracker, on this same site, so it
+  // traffic through Npcap; the fight comes back four times a second (app 1.37.1; twice before). The Aion 2 tabs (the tracker, on this same site, so it
   // shares this storage) show it all: DPS has the fight, its switch and past fights, Checklist the entry tickets, Profile
-  // your party. Written here: lpc-aion-live { at, state, party, fight } at most once a second (state: off, on, game,
+  // your party. Written here: lpc-aion-live { at, state, party, fight } at most four times a second (state: off, on, game,
   // npcap, error, update), lpc-aion-party ({ at, members }, with class, CP and gear from NC's pages), lpc-aion-skills
   // ({ id: name }), lpc-aion-history (finished fights, newest 200), lpc-aion-tickets, lpc-aion-sched ({ day, week,
   // siege, siegeEnded, at }: the game's next resets and siege, ms) and lpc-aion-bosses ({ world: { world, at, list: [{ id,
@@ -6424,7 +6424,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   let aionLater = 0;
   function aionPublish(force) {
     const now = Date.now();
-    if (!force && now - aionWritten < 1000) { aionLater = aionLater || setTimeout(() => { aionLater = 0; aionPublish(true); }, 1000 - (now - aionWritten)); return; } // the latest goes out a moment later
+    if (!force && now - aionWritten < 250) { aionLater = aionLater || setTimeout(() => { aionLater = 0; aionPublish(true); }, 250 - (now - aionWritten)); return; } // the latest goes out a moment later
     aionWritten = now;
     aionPut('lpc-aion-live', { at: now, state: aionState, party: opts.aionParty, fight: aionFight && aionFight.players ? aionFight : null });
   }
