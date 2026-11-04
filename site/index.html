@@ -2460,7 +2460,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // Relays for players whose routers can't connect directly (our server's /turn, Cloudflare's TURN): PeerJS's own are
   // gone. Fetched before a room's first connection (at most 5 s) and again twice a day, as they last a day.
   const getTurn = () => (local ? Promise.resolve() : fetch(serverUrl + '/turn', { signal: AbortSignal.timeout(5000) }).then((r) => r.json())
-    .then((j) => { if (Array.isArray(j.iceServers) && j.iceServers.length) peerOpts.config = { iceServers: j.iceServers }; }).catch(() => {}));
+    .then((j) => { if (Array.isArray(j.iceServers) && j.iceServers.length) peerOpts.config = { iceServers: j.iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:(80|5349)\b/.test(u)) })) }; }).catch(() => {}));
+  // (ports 80 and 5349 left out: 3478 and TLS on 443 reach the same relays, and each port was another TCP connection per call)
   const turnReady = getTurn();
   setInterval(getTurn, 12 * 3600000);
 

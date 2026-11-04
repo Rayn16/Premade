@@ -394,7 +394,7 @@ function start(onSnapshot, opts = {}) {
   const fight = new Fight(), streams = new Map(), aside = new Map();
   let conns = [], soon = null;
   const setFilter = (f) => { for (const x of handles) { const prog = {}; if (compile(x.h, prog, f, 1, 0xffffffff) === 0) { setfilter(x.h, prog); freecode(prog); } } };
-  setFilter('tcp and not (port 443 or port 80)');
+  setFilter('tcp and not (port 443 or port 80 or port 3478 or port 5349)'); // nor voice and screen shares relayed by TURN
   const stream = (key) => { let s = streams.get(key); if (!s) streams.set(key, (s = new Stream((e) => fight.add(e, Date.now())))); return s; };
   const look = async () => {
     conns = await gameConnections();
@@ -403,13 +403,15 @@ function start(onSnapshot, opts = {}) {
     for (const k of keys) { const a = aside.get(k); if (a) { aside.delete(k); const s = stream(k); for (const x of a.pkts) s.push(...x); } }
     const old = Date.now() - 15e3;
     for (const [k, a] of aside) if (a.at < old) aside.delete(k);
+    for (const [id, h] of fight.hp) if (h.at < old - 585e3) fight.hp.delete(id); // HP of what left view 10 min ago
   };
   look();
   const hp = [null], dp = [null];
   const poll = () => {
     for (const x of handles) for (let n = 0; n < 2000 && nextEx(x.h, hp, dp) === 1; n++) {
-      // copied out of Npcap's memory: Electron stops the app on a view of outside memory (koffi.view), as 1.34.0 did
-      const H = koffi.decode(hp[0], hdr), b = Buffer.from(koffi.decode(dp[0], koffi.array('uint8_t', H.caplen, 'Typed')));
+      // copied out of Npcap's memory: Electron stops the app on a view of outside memory (koffi.view), as 1.34.0 did.
+      // Never a koffi.array type per packet: koffi keeps every type made, ~0.75 KB each, so that leaked ~300 MB an hour
+      const H = koffi.decode(hp[0], hdr), u = koffi.decode(dp[0], 'uint8_t', H.caplen), b = Buffer.from(u.buffer, u.byteOffset, u.length);
       let o = x.dl === 1 ? 14 : x.dl === 0 ? 4 : 0;
       if (x.dl === 1 && b.readUInt16BE(12) === 0x8100) o += 4;
       if (b.length < o + 20 || b[o] >> 4 !== 4) continue;
