@@ -369,8 +369,15 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const studio = await bitrate((b) => b.max === 96000 && b.target === 96000 && b.mic.echoCancellation === false && b.mic.autoGainControl === false, 'Ana\'s studio voice at 96 kbps');
     console.log(`studio voice: sent at ${studio.target / 1000} kbps, mic ${JSON.stringify(studio.mic)}`);
     await ana.$eval('#optStudio', (el) => el.click());
-    const normal = await bitrate((b) => b.max === 80000 && b.target === 80000 && b.priority === 'high' && b.mic.echoCancellation === true, 'Ana\'s studio voice off, at 80 kbps at high priority');
+    const normal = await bitrate((b) => b.max === 80000 && b.target === 80000 && b.priority === 'high' && b.mic.echoCancellation === true && b.mic.noiseSuppression === true, 'Ana\'s studio voice off, at 80 kbps at high priority');
     console.log(`studio voice off: ${normal.target / 1000} kbps`);
+    // smart noise removal stands in for the browser's noise filter (Discord's Krisp way), so the two never stack
+    await ana.$eval('#optDenoise', (el) => el.click());
+    await bitrate((b) => b.mic.noiseSuppression === false && b.mic.echoCancellation === true && b.mic.autoGainControl === true, 'Ana\'s browser noise filter off with smart noise removal');
+    await waitFor(ana, () => lpc.denoise(), null, 'Ana\'s smart noise removal on');
+    await hears(ben, ['Ana'], null, 'Ben still hears Ana with smart noise removal');
+    await ana.$eval('#optDenoise', (el) => el.click());
+    await bitrate((b) => b.mic.noiseSuppression === true, 'Ana\'s browser noise filter back with smart noise removal off');
     const code = await (await waitFor(ana, (id) => lpc.privacy(id), benId, 'Ana’s privacy code for Ben')).jsonValue();
     assert.match(code, /^\d{5}( \d{5}){5}$/, 'a 30-digit privacy code for the call');
     await waitFor(ben, ([id, c]) => lpc.privacy(id) === c, [anaId, code], 'Ben sees the same privacy code as Ana');

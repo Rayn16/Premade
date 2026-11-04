@@ -3378,11 +3378,15 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   async function openMic() {
     const ins = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
     const want = store.get('lpc-mic') || notBtMic(ins);
-    // Studio voice: without the browser's echo cancelling, noise cutting and volume levelling
-    const studio = opts.studio ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false } : {};
+    // Studio voice: without the browser's echo cancelling, noise cutting and volume levelling. With smart noise removal
+    // on, the browser's own noise cutting is off, as Discord turns its Standard one off for Krisp: both together took
+    // 4 to 5 dB off 3 to 6 kHz (what makes a voice clear) with a fan in the room, RNNoise alone 1 dB, and cut more noise
+    const studio = opts.studio ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false } : opts.denoise && !rnFailed ? { noiseSuppression: false } : {};
+    // the old mic closes first: Chrome opens the same mic again with none of its processing at all while it's still open
+    // with other settings (smart noise removal or studio voice switched)
+    if (raw) raw.getTracks().forEach((t) => t.stop());
     // exact, as newer Chrome opens the mic it prefers over an ideal one; a picked mic that isn't plugged in leaves the default
     const next = await navigator.mediaDevices.getUserMedia({ audio: { ...(want && ins.some((d) => d.deviceId === want) && { deviceId: { exact: want } }), ...studio } });
-    if (raw) raw.getTracks().forEach((t) => t.stop());
     raw = next;
     raw.getAudioTracks()[0].addEventListener('ended', micMoved); // unplugged
     phone = [];
@@ -3503,7 +3507,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   // Smart noise removal: RNNoise (vendor/rnnoise), a small neural network that takes keyboard, fan and background
   // noise out of the mic and keeps the voice. Loaded the first time it's on.
-  let rn = null;
+  let rn = null, rnFailed = false;
   function denoiser() {
     rn = rn || (async () => {
       const simd = WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]));
@@ -3522,6 +3526,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       try { node = await denoiser(); } catch (err) {
         rn = null;
         console.warn('noise removal:', err);
+        if (!rnFailed) { rnFailed = true; getMic().catch(() => {}); } // with the browser's noise cutting back
         say('Smart noise removal couldn’t start on this computer, so your mic is used without it.');
       }
     }
@@ -14284,7 +14289,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { themeAuto: () => relook(), denoise: () => wireMic(), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
@@ -14500,6 +14505,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [114, 'November 4: a clearer voice with smart noise removal', [
+      'With Smart noise removal on, your mic no longer goes through the browser’s own noise filter as well, the way Discord turns its standard filter off for Krisp. With a fan or other noise in the room, the two filters together took the clear part of your voice down (the 3 to 6 kHz that makes words easy to hear), so friends heard you muffled. Now only the smart filter runs: your voice keeps its clearness, and it takes out more of the noise.',
+    ]],
     [113, 'November 4: total damage in the Aion 2 DPS pop-up', [
       'Desktop app 1.37.1: Aion 2’s DPS pop-up has a Total damage mode: the Σ button shows each player’s damage to the boss so far and the party’s total, instead of DPS.',
       'The live fight updates four times a second instead of once, and the bars slide quicker.',
@@ -15083,7 +15091,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
       ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat in your room. On unless you untick Keep my voice sessions.', '#optHistory'],
       ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
-      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
+      ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal (which stands in for the browser’s own noise filter, as Discord’s Krisp does, so your voice stays clear) and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
         'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],
       ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Normal and Faster send your voice at 80 kbps, so it stays clear up to its high tones. Faster uses shorter packets and a shorter playback buffer when supported. Your voice goes ahead of everything else on your connection, as on Discord. Help reports measured network and audio-buffer delay, and a privacy code: the call is end-to-end encrypted, and if you and a friend see the same code, nobody is listening in between. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
         'Voice connection, in Voice settings, Microphone.', '#optVoice'],
