@@ -68,16 +68,22 @@ assert.strictEqual(snap.players[1].crit, 0, 'the tick is not a hit');
 assert.deepStrictEqual(snap.players[0].skills, [{ id: 16370000, damage: 9000, hits: 2, share: 100 }]);
 assert.deepStrictEqual(snap.players[1].skills.map((k) => k.id), [16370000, 16380000]);
 assert.strictEqual(snap.members.length, 2);
+fight.add({ k: 'name', id: 99, name: 'Stranger' }, now); // named and not in the party (an unnamed one is kept since 1c6bc73)
 fight.add({ k: 'hit', target: 500, source: 99, skill: 1, damage: 50000 }, now);
 assert.strictEqual(fight.snapshot(now, true).players.length, 2, 'party only leaves out strangers');
-assert.strictEqual(fight.snapshot(now, false).players[0].name, 'Player 99');
+assert.strictEqual(fight.snapshot(now, false).players[0].name, 'Stranger');
 now += 10000; // the fight goes on 10 s more
 fight.add({ k: 'hit', target: 500, source: 11, skill: 16370001, damage: 1 }, now);
 // the boss dies: it stays up over the trash after it for 15 s
 fight.add({ k: 'hp', id: 500, hp: 0 }, now);
 fight.add({ k: 'hit', target: 777, source: 11, skill: 1, damage: 99999999 }, now + 1000);
 assert.strictEqual(fight.snapshot(now + 1000, true).hp, 0);
-assert.notStrictEqual(fight.snapshot(now + 15500, true).hp, 0);
+// after it, mobs (and heals) on a party member never take over the meter
+for (let i = 0; i < 20; i++) fight.add({ k: 'hit', target: 12, source: 4444, skill: 1, damage: 1e9 }, now + 15000 + i * 100);
+assert.strictEqual(fight.snapshot(now + 17000, true).target, '', 'still the boss (named nothing), not Akima');
+assert.strictEqual(fight.snapshot(now + 17000, true).hp, 0);
+fight.add({ k: 'hit', target: 778, source: 11, skill: 1, damage: 5 }, now + 17000);
+assert.notStrictEqual(fight.snapshot(now + 17000, true).hp, 0, 'a new mob does');
 // the history: the boss, killed, once
 const done = fight.finished(now + 4000, true);
 assert.deepStrictEqual(done.map((d) => [d.killed, d.players.length]), [[true, 2]]);
