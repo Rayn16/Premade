@@ -2115,6 +2115,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         <ul id="recList" class="clips vidlist"></ul>
         <div class="toolbar"><button id="recsFolder" class="btn small" type="button">Open the folder</button></div>
       </section>
+      <section id="aionRunsBox" class="panel" aria-labelledby="h-aruns" hidden>
+        <h2 id="h-aruns" class="ph">Aion 2 dungeons</h2>
+        <p id="aionWeek" class="hint"></p>
+        <div class="tablewrap"><table class="ready"><thead><tr><th>Dungeon</th><th>Runs</th><th>Best</th><th>Usual</th><th>Respawns a run</th></tr></thead><tbody id="aionRuns"></tbody></table></div>
+        <p class="hint">From Aion 2’s own log, since its first day on this PC. Click a dungeon to name it: the log knows them only by number. A run’s video marks each time you came back in after dying, and the Combat Analysis fights read during it; ▶ Highlights plays just those.</p>
+      </section>
     </section>
 
     <section class="view" data-view="re4" aria-label="RE4 co-op" hidden>
@@ -6615,6 +6621,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (name === 'overlay') ovOpen();
     if (name === 'help') renderRemoteHelp();
     if (name === 're4') re4();
+    if (name === 'record') loadAionRuns();
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
     else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
@@ -8664,7 +8671,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       tracks.push(r.mix.stream.getAudioTracks()[0]);
     } else if (heard) tracks.push(heard);
     clipsCheck(); // stops a game video waiting to start: they'd share the app's one open video
-    const name = await client.gameVideo('start', 'Recording').catch(() => '');
+    const name = (r.name = await client.gameVideo('start', 'Recording').catch(() => ''));
     if (!name) { notify('Couldn’t start the recording.', true); return stopScreenRec(); }
     let q = Promise.resolve();
     r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: MIME, videoBitsPerSecond: vRate(opts.recQ, opts.recFps), audioBitsPerSecond: 192000, videoKeyFrameIntervalDuration: 2000 });
@@ -8704,22 +8711,93 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ponytail: dungeons told apart by their map number only, from three weeks of Rayan's log; a new kind needs adding
   const isDungeon = (m) => Math.floor(m / 1000) === 600 || m >= 900000;
   let crumb = null, crumbAt = 0; // { file, size, map (the one loaded last), rec (this run started the recording) }
+  const CRUMB = /^\[(\S+)\] \[\d\] (.+?)\r?$/gm;
+  const crumbTime = (t) => Date.parse(t.replace(/\.(\d+)/, (_, f) => '.' + (f + '00').slice(0, 3)).replace(/([+-]\d\d)(\d\d)$/, '$1:$2'));
+  const crumbMap = (e) => { const m = /LoadComplete\.Map\((\d+)\)/.exec(e); return m ? +m[1] : /^Flow\.(?:QuitFromIngame|GotoLobby)/.test(e) ? 0 : null; };
+  function runMark(r, at, text, before) { // a mark on the run's video: at (ms), and the part before it that ▶ Highlights plays
+    const sec = (at - r.at) / 1000;
+    if (!r.name || !(sec > 0)) return;
+    (vidMarks[r.name] = vidMarks[r.name] || []).push({ s: Math.round(sec), from: Math.max(0, Math.round(sec - before)), text });
+    vidMarks[r.name].sort((a, b) => a.s - b.s);
+    store.set('lpc-vid-marks', JSON.stringify(vidMarks));
+  }
   async function crumbTick() {
     if (!client || !client.aionLog || !opts.aionRec || league || performance.now() - crumbAt < 5000) return;
     crumbAt = performance.now();
     const r = await client.aionLog(crumb && crumb.file, crumb && crumb.size).catch(() => null);
-    if (!r) return;
+    if (!r || typeof r.text !== 'string') return;
     const first = !crumb || crumb.file !== r.file, c = (crumb = { map: 0, rec: false, ...(first ? {} : crumb), file: r.file });
     const done = r.text.lastIndexOf('\n') + 1; // a line still being written waits for the next read
     c.size = r.size - new TextEncoder().encode(r.text.slice(done)).length;
-    for (const m of r.text.slice(0, done).matchAll(/LoadComplete\.Map\((\d+)\)|Flow\.(?:QuitFromIngame|GotoLobby)/g)) c.map = +(m[1] || 0);
+    for (const [, t, e] of r.text.slice(0, done).matchAll(CRUMB)) {
+      const map = crumbMap(e);
+      if (map === null) continue;
+      // the same dungeon loaded again: you came back in after dying or a wipe; a mark on its video, playing the minute before
+      if (map && map === c.map && screenRec && screenRec.run) runMark(screenRec, crumbTime(t), 'Back in after a death', 60);
+      c.map = map;
+    }
     const inside = isDungeon(c.map);
     if (inside && !screenRec && !c.rec) {
       c.rec = true; // once per run, even if you stop it
       const w = (await client.captureSources(false).catch(() => [])).find((x) => x.type === 'window' && AION_WIN.test(x.name));
       if (w && !screenRec) { await toggleScreenRec(w.id); if (screenRec) screenRec.run = true; }
     }
-    if (!inside) { if (c.rec && screenRec && screenRec.run) stopScreenRec(); c.rec = false; }
+    if (!inside) {
+      if (c.rec && screenRec && screenRec.run) { // the Combat Analysis fights read meanwhile: the boss fights, marked whole
+        for (const f of load('lpc-aion-fights', [])) if (f.at > screenRec.at) runMark(screenRec, f.at, `${f.tg || 'Fight'} · ${mmss(f.t)}`, f.t + 5);
+        stopScreenRec();
+      }
+      c.rec = false;
+    }
+  }
+  // ---- Aion 2 dungeons on the Recording page: every run in the game's own logs (from its first day), each dungeon's
+  // runs, best and usual time and respawns, and the last 7 days. A dungeon's name is yours to give: the log has only
+  // its map number.
+  // ponytail: reads every log each time the page opens (about 50 KB a day of play); keep a summary if it gets slow
+  let aionMapNames = load('lpc-aion-maps', {});
+  function crumbRuns(texts) { // -> { runs: [{ map, name, at, end, re (respawns) }], play: ms in the game per file [[at, end]] }
+    const runs = [], play = [];
+    for (const text of texts) {
+      let cur = null, a = 0, z = 0;
+      for (const [, t, e] of text.matchAll(CRUMB)) {
+        const at = crumbTime(t);
+        if (!at) continue;
+        a = a || at; z = at;
+        const map = crumbMap(e);
+        if (map === null) continue;
+        if (cur && map === cur.map) { cur.re++; continue; }
+        if (cur) { cur.end = at; runs.push(cur); }
+        cur = isDungeon(map) ? { map, at, re: 0 } : null;
+      }
+      if (cur) { cur.end = z; runs.push(cur); }
+      if (z > a) play.push([a, z]);
+    }
+    for (const r of runs) r.name = aionMapNames[r.map] || `Dungeon ${r.map}`;
+    return { runs: runs.sort((x, y) => x.at - y.at), play };
+  }
+  async function loadAionRuns() {
+    const texts = client && client.aionLog ? await client.aionLog('*').catch(() => null) : null;
+    $('aionRunsBox').hidden = !Array.isArray(texts) || !texts.length;
+    if ($('aionRunsBox').hidden) return;
+    const { runs, play } = crumbRuns(texts), week = Date.now() - 7 * 864e5, mid = (l) => l.slice().sort((a, b) => a - b)[l.length >> 1];
+    const wk = runs.filter((r) => r.at > week), hours = play.reduce((n, [a, z]) => n + Math.max(0, z - Math.max(a, week)), 0) / 36e5;
+    $('aionWeek').textContent = `Last 7 days: ${wk.length} dungeon run${wk.length === 1 ? '' : 's'}, ${hours.toFixed(1)} hours with Aion 2 open, ${wk.reduce((n, r) => n + r.re, 0)} respawns in dungeons.`;
+    const by = new Map();
+    for (const r of runs) if (r.end - r.at > 120000) (by.get(r.map) || by.set(r.map, []).get(r.map)).push(r); // under 2 minutes: went in and straight out
+    $('aionRuns').replaceChildren(...[...by.values()].sort((x, y) => y.length - x.length).map((l) => {
+      const tr = document.createElement('tr'), t = l.map((r) => (r.end - r.at) / 1000), name = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: l[0].name, title: 'Give it a name' });
+      name.addEventListener('click', () => {
+        const v = prompt(`Name for ${l[0].name} (map ${l[0].map}):`, aionMapNames[l[0].map] || '');
+        if (v === null) return;
+        if (v.trim()) aionMapNames[l[0].map] = v.trim().slice(0, 40); else delete aionMapNames[l[0].map];
+        store.set('lpc-aion-maps', JSON.stringify(aionMapNames));
+        loadAionRuns();
+      });
+      const cells = [l.length, mmss(Math.min(...t)), mmss(mid(t)), (l.reduce((n, r) => n + r.re, 0) / l.length).toFixed(1)].map((v) => Object.assign(document.createElement('td'), { textContent: v }));
+      tr.append(Object.assign(document.createElement('td'), {}), ...cells);
+      tr.firstChild.append(name);
+      return tr;
+    }));
   }
   $('recsFolder').addEventListener('click', () => client.gameVideo('folder'));
   // a match's highlights, from League's game events (league.events, as client/main.js's moments reads them), read
@@ -8878,7 +8956,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       return notify(marks.length === 1 ? `Opened in your video player: skip to ${mmss(Math.floor(Math.max(0, marks[0].s - 10)))}.` : 'Opened in your video player. Update the app to watch highlights here.', true);
     }
     reel = [];
-    for (const m of marks) { const last = reel[reel.length - 1], a = Math.max(0, m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = z; else reel.push([a, z]); }
+    for (const m of marks) { const last = reel[reel.length - 1], a = Math.max(0, m.from ?? m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = z; else reel.push([a, z]); } // from: a dungeon run's fight starts there
     if (reel.length) vid.addEventListener('playerready', () => nextMark(), { once: true }); // after the trimmer takes the whole video
     else vid.play().catch(() => {});
     $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}${marks.length ? `: ${marks.length === 1 ? marks[0].text : 'highlights'}` : ''}`;
@@ -15336,6 +15414,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
       ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality. Premade knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page.',
         'Recording in the menu: Each Aion 2 dungeon run (on by default).', '#optAionRec', 'app'],
+      ['Aion 2 dungeon times and weekly recap', 'Every dungeon run since you started Aion 2, from the game’s own log: how many runs, your best and usual time and respawns a run for each dungeon, and your last 7 days (runs, hours, respawns). Each run’s video marks the moments you came back in after dying and your Combat Analysis fights, and ▶ Highlights plays only those.',
+        'Recording in the menu: Aion 2 dungeons, under Your recordings. Click a dungeon to give it a name.', '#aionRunsBox', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
