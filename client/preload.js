@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   soundSettings: () => ipcRenderer.send('sound-settings'),
   aionLive: (on, partyOnly) => ipcRenderer.invoke('aion-live', !!on, !!partyOnly),
   aionFights: () => ipcRenderer.invoke('aion-fights'),
-  aionChar: (name, server) => ipcRenderer.invoke('aion-char', String(name), +server || 0),
+  aionChar: (name, server, cls, level) => ipcRenderer.invoke('aion-char', String(name), +server || 0, +cls || 0, +level || 0),
   aionMeter: (on) => ipcRenderer.invoke('aion-meter', !!on),
   attenuate: (by) => ipcRenderer.send('attenuate', +by || 0),
   re4: (what, arg) => ipcRenderer.invoke('re4', String(what), arg == null ? '' : String(arg)),

@@ -138,7 +138,8 @@ function draw() {
   $('#mode').setAttribute('aria-pressed', dmg);
   $('#h1').textContent = dmg ? 'DAMAGE' : 'DPS';
   const live = read('lpc-aion-live'), f = live && live.fight, fresh = live && Date.now() - live.at < 15000;
-  const cls = new Map(((read('lpc-aion-party') || {}).members || []).map((m) => [m.name, m.className || CLASS_OF_PC[Math.floor((m.cls - 5) / 4)]]));
+  const members = (read('lpc-aion-party') || {}).members || [];
+  const cls = new Map(members.map((m) => [m.name, m.className || CLASS_OF_PC[Math.floor((m.cls - 5) / 4)]])), cp = new Map(members.map((m) => [m.name, m.cp]));
   const names = read('lpc-aion-skills') || {};
   $('#live').classList.toggle('on', !!(fresh && f && f.active));
   if (!live || live.state === 'off' || !fresh) { $('#t').textContent = ''; return empty('Live fight is off', 'Turn it on in Premade: Aion 2, DPS.'); }
@@ -160,7 +161,7 @@ function draw() {
       <div class="bars">${f.players.map((p, i) => {
         const c = cls.get(p.name), rgb = CLASS_RGB[c];
         return `<button class="bar${p.me ? ' me' : ''}${i === 0 ? ' lead' : ''}" data-n="${esc(p.name)}" ${rgb ? `style="--cc:${rgb}"` : ''}>
-          <i class="fill"></i><span class="txt"><span class="rk">${i + 1}</span><span class="who">${esc(p.name)}${c ? `<span class="cl">${esc(c)}</span>` : ''}</span>
+          <i class="fill"></i><span class="txt"><span class="rk">${i + 1}</span><span class="who">${esc(p.name)}${c ? `<span class="cl">${esc(c)}</span>` : ''}${cp.get(p.name) ? `<span class="cl">CP ${big(cp.get(p.name))}</span>` : ''}</span>
           <span class="n dps"></span><span class="n sh"></span></span></button>
           ${opened.has(p.name) ? `<div class="skills" ${rgb && !p.me ? `style="--c:rgb(${rgb})"` : ''}>${(p.skills || []).slice(0, 5).map((k) => `<span>${esc(names[k.id] || 'Skill ' + k.id)} <b>${big(k.damage)}</b><em>${k.share}%</em></span>`).join('') || '<span>No skills yet.</span>'}</div>` : ''}`;
       }).join('')}</div>`;
@@ -174,7 +175,7 @@ function draw() {
     el.style.setProperty('--w', `${(val(p) / top) * 100}%`);
     el.querySelector('.dps').textContent = big(val(p));
     el.querySelector('.sh').textContent = p.share + '%';
-    el.title = `${cls.get(p.name) || ''} · ${dmg ? `${big(p.dps)} DPS` : `${big(p.damage)} damage`} · click for skills`;
+    el.title = `${cls.get(p.name) || ''}${cp.get(p.name) ? ` · CP ${cp.get(p.name).toLocaleString()}` : ''} · ${dmg ? `${big(p.dps)} DPS` : `${big(p.damage)} damage`} · click for skills`;
   });
 }
 $('#main').addEventListener('click', (e) => { const b = e.target.closest('.bar'); if (!b) return; const n = b.dataset.n; if (opened.has(n)) opened.delete(n); else opened.add(n); draw(); });

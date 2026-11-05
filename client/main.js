@@ -445,15 +445,19 @@ ipcMain.handle('aion-fights', (e) => (fromSite(e) ? aionFights() : []));
 // found by name and server id; kept 10 minutes
 const aionChars = new Map();
 const plaync = async (url) => { const r = await fetch(url, { headers: { 'User-Agent': 'Premade (Aion 2 party card)' }, signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error(`${r.status}`); return r.json(); };
-ipcMain.handle('aion-char', async (e, name, server) => {
+// The party's server can be wrong (Baba's 3zo, a level 45 Gladiator, came as Odar's 3zo, a level 32 Assassin), so a name's matches must also have
+// the party's class (pcId); then the one on that server, else the only one left, else the only one at the party's level.
+ipcMain.handle('aion-char', async (e, name, server, cls, level) => {
   if (!fromSite(e) || typeof name !== 'string' || !/^[\p{L}\p{N}$#_.-]{2,32}$/u.test(name) || !(server >= 1000 && server <= 9999)) return null;
   const key = `${name}@${server}`, kept = aionChars.get(key);
   if (kept && Date.now() - kept.at < 600e3) return kept.v;
   try {
     const found = await plaync(`https://api-search.plaync.com/aion2global/search/v2/character?keyword=${encodeURIComponent(name)}&region=eu&localeInfo=en-US&page=1&size=20`);
-    const c = (found.list || []).find((x) => String(x.name).replace(/<[^>]+>/g, '').toLowerCase() === name.toLowerCase() && x.serverId === server);
+    const same = (found.list || []).filter((x) => String(x.name).replace(/<[^>]+>/g, '').toLowerCase() === name.toLowerCase() && (!cls || x.pcId === cls));
+    const lv = same.filter((x) => x.level === level); // NC's search can lag a level behind, so only to choose
+    const c = same.find((x) => x.serverId === server) || (!cls ? null : same.length === 1 ? same[0] : lv.length === 1 ? lv[0] : null);
     if (!c) return null;
-    const q = `region=eu&lang=en-US&characterId=${c.characterId}&serverId=${server}`; // characterId comes URL-encoded already
+    const q = `region=eu&lang=en-US&characterId=${c.characterId}&serverId=${c.serverId}`; // characterId comes URL-encoded already
     const [info, equip] = await Promise.all([plaync(`https://aion2.plaync.com/api/character/info?${q}`), plaync(`https://aion2.plaync.com/api/character/equipment?${q}`)]);
     const v = {
       server: c.serverName, className: info.profile.className, cp: info.profile.combatPower,
