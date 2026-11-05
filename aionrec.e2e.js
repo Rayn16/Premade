@@ -1,5 +1,6 @@
 // Test of Record each Aion 2 dungeon run (site/index.html crumbTick), in headless Chromium with a stand-in for the
-// desktop app 1.37.4: Aion 2's log says a dungeon map loaded, so Aion 2's window is recorded; a town map stops it.
+// desktop app 1.37.4: Aion 2's log says a dungeon map loaded, so Aion 2's window is recorded, each reload inside is a
+// mark on its video and a town map stops it; the Recording page lists each dungeon's runs and the last 7 days.
 // Needs playwright: NODE_PATH=$(npm root -g) node aionrec.e2e.js
 const fs = require('fs');
 const path = require('path');
@@ -18,10 +19,14 @@ function fakeApp() {
   const on = {}, cv = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
   window.log = '[2026-11-05T07:18:23.522+0300] [0] Flow.SelectCharacterInLobby.LoadComplete.Map(1110)\n';
   window.calls = [];
+  const t = (min) => new Date(Date.now() - 864e5 + min * 60000).toISOString().replace('Z', '+0000');
+  window.old = [[0, 'Flow.SelectCharacterInLobby.LoadComplete.Map(1110)'], [1, 'Flow.Teleport.LoadComplete.Map(600072)'], [5, 'Flow.Teleport.LoadComplete.Map(600072)'],
+    [13, 'Flow.Teleport.LoadComplete.Map(1110)'], [14, 'Flow.Teleport.LoadComplete.Map(600072)'], [24, 'Flow.Teleport.LoadComplete.Map(1110)'],
+    [25, 'Flow.Teleport.LoadComplete.Map(320007)'], [27, 'Dungeon.Twisted Pit.Clear'], [28, 'Flow.Teleport.LoadComplete.Map(1110)'], [60, 'Flow.QuitFromIngame.None']].map(([m, e]) => `[${t(m)}] [0] ${e}\n`).join('');
   window.lpcClient = {
     version: '1.37.4', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay() {}, on(n, fn) { (on[n] = on[n] || []).push(fn); },
-    aionLog: async (file, from) => { const b = new TextEncoder().encode(window.log); return { file: 'a.breadcrumb.log', size: b.length, text: new TextDecoder().decode(b.slice(file ? from : 0)) }; },
+    aionLog: async (file, from) => { if (file === '*') return [window.old, window.log]; const b = new TextEncoder().encode(window.log); return { file: 'a.breadcrumb.log', size: b.length, text: new TextDecoder().decode(b.slice(file ? from : 0)) }; },
     captureSources: async () => [{ id: 'window:7', type: 'window', name: 'AION2' }],
     captureSource: async (id) => { calls.push('pick ' + id); return true; },
     gameVideo: async (what) => { calls.push(what); return what === 'start' ? 'Game 2026-11-05 07-27-03 Recording.webm' : what === 'list' ? [] : true; },
@@ -38,6 +43,7 @@ function fakeApp() {
   try {
     const page = await (await browser.newContext()).newPage();
     await page.addInitScript(fakeApp);
+    page.on('pageerror', (e) => console.log('PAGE', e.message)); page.on('console', (m) => m.type() === 'error' && console.log('CON', m.text()));
     await page.goto(`http://127.0.0.1:${PORT}/index.html?debug`);
     await page.waitForTimeout(7000);
     assert.deepStrictEqual(await page.evaluate(() => calls.filter((c) => c !== 'list')), [], 'in town: nothing recorded');
@@ -47,8 +53,16 @@ function fakeApp() {
     await page.evaluate(() => { log += 'Complete.Map(600092)\n'; }); // a reload in the same dungeon: still recording
     await page.waitForTimeout(6000);
     assert(!(await page.evaluate(() => calls.includes('end'))), 'a reload inside keeps recording');
+    await page.evaluate(() => { const at = new Date(Date.now() - 2000).toISOString().replace('Z', '+0000'); log += `[${at}] [0] Flow.Teleport.LoadComplete.Map(600092)\n`; });
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem('lpc-vid-marks') || '{}')['Game 2026-11-05 07-27-03 Recording.webm'] || []).length === 1, null, { timeout: 8000 });
     await page.evaluate(() => { log += '[2026-11-05T07:56:27.18+0300] [0] Flow.Teleport.LoadComplete.Map(1110)\n'; });
     await page.waitForFunction(() => calls.includes('end'), null, { timeout: 8000 });
+    await page.evaluate(() => document.querySelector('.nav[data-view="record"]').click());
+    await page.waitForSelector('#aionRunsBox:not([hidden]) #aionRuns tr');
+    const rows = await page.$$eval('#aionRuns tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));
+    assert.deepStrictEqual(rows[0], ['Dungeon 600072', '2', '10:00', '12:00', '0.5'], 'runs, best, usual, respawns');
+    assert.deepStrictEqual(rows.map((r) => r[0]), ['Dungeon 600072', 'Dungeon 600092'], 'quick story dungeons aren’t dungeon runs');
+    assert.match(await page.textContent('#aionWeek'), /^Last 7 days: 3 dungeon runs, [\d.]+ hours/, 'the week');
     console.log('aionrec: ok');
   } finally { await browser.close(); server.close(); }
 })().catch((e) => { console.error(e); process.exit(1); });

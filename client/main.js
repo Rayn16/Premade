@@ -448,7 +448,9 @@ ipcMain.handle('aion-log', async (e, file, from) => {
   if (!fromSite(e)) return null;
   const dir = crumbDir(), all = (await fs.promises.readdir(dir).catch(() => [])).filter((n) => n.endsWith('.breadcrumb.log'));
   const st = await Promise.all(all.map((n) => fs.promises.stat(path.join(dir, n)).then((s) => ({ n, at: s.mtimeMs, size: s.size }), () => null)));
-  const last = st.filter(Boolean).sort((a, b) => b.at - a.at)[0];
+  const files = st.filter(Boolean).sort((a, b) => b.at - a.at);
+  if (file === '*') return Promise.all(files.slice(0, 400).map((f) => fs.promises.readFile(path.join(dir, f.n), 'utf8').catch(() => ''))); // every game start's, for the runs list and the week
+  const last = files[0];
   if (!last) return null;
   const at = last.n === file ? Math.min(Math.max(0, +from || 0), last.size) : 0, buf = Buffer.alloc(Math.min(last.size - at, 1e6));
   const fh = await fs.promises.open(path.join(dir, last.n), 'r').catch(() => null);
