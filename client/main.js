@@ -441,6 +441,21 @@ const aionFightsFile = () => path.join(app.getPath('userData'), 'aion-fights.jso
 const aionFights = () => { try { const l = JSON.parse(fs.readFileSync(aionFightsFile(), 'utf8')); return Array.isArray(l) ? l : []; } catch { return []; } };
 function saveAionFight(f) { try { fs.writeFileSync(aionFightsFile(), JSON.stringify([f, ...aionFights()].slice(0, 200))); } catch (err) { console.error('aion fights:', err.message); } }
 ipcMain.handle('aion-fights', (e) => (fromSite(e) ? aionFights() : []));
+// Aion 2's own plain log (NC's crash reporter breadcrumbs: each map loaded, some dungeon clears), newest file, from a
+// byte on; the page notices dungeon runs in it (Record each Aion 2 dungeon run)
+const crumbDir = () => path.join(process.env.LOCALAPPDATA || '', 'NCSOFT', 'NccrData', 'com.ncsoft.aion2global');
+ipcMain.handle('aion-log', async (e, file, from) => {
+  if (!fromSite(e)) return null;
+  const dir = crumbDir(), all = (await fs.promises.readdir(dir).catch(() => [])).filter((n) => n.endsWith('.breadcrumb.log'));
+  const st = await Promise.all(all.map((n) => fs.promises.stat(path.join(dir, n)).then((s) => ({ n, at: s.mtimeMs, size: s.size }), () => null)));
+  const last = st.filter(Boolean).sort((a, b) => b.at - a.at)[0];
+  if (!last) return null;
+  const at = last.n === file ? Math.min(Math.max(0, +from || 0), last.size) : 0, buf = Buffer.alloc(Math.min(last.size - at, 1e6));
+  const fh = await fs.promises.open(path.join(dir, last.n), 'r').catch(() => null);
+  if (!fh) return null;
+  try { await fh.read(buf, 0, buf.length, at); } finally { await fh.close(); }
+  return { file: last.n, size: at + buf.length, text: buf.toString('utf8') };
+});
 // a party member's combat power, gear and skill names from NC's own character pages (what the Aion 2 tracker reads),
 // found by name and server id; kept 10 minutes
 const aionChars = new Map();

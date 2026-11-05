@@ -2098,6 +2098,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
             <div class="setrow"><div><b>With my mic</b><small>Your voice lands on its own track, so you can drop it later.</small></div><label class="check"><input id="optRecMic" type="checkbox"> <span class="sr">With my mic</span></label></div>
             <div class="setrow"><div><b>Quality</b><small id="recQNote"></small></div><label class="field"><span class="sr">Quality</span> <select id="optRecQ" class="pillsel"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label></div>
             <div class="setrow"><div><b>Frame rate</b><small>60 is the sweet spot for League.</small></div><label class="field"><span class="sr">Frame rate</span> <select id="optRecFps" class="pillsel"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
+            <div class="setrow"><div><b>Each Aion 2 dungeon run</b><small>Records Aion 2’s window from entering a dungeon until you leave it.</small></div><label class="check"><input id="optAionRec" type="checkbox"> <span class="sr">Record each Aion 2 dungeon run</span></label></div>
             <div class="setrow keyrow"><div><b>Record key</b><small>Starts and stops without leaving the game.</small></div><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button></div>
           </div>
         </div>
@@ -2430,7 +2431,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, aionLive: false, aionParty: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -8646,11 +8647,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // opened with until those stop
   let screenRec = null;
   const isRec = (n) => / Recording(?: \(\d\))?\.webm$/.test(n);
-  async function toggleScreenRec() {
+  async function toggleScreenRec(pick) { // pick: a window to record without asking (an Aion 2 dungeon run)
     if (screenRec) return stopScreenRec();
     if (!client || !client.gameVideo || !client.captureSources) return notify('Recording your screen needs the Premade app.');
     if (recorder && recorder.game) return notify('This game is already being recorded: its video is on the Clips page once it’s over.');
-    const id = await chooseCaptureSource();
+    const id = typeof pick === 'string' ? pick : await chooseCaptureSource();
     if (!id || screenRec || !(await client.captureSource(id))) return;
     let s;
     const cap = capOf(Math.max(+opts.recQ, +opts.clipQ, +opts.shareQ), Math.max(opts.recFps, opts.clipFps, opts.shareFps)); // one capture per screen in Chromium: the highest asked
@@ -8696,7 +8697,30 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('recNote').textContent = 'rec' in keysOk && keys.rec && !keysOk.rec ? `Another app already uses ${keys.rec}, so pick something else.`
       : !('rec' in keysOk) && client ? 'The Record key works only while this window is in front until the next app update.' : '';
   }
-  $('recBtn').addEventListener('click', toggleScreenRec);
+  $('recBtn').addEventListener('click', () => toggleScreenRec());
+  // ---- Aion 2 dungeon runs on video (Rayan, 2026-11-05: "record every dungeon i play"): Aion 2 writes each map it loads
+  // to its own plain log (client aion-log); entering a dungeon (map 600000s, or 900000 and up: party, daily and challenge
+  // dungeons; the quick story ones aren't) records Aion 2's window like Record does, leaving it stops. Read every 5 s.
+  // ponytail: dungeons told apart by their map number only, from three weeks of Rayan's log; a new kind needs adding
+  const isDungeon = (m) => Math.floor(m / 1000) === 600 || m >= 900000;
+  let crumb = null, crumbAt = 0; // { file, size, map (the one loaded last), rec (this run started the recording) }
+  async function crumbTick() {
+    if (!client || !client.aionLog || !opts.aionRec || league || performance.now() - crumbAt < 5000) return;
+    crumbAt = performance.now();
+    const r = await client.aionLog(crumb && crumb.file, crumb && crumb.size).catch(() => null);
+    if (!r) return;
+    const first = !crumb || crumb.file !== r.file, c = (crumb = { map: 0, rec: false, ...(first ? {} : crumb), file: r.file });
+    const done = r.text.lastIndexOf('\n') + 1; // a line still being written waits for the next read
+    c.size = r.size - new TextEncoder().encode(r.text.slice(done)).length;
+    for (const m of r.text.slice(0, done).matchAll(/LoadComplete\.Map\((\d+)\)|Flow\.(?:QuitFromIngame|GotoLobby)/g)) c.map = +(m[1] || 0);
+    const inside = isDungeon(c.map);
+    if (inside && !screenRec && !c.rec) {
+      c.rec = true; // once per run, even if you stop it
+      const w = (await client.captureSources(false).catch(() => [])).find((x) => x.type === 'window' && AION_WIN.test(x.name));
+      if (w && !screenRec) { await toggleScreenRec(w.id); if (screenRec) screenRec.run = true; }
+    }
+    if (!inside) { if (c.rec && screenRec && screenRec.run) stopScreenRec(); c.rec = false; }
+  }
   $('recsFolder').addEventListener('click', () => client.gameVideo('folder'));
   // a match's highlights, from League's game events (league.events, as client/main.js's moments reads them), read
   // every second (clipMoments) while it records: s is
@@ -14301,7 +14325,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll']]) {
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -14506,6 +14530,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [117, 'November 5: every Aion 2 dungeon run on video', [
+      'Desktop app 1.37.4: Premade records Aion 2’s window from the moment you enter a dungeon until you leave it, so every run is saved like a screen recording. It knows from Aion 2’s own log when you go in and out. Turn it off on the Recording page: Each Aion 2 dungeon run.',
+    ]],
     [116, 'November 5: the right class and CP for Aion 2 party members', [
       'Desktop app 1.37.4: a party member from another server could show someone else’s class and combat power (a Gladiator came up as an Assassin with the wrong CP). Premade now picks the character that also has the class the game gives.',
       'The DPS pop-up shows each player’s CP next to their class.',
@@ -15307,6 +15334,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
+      ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality. Premade knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page.',
+        'Recording in the menu: Each Aion 2 dungeon run (on by default).', '#optAionRec', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
@@ -15501,7 +15530,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); crumbTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
