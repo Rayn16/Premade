@@ -59,5 +59,6 @@ contextBridge.exposeInMainWorld('lpcClient', {
   controlStop: () => ipcRenderer.send('control-stop'),
   controlInput: (m) => ipcRenderer.send('control-input', m),
   point: (m) => ipcRenderer.invoke('point', m),
+  frontApp: () => ipcRenderer.invoke('front-app'),
   on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

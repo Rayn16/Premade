@@ -248,6 +248,10 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .screentile.controlling video { max-height: calc(85vh / var(--zoom, 1)); outline: 2px solid #b3261e; cursor: crosshair; }
 .screentile.pointing video { cursor: crosshair; }
 .screentile .shq { color: var(--muted); }
+.scrwrap { overflow: hidden; border-radius: 8px; position: relative; }
+.scrwrap video { display: block; transform-origin: 0 0; }
+.screengrid:fullscreen { background: #000; padding: 8px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); align-content: center; }
+.screengrid:fullscreen video { max-height: calc((100vh - 60px) / var(--zoom, 1)); }
 #face { width: 64px; height: 64px; border-radius: 50%; border: 2px solid #f2b630; background: #000; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pick label { display: grid; gap: 4px; font-size: 14px; }
@@ -283,6 +287,17 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .roomchat .quote { display: block; font: 12px/1.3 var(--body); color: var(--muted); background: none; border: 0; padding: 0 0 2px; cursor: pointer; text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .roomchat .chatmedia { display: block; max-width: min(100%, 360px); max-height: 280px; margin-top: 4px; border-radius: 4px; cursor: pointer; }
 .roomchat video.chatmedia { cursor: auto; }
+.player.dropping { outline: 2px dashed var(--gold); outline-offset: -2px; }
+.chattools { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.chatfind { font: 13px/1.2 var(--body); padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); width: min(100%, 260px); }
+#histFind { margin: 8px 0; }
+.chatfiles { display: grid; gap: 4px; max-height: 420px; overflow-y: auto; font-size: 14px; overflow-wrap: anywhere; }
+.chatfiles li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.chatfiles .grow { flex: 1; min-width: 0; }
+.chatpins { display: grid; gap: 2px; margin-bottom: 8px; padding: 6px 8px; border-left: 2px solid var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); border-radius: 4px; font-size: 13px; overflow-wrap: anywhere; }
+.chatpins > div { display: flex; gap: 6px; align-items: baseline; }
+.chatpins .grow { flex: 1; min-width: 0; }
+.roomchat .chatfile { display: block; margin-top: 4px; }
 .roomchat .mention { color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent); border-radius: 3px; padding: 0 2px; }
 .roomchat code { font: 13px var(--mono); background: color-mix(in srgb, var(--fg) 10%, transparent); padding: 0 3px; border-radius: 3px; }
 .roomchat .spoiler { background: var(--fg); color: transparent; border-radius: 3px; cursor: pointer; }
@@ -1139,21 +1154,26 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <div class="roomgrid">
             <div class="stack roommain">
               <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
-                <h2 id="h-screens" class="ph">Screens</h2>
+                <h2 id="h-screens" class="ph">Screens <button id="sideBtn" class="btn small" type="button" hidden>Side by side</button></h2>
                 <div id="screenGrid" class="screengrid"></div>
               </section>
               <section class="panel" aria-labelledby="h-chat">
                 <h2 id="h-chat" class="ph">Chat</h2>
-                <ol id="chatLog" class="chatlog roomchat" data-empty="No messages yet. Send pictures and videos with + or by pasting or dropping them here; @ mentions someone."></ol>
+                <div class="chattools"><input id="chatFind" class="chatfind" type="search" autocomplete="off" placeholder="Search the chat" aria-label="Search the room chat"> <button id="chatFilesBtn" class="btn small" type="button" aria-pressed="false">Files</button></div>
+                <div id="chatPins" class="chatpins" hidden></div>
+                <ul id="chatFiles" class="plain chatfiles" hidden></ul>
+                <ol id="chatLog" class="chatlog roomchat" data-empty="No messages yet. Send pictures, videos and files with + or by pasting or dropping them here; @ mentions someone."></ol>
                 <p id="chatTyping" class="hint" aria-live="polite"></p>
                 <p id="chatBar" class="chatbar" hidden><span id="chatBarText"></span> <button id="chatBarX" class="btn small" type="button">Cancel</button></p>
                 <div id="chatPick" class="chatpick"></div>
-                <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture or video (up to 50 MB)" aria-label="Send a picture or video">+</button><input id="chatFile" type="file" accept="image/*,video/*" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
+                <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture, video or file (any size)" aria-label="Send a picture, video or file">+</button><input id="chatFile" type="file" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
               </section>
               <details id="histBox" class="panel">
                 <summary id="h-hist" class="ph">Past sessions</summary>
                 <p class="hint">Every voice room you’re in, who was there and its chat with the pictures and videos, kept on this computer for 30 days, then deleted.</p>
                 <label class="check"><input id="optHistory" type="checkbox"> Keep my voice sessions and their chat</label>
+                <input id="histFind" class="chatfind" type="search" autocomplete="off" placeholder="Search past chats" aria-label="Search past sessions' chat">
+                <ul id="histHits" class="plain hist"></ul>
                 <ul id="histRows" class="plain hist"></ul>
                 <p id="histNote" class="hint"></p>
               </details>
@@ -1939,6 +1959,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
             <label class="check"><input id="optOverlay" type="checkbox"> Who's talking</label>
             <label class="check"><input id="optOverlayMe" type="checkbox"> My mic and who hears me</label>
             <label class="check"><input id="optOverlayChat" type="checkbox"> Room chat</label>
+            <label class="field client-only">Who's talking and room chat in other games <select id="optOverlayAny"><option value="full">Over full-screen games</option><option value="always">Whenever Premade isn’t in front</option><option value="off">Off</option></select></label>
+            <p class="hint client-only">Outside League it shows only while someone talks or a chat message comes, then fades. Games in Borderless or Windowed mode.</p>
             <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"> Objective timers and gold</label>
             <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"> CS counter</label>
             <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"> My lane: CS and gold against my opponent</label>
@@ -2437,7 +2459,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
-    overlayLane: true, overlayAfter: true, overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
+    overlayLane: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
@@ -2606,7 +2628,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   function rec(id) {
     let p = peers.get(id);
     if (p) return p;
-    p = { slot: +id.slice(prefix.length), name: '', conns: new Set(), call: null, audio: new Audio(), pos: null, muted: false, user: 1.5, vol: 1, out: 1, muffle: 0, pan: 0, health: '', talking: false, spokeAt: -Infinity, champ: '', team: '', dead: false, respawn: 0, face: '', fx: [], range: 1200, ready: null, scrambled: false, st: '', min: 0, vq: 'normal', rtt: null, loss: 0, weak: false, calm: 0, linkStatus: 'connecting', linkReason: 'setting up the voice connection', recoveryAt: 0 };
+    p = { id, slot: +id.slice(prefix.length), name: '', conns: new Set(), call: null, audio: new Audio(), pos: null, muted: false, user: 1.5, vol: 1, out: 1, muffle: 0, pan: 0, health: '', talking: false, spokeAt: -Infinity, champ: '', team: '', dead: false, respawn: 0, face: '', fx: [], range: 1200, ready: null, scrambled: false, st: '', min: 0, vq: 'normal', rtt: null, loss: 0, weak: false, calm: 0, linkStatus: 'connecting', linkReason: 'setting up the voice connection', recoveryAt: 0 };
     p.audio.autoplay = true;
     p.audio.muted = true; // Chrome only feeds a call's sound to Web Audio while it plays in an element; we hear it through Web Audio
     p.lp = ac.createBiquadFilter();
@@ -2644,6 +2666,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     li.querySelector('.help').addEventListener('click', () => openHelp(id));
     li.querySelector('.watch').addEventListener('click', () => watchFriend(p));
     li.querySelector('.screen').addEventListener('click', () => hideScreen(p, false));
+    // a file dropped on their card goes to them alone (What's new 120)
+    li.title = 'Drop a file here to send it to them alone';
+    li.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); li.classList.add('dropping'); } });
+    li.addEventListener('dragleave', (e) => { if (!li.contains(e.relatedTarget)) li.classList.remove('dropping'); });
+    li.addEventListener('drop', (e) => { li.classList.remove('dropping'); if (!e.dataTransfer.files.length) return; e.preventDefault(); e.stopPropagation(); for (const f of [...e.dataTransfer.files]) sendFile(f, p); });
     li.querySelector('.pvol input').addEventListener('input', (e) => {
       p.user = +e.target.value / 100;
       e.target.nextElementSibling.textContent = e.target.value + '%';
@@ -2664,6 +2691,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const p = peers.get(id);
     if (!p) return;
     peers.delete(id);
+    getPause(p, left);
     const call = p.call;
     p.call = null;
     if (call) call.close();
@@ -3039,7 +3067,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (!p || !m || typeof m !== 'object') return;
     if (m.t === 'hi' && typeof m.name === 'string') { p.name = m.name.slice(0, 24); applyPlayerAudio(p); }
     if (m.t === 'bye') { drop(id, false, true); for (const c of p.conns) c.close(); return; }
-    if (/^(chat|part|react|chatEdit|chatDel|typing|chatHist)$/.test(m.t)) return chatMsg(p, m);
+    if (/^(chat|part|fpart|fileGet|fileGone|pin|react|chatEdit|chatDel|typing|chatHist)$/.test(m.t)) return chatMsg(p, m);
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
@@ -3176,6 +3204,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     dropped.delete(p.slot);
     for (const c of pd.conns) { p.conns.add(c); welcome(c); }
     hello(p);
+    getResume(p);
     if (slot === hostSlot() && msgs.size) tell(p, chatHist()); // the room's recent chat, for whoever joins
     for (const m of pd.early) onData(id, m); // first, so the call is made with their settings
     if (pd.call) answer(pd.call);
@@ -4129,6 +4158,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     sess = null;
     for (const id of [...msgs.keys()]) dropMsg(id);
     incoming.clear();
+    shared = [];
+    if (!$('chatFiles').hidden) $('chatFilesBtn').click(); // back to the chat for the next room
     chatCancel();
     old.removeAllListeners();
     old.disconnect(); // frees your slot on the room server now
@@ -4254,14 +4285,22 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // kept on our server. @name pings that player (a popup even in a game), @everyone and @here ping all. **bold**,
   // *italics*, `code`, ||spoiler||, and links to pictures, videos and YouTube show inline. The host sends whoever joins
   // the last 30 text messages. The phone remote and the overlay get the text. Links open in your browser.
-  const msgs = new Map(); // id -> { id, from ('me', a peer id, or '' for history nobody can edit), who, text, at, re, att, url, done, edited, react: { emoji: Set of names }, el }
+  // What's new 120: any other file (or a video over 50 MB) is offered instead ({file: {name, size}}): each friend who
+  // clicks Download picks where to save it and gets it straight from you ({t:'fileGet'}, then {t:'fpart'} pieces), any
+  // size, while you stay in the room. Anyone can pin a message ({t:'pin', id, on}); pins sit above the chat and come
+  // with the history. The search box hides what doesn't match.
+  const msgs = new Map(); // id -> { id, from ('me', a peer id, or '' for history nobody can edit), who, text, at, re, att, file, to (a name, sent to them alone), dm (sent to you alone), url, done, edited, pin, react: { emoji: Set of names }, el }
+  const offers = new Map(); // id -> a File you offered, until you leave
+  const gets = new Map(); // id -> { from, w (where it's written, or null to keep it in memory), parts, got, i, chain } for a file you're downloading
   const incoming = new Map(); // id -> { from, parts, got } for a picture or video on its way
   const REACTS = ['👍', '😂', '🔥', '😮', '😢', '❤️'], FILE_MAX = 50e6, PART = 64e3;
   const ATT_TYPE = /^(image|video)\/[\w.+-]{1,40}$/;
   let replyTo = '', editing = '', typingSent = 0;
   const newId = () => Math.random().toString(36).slice(2, 12);
   const kindOf = (att) => (att.type.startsWith('image/') ? 'picture' : 'video');
-  const lineText = (m) => m.text.replace(/\|\|(.+?)\|\|/g, '▒▒▒') || (m.att ? `sent a ${kindOf(m.att)}` : ''); // spoilers hidden in previews, popups and the overlay
+  const lineText = (m) => m.text.replace(/\|\|(.+?)\|\|/g, '▒▒▒') || (m.att ? `sent a ${kindOf(m.att)}` : m.file ? `sent a file: ${m.file.name}` : ''); // spoilers hidden in previews, popups and the overlay
+  const sizeText = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`);
+  const flash = (el) => { el.scrollIntoView({ block: 'nearest' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); };
   const remoteLines = () => [...msgs.values()].slice(-30).map((m) => ({ who: m.who, text: lineText(m), at: m.at }));
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const chatNames = () => [...new Set([myName, ...[...peers.values()].map(nameOf)].filter(Boolean))];
@@ -4318,16 +4357,24 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (m.re) {
       const r = msgs.get(m.re), q = chatEl('button', 'quote', r ? `↪ ${r.who}: ${lineText(r).slice(0, 80)}` : '↪ a message that’s gone');
       q.type = 'button';
-      q.onclick = () => { if (r && r.el.isConnected) { r.el.scrollIntoView({ block: 'nearest' }); r.el.classList.remove('flash'); void r.el.offsetWidth; r.el.classList.add('flash'); } };
+      q.onclick = () => { if (r && r.el.isConnected) flash(r.el); };
       li.append(q);
     }
     const time = chatEl('time', '', new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     const [bits, shown] = chatBits(m.text);
-    li.append(time, chatEl('b', '', m.who), ...bits);
+    li.append(time, chatEl('b', '', m.who), ...(m.to || m.dm ? [chatEl('small', 'muted', `to ${m.to || 'you'} `)] : []), ...bits);
     if (m.edited) li.append(chatEl('small', 'muted', ' (edited)'));
     if (m.att) {
       if (m.url && (m.from === 'me' || m.done)) li.append(chatMedia(m.att.type, m.url));
       if (!m.done) li.append(chatEl('span', 'hint chatprog', `${m.from === 'me' ? 'Sending' : 'Getting'} the ${kindOf(m.att)}… ${Math.floor(100 * (m.prog || 0))}%`));
+    }
+    if (m.file) {
+      const f = chatEl('span', 'chatfile', `📄 ${m.file.name} · ${sizeText(m.file.size)} `);
+      if (m.from === 'me') f.append(chatEl('span', 'hint', 'Friends can download it while you stay in the room.'));
+      else if (m.done) f.append(chatEl('span', 'hint', 'Saved.'));
+      else if (gets.has(m.id)) f.append(chatEl('span', 'hint chatprog', gets.get(m.id).paused ? `Paused at ${Math.floor(100 * (m.prog || 0))}%: waiting for ${m.who} to reconnect…` : `Downloading… ${Math.floor(100 * (m.prog || 0))}%`));
+      else if (m.from) { const b = chatEl('button', 'btn small', 'Download'); b.type = 'button'; b.onclick = () => getFile(m); f.append(b); }
+      li.append(f);
     }
     li.append(...shown);
     const rs = Object.entries(m.react).filter(([, who]) => who.size);
@@ -4347,8 +4394,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const act = (text, label, fn) => { const b = chatEl('button', '', text); b.type = 'button'; b.title = label; b.setAttribute('aria-label', `${label}: ${m.who}, ${lineText(m).slice(0, 40)}`); b.onclick = fn; acts.append(b); };
     for (const e of REACTS) act(e, `React ${e}`, () => react(m.id, e));
     act('Reply', 'Reply', () => { replyTo = m.id; editing = ''; chatBar(); $('chatText').focus(); });
+    act(m.pin ? 'Unpin' : 'Pin', m.pin ? 'Unpin' : 'Pin', () => pinMsg(m.id, !m.pin, true));
     if (m.from === 'me' && m.text) act('Edit', 'Edit', () => editMsg(m.id));
-    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); if (sess) sess.log.delete(m.id); dropMsg(m.id); } });
+    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); if (sess) sess.log.delete(m.id); dropMsg(m.id); unshare(m.id); } });
     li.append(acts);
     sessSave(); // an edit, a reaction or a picture that's in
   }
@@ -4360,6 +4408,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     draw(m);
     const log = $('chatLog'), end = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     log.insertBefore(m.el, before || null);
+    m.el.hidden = !found(m);
+    if (m.pin) pinsShow();
+    if (m.att || m.file) { shared.push({ id: m.id, who: m.who + (m.to ? ` to ${m.to}` : m.dm ? ' to you' : ''), at: m.at, name: m.file ? m.file.name : m.att.type.startsWith('image/') ? 'Picture' : 'Video', size: (m.file || m.att).size }); if (shared.length > 500) shared.shift(); filesShow(); }
     while (log.children.length > 100) dropMsg(log.firstElementChild.dataset.id);
     if (end || m.from === 'me') log.scrollTop = log.scrollHeight;
     pushRemote();
@@ -4370,7 +4421,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (!m) return;
     msgs.delete(id);
     incoming.delete(id);
+    offers.delete(id);
+    getEnd(id);
     m.el.remove();
+    if (m.pin) pinsShow();
     if (m.url && m.url.startsWith('blob:')) URL.revokeObjectURL(m.url);
     pushRemote();
   }
@@ -4381,6 +4435,58 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (on === undefined) { on = !set.has(who); sendOnce({ t: 'react', id, e, on }); }
     if (on) set.add(who); else set.delete(who);
     draw(m);
+  }
+  function pinMsg(id, on, mine) {
+    const m = msgs.get(id);
+    if (!m || !!m.pin === on) return;
+    m.pin = on;
+    if (mine) sendOnce({ t: 'pin', id, on });
+    draw(m);
+    pinsShow();
+  }
+  // the pinned messages above the chat, with their links: click one to see it in the chat
+  function pinsShow() {
+    const list = [...msgs.values()].filter((m) => m.pin);
+    $('chatPins').hidden = !list.length;
+    $('chatPins').replaceChildren(...list.map((m) => {
+      const row = chatEl('div'), go = chatEl('button', 'btn small', 'Show'), x = chatEl('button', 'btn small', 'Unpin');
+      go.type = x.type = 'button';
+      go.onclick = () => { if (!$('chatFiles').hidden) $('chatFilesBtn').click(); if (m.el.hidden) { $('chatFind').value = ''; chatFind(); } flash(m.el); };
+      x.onclick = () => pinMsg(m.id, false, true);
+      row.append('📌', chatEl('span', 'grow'), go, x);
+      row.children[0].append(chatEl('b', '', m.who), ...(m.text ? chatBits(m.text)[0] : [lineText(m)]));
+      return row;
+    }));
+  }
+  const found = (m) => { const q = $('chatFind').value.trim().toLowerCase(); return !q || `${m.who} ${m.text} ${m.file ? m.file.name : ''}`.toLowerCase().includes(q); };
+  function chatFind() { for (const m of msgs.values()) m.el.hidden = !found(m); }
+  $('chatFind').addEventListener('input', chatFind);
+  // Files (What's new 120): every picture, video and file shared in this room, this visit (shared) and earlier visits
+  // kept in Past sessions; drawn only while it's open
+  let shared = []; // { id, who, at, kind, name, size } this visit, newest last
+  const unshare = (id) => { shared = shared.filter((x) => x.id !== id); filesShow(); };
+  $('chatFilesBtn').addEventListener('click', () => {
+    const on = $('chatFiles').hidden;
+    $('chatFilesBtn').setAttribute('aria-pressed', String(on));
+    $('chatFiles').hidden = !on;
+    $('chatLog').hidden = on;
+    filesShow();
+  });
+  async function filesShow() {
+    if ($('chatFiles').hidden) return;
+    const here = room, old = !sess ? [] : (await histList()).filter((s) => s.room === here && s.id !== sess.id);
+    if ($('chatFiles').hidden || room !== here) return;
+    const row = (when, who, what, ...btns) => { const li = chatEl('li'); li.append(chatEl('time', '', when), chatEl('span', 'grow', `${who}: ${what}`), ...btns); return li; };
+    const btn = (text, fn) => { const b = chatEl('button', 'btn small', text); b.type = 'button'; b.onclick = fn; return b; };
+    const now = [...shared].reverse().map((x) => {
+      const m = msgs.get(x.id), btns = [];
+      if (m) btns.push(btn('Show', () => { $('chatFilesBtn').click(); if (m.el.hidden) { $('chatFind').value = ''; chatFind(); } flash(m.el); }));
+      if (m && m.file && m.from && m.from !== 'me' && !m.done && !gets.has(m.id)) btns.push(btn('Download', () => getFile(m)));
+      return row(new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), x.who, `${x.name} · ${sizeText(x.size)}`, ...btns);
+    });
+    const before = old.flatMap((s) => s.msgs.filter((m) => m.att || m.file).reverse().map((m) => row(histWhen(m.at), m.who, m.file || (m.att.startsWith('image') ? 'Picture' : 'Video'), btn('Open', () => histOpen(s, m.id)))));
+    $('chatFiles').replaceChildren(...now, ...before);
+    if (!now.length && !before.length) $('chatFiles').append(chatEl('li', 'hint', 'Nothing shared in this room yet. Pictures, videos and files sent in the chat show here.'));
   }
   function editMsg(id) {
     const m = msgs.get(id);
@@ -4405,8 +4511,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   function takeChat(p, m) {
     const text = typeof m.text === 'string' ? m.text.trim().slice(0, 1000) : '';
     const att = m.att && typeof m.att === 'object' && ATT_TYPE.test(m.att.type) && Number.isFinite(m.att.size) && m.att.size > 0 && m.att.size <= FILE_MAX ? { type: m.att.type, size: m.att.size } : null;
-    if (!text && !att) return;
-    const got = addMsg({ id: typeof m.id === 'string' && /^\w{1,16}$/.test(m.id) ? m.id : newId(), from: p.id, who: nameOf(p), text, at: Date.now(), re: typeof m.re === 'string' ? m.re : '', att });
+    const file = !att && m.file && typeof m.file === 'object' && typeof m.file.name === 'string' && m.file.name.trim() && Number.isSafeInteger(m.file.size) && m.file.size > 0
+      ? { name: m.file.name.trim().slice(-200).replace(/[\\/:*?"<>|\x00-\x1f]/g, '_'), size: m.file.size } : null;
+    if (!text && !att && !file) return;
+    const got = addMsg({ id: typeof m.id === 'string' && /^\w{1,16}$/.test(m.id) ? m.id : newId(), from: p.id, who: nameOf(p), text, at: Date.now(), re: typeof m.re === 'string' ? m.re : '', att, file, dm: m.dm === 1 });
     if (!got) return;
     if (att) incoming.set(got.id, { from: p.id, parts: [], got: 0 });
     const line = lineText(got), ping = pings(text);
@@ -4420,7 +4528,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function takePart(p, m) {
     const f = incoming.get(m.id), msg = msgs.get(m.id);
-    if (!f || !msg || f.from !== p.id || !(m.d instanceof ArrayBuffer) || m.i !== f.parts.length) return;
+    if (!f || !msg || f.from !== p.id || !(m.d instanceof ArrayBuffer || m.d instanceof Uint8Array) || m.i !== f.parts.length) return;
     f.parts.push(m.d);
     f.got += m.d.byteLength;
     if (f.got > msg.att.size) return dropMsg(m.id); // more than they said
@@ -4437,20 +4545,27 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   function chatMsg(p, m) {
     if (m.t === 'chat') return takeChat(p, m);
     if (m.t === 'part') return takePart(p, m);
+    if (m.t === 'fpart') return takeFilePart(p, m);
+    if (m.t === 'fileGet') return sendOffer(p, m.id, m.o);
+    if (m.t === 'fileGone') return getEnd(m.id, `${nameOf(p)} doesn’t have it anymore`);
     const own = msgs.get(m.id);
+    if (m.t === 'pin' && own) { if (m.on === true && !own.pin) notify(`${nameOf(p)} pinned a message`); return pinMsg(m.id, m.on === true); }
     if (m.t === 'react' && own) return react(m.id, m.e, nameOf(p), m.on === true);
     if (m.t === 'chatEdit' && own && own.from === p.id && typeof m.text === 'string' && m.text.trim()) { own.text = m.text.trim().slice(0, 1000); own.edited = true; return draw(own); }
-    if (m.t === 'chatDel' && own && own.from === p.id) { if (sess) sess.log.delete(m.id); return dropMsg(m.id); }
+    if (m.t === 'chatDel' && own && own.from === p.id) { if (sess) sess.log.delete(m.id); unshare(m.id); return dropMsg(m.id); }
     if (m.t === 'typing') { p.typingAt = performance.now(); return typingShow(); }
     if (m.t === 'chatHist' && Array.isArray(m.list) && p.slot === hostSlot()) {
       const first = $('chatLog').firstElementChild;
-      for (const h of m.list.slice(-30)) {
+      for (const h of m.list.slice(-60)) {
         if (!h || typeof h.text !== 'string' || !h.text.trim() || typeof h.id !== 'string' || !/^\w{1,16}$/.test(h.id)) continue;
-        addMsg({ id: h.id, from: h.by === peer.id ? 'me' : peers.has(h.by) ? h.by : '', who: String(h.who || '').slice(0, 24) || 'Someone', text: h.text.trim().slice(0, 1000), at: Number.isFinite(h.at) ? h.at : Date.now(), re: typeof h.re === 'string' ? h.re : '', edited: h.edited === true }, first);
+        addMsg({ id: h.id, from: h.by === peer.id ? 'me' : peers.has(h.by) ? h.by : '', who: String(h.who || '').slice(0, 24) || 'Someone', text: h.text.trim().slice(0, 1000), at: Number.isFinite(h.at) ? h.at : Date.now(), re: typeof h.re === 'string' ? h.re : '', edited: h.edited === true, pin: h.pin === true }, first);
       }
     }
   }
-  const chatHist = () => ({ t: 'chatHist', list: [...msgs.values()].filter((m) => m.text).slice(-30).map((m) => ({ id: m.id, by: m.from === 'me' ? peer.id : m.from, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited })) });
+  const chatHist = () => {
+    const all = [...msgs.values()].filter((m) => m.text && !m.to && !m.dm), list = all.filter((m, i) => i >= all.length - 30 || m.pin).slice(-60); // the last 30 and what's pinned
+    return { t: 'chatHist', list: list.map((m) => ({ id: m.id, by: m.from === 'me' ? peer.id : m.from, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, pin: !!m.pin })) };
+  };
   function typingShow() {
     const now = performance.now(), who = [...peers.values()].filter((p) => now - (p.typingAt || 0) < 4000).map(nameOf);
     $('chatTyping').textContent = !who.length ? '' : who.length > 2 ? 'Several people are typing…' : `${who.join(' and ')} ${who.length > 1 ? 'are' : 'is'} typing…`;
@@ -4473,32 +4588,118 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   // a picture or video to everyone in the room: the message first, then its pieces to each friend in turn, waiting
   // whenever a connection has more than 1 MB still to send
-  async function sendFile(file) {
+  // dm: a friend it goes to alone (a file dropped on their card, What's new 120), marked as theirs ({dm: 1}) and never
+  // in the history the host sends. Each piece is read from the file as it goes, so a 50 MB video isn't held twice.
+  async function sendFile(file, dm) {
     if (!peer) return notify('Join a voice room first.', true), false;
-    if (!ATT_TYPE.test(file.type)) return notify('Only pictures and videos can go in the room chat.', true), false;
-    if (file.size > FILE_MAX) return notify(`That’s ${(file.size / 1e6).toFixed(0)} MB. Pictures and videos in the chat can be up to 50 MB; cut a clip shorter first.`, true), false;
-    const id = newId(), att = { type: file.type, size: file.size }, text = $('chatText').value.trim().slice(0, 1000), re = msgs.has(replyTo) ? replyTo : '';
-    if (editing) chatCancel();
-    $('chatText').value = '';
-    sendOnce({ t: 'chat', id, text, att, ...(re && { re }) });
-    const m = addMsg({ id, from: 'me', who: myName || 'You', text, at: Date.now(), re, att, url: URL.createObjectURL(file) });
+    if (!file.size) return notify('That file is empty.', true), false;
+    const media = ATT_TYPE.test(file.type) && file.size <= FILE_MAX; // shown in the chat; anything else is offered (getFile)
+    const id = newId(), att = media ? { type: file.type, size: file.size } : null, fil = media ? null : { name: file.name.slice(-200) || 'file', size: file.size };
+    const text = dm ? '' : $('chatText').value.trim().slice(0, 1000), re = !dm && msgs.has(replyTo) ? replyTo : '';
+    if (!dm) {
+      if (editing) chatCancel();
+      $('chatText').value = '';
+    }
+    const msg = { t: 'chat', id, text, ...(media ? { att } : { file: fil }), ...(re && { re }), ...(dm && { dm: 1 }) };
+    if (dm) tellOnce(dm, msg); else sendOnce(msg);
+    const m = addMsg({ id, from: 'me', who: myName || 'You', text, at: Date.now(), re, att, file: fil, to: dm ? nameOf(dm) : '', url: media ? URL.createObjectURL(file) : '' });
+    if (!dm) { replyTo = ''; chatBar(); }
+    if (!media) { offers.set(id, file); return true; }
     sessFile(id, file);
-    replyTo = '';
-    chatBar();
-    const buf = await file.arrayBuffer(), to = [...peers.values()].map((p) => [...p.conns][0]).filter(Boolean);
-    for (let i = 0, o = 0; o < buf.byteLength; i++, o += PART) {
+    const to = (dm ? [dm] : [...peers.values()]).map((p) => [...p.conns][0]).filter(Boolean);
+    for (let i = 0, o = 0; o < file.size; i++, o += PART) {
+      const d = await file.slice(o, o + PART).arrayBuffer();
       for (const c of to) {
         while (c.open && c.dataChannel && c.dataChannel.bufferedAmount > 1e6) await new Promise((r) => setTimeout(r, 30));
-        if (c.open) c.send({ t: 'part', id, i, d: buf.slice(o, o + PART) });
+        if (c.open) c.send({ t: 'part', id, i, d });
       }
       if (!msgs.has(id)) return true; // deleted while sending
-      m.prog = Math.min(1, (o + PART) / buf.byteLength);
+      m.prog = Math.min(1, (o + PART) / file.size);
       if (i % 16 === 0) draw(m);
     }
     m.done = true;
     draw(m);
     return true;
   }
+  // a file you offered, to the friend who asked, from byte o on (more than 0 when it resumes): read and sent a piece at
+  // a time, so its size doesn't matter. A newer ask for the same file stops an older loop (p.up).
+  async function sendOffer(p, id, o) {
+    const file = offers.get(id), c = [...p.conns].find((x) => x.open);
+    if (!c) return;
+    if (!file) return c.send({ t: 'fileGone', id });
+    const tok = {};
+    (p.up || (p.up = new Map())).set(id, tok);
+    for (o = Number.isSafeInteger(o) && o > 0 ? o : 0; o < file.size; o += PART) {
+      while (c.open && c.dataChannel && c.dataChannel.bufferedAmount > 256e3) await new Promise((r) => setTimeout(r, 20)); // a short queue, so voice messages aren't stuck behind it
+      if (!c.open || !offers.has(id) || p.up.get(id) !== tok) return;
+      c.send({ t: 'fpart', id, o, d: await file.slice(o, o + PART).arrayBuffer() });
+    }
+    p.up.delete(id);
+  }
+  // Download on a file a friend offered: you pick where it goes (straight to disk, so any size), then ask them for it.
+  // ponytail: a browser without the save picker (a phone) keeps it in memory until it's in, so a big one may not fit.
+  async function getFile(m) {
+    const p = peers.get(m.from);
+    if (!p || !p.conns.size) return notify(`${m.who} isn’t in the room anymore, so their file can’t come.`, true);
+    let w = null;
+    if (window.showSaveFilePicker) {
+      try { w = await (await window.showSaveFilePicker({ suggestedName: m.file.name })).createWritable(); } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    if (gets.has(m.id) || !msgs.has(m.id)) { if (w) w.abort().catch(() => {}); return; } // clicked twice, or gone while you picked
+    gets.set(m.id, { from: p.id, w, parts: [], got: 0, chain: Promise.resolve(), paused: 0, at: performance.now() });
+    tellOnce(p, { t: 'fileGet', id: m.id, o: 0 });
+    draw(m);
+  }
+  function takeFilePart(p, m) {
+    const g = gets.get(m.id), msg = msgs.get(m.id);
+    if (!g || !msg || g.from !== p.id || !(m.d instanceof ArrayBuffer || m.d instanceof Uint8Array) || m.o !== g.got) return; // each piece starts where the last ended (PeerJS may hand it over as either)
+    g.got += m.d.byteLength;
+    g.at = performance.now();
+    if (g.got > msg.file.size) return getEnd(m.id, 'it came bigger than they said');
+    if (g.w) { const d = m.d; g.chain = g.chain.then(() => g.w.write(d)).catch((e) => getEnd(m.id, e.message)); }
+    else g.parts.push(m.d);
+    msg.prog = g.got / msg.file.size;
+    if (g.got < msg.file.size) { if (g.got % (64 * PART) < PART) draw(msg); return; }
+    gets.delete(m.id);
+    if (g.w) g.chain.then(() => g.w.close()).catch(() => {});
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(g.parts)); a.download = msg.file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); }
+    msg.done = true;
+    draw(msg);
+    notify(`${msg.file.name} is saved.`, true);
+  }
+  // a download that stops (why: shown), or one dropped with its message
+  function getEnd(id, why) {
+    const g = gets.get(id), m = msgs.get(id);
+    if (!g) return;
+    gets.delete(id);
+    clearTimeout(g.paused);
+    if (g.w) g.chain.then(() => g.w.abort()).catch(() => {});
+    if (why && m) { notify(`${m.file.name} didn’t finish: ${why}.`, true); draw(m); }
+  }
+  // What's new 120: a friend's connection that drops pauses their downloads for 2 minutes (they left on purpose: they
+  // stop); once they're back (letIn, same slot) each asks for the rest from where it stopped
+  function getPause(p, left) {
+    for (const [id, g] of gets) {
+      if (g.from !== p.id) continue;
+      if (left) { getEnd(id, `${nameOf(p)} left`); continue; }
+      clearTimeout(g.paused);
+      g.paused = setTimeout(() => getEnd(id, `${nameOf(p)} didn’t come back`), 120000);
+      const m = msgs.get(id);
+      if (m) draw(m);
+    }
+  }
+  function getResume(p) {
+    for (const [id, g] of gets) if (g.from === p.id && g.paused) { clearTimeout(g.paused); g.paused = 0; g.at = performance.now(); tellOnce(p, { t: 'fileGet', id, o: g.got }); const m = msgs.get(id); if (m) draw(m); }
+  }
+  // a download with nothing new for 15 s while its sender is here (an ask lost as a connection came back): asked again
+  setInterval(() => {
+    for (const [id, g] of gets) {
+      const p = peers.get(g.from);
+      if (g.paused || !p || performance.now() - g.at < 15000) continue;
+      g.at = performance.now();
+      tellOnce(p, { t: 'fileGet', id, o: g.got });
+    }
+  }, 5000);
   const chatText = $('chatText');
   $('chatForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -4567,7 +4768,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     clearTimeout(sessT);
     sessT = setTimeout(() => {
       if (!s.people.size && !s.log.size) return; // alone the whole time
-      const msgs = [...s.log.values()].map((m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '',
+      const msgs = [...s.log.values()].map((m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '', file: m.file ? m.file.name : '',
         react: Object.fromEntries(Object.entries(m.react).filter(([, w]) => w.size).map(([e, w]) => [e, [...w]])) }));
       histDo('sessions', 'readwrite', (o) => o.put({ id: s.id, room: s.room, start: s.start, end: Date.now(), people: [...s.people], msgs }));
     }, now ? 0 : 2000);
@@ -4602,7 +4803,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   let histOpenId = 0;
   const histUrls = [];
-  async function histOpen(s) {
+  async function histOpen(s, at) {
     histOpenId = s.id;
     histUrls.splice(0).forEach((u) => URL.revokeObjectURL(u));
     $('histTitle').textContent = `${histRoom(s)}, ${histWhen(s.start)} to ${new Date(s.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -4610,6 +4811,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const byId = new Map(s.msgs.map((m) => [m.id, m]));
     $('histLog').replaceChildren(...await Promise.all(s.msgs.map(async (m) => {
       const li = document.createElement('li'), r = byId.get(m.re), [bits, shown] = chatBits(m.text);
+      li.dataset.id = m.id;
       if (m.re) li.append(chatEl('span', 'quote', r ? `↪ ${r.who}: ${(r.text || 'a picture or video').slice(0, 80)}` : '↪ a message from before'));
       li.append(chatEl('time', '', new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), chatEl('b', '', m.who), ...bits);
       if (m.edited) li.append(chatEl('small', 'muted', ' (edited)'));
@@ -4617,13 +4819,36 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         const f = await histDo('files', 'readonly', (o) => o.get(m.id));
         if (f && f.blob) { const u = URL.createObjectURL(f.blob); histUrls.push(u); li.append(chatMedia(m.att, u)); } else li.append(chatEl('span', 'hint', ` (a ${m.att.startsWith('image') ? 'picture' : 'video'} that didn’t finish)`));
       }
+      if (m.file) li.append(chatEl('span', 'chatfile', `📄 ${m.file}`));
       li.append(...shown);
       const rs = Object.entries(m.react || {});
       if (rs.length) li.append(chatEl('div', 'reacts', rs.map(([e, w]) => `${e} ${w.length}`).join('  ')));
       return li;
     })));
     $('histDlg').showModal();
+    const hit = at && $('histLog').querySelector(`li[data-id="${CSS.escape(at)}"]`);
+    if (hit) flash(hit);
   }
+  // search every saved session's chat (What's new 120): up to 50 hits, newest first; a hit opens its session there
+  let histFindT = 0;
+  $('histFind').addEventListener('input', () => {
+    clearTimeout(histFindT);
+    histFindT = setTimeout(async () => {
+      const q = $('histFind').value.trim().toLowerCase();
+      if (!q) return $('histHits').replaceChildren();
+      const hits = [];
+      for (const s of await histList()) for (const m of [...s.msgs].reverse()) if (hits.length < 50 && `${m.who} ${m.text} ${m.file || ''}`.toLowerCase().includes(q)) hits.push([s, m]);
+      if ($('histFind').value.trim().toLowerCase() !== q) return; // typed on meanwhile
+      $('histHits').replaceChildren(...hits.map(([s, m]) => {
+        const li = document.createElement('li'), b = chatEl('button', 'btn small', `${histWhen(m.at)} · ${histRoom(s)}`);
+        b.type = 'button';
+        b.onclick = () => histOpen(s, m.id);
+        li.append(b, ` ${m.who}: ${(m.text || m.file || 'a picture or video').slice(0, 120)}`);
+        return li;
+      }));
+      if (!hits.length) $('histHits').append(chatEl('li', 'hint', 'No past chat matches that.'));
+    }, 250);
+  });
   $('histBox').addEventListener('toggle', histShow);
   $('histClose').addEventListener('click', () => $('histDlg').close());
   $('histDel').addEventListener('click', async () => {
@@ -5258,18 +5483,32 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
   addEventListener('storage', (e) => { if (e.key === 'lpc-aion-card' && aionCard) pushOverlay(); }); // every 30 s from its page
   const chats = []; // the last few chat messages, for the overlay
+  // Who's talking in other games (What's new 122): in a room outside League, while the window in front fills its screen
+  // (app 1.38: frontApp, checked each second only while it's needed) or, as set, whenever Premade isn't in front. It
+  // shows only while someone talks or a chat line is new, then fades (fade) for a second before it hides.
+  let front = null, anyLast = null, anyAt = -Infinity, anyT = 0;
+  const anyWanted = () => !!client && !!peer && !league && !fresh(me) && opts.overlayAny !== 'off' && (opts.overlay || opts.overlayChat);
+  setInterval(() => {
+    if (!anyWanted() || !client.frontApp) { front = null; return; }
+    client.frontApp().then((f) => { const j = JSON.stringify(f); if (j !== JSON.stringify(front)) { front = f; pushOverlay(); } }).catch(() => {});
+  }, 1000);
+  addEventListener('focus', () => pushOverlay());
+  addEventListener('blur', () => pushOverlay());
   function pushOverlay() {
     if (!client) return;
     const now = performance.now(), on = (o) => overlayEdit || (!overlayHide && !!o), voice = !!peer && !!(league || fresh(me));
-    const talk = on(opts.overlay && voice), meOn = on(opts.overlayMe && voice);
-    overlayOn = on(opts.overlayChat && voice); // room chat shows there, so it needs no popup
+    const any = !voice && anyWanted() && (client.frontApp ? !!front && !front.mine && (opts.overlayAny === 'always' || front.full) : !document.hasFocus()); // an older app: Premade not in front
+    const talk = on(opts.overlay && (voice || any)), meOn = on(opts.overlayMe && (voice || any));
+    overlayOn = on(opts.overlayChat && (voice || any)); // room chat shows there, so it needs no popup
     const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
     const practice = on(league && league.mode === 'PRACTICETOOL') ? [comboLine(), jgLine()].filter(Boolean) : [];
     const aion = aionCard && !league && !overlayHide ? aionLines() : null;
-    const visible = talk || meOn || overlayOn || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
+    const talkers = talk ? [...peers.values()].filter((p) => p.talking && p.out > 0.02).map(shown) : [], lines = overlayOn ? chats.filter((c) => now - c.at < 8000).map(({ name, text }) => ({ name, text })) : [];
+    const anyHas = any && !overlayEdit && (talkers.length > 0 || lines.length > 0); // friends talking or writing, not your own voice
+    const visible = (any && !overlayEdit ? anyHas : talk || meOn || overlayOn) || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion;
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
     const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
     const cards = overlayEdit || overlayHide ? null : tftAugCards();
@@ -5280,17 +5519,23 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     // TFT ratings and Mayhem's independent full-screen card layer, and parts with places of their own
     const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
-    const s = !visible && !full ? { visible: false } : {
+    let s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, aion, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
       parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
+      ...(any && { any: true }),
       ...(talk && {
-        talkers: [...peers.values()].filter((p) => p.talking && p.out > 0.02).map(shown),
+        talkers,
         swapIn: swapOn() && sw.next - now <= 10000 ? Math.max(1, Math.ceil((sw.next - now) / 1000)) : 0,
       }),
-      ...(overlayOn && { chat: chats.filter((c) => now - c.at < 8000).map(({ name, text }) => ({ name, text })) }),
+      ...(overlayOn && { chat: lines }),
     };
+    clearTimeout(anyT);
+    if (anyHas) { anyLast = s; anyAt = now; }
+    else if (any && !s.visible && anyLast && now - anyAt < 1000) { s = { ...anyLast, fade: true }; anyT = setTimeout(pushOverlay, 1020 - (now - anyAt)); }
+    else anyLast = null;
+    if (anyHas && lines.length) anyT = setTimeout(pushOverlay, 8050 - (now - Math.min(...chats.filter((c) => now - c.at < 8000).map((c) => c.at)))); // a line's 8 s are up
     const j = JSON.stringify(s);
     if (j !== overlayWas) { overlayWas = j; client.overlay(s); }
   }
@@ -5759,11 +6004,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         const tile = document.createElement('figure');
         tile.className = 'screentile';
         tile.dataset.slot = p.slot;
-        tile.innerHTML = '<figcaption><span></span><span><small class="shq"></small> <button class="btn small" type="button">Hide</button> <button class="btn small pop" type="button">Pop out</button> <button class="btn small pt" type="button">Point</button></span></figcaption><video autoplay playsinline controls tabindex="0"></video>';
+        tile.innerHTML = '<figcaption><span></span><span><small class="shq"></small> <button class="btn small" type="button">Hide</button> <button class="btn small pop" type="button">Pop out</button> <button class="btn small pt" type="button">Point</button> <button class="btn small unzoom" type="button" hidden></button></span></figcaption><div class="scrwrap"><video autoplay playsinline controls tabindex="0"></video></div>';
         tile.querySelector('button').addEventListener('click', () => hideScreen(p, true));
         ptTile(tile, p);
-        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0, h: 0, why: '', statAt: 0, pip: null }));
+        seen.set(p, (v = { call: null, asked: -Infinity, tile, vid: tile.querySelector('video'), callAt: 0, streamAt: 0, okAt: 0, restarts: 0, h: 0, why: '', statAt: 0, pip: null, z: 1, zx: 0, zy: 0 }));
         popTile(v);
+        zoomTile(v, () => ptTo === p);
         bySlot($('screenGrid'), tile, p.slot);
       }
       if (v.call && screenFrozen(v, performance.now())) {
@@ -5787,6 +6033,45 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (ptTo && !seen.has(ptTo)) ptTo = null;
     ptShow();
     $('roomScreens').hidden = !seen.size;
+    $('sideBtn').hidden = seen.size < 2 && !document.fullscreenElement;
+  }
+  // Side by side (What's new 121): every screen in the room full screen at once, 2 across (4 as 2x2, more 3 across);
+  // the tiles themselves move, so nothing is decoded twice. Esc goes back.
+  $('sideBtn').addEventListener('click', () => {
+    const g = $('screenGrid');
+    if (document.fullscreenElement === g) return void document.exitFullscreen().catch(() => {});
+    g.style.setProperty('--cols', seen.size <= 2 ? seen.size : seen.size <= 4 ? 2 : 3);
+    g.requestFullscreen().catch((e) => notify(`Couldn’t go full screen: ${e.message}`, true));
+  });
+  document.addEventListener('fullscreenchange', () => { $('sideBtn').textContent = document.fullscreenElement === $('screenGrid') ? 'Back' : 'Side by side'; });
+  // Zoom (What's new 121): Ctrl + scroll or a touchpad pinch on a screen zooms in at the pointer (1x to 4x), a drag
+  // moves around while zoomed (unless you're pointing), and the button with the zoom on it goes back to 1x. Only a
+  // CSS transform, so it costs nothing; zoomed in, seeWant asks the sharer for a sharper picture.
+  function zoomTile(v, pointing) {
+    const vid = v.vid, wrap = vid.parentElement, b = v.tile.querySelector('.unzoom');
+    const apply = () => {
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      v.zx = Math.min(0, Math.max(w - w * v.z, v.zx)); // the picture always covers the tile
+      v.zy = Math.min(0, Math.max(h - h * v.z, v.zy));
+      vid.style.transform = v.z > 1 ? `translate(${v.zx}px, ${v.zy}px) scale(${v.z})` : '';
+      vid.controls = v.z === 1; // the controls would zoom too
+      b.hidden = v.z === 1;
+      b.textContent = `${v.z.toFixed(1)}x · Reset`;
+    };
+    wrap.addEventListener('wheel', (e) => {
+      if (e.defaultPrevented || (!e.ctrlKey && v.z === 1)) return; // Remote help had it; plain scrolling scrolls the page until you've zoomed
+      e.preventDefault();
+      const r = wrap.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, z = Math.min(4, Math.max(1, v.z * Math.exp(-e.deltaY / 300)));
+      v.zx = x - ((x - v.zx) * z) / v.z; // the spot under the pointer stays put
+      v.zy = y - ((y - v.zy) * z) / v.z;
+      v.z = z;
+      apply();
+    }, { passive: false });
+    let drag = null;
+    wrap.addEventListener('pointerdown', (e) => { if (v.z > 1 && e.button === 0 && !pointing() && !v.tile.classList.contains('controlling')) { drag = { x: e.clientX - v.zx, y: e.clientY - v.zy }; wrap.setPointerCapture(e.pointerId); e.preventDefault(); } });
+    wrap.addEventListener('pointermove', (e) => { if (drag) { v.zx = e.clientX - drag.x; v.zy = e.clientY - drag.y; apply(); } });
+    wrap.addEventListener('pointerup', () => { drag = null; });
+    b.addEventListener('click', () => { v.z = 1; v.zx = v.zy = 0; apply(); });
   }
   // Point on a friend's screen tile (from AnyDesk, app 1.27 on their side) shows your pointer and what you draw on their
   // screen ({t:'pt', x, y, d while your button is down}), which works even inside games, as it only draws. Their app
@@ -6070,7 +6355,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // Their app answers what holds it back every 3 s ({t:'shq', why}), shown on the tile with the size and frame rate you get.
   function seeWant(v) {
     const px = document.pictureInPictureElement === v.vid && v.pip ? v.pip.height : document.fullscreenElement === v.vid ? screen.height : v.vid.getBoundingClientRect().height;
-    const h = [360, 540, 720, 1080, 1440].find((x) => x >= px * devicePixelRatio * 0.9) || 2160;
+    const h = [360, 540, 720, 1080, 1440].find((x) => x >= px * (v.z || 1) * devicePixelRatio * 0.9) || 2160; // zoomed in: sharper
     return cam && cam.call === v.call ? Math.max(720, h) : h; // the overlay reads the same call
   }
   const SHQ_WHY = { bandwidth: 'held back by their upload', cpu: 'held back by their PC', other: 'held back' };
@@ -14419,6 +14704,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
+  $('optOverlayAny').value = ['full', 'always', 'off'].includes(opts.overlayAny) ? opts.overlayAny : 'full';
+  $('optOverlayAny').addEventListener('change', (e) => { opts.overlayAny = e.target.value; saveOpts(); pushOverlay(); });
   $('optMayhemRating').value = opts.mayhemRating === 'tier' ? 'tier' : 'rate';
   $('optMayhemRating').addEventListener('change', (e) => { opts.mayhemRating = e.target.value === 'tier' ? 'tier' : 'rate'; saveOpts(); pushOverlay(); ovDraw(); });
   if (!boardOk()) { $('optMayhemRating').disabled = true; $('optMayhemRating').parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
@@ -14615,6 +14902,17 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [122, 'November 6: who’s talking in any game', [
+      'Desktop app 1.38.0: the overlay now works outside League too. In your room, who’s talking and new room chat show over any full-screen game (Borderless or Windowed), only while someone talks or writes, then fade away. Pick it on the Overlay page: Who’s talking and room chat in other games, over full-screen games, whenever Premade isn’t in front, or off.',
+    ]],
+    [121, 'November 6: screens side by side, and zoom', [
+      'With two or more screens in your room, Side by side puts them all full screen next to each other. Esc goes back.',
+      'Ctrl + scroll or a touchpad pinch on a friend’s screen zooms in where you point, up to 4x; drag to look around, and the zoom button goes back. Zoomed in, their PC sends you a sharper picture.',
+    ]],
+    [120, 'November 6: files of any size, pins, search and Files', [
+      'Send any file in the room chat, as big as you like: friends click Download, pick where to save it, and it comes straight from your PC to theirs. Drop a file on a friend’s card to send it to them alone. If the connection drops, the download waits and carries on where it stopped.',
+      'Pin a message to keep it above the chat for everyone, links and all. Search the chat as you type, or search every past session’s chat in Past sessions. Files, above the chat, lists every picture, video and file shared in the room.',
+    ]],
     [119, 'November 5: the Aion 2 DPS meter in your voice room', [
       'Your voice room has the Aion 2 DPS meter in its Current room card, the same one as the DPS pop-up: the boss’s HP and a bar per player, live, with Total damage, compact mode and top skills. Its pop-out button puts it in its own small window over the game. Everyone in the room who plays Aion 2 gets it in their desktop app.',
     ]],
@@ -15205,6 +15503,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
       ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
+      ['Side by side and zoom', 'Watch every screen in your room full screen side by side. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
@@ -15217,6 +15516,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Lock room, at the top of your room. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
       ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
       ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
+      ['Files of any size', 'Send any file, as big as you like, straight from your PC: it shows in the chat with its name and size, and each friend who clicks Download picks where to save it and gets it from you directly, never through a server. Drop a file on a friend’s card to send it to them alone. If a connection drops, the download waits for them and carries on where it stopped.', 'The + next to the chat box, or drop a file on the chat or on a friend’s card in your room. Friends download it while you stay in the room.', '#chatAttach, #players, #createBtn'],
+      ['Pins, search and Files', 'Pin a message and it stays above the chat for everyone, with its links, and whoever joins later sees it too. Search the chat as you type, or every past session’s chat. Files lists every picture, video and file shared in this room, this time and before.', 'Point at a message for Pin; the search box and Files above the room chat; Search past chats in Past sessions.', '#chatFind, #chatFilesBtn, #histFind, #createBtn'],
       ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat in your room. On unless you untick Keep my voice sessions.', '#optHistory'],
       ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal (which stands in for the browser’s own noise filter, as Discord’s Krisp does, so your voice stays clear) and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
@@ -15443,6 +15744,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
+      ['Who’s talking in any game', 'In your room outside League, who’s talking and new room chat show over any full-screen game, only while someone talks or writes, then fade away. Or have it whenever Premade isn’t the window in front.', 'The Overlay page, What it shows: Who’s talking and room chat in other games. Games in Borderless or Windowed mode.', '#optOverlayAny', 'app'],
       ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],

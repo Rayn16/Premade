@@ -581,7 +581,33 @@ function hider() {
 // page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved). With
 // everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
 let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null, overlayRevision = 0;
-const display = async () => { const s = chosen(await screens(false)); return screen.getAllDisplays().find((d) => s && String(d.id) === s.display_id) || screen.getPrimaryDisplay(); };
+const display = async () => {
+  if (overlayState.any && frontDisplay) return frontDisplay; // who's talking in another game: on that game's screen
+  const s = chosen(await screens(false));
+  return screen.getAllDisplays().find((d) => s && String(d.id) === s.display_id) || screen.getPrimaryDisplay();
+};
+// ---- who's talking in other games (app 1.38): the page asks each second, only while it's in a room outside League,
+// whether the window in front is Premade's (mine) or fills its screen (full: a game in Borderless or full screen, not
+// the desktop), and the overlay goes on that screen. Buffers made once, so asking every second allocates nothing native.
+let frontApi = null, frontDisplay = null;
+ipcMain.handle('front-app', (e) => {
+  if (!fromSite(e) || process.platform !== 'win32') return null;
+  try {
+    if (!frontApi) {
+      const l = require('koffi').load('user32.dll');
+      frontApi = { rect: l.func('int __stdcall GetWindowRect(void* w, _Out_ int32_t* r)'), cls: l.func('int __stdcall GetClassNameW(void* w, _Out_ uint16_t* buf, int max)'), r: new Int32Array(4), buf: new Uint16Array(64) };
+    }
+    const u = ctlUser32(), w = u.fg();
+    if (!w) return { full: false, mine: false };
+    if (u.thread(w) === process.pid) return { full: false, mine: true };
+    const n = frontApi.cls(w, frontApi.buf, 64), name = String.fromCharCode(...frontApi.buf.subarray(0, Math.max(0, n)));
+    if (!frontApi.rect(w, frontApi.r) || name === 'Progman' || name === 'WorkerW') return { full: false, mine: false }; // the desktop fills the screen too
+    const [left, top, right, bottom] = frontApi.r, b = screen.screenToDipRect(null, { x: left, y: top, width: right - left, height: bottom - top }), d = screen.getDisplayMatching(b);
+    const full = b.x <= d.bounds.x + 1 && b.y <= d.bounds.y + 1 && b.x + b.width >= d.bounds.x + d.bounds.width - 1 && b.y + b.height >= d.bounds.y + d.bounds.height - 1;
+    if (full && (!frontDisplay || frontDisplay.id !== d.id)) { frontDisplay = d; replaceOverlay(); }
+    return { full, mine: false };
+  } catch (err) { console.error('front-app:', err.message); return null; }
+});
 ipcMain.on('overlay', (e, s) => {
   if (!fromSite(e) || !s || typeof s !== 'object') return;
   const revision = ++overlayRevision;
@@ -1460,7 +1486,7 @@ app.whenReady().then(async () => {
   });
   // only Premade's own pages get the mic, screens and the clipboard, as Discord gives them only to discord.com; a video
   // from a chat link (YouTube) may still go full screen
-  ses.setPermissionRequestHandler((wc, perm, ok, d) => ok(perm === 'fullscreen' || (String(d && d.requestingUrl || wc.getURL()).startsWith(SITE) && ['media', 'display-capture', 'clipboard-sanitized-write', 'keyboardLock'].includes(perm)))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
+  ses.setPermissionRequestHandler((wc, perm, ok, d) => ok(perm === 'fullscreen' || (String(d && d.requestingUrl || wc.getURL()).startsWith(SITE) && ['media', 'display-capture', 'clipboard-sanitized-write', 'keyboardLock', 'fileSystem'].includes(perm)))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
 
   const last = lastBounds();
   win = new BrowserWindow({
