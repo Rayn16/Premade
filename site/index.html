@@ -814,6 +814,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .btn.leave { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); color: var(--bad); }
 .cursets { display: grid; gap: 10px; }
 .cursets { padding-top: 12px; border-top: 1px solid var(--line); }
+.roomdps { width: 100%; height: 300px; border: 0; border-radius: 6px; }
 #roomCards .ph .hint { margin-left: auto; font: 400 12px/1 var(--body); letter-spacing: 0; }
 #roomCards .players { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 #roomCards .player { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pic" "main" "vol" "mute"; justify-items: center; text-align: center; border-left-width: 1px; }
@@ -1165,6 +1166,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
                 <span class="curlock"><button id="lockBtn" class="btn" type="button" hidden>Lock room</button><button class="tip" type="button" popovertarget="t-lock" aria-label="About locking the room">?</button></span>
                 <button id="generalShareBtn" class="btn primary pc-only" type="button">Share screen or app</button>
                 <button id="leaveBtn" class="btn leave" type="button">Leave</button>
+              </div>
+              <div id="roomDps" class="cursets client-only" hidden>
+                <h3 class="ph">Aion 2 DPS</h3>
+                <iframe id="roomDpsFrame" class="roomdps" title="Aion 2 DPS meter"></iframe>
               </div>
               <div class="cursets pc-only">
                 <h3 class="ph">Screen share</h3>
@@ -2813,6 +2818,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const inGame = [...peers.values()].filter((p) => fresh(p.pos)).length + (fresh(me) ? 1 : 0);
     $('phase').dataset.game = inGameNow() ? 1 : 0;
     $('roomView').toggleAttribute('data-game', inGameNow());
+    $('roomDps').hidden = !client || !store.get('lpc-aion') || inGameNow(); // Aion 2's DPS meter for those who play it (meter.html, as in the pop-up; its pop-out button opens that)
+    if (!$('roomDps').hidden && !$('roomDpsFrame').getAttribute('src')) { $('roomDpsFrame').onload = () => aionMeterTheme(); $('roomDpsFrame').src = 'meter.html?embed'; } // in the theme's colours
     renderRoomCard();
     $('phase').textContent = inGameNow()
       ? `In game: proximity is on. ${inGame} of ${peers.size + 1} players have their minimap tracked; you hear only those close to you.`
@@ -14608,6 +14615,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [119, 'November 5: the Aion 2 DPS meter in your voice room', [
+      'Your voice room has the Aion 2 DPS meter in its Current room card, the same one as the DPS pop-up: the boss’s HP and a bar per player, live, with Total damage, compact mode and top skills. Its pop-out button puts it in its own small window over the game. Everyone in the room who plays Aion 2 gets it in their desktop app.',
+    ]],
     [117, 'November 5: every Aion 2 dungeon run on video', [
       'Desktop app 1.37.4: Premade records Aion 2’s window from the moment you enter a dungeon until you leave it, so every run is saved like a screen recording. It knows from Aion 2’s own log when you go in and out. Turn it off on the Recording page: Each Aion 2 dungeon run.',
       'Each run’s video is marked where you respawned and where fights happened. The Recording page has a new Aion 2 dungeons panel with your time in each dungeon and your last 7 days.',
@@ -15234,6 +15244,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
       ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills on a click, and a compact mode. It stays on top, opens where you left it and keeps its size.',
         'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
+      ['Aion 2 DPS in your voice room', 'The live fight meter in your room’s Current room card, the same as the DPS pop-up, so it’s there while you talk: the boss’s HP and a bar per player with DPS and share, Total damage, compact mode and top skills on a click. Its pop-out button opens the DPS pop-up over the game.',
+        'In your room, Current room card, Aion 2 DPS, once you’ve picked your Aion 2 characters and outside a League game. Live fight has to be on (Aion 2 page, DPS).', '#roomDps, #createBtn', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',

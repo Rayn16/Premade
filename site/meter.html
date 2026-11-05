@@ -181,7 +181,14 @@ function draw() {
 $('#main').addEventListener('click', (e) => { const b = e.target.closest('.bar'); if (!b) return; const n = b.dataset.n; if (opened.has(n)) opened.delete(n); else opened.add(n); draw(); });
 $('#compact').onclick = () => { compact = !compact; try { localStorage.setItem('lpc-aion-meter-compact', compact ? '1' : '0'); } catch {} draw(); };
 $('#mode').onclick = () => { dmg = !dmg; try { localStorage.setItem('lpc-aion-meter-mode', dmg ? 'dmg' : 'dps'); } catch {} draw(); };
-$('#close').onclick = () => { if (window.lpcClient && lpcClient.aionMeter) lpcClient.aionMeter(false); else window.close(); };
+// ?embed: inside a voice room (index.html #roomDps), where the close button pops the meter out instead: the app page
+// hears lpc-aion-meter, as from the Aion 2 DPS tab
+const embed = /embed/.test(location.search);
+if (embed) Object.assign($('#close'), { title: 'Pop out: the meter in its own small window over the game', innerHTML: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5H5V6h5"/></svg>' });
+$('#close').onclick = () => {
+  if (embed) { try { localStorage.setItem('lpc-aion-meter', '1|' + Date.now()); } catch {} }
+  else if (window.lpcClient && lpcClient.aionMeter) lpcClient.aionMeter(false); else window.close();
+};
 addEventListener('storage', (e) => { if (e.key === 'lpc-aion-theme') theme(); if (/^lpc-aion-(live|party|skills)$/.test(e.key || '')) draw(); });
 setInterval(draw, 1000);  // also when no storage event comes (the fight clock, and "off" once the app stops writing)
 theme();
