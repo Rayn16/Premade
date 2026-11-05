@@ -1228,6 +1228,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hears(dee, ['Eve'], null, 'Dee hears Eve');
     await hears(eve, ['Dee'], null, 'Eve hears Dee');
     console.log('League data: Dee and Eve joined their game\'s room by themselves');
+    // a new game never moves Dee out of a game's room with someone else in it (Eve, a friend who isn't playing it)
+    await dee.evaluate((g) => lpc.league({ ...g, room: 'g00000000000' }), game('Testchamp', 'ORDER'));
+    await dee.waitForTimeout(500);
+    assert.strictEqual(await dee.evaluate(() => lpc.room()), GAME_ROOM, 'Dee stays in the room Eve is in');
+    await dee.evaluate((g) => lpc.league(g), game('Testchamp', 'ORDER'));
+    console.log('League data: a new game kept Dee in the room with Eve');
     // lowering other apps while friends talk: Eve's app turns them down by half while Dee talks, and back when it's off
     assert(await dee.evaluate(() => document.getElementById('optAtten').disabled), 'an app without it can\'t pick it');
     await eve.evaluate((v) => { const s = document.getElementById('optAtten'); s.value = v; s.dispatchEvent(new Event('change')); }, '0.5');
