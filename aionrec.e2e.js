@@ -1,6 +1,7 @@
 // Test of Record each Aion 2 dungeon run (site/index.html crumbTick), in headless Chromium with a stand-in for the
-// desktop app 1.37.4: Aion 2's log says a dungeon map loaded, so Aion 2's window is recorded, each reload inside is a
-// mark on its video and a town map stops it; the Recording page lists each dungeon's runs and the last 7 days.
+// desktop app 1.38.1: Aion 2's log says a dungeon map loaded, so Aion 2's window is recorded, each reload inside is a
+// mark on its video, a boss fight (the gauge under its health bar) is kept when the video is cut, and a town map
+// stops it; the Recording page lists each dungeon's runs and the last 7 days.
 // Needs playwright: NODE_PATH=$(npm root -g) node aionrec.e2e.js
 const fs = require('fs');
 const path = require('path');
@@ -29,12 +30,12 @@ function fakeApp() {
     aionLog: async (file, from) => { if (file === '*') return [window.old, window.log]; const b = new TextEncoder().encode(window.log); return { file: 'a.breadcrumb.log', size: b.length, text: new TextDecoder().decode(b.slice(file ? from : 0)) }; },
     captureSources: async () => [{ id: 'window:3', type: 'window', name: 'Aion 2 meter' }, { id: 'window:7', type: 'window', name: 'AION2' }],
     captureSource: async (id) => { calls.push('pick ' + id); return true; },
-    gameVideo: async (what) => { calls.push(what); return what === 'start' ? 'Game 2026-11-05 07-27-03 Recording.webm' : what === 'list' ? [] : true; },
+    gameVideo: async (what, name, parts) => { calls.push(what); if (what === 'cut') window.cut = parts; return what === 'start' ? 'Game 2026-11-05 07-27-03 Recording.webm' : what === 'list' ? [{ name: 'Game 2026-11-05 07-27-03 Recording.webm', size: 1e6, at: Date.now(), rec: calls.includes('start') && !calls.includes('end') }] : true; },
   };
   localStorage.setItem('lpc-setup', '1');
   localStorage.setItem('lpc-name', 'Rayan');
   localStorage.setItem('lpc-news', '9999');
-  setInterval(() => { const g = cv.getContext('2d'); g.fillStyle = `hsl(${Date.now() % 360},50%,50%)`; g.fillRect(0, 0, 320, 180); }, 100);
+  setInterval(() => { const g = cv.getContext('2d'); g.fillStyle = `hsl(${Date.now() % 360},50%,50%)`; g.fillRect(0, 0, 320, 180); if (window.boss) { g.fillStyle = '#20e0f0'; g.fillRect(140, 14, 40, 1); } }, 100); // the gauge under a boss's health bar
   navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(10);
 }
 (async () => {
@@ -49,14 +50,20 @@ function fakeApp() {
     assert.deepStrictEqual(await page.evaluate(() => calls.filter((c) => c !== 'list')), [], 'in town: nothing recorded');
     await page.evaluate(() => { log += '[2026-11-05T07:27:03.166+0300] [0] Flow.Teleport.LoadComplete.Map(600092)\n[2026-11-05T07:31:44.120+0300] [0] Flow.Teleport.Load'; });
     await page.waitForFunction(() => calls.includes('start'), null, { timeout: 8000 });
+    await page.evaluate(() => { window.boss = true; setTimeout(() => { window.boss = false; }, 24000); }); // a 24 s boss fight
     assert(await page.evaluate(() => calls.includes('pick window:7')), 'Aion 2’s window is what’s recorded');
     await page.evaluate(() => { log += 'Complete.Map(600092)\n'; }); // a reload in the same dungeon: still recording
     await page.waitForTimeout(6000);
     assert(!(await page.evaluate(() => calls.includes('end'))), 'a reload inside keeps recording');
     await page.evaluate(() => { const at = new Date(Date.now() - 2000).toISOString().replace('Z', '+0000'); log += `[${at}] [0] Flow.Teleport.LoadComplete.Map(600092)\n`; });
     await page.waitForFunction(() => (JSON.parse(localStorage.getItem('lpc-vid-marks') || '{}')['Game 2026-11-05 07-27-03 Recording.webm'] || []).length === 1, null, { timeout: 8000 });
+    await page.waitForFunction(() => !window.boss, null, { timeout: 30000 });
     await page.evaluate(() => { log += '[2026-11-05T07:56:27.18+0300] [0] Flow.Teleport.LoadComplete.Map(1110)\n'; });
     await page.waitForFunction(() => calls.includes('end'), null, { timeout: 8000 });
+    await page.waitForFunction(() => window.cut, null, { timeout: 8000 });
+    const cut = await page.evaluate(() => window.cut);
+    assert(cut.length === 1 && cut[0][0] === 0 && cut[0][1] - cut[0][0] >= 25 && cut[0][1] - cut[0][0] <= 40, `the boss fight kept, padded: ${JSON.stringify(cut)}`);
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem('lpc-vid-marks'))['Game 2026-11-05 07-27-03 Recording.webm'] || []).some((m) => m.text === 'Boss fight 1'), null, { timeout: 5000 }); // the fight marked
     await page.evaluate(() => document.querySelector('.nav[data-view="record"]').click());
     await page.waitForSelector('#aionRunsBox:not([hidden]) #aionRuns tr');
     const rows = await page.$$eval('#aionRuns tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));

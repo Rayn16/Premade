@@ -2126,6 +2126,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
             <div class="setrow"><div><b>Quality</b><small id="recQNote"></small></div><label class="field"><span class="sr">Quality</span> <select id="optRecQ" class="pillsel"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label></div>
             <div class="setrow"><div><b>Frame rate</b><small>60 is the sweet spot for League.</small></div><label class="field"><span class="sr">Frame rate</span> <select id="optRecFps" class="pillsel"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
             <div class="setrow"><div><b>Each Aion 2 dungeon run</b><small>Records Aion 2’s window from entering a dungeon until you leave it.</small></div><label class="check"><input id="optAionRec" type="checkbox"> <span class="sr">Record each Aion 2 dungeon run</span></label></div>
+            <div class="setrow"><div><b>Keep only the boss fights</b><small>When a run ends, its video is cut down to the boss fights. Off: the whole run, with each fight marked.</small></div><label class="check"><input id="optAionBoss" type="checkbox"> <span class="sr">Keep only the boss fights</span></label></div>
             <div class="setrow keyrow"><div><b>Record key</b><small>Starts and stops without leaving the game.</small></div><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button></div>
           </div>
         </div>
@@ -2464,7 +2465,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -8968,7 +8969,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     let q = Promise.resolve();
     r.mr = new MediaRecorder(new MediaStream(tracks), { mimeType: MIME, videoBitsPerSecond: vRate(opts.recQ, opts.recFps), audioBitsPerSecond: 192000, videoKeyFrameIntervalDuration: 2000 });
     r.mr.ondataavailable = (e) => { if (e.data.size) q = q.then(async () => client.gameVideo('add', name, await e.data.arrayBuffer())).catch(() => {}); };
-    r.mr.onstop = () => { q = q.then(() => client.gameVideo('end', name)).catch(() => {}).then(() => { notify('Recording saved: it’s on the Recording page.'); loadVids(); }); };
+    r.mr.onstop = () => { q = q.then(() => client.gameVideo('end', name)).catch(() => {}).then(() => r.after && r.after(name)).then(() => { notify('Recording saved: it’s on the Recording page.'); loadVids(); }); };
     r.mr.start(1000);
     tracks[0].addEventListener('ended', stopScreenRec); // the window was closed
     r.tick = setInterval(renderRec, 1000);
@@ -8981,6 +8982,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (!r) return;
     screenRec = null;
     clearInterval(r.tick);
+    if (r.unwatch) r.unwatch();
     if (r.mr && r.mr.state !== 'inactive') r.mr.stop();
     r.stream.getTracks().forEach((t) => t.stop());
     (r.srcs || []).forEach((n) => n.disconnect());
@@ -9032,7 +9034,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (inside && !screenRec && !c.rec) {
       c.rec = true; // once per run, even if you stop it
       const w = (await client.captureSources(false).catch(() => [])).find((x) => x.type === 'window' && AION_WIN.test(x.name));
-      if (w && !screenRec) { await toggleScreenRec(w.id); if (screenRec) screenRec.run = true; }
+      if (w && !screenRec) { await toggleScreenRec(w.id); if (screenRec) bossWatch(screenRec); }
     }
     if (!inside) {
       if (c.rec && screenRec && screenRec.run) { // the Combat Analysis fights read meanwhile: the boss fights, marked whole
@@ -9041,6 +9043,48 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       }
       c.rec = false;
     }
+  }
+  // ---- an Aion 2 run's boss fights (Rayan, 2026-11-06: "auto record only the boss fights"): once a second the run's
+  // video is checked for the cyan gauge under a named enemy's health bar (top middle of Aion 2's screen); a stretch with
+  // 20 s or more of it, gaps up to 45 s joined (you target others, die, the boss leaves), is a boss fight. When the run ends each one is marked, and with Keep only
+  // the boss fights on the app cuts the video down to them, 10 s before each to 5 s after.
+  // ponytail: the gauge's place was measured on Rayan's 2560x1440 videos (5-6 Nov 2026, 6 runs: every boss found; the
+  // walks and most trash cut, a named elite's fight may stay); another UI size, or a boss you never target, needs measuring again. No fight found: the whole run is kept.
+  const bossCv = document.createElement('canvas');
+  function bossBar(src, w, h) { // at the screen's own size: the gauge is a line 2-3 px high
+    const W = Math.round(w * 0.118), H = Math.round(h * 0.01);
+    if (bossCv.width !== W || bossCv.height !== H) Object.assign(bossCv, { width: W, height: H });
+    const g = bossCv.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, Math.round(w * 0.441), Math.round(h * 0.076), W, H, 0, 0, W, H);
+    const d = g.getImageData(0, 0, W, H).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 150 && d[i + 2] > 150 && d[i] < 120) n++;
+    return n > 0.03 * W * H;
+  }
+  function bossFights(secs) { // seconds the gauge showed -> [[from, to]] of the fights
+    const out = [];
+    for (const t of secs) { const l = out[out.length - 1]; if (l && t - l[1] <= 45) { l[1] = t; l[2]++; } else out.push([t, t, 1]); }
+    return out.filter((f) => f[2] >= 20).map(([a, z]) => [Math.max(0, a - 10), z + 5]);
+  }
+  function bossWatch(r) {
+    r.run = true;
+    r.boss = [];
+    const t = r.stream.getVideoTracks()[0].clone(), stop = CameraBox.watch(new MediaStream([t]), 1000, (src, w, h) => { if (bossBar(src, w, h)) r.boss.push(Math.round((Date.now() - r.at) / 1000)); });
+    r.unwatch = () => { stop(); t.stop(); };
+    r.after = async (name) => {
+      const fights = bossFights(r.boss);
+      if (!fights.length) return;
+      const old = vidMarks[name] || [];
+      if (opts.aionBoss && (await client.gameVideo('cut', name, fights).catch(() => false))) {
+        let at = 0; // each fight's start in the cut video, and the marks inside a fight moved with it
+        vidMarks[name] = fights.flatMap(([a, z], k) => {
+          const m = [{ s: at + 10, from: at, text: `Boss fight ${k + 1}` }, ...old.filter((x) => x.s >= a && x.s <= z).map((x) => ({ ...x, s: at + x.s - a, from: Math.max(at, at + (x.from ?? x.s) - a) }))];
+          at += z - a;
+          return m;
+        });
+      } else vidMarks[name] = [...old, ...fights.map(([a, z], k) => ({ s: a + 10, from: a, text: `Boss fight ${k + 1}` }))].sort((x, y) => x.s - y.s);
+      store.set('lpc-vid-marks', JSON.stringify(vidMarks));
+    };
   }
   // ---- Aion 2 dungeons on the Recording page: every run in the game's own logs (from its first day), each dungeon's
   // runs, best and usual time and respawns, and the last 7 days. A dungeon's name is yours to give: the log has only
@@ -14695,7 +14739,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec']]) {
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -15729,8 +15773,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
-      ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality. Premade knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page.',
-        'Recording in the menu: Each Aion 2 dungeon run (on by default).', '#optAionRec', 'app'],
+      ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality, and cut down to just its boss fights when it ends (Premade spots them by the gauge under a boss’s health bar). Premade knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page, each boss fight marked.',
+        'Recording in the menu: Each Aion 2 dungeon run and Keep only the boss fights (both on by default). Turn the second off to keep whole runs.', '#optAionRec, #optAionBoss', 'app'],
       ['Aion 2 dungeon times and weekly recap', 'Every dungeon run since you started Aion 2, from the game’s own log: how many runs, your best and usual time and respawns a run for each dungeon, and your last 7 days (runs, hours, respawns). Each run’s video marks the moments you came back in after dying and your Combat Analysis fights, and ▶ Highlights plays only those.',
         'Recording in the menu: Aion 2 dungeons, under Your recordings. Click a dungeon to give it a name.', '#aionRunsBox', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',

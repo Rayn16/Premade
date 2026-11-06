@@ -915,6 +915,21 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
   if (what === 'read') return fs.promises.readFile(vidAt(a)).catch(() => null); // for its highlights in the page
   if (what === 'show') { shell.showItemInFolder(vidAt(a)); return true; }
   if (what === 'trash') return shell.trashItem(vidAt(a)).then(() => true, () => false);
+  if (what === 'cut') { // b: [[from, to] s, ...] in order: keeps only those parts, copied as they are (an Aion 2 run's boss fights). Matroska, as
+    // ffmpeg won't write H.264 as WebM; Chrome plays it the same (checked on a cut of Rayan's 6 Nov run)
+    const parts = Array.isArray(b) ? b.filter((p) => Array.isArray(p) && p[0] >= 0 && p[1] > p[0]).slice(0, 50) : [];
+    if (!parts.length) return false;
+    const src = vidAt(a), tmp = (k) => `${src}.${k}.part.webm`, list = `${src}.list.txt`, out = `${src}.cut.part.webm`;
+    try {
+      const { ffmpeg } = await getTools();
+      for (const [k, [x, y]] of parts.entries()) await run(ffmpeg, ['-y', '-ss', String(x), '-i', src, '-t', String(y - x), '-c', 'copy', '-f', 'matroska', tmp(k)]);
+      await fs.promises.writeFile(list, parts.map((p, k) => `file '${tmp(k).replace(/'/g, "'\\''")}'`).join('\n'));
+      await run(ffmpeg, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-f', 'matroska', out]);
+      await fs.promises.rename(out, src);
+      return true;
+    } catch (err) { console.error('cut:', err.message); return false; }
+    finally { for (const f of [list, out, ...parts.map((p, k) => tmp(k))]) fs.promises.unlink(f).catch(() => {}); }
+  }
   return null;
 });
 // A WebM from Chrome's MediaRecorder, made seekable: its EBML header, then a Segment of known size with a SeekHead (to
