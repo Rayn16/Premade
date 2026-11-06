@@ -65,7 +65,7 @@ assert.deepStrictEqual(snap.players.map((p) => [p.name, p.damage, p.me, p.party]
 assert.strictEqual(snap.players[0].share, 81.8);
 assert.strictEqual(snap.players[0].crit, 50);
 assert.strictEqual(snap.players[1].crit, 0, 'the tick is not a hit');
-assert.deepStrictEqual(snap.players[0].skills, [{ id: 16370000, damage: 9000, hits: 2, share: 100 }]);
+assert.deepStrictEqual(snap.players[0].skills, [{ id: 16370000, damage: 9000, hits: 2, share: 100, crit: 50, max: 6000 }], "each skill keeps its crits and biggest hit");
 assert.deepStrictEqual(snap.players[1].skills.map((k) => k.id), [16370000, 16380000]);
 assert.strictEqual(snap.members.length, 2);
 fight.add({ k: 'name', id: 99, name: 'Stranger' }, now); // named and not in the party (an unnamed one is kept since 1c6bc73)
@@ -179,3 +179,19 @@ assert.deepStrictEqual([gs.sched, gs.bosses.world, gs.bosses.list.length], [{ da
   assert.strictEqual(g2.snapshot(24000, true).players[0].damage, 7, 'the next mob at once');
 }
 console.log('aionlive ok');
+
+// site/index.html's aionLearn: a skill NC doesn't name takes its Combat Analysis line's name, or "X (extra hits)" when a
+// named skill's line is that skill plus it; two lines that fit leave it unnamed
+{
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../site/index.html'), 'utf8').match(/ {2}function aionLearn\(f\) \{[\s\S]*?\n {2}\}\n/)[0];
+  const learn = (skills, k, known) => {
+    const aionSkills = { ...known }, me = { me: true, damage: skills.reduce((a, x) => a + x.damage, 0), skills };
+    new Function('aionFight', 'aionHist', 'aionSkills', 'aionPut', `${src}; aionLearn(arguments[4]);`)(null, [{ players: [me] }], aionSkills, () => {}, { dmg: me.damage, k });
+    return aionSkills;
+  };
+  const known = { 18040000: 'Incandescent Blow' };
+  assert.deepStrictEqual(learn([{ id: 18040000, damage: 400 }, { id: 18050000, damage: 500 }], [['Mystery Strike', 501], ['Incandescent Blow', 400]], known)[18050000], 'Mystery Strike');
+  assert.deepStrictEqual(learn([{ id: 18040000, damage: 400 }, { id: 18050000, damage: 500 }], [['Incandescent Blow', 900]], known)[18050000], 'Incandescent Blow (extra hits)');
+  assert.strictEqual(learn([{ id: 18040000, damage: 400 }, { id: 18050000, damage: 500 }], [['A', 500], ['B', 502], ['Incandescent Blow', 400]], known)[18050000], undefined, 'two lines fit');
+  console.log('aionLearn ok');
+}

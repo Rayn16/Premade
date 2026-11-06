@@ -289,8 +289,8 @@ class Fight {
     s.damage += e.damage; s.lastAt = now;
     if (!e.dot) { s.hits++; if (e.crit) s.crits++; } // ticks aren't hits: crit % stays per hit, as in Abyss
     const code = e.skill >= 1e9 ? Math.floor(e.skill / 100) : e.skill; // ticks carry the code times 100
-    const id = Math.floor(code / 10000) * 10000, k = s.skills.get(id) || { id, damage: 0, hits: 0 };
-    k.damage += e.damage; k.hits++; s.skills.set(id, k);
+    const id = Math.floor(code / 10000) * 10000, k = s.skills.get(id) || { id, damage: 0, hits: 0, crits: 0, max: 0 };
+    k.damage += e.damage; k.hits++; if (e.crit) k.crits++; if (e.damage > k.max) k.max = e.damage; s.skills.set(id, k);
   }
   ours(id) { const n = this.names.get(id); return !!n && (n === this.me || this.party.has(n)); } // you, or someone in your party
   // one fight's numbers: everyone on target t (or your party only), each with their top skills
@@ -314,7 +314,7 @@ class Fight {
       players: players.sort((a, b) => b.damage - a.damage).slice(0, 12).map((p) => ({
         name: name(p.id) || `Player ${p.id}`, me: !!this.me && name(p.id) === this.me, party: p.was || this.ours(p.id), damage: p.damage,
         dps: Math.round(p.damage / secs), share: Math.round((p.damage / total) * 1000) / 10, crit: p.hits ? Math.round((p.crits / p.hits) * 100) : 0,
-        skills: [...p.skills.values()].sort((a, b) => b.damage - a.damage).slice(0, 8).map((k) => ({ id: k.id, damage: k.damage, hits: k.hits, share: Math.round((k.damage / (p.damage || 1)) * 1000) / 10 })),
+        skills: [...p.skills.values()].sort((a, b) => b.damage - a.damage).slice(0, 8).map((k) => ({ id: k.id, damage: k.damage, hits: k.hits, share: Math.round((k.damage / (p.damage || 1)) * 1000) / 10, crit: Math.round((k.crits / k.hits) * 100), max: k.max })),
       })),
     };
   }

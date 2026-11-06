@@ -13098,10 +13098,27 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     }
     return { tg, k };
   }
+  // Live fight's skills that NC's pages don't name (extra hits such as 18050000) get their name from Combat Analysis:
+  // your last Live fight with the same total damage (to 2%), then a line whose damage is that skill's (to 1.5%), or
+  // a named skill's plus it (its extra hits). ponytail: top 7 lines only, so a small skill stays unnamed
+  function aionLearn(f) {
+    const me = [aionFight, ...aionHist.slice(0, 5)].map((h) => ((h && h.players) || []).find((p) => p.me)).find((p) => p && Math.abs(p.damage - f.dmg) <= 0.02 * f.dmg);
+    if (!me) return;
+    const near = (a, b) => Math.abs(a - b) <= 0.015 * b, named = new Map((me.skills || []).filter((k) => aionSkills[k.id]).map((k) => [aionSkills[k.id], k.damage]));
+    let learnt = false;
+    for (const k of me.skills || []) {
+      if (aionSkills[k.id]) continue;
+      const lines = f.k.filter(([n, v]) => !named.has(n) && near(k.damage, v)), plus = f.k.filter(([n, v]) => named.has(n) && near(named.get(n) + k.damage, v));
+      if (lines.length + plus.length !== 1) continue; // none, or two that fit: leave it unnamed rather than guess
+      aionSkills[k.id] = lines.length ? lines[0][0] : `${plus[0][0]} (extra hits)`; learnt = true;
+    }
+    if (learnt) aionPut('lpc-aion-skills', aionSkills);
+  }
   function dpsSave(f) { // the last 200 fights: { at (ms), t (s), d (DPS), dmg, tg (target), k: [[skill, damage, %]] }
     const list = load('lpc-aion-fights', []);
     if (list.some((x) => x.t === f.t && x.dmg === f.dmg)) return; // seen before: the window opened again, or the game's own record of it
     store.set('lpc-aion-fights', JSON.stringify([...list, { at: Date.now(), ...f }].slice(-200)));
+    aionLearn(f);
     notify(`Aion 2 fight saved: ${f.d.toLocaleString('en-US')} DPS${f.tg ? ` on ${f.tg}` : ''} over ${Math.floor(f.t / 60)}:${String(f.t % 60).padStart(2, '0')}`);
   }
 
@@ -14946,6 +14963,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [125, 'November 6: skill icons and more on the Aion 2 DPS meter', [
+      'Desktop app 1.39.0: the DPS meter shows each skill’s icon and name for every class, with its crit rate, hits, average and biggest hit, in the pop-up, your room and the Aion 2 DPS page.',
+      'Skills that Aion 2’s website doesn’t list (like extra hits) used to show as numbers. Open Combat Analysis (Ctrl+X) after a fight with Live fight on and Premade takes their names from there.',
+    ]],
     [124, 'November 6: the Aion 2 DPS meter no longer gets stuck on one fight', [
       'Desktop app 1.38.2: one gap in Aion 2’s traffic (a piece Npcap missed, or pieces the server sent again) could stop Live fight reading anything new, so the meter stayed on its last fight until Premade restarted. Now it carries on after the gap.',
       'The meter follows what your party is hitting, never a tank or party member taking hits, and moves to the next mob as soon as a trash mob dies. A boss you beat still stays up for 15 seconds.',
@@ -15597,13 +15618,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 Today', 'Today: the daily and weekly resets, Shugo Festival and Dimensional Invasion as countdown rings, and with Live fight on the resets as the game gives them, the Artifact Siege, each field boss’s respawn from the in-game map (with a warning 5 minutes before) and your entry tickets as the game counts them.',
         'Open Aion 2: Today is in its menu.', '#aionFrame'],
-      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It follows what your party is hitting, moves on to the next mob as soon as one dies, and keeps a boss you beat up for 15 seconds. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to everyone in your party during that fight.',
+      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills (icon, crit rate, hits, average and biggest hit), past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It follows what your party is hitting, moves on to the next mob as soon as one dies, and keeps a boss you beat up for 15 seconds. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to everyone in your party during that fight.',
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
-      ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills on a click, and a compact mode. It stays on top, opens where you left it and keeps its size.',
+      ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills with their icons, crit rate and hits on a click, and a compact mode. It stays on top, opens where you left it and keeps its size.',
         'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 DPS in your voice room', 'The live fight meter in your room’s Current room card, the same as the DPS pop-up, so it’s there while you talk: the boss’s HP and a bar per player with DPS and share, Total damage, compact mode and top skills on a click. Its pop-out button opens the DPS pop-up over the game.',
         'In your room, Current room card, Aion 2 DPS, once you’ve picked your Aion 2 characters and outside a League game. Live fight has to be on (Aion 2 page, DPS).', '#roomDps, #createBtn', 'app'],
-      ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it.',
+      ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it. With Live fight on, it also names the skills Aion 2’s website doesn’t list.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
