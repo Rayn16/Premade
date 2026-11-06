@@ -12926,7 +12926,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // this PC (lpc-aion-fights) for the Aion 2 page, which shares it with friends.
   // ponytail: the places are measured on one English screenshot (Rayan's, 29 Oct 2026, the window 1217 px wide); another
   // language, or a patch that moves them, needs measuring again
-  const AION_WIN = /^\s*aion\s*2(?!.* [-–—|] )/i; // the game's window, not a browser's or a chat's about it
+  const AION_WIN = /^\s*aion\s*2(?!.* [-–—|] )(?!\s*meter\b)/i; // the game's window, not a browser's or a chat's about it, nor Premade's own DPS pop-up ("Aion 2 meter": two runs on 5 Nov recorded it)
   const CA_HAS = [[0.01, 0.11], [0.35, 0.37], [0.7, 0.82], [0.96, 1]], CA_GAPS = [[0.13, 0.22], [0.39, 0.52], [0.84, 0.9]]; // the header line's figures and the gaps between them, as shares of its length
   let dps = null, dpsLookAt = -Infinity, dpsOcr = null; // watching: { track, stop, sig (the line last read), last (what it said), done, busy, readAt, seen, beat }; Tesseract
   const dpsCv = document.createElement('canvas'), dpsNorm = Object.assign(document.createElement('canvas'), { width: 1217, height: 910 });

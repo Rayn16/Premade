@@ -27,7 +27,7 @@ function fakeApp() {
     version: '1.37.4', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay() {}, on(n, fn) { (on[n] = on[n] || []).push(fn); },
     aionLog: async (file, from) => { if (file === '*') return [window.old, window.log]; const b = new TextEncoder().encode(window.log); return { file: 'a.breadcrumb.log', size: b.length, text: new TextDecoder().decode(b.slice(file ? from : 0)) }; },
-    captureSources: async () => [{ id: 'window:7', type: 'window', name: 'AION2' }],
+    captureSources: async () => [{ id: 'window:3', type: 'window', name: 'Aion 2 meter' }, { id: 'window:7', type: 'window', name: 'AION2' }],
     captureSource: async (id) => { calls.push('pick ' + id); return true; },
     gameVideo: async (what) => { calls.push(what); return what === 'start' ? 'Game 2026-11-05 07-27-03 Recording.webm' : what === 'list' ? [] : true; },
   };
