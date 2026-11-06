@@ -6772,7 +6772,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (s && s.off) aionState = 'game';
     else if (aionState === 'game') aionState = 'on';
     const tix = JSON.stringify((s && s.tickets) || []);
-    if (tix !== aionTixWas) { aionTixWas = tix; if (s.tickets.length) aionTickets(s.tickets); }
+    if (tix !== aionTixWas) { aionTixWas = tix; if (tix !== '[]') aionTickets(s.tickets); } // none while the game is closed ({ off })
     // the game's own schedule and the map's field boss lists (one per zone), as it sends them
     const sched = JSON.stringify((s && s.sched) || {});
     if (sched !== aionSchedWas) { aionSchedWas = sched; if (sched !== '{}') aionPut('lpc-aion-sched', { ...load('lpc-aion-sched', {}), ...s.sched, at: Date.now() }); }
@@ -14946,6 +14946,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [124, 'November 6: the Aion 2 DPS meter no longer gets stuck on one fight', [
+      'Desktop app 1.38.2: one gap in Aion 2’s traffic (a piece Npcap missed, or pieces the server sent again) could stop Live fight reading anything new, so the meter stayed on its last fight until Premade restarted. Now it carries on after the gap.',
+      'The meter follows what your party is hitting, never a tank or party member taking hits, and moves to the next mob as soon as a trash mob dies. A boss you beat still stays up for 15 seconds.',
+      'Only my party keeps everyone who was in your party during a fight, also after the party breaks up at the end of a run.',
+    ]],
     [123, 'November 6: only the boss fights from your Aion 2 dungeon runs', [
       'Desktop app 1.38.1: when a dungeon run ends, its video is cut down to just the boss fights. Premade spots a fight from the gauge under a boss’s health bar. To keep whole runs with each fight marked, turn off Keep only the boss fights on the Recording page.',
       'Dungeon recordings also capture Aion 2 itself now, never Premade’s own DPS pop-up.',
@@ -15592,7 +15597,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Open Aion 2. It knows your League account and friends from Premade; pick which Aion 2 characters are yours once, on its Profile.', '#aionFrame'],
       ['Aion 2 Today', 'Today: the daily and weekly resets, Shugo Festival and Dimensional Invasion as countdown rings, and with Live fight on the resets as the game gives them, the Artifact Siege, each field boss’s respawn from the in-game map (with a warning 5 minutes before) and your entry tickets as the game counts them.',
         'Open Aion 2: Today is in its menu.', '#aionFrame'],
-      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to your party.',
+      ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills, past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It follows what your party is hitting, moves on to the next mob as soon as one dies, and keeps a boss you beat up for 15 seconds. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to everyone in your party during that fight.',
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
       ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills on a click, and a compact mode. It stays on top, opens where you left it and keeps its size.',
         'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],

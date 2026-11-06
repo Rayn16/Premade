@@ -107,4 +107,75 @@ const g = new Fight();
 for (const [op, p] of [[0x9101, list], [0xe223, Buffer.concat([u64(day), u32(0)])]]) g.add(decode(op, p), 0);
 const gs = g.snapshot(0, true);
 assert.deepStrictEqual([gs.sched, gs.bosses.world, gs.bosses.list.length], [{ day }, 1010, 3]);
+// a packet the capture missed: after 64 more it goes on from them (it used to read nothing again: the meter stuck on its
+// last fight, Rayan 6 Nov), and a piece sent again over one waiting leaves nothing behind
+{
+  const got = [], st = new Stream((e) => { if (e.k === 'hit') got.push(e.damage); });
+  const data = Buffer.concat(Array.from({ length: 3000 }, (_, i) => hit(500, 11, 1000 + i, false)));
+  st.push(99, Buffer.alloc(0), true);
+  const pk = [];
+  for (let o = 0; o < data.length; o += 1000) pk.push([100 + o, data.subarray(o, o + 1000)]);
+  pk.forEach(([seq, b], i) => { if (i !== 20) st.push(seq, b, false); });
+  assert.strictEqual(got[got.length - 1], 3999, 'read to the end');
+  assert.ok(got.length > 2900, `most of it read (${got.length} of 3000)`);
+  assert.deepStrictEqual([st.wait.size, st.synced], [0, true]);
+  const st2 = new Stream(() => {});
+  st2.push(99, Buffer.alloc(0), true);
+  st2.push(100, data.subarray(0, 1000), false);
+  st2.push(2100, data.subarray(2000, 3000), false); // waits for 1100-2100
+  st2.push(1100, data.subarray(1000, 2500), false); // sent again in a bigger piece, over the waiting one
+  assert.deepStrictEqual([st2.wait.size, st2.next], [0, 3100], 'nothing left waiting');
+  // a lost packet sent again together with the next one (as servers do), 70 times: each used to stay waiting, and at 65
+  // the stream went back to them and stopped
+  const seen = new Map(), st3 = new Stream((e) => { if (e.k === 'hit') seen.set(e.damage, (seen.get(e.damage) || 0) + 1); });
+  st3.push(99, Buffer.alloc(0), true);
+  const small = [];
+  for (let o = 0; o < data.length; o += 100) small.push([100 + o, data.subarray(o, o + 100)]);
+  for (let i = 0; i < small.length; i++) {
+    if (i % 10 !== 5 || i + 1 >= small.length) { st3.push(...small[i], false); continue; }
+    st3.push(...small[i + 1], false);
+    st3.push(small[i][0], Buffer.concat([small[i][1], small[i + 1][1]]), false);
+    i++;
+  }
+  assert.deepStrictEqual([seen.size, Math.max(...seen.values()), st3.wait.size], [3000, 1, 0], 'every hit once');
+}
+// whose fight it is
+{
+  const g2 = new Fight();
+  g2.add({ k: 'name', id: 1, name: 'Me', me: true }, 0);
+  g2.add({ k: 'name', id: 2, name: 'Ally' }, 0);
+  g2.add({ k: 'name', id: 3, name: 'Stranger' }, 0);
+  g2.add({ k: 'party', names: ['Me', 'Ally', 'Tank'] }, 0);
+  // the tank, not named yet, takes far more from mobs than you deal: the fight is still what you hit
+  for (let i = 0; i < 10; i++) g2.add({ k: 'hit', target: 700, source: 40000 + i, skill: 1, damage: 1e6 }, 100);
+  g2.add({ k: 'hit', target: 600, source: 1, skill: 1, damage: 1000 }, 100);
+  assert.deepStrictEqual(g2.snapshot(200, true).players.map((p) => p.name), ['Me'], 'what you hit, not the tank');
+  // with nobody in the party hitting anything, what's hit most; once it's named as one of you, nothing
+  const g3 = new Fight();
+  g3.add({ k: 'party', names: ['Me', 'Tank'] }, 0);
+  g3.add({ k: 'hit', target: 700, source: 40000, skill: 1, damage: 1e6 }, 100);
+  assert.strictEqual(g3.snapshot(200, true).players[0].name, 'Player 40000');
+  g3.add({ k: 'name', id: 700, name: 'Tank' }, 300);
+  assert.strictEqual(g3.snapshot(400, true).players, undefined, 'a party member is never the fight');
+  // a mob under a name (a number a player had) that your party hits is the fight, and goes in the history
+  g2.add({ k: 'name', id: 900, name: 'Gone' }, 0);
+  g2.add({ k: 'hp', id: 900, hp: 5e6 }, 1000);
+  for (let i = 0; i < 12; i++) { g2.add({ k: 'hit', target: 900, source: 1, skill: 1, damage: 3e5 }, 1000 + i * 1000); g2.add({ k: 'hit', target: 900, source: 2, skill: 1, damage: 1e5 }, 1000 + i * 1000); g2.add({ k: 'hit', target: 900, source: 3, skill: 1, damage: 1e4 }, 1000 + i * 1000); }
+  assert.strictEqual(g2.snapshot(12000, true).hp, 5e6, 'not stuck on the last fight');
+  g2.add({ k: 'hp', id: 900, hp: 0 }, 12000);
+  assert.deepStrictEqual(g2.finished(16000, true).map((f) => f.players.map((p) => p.name)), [['Me', 'Ally']]);
+  // the party splits up after the run: its last fight keeps who was in it
+  g2.add({ k: 'party', names: ['Me'] }, 17000);
+  assert.deepStrictEqual(g2.snapshot(17000, true).players.map((p) => [p.name, p.party]), [['Me', true], ['Ally', true]]);
+  g2.add({ k: 'party', names: [] }, 18000);
+  assert.deepStrictEqual(g2.snapshot(18000, true).players.map((p) => p.name), ['Me', 'Ally'], 'no stranger either');
+  // a trash mob won in 3 s doesn't stay up over the next one
+  g2.add({ k: 'hit', target: 950, source: 1, skill: 1, damage: 5e5 }, 30000);
+  assert.strictEqual(g2.snapshot(30000, true).players[0].damage, 5e5);
+  g2.add({ k: 'hit', target: 950, source: 1, skill: 1, damage: 5e5 }, 33000);
+  g2.add({ k: 'hp', id: 950, hp: 0 }, 33000);
+  assert.strictEqual(g2.snapshot(33000, true).players[0].damage, 1e6);
+  g2.add({ k: 'hit', target: 951, source: 1, skill: 1, damage: 7 }, 34000);
+  assert.strictEqual(g2.snapshot(24000, true).players[0].damage, 7, 'the next mob at once');
+}
 console.log('aionlive ok');

@@ -228,14 +228,26 @@ class Stream {
     if (d < 0) { if (-d >= data.length) return; data = data.subarray(-d); seq = this.next; }
     else if (d > 0) { this.wait.set(seq, data); if (this.wait.size > 64) this.resync(); return; }
     this.take(data);
-    for (let more; (more = this.wait.get(this.next)); ) { this.wait.delete(this.next); this.take(more); }
+    this.drain();
   }
-  resync() { // a lost packet: start again from the earliest one waiting
-    const first = [...this.wait.keys()].sort((a, b) => ((a - b) | 0))[0];
-    const data = this.wait.get(first);
-    this.wait.delete(first);
-    this.next = first; this.buf = Buffer.alloc(0); this.synced = false;
-    this.take(data);
+  drain() { // the ones waiting that follow on now, also when sent again in other pieces (partly read already)
+    for (let more = true; more; ) {
+      more = false;
+      for (const [k, b] of this.wait) {
+        const d = (k - this.next) | 0;
+        if (d > 0) continue;
+        this.wait.delete(k);
+        if (-d < b.length) { this.take(b.subarray(-d)); more = true; }
+      }
+    }
+  }
+  // a packet that never comes (the capture missed it): go on from the earliest one waiting, and every one after it.
+  // It used to take only that one and empty what it had read each time, so the stream never read a frame again and the
+  // meter stayed on its last fight (Rayan, 6 Nov)
+  resync() {
+    this.next = [...this.wait.keys()].sort((a, b) => ((a - b) | 0))[0];
+    this.buf = Buffer.alloc(0); this.synced = false;
+    this.drain();
   }
   take(data) {
     this.next = (this.next + data.length) >>> 0;
@@ -271,7 +283,7 @@ class Fight {
     let t = this.targets.get(e.target);
     if (!t || now - t.lastAt > 30e3) this.targets.set(e.target, (t = { id: e.target, firstAt: now, lastAt: now, recent: [], by: new Map() }));
     t.lastAt = now;
-    t.recent.push([now, e.damage]);
+    t.recent.push([now, e.damage, source]);
     let s = t.by.get(source);
     if (!s) t.by.set(source, (s = { id: source, damage: 0, hits: 0, crits: 0, firstAt: now, skills: new Map() }));
     s.damage += e.damage; s.lastAt = now;
@@ -280,24 +292,27 @@ class Fight {
     const id = Math.floor(code / 10000) * 10000, k = s.skills.get(id) || { id, damage: 0, hits: 0 };
     k.damage += e.damage; k.hits++; s.skills.set(id, k);
   }
+  ours(id) { const n = this.names.get(id); return !!n && (n === this.me || this.party.has(n)); } // you, or someone in your party
   // one fight's numbers: everyone on target t (or your party only), each with their top skills
   numbers(t, partyOnly) {
     this.guessMe(t);
     const secs = Math.max(1, (t.lastAt - t.firstAt) / 1000);
     const name = (id) => this.names.get(id) || '';
-    const inParty = (p) => this.party.has(name(p.id)) || (!!this.me && name(p.id) === this.me);
     let players = [...t.by.values()];
+    // in your party at any time in this fight stays in it: the party splitting up after a run took everyone but you off
+    // its last fight (Rayan's runs, 5 Nov)
+    for (const p of players) p.was = p.was || (!!this.party.size && this.ours(p.id));
     // only your party: those named and in it, and those not named yet (a reader started partway through a zone hears a
     // name only when someone comes into view) unless they're a pet's or summon's crumbs
     const all = players.reduce((a, p) => a + p.damage, 0);
-    if (partyOnly && this.party.size) players = players.filter((p) => inParty(p) || (!this.names.has(p.id) && p.damage >= 0.02 * all));
+    if (partyOnly && (this.party.size || players.some((p) => p.was))) players = players.filter((p) => p.was || (!this.names.has(p.id) && p.damage >= 0.02 * all));
     const total = players.reduce((a, p) => a + p.damage, 0) || 1;
     const h = this.hp.get(t.id);
     return {
       secs: Math.round(secs), target: name(t.id),
       hp: h ? h.hp : null, pct: h && h.max ? Math.round((h.hp / h.max) * 1000) / 10 : null,
       players: players.sort((a, b) => b.damage - a.damage).slice(0, 12).map((p) => ({
-        name: name(p.id) || `Player ${p.id}`, me: !!this.me && name(p.id) === this.me, party: inParty(p), damage: p.damage,
+        name: name(p.id) || `Player ${p.id}`, me: !!this.me && name(p.id) === this.me, party: p.was || this.ours(p.id), damage: p.damage,
         dps: Math.round(p.damage / secs), share: Math.round((p.damage / total) * 1000) / 10, crit: p.hits ? Math.round((p.crits / p.hits) * 100) : 0,
         skills: [...p.skills.values()].sort((a, b) => b.damage - a.damage).slice(0, 8).map((k) => ({ id: k.id, damage: k.damage, hits: k.hits, share: Math.round((k.damage / (p.damage || 1)) * 1000) / 10 })),
       })),
@@ -318,7 +333,8 @@ class Fight {
   finished(now, partyOnly) {
     const out = [];
     for (const t of this.targets.values()) {
-      if (t.saved || this.names.has(t.id)) continue;
+      // never you or your party; another player only if your party fought them (else it's mobs hitting them)
+      if (t.saved || this.ours(t.id) || (this.names.has(t.id) && ![...t.by.keys()].some((id) => this.ours(id)))) continue;
       const killed = (this.hp.get(t.id) || {}).hp === 0, secs = (t.lastAt - t.firstAt) / 1000;
       if (!(killed ? now - t.lastAt > 3e3 && secs >= 10 : now - t.lastAt > 30e3 && secs >= 20)) continue;
       t.saved = true;
@@ -328,15 +344,27 @@ class Fight {
     return out;
   }
   snapshot(now, partyOnly) {
-    let best = null, most = 0;
+    let best = null, top = [0, 0];
     for (const t of this.targets.values()) {
       t.recent = t.recent.filter(([at]) => now - at < 15e3);
-      const sum = t.recent.reduce((a, [, d]) => a + d, 0);
-      if (sum > most && !this.names.has(t.id)) { most = sum; best = t; } // a named character (you, your party, a player) being hit is never the fight: mobs hitting them, or heals
       if (now - t.lastAt > 120e3) this.targets.delete(t.id);
+      // you or your party being hit (mobs, or heals) is never the fight, nor one already won (not hit since)
+      const h = this.hp.get(t.id);
+      if (this.ours(t.id) || (h && h.hp === 0 && h.at >= t.lastAt)) continue;
+      // The fight is what your party hit most in the last 15 s. With nobody in it named yet, it's what was hit most, but
+      // never another player (named: mobs hitting them). Under a name it can still be a mob your party hits: the numbers
+      // are small (under 65,536 on Rayan's meter), so one named once may be a mob's later; skipping those could leave
+      // the meter on its last fight
+      let all = 0, mine = 0;
+      for (const [, d, s] of t.recent) { all += d; if (this.ours(s)) mine += d; }
+      const v = mine ? [1, mine] : [0, this.names.has(t.id) ? 0 : all];
+      if (v[0] > top[0] || (v[0] === top[0] && v[1] > top[1])) { top = v; best = t; }
     }
-    const dead = this.last && (this.hp.get(this.last.id) || {}).hp === 0 && now - this.last.lastAt < 15e3;
-    if (best && !dead) this.last = best; // a fight just won stays up 15 s, before the trash mobs after it
+    if (this.last && this.ours(this.last.id)) this.last = null; // named as one of you since it was picked
+    // a fight just won stays up 15 s, before the trash mobs after it; one won in under 10 s (a trash mob) doesn't hold the
+    // next pull back
+    const l = this.last, dead = l && (this.hp.get(l.id) || {}).hp === 0 && now - l.lastAt < 15e3 && l.lastAt - l.firstAt >= 10e3;
+    if (best && !dead) this.last = best;
     const t = this.last;
     return { members: this.members, tickets: [...this.tickets.values()], sched: this.sched, bosses: this.bosses, ...(t && { active: now - t.lastAt < 15e3, ...this.numbers(t, partyOnly) }) };
   }
