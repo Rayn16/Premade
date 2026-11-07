@@ -1,6 +1,6 @@
 // Checks the augment ratings (/riot/mayhem and /riot/tftaug) under `wrangler dev`: Premade apps send their games'
-// augments, each game counts once, bad games and an address's 31st game in an hour are refused, and the counts come
-// back by champion (Mayhem) and for the newest set (TFT).
+// augments, each game counts once, bad games, an address's 201st game in an hour and games past the day's 20,000
+// rows written are refused, and the counts come back by champion (Mayhem) and for the newest set (TFT).
 // WRANGLER=<path to wrangler> node aug.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -40,9 +40,16 @@ const tft = (g, s) => ({ g, s, ps: Array.from({ length: 8 }, (_, i) => ({ p: i +
     assert.equal(await send('tftaug', { ...tft('NA1_5006000', 18), pad: 'x'.repeat(9000) }), 'too big');
     assert.deepEqual(await get('tftaug'), { s: 18, a: { TFT18_Augment_Rich: [4, 6, 4], DA_18_Cluster: [16, 72, 8] } }, 'set 18 only: Rich 1st and 2nd twice');
     assert.deepEqual(await get('tftaug?s=17'), { s: 17, a: { TFT18_Augment_Rich: [2, 3, 2], DA_18_Cluster: [8, 36, 4] } }, 'set 17 when asked');
-    for (let i = 0; i < 30; i++) await send('mayhem', may('KR_' + (8000000 + i)), '203.0.113.7');
-    assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.7'), 'too many', 'the 31st in an hour');
+    for (let i = 0; i < 200; i++) await send('mayhem', may('KR_' + (8000000 + i)), '203.0.113.7');
+    assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.7'), 'too many', 'the 201st in an hour');
     assert.equal(await send('mayhem', may('KR_90000000'), '203.0.113.8'), 'ok', 'another address');
-    console.log('augment ratings: games counted once, bad ones refused, 30 an hour from an address, counts by champion and for the newest set');
+    const heavy = (g) => ({ g, ps: may(g).ps.map((p) => ({ ...p, a: [1, 2, 3, 4, 5, 6, 7, 8] })) }); // 92 rows, a real Mayhem game about 52
+    // 4,704 rows so far today: Mayhem games of 23 and 22 rows, 3 TFT games of 12, then 201 games of 23
+    for (let i = 0; i < 166; i++) assert.equal(await send('mayhem', heavy('KR_' + (9000000 + i)), '203.0.113.9'), 'ok'); // 19,976 rows
+    assert.equal(await send('mayhem', heavy('KR_9999998'), '203.0.113.9'), 'later', 'past the day\'s 20,000 rows');
+    assert.equal(await send('mayhem', may('KR_9999999'), '203.0.113.10'), 'ok', 'a light game still fits');
+    assert.equal(await send('mayhem', may('KR_9999997'), '203.0.113.10'), 'later', 'and then the day is full');
+    assert.equal(await send('mayhem', may('KR_8000000'), '203.0.113.10'), 'ok', 'a game already in still answers ok');
+    console.log('augment ratings: games counted once, bad ones refused, 200 an hour from an address (a history sent at once) and 20,000 rows a day, counts by champion and for the newest set');
   } finally { process.kill(-wr.pid); }
 })().catch((e) => { console.error(e); process.exitCode = 1; });
