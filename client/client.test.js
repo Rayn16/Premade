@@ -502,12 +502,15 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert.strictEqual(await js(`lpcClient.gameVideo('end', ${JSON.stringify(v2)})`), true);
     assert.deepStrictEqual([...fs.readFileSync(path.join(gamesDir, v2))], [1, 2, 3], 'not a WebM: left as it was');
     assert(!JSON.parse(fs.readFileSync(finishList, 'utf8')).includes(path.join(gamesDir, v2)), 'nothing left to finish');
+    assert.strictEqual(await js(`lpcClient.gameVideo('json', ${JSON.stringify(v2)}, '{"bosses":[]}')`), true); // app 1.42: an Aion 2 run's timeline beside its video
+    assert.strictEqual(fs.readFileSync(path.join(gamesDir, v2.replace(/\.webm$/, '.json')), 'utf8'), '{"bosses":[]}');
+    assert.strictEqual(await js(`lpcClient.gameVideo('json', '../evil.webm', '{}')`), false, 'only beside a video');
     assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(v2)})`), true);
     const old = new Date(Date.now() - 10 * 864e5);
     fs.utimesSync(file, old, old);
     assert.deepStrictEqual(await js('lpcClient.gameVideo("clean", 14)'), [], 'kept for 14 days');
     assert.deepStrictEqual(await js('lpcClient.gameVideo("clean", 7)'), [gv.name], 'binned after 7');
-    assert(binned.includes(v2) && binned.includes(gv.name) && fs.readdirSync(gamesDir).join() === v1, `the Recycle Bin: ${binned}`);
+    assert(binned.includes(v2) && binned.includes(v2.replace(/\.webm$/, '.json')) && binned.includes(gv.name) && fs.readdirSync(gamesDir).join() === v1, `the Recycle Bin: ${binned}`);
     console.log(`whole game on video: ${gv.name}, ${(gv.size / 1e6).toFixed(1)} MB, ${len.toFixed(1)} s, skips to ${mid.toFixed(1)} s`);
 
     // Test version first (Settings > App): the test/ copy of the page, kept for next time (test-version in the app's
