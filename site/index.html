@@ -9242,7 +9242,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     r.ocr = r.ocr || augLoad('6', '');
     r.ocrQ = (r.ocrQ || Promise.resolve()).then(() => r.ocr).then((w) => w.recognize(cv)).then((x) => { r.ocrOk = true; done(x.data.text.replace(/\s+/g, ' ').trim()); }, () => {}).finally(() => r.ocrN--);
   }
-  const runBosses = () => load('lpc-aion-bosses', {}); // { map: [boss names that died there] }
+  const runBosses = () => load('lpc-aion-run-bosses', {}); // { map: [boss names that died there] }
   function runName(r, text) { // a boss name read: letters only, and one read before if it's nearly that
     const s = text.replace(/[^A-Za-z' -]/g, '').replace(/\s+/g, ' ').trim(), k = augKey(s);
     if ((s.match(/[A-Za-z]/g) || []).length < 4) return '';
@@ -9329,7 +9329,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         return store.set('lpc-vid-marks', JSON.stringify(vidMarks));
       }
       const bosses = runBosses(), died = fights.filter((f) => f.kill !== null && f.name);
-      if (died.length) { bosses[map] = [...new Set([...(bosses[map] || []), ...died.map((f) => f.name)])].slice(-20); store.set('lpc-aion-bosses', JSON.stringify(bosses)); }
+      if (died.length) { bosses[map] = [...new Set([...(bosses[map] || []), ...died.map((f) => f.name)])].slice(-20); store.set('lpc-aion-run-bosses', JSON.stringify(bosses)); }
       const cut = fights.length && opts.aionBoss && (await keepOnly(name, parts, label));
       if (fights.length && !cut) { vidMarks[name] = [...(vidMarks[name] || []), ...fights.map((f, k) => ({ s: f.a + 10, from: f.a, text: label(k) }))].sort((x, y) => x.s - y.s); store.set('lpc-vid-marks', JSON.stringify(vidMarks)); }
       const at = (t) => { if (!cut) return t; let o = 0; for (const [a, z] of parts) { if (t >= a && t <= z) return o + t - a; o += z - a; } return null; }; // a second of the run in the saved video
@@ -15279,6 +15279,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       'Desktop app 1.43.0: an Aion 2 run cut down to its boss fights now keeps each kill: a fight runs until its Boss Defeated banner, not until the boss’s health bar goes. Menus with a bar in them, elites and the walking between them are left out, since a fight is kept only with a kill or a boss that died in that dungeon before.',
       'Each fight is marked with its boss’s name, read off the game’s picture, a dungeon Premade hasn’t named yet gets its name from your quest tracker (rename it on the Recording page if it picks up an objective instead), and each run’s video gets a timeline file beside it in its folder: the bosses, kills, respawns, each cast with its countdown, and the boss’s health over the fight.',
       'Bosses you don’t target count too (from their cast bar and banner), and a boss fight outside a dungeon, like a field boss or content Premade doesn’t know yet, is recorded as well. A recording that turns out to have no boss in it goes to the Recycle Bin.',
+    ]],
     [130, 'November 7: rotation tests and a pull log for Aion 2', [
       'Aion 2’s DPS page and the DPS pop-up have Rotation tests: name a test (the flask on the pop-up), hit a training dummy, and each fight Live fight saves is a run. The page shows each test’s average DPS, opener (0-10 s) and burst (10-20 s) damage and top skills, against the test before it.',
       'The DPS page’s Pull log lists every attempt at each boss: HP left, time, deaths and party DPS, with your best. On the pop-up, a boss you’ve killed before shows your pace against your fastest kill at the same second, like “+4% vs best”.',

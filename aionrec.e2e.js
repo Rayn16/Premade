@@ -84,7 +84,7 @@ function fakeApp() {
     const tl = await page.evaluate(() => window.timeline);
     assert(tl.map === 600092 && tl.dungeon === 'Ferocious Horn Den' && tl.parts.length === 1 && tl.bosses.length === 1 && tl.bosses[0].name === 'Nuakum' && tl.bosses[0].from === 0 && tl.bosses[0].kill > 30, `the timeline: ${JSON.stringify(tl.bosses)}`);
     assert(tl.kills.length === 1 && tl.casts.some((c) => /Blue Light/i.test(c.name) && c.secs === 12 && c.t > 5) && tl.bosses[0].hp.some(([, hp]) => hp > 70 && hp < 80), `kills, casts and health: ${JSON.stringify(tl)}`);
-    assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-bosses'))), { 600092: ['Nuakum'] }, 'the dungeon’s bosses learnt');
+    assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-run-bosses'))), { 600092: ['Nuakum'] }, 'the dungeon’s bosses learnt');
     // a field map: a boss bar for 5 s records a run (on Live fight's watch of Aion 2's window); a town map ends it, and with no boss in it it's binned
     await page.evaluate(() => { localStorage.setItem('lpc-aion', '1'); log += `[${new Date().toISOString().replace('Z', '+0000')}] [0] Flow.Teleport.LoadComplete.Map(510003)\n`; window.scene = 'elite'; });
     await page.waitForFunction(() => calls.filter((c) => c === 'start').length === 2, null, { timeout: 40000 });
