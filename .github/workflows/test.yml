@@ -22,3 +22,8 @@ jobs:
       - run: xvfb-run -a npm test
         env:
           NODE_PATH: ${{ github.workspace }}/node_modules
+      # the desktop app itself (real Electron, its main.js and preload.js) against a local copy of site/
+      - run: npm ci --no-audit --no-fund
+        working-directory: client
+      - run: xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream --proxy-server=127.0.0.1:9 client.test.js
+        working-directory: client

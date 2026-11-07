@@ -1593,6 +1593,7 @@ function controlEnd(why) {
   if (!control) return;
   const c = control;
   control = null;
+  c.ended = true; // input still waiting on a clipboard write is dropped
   clearInterval(c.timer);
   controlLetGo(c);
   c.bar.destroy();
@@ -1665,10 +1666,17 @@ ipcMain.handle('control', async (e, name) => {
 });
 ipcMain.on('control-stop', (e) => { if (fromSite(e)) controlEnd(); });
 ipcMain.on('control-input', (e, m) => { if (fromSite(e) && control && m && typeof m === 'object') controlInput(control, m); });
+// Electron 45's clipboard writes are promises: input after their paste waits for it, in order, so their V never pastes
+// what was on your clipboard before
 function controlInput(c, m) {
+  const p = c.wait ? c.wait.then(() => { if (!c.ended) return controlInputNow(c, m); }) : controlInputNow(c, m);
+  if (!p) return;
+  const w = c.wait = p.catch(() => {}).then(() => { if (c.wait === w) c.wait = null; });
+}
+function controlInputNow(c, m) {
   c.last = Date.now();
   if (c.paused) return;
-  if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText(m.text.slice(0, 20000)).catch(() => {}); return; } // their Ctrl+V: what they copied, then their V pastes it (Electron 45: a promise; ponytail: the V isn't held for it, as a write lands in well under a ms; queue input behind it if a paste ever comes out old)
+  if (m.k === 'clip') return typeof m.text === 'string' && clipboard.writeText(m.text.slice(0, 20000)).catch((e) => diag(`Remote help: couldn’t put their copied text on the clipboard (${e && e.message})`)); // their Ctrl+V: what they copied, then their V pastes it
   if (Number.isFinite(m.x) && Number.isFinite(m.y)) {
     const b = c.bounds, k = c.scale || 1, o = screen.dipToScreenPoint({ x: b.x, y: b.y }), f = (v) => Math.min(1, Math.max(0, v)); // that screen in real pixels, from its corner, on any DPI setup
     c.u.at(Math.round(o.x + f(m.x) * (b.width * k - 1)), Math.round(o.y + f(m.y) * (b.height * k - 1)));
