@@ -279,9 +279,10 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .roomchat li.pinged { background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: inset 2px 0 var(--gold); }
 .roomchat li.flash { animation: chatflash 1.2s; }
 @keyframes chatflash { from { background: color-mix(in srgb, var(--gold) 35%, transparent); } }
-.roomchat .acts { position: absolute; top: 2px; right: 4px; display: none; gap: 2px; padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+.roomchat .acts { position: absolute; top: 0; right: 4px; transform: translateY(-100%); z-index: 1; display: none; gap: 2px; padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
 .roomchat li:hover .acts, .roomchat li:focus-within .acts { display: flex; }
-@media (hover: none) { .roomchat .acts { position: static; width: fit-content; margin-top: 4px; } } /* a phone: a tapped message shows its buttons under it, not over its text */
+.roomchat li:first-child .acts { top: 100%; transform: none; } /* over the message's edge, never its own buttons and text (the first one's under it, inside the scroll box) */
+@media (hover: none) { .roomchat .acts { position: static; width: fit-content; margin-top: 4px; transform: none; } } /* a phone: a tapped message shows its buttons under it, not over its text */
 .roomchat .acts button { font: 12px/1 var(--body); padding: 4px 6px; border: 0; background: none; color: var(--fg); cursor: pointer; border-radius: 3px; }
 .roomchat .acts button:hover, .roomchat .acts button:focus-visible { background: color-mix(in srgb, var(--fg) 12%, transparent); }
 .roomchat .quote { display: block; font: 12px/1.3 var(--body); color: var(--muted); background: none; border: 0; padding: 0 0 2px; cursor: pointer; text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
