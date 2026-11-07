@@ -6350,6 +6350,24 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     g.requestFullscreen().catch((e) => notify(`Couldn’t go full screen: ${e.message}`, true));
   });
   document.addEventListener('fullscreenchange', () => { $('sideBtn').textContent = document.fullscreenElement === $('screenGrid') ? 'Back' : 'Side by side'; });
+  // full screen videos (What's new 139, Rayan: "this doesn't go away"): Chromium kept its control bar and shade over a
+  // full screen screen share, so the bar and the mouse hide after 3 s of no mouse or keys while it plays, like any player
+  let fsVids = [], fsIdle = 0;
+  const fsShow = (on) => { for (const v of fsVids) { v.controls = on; v.style.cursor = on ? '' : 'none'; } };
+  const fsWake = () => {
+    if (!fsVids.length) return;
+    fsShow(true);
+    clearTimeout(fsIdle);
+    fsIdle = setTimeout(() => { if (fsVids.some((v) => !v.paused)) fsShow(false); }, 3000);
+  };
+  document.addEventListener('fullscreenchange', () => {
+    clearTimeout(fsIdle); fsShow(true);
+    const f = document.fullscreenElement;
+    fsVids = !f ? [] : f.matches('video[controls]') ? [f] : [...f.querySelectorAll('video[controls]')];
+    fsWake();
+  });
+  for (const ev of ['mousemove', 'mousedown', 'keydown']) document.addEventListener(ev, fsWake, { passive: true });
+  document.addEventListener('pause', fsWake, true);
   // Zoom (What's new 121): Ctrl + scroll or a touchpad pinch on a screen zooms in at the pointer (1x to 4x), a drag
   // moves around while zoomed (unless you're pointing), and the button with the zoom on it goes back to 1x. Only a
   // CSS transform, so it costs nothing; zoomed in, seeWant asks the sharer for a sharper picture.
@@ -15886,6 +15904,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [139, 'November 7: full screen videos hide their controls', [
+      'A screen share or video in full screen now hides its control bar, the dark shade under it and the mouse after 3 seconds without moving the mouse, like any video player. Move the mouse or press a key and they come back; paused, they stay.',
+    ]],
     [138, 'November 7: Change a shortcut to keys another app uses', [
       'Change on a shortcut now takes keys that another app has as its own shortcut, like NVIDIA’s Alt+Z or Alt+R: they never reached Premade, so the button just waited. Needs desktop app 1.45.1, which updates itself.',
     ]],
@@ -16555,7 +16576,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
       ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
-      ['Side by side and zoom', 'Watch every screen in your room full screen side by side. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
+      ['Side by side and zoom', 'Watch every screen in your room full screen side by side; full screen, the controls and the mouse hide after 3 seconds without moving the mouse. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
