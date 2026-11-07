@@ -15550,8 +15550,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // took it and never to this page, so pressing one of ours (or picking the same keys again) did nothing
   for (const b of document.querySelectorAll('.keyrow [data-key]')) b.addEventListener('click', () => {
     capture = b.dataset.key; lone = false; renderKeys();
-    if (client) client.keys({}).catch(() => {});
+    if (client) client.keys({ capture: true }).catch(() => {});
   });
+  // app 1.45.1 reads the keys too and sends them here: keys another app took as its hotkey (NVIDIA's Alt+Z...) never reach this page
+  if (client && client.on) client.on('key', (k) => { if (capture && capture !== 'ptt' && /^combo:/.test(k)) { keys[capture] = k.slice(6); capture = ''; applyKeys(); } });
   addEventListener('mousedown', (e) => { if (capture && !e.target.closest?.('.keyrow [data-key]') && !(capture === 'ptt' && mouseCode(e))) { capture = ''; applyKeys(); } }); // a click elsewhere cancels
   $('pttOff').addEventListener('click', () => { keys.ptt = ''; applyKeys(); });
   const typing = (e) => e.target instanceof Element && !!e.target.closest('input, select, textarea');
@@ -15884,6 +15886,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [138, 'November 7: Change a shortcut to keys another app uses', [
+      'Change on a shortcut now takes keys that another app has as its own shortcut, like NVIDIA’s Alt+Z or Alt+R: they never reached Premade, so the button just waited. Needs desktop app 1.45.1, which updates itself.',
+    ]],
     [137, 'November 7: Aion 2’s overlay has its own page', [
       'Aion 2 overlay, in the menu under Aion 2: the key that shows the Aion 2 card over the game, and the dungeon guide with Read Aion 2 callouts out loud and your note per cast (they were on the Recording page).',
     ]],
@@ -16632,7 +16637,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
       ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
-        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift.', '#kShow', 'app'],
+        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift. Keys another app uses as its shortcut work too (app 1.45.1).', '#kShow', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
       ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],

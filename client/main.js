@@ -1517,6 +1517,24 @@ ipcMain.handle('keys', (e, k) => {
       }, 15);
       ok.ptt = !!code;
       ok.overlay = !!hotKey;
+      // app 1.45.1: while a Change button waits for keys ({ capture: true }), the keys pressed are read here too and sent
+      // as 'combo:Alt+Z': keys another app took as its hotkey (NVIDIA's Alt+Z, Alt+R, Alt+F1...) never reach the page
+      if (k.capture) {
+        const CAP = [...Array(26)].map((x, i) => [String.fromCharCode(65 + i), 65 + i]).concat([...Array(10)].map((x, i) => [String(i), 0x30 + i]), [...Array(12)].map((x, i) => ['F' + (i + 1), 0x70 + i]));
+        const was = new Set(CAP.filter(([, c]) => keyState(c) & 0x8000).map(([n]) => n));
+        const capTimer = setInterval(() => {
+          if (win.isDestroyed()) return;
+          for (const [n, c] of CAP) {
+            if (!(keyState(c) & 0x8000)) { was.delete(n); continue; }
+            if (was.has(n)) continue;
+            was.add(n);
+            const mods = [[0x11, 'Ctrl'], [0x12, 'Alt'], [0x10, 'Shift']].filter(([m]) => keyState(m) & 0x8000).map(([, m]) => m);
+            if (win.isFocused() && (mods.length || n[0] === 'F' && n.length > 1)) win.webContents.send('key', 'combo:' + [...mods, n].join('+'));
+          }
+        }, 15);
+        clearInterval(pttTimer);
+        pttTimer = capTimer;
+      }
     } catch (err) { console.error('push to talk:', err); }
   }
   if (!ok.overlay) ok.overlay = reg(k.overlay, () => win.webContents.send('key', 'overlay')); // elsewhere, or without user32

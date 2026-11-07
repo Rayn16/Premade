@@ -1436,6 +1436,13 @@ const leagueData = (over = {}) => ({
     await pc.$eval('#optOpacity', (el) => { el.value = 0.6; el.dispatchEvent(new Event('input')); });
     await wait(pc, () => lpcClient.lastOverlay.opacity === 0.6 && document.getElementById('opacityOut').textContent === '60%', null, 'a see-through overlay');
     assert.strictEqual(await text(pc, '#kOverlay'), 'Alt+V');
+    // keys another app took (NVIDIA's Alt+Z) reach the page only from the app, as 'combo:'
+    await pc.$eval('#kAionOv + button', (b) => b.click());
+    await pc.evaluate(() => lpcClient.emit('key', 'combo:Alt+Z'));
+    await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+Z' && document.getElementById('kAionOv').textContent === 'Alt+Z', null, 'a key another app took, picked through the app');
+    await pc.$eval('#kOverlay + button', (b) => b.click());
+    await pc.evaluate(() => lpcClient.emit('key', 'combo:Alt+V'));
+    await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+V', null, 'Alt+V back');
     // its key: everyone's rank (no tips in a game), then hidden, then back
     await pc.evaluate(() => { lpcClient.emit('key', 'overlay'); lpcClient.emit('key', 'overlay'); }); // held: Windows repeats it
     await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Alt+V again hides the overlay.'); }, null, 'everyone’s rank on the overlay by its key');
