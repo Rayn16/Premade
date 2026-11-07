@@ -428,13 +428,24 @@ ipcMain.handle('aion-meter', (e, on) => {
   aionMeter.setAlwaysOnTop(true, 'screen-saver');
   aionMeter.setOpacity(0.94);
   let saveTimer = null;
-  const keep = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (!aionMeter || aionMeter.isDestroyed()) return; try { fs.writeFileSync(meterFile(), JSON.stringify(aionMeter.getBounds())); } catch {} }, 400); };
+  meterTall = 0;
+  const keep = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (!aionMeter || aionMeter.isDestroyed()) return; const b = aionMeter.getBounds(); try { fs.writeFileSync(meterFile(), JSON.stringify(meterTall ? { ...b, height: meterTall } : b)); } catch {} }, 400); };
   aionMeter.on('move', keep);
   aionMeter.on('resize', keep);
   aionMeter.on('closed', () => { aionMeter = null; if (win && !win.isDestroyed()) win.webContents.send('aion-meter', false); });
   aionMeter.once('ready-to-show', () => aionMeter.showInactive());
   loadFresh(aionMeter, base + 'meter.html');
   return true;
+});
+// minimize: h > 0 shrinks the meter to its title bar (h px), 0 grows it back to the height it had (meterTall, also what's
+// saved while it's small, so it opens full size)
+let meterTall = 0;
+ipcMain.handle('aion-meter-small', (e, h) => {
+  if (!fromSite(e) || !aionMeter || aionMeter.isDestroyed()) return false;
+  const b = aionMeter.getBounds();
+  if (h > 0 && !meterTall) { meterTall = b.height; aionMeter.setMinimumSize(260, 20); aionMeter.setBounds({ ...b, height: Math.min(120, Math.max(20, Math.round(h))) }); }
+  else if (!(h > 0) && meterTall) { aionMeter.setBounds({ ...b, height: meterTall }); meterTall = 0; aionMeter.setMinimumSize(260, 120); }
+  return !!meterTall;
 });
 // finished fights (a boss killed, or 20 s or more of fighting), the newest 200, in the app's own folder
 const aionFightsFile = () => path.join(app.getPath('userData'), 'aion-fights.json');

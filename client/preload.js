@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   aionLog: (file, from) => ipcRenderer.invoke('aion-log', String(file || ''), +from || 0),
   aionChar: (name, server, cls, level) => ipcRenderer.invoke('aion-char', String(name), +server || 0, +cls || 0, +level || 0),
   aionMeter: (on) => ipcRenderer.invoke('aion-meter', !!on),
+  aionMeterSmall: (h) => ipcRenderer.invoke('aion-meter-small', +h || 0),
   attenuate: (by) => ipcRenderer.send('attenuate', +by || 0),
   re4: (what, arg) => ipcRenderer.invoke('re4', String(what), arg == null ? '' : String(arg)),
   recordingsFolder: () => ipcRenderer.send('recordings-folder'),
