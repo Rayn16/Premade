@@ -34,6 +34,6 @@ new_sqlite_classes = ["Riot"]
 tag = "v4"
 new_sqlite_classes = ["Directory"]
 
-# wakes the Riot object's counting if it ever stopped
+# wakes the Riot object's counting if it ever stopped, and runs the Aion 2 tracker's update (with the GH_TOKEN secret)
 [triggers]
 crons = ["*/30 * * * *"]
