@@ -4425,6 +4425,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     offers.delete(id);
     getEnd(id);
     m.el.remove();
+    if (sess && sess.log.has(id)) sess.log.set(id, sessRow(m)); // Past sessions keep its words, not its node and listeners (they piled up past the 100 shown)
     if (m.pin) pinsShow();
     if (m.url && m.url.startsWith('blob:')) URL.revokeObjectURL(m.url);
     pushRemote();
@@ -4763,14 +4764,16 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     });
   }
   function sessStart() { sess = opts.history ? { id: Date.now(), room, start: Date.now(), people: new Set(), log: new Map() } : null; }
+  // a message as Past sessions keeps it
+  const sessRow = (m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '', file: m.file ? m.file.name : '',
+    react: Object.fromEntries(Object.entries(m.react).filter(([, w]) => w.size).map(([e, w]) => [e, [...w]])) });
   function sessSave(now) {
     const s = sess;
     if (!s) return;
     clearTimeout(sessT);
     sessT = setTimeout(() => {
       if (!s.people.size && !s.log.size) return; // alone the whole time
-      const msgs = [...s.log.values()].map((m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '', file: m.file ? m.file.name : '',
-        react: Object.fromEntries(Object.entries(m.react).filter(([, w]) => w.size).map(([e, w]) => [e, [...w]])) }));
+      const msgs = [...s.log.values()].map((m) => (m.el ? sessRow(m) : m));
       histDo('sessions', 'readwrite', (o) => o.put({ id: s.id, room: s.room, start: s.start, end: Date.now(), people: [...s.people], msgs }));
     }, now ? 0 : 2000);
   }

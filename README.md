@@ -25,8 +25,9 @@ It was called League Proximity Chat before version 1.8.0.
 
 ## Working on it
 
+- **Branch:** `claude/voice-clips-6a9va7` is the default branch and the one the site is published from (`.github/workflows/pages.yml`); `main` is old. Start new work from it.
 - **Site:** serve `site/` with any static server (`npx serve site`). Add `?peer=127.0.0.1:9000` to the address to use a local PeerJS server instead of ours.
-- **Tests:** `npm install`, `npx playwright install chromium`, then `npm test`. The Windows app's test: `cd client && npm ci && xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream --proxy-server=127.0.0.1:9 client.test.js` (the dead proxy keeps it offline). The server's tests: `cd server && node stats.test.js && node riot.test.js` (they start `wrangler dev`; set `WRANGLER` to wrangler's path if it isn't on your PATH).
+- **Tests:** `npm install`, `npx playwright install chromium`, then `npm test` (GitHub runs it on every push to a `claude/` branch: Actions > Tests). `npm run leak` sits in a voice room for 30 minutes and fails if the page's memory keeps growing (`MINS=2 WARM=0` for a quick run; Actions > Memory leak test runs it on each push to the default branch and by hand). The Windows app's test: `cd client && npm ci && xvfb-run -a npx electron --no-sandbox --use-fake-device-for-media-stream --proxy-server=127.0.0.1:9 client.test.js` (the dead proxy keeps it offline). The server's tests: `cd server && node stats.test.js && node riot.test.js` (they start `wrangler dev`; set `WRANGLER` to wrangler's path if it isn't on your PATH).
 - **Windows app:** `cd client && npm ci && npm run build` makes `dist/Premade-Setup.exe`, its `.blockmap` and `latest.yml`. GitHub Actions builds the same files: Actions tab, "Build the Windows app". Installed apps update themselves from `latest.yml` on the site, so the three files go up together.
 - **Server:** `cd server && npx wrangler@4 deploy` (the free Cloudflare plan is enough). For Riot data, add your key with `npx wrangler@4 secret put RIOT_KEY`.
 

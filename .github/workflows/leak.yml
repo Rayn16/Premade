@@ -1,0 +1,30 @@
+# Memory leak test (leak.e2e.js): a voice room with a friend, the clip buffer on and chat for 30 minutes; fails if the
+# page's heap, DOM nodes, listeners or timers keep growing. On each push to the owner branch, and by hand on any branch
+# (Actions > Memory leak test > Run workflow).
+name: Memory leak test
+on:
+  push:
+    branches: [claude/voice-clips-6a9va7]
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: Minutes in the room
+        default: '30'
+concurrency:
+  group: leak-${{ github.ref }}
+  cancel-in-progress: false # a push waits for the run before it, so every run finishes
+jobs:
+  leak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: xvfb-run -a node leak.e2e.js
+        env:
+          NODE_PATH: ${{ github.workspace }}/node_modules
+          MINS: ${{ inputs.minutes || '30' }}
