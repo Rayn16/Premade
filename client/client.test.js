@@ -570,11 +570,11 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // can't-reach page, then back once the site is)
     const toJoin = [], send1 = win.webContents.send, loaded = () => Promise.race([js('document.readyState === "complete" && !!window.lpcClient && !window.beforeCrash'), new Promise((r) => setTimeout(r, 2000, false))]).catch(() => false); // a crashed page never answers
     win.webContents.send = function (ch, v) { if (ch === 'join') toJoin.push(v); return send1.apply(this, arguments); };
-    await js('window.beforeCrash = 1; lpcClient.room("abcd.qwerty")');
+    await js('window.beforeCrash = 1; history.replaceState(null, "", "#abcd.qwerty")'); // as the page does in a room
     win.emit('unresponsive');
     await until(loaded, 'loaded again after hanging 30 s', 45000);
     assert.deepStrictEqual(toJoin, ['abcd.qwerty'], 'back in its room');
-    await js('window.beforeCrash = 1; lpcClient.room("")');
+    await js('window.beforeCrash = 1');
     win.webContents.forcefullyCrashRenderer();
     await until(loaded, 'loaded again after a crash', 20000);
     assert.deepStrictEqual(toJoin, ['abcd.qwerty'], 'not in a room: none to rejoin');

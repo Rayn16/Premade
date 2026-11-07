@@ -3225,10 +3225,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('key').focus();
     say(wrong ? 'That password is wrong or out of date. Ask the host for the new one.' : 'This room is locked. Type its password to join.');
   }
-  const setHash = () => {
-    history.replaceState(null, '', '#' + room + (roomKey ? '.' + roomKey : ''));
-    if (client && client.room) client.room(room + (roomKey ? '.' + roomKey : '')); // app 1.41: rejoined after the page crashes
-  };
+  const setHash = () => history.replaceState(null, '', '#' + room + (roomKey ? '.' + roomKey : '')); // app 1.41 rejoins it after the page crashes
   function keyChanged() { setHash(); render(); pushDiscord(); }
   $('lockBtn').addEventListener('click', () => {
     if (!peer || roomKey || hostSlot() !== slot) return;
@@ -4190,7 +4187,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     old.disconnect(); // frees your slot on the room server now
     setTimeout(() => old.destroy(), 300); // lets the goodbye go out
     history.replaceState(null, '', location.pathname + location.search);
-    if (client && client.room) client.room('');
     applyMic(); // a mic the host muted is yours again
     render();
   }
