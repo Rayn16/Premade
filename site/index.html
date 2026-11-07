@@ -1296,7 +1296,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <p id="frNote" class="hint" role="status"></p>
           <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
           <div class="toolbar"><button id="frOffBtn" class="btn small" type="button" hidden></button></div>
-          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn" type="submit">Add</button></form>
+          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG or Name#P-1234"></label><button class="btn" type="submit">Add</button></form>
+          <p class="hint">Your Premade code, for friends without a League account: <b id="frCode"></b> <button id="frCodeCopy" class="btn small" type="button">Copy</button></p>
           <label class="check"><input id="optLobbyRoom" type="checkbox"> Friends in my League lobby who have Premade join my voice room by themselves, and I join theirs</label>
         </div>
         <div class="stack" data-gt="squad" hidden>
@@ -2063,7 +2064,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <p class="hint client-only">Version <span id="appVersion"></span> <button id="updateBtn" class="btn small" type="button" hidden></button>. The app loads the newest page every time it starts and installs its own updates.</p>
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
-          <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, voice name and app version</label>
+          <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, Premade code, voice name and app version, and for whoever runs it, how Premade ran each day and which of its features I used (counts only)</label>
           <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="connLogBtn" class="btn small" type="button">Copy connection log</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
@@ -2078,11 +2079,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <p id="serverRiot" hidden></p>
           <p id="serverMore" hidden></p>
           <p id="serverUse" class="hint" hidden></p>
+          <p id="serverAcct" class="hint" hidden></p>
           <details id="whoBox" class="noteedit">
             <summary>Who has Premade, for whoever runs it</summary>
             <form id="whoForm" class="toolbar"><label class="field">Owner key <input id="whoKey" type="password" autocomplete="current-password" required></label><button class="btn small" type="submit">Show</button></form>
             <p id="whoNote" class="hint" role="status"></p>
-            <div class="tablewrap" hidden><table class="ready"><thead><tr><th>League accounts</th><th>Voice name</th><th>App</th><th>First opened</th><th>Last seen</th></tr></thead><tbody id="whoRows"></tbody></table></div>
+            <div class="tablewrap" hidden><table class="ready"><thead><tr><th>League accounts</th><th>Voice name</th><th>App</th><th>First opened</th><th>Last seen</th><th>Last day used</th></tr></thead><tbody id="whoRows"></tbody></table></div>
+            <p id="whoUse" class="hint" hidden></p>
           </details>
         </section>
       </div>
@@ -2411,7 +2414,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
+<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -2446,6 +2449,32 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
   };
   const load = (k, d) => { try { return JSON.parse(store.get(k)) ?? d; } catch { return d; } };
+  // What this copy did each day (UTC), for Who has Premade (lpc-usage): h, its health (start: the page loaded, err: a
+  // page error, crash: a part of the app that ended badly, fail: a connection to a friend that failed, relay: friends
+  // reached through the relay, mem: the app's memory peak in MB) and u, how often each feature was used (a click in a
+  // feature's Show me spots, FEATURES; '#page' for a page opened). The hello carries the last day before today (prev),
+  // so it goes once a day; no content, and nothing with Settings > App's switch off.
+  let usage = load('lpc-usage', null), usageSave = 0;
+  function useDay() {
+    const d = new Date().toISOString().slice(0, 10);
+    if (!usage || typeof usage !== 'object' || !usage.h || !usage.u) usage = { d, h: {}, u: {}, prev: null };
+    if (usage.d !== d) usage = { d, h: {}, u: {}, prev: { d: usage.d, h: usage.h, u: usage.u } };
+    if (!usageSave) usageSave = setTimeout(() => { usageSave = 0; store.set('lpc-usage', JSON.stringify(usage)); }, 10000);
+    return usage;
+  }
+  const bump = (kind, k) => { const u = useDay()[kind]; u[k] = (u[k] || 0) + 1; };
+  const memPeak = (mb) => { const h = useDay().h; h.mem = Math.max(h.mem || 0, Math.round(mb)); };
+  bump('h', 'start');
+  addEventListener('error', () => bump('h', 'err'));
+  addEventListener('unhandledrejection', () => bump('h', 'err'));
+  addEventListener('pagehide', () => { if (usageSave) { clearTimeout(usageSave); usageSave = 0; store.set('lpc-usage', JSON.stringify(usage)); } });
+  if (client && client.on) client.on('diag', (line) => { if (/process ended: (?!clean-exit)/.test(line)) bump('h', 'crash'); });
+  let featSel = null; // [name, selector] for each feature, read from FEATURES on the first click
+  document.addEventListener('click', (e) => {
+    if (!(e.target instanceof Element)) return;
+    featSel ||= FEATURES.flatMap(([, , list]) => list.filter((f) => f[3]).map((f) => [f[0], f[3]]));
+    for (const [n, sel] of featSel) if (e.target.closest(sel)) bump('u', n);
+  }, { capture: true, passive: true });
   const cleanRoom = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
   const cleanKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 12);
   const newCode = (n = 4) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghjkmnpqrstuvwxyz'[b % 23]).join(''); // no i, l, o: easy to say and type
@@ -2492,13 +2521,26 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
     : { host: 'league-proxchat.league-proxchat-server.workers.dev', port: 443, secure: true, path: '/' };
   const serverUrl = `${peerOpts.secure ? 'https' : 'http'}://${peerOpts.host}:${peerOpts.port}`; // its /stats and /riot/...
-  // Relays for players whose routers can't connect directly (our server's /turn, Cloudflare's TURN): PeerJS's own are
-  // gone. Fetched before a room's first connection (at most 5 s) and again twice a day, as they last a day.
-  const getTurn = () => (local ? Promise.resolve() : fetch(serverUrl + '/turn', { signal: AbortSignal.timeout(5000) }).then((r) => r.json())
-    .then((j) => { if (Array.isArray(j.iceServers) && j.iceServers.length) peerOpts.config = { iceServers: j.iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:(80|5349)\b/.test(u)) })) }; }).catch(() => {}));
+  // Relays for players whose routers can't connect directly (Cloudflare's TURN): PeerJS's own are gone. Our server hands
+  // them only to players connected to a room, as {type: 'TURN'} before OPEN (roomMsgs), lasting 5 hours or more, and
+  // the page asks again every 2 hours. A server from before that gave them to anyone at /turn, for a day: still read
+  // before a room's first connection (at most 5 s) and twice a day, but only relays from it are kept.
   // (ports 80 and 5349 left out: 3478 and TLS on 443 reach the same relays, and each port was another TCP connection per call)
+  const useIce = (list) => { if (Array.isArray(list) && list.some((s) => [].concat(s.urls).some((u) => /^turns?:/.test(u)))) peerOpts.config = { iceServers: list.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:(80|5349)\b/.test(u)) })) }; };
+  const getTurn = () => (local ? Promise.resolve() : fetch(serverUrl + '/turn', { signal: AbortSignal.timeout(5000) }).then((r) => r.json()).then((j) => useIce(j.iceServers)).catch(() => {}));
   const turnReady = getTurn();
   setInterval(getTurn, 12 * 3600000);
+  // What our server's room sockets say besides PeerJS's own: TURN (the relays, for this Peer's next calls and every new
+  // Peer) and ROOM {ids} (who's in, so dial() skips empty slots; ids stays null with a server from before that)
+  function roomMsgs(p) {
+    p.ids = null;
+    p.socket.on('message', (m) => {
+      if (!m || !m.payload) return;
+      if (m.type === 'TURN') { useIce(m.payload.iceServers); p.options.config = peerOpts.config; p.turnAt = performance.now(); }
+      if (m.type === 'ROOM' && Array.isArray(m.payload.ids)) p.ids = new Set(m.payload.ids);
+    });
+    return p;
+  }
 
   // Each player takes the first free slot: peer id lolprox-<room>-<slot>. A newcomer dials every other slot.
   let room = '', prefix = '', slot = -1, peer = null, mic = null, myName = store.get('lpc-name') || '';
@@ -3315,6 +3357,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       if (s === 'disconnected' || s === 'failed') {
         p.linkStatus = 'reconnecting';
         p.linkReason = s === 'failed' ? 'the WebRTC path failed' : 'the network path was interrupted';
+        if (s === 'failed') bump('h', 'fail');
       } else if (s === 'connected' || s === 'completed') {
         if (p.linkStatus === 'reconnecting') { p.linkStatus = 'reconnected'; p.linkReason = 'connection recovered automatically'; p.recoveryAt = Date.now(); }
       }
@@ -3329,7 +3372,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   async function openPeer(id) {
     await turnReady;
     return new Promise((resolve, reject) => {
-      const p = new Peer(id, peerOpts);
+      const p = roomMsgs(new Peer(id, peerOpts));
       const fail = (err) => { p.destroy(); reject(err); };
       p.once('error', fail);
       p.once('open', () => { p.off('error', fail); resolve(p); });
@@ -3929,15 +3972,17 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // at 16 kbps, as Less data does, until three looks in a row (15 s) lose under 2% (weak, useBitrate). The call stays.
   async function checkHealth(p) {
     if (!p.call || !p.call.peerConnection) { p.health = ''; return; }
-    let rtt = null, lost = 0, got = 0, theirs = null, jitterDelay = 0, jitterCount = 0;
-    (await p.call.peerConnection.getStats()).forEach((r) => {
-      if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime != null) rtt = r.currentRoundTripTime;
+    let rtt = null, lost = 0, got = 0, theirs = null, jitterDelay = 0, jitterCount = 0, lc = '';
+    const st = await p.call.peerConnection.getStats();
+    st.forEach((r) => {
+      if (r.type === 'candidate-pair' && r.nominated && r.currentRoundTripTime != null) { rtt = r.currentRoundTripTime; lc = r.localCandidateId; }
       if (r.type === 'inbound-rtp' && r.kind === 'audio') {
         lost = r.packetsLost || 0; got = r.packetsReceived || 0;
         jitterDelay = r.jitterBufferDelay || 0; jitterCount = r.jitterBufferEmittedCount || 0;
       }
       if (r.type === 'remote-inbound-rtp' && r.kind === 'audio' && r.fractionLost != null) theirs = r.fractionLost;
     });
+    if (!p.relayed && lc && (st.get(lc) || {}).candidateType === 'relay') { p.relayed = true; bump('h', 'relay'); } // once a friend, for Who has Premade
     if (theirs != null) {
       p.calm = theirs < 0.02 ? p.calm + 1 : 0;
       p.weak = theirs >= 0.08 || (p.weak && p.calm < 3);
@@ -3954,7 +3999,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 
   // ---- staying connected: a player whose connection broke is dialled again at once, then every 5 s for 2 minutes
   // (dropped), and voice calls that closed are placed again; the room server is reconnected a second after it drops.
-  // Every 15 s, every slot nobody is connected on is dialled too.
+  // Every 15 s, each slot the room server says is taken (peer.ids) that nobody is connected on is dialled too; with a
+  // server from before ROOM, every slot for 2 minutes after joining or getting the server back, then every 2 minutes.
   const dialing = new Set();
   const dropped = new Map(); // slot -> when their connection broke
   function dial(s) {
@@ -3984,8 +4030,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     send(meMsg());
     shareFace();
     redial();
+    if (peer.turnAt && performance.now() - peer.turnAt > 2 * 3600000) { peer.turnAt = performance.now(); peer.socket.send({ type: 'TURN' }); }
     if (++ticks % 3) return;
-    for (let s = 0; s < SLOTS; s++) dial(s);
+    const all = !peer.ids && (performance.now() - peer.openAt < 120000 || ticks % 24 === 0);
+    for (let s = 0; s < SLOTS; s++) if (all || (peer.ids && peer.ids.has(idFor(s)))) dial(s);
   }, 5000);
   // Your followed icon, small, for the others' cards and map, while League hasn't told us your champion.
   function shareFace() {
@@ -4022,7 +4070,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   addEventListener('blur', () => clog('window in the background'));
   addEventListener('offline', () => clog('offline'));
   addEventListener('online', () => clog('online'));
-  setInterval(async () => { const m = client && client.metrics ? await client.metrics().catch(() => null) : null; if (m) clog(`app memory ${m.mb} MB`); }, 600000); // whether it grows over a long session
+  setInterval(async () => { const m = client && client.metrics ? await client.metrics().catch(() => null) : null; if (m) { clog(`app memory ${m.mb} MB`); memPeak(m.mb); } }, 600000); // whether it grows over a long session
   if (client && client.on) client.on('diag', (line) => clog(`app: ${line}`));
   $('connLogBtn').addEventListener('click', async () => {
     const text = [`Premade connection log, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, copied ${new Date().toISOString()}`, ...connLog].join('\n');
@@ -4091,6 +4139,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     sessStart();
     $('key').hidden = true;
     setHash();
+    peer.openAt = performance.now();
     keyTo(peer, key0); // before dialling anyone, so a locked room lets you in right away
     peer.on('connection', adopt);
     peer.on('call', (call) => {
@@ -4112,6 +4161,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       clearTimeout(roomReconnectTimer);
       roomReconnectTimer = null;
       roomReconnectAttempt = 0;
+      owner.openAt = performance.now();
       say(''); toServer(); render(); redial();
     }); // back after a dropped connection
     peer.on('disconnected', () => { // retry the room server promptly, then with backoff while the five-second heartbeat keeps checking
@@ -4119,7 +4169,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       render();
       reconnectRoomServer(owner, true);
     });
-    for (let s = 0; s < SLOTS; s++) dial(s);
+    for (let s = 0; s < SLOTS; s++) if (!peer.ids || peer.ids.has(idFor(s))) dial(s); // who's in, when the server said (roomMsgs)
     say('');
     if (!auto) view('voice');
     render();
@@ -6137,7 +6187,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const ctlIn = (m) => { if ('x' in m) ctlTo.xy = null; hSend(ctlTo.conn, { t: 'in', n: ++ctlTo.n, ...m }); }; // a click puts the mouse where it is: no older move after it
   function helpConnect(code, name) { // you, to the PC with that code; name: the friend from Friends
     helpQuit();
-    const host = `lolprox-h${code}-0`, pr = new Peer(`lolprox-h${code}-1`, peerOpts);
+    const host = `lolprox-h${code}-0`, pr = roomMsgs(new Peer(`lolprox-h${code}-1`, peerOpts));
     const t = (ctlTo = { code, peer: pr, conn: null, call: null, name: name || 'Your friend', on: false, at: performance.now(), n: 0, moved: 0, xy: null, keys: new Set(), buttons: new Set(), st: '', paste: false });
     const dial = () => {
       if (ctlTo !== t || t.conn || pr.destroyed) return;
@@ -6211,7 +6261,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function hostStart(code = helpCode()) { // yours, offered with that code
     if (hs || !window.Peer) return;
-    const pr = new Peer(`lolprox-h${code}-0`, peerOpts), h = (hs = { code, peer: pr, conn: null, call: null, track: null, name: 'A friend', asking: false, on: false });
+    const pr = roomMsgs(new Peer(`lolprox-h${code}-0`, peerOpts)), h = (hs = { code, peer: pr, conn: null, call: null, track: null, name: 'A friend', asking: false, on: false });
     pr.on('connection', (c) => {
       if (hs !== h || c.peer !== `lolprox-h${code}-1` || h.conn) return void c.close(); // one friend a code
       h.conn = c;
@@ -6899,6 +6949,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('re4Remove').addEventListener('click', () => { if (confirm('Remove RE4 co-op from this PC? Its firewall rules and friends list go; Tailscale and your saves stay.')) re4('remove'); });
   setInterval(() => { if (!document.querySelector('.view[data-view="re4"]').hidden && !document.hidden) re4(); }, 15000);
   function view(name) {
+    bump('u', '#' + name);
     for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     const lol = $('leagueTabs').contains(document.querySelector(`.nav[data-view="${name}"]`)); // a League page: its tabs show and League is lit
@@ -8682,7 +8733,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   function remoteCheck() {
     const want = !!(opts.remote && lcuOn() && window.Peer);
     if (want && !remote) {
-      const code = remoteCode(), pr = (remote = new Peer(`lolprox-r${code}-0`, peerOpts));
+      const code = remoteCode(), pr = (remote = roomMsgs(new Peer(`lolprox-r${code}-0`, peerOpts)));
       pr.on('connection', (c) => {
         if (!new RegExp(`^lolprox-r${code}-[1-9]$`).test(c.peer)) return c.close();
         c.on('open', () => { remoteConns.add(c); remoteWas = ''; pushRemote(); renderRemote(); });
@@ -11539,6 +11590,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const u = sum && sum.use, lim = (u && u.lim) || {}, pc = (k) => `${Math.min(999, Math.round((100 * (+u[k] || 0)) / lim[k]))}%`;
     $('serverUse').hidden = !(u && u.day && ['write', 'req', 'read', 'ms'].every((k) => lim[k] > 0));
     if (!$('serverUse').hidden) $('serverUse').textContent = `Cloudflare's free plan today (UTC): the Riot data used ${pc('write')} of its writes, ${pc('req')} of its requests, ${pc('read')} of its reads and ${pc('ms')} of its running time. Past 100% our server stops until the next day; voice rooms use a little more.`;
+    // the whole account's requests today, every room and invite included (server/worker.js budget, from Cloudflare's analytics)
+    const ac = sum && sum.acct, acc = ac && ac.lim > 0 && Number.isFinite(ac.req) ? `The whole server today: ${(ac.req | 0).toLocaleString('en-US')} of ${ac.lim.toLocaleString('en-US')} free requests (${Math.round((100 * ac.req) / ac.lim)}%, counting every room message in full, so a little high).${ac.paused ? ' Counting Riot games is paused until 00:00 UTC so rooms keep working.' : ' Counting Riot games pauses at 80%, so rooms keep working.'}` : '';
+    $('serverAcct').hidden = !acc;
+    $('serverAcct').textContent = acc;
   }
   // Who has Premade, as on who.html, at the end of Our server: only for the owner's key (the server's secret OWNER_KEY),
   // which this computer keeps as premade-owner, shared with who.html (not lpc-, so backups leave it out)
@@ -11557,9 +11612,25 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const when = (t) => new Date(t * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
     $('whoRows').replaceChildren(...apps.map((a) => {
       const tr = document.createElement('tr'), riot = Array.isArray(a.riot) ? a.riot.join(', ') : '';
-      for (const t of [riot || 'Not known yet', a.name || '—', a.v === 'web' ? 'Website' : a.v === 'old' ? 'App 1.2 or older' : `App ${a.v}`, when(a.first), when(a.last)]) tr.insertCell().textContent = t;
+      for (const t of [riot || 'Not known yet', a.name || '—', a.v === 'web' ? 'Website' : a.v === 'old' ? 'App 1.2 or older' : `App ${a.v}`, when(a.first), when(a.last), healthText(a.day)]) tr.insertCell().textContent = t;
       return tr;
     }));
+    $('whoUse').textContent = useText(apps);
+    $('whoUse').hidden = !$('whoUse').textContent;
+  }
+  // a copy's last day (its hello's day, from lpc-usage): its health, and for every copy's last day in the past week,
+  // which features were used, most first (feeds the clean-up of what nobody uses); the same on who.html
+  function healthText(d) {
+    if (!d || !d.h) return '—';
+    const h = d.h, n = (k, one, many = one + 's') => (h[k] ? `${h[k]} ${h[k] === 1 ? one : many}` : '');
+    return [new Date(d.d + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric' }) + ':', [n('start', 'start'), n('crash', 'crash', 'crashes'), n('err', 'page error'), n('fail', 'failed connection'), n('relay', 'friend through the relay', 'friends through the relay'), h.mem ? `app memory peak ${h.mem} MB` : ''].filter(Boolean).join(', ') || 'nothing counted'].join(' ');
+  }
+  function useText(apps) {
+    const week = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10), sum = {};
+    let n = 0;
+    for (const a of apps) if (a.day && a.day.u && a.day.d >= week) { n++; for (const [k, v] of Object.entries(a.day.u)) sum[k] = (sum[k] || 0) + v; }
+    const top = Object.entries(sum).sort((a, b) => b[1] - a[1]);
+    return top.length ? `Features used on ${n === 1 ? 'one copy’s' : `${n} copies’`} last day in the past week (a page opened, #, or a click in it): ${top.map(([k, v]) => `${k} ${v}`).join(', ')}.` : '';
   }
   $('whoForm').addEventListener('submit', (e) => { e.preventDefault(); whoShow($('whoKey').value); });
   $('whoBox').addEventListener('toggle', () => { if ($('whoBox').open && store.get('premade-owner')) whoShow(store.get('premade-owner')); }); // fresh each time it opens
@@ -11610,9 +11681,16 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // Settings > App can turn it off (opts.hello)
   let myDevice = store.get('lpc-device'), checkedIn = '';
   if (!myDevice) store.set('lpc-device', (myDevice = crypto.randomUUID()));
+  // Your Premade code (Friends): Name#P-1234, made once from your voice name, for friends without a League account. It
+  // goes with the hello as one more Riot ID (the last, so invites still name your League account), so friends,
+  // invites, the inbox and who's online work by it as by a Riot ID; a real Riot tag can't have the dash.
+  const PM_CODE = /^[^#]{1,16}#P-\d{4}$/;
+  let myCode = store.get('lpc-code');
+  if (!PM_CODE.test(myCode || '')) store.set('lpc-code', (myCode = `${(myName || 'Friend').replace(/#/g, '').trim().slice(0, 16) || 'Friend'}#P-${String(crypto.getRandomValues(new Uint16Array(1))[0] % 10000).padStart(4, '0')}`));
+  const usedDay = () => { const p = useDay().prev; if (!p) return undefined; const u = Object.entries(p.u).sort((a, b) => b[1] - a[1]).slice(0, 60); return { d: p.d, h: p.h, u: Object.fromEntries(u) }; };
   function checkIn() {
     if (!opts.hello) { if (inbox) inboxOpen(); return void (checkedIn = ''); } // turned off in Settings > App: nothing goes, and turned on again it says hello at once
-    const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: Object.values(accounts).map((a) => a && a.n) });
+    const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: [...Object.values(accounts).map((a) => a && a.n).filter(Boolean).slice(0, 9), myCode], day: usedDay() });
     const k = body + new Date().toISOString().slice(0, 10); // and again on a new day
     if (k === checkedIn) return;
     checkedIn = k;
@@ -11632,6 +11710,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ws.onclose = () => { clearInterval(ping); if (inbox === ws) { inbox = null; setTimeout(() => { if (!inbox) inboxOpen(); }, 60000); } };
   }
   checkIn();
+  setInterval(checkIn, 3600000); // a new day's hello, with the day before's counts, for a copy left open overnight
   const isLive = (p) => { const lm = liveMine(); return !!p && !!lm && acctOf(p.n) === acctOf(lm.n); };
   function shownMine() { // yours: the account picked, else League's, else the last one
     const lm = liveMine(), k = proAcct && accounts[proAcct] ? proAcct : '';
@@ -14380,7 +14459,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const frSeen = new Set(), frAsked = new Map(), RIOT_ID = /^[^#]{1,32}#[^#]{1,8}$/; // invites shown; Riot ID -> the room (and when you joined it) it was last invited to
   const riotOf = (x) => (x && x.gameName ? `${x.gameName}#${x.gameTag || ''}` : '');
   const lobbyIds = () => (lobby && Array.isArray(lobby.members) ? lobby.members.map(riotOf).filter((n) => RIOT_ID.test(n)) : []);
-  const mineIds = () => new Set(Object.values(accounts).map((a) => acctOf(a && a.n)));
+  const mineIds = () => new Set([...Object.values(accounts).map((a) => acctOf(a && a.n)), acctOf(myCode)]);
   const lobHash = async (room) => (lobby && typeof lobby.partyId === 'string' && lobby.partyId ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`premade ${lobby.partyId} ${room}`)))].map((b) => b.toString(16).padStart(2, '0')).join('') : '');
   async function friendsLoop() {
     if (frBusy) return;
@@ -14469,7 +14548,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       .sort((a, b) => b.has - a.has || !!b.st - !!a.st || a.riot.localeCompare(b.riot));
   }
   function renderProFriends() { // Profile's Friends: the same friends, each opening their profile (lookUp)
-    const rows = frRows(), k = JSON.stringify(rows.map((x) => [x.riot, x.st]));
+    const rows = frRows().filter((x) => !PM_CODE.test(x.riot)), k = JSON.stringify(rows.map((x) => [x.riot, x.st])); // a Premade code has no League profile
     $('proFriends').hidden = !rows.length || !!proOther || $('proFindBox').hidden; // lookups need League open or our Riot data
     if ($('proFrList').dataset.key === k) return;
     $('proFrList').dataset.key = k;
@@ -14496,10 +14575,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     }));
   }
   $('frOffBtn').addEventListener('click', () => { frShowOff = !frShowOff; renderFriends(); });
+  $('frCode').textContent = myCode;
+  $('frCodeCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(myCode); notify('Premade code copied. Friends add it under Add a friend.', true); } catch { notify(`Your Premade code is ${myCode}`, true); } });
   $('frAdd').addEventListener('submit', (e) => {
     e.preventDefault();
     const n = $('frId').value.trim().replace(/\s*#\s*/, '#');
-    if (!RIOT_ID.test(n)) return notify('Type their Riot ID with its tag, like Name#EUW.', true);
+    if (!RIOT_ID.test(n)) return notify('Type their Riot ID with its tag, like Name#EUW, or their Premade code, like Sam#P-1234.', true);
     if (!frMine.some((x) => acctOf(x) === acctOf(n))) { frMine.push(n); store.set('lpc-friends', JSON.stringify(frMine)); }
     $('frId').value = '';
     frAt = -Infinity;
@@ -14963,6 +15044,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [127, 'November 7: friends without League, and a server that can’t run out', [
+      'Friends: every Premade has its own Premade code, like Sam#P-1234, under Add a friend. Send it to a friend who doesn’t play League: they add it the same way as a Riot ID, and you see each other online and invite each other.',
+      'Rooms only dial the seats that are taken. Before, every Premade in a room dialled all ten seats every 15 seconds, which was most of what our server handled; a two-person room now sends it nothing once you’re both in.',
+      'Our server pauses counting Riot games at 80% of its free daily requests, so voice rooms keep working, and Settings, Our server shows the whole server’s use. The relay for friends whose routers can’t connect goes only to players in a room.',
+      'Who has Premade (for whoever runs it) shows how each copy ran on its last day used and which features get used, counts only. Settings, App turns it off with the same switch.',
+    ]],
     [126, 'November 7: deaths and a minimize button on the Aion 2 DPS meter', [
       'Desktop app 1.40.0: each player’s bar on the DPS meter shows a red skull and how many times they died in that fight, like Abyss DPS Meter, in the pop-up and in your room. Hover a bar for it too.',
       'The DPS pop-up has a minimize button (the line, next to close): the window shrinks to its title bar, with the fight and the clock still in it, and grows back to its size with the same button.',
@@ -15610,8 +15697,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
     ['Friends', 'Your friends, who’s online, invites and your squad.', [
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID, with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade right away to join your voice room, no code needed; in the Windows app its notification has a Join button. They’re under your profile too: click one to see their profile, rank and games.',
-        'The Friends page. Your League friends show by themselves in the desktop app; add others by Riot ID.', '#groupBox'],
+      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade right away to join your voice room, no code needed; in the Windows app its notification has a Join button. They’re under your profile too: click one to see their profile, rank and games.',
+        'The Friends page. Your League friends show by themselves in the desktop app; add others by Riot ID, or by the Premade code under Add a friend (Copy, and send it to them).', '#groupBox, #frCode'],
       ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
         'On unless you turn it off: the Friends page, under the list.', '#optLobbyRoom', 'app'],
       ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
@@ -15669,8 +15756,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Nothing to set up. When a new version is out, Update to it in Settings, App, or in the status bar.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
       ['Test recordings', 'Saves what League tells the app during your games, with every name hidden and no voice or video, so new features can be tried on a real game.', 'Off until you tick it: Settings, League. Send a recording to whoever builds the app.', '#optRecord', 'app'],
-      ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits.', 'At the bottom of Settings.', '#serverBox'],
-      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, voice name and app version on each device, and when Premade was first and last opened there.',
+      ['Our server', 'How many players use our server each day, how many high elo games it has counted from each region, and how close it is to its free daily limits: the Riot data’s own use, and the whole server’s requests from Cloudflare’s analytics. Counting Riot games pauses at 80% of the day’s free requests, so voice rooms never run out. Rooms only dial the seats that are taken, which used to be most of the server’s messages, and the relay’s passwords go only to players in a room.', 'At the bottom of Settings.', '#serverBox'],
+      ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, Premade code, voice name and app version on each device, and when Premade was first and last opened there; how each copy ran on its last day used (starts, crashes, page errors, failed connections, friends reached through the relay, memory peak), so a bad update shows on friends’ copies first; and which features everyone used that day (counts only, never content).',
         'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept. Whoever runs Premade sees the list in Settings, Our server, with the owner key.', '#optHello, #whoKey'],
     ]],
     ['League: Proximity voice', 'In League, Proximity voice: your room hears each other by where your champions are once a League game starts.', [

@@ -1,0 +1,46 @@
+# Tells Rayan when something in Premade is down, with a GitHub issue (GitHub emails it), closed once it's back:
+# - our server's 30-minute cron (server/worker.js health) checks the site, latest.yml and the relay, and starts this
+#   with what's down ('' once all is well) whenever that changes (needs GH_TOKEN to have Actions: Read and write on
+#   Premade). Issue "Something in Premade is down".
+# - every hour this checks our server back from GitHub. Issue "Premade's server isn't answering".
+# GitHub runs schedules and by-hand starts only from the default branch, so this works once it's there.
+name: Health
+on:
+  workflow_dispatch:
+    inputs:
+      down:
+        description: What our server found down ('' when all is well again)
+        required: false
+        default: ''
+  schedule:
+    - cron: '17 * * * *'
+permissions: { issues: write }
+concurrency: { group: health, cancel-in-progress: false }
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          DOWN: ${{ inputs.down }}
+          SERVER: https://league-proxchat.league-proxchat-server.workers.dev
+        run: |
+          if [ "$EVENT" = schedule ]; then
+            export TITLE="Premade's server isn't answering"
+            up() { curl -fsS -m 20 -o /dev/null "$SERVER/" && curl -fsS -m 20 -o /dev/null "$SERVER/stats"; }
+            if up || { sleep 60; up; }; then DOWN=''; else DOWN="our server, $SERVER, didn't answer from GitHub twice a minute apart"; fi
+          else
+            export TITLE="Something in Premade is down"
+          fi
+          N=$(gh issue list --state open --limit 100 --json number,title --jq '.[] | select(.title == $ENV.TITLE) | .number' | head -1)
+          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+          if [ -n "$DOWN" ] && [ -z "$N" ]; then
+            gh issue create --title "$TITLE" --body "Down at $NOW: $DOWN. This closes by itself once it's back."
+          elif [ -n "$DOWN" ] && [ "$EVENT" != schedule ]; then
+            gh issue comment "$N" --body "Now, $NOW: $DOWN."
+          elif [ -z "$DOWN" ] && [ -n "$N" ]; then
+            gh issue close "$N" --comment "Back up at $NOW."
+          fi

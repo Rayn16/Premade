@@ -5,7 +5,8 @@
 // Friends: /friends says which Riot IDs have Premade (any case, not your own device) and gives a device the invites to
 // its Riot IDs, and /inbox is a socket that hears 'inv' the moment one of them is invited; /invite needs a device that said hello, and a new invite from the same device replaces the last; lob, a lobby's hash, comes back as it was sent.
 // Aion 2: /aion/boss, /aion/ticks and /aion/fights take a kill, a tick or a fight only for a Riot ID the device said
-// hello with, and the 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT).
+// hello with, and the 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT),
+// and tells Premade's health.yml when the site goes down and when it's back, once each.
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -13,15 +14,17 @@ const WebSocket = require('ws');
 
 const PORT = 8787, BASE = `http://127.0.0.1:${PORT}`;
 const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'lpc-stats-'));
-const OWNER = 'the owner key', GH_PORT = 8790, github = [];
+const OWNER = 'the owner key', GH_PORT = 8790, github = [], SITE_PORT = 8791;
+let siteUp = true; // a stand-in for the site and its latest.yml, for the cron's health check
+require('http').createServer((q, r) => { if (q.url === '/latest.yml') return r.end('version: 1.40.0\n'); if (!siteUp) return r.writeHead(503).end(); r.end('<title>Premade</title>'); }).listen(SITE_PORT).unref();
 require('http').createServer((q, r) => { let body = ''; q.on('data', (d) => (body += d)).on('end', () => { github.push({ method: q.method, url: q.url, auth: q.headers.authorization, ua: q.headers['user-agent'], body }); r.writeHead(204).end(); }); }).listen(GH_PORT).unref();
 const wr = spawn(process.env.WRANGLER || 'wrangler', ['dev', '--ip', '127.0.0.1', '--port', String(PORT), '--persist-to', persist, '--var', `OWNER_KEY:${OWNER}`,
-  '--var', 'GH_TOKEN:the token', '--var', `GH_API:http://127.0.0.1:${GH_PORT}`, '--test-scheduled'], { cwd: __dirname, detached: true, stdio: 'ignore' });
+  '--var', 'GH_TOKEN:the token', '--var', `GH_API:http://127.0.0.1:${GH_PORT}`, '--var', `SITE_URL:http://127.0.0.1:${SITE_PORT}/`, '--var', 'HEALTH_RETRY:300', '--test-scheduled'], { cwd: __dirname, detached: true, stdio: 'ignore' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function join(id, token, ip) { // resolves with the server's first message type: OPEN or ID-TAKEN
   return new Promise((ok, bad) => {
     const ws = new WebSocket(`ws://127.0.0.1:${PORT}/peerjs?key=peerjs&id=${id}&token=${token}&version=1.5.4`, { headers: { 'CF-Connecting-IP': ip } });
-    ws.once('message', (m) => ok({ ws, type: JSON.parse(m).type }));
+    ws.on('message', (m) => { const { type } = JSON.parse(m); if (type !== 'TURN' && type !== 'ROOM') ok({ ws, type }); }); // the relays and who's in come first
     ws.once('error', bad);
   });
 }
@@ -59,7 +62,9 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.equal(h.status, 204);
   assert.equal(h.headers.get('access-control-allow-origin'), '*');
   await sleep(1100);
-  assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan the very long voice name', riot: ['Rayan#EUW', 'no tag', 'Smurf#1234', 42] })).status, 204);
+  // with its last day's counts: only the known health counts and features with a fair name, no content
+  const DAY = { d: '2026-11-06', h: { start: 3, crash: 1, mem: 412, secret: 5, fail: -1 }, u: { 'Screen share': 4, '#aion': 2, '<b>x</b>': 1, Zero: 0, Big: 1e7 } };
+  assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan the very long voice name', riot: ['Rayan#EUW', 'no tag', 'Smurf#1234', 42], day: DAY })).status, 204);
   await sleep(1100);
   assert.equal((await post('/hello', { id: A, v: 'web', name: 'Kev', riot: ['Kev#NA1'] })).status, 204); // the same device again, now with a name
   const T = '3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f', U = '4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f8a';
@@ -73,9 +78,12 @@ function join(id, token, ip) { // resolves with the server's first message type:
   assert.equal(w.headers.get('access-control-allow-origin'), '*');
   const { apps } = await w.json(), now = Date.now() / 1000;
   assert.deepEqual(apps.map(({ first, last, ...a }) => a), [ // the last opened first, and no device ids
-    { v: 'web', name: 'Kev', riot: ['Kev#NA1'] },
-    { v: '1.13.0', name: 'Rayan the very long voic', riot: ['Rayan#EUW', 'Smurf#1234'] },
+    { v: 'web', name: 'Kev', riot: ['Kev#NA1'], day: null },
+    { v: '1.13.0', name: 'Rayan the very long voic', riot: ['Rayan#EUW', 'Smurf#1234'], day: { d: '2026-11-06', h: { start: 3, crash: 1, mem: 412 }, u: { 'Screen share': 4, '#aion': 2 } } },
   ]);
+  assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW'] })).status, 204); // a hello without a day keeps the last
+  assert.deepEqual((await (await post('/who', { key: OWNER })).json()).apps.find((a) => a.name === 'Rayan').day.h, { start: 3, crash: 1, mem: 412 });
+  assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan the very long voice name', riot: ['Rayan#EUW', 'Smurf#1234'] })).status, 204);
   assert(apps.every((a) => Math.abs(a.last - now) < 30 && a.first <= a.last), JSON.stringify(apps));
   assert(apps[0].first < apps[0].last, 'the first opening is kept');
   const C = '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e', fr = async (b) => (await post('/friends', b)).json();
@@ -192,6 +200,14 @@ function join(id, token, ip) { // resolves with the server's first message type:
   // the cron starts the Aion 2 tracker's update on GitHub
   assert.equal((await fetch(BASE + '/__scheduled?cron=*/30+*+*+*+*')).status, 200);
   for (let i = 0; i < 20 && !github.length; i++) await sleep(250);
+  await sleep(1500); // and checks the site: up, as on the last check (nothing kept yet), so no word to Premade's health.yml
   assert.deepEqual(github, [{ method: 'POST', url: '/repos/Rayn16/aion2-tracker/actions/workflows/update.yml/dispatches', auth: 'Bearer the token', ua: 'Premade (github.com/Rayn16/Premade)', body: '{"ref":"main"}' }]);
+  const health = async () => { github.length = 0; await fetch(BASE + '/__scheduled?cron=*/30+*+*+*+*'); await sleep(2500); return github.filter((g) => g.url.includes('/Premade/')).map((g) => JSON.parse(g.body)); };
+  siteUp = false; // the site goes down: health.yml hears what, once
+  assert.deepEqual(await health(), [{ ref: 'claude/voice-clips-6a9va7', inputs: { down: `the site, http://127.0.0.1:${SITE_PORT}/ (HTTP 503)` } }]);
+  assert.deepEqual(await health(), [], 'still down: nothing new to say');
+  siteUp = true;
+  assert.deepEqual(await health(), [{ ref: 'claude/voice-clips-6a9va7', inputs: { down: '' } }], 'back up');
+  assert.deepEqual(await health(), []);
   console.log('stats ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} fs.rmSync(persist, { recursive: true, force: true }); });
