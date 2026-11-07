@@ -814,8 +814,10 @@ const leagueData = (over = {}) => ({
     assert.match(await pc.getAttribute('#proIcon', 'src'), /\/cdn\/1\.1\/img\/profileicon\/4568\.png$/);
     assert.strictEqual(await text(pc, '#proStatus'), 'In the client');
     // who has Premade: once when it opened, and once with your League account, from this device with the app's version
-    for (let i = 0; i < 50 && !ctx.hellos.some((h) => h.riot.length); i++) await new Promise((r) => setTimeout(r, 100));
-    assert.deepStrictEqual(ctx.hellos.map(({ id, ...h }) => h), [{ v: '1.11.0', name: 'Rayan', riot: [] }, { v: '1.11.0', name: 'Rayan', riot: ['Rayan#EUW'] }], 'a hello when it opens and one with your account, not one each time your profile redraws');
+    for (let i = 0; i < 50 && !ctx.hellos.some((h) => h.riot.length > 1); i++) await new Promise((r) => setTimeout(r, 100));
+    const pm = await pc.evaluate(() => localStorage.getItem('lpc-code')); // this device's Premade code, always last
+    assert.match(pm, /^Rayan#P-[a-z]{6}$/);
+    assert.deepStrictEqual(ctx.hellos.map(({ id, ...h }) => h), [{ v: '1.11.0', name: 'Rayan', riot: [pm] }, { v: '1.11.0', name: 'Rayan', riot: ['Rayan#EUW', pm] }], 'a hello when it opens and one with your account, not one each time your profile redraws');
     assert(ctx.hellos.every((h) => h.id === ctx.hellos[0].id) && ctx.hellos[0].id === await pc.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
     // (without the ladder place and hidden MMR lines, which ranks.e2e.js checks)
     const proRanks = () => pc.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint:not(.ladder):not(.mmr)')].map((x) => x.textContent).join('|')));

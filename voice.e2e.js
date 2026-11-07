@@ -252,10 +252,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
     // who has Premade: Ana's page told our server when it opened, and again with the name she picked
     const hi = ana.context().hellos;
-    const code = await ana.evaluate(() => localStorage.getItem('lpc-code'));
-    assert.match(code, /^Friend#P-\d{4}$/, 'a Premade code, made before she had a name');
-    assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [code] }, { v: 'web', name: 'Ana', riot: [code] }], 'a hello when Premade opens, and one with her name, with her Premade code (no day yet: her first)');
-    assert.equal(await ana.textContent('#frCode'), code, 'shown under Add a friend');
+    const pmCode = await ana.evaluate(() => localStorage.getItem('lpc-code'));
+    assert.match(pmCode, /^Friend#P-[a-z]{6}$/, 'a Premade code, made before she had a name');
+    assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [pmCode] }, { v: 'web', name: 'Ana', riot: [pmCode] }], 'a hello when Premade opens, and one with her name, with her Premade code (no day yet: her first)');
+    assert.equal(await ana.textContent('#frCode'), pmCode, 'shown under Add a friend');
     assert(/^[0-9a-f-]{36}$/.test(hi[0].id) && hi.every((h) => h.id === hi[0].id) && hi[0].id === await ana.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
     // turned off in Settings > App, a new name sends nothing; turned on again, a hello at once
     const rename = (n) => ana.evaluate((n) => { const el = document.getElementById('name'); el.value = n; el.dispatchEvent(new Event('change')); }, n);
