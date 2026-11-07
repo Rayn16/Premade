@@ -484,6 +484,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await ben.click('.nav[data-view="voice"]');
       await wait(ben, () => [...document.querySelectorAll('#frRows button')].some((b) => b.textContent === 'Control'), null, 'Control next to Ana in Ben’s Friends', 40000);
       await ben.evaluate(() => [...document.querySelectorAll('#frRows button')].find((b) => b.textContent === 'Control').click());
+      await ana.evaluate(() => lpc.groupNow()); // our server's inbox tells her page at once; this stand-in server has none, and her next 60 s round could come after the asking ran out
       await wait(ben, () => !document.querySelector('.view[data-view="help"]').hidden && document.getElementById('helpName').textContent === 'Ana’s PC', null, 'Ben on Remote help, asking Ana');
       await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control of Ana’s PC from Friends', 60000);
       await ben.click('#helpStop');
