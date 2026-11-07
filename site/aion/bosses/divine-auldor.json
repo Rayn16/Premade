@@ -1,0 +1,18 @@
+{
+ "name": "Divine Auldor",
+ "map": 600012,
+ "dungeon": "Urugugu Canyon",
+ "runs": 8,
+ "from": "read off Rayan's run videos, 5-7 Nov 2026",
+ "casts": [
+  {
+   "name": "Tempest Strike",
+   "secs": 8,
+   "hp": null,
+   "seen": 8,
+   "shape": "an orange lane across the arena with tornadoes, then a red circle on a player; about every 30 s",
+   "at": null,
+   "do": ""
+  }
+ ]
+}
