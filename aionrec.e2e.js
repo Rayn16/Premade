@@ -29,7 +29,7 @@ function fakeApp() {
     [25, 'Flow.Teleport.LoadComplete.Map(320007)'], [27, 'Dungeon.Twisted Pit.Clear'], [28, 'Flow.Teleport.LoadComplete.Map(1110)'], [60, 'Flow.QuitFromIngame.None']].map(([m, e]) => `[${t(m)}] [0] ${e}\n`).join('');
   window.lpcClient = {
     version: '1.37.4', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
-    overlay() {}, on(n, fn) { (on[n] = on[n] || []).push(fn); },
+    overlay() {}, on(n, fn) { (on[n] = on[n] || []).push(fn); }, fire: (n, x) => (on[n] || []).forEach((fn) => fn(x)),
     aionLog: async (file, from) => { if (file === '*') return [window.old, window.log]; const b = new TextEncoder().encode(window.log); return { file: 'a.breadcrumb.log', size: b.length, text: new TextDecoder().decode(b.slice(file ? from : 0)) }; },
     captureSources: async () => [{ id: 'window:3', type: 'window', name: 'Aion 2 meter' }, { id: 'window:7', type: 'window', name: 'AION2' }],
     captureSource: async (id) => { calls.push('pick ' + id); return true; },
@@ -67,6 +67,11 @@ function fakeApp() {
     await page.waitForFunction(() => calls.includes('start'), null, { timeout: 8000 });
     // a menu with a gauge, an elite that doesn't die, a walk, then the boss with a cast, and its banner after its bar goes
     await page.evaluate(() => { window.played = play([['menu', 22], ['elite', 21], ['', 47], ['boss', 14], ['cast', 5], ['boss', 8], ['', 8], ['banner', 3], ['', 3]]).then(() => { window.done = true; }); });
+    // Live fight's deaths: a fight over before the run (3 deaths) isn't counted; your fall during the boss is, a stranger's isn't
+    await page.evaluate(() => {
+      const f = (active, target, deaths) => lpcClient.fire('aion-live', { active, target, players: [{ name: 'Rayan', me: true, party: true, deaths }, { name: 'Stranger', deaths }] });
+      setTimeout(() => { f(false, 'Old boss', 3); f(true, 'Nuakum', 0); f(true, 'Nuakum', 1); f(true, 'Nuakum', 1); f(true, 'Totem', 1); f(true, 'Nuakum', 1); }, 96000); // another target in the same time counts the same death
+    });
     assert(await page.evaluate(() => calls.includes('pick window:7')), 'Aion 2’s window is what’s recorded');
     await page.evaluate(() => { log += 'Complete.Map(600092)\n'; }); // a reload in the same dungeon: still recording
     await page.waitForTimeout(6000);
@@ -84,6 +89,9 @@ function fakeApp() {
     const tl = await page.evaluate(() => window.timeline);
     assert(tl.map === 600092 && tl.dungeon === 'Ferocious Horn Den' && tl.parts.length === 1 && tl.bosses.length === 1 && tl.bosses[0].name === 'Nuakum' && tl.bosses[0].from === 0 && tl.bosses[0].kill > 30, `the timeline: ${JSON.stringify(tl.bosses)}`);
     assert(tl.kills.length === 1 && tl.casts.some((c) => /Blue Light/i.test(c.name) && c.secs === 12 && c.t > 5) && tl.bosses[0].hp.some(([, hp]) => hp > 70 && hp < 80), `kills, casts and health: ${JSON.stringify(tl)}`);
+    assert(tl.deaths.length === 1 && tl.deaths[0].me && tl.deaths[0].name === 'Rayan' && tl.deaths[0].t > tl.bosses[0].from && tl.deaths[0].t < tl.bosses[0].to, `your death in the boss fight: ${JSON.stringify(tl.deaths)}`);
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-runs'))['Game 2026-11-05 07-27-03 Recording.webm']);
+    assert(kept && kept.deaths.length === 1 && !kept.marks && !('hp' in kept.bosses[0]) && kept.bosses[0].pull > kept.bosses[0].from, 'the run kept for the Recording page, without its health readings');
     assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-run-bosses'))), { 600092: ['Nuakum'] }, 'the dungeon’s bosses learnt');
     // a field map: a boss bar for 5 s records a run (on Live fight's watch of Aion 2's window); a town map ends it, and with no boss in it it's binned
     await page.evaluate(() => { localStorage.setItem('lpc-aion', '1'); log += `[${new Date().toISOString().replace('Z', '+0000')}] [0] Flow.Teleport.LoadComplete.Map(510003)\n`; window.scene = 'elite'; });
