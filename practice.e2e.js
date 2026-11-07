@@ -57,6 +57,7 @@ function fakeApp(fresh) {
       if (what === 'list') return [...vids].map(([name, x]) => ({ name, ...x })).sort((x, y) => y.at - x.at);
       if (what === 'clean') { const out = [...vids].filter(([, x]) => !x.rec && Date.now() - x.at > a * 864e5).map(([n]) => n); out.forEach((n) => vids.delete(n)); return out; }
       if (what === 'trash') return vids.delete(a);
+      if (what === 'cut') { window.cutParts = b; return !!(v && !v.rec); } // app 1.38.1
       return what === 'folder' || !!v;
     },
   });
@@ -208,7 +209,13 @@ const game = (over = {}, me = {}) => ({
       const calls = await page.evaluate(() => lpcClient.calls.filter((x) => x.startsWith('video') && !x.startsWith('video list')));
       const adds = calls.filter((x) => x.startsWith(`video add ${NAME} `));
       assert(adds.length && adds.every((x) => +x.split(' ').pop() > 0), `its parts: ${calls}`);
-      assert.deepStrictEqual(calls.filter((x) => !adds.includes(x)), ['video start Ahri', `video end ${NAME}`, 'video trash Game 2026-10-10 20-00-00 Zed.webm'], 'started, ended, then the old one binned, not the saved one');
+      assert.deepStrictEqual(calls.filter((x) => !adds.includes(x)), ['video start Ahri', `video end ${NAME}`, `video cut ${NAME}`, 'video trash Game 2026-10-10 20-00-00 Zed.webm'], 'started, ended, cut to its highlights (1.41), then the old one binned, not the saved one');
+      // Keep only the highlights (on by default): one part, from 10 s before the first to 5 s after the last (they overlap),
+      // and the marks moved into the cut video
+      const [cutParts, cutMarks] = await page.evaluate((n) => [window.cutParts, JSON.parse(localStorage.getItem('lpc-vid-marks'))[n]], NAME);
+      const near = (x, y) => Math.abs(x - y) < 0.01, [cA, cZ] = cutParts[0];
+      assert(cutParts.length === 1 && cutMarks.length === 5 && near(cutMarks[4].s - cutMarks[0].s, 6) && cutMarks[0].s <= 10 && near(cZ - cA, cutMarks[4].s + 5) && cutMarks.every((m) => m.from >= 0 && m.from <= m.s),
+        `the highlights’ part and the marks in it: ${JSON.stringify([cutParts, cutMarks])}`);
       assert.deepStrictEqual(await page.$$eval('#savedVids .cname', (l) => l.map((e) => e.textContent)), ['Game 2026-10-09 20-00-00 Lux'], 'the saved one in Saved');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Moved 1 game video older than 7 days to the Recycle Bin.'), null, 'the old one binned');
       await wait(page, (n) => document.querySelectorAll('#vidList li').length === 1 && document.querySelector('#vidList li').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#vidList li .cacts button').length === 4, NAME, 'the game, ready to watch');

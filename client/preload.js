@@ -61,5 +61,8 @@ contextBridge.exposeInMainWorld('lpcClient', {
   controlInput: (m) => ipcRenderer.send('control-input', m),
   point: (m) => ipcRenderer.invoke('point', m),
   frontApp: () => ipcRenderer.invoke('front-app'),
+  log: (line) => ipcRenderer.send('log', String(line)), // app 1.41: the log file
+  logRead: () => ipcRenderer.invoke('log-read'),
+  room: (r) => ipcRenderer.send('room', String(r || '')), // the room the page is in, rejoined after a crash
   on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });
