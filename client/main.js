@@ -190,6 +190,7 @@ ipcMain.on('share-audio-mode', (e) => {
   e.returnValue = { filter: shareAudioFiltered, discord: found.discord, warning: found.error };
 });
 ipcMain.on('share-audio-cancel', (e) => { if (fromSite(e)) { shareAudioMode = false; shareAudioFiltered = false; shareLeaveOut = []; filteredLeaveOut = []; stopFilteredCapture(); } });
+const AUDIO_CAPTURE = path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'audio-capture.exe');
 function stopFilteredCapture() {
   if (!filteredCapture) return;
   clearTimeout(filteredCapture.timer);
@@ -198,7 +199,7 @@ function stopFilteredCapture() {
 }
 ipcMain.handle('filtered-audio-start', async (e) => {
   if (!fromSite(e) || process.platform !== 'win32' || !filteredLeaveOut.length || filteredCapture) return false;
-  const child = spawn(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'audio-capture.exe'), filteredLeaveOut.map(String), { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+  const child = spawn(AUDIO_CAPTURE, filteredLeaveOut.map(String), { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
   let pending = Buffer.alloc(0), ready = false, resolveReady, rejectReady;
   const result = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
   const capture = filteredCapture = { child, timer: setTimeout(() => { if (!ready) { stopFilteredCapture(); rejectReady(new Error('Audio filter timed out')); } }, 4000) };
@@ -470,13 +471,13 @@ ipcMain.handle('with-league', (e, on) => {
 // ---- Windows' Communications setting (Sound control panel): while an app has a mic open for voice chat, as Chromium
 // marks Premade's, Windows turns every other sound down. 0 mutes them, 1 (the default, also when never set) is 80%, 2
 // is 50% and 3 is Do nothing. The page's note by the mic opens that tab.
-ipcMain.handle('ducking', (e) => {
-  if (!fromSite(e) || process.platform !== 'win32') return 3;
+ipcMain.handle('ducking', (e) => (fromSite(e) && process.platform === 'win32' ? ducking() : 3));
+function ducking() {
   return new Promise((res) => execFile('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Multimedia\\Audio', '/v', 'UserDuckingPreference'], { windowsHide: true, timeout: 2500 }, (err, out) => {
     const m = /0x([0-9a-f]+)/i.exec(out || '');
     res(m ? parseInt(m[1], 16) : 1);
   }));
-});
+}
 // ---- lowering other apps while friends talk (Voice settings), as Discord's attenuation: volume-helper.exe (client/volume)
 // turns every app's sound down but Premade's (and its helpers') and Discord's. Each line it gets is the share of their
 // volume the apps keep; when Premade quits its input closes and it puts them back. One killed with Premade (a crash)
@@ -988,10 +989,11 @@ async function videosLeft() {
   }
   await partsClean();
 }
+const PART = /\.webm(\.part|\.\w+\.part\.webm|\.list\.txt)$/i; // half-made: being recorded, made seekable or cut
 async function partsClean() { // says which went
   const out = [];
   for (const dir of new Set([clipDir(), vidDir()])) for (const n of await fs.promises.readdir(dir).catch(() => [])) {
-    if (!/\.webm(\.part|\.\w+\.part\.webm|\.list\.txt)$/i.test(n)) continue;
+    if (!PART.test(n)) continue;
     const f = path.join(dir, n), st = await fs.promises.stat(f).catch(() => null);
     if (st && st.isFile() && Date.now() - st.mtimeMs > 864e5 && (await shell.trashItem(f).then(() => true, () => false))) out.push(n);
   }
@@ -1342,10 +1344,72 @@ ipcMain.on('convert-show', (e, file) => { if (fromSite(e) && made.has(file)) she
 
 // ---- the performance meter: how much of the computer this app uses now, all its parts together. CPU is a share of
 // the whole computer, as Task Manager shows it; memory in MB.
-ipcMain.handle('metrics', (e) => {
-  if (!fromSite(e)) return null;
-  const m = app.getAppMetrics();
-  return { cpu: Math.round(m.reduce((n, p) => n + p.cpu.percentCPUUsage, 0) * 10) / 10, mb: Math.round(m.reduce((n, p) => n + p.memory.workingSetSize, 0) / 1024) };
+const usage = (m = app.getAppMetrics()) => ({ cpu: Math.round(m.reduce((n, p) => n + p.cpu.percentCPUUsage, 0) * 10) / 10, mb: Math.round(m.reduce((n, p) => n + p.memory.workingSetSize, 0) / 1024) });
+ipcMain.handle('metrics', (e) => (fromSite(e) ? usage() : null));
+
+// ---- PC check-up (Settings, App, app 1.43): the Windows-only parts run for real here, each a line { ok, name, say }
+// (ok: true, false, or null for "not set up"). Nothing stays open: the audio filter and the test window end in seconds.
+const NPCAP = () => path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'Npcap', 'wpcap.dll');
+const mb = (n) => `${Math.round(n / 1e6).toLocaleString('en')} MB`, gb = (n) => `${(n / 1e9).toFixed(1)} GB`;
+function audioFilterCheck() { // audio-capture.exe starts and says PCM1 (it reached Windows' per-app sound)
+  return new Promise((res) => {
+    let child, out = Buffer.alloc(0), done = false;
+    const end = (ok, say) => { if (done) return; done = true; clearTimeout(t); try { child.kill(); } catch {} res({ ok, name: 'Screen share sound filter', say }); };
+    const t = setTimeout(() => end(false, 'audio-capture.exe didn’t start in 4 s'), 4000);
+    try { child = spawn(AUDIO_CAPTURE, [String(process.pid)], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); }
+    catch (err) { return end(false, err.message); }
+    child.stdout.on('data', (c) => { out = Buffer.concat([out, c]).subarray(0, 4); if (out.length === 4) end(out.toString() === 'PCM1', out.toString() === 'PCM1' ? 'works: friends hear your game without your voice chat' : 'Windows refused the per-app sound'); });
+    child.once('error', (err) => end(false, err.message));
+    child.once('exit', (code) => end(false, `audio-capture.exe stopped (exit code ${code})`));
+  });
+}
+async function overlayCheck() { // a window like the overlay (on top, see-through, no focus) loads a page and draws it
+  const w = new BrowserWindow({ width: 40, height: 40, x: 0, y: 0, show: false, frame: false, transparent: true, focusable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true });
+  try {
+    w.setAlwaysOnTop(true, 'screen-saver');
+    w.setIgnoreMouseEvents(true);
+    w.showInactive();
+    const drew = await Promise.race([
+      w.loadURL('data:text/html,<body style="margin:0;background:%23f00">').then(() => new Promise((r) => setTimeout(r, 200))).then(() => w.webContents.capturePage()).then((img) => !img.isEmpty() && img.toBitmap()[2] > 200), // BGRA: red
+      new Promise((r) => setTimeout(() => r(false), 5000)),
+    ]).catch(() => false);
+    const ok = drew && w.isVisible();
+    return { ok, name: 'Overlay window', say: ok ? 'a see-through window on top loads and draws (over a game only in Borderless window mode)' : 'a see-through window on top didn’t draw in 5 s' };
+  } finally { w.destroy(); }
+}
+async function toolCheck(name, exe, arg) {
+  if (!fs.existsSync(exe)) return { ok: null, name, say: 'not downloaded yet (the first download or convert fetches it)' };
+  const v = await run(exe, [arg], { timeout: 8000 }).then((o) => String(o).split('\n')[0].trim().slice(0, 80), () => '');
+  return { ok: !!v, name, say: v || 'there, but didn’t start' };
+}
+async function diskCheck() {
+  const out = [];
+  for (const [what, dir] of [['Clips', clipDir()], ['Games', vidDir()]]) {
+    const st = await fs.promises.statfs(fs.existsSync(dir) ? dir : path.parse(dir).root).catch(() => null);
+    let parts = 0, size = 0;
+    for (const n of await fs.promises.readdir(dir).catch(() => [])) {
+      const f = PART.test(n) && (await fs.promises.stat(path.join(dir, n)).catch(() => null));
+      if (f && Date.now() - f.mtimeMs > 864e5) { parts++; size += f.size; } // newer ones: a video being recorded or cut now
+    }
+    const free = st ? st.bavail * st.bsize : 0;
+    out.push({ ok: !!st && free > 20e9 && !parts, name: `${what} drive`, say: `${dir}: ${st ? gb(free) + ' free' + (free > 20e9 ? '' : ' (under 20 GB: a long game video may not fit)') : 'can’t read it'}${parts ? `, ${parts} half-made video file${parts > 1 ? 's' : ''} over a day old (${mb(size)}, binned at the next start)` : ''}` });
+  }
+  return out;
+}
+ipcMain.handle('checkup', async (e) => {
+  if (!fromSite(e)) return [];
+  const win32 = process.platform === 'win32', lines = [{ ok: true, name: 'App', say: `Premade ${app.getVersion()}, Electron ${process.versions.electron}, ${os.version ? os.version() : os.type()} ${os.release()}, ${os.cpus().length} threads, ${gb(os.totalmem())} RAM (${gb(os.freemem())} free)` }];
+  const dir = toolDir(), [duck, filter, over, ytdlp, ffmpeg, disks] = await Promise.all([win32 ? ducking() : -1, win32 ? audioFilterCheck() : { ok: null, name: 'Screen share sound filter', say: 'Windows only' },
+    overlayCheck(), toolCheck('yt-dlp (downloads)', path.join(dir, 'yt-dlp.exe'), '--version'), toolCheck('FFmpeg (converts, cuts)', path.join(dir, 'ffmpeg.exe'), '-version'), diskCheck()]);
+  const duckSay = ['mutes other sounds', 'turns other sounds down 80%', 'turns other sounds down 50%', 'Do nothing'][duck];
+  lines.push(!duckSay ? { ok: null, name: 'Windows Communications', say: win32 ? `setting ${duck}, not one Windows offers` : 'Windows only' }
+    : { ok: duck === 3, name: 'Windows Communications', say: duckSay + (duck === 3 ? '' : ' while Premade has the mic open (Sound control panel, Communications tab: Do nothing)') });
+  lines.push(filter, over);
+  lines.push({ ok: win32 && fs.existsSync(NPCAP()) ? true : null, name: 'Npcap (Aion 2 live fight)', say: win32 && fs.existsSync(NPCAP()) ? 'installed' : 'not installed (only Live fight needs it)' });
+  lines.push(ytdlp, ffmpeg, ...disks);
+  const m = app.getAppMetrics(), u = usage(m);
+  lines.push({ ok: true, name: 'App use now', say: `CPU ${u.cpu}%, memory ${u.mb} MB: ${m.map((p) => `${p.name || p.type} ${Math.round(p.memory.workingSetSize / 1024)}`).join(', ')}` });
+  return lines;
 });
 
 // ---- app links: lolprox://join/<room>[.<password>] (the site's "Open in the app") opens the app in that room.
