@@ -279,9 +279,10 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .roomchat li.pinged { background: color-mix(in srgb, var(--gold) 14%, transparent); box-shadow: inset 2px 0 var(--gold); }
 .roomchat li.flash { animation: chatflash 1.2s; }
 @keyframes chatflash { from { background: color-mix(in srgb, var(--gold) 35%, transparent); } }
-.roomchat .acts { position: absolute; top: 2px; right: 4px; display: none; gap: 2px; padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+.roomchat .acts { position: absolute; top: 0; right: 4px; transform: translateY(-100%); z-index: 1; display: none; gap: 2px; padding: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
 .roomchat li:hover .acts, .roomchat li:focus-within .acts { display: flex; }
-@media (hover: none) { .roomchat .acts { position: static; width: fit-content; margin-top: 4px; } } /* a phone: a tapped message shows its buttons under it, not over its text */
+.roomchat li:first-child .acts { top: 100%; transform: none; } /* over the message's edge, never its own buttons and text (the first one's under it, inside the scroll box) */
+@media (hover: none) { .roomchat .acts { position: static; width: fit-content; margin-top: 4px; transform: none; } } /* a phone: a tapped message shows its buttons under it, not over its text */
 .roomchat .acts button { font: 12px/1 var(--body); padding: 4px 6px; border: 0; background: none; color: var(--fg); cursor: pointer; border-radius: 3px; }
 .roomchat .acts button:hover, .roomchat .acts button:focus-visible { background: color-mix(in srgb, var(--fg) 12%, transparent); }
 .roomchat .quote { display: block; font: 12px/1.3 var(--body); color: var(--muted); background: none; border: 0; padding: 0 0 2px; cursor: pointer; text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4510,6 +4511,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     offers.delete(id);
     getEnd(id);
     m.el.remove();
+    if (sess && sess.log.has(id)) sess.log.set(id, sessRow(m)); // Past sessions keep its words, not its node and listeners (they piled up past the 100 shown)
     if (m.pin) pinsShow();
     if (m.url && m.url.startsWith('blob:')) URL.revokeObjectURL(m.url);
     pushRemote();
@@ -4848,14 +4850,16 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     });
   }
   function sessStart() { sess = opts.history ? { id: Date.now(), room, start: Date.now(), people: new Set(), log: new Map() } : null; }
+  // a message as Past sessions keeps it
+  const sessRow = (m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '', file: m.file ? m.file.name : '',
+    react: Object.fromEntries(Object.entries(m.react).filter(([, w]) => w.size).map(([e, w]) => [e, [...w]])) });
   function sessSave(now) {
     const s = sess;
     if (!s) return;
     clearTimeout(sessT);
     sessT = setTimeout(() => {
       if (!s.people.size && !s.log.size) return; // alone the whole time
-      const msgs = [...s.log.values()].map((m) => ({ id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, att: m.att ? m.att.type : '', file: m.file ? m.file.name : '',
-        react: Object.fromEntries(Object.entries(m.react).filter(([, w]) => w.size).map(([e, w]) => [e, [...w]])) }));
+      const msgs = [...s.log.values()].map((m) => (m.el ? sessRow(m) : m));
       histDo('sessions', 'readwrite', (o) => o.put({ id: s.id, room: s.room, start: s.start, end: Date.now(), people: [...s.people], msgs }));
     }, now ? 0 : 2000);
   }
