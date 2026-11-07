@@ -518,6 +518,16 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .vcard .thumb .shot { cursor: inherit; }
 .vcard .vlen { position: absolute; right: 8px; bottom: 8px; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 700 13px/1.2 var(--body); }
 .vcard .thumb:hover .shot, .vcard .thumb:focus-visible .shot { filter: brightness(1.15); }
+.runbar { position: relative; height: 22px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+.runbar > * { position: absolute; top: 0; height: 100%; padding: 0; border: 0; font: 700 12px/20px var(--body); }
+.runbar .rb { background: var(--gold-line); opacity: .55; min-width: 3px; cursor: pointer; }
+.runbar .rb.kill { background: var(--gold); opacity: .8; }
+.runbar .rc { width: 2px; background: var(--bad); opacity: .7; pointer-events: none; }
+.runbar .rd { width: 16px; margin-left: -8px; background: none; color: var(--fg); cursor: pointer; text-align: center; }
+.runline { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.vsvids { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.vsvids video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 4px; }
+@container app (max-width: 760px) { .vsvids { grid-template-columns: minmax(0, 1fr); } }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 #clipKeyNote:empty { display: none; }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
@@ -2155,6 +2165,18 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         <p id="aionWeek" class="hint"></p>
         <div class="tablewrap"><table class="ready"><thead><tr><th>Dungeon</th><th>Runs</th><th>Best</th><th>Usual</th><th>Respawns a run</th></tr></thead><tbody id="aionRuns"></tbody></table></div>
         <p class="hint">From Aion 2’s own log, since its first day on this PC. Click a dungeon to name it: the log knows them only by number. A run’s video marks each time you came back in after dying, and the Combat Analysis fights read during it; ▶ Highlights plays just those.</p>
+      </section>
+      <section id="aionReviewBox" class="panel" aria-labelledby="h-arev" hidden>
+        <h2 id="h-arev" class="ph">Aion 2 boss practice</h2>
+        <p id="aionNext" role="status"></p>
+        <div class="tablewrap"><table class="ready"><thead><tr><th>Boss</th><th>Tries</th><th>Kills</th><th>Deaths</th><th>Best</th><th>Usual</th><th>Costliest cast</th></tr></thead><tbody id="aionPractice"></tbody></table></div>
+        <p class="hint">From the runs Premade recorded: time from the pull to the kill, and each death in a boss fight with the cast that was up then. Deaths come from Live fight when it’s on; without it, each time you came back in counts, with the cast in the minute before.</p>
+        <h3 class="ph">Side by side</h3>
+        <div id="vsBox">
+          <div class="toolbar"><label class="field">Boss <select id="vsBoss"></select></label><label class="field">Left <select id="vsA"></select></label><label class="field">Right <select id="vsB"></select></label><button id="vsPlay" class="btn small primary" type="button">Play both from the pull</button><button id="vsClose" class="btn small" type="button" hidden>Close</button></div>
+          <div id="vsVids" class="vsvids" hidden><video id="vsVidA" controls playsinline preload="metadata" crossorigin="anonymous"></video><video id="vsVidB" muted playsinline preload="metadata" crossorigin="anonymous"></video></div>
+          <p id="vsNote" class="hint">Two tries at the same boss, started together at the pull. The left one has the controls and its sound; the right one follows it.</p>
+        </div>
       </section>
     </section>
 
@@ -6927,6 +6949,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     aionPublish();
     if (aionCard) pushOverlay();
     if (s && s.active && s.players) aionTrack(s);
+    if (s && s.players && screenRec && screenRec.run) runDeaths(screenRec, s);
   });
   // ---- pace and rotation tests (What's new 130): each live fight's clock gives, once a second, the boss's HP and your
   // damage. The fastest kill of each boss keeps its HP each second (lpc-aion-pace { target: { at, secs, hp } }) for the
@@ -9368,7 +9391,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     return joined;
   }
   function bossWatch(r, map, open) {
-    Object.assign(r, { run: true, map, open, boss: [], names: [], hp: [], casts: [], kills: [], re: [], seen: Date.now() });
+    Object.assign(r, { run: true, map, open, boss: [], names: [], hp: [], casts: [], kills: [], re: [], deaths: [], seen: Date.now() });
     const t = r.stream.getVideoTracks()[0].clone(), stop = CameraBox.watch(new MediaStream([t]), 1000, (src, w, h) => runFrame(r, src, w, h));
     r.unwatch = () => {
       stop();
@@ -9390,13 +9413,29 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       if (fights.length && !cut) { vidMarks[name] = [...(vidMarks[name] || []), ...fights.map((f, k) => ({ s: f.a + 10, from: f.a, text: label(k) }))].sort((x, y) => x.s - y.s); store.set('lpc-vid-marks', JSON.stringify(vidMarks)); }
       const at = (t) => { if (!cut) return t; let o = 0; for (const [a, z] of parts) { if (t >= a && t <= z) return o + t - a; o += z - a; } return null; }; // a second of the run in the saved video
       const keep = (l, f) => l.map((x) => { const s = at(x.t ?? x[0]); return s === null ? null : f(x, s); }).filter((x) => x !== null);
-      client.gameVideo('json', name, JSON.stringify({ // the run's timeline beside its video, times in seconds of that video (parts: what was kept of the whole run)
+      const tl = { // the run's timeline beside its video, times in seconds of that video (parts: what was kept of the whole run)
         game: 'Aion 2', map, dungeon: aionMapNames[map] || null, start: new Date(r.at).toISOString(), parts: cut ? parts : null,
         bosses: fights.map((f, k) => ({ name: label(k), from: at(f.a), to: at(f.z), kill: f.kill === null ? null : at(f.kill), hp: keep(r.hp.filter(([t]) => t >= f.a && t <= f.z), (x, s) => [s, x[1]]) })),
         kills: keep(r.kills, (x, s) => ({ t: s, name: x.name || null })), respawns: keep(r.re.map((t) => ({ t })), (x, s) => s),
         casts: keep(r.casts, (x, s) => ({ t: s, name: x.name, secs: x.secs })), marks: vidMarks[name] || [],
-      })).catch(() => {});
+        deaths: keep(r.deaths, (x, s) => ({ t: s, name: x.name, me: x.me })), // Live fight's, when it's on (What's new 133)
+      };
+      client.gameVideo('json', name, JSON.stringify(tl)).catch(() => {});
+      runKeep(name, tl);
     };
+  }
+  function runDeaths(r, f) { // Live fight's deaths (a party player's HP going to 0) as seconds of the run
+    if (!f.active) return; // a fight that's over: its deaths came while it was on, or before the run
+    const t = Math.round((Date.now() - r.at) / 1000), since = t - (f.secs | 0) - 15;
+    // a player's count is of their deaths in this fight's time (so another target's fight then has them too): only more
+    // than the run already has for them since it began is new
+    // ponytail: a player first shown as "Player 123" and named later counts their earlier deaths again; a death event from
+    // client/aionlive.js would end that (an app change)
+    for (const p of f.players) {
+      if (!p.me && !p.party) continue;
+      const had = r.deaths.filter((d) => d.name === p.name && d.t >= since).length;
+      for (let i = had; i < (p.deaths | 0) && r.deaths.length < 500; i++) r.deaths.push({ t, name: p.name, me: !!p.me });
+    }
   }
   const RUN_TOWN = new Set([0, 901, 1010, 1110]); // the lobby, character select and the two towns (Rayan's log, 16 Oct to 5 Nov)
   let runSpot = 0, runNo = {}; // seconds in a row with a boss bar outside a dungeon; maps where one turned out not to be a boss: until when
@@ -9419,6 +9458,162 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     store.set('lpc-vid-marks', JSON.stringify(vidMarks));
     return true;
   }
+  // ---- Aion 2 run review on the Recording page (What's new 133; Rayan's owner review 7 Nov 2026, items 44, 45, 37): each
+  // run's timeline, as written beside its video but without its health readings, in lpc-aion-runs (newest 60 runs, kept
+  // after a video goes so the practice table still counts it). Under each recording a strip: its boss fights (gold when
+  // killed), casts (red ticks) and deaths (skulls), each fight's time from the pull against your best, and which cast was
+  // up at each death. Boss practice: per boss over every run, tries, kills, deaths, times and the cast that cost the most,
+  // and the one to practise next. Side by side: two tries at the same boss played together from the pull.
+  let aionRunTl = load('lpc-aion-runs', {});
+  function runKeep(name, tl) {
+    const { marks, ...t } = tl;
+    aionRunTl[name] = { ...t, bosses: t.bosses.map(({ hp, ...b }) => ({ ...b, pull: hp && hp.length ? hp[0][0] : null })) };
+    aionRunTl = Object.fromEntries(Object.entries(aionRunTl).sort(([, a], [, b]) => (a.start < b.start ? 1 : -1)).slice(0, 60));
+    store.set('lpc-aion-runs', JSON.stringify(aionRunTl));
+  }
+  const runNamed = (b) => !!b.name && !/^Boss fight \d+$/.test(b.name);
+  // the pull: the boss's first health reading, or 10 s after the fight's start (it's kept from 10 s before the bar showed);
+  // null for a kill with no fight read around it (its last minute is kept): no time for it
+  // ponytail: that kind is told by its shape (60 s to the kill, 5 s after); a flag in the timeline would be surer
+  const runPull = (b) => b.pull ?? (b.kill != null && b.kill - b.from === 60 && b.to - b.kill === 5 ? null : Math.min(b.from + 10, b.kill ?? b.to));
+  const runSecs = (b) => { const p = runPull(b); return b.kill != null && p != null ? b.kill - p : null; }; // from the pull to the kill
+  // Live fight's deaths, or (Live fight off, or a run before What's new 133) each time you came back in
+  const runDeathsOf = (tl) => (tl.deaths && tl.deaths.length ? tl.deaths : (tl.respawns || []).map((t) => ({ t, name: '', me: true, re: true })));
+  const runBossAt = (tl, d) => tl.bosses.find((b) => d.t >= b.from && d.t <= b.to + (d.re ? 60 : 0)); // coming back in is after the death
+  function runCastAt(tl, d) { // the cast up at a death: the last one before it, if its countdown (or 10 s) still ran; a minute before coming back in
+    const c = (tl.casts || []).filter((x) => x.t <= d.t).pop();
+    return c && d.t - c.t <= (d.re ? 60 : (c.secs ?? 10) + 2) ? c.name : '';
+  }
+  let runStatsOf = null, runStatsWere = null;
+  function runStats() { // boss name -> { name, tries, killed, kills: [s from the pull], deaths (yours), casts: { cast: your deaths } }; again only after a new run
+    if (runStatsOf === aionRunTl) return runStatsWere;
+    const by = {};
+    for (const tl of Object.values(aionRunTl)) {
+      for (const b of tl.bosses) if (runNamed(b)) {
+        const o = (by[b.name] = by[b.name] || { name: b.name, tries: 0, killed: 0, kills: [], deaths: 0, casts: {} });
+        o.tries++;
+        if (runSecs(b) != null) o.kills.push(runSecs(b));
+        if (b.kill != null) o.killed++;
+      }
+      for (const d of runDeathsOf(tl)) {
+        const b = runBossAt(tl, d), o = b && runNamed(b) && by[b.name], c = o && runCastAt(tl, d);
+        if (!o || !d.me) continue; // yours (or each time you came back in); your party's show on the strip
+        o.deaths++;
+        if (c) o.casts[c] = (o.casts[c] || 0) + 1;
+      }
+    }
+    runStatsOf = aionRunTl;
+    return (runStatsWere = by);
+  }
+  const runMid = (l) => l.slice().sort((a, b) => a - b)[l.length >> 1];
+  const runTop = (casts) => Object.entries(casts).sort((a, b) => b[1] - a[1])[0] || null; // [cast, deaths]
+  function runStrip(name, tl, stats) {
+    const box = Object.assign(document.createElement('div'), { className: 'runrev' }), bar = Object.assign(document.createElement('div'), { className: 'runbar' }), deaths = runDeathsOf(tl);
+    const pic = vidPics[name], L = Math.max(1, (pic && pic[1]) || 0, ...tl.bosses.map((b) => b.to), ...deaths.map((d) => d.t)), at = (t) => `${Math.min(100, (100 * Math.max(0, t)) / L).toFixed(2)}%`;
+    const go = (cls, label, left, width, from, s, text) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: cls, title: label, textContent: cls === 'rd' ? '☠' : '' });
+      b.setAttribute('aria-label', label);
+      b.style.left = at(left);
+      if (width != null) b.style.width = at(width);
+      b.addEventListener('click', () => playGame(name, [{ s, from: Math.max(0, from), text }]));
+      return b;
+    };
+    const line = [];
+    for (const b of tl.bosses) {
+      const best = stats[b.name] && stats[b.name].kills.length ? Math.min(...stats[b.name].kills) : null, secs = runSecs(b);
+      const said = `${b.name}: ${b.kill != null && secs == null ? 'killed' : secs != null ? `killed in ${mmss(secs)}${runNamed(b) && best != null && best < secs ? `, best ${mmss(best)}` : runNamed(b) && best === secs ? ', your best' : ''}` : 'no kill'}`;
+      bar.append(go(`rb${b.kill != null ? ' kill' : ''}`, said, b.from, b.to - b.from, b.from, b.to - 5, b.name));
+      line.push(said);
+    }
+    for (const c of tl.casts || []) { const el = Object.assign(document.createElement('span'), { className: 'rc', title: c.name }); el.style.left = at(c.t); bar.append(el); }
+    const casts = {};
+    for (const d of deaths) {
+      const c = runCastAt(tl, d), who = d.re ? 'Came back in' : `${d.me ? 'You' : d.name} died`;
+      if (c) casts[c] = (casts[c] || 0) + 1;
+      bar.append(go('rd', `${who} at ${mmss(d.t)}${c ? `, during ${c}` : ''}`, d.t, null, d.t - 10, d.t, who));
+    }
+    const top = runTop(casts), re = deaths.length && deaths[0].re;
+    if (deaths.length) line.push(`${deaths.length} ${re ? 'time' : 'death'}${deaths.length > 1 ? 's' : ''}${re ? ' back in' : ''}${top ? `: ${top[1]} of ${deaths.length} during ${top[0]}` : ''}`);
+    box.append(bar, Object.assign(document.createElement('div'), { className: 'runline', textContent: line.join(' · ') || 'No boss fight read in this run.' }));
+    return box;
+  }
+  function renderReview() { // the practice table and the side by side picks; called with the video list
+    const stats = runStats(), rows = Object.values(stats).map((o) => {
+      const best = o.kills.length ? Math.min(...o.kills) : null, mid = o.kills.length ? runMid(o.kills) : null;
+      return { ...o, best, mid, top: runTop(o.casts), cost: (o.deaths + 2 * (o.tries - o.killed)) / o.tries + (mid ? (mid - best) / mid : 0) }; // deaths and wipes a try, then time lost to your best
+    }).sort((a, b) => b.cost - a.cost || b.tries - a.tries);
+    $('aionReviewBox').hidden = !rows.length;
+    if (!rows.length) return vsStop();
+    const n = rows[0];
+    $('aionNext').textContent = `Practise next: ${n.name}. ` + (n.top ? `${n.top[1]} of your ${n.deaths} death${n.deaths > 1 ? 's' : ''} there came during ${n.top[0]}.`
+      : n.deaths || n.tries > n.killed ? `${n.deaths} death${n.deaths === 1 ? '' : 's'} and ${n.tries - n.killed} tr${n.tries - n.killed === 1 ? 'y' : 'ies'} without a kill in ${n.tries}.`
+      : n.mid != null ? `No deaths there; your usual kill (${mmss(n.mid)}) is ${mmss(n.mid - n.best)} slower than your best.` : 'No deaths there.');
+    $('aionPractice').replaceChildren(...rows.slice(0, 8).map((o) => {
+      const tr = document.createElement('tr');
+      tr.append(...[o.name, o.tries, o.killed, o.deaths, o.best != null ? mmss(o.best) : '–', o.mid != null ? mmss(o.mid) : '–', o.top ? `${o.top[0]} (${o.top[1]})` : '–'].map((v) => Object.assign(document.createElement('td'), { textContent: v })));
+      return tr;
+    }));
+    // side by side: tries at a boss whose videos are still here
+    const have = new Set(vidsList.filter((v) => !v.rec).map((v) => v.name)), tries = {};
+    for (const [name, tl] of Object.entries(aionRunTl)) if (have.has(name)) tl.bosses.forEach((b, k) => { if (runNamed(b)) (tries[b.name] = tries[b.name] || []).push({ id: `${k}|${name}`, name, b, start: tl.start }); });
+    vsTries = Object.fromEntries(Object.entries(tries).filter(([, l]) => l.length > 1));
+    $('vsBox').hidden = !Object.keys(vsTries).length;
+    const was = $('vsBoss').value;
+    $('vsBoss').replaceChildren(...Object.keys(vsTries).map((k) => new Option(k, k)));
+    if (vsTries[was]) $('vsBoss').value = was;
+    vsPicks();
+    if (vs && !(vsTries[was] && $('vsBoss').value === was && $('vsA').value === vs.ia && $('vsB').value === vs.ib)) vsStop(); // one of the two went
+  }
+  let vsTries = {}, vs = null; // vs: { a, b } pulls (s in each video) while they play
+  const vsA = $('vsVidA'), vsB = $('vsVidB');
+  function vsPicks() {
+    const l = vsTries[$('vsBoss').value] || [], wasA = $('vsA').value, wasB = $('vsB').value;
+    const opt = (x) => new Option(`${new Date(x.start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${runSecs(x.b) != null ? `kill ${mmss(runSecs(x.b))}` : x.b.kill != null ? 'kill' : 'no kill'}`, x.id);
+    $('vsA').replaceChildren(...l.map(opt));
+    $('vsB').replaceChildren(...l.map(opt));
+    const kills = l.filter((x) => runSecs(x.b) != null).sort((x, y) => runSecs(x.b) - runSecs(y.b)), best = (kills[0] || l[0] || {}).id;
+    $('vsA').value = l.some((x) => x.id === wasA) ? wasA : best || '';
+    $('vsB').value = l.some((x) => x.id === wasB) ? wasB : (l.find((x) => x.id !== $('vsA').value) || {}).id || '';
+  }
+  function vsStop() {
+    vs = null;
+    for (const v of [vsA, vsB]) { v.pause(); v.removeAttribute('src'); v.load(); }
+    $('vsVids').hidden = $('vsClose').hidden = true;
+  }
+  function vsFollow() { // the right one stays at the same second from its pull as the left one
+    if (!vs || vsB.seeking) return;
+    const t = vsA.currentTime - vs.a + vs.b;
+    if (Math.abs(vsB.currentTime - t) > 0.3) vsB.currentTime = Math.max(0, t);
+    if (!vsA.paused && vsB.paused && t < vsB.duration - 1) vsB.play().catch(() => {}); // it had reached its end
+  }
+  vsA.addEventListener('play', () => { vsFollow(); vsB.play().catch(() => {}); });
+  vsA.addEventListener('pause', () => vsB.pause());
+  vsA.addEventListener('seeked', vsFollow);
+  vsA.addEventListener('timeupdate', vsFollow);
+  vsA.addEventListener('ratechange', () => { vsB.playbackRate = vsA.playbackRate; });
+  $('vsBoss').addEventListener('change', () => { vsStop(); vsPicks(); });
+  $('vsA').addEventListener('change', vsStop);
+  $('vsB').addEventListener('change', vsStop);
+  $('vsClose').addEventListener('click', vsStop);
+  $('vsPlay').addEventListener('click', async () => {
+    const l = vsTries[$('vsBoss').value] || [], a = l.find((x) => x.id === $('vsA').value), b = l.find((x) => x.id === $('vsB').value);
+    if (!a || !b || a.id === b.id) return notify('Pick two different tries.', true);
+    if (!client || !client.media || client.version === '1.19.0') return notify('Side by side needs the newest desktop app: Settings, Update.', true);
+    vsStop();
+    vsA.src = client.media('game', a.name);
+    vsB.src = client.media('game', b.name);
+    $('vsVids').hidden = $('vsClose').hidden = false;
+    const ready = (v) => (v.readyState >= 1 ? Promise.resolve() : new Promise((res, rej) => {
+      const ok = () => { v.removeEventListener('error', no); res(); }, no = () => { v.removeEventListener('loadedmetadata', ok); rej(); };
+      v.addEventListener('loadedmetadata', ok, { once: true });
+      v.addEventListener('error', no, { once: true });
+    }));
+    try { await Promise.all([ready(vsA), ready(vsB)]); } catch { vsStop(); return notify('Couldn’t open one of those videos. It may have been moved or deleted.', true); }
+    vs = { a: runPull(a.b) ?? a.b.from, b: runPull(b.b) ?? b.b.from, ia: a.id, ib: b.id };
+    vsB.currentTime = vs.b;
+    vsA.currentTime = vs.a;
+    vsA.play().catch(() => {});
+  });
   // ---- Aion 2 dungeons on the Recording page: every run in the game's own logs (from its first day), each dungeon's
   // runs, best and usual time and respawns, and the last 7 days. A dungeon's name is yours to give: the log has only
   // its map number.
@@ -9549,6 +9744,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('vidList').replaceChildren(...rest.map(vidRow));
     $('savedVids').replaceChildren(...games.filter((v) => vidSaved.has(v.name)).map(vidRow));
     renderSaved();
+    renderReview();
     nextPic();
   }
   // each match video as a card (Rayan's Medal screenshot, 2026-10-22): its picture with the length in the corner (click
@@ -9566,6 +9762,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     li.querySelector('.cname').textContent = label;
     const kda = kdaLine(v.name);
     if (kda) li.querySelector('.cname').after(kda);
+    if (aionRunTl[v.name] && !v.rec) li.querySelector('.sub').after(runStrip(v.name, aionRunTl[v.name], runStats()));
     li.querySelector('.sub').textContent = [whenText(v.at), `${Math.round(v.size / 1e6)} MB`, v.rec ? 'recording now' : marks.length ? `${marks.length} highlight${marks.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
     if (v.rec) return li;
     const btn = (text, cls, fn, aria) => { const b = Object.assign(document.createElement('button'), { className: `btn small ${cls}`, type: 'button', textContent: text }); if (aria) b.setAttribute('aria-label', aria); b.addEventListener('click', fn); acts.append(b); return b; };
@@ -15340,6 +15537,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [133, 'November 7: review your Aion 2 runs', [
+      'Each Aion 2 run on the Recording page has a strip under it: its boss fights, the bosses’ casts and every death, each boss’s time from the pull against your best, and which cast was up at each death. Click a fight or a death to watch it.',
+      'Aion 2 boss practice, on the same page, adds up every recorded run: tries, kills, deaths and times per boss, the cast that costs you the most, and which boss and cast to practise next.',
+      'Side by side plays two tries at the same boss together from the pull, like your best kill next to your last wipe. With Live fight on, the run’s timeline file now has each death in your party too.',
+    ]],
     [132, 'November 7: Aion 2 runs keep the kill, and name each boss', [
       'Desktop app 1.43.0: an Aion 2 run cut down to its boss fights now keeps each kill: a fight runs until its Boss Defeated banner, not until the boss’s health bar goes. Menus with a bar in them, elites and the walking between them are left out, since a fight is kept only with a kill or a boss that died in that dungeon before.',
       'Each fight is marked with its boss’s name, read off the game’s picture, a dungeon Premade hasn’t named yet gets its name from your quest tracker (rename it on the Recording page if it picks up an objective instead), and each run’s video gets a timeline file beside it in its folder: the bosses, kills, respawns, each cast with its countdown, and the boss’s health over the fight.',
@@ -16225,6 +16427,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Recording in the menu: Each Aion 2 dungeon run and Keep only the boss fights (both on by default). Turn the second off to keep whole runs.', '#optAionRec, #optAionBoss', 'app'],
       ['Aion 2 dungeon times and weekly recap', 'Every dungeon run since you started Aion 2, from the game’s own log: how many runs, your best and usual time and respawns a run for each dungeon, and your last 7 days (runs, hours, respawns). Each run’s video marks the moments you came back in after dying and your Combat Analysis fights, and ▶ Highlights plays only those.',
         'Recording in the menu: Aion 2 dungeons, under Your recordings. Click a dungeon to give it a name.', '#aionRunsBox', 'app'],
+      ['Aion 2 run review', 'Under each Aion 2 run on the Recording page, a strip of the run: its boss fights (gold once killed), the bosses’ casts and each death, with every boss’s time from the pull to the kill against your best and the cast that was up at each death, like “2 of 3 deaths during Blue Light of Destruction”. Click a fight or a death to watch it. Deaths come from Live fight when it’s on, otherwise from each time you came back in.',
+        'Recording in the menu: Your recordings. Runs recorded from this update on have it.', '#recList', 'app'],
+      ['Aion 2 boss practice', 'Every boss in your recorded runs: tries, kills, deaths, your best and usual time and the cast that cost you the most deaths, with the boss and cast to practise next at the top.',
+        'Recording in the menu: Aion 2 boss practice, once a recorded run has a boss fight.', '#aionReviewBox', 'app'],
+      ['Aion 2 runs side by side', 'Two of your tries at the same boss, say your best kill and your last wipe, playing side by side from the pull, so you can see what you did differently at the same second.',
+        'Recording in the menu: Aion 2 boss practice, Side by side. Pick the boss and two tries, then Play both from the pull.', '#vsBox', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin. Keep only the highlights (on by default) cuts each game down to its highlights when it ends, so a game takes a fraction of the several GB it took whole. A video Premade was still finishing when it closed is finished at the next start, and half-made files a day old go to the Recycle Bin.',
