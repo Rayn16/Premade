@@ -6870,9 +6870,49 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (party !== aionPartyWas) { aionPartyWas = party; aionParty(s.members || []); }
     aionPublish();
     if (aionCard) pushOverlay();
+    if (s && s.active && s.players) aionTrack(s);
   });
+  // ---- pace and rotation tests (What's new 130): each live fight's clock gives, once a second, the boss's HP and your
+  // damage. The fastest kill of each boss keeps its HP each second (lpc-aion-pace { target: { at, secs, hp } }) for the
+  // pop-up's "+4% vs your best". With a test on (lpc-aion-test { name, at }, from the DPS page or the pop-up), each fight
+  // Live fight saves after it started is a run (lpc-aion-tests, newest 300): DPS, opener (0-10 s) and burst (10-20 s)
+  // damage and skill shares. Only Live fight's own numbers; the last 5 targets' curves, 30 minutes each at most.
+  const aionCurves = new Map();
+  function aionTrack(f) {
+    if (!f.target) return; // unnamed targets would share one curve
+    const now = Date.now();
+    let c = aionCurves.get(f.target);
+    aionCurves.delete(f.target); // kept in order of last use, so the 5-target cap drops the adds, not the boss
+    // the same fight only while its clock has run on with real time: one under the same name later starts over; one first
+    // seen late (Premade restarted) gets no opener or pace
+    if (!c || f.secs < c.sec || f.secs - c.sec > (now - c.at) / 1000 + 3) c = { sec: f.secs > 3 ? f.secs - 1 : -1, late: f.secs > 3, hp: [], dmg: [] };
+    aionCurves.set(f.target, c);
+    if (aionCurves.size > 5) aionCurves.delete(aionCurves.keys().next().value);
+    c.at = now;
+    if (f.secs <= c.sec || f.secs > 1800) return;
+    const me = f.players.find((p) => p.me), d = me ? me.damage : null; // not known yet: no opener rather than 0
+    for (let i = c.sec + 1; i <= f.secs; i++) { c.hp[i] = f.pct; c.dmg[i] = d; }
+    c.sec = f.secs;
+  }
+  function aionDone(f) {
+    const c = aionCurves.get(f.target);
+    if (!c || Math.abs(c.sec - f.secs) > 3) return;
+    aionCurves.delete(f.target);
+    if (f.killed && !c.late && c.hp.some((v) => v != null)) {
+      const pace = load('lpc-aion-pace', {}), best = pace[f.target];
+      if (!best || f.secs < best.secs) {
+        pace[f.target] = { at: f.at, secs: f.secs, hp: c.hp };
+        aionPut('lpc-aion-pace', Object.fromEntries(Object.entries(pace).sort(([, a], [, b]) => b.at - a.at).slice(0, 40)));
+      }
+    }
+    const t = load('lpc-aion-test', null), me = f.players.find((p) => p.me);
+    if (!t || !t.name || !me || f.at < t.at - 2000) return;
+    const run = { test: t.name, at: f.at, target: f.target, secs: f.secs, dps: me.dps, dmg: me.damage, crit: me.crit,
+      open: c.dmg[10] ?? null, burst: c.dmg[20] != null && c.dmg[10] != null ? c.dmg[20] - c.dmg[10] : null, skills: (me.skills || []).map((k) => [k.id, k.share]) };
+    aionPut('lpc-aion-tests', [run, ...load('lpc-aion-tests', [])].slice(0, 300));
+  }
   let aionHist = [];
-  if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); aionPut('lpc-aion-history', aionHist); });
+  if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); aionPut('lpc-aion-history', aionHist); aionDone(f); });
   if (client && client.aionFights) client.aionFights().then((l) => { aionHist = Array.isArray(l) ? l : []; aionPut('lpc-aion-history', aionHist); });
   // the meter pop-up (desktop app 1.36): the DPS tab asks with lpc-aion-meter '1' or '0' (then '|' and a time); this
   // page gives it the theme's colours (lpc-aion-theme) and says '0' again when it's closed in its own window
@@ -15096,6 +15136,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [130, 'November 7: rotation tests and a pull log for Aion 2', [
+      'Aion 2’s DPS page and the DPS pop-up have Rotation tests: name a test (the flask on the pop-up), hit a training dummy, and each fight Live fight saves is a run. The page shows each test’s average DPS, opener (0-10 s) and burst (10-20 s) damage and top skills, against the test before it.',
+      'The DPS page’s Pull log lists every attempt at each boss: HP left, time, deaths and party DPS, with your best. On the pop-up, a boss you’ve killed before shows your pace against your fastest kill at the same second, like “+4% vs best”.',
+    ]],
     [129, 'November 7: friends without League, and a server that can’t run out', [
       'Friends: every Premade has its own Premade code, like Sam#P-kdmwqr, under Add a friend. Send it to a friend who doesn’t play League: they add it the same way as a Riot ID, and you see each other online and invite each other.',
       'Rooms only dial the seats that are taken. Before, every Premade in a room dialled all ten seats every 15 seconds, which was most of what our server handled; a two-person room now sends it nothing once you’re both in.',
@@ -15774,6 +15818,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
       ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills with their icons, crit rate and hits on a click, a skull with how many times each player died in the fight, a compact mode, and a minimize button that shrinks it to its title bar and back. It stays on top, opens where you left it and keeps its size.',
         'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
+      ['Aion 2 rotation tests', 'With Live fight on, name a test, hit a training dummy, and each fight you finish is a run: the DPS page shows each test’s average DPS, opener (0-10 s) and burst (10-20 s) damage and top skills against the test before it. Same gear, change one thing, 3-5 runs of about 3 minutes.',
+        'Aion 2 page: DPS, Rotation tests, or the flask on the DPS pop-up. Stop hitting for 30 s to end a run.', '#aionFrame', 'app'],
+      ['Aion 2 pull log', 'Every attempt at each boss from Live fight (HP left, time, deaths, party DPS) with your best, and on the DPS pop-up your pace against your fastest kill at the same second.',
+        'Aion 2 page: DPS, Pull log. The pace shows on the pop-up’s boss HP once you’ve killed that boss with Live fight on.', '#aionFrame', 'app'],
       ['Aion 2 DPS in your voice room', 'The live fight meter in your room’s Current room card, the same as the DPS pop-up, so it’s there while you talk: the boss’s HP and a bar per player with DPS, share and deaths, Total damage, compact mode and top skills on a click. Its pop-out button opens the DPS pop-up over the game.',
         'In your room, Current room card, Aion 2 DPS, once you’ve picked your Aion 2 characters and outside a League game. Live fight has to be on (Aion 2 page, DPS).', '#roomDps, #createBtn', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it. With Live fight on, it also names the skills Aion 2’s website doesn’t list.',
