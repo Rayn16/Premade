@@ -1296,7 +1296,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <p id="frNote" class="hint" role="status"></p>
           <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
           <div class="toolbar"><button id="frOffBtn" class="btn small" type="button" hidden></button></div>
-          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG or Name#P-1234"></label><button class="btn" type="submit">Add</button></form>
+          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG or Name#P-abcdef"></label><button class="btn" type="submit">Add</button></form>
           <p class="hint">Your Premade code, for friends without a League account: <b id="frCode"></b> <button id="frCodeCopy" class="btn small" type="button">Copy</button></p>
           <label class="check"><input id="optLobbyRoom" type="checkbox"> Friends in my League lobby who have Premade join my voice room by themselves, and I join theirs</label>
         </div>
@@ -2523,20 +2523,35 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const serverUrl = `${peerOpts.secure ? 'https' : 'http'}://${peerOpts.host}:${peerOpts.port}`; // its /stats and /riot/...
   // Relays for players whose routers can't connect directly (Cloudflare's TURN): PeerJS's own are gone. Our server hands
   // them only to players connected to a room, as {type: 'TURN'} before OPEN (roomMsgs), lasting 5 hours or more, and
-  // the page asks again every 2 hours. A server from before that gave them to anyone at /turn, for a day: still read
+  // the page asks again every 2 hours (turnAt). A server from before that gave them to anyone at /turn, for a day: still read
   // before a room's first connection (at most 5 s) and twice a day, but only relays from it are kept.
   // (ports 80 and 5349 left out: 3478 and TLS on 443 reach the same relays, and each port was another TCP connection per call)
-  const useIce = (list) => { if (Array.isArray(list) && list.some((s) => [].concat(s.urls).some((u) => /^turns?:/.test(u)))) peerOpts.config = { iceServers: list.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:(80|5349)\b/.test(u)) })) }; };
+  // One config object, changed in place, so every Peer made with it (room, phone remote, Remote help) gets new relays.
+  // A list without relays (STUN only) is taken only while there's nothing better.
+  const useIce = (list) => {
+    if (!Array.isArray(list) || !list.length) return;
+    const relay = list.some((s) => [].concat(s.urls).some((u) => /^turns?:/.test(u)));
+    if (!relay && peerOpts.config) return;
+    const iceServers = list.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:(80|5349)\b/.test(u)) }));
+    if (peerOpts.config) peerOpts.config.iceServers = iceServers; else peerOpts.config = { iceServers };
+  };
   const getTurn = () => (local ? Promise.resolve() : fetch(serverUrl + '/turn', { signal: AbortSignal.timeout(5000) }).then((r) => r.json()).then((j) => useIce(j.iceServers)).catch(() => {}));
   const turnReady = getTurn();
   setInterval(getTurn, 12 * 3600000);
+  // every 2 hours, fresh relays from whichever of our Peers is connected (they last 5 hours or more)
+  let turnAt = 0;
+  setInterval(() => {
+    if (!turnAt || performance.now() - turnAt < 2 * 3600000) return;
+    const p = [peer, remote, hs && hs.peer, ctlTo && ctlTo.peer].find((x) => x && x.open && x.turnAt);
+    if (p) { turnAt = performance.now(); p.socket.send({ type: 'TURN' }); }
+  }, 60000);
   // What our server's room sockets say besides PeerJS's own: TURN (the relays, for this Peer's next calls and every new
   // Peer) and ROOM {ids} (who's in, so dial() skips empty slots; ids stays null with a server from before that)
   function roomMsgs(p) {
     p.ids = null;
     p.socket.on('message', (m) => {
       if (!m || !m.payload) return;
-      if (m.type === 'TURN') { useIce(m.payload.iceServers); p.options.config = peerOpts.config; p.turnAt = performance.now(); }
+      if (m.type === 'TURN') { useIce(m.payload.iceServers); if (peerOpts.config) p.options.config = peerOpts.config; turnAt = p.turnAt = performance.now(); }
       if (m.type === 'ROOM' && Array.isArray(m.payload.ids)) p.ids = new Set(m.payload.ids);
     });
     return p;
@@ -4030,7 +4045,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     send(meMsg());
     shareFace();
     redial();
-    if (peer.turnAt && performance.now() - peer.turnAt > 2 * 3600000) { peer.turnAt = performance.now(); peer.socket.send({ type: 'TURN' }); }
     if (++ticks % 3) return;
     const all = !peer.ids && (performance.now() - peer.openAt < 120000 || ticks % 24 === 0);
     for (let s = 0; s < SLOTS; s++) if (all || (peer.ids && peer.ids.has(idFor(s)))) dial(s);
@@ -11681,12 +11695,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // Settings > App can turn it off (opts.hello)
   let myDevice = store.get('lpc-device'), checkedIn = '';
   if (!myDevice) store.set('lpc-device', (myDevice = crypto.randomUUID()));
-  // Your Premade code (Friends): Name#P-1234, made once from your voice name, for friends without a League account. It
+  // Your Premade code (Friends): Name#P-abcdef, made once from your voice name, for friends without a League account. It
   // goes with the hello as one more Riot ID (the last, so invites still name your League account), so friends,
   // invites, the inbox and who's online work by it as by a Riot ID; a real Riot tag can't have the dash.
-  const PM_CODE = /^[^#]{1,16}#P-\d{4}$/;
+  // Six random letters (148 million codes), so two never match and nobody finds one by trying.
+  const PM_CODE = /^[^#]{1,16}#P-[a-z]{6}$/i;
   let myCode = store.get('lpc-code');
-  if (!PM_CODE.test(myCode || '')) store.set('lpc-code', (myCode = `${(myName || 'Friend').replace(/#/g, '').trim().slice(0, 16) || 'Friend'}#P-${String(crypto.getRandomValues(new Uint16Array(1))[0] % 10000).padStart(4, '0')}`));
+  if (!PM_CODE.test(myCode || '')) store.set('lpc-code', (myCode = `${(myName || 'Friend').replace(/#/g, '').slice(0, 16).trim() || 'Friend'}#P-${newCode(6)}`));
   const usedDay = () => { const p = useDay().prev; if (!p) return undefined; const u = Object.entries(p.u).sort((a, b) => b[1] - a[1]).slice(0, 60); return { d: p.d, h: p.h, u: Object.fromEntries(u) }; };
   function checkIn() {
     if (!opts.hello) { if (inbox) inboxOpen(); return void (checkedIn = ''); } // turned off in Settings > App: nothing goes, and turned on again it says hello at once
@@ -14580,7 +14595,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('frAdd').addEventListener('submit', (e) => {
     e.preventDefault();
     const n = $('frId').value.trim().replace(/\s*#\s*/, '#');
-    if (!RIOT_ID.test(n)) return notify('Type their Riot ID with its tag, like Name#EUW, or their Premade code, like Sam#P-1234.', true);
+    if (!RIOT_ID.test(n)) return notify('Type their Riot ID with its tag, like Name#EUW, or their Premade code, like Sam#P-kdmwqr.', true);
     if (!frMine.some((x) => acctOf(x) === acctOf(n))) { frMine.push(n); store.set('lpc-friends', JSON.stringify(frMine)); }
     $('frId').value = '';
     frAt = -Infinity;
@@ -15045,7 +15060,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // the version in the status bar any time
   const NEWS = [
     [127, 'November 7: friends without League, and a server that can’t run out', [
-      'Friends: every Premade has its own Premade code, like Sam#P-1234, under Add a friend. Send it to a friend who doesn’t play League: they add it the same way as a Riot ID, and you see each other online and invite each other.',
+      'Friends: every Premade has its own Premade code, like Sam#P-kdmwqr, under Add a friend. Send it to a friend who doesn’t play League: they add it the same way as a Riot ID, and you see each other online and invite each other.',
       'Rooms only dial the seats that are taken. Before, every Premade in a room dialled all ten seats every 15 seconds, which was most of what our server handled; a two-person room now sends it nothing once you’re both in.',
       'Our server pauses counting Riot games at 80% of its free daily requests, so voice rooms keep working, and Settings, Our server shows the whole server’s use. The relay for friends whose routers can’t connect goes only to players in a room.',
       'Who has Premade (for whoever runs it) shows how each copy ran on its last day used and which features get used, counts only. Settings, App turns it off with the same switch.',

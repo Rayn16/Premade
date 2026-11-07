@@ -105,7 +105,7 @@ async function aionLive(req, name, server) {
 // to a room: the Room object sends them as {type: 'TURN', payload: {iceServers}} before OPEN, and again when the page
 // asks ({type: 'TURN'}). /turn itself gives only STUN now (pages from before this still work, without the relay).
 const STUN = { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] };
-let turnAt = 0, turnBody = null;
+let turnAt = 0, turnBody = null, turnTry = null, turnFailed = 0;
 async function turnNew(env, ttl) { // new relay credentials from Cloudflare, lasting ttl seconds; throws when it doesn't answer in 3 s
   const r = await fetch(`${env.TURN_API || 'https://rtc.live.cloudflare.com'}/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
     method: 'POST', headers: { authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({ ttl }), signal: AbortSignal.timeout(3000),
@@ -116,13 +116,15 @@ async function turnNew(env, ttl) { // new relay credentials from Cloudflare, las
   // port 53 is blocked by browsers and only slows the connection down (Cloudflare's docs)
   return { iceServers: iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:53\b/.test(u)) })) };
 }
-async function relays(env) { // the relay servers, else STUN only (no TURN key, or Cloudflare not answering)
+// the relay servers, else STUN only (no TURN key, or Cloudflare not answering): one ask at a time, shared by every
+// player joining meanwhile, and after a failure none for a minute, so joins don't each wait 3 s while it's down
+async function relays(env) {
   if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return STUN;
-  if (!turnBody || Date.now() - turnAt > 3600000) {
-    try { turnBody = await turnNew(env, 6 * 3600); turnAt = Date.now(); }
-    catch (e) { console.error('TURN:', e && e.message); return turnBody || STUN; } // an hour-old answer still has 5 hours left
-  }
-  return turnBody;
+  if (turnBody && Date.now() - turnAt < 3600000) return turnBody;
+  if (Date.now() - turnFailed < 60000) return turnBody || STUN; // an hour-old answer still has 5 hours left
+  turnTry ||= turnNew(env, 6 * 3600).then((b) => { turnBody = b; turnAt = Date.now(); }, (e) => { console.error('TURN:', e && e.message); turnFailed = Date.now(); }).finally(() => { turnTry = null; });
+  await turnTry;
+  return turnBody || STUN;
 }
 
 // Every 30 minutes (the cron): whether the site, the app's update file (latest.yml) and the relay answer, asked again
@@ -142,13 +144,14 @@ async function health(env) {
   if (!env.GH_TOKEN) return;
   let bad = await downNow(env);
   if (bad.length) { await new Promise((r) => setTimeout(r, +env.HEALTH_RETRY || 30000)); const again = await downNow(env); bad = bad.filter((b) => again.some((x) => x.split(' (')[0] === b.split(' (')[0])); }
-  const down = bad.join('; '), st = stats(env);
-  if (down === (await st.health())) return;
+  // what's down, by name only: the same things down with another error ('HTTP 503', a timeout) is no news
+  const down = bad.join('; '), what = bad.map((b) => b.split(' (')[0]).join('; '), st = stats(env);
+  if (what === (await st.health())) return;
   const r = await fetch(`${env.GH_API || 'https://api.github.com'}/repos/Rayn16/Premade/actions/workflows/health.yml/dispatches`, {
     method: 'POST', body: JSON.stringify({ ref: env.HEALTH_REF || 'claude/voice-clips-6a9va7', inputs: { down } }),
     headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': GH_UA },
   });
-  if (r.ok) await st.health(down); else console.error('Premade health:', r.status); // not kept, so it's sent again in 30 minutes
+  if (r.ok) await st.health(what); else console.error('Premade health:', r.status); // not kept, so it's sent again in 30 minutes
 }
 
 export default {

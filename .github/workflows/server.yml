@@ -24,9 +24,11 @@ jobs:
       - name: Tests
         working-directory: server
         run: |
-          npm i --no-save --no-audit --no-fund wrangler@4 ws@8.22.0
-          export WRANGLER="$PWD/node_modules/.bin/wrangler" NODE_PATH="$PWD/node_modules"
-          for t in lock stats budget aug push squad riot; do echo "== $t"; node $t.test.js; done
+          M="$RUNNER_TEMP/m"; mkdir -p "$M"
+          npm i --prefix "$M" --no-save --no-audit --no-fund wrangler@4 ws@8.22.0 playwright@1.56.1 peerjs@1.5.4
+          "$M/node_modules/.bin/playwright" install --with-deps chromium
+          export WRANGLER="$M/node_modules/.bin/wrangler" NODE_PATH="$M/node_modules"
+          for t in lock stats budget aug push squad riot dial; do echo "== $t"; node $t.test.js; done
       - name: Deploy
         if: env.HAS_KEY == 'true'
         uses: cloudflare/wrangler-action@v3
