@@ -550,6 +550,17 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await until(() => !fs.existsSync(path.join(clipsDir, 'Game x.webm.part')) && JSON.parse(fs.readFileSync(finishList, 'utf8')).length === 0, 'the start’s clean-up', 20000);
     assert(binned.includes('Game x.webm.part') && binned.includes('Game x.webm.0.part.webm') && fs.existsSync(path.join(clipsDir, 'Fresh.webm.part')), `half-made files: ${binned}`);
     assert.deepStrictEqual([...fs.readFileSync(path.join(tmp, 'Unfinished.webm'))], [1, 2, 3], 'not a WebM: left as it was');
+    // app 1.43, the PC check-up's app lines (Linux here: the Windows-only ones say so); a half-made file a day old counts,
+    // a fresh one (a video being recorded) doesn't; its test overlay window is gone after
+    const oldPart = path.join(clipsDir, 'Games', 'Old.webm.part');
+    fs.mkdirSync(path.dirname(oldPart), { recursive: true });
+    fs.writeFileSync(oldPart, Buffer.alloc(3e6));
+    fs.utimesSync(oldPart, new Date(Date.now() - 2 * 864e5), new Date(Date.now() - 2 * 864e5));
+    const wins = BrowserWindow.getAllWindows().length, up = await js('lpcClient.checkup()'), line = (n) => up.find((l) => l.name === n) || {};
+    assert(/^Premade \d+\.\d+\.\d+, Electron /.test(line('App').say) && line('Overlay window').ok === true && line('Screen share sound filter').ok === null && line('yt-dlp (downloads)').ok === null && line('Windows Communications').ok === null, JSON.stringify(up));
+    assert(/GB free/.test(line('Clips drive').say) && !/half-made/.test(line('Clips drive').say) && line('Games drive').ok === false && /GB free.*, 1 half-made video file over a day old \(3 MB/.test(line('Games drive').say) && /^CPU [\d.]+%, memory \d+ MB: /.test(line('App use now').say), JSON.stringify(up));
+    fs.unlinkSync(oldPart);
+    assert.strictEqual(BrowserWindow.getAllWindows().length, wins, 'the check-up’s overlay window closed');
     // the log file: the app's start and events, the page's lines, its errors (once a minute each) and failed saves; the
     // day before 3 days ago is gone; Copy connection log copies its last 24 hours
     await js('window.boom = () => { throw new Error("test boom"); }; setTimeout(boom); setTimeout(boom); setTimeout(() => Promise.reject(new Error("test reject")))');
