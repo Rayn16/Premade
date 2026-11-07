@@ -178,6 +178,21 @@ assert.deepStrictEqual([gs.sched, gs.bosses.world, gs.bosses.list.length], [{ da
   g2.add({ k: 'hit', target: 951, source: 1, skill: 1, damage: 7 }, 34000);
   assert.strictEqual(g2.snapshot(24000, true).players[0].damage, 7, 'the next mob at once');
 }
+// deaths: a named player's HP going to 0, once per fall, counted in the fight they fell in
+{
+  const g4 = new Fight();
+  g4.add({ k: 'name', id: 1, name: 'Me', me: true }, 0);
+  g4.add({ k: 'party', names: ['Me'] }, 0);
+  g4.add({ k: 'hp', id: 1, hp: 0 }, 0); // already down when first seen: not counted
+  for (let i = 0; i < 20; i++) g4.add({ k: 'hit', target: 800, source: 1, skill: 1, damage: 100 }, 1000 + i * 1000);
+  for (const [at, hp] of [[2000, 5000], [3000, 0], [3500, 0], [5000, 5000], [9000, 0]]) g4.add({ k: 'hp', id: 1, hp }, at);
+  g4.add({ k: 'hp', id: 800, hp: 0 }, 9000); // the mob dying is no player's death
+  assert.strictEqual(g4.snapshot(20000, true).players[0].deaths, 2, 'two falls, the 0 sent again not counted');
+  g4.add({ k: 'hp', id: 1, hp: 5000 }, 21000);
+  g4.add({ k: 'hit', target: 801, source: 1, skill: 1, damage: 100 }, 70000);
+  g4.add({ k: 'hp', id: 1, hp: 0 }, 72000);
+  assert.strictEqual(g4.snapshot(72000, true).players[0].deaths, 1, 'the next fight counts its own');
+}
 console.log('aionlive ok');
 
 // site/index.html's aionLearn: a skill NC doesn't name takes its Combat Analysis line's name, or "X (extra hits)" when a

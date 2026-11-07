@@ -268,7 +268,7 @@ class Stream {
 
 // The fight: the target hit the most in the last 15 s, with everyone's damage on it since it was first hit
 class Fight {
-  constructor() { this.sched = {}; this.bosses = null; this.tickets = new Map(); this.names = new Map(); this.named = new Set(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.last = null; }
+  constructor() { this.sched = {}; this.bosses = null; this.tickets = new Map(); this.names = new Map(); this.named = new Set(); this.party = new Set(); this.members = []; this.me = ''; this.hp = new Map(); this.targets = new Map(); this.summons = new Map(); this.deaths = new Map(); this.last = null; }
   add(e, now) {
     if (e.k === 'name') { this.names.set(e.id, e.name); this.named.add(e.name); if (e.me) this.me = e.name; return; }
     if (e.k === 'party') { this.party = new Set(e.names); this.members = e.members || []; return; }
@@ -276,7 +276,8 @@ class Fight {
     if (e.k === 'bosses') { this.bosses = { world: e.world, list: e.bosses, at: Date.now() }; return; }
     if (e.k === 'tickets') { for (const x of e.tickets) this.tickets.set(x.id, { ...this.tickets.get(x.id), ...x, at: Date.now() }); return; }
     if (e.k === 'summon') { this.summons.set(e.id, e.owner); if (this.summons.size > 5000) this.summons.clear(); return; }
-    if (e.k === 'hp') { const h = this.hp.get(e.id) || { max: 0 }; h.hp = e.hp; h.max = Math.max(h.max, e.hp); h.at = now; this.hp.set(e.id, h); return; }
+    // a player's death: their HP going from some to 0 (the same 0 sent again isn't another), as Abyss counts them
+    if (e.k === 'hp') { const h = this.hp.get(e.id) || { max: 0 }; if (h.hp > 0 && e.hp === 0 && this.names.has(e.id)) this.deaths.set(e.id, [...(this.deaths.get(e.id) || []), now]); h.hp = e.hp; h.max = Math.max(h.max, e.hp); h.at = now; this.hp.set(e.id, h); return; }
     if (e.k !== 'hit') return;
     const source = this.summons.get(e.source) ?? e.source; // a pet's or summon's damage is its owner's
     if (source === e.target) return;
@@ -312,7 +313,7 @@ class Fight {
       secs: Math.round(secs), target: name(t.id),
       hp: h ? h.hp : null, pct: h && h.max ? Math.round((h.hp / h.max) * 1000) / 10 : null,
       players: players.sort((a, b) => b.damage - a.damage).slice(0, 12).map((p) => ({
-        name: name(p.id) || `Player ${p.id}`, me: !!this.me && name(p.id) === this.me, party: p.was || this.ours(p.id), damage: p.damage,
+        name: name(p.id) || `Player ${p.id}`, deaths: (this.deaths.get(p.id) || []).filter((at) => at >= t.firstAt && at <= t.lastAt + 15e3).length, me: !!this.me && name(p.id) === this.me, party: p.was || this.ours(p.id), damage: p.damage,
         dps: Math.round(p.damage / secs), share: Math.round((p.damage / total) * 1000) / 10, crit: p.hits ? Math.round((p.crits / p.hits) * 100) : 0,
         skills: [...p.skills.values()].sort((a, b) => b.damage - a.damage).slice(0, 8).map((k) => ({ id: k.id, damage: k.damage, hits: k.hits, share: Math.round((k.damage / (p.damage || 1)) * 1000) / 10, crit: Math.round((k.crits / k.hits) * 100), max: k.max })),
       })),
@@ -432,6 +433,7 @@ function start(onSnapshot, opts = {}) {
     const old = Date.now() - 15e3;
     for (const [k, a] of aside) if (a.at < old) aside.delete(k);
     for (const [id, h] of fight.hp) if (h.at < old - 585e3) fight.hp.delete(id); // HP of what left view 10 min ago
+    for (const [id, d] of fight.deaths) { const k = d.filter((at) => at >= old - 585e3); if (k.length) fight.deaths.set(id, k); else fight.deaths.delete(id); } // and deaths
   };
   look();
   const hp = [null], dp = [null];
