@@ -1012,6 +1012,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     <button class="nav pc-only" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
     <button class="nav lcu-only" type="button" data-view="record"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span>Recording</span></button>
     <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
+    <button class="nav client-only" type="button" data-view="aionov"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5"/></svg><span>Aion 2 overlay</span></button>
     <button class="nav client-only" type="button" data-view="re4"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg><span>RE4 co-op</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
@@ -2195,13 +2196,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <p id="vsNote" class="hint">Two tries at the same boss, started together at the pull. The left one has the controls and its sound; the right one follows it.</p>
         </div>
       </section>
-      <section id="aionGuideBox" class="panel client-only" aria-labelledby="h-aguide" hidden>
-        <h2 id="h-aguide" class="ph">Aion 2 dungeon guide</h2>
-        <label class="check"><input id="optAionGuide" type="checkbox"> Guide me on the overlay: each dungeon’s bosses as I go in, what to do when a boss casts, with a countdown, and a call before its health gets to a cast</label>
-        <label class="check"><input id="optAionSay" type="checkbox"> Read Aion 2 callouts out loud</label>
-        <div id="aionGuide" class="guidelist"></div>
-        <p class="hint">Each boss’s casts come from recorded runs: its countdown, the health it comes at and when after the pull. Every run you record (Each Aion 2 dungeon run, above) adds to them, and casts are read off the game’s cast bar only while a run records. Write what to do next to a cast; it’s what the overlay says.</p>
-      </section>
     </section>
 
     <section class="view" data-view="re4" aria-label="RE4 co-op" hidden>
@@ -2248,6 +2242,25 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     <section class="view" data-view="aion" aria-label="Aion 2" hidden>
       <header class="pagehead"><div><h1 class="title">Aion 2</h1><p class="sub">Your group tracker: characters, gear and Abyss fights.</p></div></header>
       <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
+    </section>
+
+    <section class="view" data-view="aionov" aria-label="Aion 2 overlay" hidden>
+      <header class="pagehead"><div><h1 class="title">Aion 2 overlay</h1><p class="sub">What Premade puts over Aion 2, and the key that shows it.</p></div></header>
+      <section class="panel" aria-labelledby="h-aov">
+        <h2 id="h-aov" class="ph">Show it over Aion 2</h2>
+        <div class="setrows">
+          <div class="setrow keyrow"><div><b>Overlay key</b><small>Outside a League game it shows the Aion 2 card, then hides it and the guide, then shows both again. In a League game it’s League’s overlay key.</small></div><kbd id="kAionOv"></kbd><button class="btn small" type="button" data-key="overlay">Change</button></div>
+        </div>
+        <p id="aionOvNote" class="hint">Pick your Aion 2 characters on the Aion 2 page first. Until then the key doesn’t show the Aion 2 card.</p>
+        <p class="hint">The card has the next field bosses back, the daily reset and the dailies your character has left, or the fight while Live fight is on (Aion 2 page, DPS). Aion 2 has to be in Borderless window mode. Where it sits and its size follow League, Overlay, Layout (the rest).</p>
+      </section>
+      <section id="aionGuideBox" class="panel client-only" aria-labelledby="h-aguide" hidden>
+        <h2 id="h-aguide" class="ph">Aion 2 dungeon guide</h2>
+        <label class="check"><input id="optAionGuide" type="checkbox"> Guide me on the overlay: each dungeon’s bosses as I go in, what to do when a boss casts, with a countdown, and a call before its health gets to a cast</label>
+        <label class="check"><input id="optAionSay" type="checkbox"> Read Aion 2 callouts out loud</label>
+        <div id="aionGuide" class="guidelist"></div>
+        <p class="hint">Each boss’s casts come from recorded runs: its countdown, the health it comes at and when after the pull. Every run you record (Each Aion 2 dungeon run, on the Recording page) adds to them, and casts are read off the game’s cast bar only while a run records. Write what to do next to a cast; it’s what the overlay says.</p>
+      </section>
     </section>
 
     <section class="view" data-view="features" aria-label="Features" hidden>
@@ -7249,7 +7262,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (name === 'overlay') ovOpen();
     if (name === 'help') renderRemoteHelp();
     if (name === 're4') re4();
-    if (name === 'record') { loadAionRuns(); guideDraw(); }
+    if (name === 'record') loadAionRuns();
+    if (name === 'aionov') { $('aionOvNote').hidden = !!store.get('lpc-aion'); guideDraw(); }
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
     else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
@@ -9910,7 +9924,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     });
     $('raidBox').addEventListener('focusout', () => setTimeout(raidDraw));
   }
-  // the guide's page part (Recording page): each dungeon's bosses with their casts, and your note per cast
+  // the guide's page part (Aion 2 overlay page): each dungeon's bosses with their casts, and your note per cast
   const noteIn = (b, c) => { const i = Object.assign(document.createElement('input'), { value: aionNotes[`${b}|${c.name}`] || c.do || '', maxLength: 80, placeholder: 'What to do' }); i.dataset.k = `${b}|${c.name}`; return i; };
   async function guideDraw() {
     if (!$('aionGuideBox')) return;
@@ -15505,7 +15519,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('kShow').textContent = keys.show || 'Off';
     $('kClip').textContent = keys.clip || 'Off';
     $('kRec').textContent = keys.rec || 'Off';
-    $('kOverlay').textContent = keys.overlay || 'Off';
+    $('kOverlay').textContent = $('kAionOv').textContent = keys.overlay || 'Off';
     $('kPtt').textContent = keys.ptt ? keyName(keys.ptt) : 'Off (open mic)';
     for (const b of document.querySelectorAll('.keyrow [data-key]')) { // only these buttons: other boxes keep what they drew in data-key
       b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : lone ? 'Hold Ctrl, Alt or Shift too…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
@@ -15870,6 +15884,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [137, 'November 7: Aion 2’s overlay has its own page', [
+      'Aion 2 overlay, in the menu under Aion 2: the key that shows the Aion 2 card over the game, and the dungeon guide with Read Aion 2 callouts out loud and your note per cast (they were on the Recording page).',
+    ]],
     [136, 'November 7: the app runs on a current Chrome', [
       'Desktop app 1.45.0 moves from Electron 37 to Electron 45 (Chrome 156). Electron 37 stopped getting fixes in January, so this brings ten months of security fixes for the video, voice and files that come in from rooms, plus newer voice and video code. Nothing to set: it updates itself as usual.',
     ]],
@@ -16589,11 +16606,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it. With Live fight on, it also names the skills Aion 2’s website doesn’t list.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 dungeon guide', 'In each Aion 2 dungeon the overlay lists its bosses as you go in. When a boss starts a big cast, it says what to do and counts down, and it calls a cast a little before the boss’s health gets to it. Each boss’s casts come from recorded runs (Ferocious Horn Den’s and more from Rayan’s), every run you record adds to them, and you write your own note per cast.',
-        'Recording page, Aion 2 dungeon guide, on by default, with Read Aion 2 callouts out loud. Casts are read while Each Aion 2 dungeon run records; the overlay needs Aion 2 in Borderless window mode.', '#aionGuideBox, #optAionGuide', 'app'],
+        'Aion 2 overlay page, Aion 2 dungeon guide, on by default, with Read Aion 2 callouts out loud. Casts are read while Each Aion 2 dungeon run records; the overlay needs Aion 2 in Borderless window mode.', '#aionGuideBox, #optAionGuide', 'app'],
       ['Aion 2 raid roles', 'A raid sheet in your room: jobs given to players (red orb, orb interceptors, Soul Stone breaker, caller) and callouts at the boss’s health, like a tile phase at 50% and 25%. Everyone in the room sees the sheet and can change it; over Aion 2 each player’s overlay shows only their own jobs, and the callouts 5% before and at each mark.',
         'In your room, Current room card, Raid roles (under Aion 2 DPS). Ludra’s usual jobs and marks fills it from community guides, not checked in game yet. The callouts need Live fight on, or a run recording with the boss targeted.', '#raidBox, #raidLudra', 'app'],
-      ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
-        'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
+      ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left, or the fight while Live fight is on. Its own page, Aion 2 overlay, has the key that shows it and the dungeon guide. Aion 2 has to be in Borderless window mode.',
+        'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters. Change it on the Aion 2 overlay page.', '#kAionOv', 'app'],
     ]],
     ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over Tailscale.', [
       ['RE4 co-op page', 'Checks every part on this PC: Tailscale, which carries the game through any router, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves and starts RE4 through Steam, and ClayBTV’s mod, adjusted for Premade, goes on as Guest and connects you to your host over Direct Connect by itself.',

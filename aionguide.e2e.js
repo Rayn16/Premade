@@ -82,8 +82,9 @@ const seen = (page, re, what, timeout = 20000) => page.waitForFunction((re) => s
     await ana.waitForFunction(() => window.timeline, null, { timeout: 20000 });
     const sc = await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-scripts'))['Ferocious Horn Nuakum']);
     assert(sc && sc.runs === 3 && sc.casts[0].seen === 3 && sc.casts[0].secs > 19 && sc.casts[0].secs < 26 && /blue circle/.test(sc.casts[0].shape), `the run refined Nuakum’s script: ${JSON.stringify(sc)}`);
-    await ana.evaluate(() => document.querySelector('.nav[data-view="record"]').click());
+    await ana.evaluate(() => document.querySelector('.nav[data-view="aionov"]').click());
     await ana.waitForSelector('#aionGuideBox:not([hidden]) #aionGuide details');
+    assert(await ana.evaluate(() => document.getElementById('aionGuideBox').closest('.view').dataset.view === 'aionov' && document.getElementById('kAionOv').textContent === document.getElementById('kOverlay').textContent && document.getElementById('aionOvNote').hidden), 'the guide and the overlay key on the Aion 2 overlay page');
     await ana.evaluate(() => { const i = document.querySelector('#aionGuide input[data-k="Watchdog Kwapo|Thunder Cry"]'); i.value = 'Spread out'; i.dispatchEvent(new Event('change', { bubbles: true })); });
     assert.strictEqual(await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-notes'))['Watchdog Kwapo|Thunder Cry']), 'Spread out', 'a note per cast kept');
 
