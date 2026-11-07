@@ -1,0 +1,32 @@
+{
+ "name": "Vakron",
+ "map": 600072,
+ "dungeon": "Vakron Sky Island",
+ "runs": 6,
+ "from": "read off Rayan's run videos, 5-7 Nov 2026",
+ "casts": [
+  {
+   "name": "Surging Thorn",
+   "secs": 8,
+   "hp": 50,
+   "seen": 5,
+   "shape": "a big red circle around the boss, then the ground burns outside a white ring at the boss",
+   "at": null,
+   "do": "",
+   "hps": [
+    50,
+    25,
+    10
+   ]
+  },
+  {
+   "name": "Lodestone Prison",
+   "secs": 5,
+   "hp": null,
+   "seen": 3,
+   "shape": "a ring of stones closes around a player, then a yellow blast",
+   "at": null,
+   "do": ""
+  }
+ ]
+}

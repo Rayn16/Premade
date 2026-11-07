@@ -1,0 +1,18 @@
+{
+ "name": "Watchdog Kwapo",
+ "map": 600092,
+ "dungeon": "Ferocious Horn Den",
+ "runs": 2,
+ "from": "read off Rayan's run videos, 5-7 Nov 2026",
+ "casts": [
+  {
+   "name": "Thunder Cry",
+   "secs": 8,
+   "hp": 70,
+   "seen": 2,
+   "shape": "orange circles around the arena's edge, then lightning at the boss",
+   "at": null,
+   "do": ""
+  }
+ ]
+}

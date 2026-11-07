@@ -1,0 +1,18 @@
+{
+ "name": "Ferocious Horn Nuakum",
+ "map": 600092,
+ "dungeon": "Ferocious Horn Den",
+ "runs": 2,
+ "from": "read off Rayan's run videos, 5-7 Nov 2026",
+ "casts": [
+  {
+   "name": "Blue Light of Destruction",
+   "secs": 25,
+   "hp": 20,
+   "seen": 2,
+   "shape": "a huge blue circle around the boss over most of the arena, ice spikes on its edge; it comes again until the boss dies",
+   "at": null,
+   "do": ""
+  }
+ ]
+}
