@@ -47,7 +47,7 @@ function fakeApp() {
       g.fillStyle = '#c8d020'; g.fillRect(1080, 69, 300, 7); // its health, 75%
       g.fillStyle = '#ff3030'; g.font = 'bold 22px sans-serif'; g.fillText(s === 'elite' ? 'Kwapo Guard' : 'Nuakum', 1180, 56);
     }
-    if (s === 'cast') { g.fillStyle = '#c02020'; g.fillRect(1120, 1132, 320, 30); g.fillStyle = '#fff'; g.font = 'bold 20px sans-serif'; g.fillText('Blue Light 12', 1180, 1154); }
+    if (s === 'cast') { g.fillStyle = '#c02020'; g.fillRect(1120, 1132, 320, 30); g.fillStyle = '#fff'; g.font = 'bold 20px sans-serif'; g.fillText('Blue Light 12.0', 1180, 1154); }
     if (s === 'banner') { g.fillStyle = '#000'; g.fillRect(0, 0, 2560, 200); g.fillStyle = '#fff'; g.font = 'bold 40px sans-serif'; g.fillText('Nuakum Defeated', 1110, 125); }
   }, 250);
   window.play = async (l) => { for (const [s, sec] of l) { window.scene = s; await new Promise((r) => setTimeout(r, sec * 1000)); } window.scene = ''; };
@@ -66,7 +66,7 @@ function fakeApp() {
     await page.evaluate(() => { log += '[2026-11-05T07:27:03.166+0300] [0] Flow.Teleport.LoadComplete.Map(600092)\n[2026-11-05T07:31:44.120+0300] [0] Flow.Teleport.Load'; });
     await page.waitForFunction(() => calls.includes('start'), null, { timeout: 8000 });
     // a menu with a gauge, an elite that doesn't die, a walk, then the boss with a cast, and its banner after its bar goes
-    await page.evaluate(() => { window.played = play([['menu', 22], ['elite', 21], ['', 47], ['boss', 10], ['cast', 5], ['boss', 8], ['', 8], ['banner', 3], ['', 3]]).then(() => { window.done = true; }); });
+    await page.evaluate(() => { window.played = play([['menu', 22], ['elite', 21], ['', 47], ['boss', 14], ['cast', 5], ['boss', 8], ['', 8], ['banner', 3], ['', 3]]).then(() => { window.done = true; }); });
     // Live fight's deaths: a fight over before the run (3 deaths) isn't counted; your fall during the boss is, a stranger's isn't
     await page.evaluate(() => {
       const f = (active, target, deaths) => lpcClient.fire('aion-live', { active, target, players: [{ name: 'Rayan', me: true, party: true, deaths }, { name: 'Stranger', deaths }] });
@@ -83,7 +83,7 @@ function fakeApp() {
     await page.waitForFunction(() => calls.includes('end'), null, { timeout: 8000 });
     await page.waitForFunction(() => window.cut, null, { timeout: 8000 });
     const cut = await page.evaluate(() => window.cut);
-    assert(cut.length === 1 && cut[0][0] >= 75 && cut[0][1] - cut[0][0] >= 40 && cut[0][1] - cut[0][0] <= 56, `only the boss fight kept, 10 s before it to 5 s after its banner: ${JSON.stringify(cut)}`);
+    assert(cut.length === 1 && cut[0][0] >= 75 && cut[0][1] - cut[0][0] >= 40 && cut[0][1] - cut[0][0] <= 62, `only the boss fight kept, 10 s before it to 5 s after its banner: ${JSON.stringify(cut)}`);
     await page.waitForFunction(() => (JSON.parse(localStorage.getItem('lpc-vid-marks'))['Game 2026-11-05 07-27-03 Recording.webm'] || []).some((m) => m.text === 'Nuakum'), null, { timeout: 5000 }); // the fight marked with its boss
     await page.waitForFunction(() => window.timeline, null, { timeout: 5000 });
     const tl = await page.evaluate(() => window.timeline);
