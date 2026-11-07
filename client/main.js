@@ -1668,7 +1668,7 @@ ipcMain.on('control-input', (e, m) => { if (fromSite(e) && control && m && typeo
 function controlInput(c, m) {
   c.last = Date.now();
   if (c.paused) return;
-  if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText(m.text.slice(0, 20000)); return; } // their Ctrl+V: what they copied, then their V pastes it
+  if (m.k === 'clip') { if (typeof m.text === 'string') clipboard.writeText(m.text.slice(0, 20000)).catch(() => {}); return; } // their Ctrl+V: what they copied, then their V pastes it (Electron 45: a promise; ponytail: the V isn't held for it, as a write lands in well under a ms; queue input behind it if a paste ever comes out old)
   if (Number.isFinite(m.x) && Number.isFinite(m.y)) {
     const b = c.bounds, k = c.scale || 1, o = screen.dipToScreenPoint({ x: b.x, y: b.y }), f = (v) => Math.min(1, Math.max(0, v)); // that screen in real pixels, from its corner, on any DPI setup
     c.u.at(Math.round(o.x + f(m.x) * (b.width * k - 1)), Math.round(o.y + f(m.y) * (b.height * k - 1)));

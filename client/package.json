@@ -1,7 +1,7 @@
 {
   "name": "league-proxchat",
   "productName": "Premade",
-  "version": "1.44.0",
+  "version": "1.45.0",
   "description": "Proximity voice chat and game tools for League of Legends",
   "main": "main.js",
   "author": "Rayan",
@@ -10,7 +10,7 @@
     "koffi": "3.3.3"
   },
   "devDependencies": {
-    "electron": "37.2.0",
+    "electron": "45.2.3",
     "electron-builder": "26.0.12",
     "resedit": "1.7.2"
   },

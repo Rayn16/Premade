@@ -257,7 +257,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // the connection log (Settings, App) gets the app's own lines too, the first one saying what this PC is (1.41: from
     // the log file, with the date)
     await js('document.getElementById("connLogBtn").click()');
-    await until(() => /\n\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z app: .+ threads of .+, full speed for \d+ processes/.test(clipboard.readText()), 'the connection log copied, with the app’s line');
+    await until(async () => /\n\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z app: .+ threads of .+, full speed for \d+ processes/.test(await clipboard.readText()), 'the connection log copied, with the app’s line');
     // test recordings: on from here until League closes
     await js('lpcClient.record(true)');
     await js('document.getElementById("optGameVideo").click()'); // and the whole game on video
@@ -354,7 +354,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // 1.27: their Ctrl+V puts the text they copied on your clipboard first (text only); nothing goes in while it's paused
     controlInput(held, { k: 'clip', text: 'from Ben' });
     controlInput(held, { k: 'clip', text: { toString: () => 'not text' } });
-    assert.strictEqual(clipboard.readText(), 'from Ben');
+    assert.strictEqual(await clipboard.readText(), 'from Ben');
     got.length = 0;
     controlInput({ ...held, paused: true }, { k: 'kd', c: 'KeyB', x: 0.5, y: 0.5 });
     assert.deepStrictEqual(got, [], 'paused');
@@ -574,10 +574,10 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(/^\S+Z Premade \d+\.\d+\.\d+ started/m.test(day) && /Z app: finished Unfinished\.webm: left as it was$/m.test(day) && /Z app: binned 2 half-made video files$/m.test(day) && /Z (no room|room )/m.test(day), day.slice(0, 2000));
     assert(day.match(/test boom/g).length === 1 && day.match(/couldn’t save lpc-opts/g).length === 1, `the same error once a minute, a failed save once: ${day.split("\n").filter((l) => /test boom|couldn’t save/.test(l)).join("\n")}`);
     assert.deepStrictEqual(logs, [new Date().toISOString().slice(0, 10) + '.log'], `only the last 3 days: ${logs}`);
-    clipboard.writeText('');
+    await clipboard.writeText('');
     await js('document.getElementById("connLogBtn").click()');
-    await until(() => clipboard.readText().includes('test reject'), 'Copy connection log');
-    assert(clipboard.readText().startsWith('Premade connection log, the last 24 hours, app '), clipboard.readText().slice(0, 200));
+    await until(async () => (await clipboard.readText()).includes('test reject'), 'Copy connection log');
+    { const t = await clipboard.readText(); assert(t.startsWith('Premade connection log, the last 24 hours, app '), t.slice(0, 200)); }
     console.log(`log file: ${day.split('\n').length} lines in the last 24 hours, copied`);
 
     // a window picks itself back up: hung for 30 s, then crashed (back in its room), then a site it can't reach (the
