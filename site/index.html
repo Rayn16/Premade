@@ -2132,7 +2132,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
             <div class="setrow"><div><b>With my mic</b><small>Your voice lands on its own track, so you can drop it later.</small></div><label class="check"><input id="optRecMic" type="checkbox"> <span class="sr">With my mic</span></label></div>
             <div class="setrow"><div><b>Quality</b><small id="recQNote"></small></div><label class="field"><span class="sr">Quality</span> <select id="optRecQ" class="pillsel"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select></label></div>
             <div class="setrow"><div><b>Frame rate</b><small>60 is the sweet spot for League.</small></div><label class="field"><span class="sr">Frame rate</span> <select id="optRecFps" class="pillsel"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></label></div>
-            <div class="setrow"><div><b>Each Aion 2 dungeon run</b><small>Records Aion 2’s window from entering a dungeon until you leave it.</small></div><label class="check"><input id="optAionRec" type="checkbox"> <span class="sr">Record each Aion 2 dungeon run</span></label></div>
+            <div class="setrow"><div><b>Each Aion 2 dungeon run</b><small>Records Aion 2’s window from entering a dungeon until you leave it, and a boss fight anywhere else.</small></div><label class="check"><input id="optAionRec" type="checkbox"> <span class="sr">Record each Aion 2 dungeon run</span></label></div>
             <div class="setrow"><div><b>Keep only the boss fights</b><small>When a run ends, its video is cut down to the boss fights. Off: the whole run, with each fight marked.</small></div><label class="check"><input id="optAionBoss" type="checkbox"> <span class="sr">Keep only the boss fights</span></label></div>
             <div class="setrow keyrow"><div><b>Record key</b><small>Starts and stops without leaving the game.</small></div><kbd id="kRec"></kbd><button class="btn small" type="button" data-key="rec">Change</button></div>
           </div>
@@ -9214,30 +9214,47 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       const map = crumbMap(e);
       if (map === null) continue;
       // the same dungeon loaded again: you came back in after dying or a wipe; a mark on its video, playing the minute before
-      if (map && map === c.map && screenRec && screenRec.run) runMark(screenRec, crumbTime(t), 'Back in after a death', 60);
+      if (map && map === c.map && screenRec && screenRec.run) { runMark(screenRec, crumbTime(t), 'Back in after a death', 60); screenRec.re.push(Math.round((crumbTime(t) - screenRec.at) / 1000)); }
       c.map = map;
     }
-    const inside = isDungeon(c.map);
+    const inside = isDungeon(c.map), run = screenRec && screenRec.run ? screenRec : null;
     if (inside && !screenRec && !c.rec) {
       c.rec = true; // once per run, even if you stop it
-      const w = (await client.captureSources(false).catch(() => [])).find((x) => x.type === 'window' && AION_WIN.test(x.name));
-      if (w && !screenRec) { await toggleScreenRec(w.id); if (screenRec) bossWatch(screenRec); }
+      runStart(c.map, false);
     }
-    if (!inside) {
-      if (c.rec && screenRec && screenRec.run) { // the Combat Analysis fights read meanwhile: the boss fights, marked whole
-        for (const f of load('lpc-aion-fights', [])) if (f.at > screenRec.at) runMark(screenRec, f.at, `${f.tg || 'Fight'} · ${mmss(f.t)}`, f.t + 5);
-        stopScreenRec();
-      }
-      c.rec = false;
-    }
+    // a dungeon's run ends as you leave it; one a boss bar started elsewhere (app 1.42) when the map changes or 2 minutes after its last boss
+    if (run && (run.open ? c.map !== run.map || Date.now() - run.seen > 120000 : !inside && c.rec)) runEnd(run);
+    if (!inside) c.rec = false;
   }
-  // ---- an Aion 2 run's boss fights (Rayan, 2026-11-06: "auto record only the boss fights"): once a second the run's
-  // video is checked for the cyan gauge under a named enemy's health bar (top middle of Aion 2's screen); a stretch with
-  // 20 s or more of it, gaps up to 45 s joined (you target others, die, the boss leaves), is a boss fight. When the run ends each one is marked, and with Keep only
-  // the boss fights on the app cuts the video down to them, 10 s before each to 5 s after.
-  // ponytail: the gauge's place was measured on Rayan's 2560x1440 videos (5-6 Nov 2026, 6 runs: every boss found; the
-  // walks and most trash cut, a named elite's fight may stay); another UI size, or a boss you never target, needs measuring again. No fight found: the whole run is kept.
-  const bossCv = document.createElement('canvas');
+  async function runStart(map, open) {
+    if (runStarting) return;
+    runStarting = true;
+    const w = (await client.captureSources(false).catch(() => [])).find((x) => x.type === 'window' && AION_WIN.test(x.name));
+    if (w && !screenRec) { await toggleScreenRec(w.id); if (screenRec) bossWatch(screenRec, map, open); }
+    runStarting = false;
+  }
+  let runStarting = false;
+  function runEnd(r) { // the Combat Analysis fights read meanwhile: the boss fights, marked whole
+    for (const f of load('lpc-aion-fights', [])) if (f.at > r.at) runMark(r, f.at, `${f.tg || 'Fight'} · ${mmss(f.t)}`, f.t + 5);
+    stopScreenRec();
+  }
+  // ---- an Aion 2 run's boss fights (Rayan, 2026-11-06: "auto record only the boss fights"; app 1.42, 2026-11-07: keep the
+  // kill, no menus or walking, named fights, a timeline file, bosses you don't target). Once a second the run's video is
+  // read: the cyan gauge under a target's health bar with its red or yellow name above it, the health bar's fill, the red
+  // cast bar above the skill bar ("<cast> <seconds left>", which shows for a boss you don't target too) and the white
+  // "<name> Defeated" banner, the text by Tesseract (augLoad) only when it's there. A stretch with 20 s or more of boss
+  // (gaps up to 45 s joined) is a fight; it's kept only with a kill banner or a boss that died in that dungeon before, and
+  // runs to its banner + 5 s (a banner up to 20 s after the bar goes). When the run ends each one is marked with its
+  // boss's name, with Keep only the boss fights on the video is cut down to them, and <video>.json beside it has the
+  // bosses, kills, respawns, casts and health read.
+  // ponytail: places measured on Rayan's 2560x1440 videos (6-7 Nov 2026) as shares of the screen; another UI size needs
+  // measuring again. Nothing read by Tesseract at all (it failed): the gauge's fights are kept as before.
+  const RUN_AT = { name: [0.4492, 0.025, 0.1133, 0.0181], hp: [0.4219, 0.0479, 0.157, 0.0049], cast: [0.4375, 0.7861, 0.125, 0.0208], top: [0.3906, 0.0278, 0.2188, 0.0937],
+    quest: [0.8781, 0.25, 0.0121, 0.1111] }; // the quest tracker's gold diamond: its row (y 380-402 in a party dungeon, 478-500 in a challenge) has the dungeon's name
+  const RUN_INK = { // which pixels are text: r, g, b -> true
+    name: (r, g, b) => (r > 170 && g < 100 && b < 100) || (r > 200 && g > 170 && b < 110), // red: a higher level than you; yellow: yours
+    red: (r, g, b) => r > 140 && g < 90 && b < 90, gold: (r, g, b) => r > 160 && g > 140 && b < 140 && r - b > 50, white: (r, g, b) => Math.min(r, g, b) > 175, top: (r, g, b) => Math.min(r, g, b) > 200 };
+  const bossCv = document.createElement('canvas'), runCvs = {};
   function bossBar(src, w, h) { // at the screen's own size: the gauge is a line 2-3 px high
     const W = Math.round(w * 0.118), H = Math.round(h * 0.01);
     if (bossCv.width !== W || bossCv.height !== H) Object.assign(bossCv, { width: W, height: H });
@@ -9248,23 +9265,145 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 150 && d[i + 2] > 150 && d[i] < 120) n++;
     return n > 0.03 * W * H;
   }
-  function bossFights(secs) { // seconds the gauge showed -> [[from, to]] of the fights
-    const out = [];
-    for (const t of secs) { const l = out[out.length - 1]; if (l && t - l[1] <= 45) { l[1] = t; l[2]++; } else out.push([t, t, 1]); }
-    return out.filter((f) => f[2] >= 20).map(([a, z]) => [Math.max(0, a - 10), z + 5]);
+  function runCrop(src, w, h, k, at = RUN_AT[k]) { // one of RUN_AT's places (or at), at the screen's own size
+    const [x, y, cw, ch] = at, W = Math.max(1, Math.round(w * cw)), H = Math.max(1, Math.round(h * ch)), c = (runCvs[k] = runCvs[k] || document.createElement('canvas'));
+    if (c.width !== W || c.height !== H) Object.assign(c, { width: W, height: H });
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, Math.round(w * x), Math.round(h * y), W, H, 0, 0, W, H);
+    return g.getImageData(0, 0, W, H);
   }
-  function bossWatch(r) {
-    r.run = true;
-    r.boss = [];
-    const t = r.stream.getVideoTracks()[0].clone(), stop = CameraBox.watch(new MediaStream([t]), 1000, (src, w, h) => { if (bossBar(src, w, h)) r.boss.push(Math.round((Date.now() - r.at) / 1000)); });
-    r.unwatch = () => { stop(); t.stop(); };
-    r.after = async (name) => {
-      const fights = bossFights(r.boss);
-      if (!fights.length) return;
-      if (opts.aionBoss && (await keepOnly(name, fights, (k) => `Boss fight ${k + 1}`))) return;
-      vidMarks[name] = [...(vidMarks[name] || []), ...fights.map(([a, z], k) => ({ s: a + 10, from: a, text: `Boss fight ${k + 1}` }))].sort((x, y) => x.s - y.s);
-      store.set('lpc-vid-marks', JSON.stringify(vidMarks));
+  const runShare = (img, ink) => { const d = img.data; let n = 0; for (let i = 0; i < d.length; i += 4) if (ink(d[i], d[i + 1], d[i + 2])) n++; return (n * 4) / d.length; };
+  function runInk(img, ink, k) { // its text black on white, k times the size: what Tesseract reads best
+    const c = Object.assign(document.createElement('canvas'), { width: img.width, height: img.height }), o = new ImageData(img.width, img.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) { const v = ink(d[i], d[i + 1], d[i + 2]) ? 0 : 255; o.data[i] = o.data[i + 1] = o.data[i + 2] = v; o.data[i + 3] = 255; }
+    c.getContext('2d').putImageData(o, 0, 0);
+    const big = Object.assign(document.createElement('canvas'), { width: img.width * k, height: img.height * k }), g = big.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(c, 0, 0, big.width, big.height);
+    return big;
+  }
+  function runHp(img) { // the health bar's fill from the left, in %: yellow-green filled, dark empty; null if it isn't there
+    const { width: W, height: H, data: d } = img;
+    let end = -1;
+    for (let x = 0; x < W; x++) {
+      let n = 0;
+      for (let y = 0; y < H; y++) { const i = (y * W + x) * 4; if (Math.max(d[i], d[i + 1]) > 150 && d[i + 2] < 140) n++; }
+      if (n * 2 > H) { if (end < 0 && x > W * 0.015) return null; if (x - end > W * 0.02 && end >= 0) break; end = x; }
+    }
+    return end < 0 ? null : Math.round((100 * (end + 1)) / W);
+  }
+  function runRead(r, cv, done) { // Tesseract on cv, one at a time, then done(text); at most 3 waiting
+    if (r.ocrN > 2) return;
+    r.ocrN = (r.ocrN || 0) + 1;
+    r.ocr = r.ocr || augLoad('6', '');
+    r.ocrQ = (r.ocrQ || Promise.resolve()).then(() => r.ocr).then((w) => w.recognize(cv)).then((x) => { r.ocrOk = true; done(x.data.text.replace(/\s+/g, ' ').trim()); }, () => {}).finally(() => r.ocrN--);
+  }
+  const runBosses = () => load('lpc-aion-run-bosses', {}); // { map: [boss names that died there] }
+  function runName(r, text) { // a boss name read: letters only, and one read before if it's nearly that
+    const s = text.replace(/[^A-Za-z' -]/g, '').replace(/\s+/g, ' ').trim(), k = augKey(s);
+    if ((s.match(/[A-Za-z]/g) || []).length < 4) return '';
+    let best = s, top = 0.75;
+    for (const n of new Set([...r.names.map((x) => x[1]), ...Object.values(runBosses()).flat()])) { const v = 1 - lev(k, augKey(n)) / Math.max(k.length, augKey(n).length, 1); if (v > top) { top = v; best = n; } }
+    return best;
+  }
+  function runFrame(r, src, w, h) {
+    const t = Math.round((Date.now() - r.at) / 1000), gauge = bossBar(src, w, h), nm = runCrop(src, w, h, 'name'), named = runShare(nm, RUN_INK.name) > 0.012;
+    const boss = () => { if (r.boss[r.boss.length - 1] !== t) r.boss.push(t); r.seen = Date.now(); };
+    if (gauge && named) { // a boss you target: its name now and then, its health when it changes
+      boss();
+      const hp = runHp(runCrop(src, w, h, 'hp'));
+      if (hp !== null && (hp !== r.hpLast || t - r.hpAt > 10)) { r.hpLast = hp; r.hp.push([t, hp]); } // and again after a gap: another fight
+      if (hp !== null) r.hpAt = t;
+      if (!(t - r.nameAt < 20)) { r.nameAt = t; runRead(r, runInk(nm, RUN_INK.name, 3), (s) => { const n = runName(r, s); if (n) r.names.push([t, n]); }); }
+    }
+    const cast = runCrop(src, w, h, 'cast');
+    if (runShare(cast, RUN_INK.red) > 0.08) { // the cast bar: a blood pool is red too, so it counts once its text reads
+      if (!r.castAt) {
+        r.castAt = t;
+        runRead(r, runInk(cast, RUN_INK.white, 3), (s) => {
+          const m = /^(.*?[A-Za-z]{3}.*?)\s*(\d+(?:\.\d)?)?\s*s?$/.exec(s);
+          if (m && r.castAt === t) { r.casts.push({ t, name: m[1].replace(/[^A-Za-z' -]/g, '').trim(), secs: m[2] ? +m[2] : null }); r.castOk = t; }
+        });
+      }
+      if (r.castOk === r.castAt) boss();
+    } else r.castAt = 0;
+    if (t < 300 && !(t - r.questAt < 10) && isDungeon(r.map) && !aionMapNames[r.map]) { r.questAt = t; runQuest(r, src, w, h); }
+    if (gauge || runHp(runCrop(src, w, h, 'hp')) !== null) return; // the banner comes once the boss's health bar has gone
+    const top = runCrop(src, w, h, 'top'), white = runShare(top, RUN_INK.top);
+    if (white > 0.01 && Math.abs(white - (r.topWas || 0)) > 0.002 && !(t - r.topAt < 2)) { // a banner, read when it changes
+      r.topAt = t; r.topWas = white;
+      runRead(r, runInk(top, RUN_INK.top, 2), (s) => {
+        const m = /^(.*?)\s*Defeated\b/.exec(s); // "Boss Defeated" or "<name> Defeated", not your own death
+        if (m && !/\b(you|been|were|was)\b/i.test(m[1]) && !r.kills.some((k) => t - k.t < 10)) { r.kills.push({ t, name: /^boss$/i.test(m[1].trim()) ? '' : runName(r, m[1]) }); r.seen = Date.now(); }
+      });
+    }
+  }
+  function runQuest(r, src, w, h) { // a dungeon not named yet: its name from the quest tracker, the same twice in its first 5 minutes
+    const img = runCrop(src, w, h, 'quest'), { width: W, height: H, data: d } = img;
+    const rows = Array.from({ length: H }, (_, y) => { let n = 0; for (let x = 0; x < W; x++) { const i = (y * W + x) * 4; if (RUN_INK.gold(d[i], d[i + 1], d[i + 2])) n++; } return n; });
+    const most = Math.max(...rows), on = rows.map((n, y) => (n * 2 >= most ? y : -1)).filter((y) => y >= 0);
+    if (most < 3) return;
+    const row = (on[0] + on[on.length - 1]) / 2; // the diamond's middle
+    const [, y0, , qh] = RUN_AT.quest, mid = y0 + (qh * row) / H;
+    runRead(r, runInk(runCrop(src, w, h, 'qtext', [0.8891, mid - 0.009, 0.1031, 0.018]), RUN_INK.gold, 3), (s) => {
+      const n = s.replace(/[^A-Za-z' -]/g, '').replace(/\s+/g, ' ').trim(); // not a quest ("[Lv. 46] ...") nor an objective of the dungeon: one seen once
+      if (/^\[?\s*Lv/i.test(s) || n.length < 4 || aionMapNames[r.map]) return;
+      if (r.quest !== n) { r.quest = n; return; }
+      aionMapNames[r.map] = n.slice(0, 40); // ponytail: a dungeon showing an objective from the start (Draupnir: "Forgotten Commander") gets that; renamed on the Recording page
+      store.set('lpc-aion-maps', JSON.stringify(aionMapNames));
+    });
+  }
+  function bossFights(r) { // -> [{ a, z (s in the video), name, kill }]: the fights worth keeping
+    const out = [], known = runBosses()[r.map] || [], read = !!r.ocrOk;
+    for (const t of r.boss) { const l = out[out.length - 1]; if (l && t - l[1] <= 45) { l[1] = t; l[2]++; } else out.push([t, t, 1]); }
+    const fights = out.filter((f) => f[2] >= 20).map(([a, z]) => {
+      const kill = r.kills.find((k) => k.t >= a && k.t <= z + 20), names = r.names.filter(([t]) => t >= a && t <= z).map((x) => x[1]);
+      const name = (kill && kill.name) || names.sort((x, y) => names.filter((n) => n === y).length - names.filter((n) => n === x).length)[0] || '';
+      return { a: Math.max(0, a - 10), z: Math.max(z, kill ? kill.t : z) + 5, name, kill: kill ? kill.t : null };
+    }).filter((f) => !read || f.kill !== null || known.includes(f.name));
+    // ponytail: a kill with no fight around it (a boss you never targeted, with no cast read): its last minute
+    for (const k of r.kills) if (!fights.some((f) => k.t >= f.a && k.t <= f.z)) fights.push({ a: Math.max(0, k.t - 60), z: k.t + 5, name: k.name, kill: k.t });
+    const joined = [];
+    for (const f of fights.sort((x, y) => x.a - y.a)) { const l = joined[joined.length - 1]; if (l && f.a <= l.z) l.z = Math.max(l.z, f.z); else joined.push(f); } // overlaps joined
+    return joined;
+  }
+  function bossWatch(r, map, open) {
+    Object.assign(r, { run: true, map, open, boss: [], names: [], hp: [], casts: [], kills: [], re: [], seen: Date.now() });
+    const t = r.stream.getVideoTracks()[0].clone(), stop = CameraBox.watch(new MediaStream([t]), 1000, (src, w, h) => runFrame(r, src, w, h));
+    r.unwatch = () => {
+      stop();
+      t.stop();
+      r.ocrDone = (r.ocrQ || Promise.resolve()).then(() => r.ocr && r.ocr.then((w) => w.terminate())).catch(() => {}); // Tesseract's worker goes with the run
     };
+    r.after = async (name) => {
+      await r.ocrDone;
+      const fights = bossFights(r), parts = fights.map((f) => [f.a, f.z]), label = (k) => fights[k].name || `Boss fight ${k + 1}`;
+      if (open && !fights.length) { // started by a boss bar outside a dungeon, and no boss after all (a training dummy): not kept, nor started there again for 30 min
+        runNo[map] = Date.now() + 1800000;
+        await client.gameVideo('trash', name).catch(() => {});
+        delete vidMarks[name];
+        return store.set('lpc-vid-marks', JSON.stringify(vidMarks));
+      }
+      const bosses = runBosses(), died = fights.filter((f) => f.kill !== null && f.name);
+      if (died.length) { bosses[map] = [...new Set([...(bosses[map] || []), ...died.map((f) => f.name)])].slice(-20); store.set('lpc-aion-run-bosses', JSON.stringify(bosses)); }
+      const cut = fights.length && opts.aionBoss && (await keepOnly(name, parts, label));
+      if (fights.length && !cut) { vidMarks[name] = [...(vidMarks[name] || []), ...fights.map((f, k) => ({ s: f.a + 10, from: f.a, text: label(k) }))].sort((x, y) => x.s - y.s); store.set('lpc-vid-marks', JSON.stringify(vidMarks)); }
+      const at = (t) => { if (!cut) return t; let o = 0; for (const [a, z] of parts) { if (t >= a && t <= z) return o + t - a; o += z - a; } return null; }; // a second of the run in the saved video
+      const keep = (l, f) => l.map((x) => { const s = at(x.t ?? x[0]); return s === null ? null : f(x, s); }).filter((x) => x !== null);
+      client.gameVideo('json', name, JSON.stringify({ // the run's timeline beside its video, times in seconds of that video (parts: what was kept of the whole run)
+        game: 'Aion 2', map, dungeon: aionMapNames[map] || null, start: new Date(r.at).toISOString(), parts: cut ? parts : null,
+        bosses: fights.map((f, k) => ({ name: label(k), from: at(f.a), to: at(f.z), kill: f.kill === null ? null : at(f.kill), hp: keep(r.hp.filter(([t]) => t >= f.a && t <= f.z), (x, s) => [s, x[1]]) })),
+        kills: keep(r.kills, (x, s) => ({ t: s, name: x.name || null })), respawns: keep(r.re.map((t) => ({ t })), (x, s) => s),
+        casts: keep(r.casts, (x, s) => ({ t: s, name: x.name, secs: x.secs })), marks: vidMarks[name] || [],
+      })).catch(() => {});
+    };
+  }
+  const RUN_TOWN = new Set([0, 901, 1010, 1110]); // the lobby, character select and the two towns (Rayan's log, 16 Oct to 5 Nov)
+  let runSpot = 0, runNo = {}; // seconds in a row with a boss bar outside a dungeon; maps where one turned out not to be a boss: until when
+  function bossSpot(src, w, h) { // app 1.42: a boss bar on a map that isn't a dungeon (a field boss, new content) records a run too; on Live fight's frames, so it costs two small reads a second
+    if (!opts.aionRec || screenRec || !crumb || RUN_TOWN.has(crumb.map) || isDungeon(crumb.map) || Date.now() < (runNo[crumb.map] || 0)) { runSpot = 0; return; }
+    runSpot = bossBar(src, w, h) && runShare(runCrop(src, w, h, 'name'), RUN_INK.name) > 0.012 ? runSpot + 1 : 0;
+    if (runSpot >= 5) { runSpot = 0; runStart(crumb.map, true); }
   }
   // a video cut down to parts ([[from, to] s] in order) by the app, and its marks inside them moved with them; label(k):
   // a mark at each part's start + 10 s. Says whether it was cut.
@@ -13217,7 +13356,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (dps !== d || !s) { if (s) s.getTracks().forEach((t) => t.stop()); if (dps === d) dps = null; return; } // again in 30 s
     d.track = s.getVideoTracks()[0];
     d.track.addEventListener('ended', () => { if (dps === d) dpsStop(); }); // the game closed
-    d.stop = CameraBox.watch(s, 1000, (src, w, h) => dpsFrame(d, src, w, h));
+    d.stop = CameraBox.watch(s, 1000, (src, w, h) => { bossSpot(src, w, h); dpsFrame(d, src, w, h); });
   }
   function dpsStop() {
     const d = dps;
@@ -15201,6 +15340,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [132, 'November 7: Aion 2 runs keep the kill, and name each boss', [
+      'Desktop app 1.43.0: an Aion 2 run cut down to its boss fights now keeps each kill: a fight runs until its Boss Defeated banner, not until the boss’s health bar goes. Menus with a bar in them, elites and the walking between them are left out, since a fight is kept only with a kill or a boss that died in that dungeon before.',
+      'Each fight is marked with its boss’s name, read off the game’s picture, a dungeon Premade hasn’t named yet gets its name from your quest tracker (rename it on the Recording page if it picks up an objective instead), and each run’s video gets a timeline file beside it in its folder: the bosses, kills, respawns, each cast with its countdown, and the boss’s health over the fight.',
+      'Bosses you don’t target count too (from their cast bar and banner), and a boss fight outside a dungeon, like a field boss or content Premade doesn’t know yet, is recorded as well. A recording that turns out to have no boss in it goes to the Recycle Bin.',
+    ]],
     [131, 'November 7: room chat that stays, and a first start for what you play', [
       'Each room’s chat now stays on your PC: come back to a room and its last 200 messages are there. When you join, the friends in it send you what you missed while you were out, straight from their PC; nothing is kept on our server. Untick Keep my voice sessions to turn it off.',
       'The first start asks what you play: League’s screen check is only for League and TFT players, and it ends with Create a room or a friend’s code, so you start in a room with your friends. The Rooms page no longer says everyone gets louder as you walk up, only in a League game.',
@@ -16077,7 +16221,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
-      ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality, and cut down to just its boss fights when it ends (Premade spots them by the gauge under a boss’s health bar). Premade knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page, each boss fight marked.',
+      ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality, and cut down to just its boss fights when it ends: each from 10 seconds before the pull to just after its Boss Defeated banner, named after its boss, with menus, elites and walking left out, and the dungeon named from your quest tracker. A boss fight on any other map (a field boss, new content) is recorded too. Premade reads the boss’s name, health bar, cast bar and banner off the game’s picture and knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page, each boss fight marked, with a timeline file beside each (bosses, kills, respawns, casts with their countdowns, health).',
         'Recording in the menu: Each Aion 2 dungeon run and Keep only the boss fights (both on by default). Turn the second off to keep whole runs.', '#optAionRec, #optAionBoss', 'app'],
       ['Aion 2 dungeon times and weekly recap', 'Every dungeon run since you started Aion 2, from the game’s own log: how many runs, your best and usual time and respawns a run for each dungeon, and your last 7 days (runs, hours, respawns). Each run’s video marks the moments you came back in after dying and your Combat Analysis fights, and ▶ Highlights plays only those.',
         'Recording in the menu: Aion 2 dungeons, under Your recordings. Click a dungeon to give it a name.', '#aionRunsBox', 'app'],

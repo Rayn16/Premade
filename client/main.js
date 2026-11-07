@@ -958,7 +958,7 @@ ipcMain.on('clips-folder', async (e) => {
 // older than the days you pick (the Recycle Bin, as with clips).
 // App 1.41: one the app or the PC closed during is made seekable at the next start (Videos to finish.json), and
 // quitting waits for one being finished.
-const vidDir = () => path.join(clipDir(), 'Games'), vidAt = (n) => path.join(vidDir(), n);
+const vidDir = () => path.join(clipDir(), 'Games'), vidAt = (n) => path.join(vidDir(), n), jsonAt = (n) => vidAt(n).replace(/\.webm$/i, '.json'); // app 1.42: an Aion 2 run's timeline beside it
 const vids = new Map(); // the one being recorded: its name -> { fh, q (its writes, in order), room (seekable's room not yet added) }
 const finishing = new Set(); // names being made seekable at the start
 const working = new Set(), work = (p) => { working.add(p); p.finally(() => working.delete(p)).catch(() => {}); return p; }; // what quitting waits for
@@ -1053,7 +1053,7 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
   if (what === 'clean') { // the ones older than a days go to the bin (and day-old half-made files); says which went
     await partsClean();
     const out = [];
-    for (const v of await list()) if (a > 0 && !v.rec && Date.now() - v.at > a * 864e5 && (await shell.trashItem(vidAt(v.name)).then(() => true, () => false))) out.push(v.name);
+    for (const v of await list()) if (a > 0 && !v.rec && Date.now() - v.at > a * 864e5 && (await shell.trashItem(vidAt(v.name)).then(() => true, () => false))) { out.push(v.name); shell.trashItem(jsonAt(v.name)).catch(() => {}); }
     return out;
   }
   if (what === 'folder') { await fs.promises.mkdir(vidDir(), { recursive: true }).catch(() => {}); return (await shell.openPath(vidDir())) === ''; }
@@ -1062,7 +1062,8 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
   // ponytail: the whole video (about 300 MB for 30 minutes) goes to the page at once; a stream if that's too much
   if (what === 'read') return fs.promises.readFile(vidAt(a)).catch(() => null); // for its highlights in the page
   if (what === 'show') { shell.showItemInFolder(vidAt(a)); return true; }
-  if (what === 'trash') return shell.trashItem(vidAt(a)).then(() => true, () => false);
+  if (what === 'trash') { shell.trashItem(jsonAt(a)).catch(() => {}); return shell.trashItem(vidAt(a)).then(() => true, () => false); }
+  if (what === 'json') return typeof b === 'string' && b.length < 2e6 && fs.promises.writeFile(jsonAt(a), b).then(() => true, () => false); // b: its timeline
   if (what === 'cut') { // b: [[from, to] s, ...] in order: keeps only those parts, copied as they are (an Aion 2 run's boss fights). Matroska, as
     // ffmpeg won't write H.264 as WebM; Chrome plays it the same (checked on a cut of Rayan's 6 Nov run)
     const parts = Array.isArray(b) ? b.filter((p) => Array.isArray(p) && p[0] >= 0 && p[1] > p[0]).slice(0, 50) : [];
