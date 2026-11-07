@@ -18,13 +18,14 @@ function fakeClient() {
   const on = {};
   window.copied = '';
   navigator.clipboard.writeText = async (t) => { window.copied = t; };
-  // every test connection counted, so the test can see they all closed
+  // every test connection counted, so the test can see they all closed (counts only: holding them would keep them
+  // alive, and Chromium allows 500)
   const PC = RTCPeerConnection;
-  window.pcs = [];
-  window.RTCPeerConnection = class extends PC { constructor(c) { super(c); window.pcs.push(this); } };
+  window.pcs = { made: 0, open: 0 };
+  window.RTCPeerConnection = class extends PC { constructor(c) { super(c); pcs.made++; pcs.open++; } close() { if (this.signalingState !== 'closed') pcs.open--; super.close(); } };
   const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-  window.mics = [];
-  navigator.mediaDevices.getUserMedia = async (c) => { const m = await gum(c); window.mics.push(m); return m; };
+  window.mics = 0; // tracks still live
+  navigator.mediaDevices.getUserMedia = async (c) => { const m = await gum(c); for (const t of m.getTracks()) { mics++; const stop = t.stop.bind(t); t.stop = () => { if (t.readyState === 'live') mics--; stop(); }; } return m; };
   window.lpcClient = {
     version: '1.43.0', screens: async () => [], useScreen() {}, keys: async () => ({ ptt: true }), compact() {}, windowMode: async () => 'borderless',
     update() {}, discord() {}, ducking: async () => 3, soundSettings() {}, attenuate() {}, overlay() {}, metrics: async () => ({ cpu: 1, mb: 200 }),
@@ -53,6 +54,7 @@ function fakeClient() {
     let warm = null, runs = 0;
     for (let run = 0; run < 5 || Date.now() < until; run++, runs++) {
       if (run === 3) warm = await measure();
+      if (run === 3 || run % 500 === 0) console.log(`run ${run}: ${JSON.stringify(await measure())}`);
       await page.evaluate(() => { window.copied = ''; document.getElementById('checkBtn').click(); });
       // push to talk: the app says the key went down while the page waits for it
       await page.waitForFunction(() => /Hold T now/.test(document.getElementById('checkOut').textContent), null, { timeout: 30000 });
@@ -62,6 +64,7 @@ function fakeClient() {
     }
     const end = await measure();
     console.log(`${runs} runs: after 3 ${JSON.stringify(warm)}, at the end ${JSON.stringify(end)}`);
+    assert(!/FIX the /.test(await page.evaluate(() => window.copied)), 'no check failed to run');
     assert(end.nodes <= warm.nodes + 50 && end.listeners <= warm.listeners + 20, 'no DOM nodes or listeners left behind');
     const report = await page.evaluate(() => window.copied);
     console.log(report);
@@ -72,10 +75,9 @@ function fakeClient() {
     assert(/^OK {2}Mic: .*\d+(\.\d+)? kHz/m.test(report), 'mic sample rate');
     assert(/^OK {2}Push to talk: T read by the app/m.test(report), 'push to talk read');
     assert(/^OK {2}Overlay window: shows on top$/m.test(report) && /^FIX Games drive: /m.test(report), 'the app’s lines');
-    const open = await page.evaluate(() => pcs.filter((p) => p.signalingState !== 'closed').length);
-    assert.strictEqual(open, 0, 'every test connection closed');
-    assert.strictEqual(await page.evaluate(() => pcs.length), runs * 2, 'two test connections per run (the encoder test; the relay test makes none without relays)');
-    assert.strictEqual(await page.evaluate(() => mics.flatMap((m) => m.getTracks()).filter((t) => t.readyState === 'live').length), 0, 'the mic opened for the check-up is closed again');
+    assert.strictEqual(await page.evaluate(() => pcs.open), 0, 'every test connection closed');
+    assert.strictEqual(await page.evaluate(() => pcs.made), runs * 2, 'two test connections per run (the encoder test; the relay test makes none without relays)');
+    assert.strictEqual(await page.evaluate(() => mics), 0, 'the mic opened for the check-up is closed again');
     assert.deepStrictEqual(errors, [], 'no page errors');
     assert(await page.isEnabled('#checkBtn'), 'button back on');
     console.log('ok');
