@@ -1,0 +1,24 @@
+# Runs every test (npm test) on each push to the owner branch and to thread branches, so a red mark is a real bug.
+name: Tests
+on:
+  push:
+    branches: ['claude/**'] # the owner branch and every thread branch
+  workflow_dispatch:
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
+      - run: xvfb-run -a npm test
+        env:
+          NODE_PATH: ${{ github.workspace }}/node_modules
