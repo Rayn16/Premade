@@ -62,6 +62,94 @@ const fromSite = (e) => !!e.senderFrame && e.senderFrame.url.startsWith(SITE);
 const openOut = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
 let win = null, overlay = null, screenId = '', captureSourceId = '', shareAudioMode = false, shareAudioFiltered = false, shareLeaveOut = [], filteredLeaveOut = [], filteredCapture = null;
 
+// ---- the log file (app 1.41): the page's connection log, the app's own events (a window that crashed, hung or couldn't
+// load, a part of the app that ended) and its memory per process every 10 minutes, in the app's folder as
+// logs\YYYY-MM-DD.log (UTC days), the last 3 days kept, so a drop or a crash can still be read after a restart. Lines
+// are written every 2 s; Copy connection log copies the last 24 hours.
+const logDir = () => path.join(app.getPath('userData'), 'logs');
+let logBuf = [], logTimer = null, logDay = '', logBytes = 0, logQ = Promise.resolve(); // logQ: the writes, in order
+function logLine(line) {
+  logBuf.push(`${new Date().toISOString()} ${String(line).replace(/[\r\n]+/g, ' ').slice(0, 2000)}\n`);
+  if (logBuf.length > 5000) logBuf.splice(0, logBuf.length - 5000); // a disk that won't take them: the newest
+  logTimer ||= setTimeout(logFlush, 2000);
+}
+function logFlush(sync) { // sync: Premade is quitting
+  clearTimeout(logTimer);
+  logTimer = null;
+  if (!logBuf.length) return;
+  const text = logBuf.join(''), day = text.slice(0, 10); // ponytail: a batch over midnight goes in the day it started
+  logBuf = [];
+  try {
+    if (day !== logDay) {
+      fs.mkdirSync(logDir(), { recursive: true });
+      const keep = new Date(Date.parse(day) - 2 * 864e5).toISOString().slice(0, 10);
+      for (const f of fs.readdirSync(logDir())) if (/^\d{4}-\d\d-\d\d\.log$/.test(f) && f.slice(0, 10) < keep) fs.unlinkSync(path.join(logDir(), f));
+      logBytes = fs.existsSync(path.join(logDir(), day + '.log')) ? fs.statSync(path.join(logDir(), day + '.log')).size : 0;
+      logDay = day;
+    }
+    if (logBytes > 50e6) return; // something writes in a loop: the rest of that day isn't kept, so the disk doesn't fill
+    logBytes += Buffer.byteLength(text);
+    const file = path.join(logDir(), day + '.log');
+    if (sync) fs.appendFileSync(file, text);
+    else logQ = logQ.then(() => fs.promises.appendFile(file, text)).catch(() => {});
+  } catch {}
+}
+// the page's lines (index.html clog), and its last 24 hours for Copy connection log
+ipcMain.on('log', (e, line) => { if (fromSite(e) && typeof line === 'string') logLine(line); });
+ipcMain.handle('log-read', async (e) => {
+  if (!fromSite(e)) return '';
+  logFlush();
+  await logQ;
+  const since = new Date(Date.now() - 864e5).toISOString();
+  let text = '';
+  for (const day of new Set([since.slice(0, 10), new Date().toISOString().slice(0, 10)])) text += await fs.promises.readFile(path.join(logDir(), day + '.log'), 'utf8').catch(() => '');
+  return text.split('\n').filter((l) => l >= since).join('\n').slice(-4e6); // ISO times sort as text; the newest 4 MB
+});
+// the app's own events: in the log file, and to the page's connection log (as before 1.41)
+const diag = (line) => { logLine(`app: ${line}`); if (win && !win.isDestroyed()) win.webContents.send('diag', line); };
+setInterval(() => logLine(`memory MB: ${app.getAppMetrics().map((p) => `${p.name || p.type} ${Math.round(p.memory.workingSetSize / 1024)}`).join(', ')}`), 600e3);
+
+// ---- a window picks itself back up (app 1.41): its page crashed, was killed or hung for 30 s, and it loads again (the
+// main window's page rejoins the room it was in: its address ends in #room[.password] while it's in one); its page couldn't load (no internet, the site down), and it tries again,
+// the main window with a small page that says so and goes back as soon as Windows says the internet is back. Each try
+// within 2 minutes of the last waits longer, up to a minute, so a page that keeps crashing doesn't spin.
+const offlinePage = (url, wait) => 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><title>Premade</title><body style="margin:0;height:100vh;display:grid;place-items:center;background:#010a13;color:#f0e6d2;font:16px 'Segoe UI',sans-serif;text-align:center"><div><b style="font-size:20px">Can’t reach Premade</b><p style="color:#a09b8c">Check your internet. Trying again in ${wait / 1000} s, or as soon as it’s back.</p></div><script>addEventListener('online', () => location.replace(${JSON.stringify(url)}))</script>`);
+function keepUp(w, page, name, notice) { // page(): the address it belongs on; notice: show the offline page meanwhile
+  const wc = w.webContents;
+  let tries = 0, lastAt = 0, retry = null, hung = null, killed = false; // killed: its page hung, and was ended here
+  const again = (why, failed) => {
+    if (w.isDestroyed()) return;
+    clearTimeout(retry);
+    clearTimeout(hung); // a page that hung, then crashed: its new page isn't the hung one
+    killed = false;
+    tries = Date.now() - lastAt > 120e3 ? 1 : tries + 1;
+    lastAt = Date.now();
+    const wait = failed || tries > 1 ? Math.min(60, 2 ** tries) * 1000 : 0;
+    diag(`${name}: ${why}, ${wait ? `loading it again in ${wait / 1000} s` : 'loading it again'}`);
+    if (w === win) { for (const n of [...vids.keys()]) vidEnd(n); if (!linkWaiting) linkWaiting = linkRoom(['lolprox://join/' + (wc.getURL().split('#')[1] || '')]); } // its game video ends as a crash would; its room after
+    if (failed && notice) wc.loadURL(offlinePage(page(), wait)).catch(() => {});
+    retry = setTimeout(() => { if (!w.isDestroyed()) loadFresh(w, page()); }, wait);
+  };
+  wc.on('render-process-gone', (e, d) => { if (d.reason !== 'clean-exit' || killed) again(killed ? 'page not answering for 30 s' : `page ${d.reason}, exit code ${d.exitCode}`); });
+  w.on('unresponsive', () => {
+    clearTimeout(hung);
+    hung = setTimeout(() => { // loaded again once its process is gone (or in 5 s if Electron never says)
+      if (w.isDestroyed()) return;
+      killed = true;
+      wc.forcefullyCrashRenderer();
+      hung = setTimeout(() => { if (killed) again('page not answering for 30 s'); }, 5000);
+    }, 30000);
+  });
+  w.on('responsive', () => clearTimeout(hung));
+  wc.on('did-fail-load', (e, code, desc, url, main) => { if (main && code !== -3 && !url.startsWith('data:')) again(`couldn’t load (${desc})`, true); }); // -3: replaced by another load
+  wc.on('did-navigate', (e, url, code) => { // back on its own (the offline page saw the internet come back): no second load
+    if (!url.startsWith(SITE)) return;
+    if (code >= 500) again(`the site answered ${code}`, true);
+    else clearTimeout(retry);
+  });
+  w.once('closed', () => { clearTimeout(retry); clearTimeout(hung); });
+}
+
 // An invite's notification opens lolprox://join/<room>[.<password>] when it or its Join button is clicked, so Windows
 // hands it to the app (second-instance, or a new app) even from the notification centre, after Electron forgot the toast.
 const xml = (t) => t.replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -434,6 +522,7 @@ ipcMain.handle('aion-meter', (e, on) => {
   aionMeter.on('resize', keep);
   aionMeter.on('closed', () => { aionMeter = null; if (win && !win.isDestroyed()) win.webContents.send('aion-meter', false); });
   aionMeter.once('ready-to-show', () => aionMeter.showInactive());
+  keepUp(aionMeter, () => base + 'meter.html', 'Aion 2 meter');
   loadFresh(aionMeter, base + 'meter.html');
   return true;
 });
@@ -649,6 +738,7 @@ async function placeOverlay(s, revision = ++overlayRevision) {
         if (win && !win.isDestroyed()) win.webContents.send('overlay-moved', { x: f((b.x - d.x) / d.width), y: f((b.y - d.y) / d.height) });
       }, 250);
     });
+    keepUp(overlay, () => base + 'overlay.html', 'overlay');
     loadFresh(overlay, base + 'overlay.html');
   }
   if (editing !== !!s.edit) {
@@ -777,7 +867,7 @@ ipcMain.handle('video-folder', async (e, what) => { // get, pick or reset; says 
 });
 const picDir = () => path.join(app.getPath('userData'), 'Clip pictures');
 const bytes = (d) => (d instanceof ArrayBuffer ? Buffer.from(d) : ArrayBuffer.isView(d) ? Buffer.from(d.buffer, d.byteOffset, d.byteLength) : null);
-const clipOk = (n) => typeof n === 'string' && n.length <= 120 && /^[^\\/:*?"<>|\x00-\x1f.][^\\/:*?"<>|\x00-\x1f]*\.webm$/i.test(n);
+const clipOk = (n) => typeof n === 'string' && n.length <= 120 && /^[^\\/:*?"<>|\x00-\x1f.][^\\/:*?"<>|\x00-\x1f]*\.webm$/i.test(n) && !/\.part\.webm$/i.test(n); // not a cut being made (1.41)
 const clipAt = (n) => path.join(clipDir(), n), picAt = (n) => path.join(picDir(), n + '.jpg');
 ipcMain.handle('clip', async (e, data, pic, like) => {
   const buf = fromSite(e) && bytes(data);
@@ -852,17 +942,47 @@ ipcMain.on('clips-folder', async (e) => {
 // game is over, its Duration and Cues (where each video key frame starts) go in (seekable), so a video player can skip
 // around in it. The page lists them, opens one in your video player or in its folder, bins one, and bins the ones
 // older than the days you pick (the Recycle Bin, as with clips).
-// ponytail: a game the app closed during keeps its recording as it was: it plays, but can't skip around
+// App 1.41: one the app or the PC closed during is made seekable at the next start (Videos to finish.json), and
+// quitting waits for one being finished.
 const vidDir = () => path.join(clipDir(), 'Games'), vidAt = (n) => path.join(vidDir(), n);
-const vids = new Map(); // the one being recorded: its name -> { fh, q (its writes, in order) }
+const vids = new Map(); // the one being recorded: its name -> { fh, q (its writes, in order), room (seekable's room not yet added) }
+const finishing = new Set(); // names being made seekable at the start
+const working = new Set(), work = (p) => { working.add(p); p.finally(() => working.delete(p)).catch(() => {}); return p; }; // what quitting waits for
+const toFinishFile = () => path.join(app.getPath('userData'), 'Videos to finish.json');
+const toFinish = () => { try { const l = JSON.parse(fs.readFileSync(toFinishFile(), 'utf8')); return Array.isArray(l) ? l.filter((f) => typeof f === 'string' && clipOk(path.basename(f))) : []; } catch { return []; } };
+const setToFinish = (f, on) => { const l = toFinish().filter((x) => x !== f); try { fs.writeFileSync(toFinishFile(), JSON.stringify(on ? [...l, f] : l)); } catch {} };
 async function vidEnd(n) {
   const v = vids.get(n);
   if (!v) return false;
   vids.delete(n);
   await v.q;
   await v.fh.close().catch(() => {});
-  await seekable(vidAt(n)).catch((err) => console.error('game video:', err.message));
+  await work(seekable(v.file).catch((err) => diag(`game video: ${err.message}`)));
+  setToFinish(v.file, false);
   return true;
+}
+// at the start: the videos left unfinished, then the leftovers of one being made seekable or cut when Premade closed
+// (Rayan had 10.9 GB of .part files, 25-26 Oct): a day old, they go to the Recycle Bin
+async function videosLeft() {
+  for (const f of toFinish()) {
+    const n = path.basename(f);
+    if (vids.has(n)) continue; // being recorded now (its game started before this ran)
+    finishing.add(n);
+    if (fs.existsSync(f)) await seekable(f).then((ok) => diag(`finished ${n}: ${ok ? 'seekable' : 'left as it was'}`), (err) => diag(`finishing ${n}: ${err.message}`));
+    setToFinish(f, false);
+    finishing.delete(n);
+  }
+  await partsClean();
+}
+async function partsClean() { // says which went
+  const out = [];
+  for (const dir of new Set([clipDir(), vidDir()])) for (const n of await fs.promises.readdir(dir).catch(() => [])) {
+    if (!/\.webm(\.part|\.\w+\.part\.webm|\.list\.txt)$/i.test(n)) continue;
+    const f = path.join(dir, n), st = await fs.promises.stat(f).catch(() => null);
+    if (st && st.isFile() && Date.now() - st.mtimeMs > 864e5 && (await shell.trashItem(f).then(() => true, () => false))) out.push(n);
+  }
+  if (out.length) diag(`binned ${out.length} half-made video file${out.length > 1 ? 's' : ''}`);
+  return out;
 }
 // A clip or game video for the page's player, from a server on this PC only (127.0.0.1, with a random key in each
 // address), in parts (Range), so a long 1440p game is never read into memory. Chromium skips around only in http(s)
@@ -894,14 +1014,16 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
     await fs.promises.mkdir(vidDir(), { recursive: true });
     for (let n = 1; n < 10; n++) { // a new name each time, as with clips
       const name = `${stem}${n > 1 ? ` (${n})` : ''}.webm`, fh = await fs.promises.open(vidAt(name), 'wx').catch(() => null);
-      if (fh) { vids.set(name, { fh, q: Promise.resolve() }); return name; }
+      if (fh) { vids.set(name, { fh, file: vidAt(name), q: Promise.resolve(), room: true }); setToFinish(vidAt(name), true); return name; }
     }
     return '';
   }
   if (what === 'add') { // a: its name, b: the next part
     const v = vids.get(a), buf = bytes(b);
     if (!v || !buf || buf.length > 100e6) return false;
-    await (v.q = v.q.then(() => v.fh.write(buf)).catch(() => {}));
+    const part = v.room ? withRoom(buf) : buf;
+    v.room = false;
+    await (v.q = v.q.then(() => v.fh.write(part)).catch(() => {}));
     return true;
   }
   if (what === 'end') return vidEnd(a);
@@ -909,18 +1031,19 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
     const out = [];
     for (const name of (await fs.promises.readdir(vidDir()).catch(() => [])).filter(clipOk)) {
       const st = await fs.promises.stat(vidAt(name)).catch(() => null);
-      if (st && st.isFile()) out.push({ name, size: st.size, at: st.mtimeMs, rec: vids.has(name) });
+      if (st && st.isFile()) out.push({ name, size: st.size, at: st.mtimeMs, rec: vids.has(name) || finishing.has(name) });
     }
     return out.sort((x, y) => y.at - x.at);
   };
   if (what === 'list') return list();
-  if (what === 'clean') { // the ones older than a days go to the bin; says which went
+  if (what === 'clean') { // the ones older than a days go to the bin (and day-old half-made files); says which went
+    await partsClean();
     const out = [];
     for (const v of await list()) if (a > 0 && !v.rec && Date.now() - v.at > a * 864e5 && (await shell.trashItem(vidAt(v.name)).then(() => true, () => false))) out.push(v.name);
     return out;
   }
   if (what === 'folder') { await fs.promises.mkdir(vidDir(), { recursive: true }).catch(() => {}); return (await shell.openPath(vidDir())) === ''; }
-  if (!clipOk(a) || vids.has(a)) return false;
+  if (!clipOk(a) || vids.has(a) || finishing.has(a)) return false;
   if (what === 'open') return (await shell.openPath(vidAt(a))) === ''; // in your video player
   // ponytail: the whole video (about 300 MB for 30 minutes) goes to the page at once; a stream if that's too much
   if (what === 'read') return fs.promises.readFile(vidAt(a)).catch(() => null); // for its highlights in the page
@@ -931,15 +1054,15 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
     const parts = Array.isArray(b) ? b.filter((p) => Array.isArray(p) && p[0] >= 0 && p[1] > p[0]).slice(0, 50) : [];
     if (!parts.length) return false;
     const src = vidAt(a), tmp = (k) => `${src}.${k}.part.webm`, list = `${src}.list.txt`, out = `${src}.cut.part.webm`;
-    try {
+    return work((async () => { try {
       const { ffmpeg } = await getTools();
       for (const [k, [x, y]] of parts.entries()) await run(ffmpeg, ['-y', '-ss', String(x), '-i', src, '-t', String(y - x), '-c', 'copy', '-f', 'matroska', tmp(k)]);
       await fs.promises.writeFile(list, parts.map((p, k) => `file '${tmp(k).replace(/'/g, "'\\''")}'`).join('\n'));
       await run(ffmpeg, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-f', 'matroska', out]);
       await fs.promises.rename(out, src);
       return true;
-    } catch (err) { console.error('cut:', err.message); return false; }
-    finally { for (const f of [list, out, ...parts.map((p, k) => tmp(k))]) fs.promises.unlink(f).catch(() => {}); }
+    } catch (err) { diag(`cut: ${err.message}`); return false; }
+    finally { for (const f of [list, out, ...parts.map((p, k) => tmp(k))]) fs.promises.unlink(f).catch(() => {}); } })());
   }
   return null;
 });
@@ -948,8 +1071,31 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
 // size, where Chrome left it unknown), and Cues with each cluster whose first video frame is a key frame. The sizes and
 // places it writes take 8 bytes each, so none of them moves another. Written to a .part file that then takes its place,
 // so a failure leaves the recording as it was.
+// App 1.41: a recording's first part gets room for the SeekHead and the Duration (an EBML Void after Tracks, withRoom),
+// so they go in that room and the sizes and Cues are written into the file itself, instead of copying all of a 5-8 GB
+// League game; a file without that room (before 1.41) is still copied.
 // ponytail: reads what Chrome writes (Info and Tracks before the clusters, which may be of unknown size, as cutClip in
 // index.html does); a file laid out otherwise is left as it was
+const vint = (b, o, id) => { // [value, length] of an ID (id: with its length bits) or a size (-1: unknown)
+  let n = 1;
+  while (n < 8 && !(b[o] & (0x80 >> (n - 1)))) n++;
+  let v = id ? b[o] : b[o] & (0xff >> n), ones = v === 0xff >> n;
+  for (let k = 1; k < n; k++) { v = v * 256 + b[o + k]; ones = ones && b[o + k] === 0xff; }
+  return [!id && ones ? -1 : v, n];
+};
+const u64 = (v) => { const b = Buffer.alloc(8); b.writeBigUInt64BE(BigInt(Math.max(0, Math.round(v)))); return b; };
+const size8 = (n) => { const b = u64(n); b[0] = 0x01; return b; }; // an EBML size in 8 bytes
+const voidOf = (n) => (n < 9 ? Buffer.from([0xec, 0x80 | (n - 2), ...Buffer.alloc(n - 2)]) : Buffer.concat([Buffer.of(0xec), size8(n - 9), Buffer.alloc(n - 9)])); // n >= 2 bytes in all
+const ROOM = 256; // what seekable adds is about 120 bytes
+function withRoom(b) { // b: a recording's first part, from Chrome
+  const el = (at) => { if (at + 12 > b.length) return null; const [id, n] = vint(b, at, true), [len, sn] = vint(b, at + n); return { id, data: at + n + sn, len, end: at + n + sn + len }; };
+  const ebml = el(0), seg = ebml && ebml.id === 0x1a45dfa3 && ebml.len >= 0 && el(ebml.end);
+  if (!seg || seg.id !== 0x18538067) return b;
+  for (let at = seg.data, e; (e = el(at)) && e.len >= 0 && e.end <= b.length && e.id !== 0x1f43b675; at = e.end) {
+    if (e.id === 0x1654ae6b) return Buffer.concat([b.subarray(0, e.end), voidOf(ROOM), b.subarray(e.end)]); // after Tracks
+  }
+  return b; // Tracks not all in it: seekable copies it
+}
 async function seekable(file) {
   const fh = await fs.promises.open(file, 'r'), size = (await fh.stat()).size;
   try {
@@ -958,13 +1104,6 @@ async function seekable(file) {
       n = Math.max(0, Math.min(n, size - at));
       if (at < from || at + n > from + buf.length) { from = at; buf = Buffer.alloc(Math.min(size - at, Math.max(n, 4 << 20))); await fh.read(buf, 0, buf.length, at); }
       return buf.subarray(at - from, at - from + n);
-    };
-    const vint = (b, o, id) => { // [value, length] of an ID (id: with its length bits) or a size (-1: unknown)
-      let n = 1;
-      while (n < 8 && !(b[o] & (0x80 >> (n - 1)))) n++;
-      let v = id ? b[o] : b[o] & (0xff >> n), ones = v === 0xff >> n;
-      for (let k = 1; k < n; k++) { v = v * 256 + b[o + k]; ones = ones && b[o + k] === 0xff; }
-      return [!id && ones ? -1 : v, n];
     };
     const el = async (at) => { // { id, at, data (where its insides start), len (-1: unknown), end }
       const b = await get(at, 12);
@@ -1023,8 +1162,6 @@ async function seekable(file) {
       if (k.id === 0x2ad7b1) scale = (await uint(k)) || 1e6;
       if (k.id !== 0x4489) parts.push(Buffer.from(await get(k.at, k.end - k.at))); // all but any Duration
     }
-    const u64 = (v) => { const b = Buffer.alloc(8); b.writeBigUInt64BE(BigInt(Math.max(0, Math.round(v)))); return b; };
-    const size8 = (n) => { const b = u64(n); b[0] = 0x01; return b; }; // an EBML size in 8 bytes
     const elem = (id, ...body) => { const b = Buffer.concat(body); return Buffer.concat([Buffer.from(id), size8(b.length), b]); };
     const num = (id, v) => Buffer.concat([Buffer.from(id), Buffer.of(0x88), u64(v)]);
     const dur = Buffer.alloc(11);
@@ -1032,9 +1169,23 @@ async function seekable(file) {
     dur.writeDoubleBE(end + 33e6 / scale, 3); // to the end of its last frame, about
     const head = Buffer.from(await get(0, ebml.end)), infoOut = elem([0x15, 0x49, 0xa9, 0x66], ...parts, dur), tracksOut = Buffer.from(await get(tracks.at, tracks.end - tracks.at));
     const seek = (id, at) => elem([0x4d, 0xbb], Buffer.of(0x53, 0xab, 0x84, ...id), num([0x53, 0xac], at));
-    const seekLen = 12 + 3 * 28, infoAt = seekLen, tracksAt = infoAt + infoOut.length, clustersAt = tracksAt + tracksOut.length, cuesAt = clustersAt + last - first;
+    const seekLen = 12 + 3 * 28, infoAt = seekLen, tracksAt = infoAt + infoOut.length, room = first - seg.data - (tracksAt + tracksOut.length); // positions count from the Segment's insides
+    const inPlace = seg.data - seg.at === 12 && (room === 0 || room >= 2); // the room withRoom left (a Void needs 2 bytes or more)
+    const clustersAt = inPlace ? first - seg.data : tracksAt + tracksOut.length, cuesAt = clustersAt + last - first;
     const seekHead = elem([0x11, 0x4d, 0x9b, 0x74], seek([0x15, 0x49, 0xa9, 0x66], infoAt), seek([0x16, 0x54, 0xae, 0x6b], tracksAt), seek([0x1c, 0x53, 0xbb, 0x6b], cuesAt));
     const cuesOut = elem([0x1c, 0x53, 0xbb, 0x6b], ...cues.map(([t, at]) => elem([0xbb], num([0xb3], t), elem([0xb7], Buffer.of(0xf7, 0x81, video), num([0xf1], clustersAt + at - first)))));
+    if (inPlace) { // the clusters stay where they are. In this order, a stop half way still leaves a video that plays
+      const w = await fs.promises.open(file, 'r+');
+      try {
+        await w.truncate(last); // a cut-off last cluster, or Cues from before
+        await w.write(cuesOut, 0, cuesOut.length, last);
+        for (const [at, n] of fix) await w.write(size8(n), 0, 8, at);
+        const headOut = Buffer.concat([seekHead, infoOut, tracksOut, room ? voidOf(room) : Buffer.alloc(0)]);
+        await w.write(headOut, 0, headOut.length, seg.data);
+        await w.write(size8(cuesAt + cuesOut.length), 0, 8, seg.at + 4);
+      } finally { await w.close(); }
+      return true;
+    }
     const segHead = Buffer.concat([Buffer.of(0x18, 0x53, 0x80, 0x67), size8(cuesAt + cuesOut.length)]);
     const out = await fs.promises.open(file + '.part', 'w');
     try {
@@ -1059,10 +1210,24 @@ const toolDir = () => path.join(app.getPath('userData'), 'Downloader'), dlDir = 
 const YTDLP = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
 const FFMPEG = 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip';
 const run = (exe, args, opts) => new Promise((res, rej) => execFile(exe, args, { windowsHide: true, ...opts }, (err, out) => (err ? rej(err) : res(out))));
-async function fetchTo(url, file) {
+// App 1.41: each is checked against the SHA-256 its project publishes beside it (sums: [that list's address, the
+// file's name in it]) and refused when it differs, so a changed download never runs
+const SUMS = { [YTDLP]: [YTDLP.replace(/[^/]+$/, 'SHA2-256SUMS'), 'yt-dlp.exe'], [FFMPEG]: [FFMPEG.replace(/[^/]+$/, 'checksums.sha256'), path.posix.basename(FFMPEG)] };
+async function fetchTo(url, file, sums = SUMS[url], again = true) { // again: a list and a file from two builds (FFmpeg-Builds replaces 'latest' in place) get one more try
+  const [sumsUrl, name] = sums;
+  const s = await fetch(sumsUrl);
+  if (!s.ok) throw new Error(`${sumsUrl}: ${s.status}`);
+  const want = ((await s.text()).split('\n').map((l) => l.trim().split(/\s+/)).find(([h, n]) => /^[0-9a-f]{64}$/i.test(h) && n && n.replace(/^\*/, '') === name) || [])[0];
+  if (!want) throw new Error(`${name} isn’t in ${sumsUrl}`);
   const r = await fetch(url);
   if (!r.ok) throw new Error(`${url}: ${r.status}`);
-  await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(file + '.part'));
+  const hash = crypto.createHash('sha256');
+  await pipeline(Readable.fromWeb(r.body), async function* (src) { for await (const c of src) { hash.update(c); yield c; } }, fs.createWriteStream(file + '.part'));
+  if (hash.digest('hex') !== want.toLowerCase()) {
+    await fs.promises.unlink(file + '.part').catch(() => {});
+    if (again) return fetchTo(url, file, sums, false);
+    throw new Error(`${name}: its SHA-256 isn’t the published one, so it wasn’t kept`);
+  }
   await fs.promises.rename(file + '.part', file);
 }
 let tools = null; // { ytdlp, ffmpeg }, once they're there
@@ -1089,7 +1254,7 @@ ipcMain.handle('download', async (e, url, kind) => {
   if (dls.has(url)) return { error: 'That one is already downloading.' };
   const send = (v) => { if (!e.sender.isDestroyed()) e.sender.send('download', { url, ...v }); };
   let t;
-  try { send({ pct: -1 }); t = await getTools(); } catch { return { error: 'Couldn’t get the downloader. Check your internet and try again.' }; }
+  try { send({ pct: -1 }); t = await getTools(); } catch (err) { diag(`downloader: ${err.message}`); return { error: 'Couldn’t get the downloader. Check your internet and try again.' }; }
   const args = [url, '--no-playlist', '--progress', '--newline', '--no-mtime', '--encoding', 'utf-8', '--ffmpeg-location', t.ffmpeg, '--js-runtimes', 'node:' + process.execPath,
     '-P', dlDir(), '-o', '%(title).80B [%(id)s].%(ext)s', '--print', 'after_move:filepath', '--progress-template', 'download:%(progress._percent_str)s',
     ...(kind === 'audio' ? ['-x', '--audio-format', 'mp3'] : ['-f', 'bv*+ba/b', '-S', 'res:1080,vcodec:h264,acodec:aac', '--merge-output-format', 'mp4'])];
@@ -1124,7 +1289,7 @@ ipcMain.handle('convert-pick', async (e) => {
   const r = await dialog.showOpenDialog(win, { title: 'Pick files to convert', properties: ['openFile', 'multiSelections'] });
   if (r.canceled || !r.filePaths.length) return [];
   let t;
-  try { t = await getTools(); } catch { return { error: 'Couldn’t get the converter. Check your internet and try again.' }; }
+  try { t = await getTools(); } catch (err) { diag(`converter: ${err.message}`); return { error: 'Couldn’t get the converter. Check your internet and try again.' }; }
   const ffprobe = path.join(path.dirname(t.ffmpeg), 'ffprobe.exe');
   return Promise.all(r.filePaths.map(async (file) => {
     const id = crypto.randomUUID(), name = path.basename(file);
@@ -1183,7 +1348,7 @@ const join = (r) => { if (r && win && !win.isDestroyed()) win.webContents.send('
 const testFile = () => path.join(app.getPath('userData'), 'test-version');
 let base = SITE;
 // max-age=0: the cached page is used once the site says it hasn't changed (a 304), instead of downloading it all again
-const loadFresh = (w, url) => w.loadURL(url, { extraHeaders: 'Cache-Control: max-age=0\n' });
+const loadFresh = (w, url) => w.loadURL(url, { extraHeaders: 'Cache-Control: max-age=0\n' }).catch(() => {}); // a failed load: keepUp tries again
 function navigated(e, url, code) {
   const test = url.startsWith(SITE + 'test/');
   if (test && code >= 400) return void loadFresh(win, SITE);
@@ -1514,6 +1679,8 @@ app.whenReady().then(async () => {
   // from a chat link (YouTube) may still go full screen
   ses.setPermissionRequestHandler((wc, perm, ok, d) => ok(perm === 'fullscreen' || (String(d && d.requestingUrl || wc.getURL()).startsWith(SITE) && ['media', 'display-capture', 'clipboard-sanitized-write', 'keyboardLock', 'fileSystem'].includes(perm)))); // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC // keyboardLock: Remote help's Full screen sends the Windows key, Alt+Tab and Alt+F4 to the friend's PC
 
+  logLine(`Premade ${app.getVersion()} started${waiting ? ' with Windows' : ''}`);
+  setTimeout(videosLeft, 15000); // not while the page loads
   const last = lastBounds();
   win = new BrowserWindow({
     width: 1180, height: 800, ...(last && { x: last.x, y: last.y, width: last.width, height: last.height }), minWidth: 420, minHeight: 480,
@@ -1521,9 +1688,9 @@ app.whenReady().then(async () => {
   });
   if (last && last.max && !waiting) win.maximize();
   for (const ev of ['resize', 'move']) win.on(ev, saveBounds);
-  // for the page's connection log (Settings, App): the window going down and back, a part of the app that ended (the
-  // GPU, audio or network process crashing, or killed) and what this PC is
-  const diag = (line) => { if (!win.isDestroyed()) win.webContents.send('diag', line); };
+  // for the page's connection log (Settings, App) and the log file: the window going down and back, a part of the app
+  // that ended (the GPU, audio or network process crashing, or killed) and what this PC is
+  keepUp(win, () => base, 'window', true);
   win.on('minimize', () => diag(`window minimized, full speed for ${fullSpeed()} processes`));
   win.on('restore', () => diag('window restored'));
   app.on('child-process-gone', (e, d) => diag(`${d.name || d.type} process ended: ${d.reason}, exit code ${d.exitCode}`));
@@ -1541,6 +1708,7 @@ app.whenReady().then(async () => {
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(SITE)) { e.preventDefault(); openOut(url); } });
   win.webContents.on('did-navigate', navigated);
   win.webContents.on('did-finish-load', () => { // a reloaded page hears it all again
+    if (!win.webContents.getURL().startsWith(SITE)) return; // the can't-reach-Premade page
     controlEnd();
     if (marks && !marks.isDestroyed()) marks.hide();
     leagueWas = '';
@@ -1555,7 +1723,22 @@ app.whenReady().then(async () => {
   pollLeague();
   checkUpdates();
 });
-app.on('will-quit', () => { globalShortcut.unregisterAll(); saveTake(); stopFilteredCapture(); });
+// a game video still open (the window closed mid-game) or being finished or cut is finished first, for up to 20 s; then
+// the log's last lines
+let quitWait = false;
+app.on('will-quit', (e) => {
+  globalShortcut.unregisterAll();
+  saveTake();
+  stopFilteredCapture();
+  if ((vids.size || working.size) && !quitWait) {
+    quitWait = true;
+    e.preventDefault();
+    Promise.race([Promise.all([...[...vids.keys()].map(vidEnd), ...working]), new Promise((res) => setTimeout(res, 20000))]).finally(() => app.quit());
+    return;
+  }
+  logLine('quit');
+  logFlush(true);
+});
 
 // ---- the move to GitHub (app 1.16): what the page saves (settings, LP and game history, notes, the avoid list...)
 // belongs to the address it was saved at, so the first start copies it from OLD_SITE to SITE. Both pages are made up
@@ -1580,4 +1763,4 @@ async function moveSaved(ses = session.defaultSession) {
   finally { w.destroy(); for (const s of schemes) ses.protocol.unhandle(s); }
 }
 
-module.exports = { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved }; // for client.test.js
+module.exports = { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved, fetchTo, withRoom, seekable, logLine, logFlush }; // for client.test.js

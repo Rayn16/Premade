@@ -81,13 +81,24 @@ process.env.LPC_LEAGUE = 'https://127.0.0.1:8084';
 process.env.LPC_LEAGUE_DIR = tmp; // League's folder, for the window mode in Config/
 fs.mkdirSync(path.join(tmp, 'Config'));
 const { app, BrowserWindow, globalShortcut, screen, shell, clipboard } = require('electron');
-const { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved } = require('./main.js');
+const { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved, fetchTo } = require('./main.js');
 assert(app.getPath('userData').endsWith(path.sep + 'League Proximity Chat'), 'settings stay in the folder from before the rename to Premade');
 app.setPath('videos', path.join(tmp, 'Videos')); // where clips go
 app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings go
 fs.mkdirSync(path.join(tmp, 'Videos', 'League Proximity Chat'), { recursive: true }); // clips from before the rename
 fs.writeFileSync(path.join(tmp, 'Videos', 'League Proximity Chat', 'Old clip.webm'), 'old');
 app.setPath('userData', path.join(tmp, 'profile')); // a first launch every time
+// app 1.41 at the start: half-made video files a day old go to the Recycle Bin (a new one stays), the videos left
+// unfinished are finished (one that isn't a WebM is left as it was, one gone is forgotten), log files past 3 days go
+const oldDay = new Date(Date.now() - 2 * 864e5), finishList = path.join(tmp, 'profile', 'Videos to finish.json');
+for (const n of ['Game x.webm.part', 'Game x.webm.0.part.webm', 'Fresh.webm.part']) {
+  fs.writeFileSync(path.join(tmp, 'Videos', 'League Proximity Chat', n), 'part');
+  if (!n.startsWith('Fresh')) fs.utimesSync(path.join(tmp, 'Videos', 'League Proximity Chat', n), oldDay, oldDay);
+}
+fs.mkdirSync(path.join(tmp, 'profile', 'logs'), { recursive: true });
+fs.writeFileSync(path.join(tmp, 'profile', 'logs', '2000-01-01.log'), 'old\n');
+fs.writeFileSync(path.join(tmp, 'Unfinished.webm'), Buffer.of(1, 2, 3));
+fs.writeFileSync(finishList, JSON.stringify([path.join(tmp, 'Unfinished.webm'), path.join(tmp, 'Gone.webm')]));
 const opened = [], binned = [], shown = [];
 shell.openPath = async (p) => { opened.push(p); return ''; }; // the clips folder, instead of a file window
 shell.showItemInFolder = (p) => shown.push(p);
@@ -160,6 +171,14 @@ assert.deepStrictEqual(['KeyV', 'Digit4', 'Numpad0', 'F13', 'Mouse4', 'CapsLock'
 assert.deepStrictEqual(['Escape', 'KeyQ', 'KeyA', 'Enter', 'IntlBackslash', 'F12', 'NumpadEnter', 'ArrowLeft', 'MetaLeft', 'Mouse4', 'constructor', '-', 'Nope'].map((c) => CTL_SCAN.get(c) || 0),
   [1, 0x10, 0x1e, 0x1c, 0x56, 0x58, 0xe01c, 0xe04b, 0xe05b, 0, 0, 0, 0]);
 
+// a WebM's top-level elements in its Segment (ids in hex), and whether the Segment's size covers the file
+function tops(f) {
+  const b = fs.readFileSync(f), idLen = (o) => { let n = 1; while (n < 4 && !(b[o] & (0x80 >> (n - 1)))) n++; return n; };
+  const vint = (o) => { let n = 1; while (n < 8 && !(b[o] & (0x80 >> (n - 1)))) n++; let v = b[o] & (0xff >> n); for (let k = 1; k < n; k++) v = v * 256 + b[o + k]; return [v, n]; };
+  const hn = idLen(0), [hs, hsn] = vint(hn), seg = hn + hsn + hs, [segLen, ssn] = vint(seg + 4), ids = [];
+  for (let at = seg + 4 + ssn; at < b.length;) { const n = idLen(at), [len, ln] = vint(at + n); ids.push(b.readUIntBE(at, n).toString(16)); at += n + ln + len; }
+  return { ids, whole: seg + 4 + ssn + segLen === b.length };
+}
 const until = async (fn, what, ms = 10000) => {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 100))) if (await fn()) return;
   throw new Error('timed out waiting for ' + what);
@@ -235,9 +254,10 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // the performance meter
     const perf = await js('lpcClient.metrics()');
     assert(perf.cpu >= 0 && perf.cpu <= 100 && perf.mb > 30 && perf.mb < 5000, `the app's CPU and memory: ${JSON.stringify(perf)}`);
-    // the connection log (Settings, App) gets the app's own lines too, the first one saying what this PC is
+    // the connection log (Settings, App) gets the app's own lines too, the first one saying what this PC is (1.41: from
+    // the log file, with the date)
     await js('document.getElementById("connLogBtn").click()');
-    await until(() => /\n\d\d:\d\d:\d\d app: .+ threads of .+, full speed for \d+ processes/.test(clipboard.readText()), 'the connection log copied, with the app’s line');
+    await until(() => /\n\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z app: .+ threads of .+, full speed for \d+ processes/.test(clipboard.readText()), 'the connection log copied, with the app’s line');
     // test recordings: on from here until League closes
     await js('lpcClient.record(true)');
     await js('document.getElementById("optGameVideo").click()'); // and the whole game on video
@@ -428,6 +448,40 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(Number.isFinite(len) && len > 3 && Math.abs(mid - len / 2) < 1, `its length, and its middle: ${len} s, ${mid} s`);
     const probe = require('child_process').spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
     if (!probe.error) assert(!probe.stderr && Math.abs(+probe.stdout - len) < 0.5, `ffprobe agrees: ${probe.stdout} ${probe.stderr}`); // where it's installed
+    // app 1.41: made seekable in place: the room its first part got (a Void after Tracks) took the SeekHead and the
+    // Duration, the Cues went on the end, nothing was copied (no .part)
+    const inPlace = tops(file), notCl = (t) => t.ids.filter((id) => id !== '1f43b675');
+    assert.deepStrictEqual(notCl(inPlace), ['114d9b74', '1549a966', '1654ae6b', 'ec', '1c53bb6b'], `in place: ${inPlace.ids}`);
+    assert(inPlace.whole && inPlace.ids[4] === '1f43b675' && !fs.readdirSync(gamesDir).some((n) => n.includes('.part')), 'the Segment’s size covers it, and no copy');
+    // one whose first part didn't hold all of Tracks (the room can't go in): copied as before 1.41, and plays the same
+    const [cp, cpLen] = await js(`(async () => {
+      const c = document.createElement('canvas'), g = c.getContext('2d'), parts = [];
+      c.width = 320; c.height = 180;
+      const mr = new MediaRecorder(c.captureStream(30), { mimeType: 'video/webm;codecs=vp8' });
+      let f = 0;
+      const t = setInterval(() => { g.fillStyle = f++ % 2 ? '#c00' : '#00c'; g.fillRect(0, 0, 320, 180); }, 33);
+      mr.ondataavailable = (e) => parts.push(e.data);
+      mr.start(500);
+      await new Promise((r) => setTimeout(r, 3000));
+      await new Promise((r) => { mr.onstop = r; mr.stop(); });
+      clearInterval(t);
+      const b = new Uint8Array(await new Blob(parts).arrayBuffer()), n = await lpcClient.gameVideo('start', 'Copy');
+      await lpcClient.gameVideo('add', n, b.slice(0, 10).buffer);
+      await lpcClient.gameVideo('add', n, b.slice(10).buffer);
+      await lpcClient.gameVideo('end', n);
+      const v = document.createElement('video');
+      v.muted = true;
+      v.src = lpcClient.media('game', n);
+      await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error('it doesn’t play')); });
+      const len = v.duration;
+      v.removeAttribute('src');
+      v.load();
+      return [n, len];
+    })()`);
+    const copied = tops(path.join(gamesDir, cp));
+    assert.deepStrictEqual(notCl(copied), ['114d9b74', '1549a966', '1654ae6b', '1c53bb6b'], `copied: ${copied.ids}`);
+    assert(copied.whole && Number.isFinite(cpLen) && cpLen > 2, `copied, and plays: ${cpLen} s`);
+    assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(cp)})`), true);
     await js('document.querySelector(\'.nav[data-view="clips"]\').click()');
     await until(() => js(`[...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(${JSON.stringify(gv.name.slice(0, -5))}) && li.querySelectorAll('button').length === 4)`), 'the game on the Clips page');
     assert.strictEqual(await js(`lpcClient.gameVideo('open', ${JSON.stringify(gv.name)})`), true);
@@ -443,9 +497,11 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert.strictEqual(await js(`lpcClient.gameVideo('add', ${JSON.stringify(v2)}, new Uint8Array([1, 2, 3]).buffer)`), true);
     assert.strictEqual(await js(`lpcClient.gameVideo('add', ${JSON.stringify(v2)}, 'not bytes')`), false);
     assert.strictEqual((await js('lpcClient.gameVideo("list")')).find((v) => v.name === v2).rec, true, 'recording now');
+    assert(JSON.parse(fs.readFileSync(finishList, 'utf8')).includes(path.join(gamesDir, v2)), 'finished at the next start if Premade closes now');
     assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(v2)})`), false, 'not while it records');
     assert.strictEqual(await js(`lpcClient.gameVideo('end', ${JSON.stringify(v2)})`), true);
     assert.deepStrictEqual([...fs.readFileSync(path.join(gamesDir, v2))], [1, 2, 3], 'not a WebM: left as it was');
+    assert(!JSON.parse(fs.readFileSync(finishList, 'utf8')).includes(path.join(gamesDir, v2)), 'nothing left to finish');
     assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(v2)})`), true);
     const old = new Date(Date.now() - 10 * 864e5);
     fs.utimesSync(file, old, old);
@@ -488,6 +544,64 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(fs.readFileSync(moved, 'utf8').startsWith('1 of 2 copied'), fs.readFileSync(moved, 'utf8'));
     assert.strictEqual(await js('location.origin + location.pathname'), process.env.LPC_SITE, 'the page stays put');
     console.log(`saved data moved: ${fs.readFileSync(moved, 'utf8').trim()}`);
+
+    // app 1.41, at the start (15 s in): the half-made files a day old binned, the new one kept, nothing left to finish
+    const clipsDir = path.join(tmp, 'Videos', 'Premade');
+    await until(() => !fs.existsSync(path.join(clipsDir, 'Game x.webm.part')) && JSON.parse(fs.readFileSync(finishList, 'utf8')).length === 0, 'the start’s clean-up', 20000);
+    assert(binned.includes('Game x.webm.part') && binned.includes('Game x.webm.0.part.webm') && fs.existsSync(path.join(clipsDir, 'Fresh.webm.part')), `half-made files: ${binned}`);
+    assert.deepStrictEqual([...fs.readFileSync(path.join(tmp, 'Unfinished.webm'))], [1, 2, 3], 'not a WebM: left as it was');
+    // the log file: the app's start and events, the page's lines, its errors (once a minute each) and failed saves; the
+    // day before 3 days ago is gone; Copy connection log copies its last 24 hours
+    await js('window.boom = () => { throw new Error("test boom"); }; setTimeout(boom); setTimeout(boom); setTimeout(() => Promise.reject(new Error("test reject")))');
+    await js('(() => { const set = Storage.prototype.setItem; Storage.prototype.setItem = () => { throw new DOMException("full", "QuotaExceededError"); }; document.getElementById("optRecord").click(); document.getElementById("optRecord").click(); Storage.prototype.setItem = set; })()');
+    let day = '';
+    await until(async () => /page error: Error: test boom/.test((day = await js('lpcClient.logRead()'))) && /unhandled: Error: test reject/.test(day) && /couldn’t save lpc-opts .*QuotaExceededError/.test(day), 'the log file', 10000);
+    const logs = fs.readdirSync(path.join(tmp, 'profile', 'logs'));
+    assert(/^\S+Z Premade \d+\.\d+\.\d+ started/m.test(day) && /Z app: finished Unfinished\.webm: left as it was$/m.test(day) && /Z app: binned 2 half-made video files$/m.test(day) && /Z (no room|room )/m.test(day), day.slice(0, 2000));
+    assert(day.match(/test boom/g).length === 1 && day.match(/couldn’t save lpc-opts/g).length === 1, `the same error once a minute, a failed save once: ${day.split("\n").filter((l) => /test boom|couldn’t save/.test(l)).join("\n")}`);
+    assert.deepStrictEqual(logs, [new Date().toISOString().slice(0, 10) + '.log'], `only the last 3 days: ${logs}`);
+    clipboard.writeText('');
+    await js('document.getElementById("connLogBtn").click()');
+    await until(() => clipboard.readText().includes('test reject'), 'Copy connection log');
+    assert(clipboard.readText().startsWith('Premade connection log, the last 24 hours, app '), clipboard.readText().slice(0, 200));
+    console.log(`log file: ${day.split('\n').length} lines in the last 24 hours, copied`);
+
+    // a window picks itself back up: hung for 30 s, then crashed (back in its room), then a site it can't reach (the
+    // can't-reach page, then back once the site is)
+    const toJoin = [], send1 = win.webContents.send, loaded = () => Promise.race([js('document.readyState === "complete" && !!window.lpcClient && !window.beforeCrash'), new Promise((r) => setTimeout(r, 2000, false))]).catch(() => false); // a crashed page never answers
+    win.webContents.send = function (ch, v) { if (ch === 'join') toJoin.push(v); return send1.apply(this, arguments); };
+    await js('window.beforeCrash = 1; history.replaceState(null, "", "#abcd.qwerty")'); // as the page does in a room
+    win.emit('unresponsive');
+    await until(loaded, 'loaded again after hanging 30 s', 45000);
+    assert.deepStrictEqual(toJoin, ['abcd.qwerty'], 'back in its room');
+    await js('window.beforeCrash = 1');
+    win.webContents.forcefullyCrashRenderer();
+    await until(loaded, 'loaded again after a crash', 20000);
+    assert.deepStrictEqual(toJoin, ['abcd.qwerty'], 'not in a room: none to rejoin');
+    web.close();
+    web.closeAllConnections();
+    win.webContents.forcefullyCrashRenderer();
+    await until(() => win.webContents.getURL().startsWith('data:'), 'the can’t-reach-Premade page', 30000);
+    assert(decodeURIComponent(win.webContents.getURL()).includes('Can’t reach Premade'));
+    web.listen(8083, '127.0.0.1');
+    await until(async () => win.webContents.getURL().startsWith(process.env.LPC_SITE) && (await loaded()), 'back once the site is', 40000);
+    win.webContents.send = send1;
+    day = await js('lpcClient.logRead()');
+    assert(/app: window: page not answering for 30 s, loading it again/.test(day) && /app: window: page [a-z-]+, exit code/.test(day) && /app: window: couldn’t load \(ERR_CONNECTION_REFUSED\), loading it again in \d+ s/.test(day), day.split('\n').filter((l) => l.includes('window:')).join('\n'));
+    console.log(`picks itself back up: ${day.split('\n').filter((l) => l.includes('app: window:')).map((l) => l.slice(30)).join(' | ')}`);
+
+    // the downloader's files: kept only with the SHA-256 their list gives
+    const tool = Buffer.from('a downloaded tool'), sum = require('crypto').createHash('sha256').update(tool).digest('hex');
+    const dl = http.createServer((q, r) => r.end(q.url === '/sums' ? `${'0'.repeat(64)}  other.exe\n${sum} *tool.exe\n` : q.url === '/bad' ? 'changed' : tool)).listen(0, '127.0.0.1');
+    await new Promise((r) => dl.once('listening', r));
+    const dlAt = `http://127.0.0.1:${dl.address().port}`, f = (n) => path.join(tmp, n);
+    await fetchTo(dlAt + '/tool', f('tool.exe'), [dlAt + '/sums', 'tool.exe']);
+    assert(fs.readFileSync(f('tool.exe')).equals(tool), 'the right one is kept');
+    await assert.rejects(fetchTo(dlAt + '/bad', f('bad.exe'), [dlAt + '/sums', 'tool.exe']), /SHA-256/);
+    await assert.rejects(fetchTo(dlAt + '/tool', f('other.exe'), [dlAt + '/sums', 'missing.exe']), /isn’t in/);
+    assert(!fs.existsSync(f('bad.exe')) && !fs.existsSync(f('bad.exe.part')) && !fs.existsSync(f('other.exe')), 'a changed one isn’t kept');
+    dl.close();
+    console.log('downloader files checked against their SHA-256');
     console.log('ok');
   } catch (err) { console.error(err); process.exitCode = 1; }
   web.close();

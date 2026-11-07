@@ -1880,6 +1880,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
         <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
         <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Clip settings, with its highlights</label>
+        <label class="check"><input id="optGameHigh" type="checkbox"> Keep only the highlights: when a game ends, its video is cut down to them (a game without any is kept whole)</label>
         <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
         <p id="vidNote" class="hint" role="status"></p>
         <ul id="vidList" class="clips vidlist"></ul>
@@ -2446,7 +2447,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const STALE = 3000;  // ms until a position counts as unknown; outside a game, anyone without a position is heard at full volume
   const store = {
     get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-    set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+    // a save that fails (the page's storage full) goes in the connection log, once per setting (app 1.41)
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (err) { if (!store.failed.has(k)) try { clog(`couldn’t save ${k} (${String(v).length} characters): ${err.name}`); store.failed.add(k); } catch {} } },
+    failed: new Set(),
   };
   const load = (k, d) => { try { return JSON.parse(store.get(k)) ?? d; } catch { return d; } };
   // What this copy did each day (UTC), for Who has Premade (lpc-usage): h, its health (start: the page loaded, err: a
@@ -2494,7 +2497,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -3279,7 +3282,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('key').focus();
     say(wrong ? 'That password is wrong or out of date. Ask the host for the new one.' : 'This room is locked. Type its password to join.');
   }
-  const setHash = () => history.replaceState(null, '', '#' + room + (roomKey ? '.' + roomKey : ''));
+  const setHash = () => history.replaceState(null, '', '#' + room + (roomKey ? '.' + roomKey : '')); // app 1.41 rejoins it after the page crashes
   function keyChanged() { setHash(); render(); pushDiscord(); }
   $('lockBtn').addEventListener('click', () => {
     if (!peer || roomKey || hostSlot() !== slot) return;
@@ -4062,10 +4065,27 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- the connection log (Settings, App: Copy connection log): every second, what the room server, each player's
   // connections and voice, and the screen shares are doing, written down when it changes, with the window's focus,
   // the page stalling and the app's own events (app 1.27.1: its window minimized, a part of it that crashed), so a
-  // drop can be worked out afterwards. The last 500 lines, in memory only.
+  // drop can be worked out afterwards. The last 500 lines in memory; app 1.41 also writes each line in its log file
+  // (the last 3 days), with the page's own errors and failed saves, and Copy connection log copies its last 24 hours.
   const connLog = [];
   let connWas = '', connAt = performance.now();
-  const clog = (line) => { connLog.push(`${new Date().toISOString().slice(11, 19)} ${line}`); if (connLog.length > 500) connLog.shift(); };
+  const clog = (line, logged) => { // logged: the app wrote it already
+    connLog.push(`${new Date().toISOString().slice(11, 19)} ${line}`);
+    if (connLog.length > 500) connLog.shift();
+    if (!logged && client && client.log) client.log(line);
+  };
+  const errAt = new Map(); // an error at most once a minute, so one in a loop doesn't fill the log
+  const pageErr = (what) => {
+    what = String(what).replace(/\s+/g, ' ').slice(0, 400);
+    const now = performance.now();
+    if (now - (errAt.get(what) ?? -6e4) < 6e4) return;
+    if (errAt.size > 100) errAt.clear();
+    errAt.set(what, now);
+    clog(`page error: ${what}`);
+  };
+  const where = (err) => (err && err.stack ? err.stack.split('\n').slice(0, 3).join(' ') : String(err && err.message || err));
+  addEventListener('error', (e) => pageErr(e.error ? where(e.error) : `${e.message} ${e.filename}:${e.lineno}`));
+  addEventListener('unhandledrejection', (e) => pageErr(`unhandled: ${where(e.reason)}`));
   const iceOf = (c) => (c && c.peerConnection ? c.peerConnection.iceConnectionState : 'none');
   setInterval(() => {
     const now = performance.now();
@@ -4085,9 +4105,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   addEventListener('offline', () => clog('offline'));
   addEventListener('online', () => clog('online'));
   setInterval(async () => { const m = client && client.metrics ? await client.metrics().catch(() => null) : null; if (m) { clog(`app memory ${m.mb} MB`); memPeak(m.mb); } }, 600000); // whether it grows over a long session
-  if (client && client.on) client.on('diag', (line) => clog(`app: ${line}`));
+  if (client && client.on) client.on('diag', (line) => clog(`app: ${line}`, !!client.log));
   $('connLogBtn').addEventListener('click', async () => {
-    const text = [`Premade connection log, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, copied ${new Date().toISOString()}`, ...connLog].join('\n');
+    const day = client && client.logRead ? await client.logRead().catch(() => '') : ''; // app 1.41: its log file's last 24 hours
+    const text = [`Premade connection log${day ? ', the last 24 hours' : ''}, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, copied ${new Date().toISOString()}`, ...(day ? [day] : connLog)].join('\n');
     try { await navigator.clipboard.writeText(text); notify('Connection log copied. Paste it to whoever builds the app.', true); }
     catch { notify('Could not copy the connection log. Allow clipboard access and try again.', true); }
   });
@@ -9002,7 +9023,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const g = (r.game = { name: '' });
     g.q = client.gameVideo('start', (league && league.me.champName) || '').then((n) => { g.name = n || ''; if (!n) notify('Couldn’t start this game’s video.', true); loadVids(); }, () => {}); // the parts, in order
     g.add = (b) => { g.q = g.q.then(async () => g.name && client.gameVideo('add', g.name, await b.arrayBuffer())).catch(() => {}); };
-    g.end = () => { g.q = g.q.then(() => g.name && client.gameVideo('end', g.name)).catch(() => {}).then(vidsDone); };
+    // app 1.41, Keep only the highlights (on by default, as Aion 2's boss fights): a League game was 1.5-7.7 GB whole
+    g.end = () => { g.q = g.q.then(() => g.name && client.gameVideo('end', g.name)).then(() => g.name && opts.gameHigh && keepOnly(g.name, reelOf(vidMarks[g.name] || []))).catch(() => {}).then(vidsDone); };
     g.wall = performance.now();
   }
   // ---- recording your screen (Rayan, 2026-10-29: "like OBS"): a screen or app window you pick, whenever you like,
@@ -9139,17 +9161,24 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     r.after = async (name) => {
       const fights = bossFights(r.boss);
       if (!fights.length) return;
-      const old = vidMarks[name] || [];
-      if (opts.aionBoss && (await client.gameVideo('cut', name, fights).catch(() => false))) {
-        let at = 0; // each fight's start in the cut video, and the marks inside a fight moved with it
-        vidMarks[name] = fights.flatMap(([a, z], k) => {
-          const m = [{ s: at + 10, from: at, text: `Boss fight ${k + 1}` }, ...old.filter((x) => x.s >= a && x.s <= z).map((x) => ({ ...x, s: at + x.s - a, from: Math.max(at, at + (x.from ?? x.s) - a) }))];
-          at += z - a;
-          return m;
-        });
-      } else vidMarks[name] = [...old, ...fights.map(([a, z], k) => ({ s: a + 10, from: a, text: `Boss fight ${k + 1}` }))].sort((x, y) => x.s - y.s);
+      if (opts.aionBoss && (await keepOnly(name, fights, (k) => `Boss fight ${k + 1}`))) return;
+      vidMarks[name] = [...(vidMarks[name] || []), ...fights.map(([a, z], k) => ({ s: a + 10, from: a, text: `Boss fight ${k + 1}` }))].sort((x, y) => x.s - y.s);
       store.set('lpc-vid-marks', JSON.stringify(vidMarks));
     };
+  }
+  // a video cut down to parts ([[from, to] s] in order) by the app, and its marks inside them moved with them; label(k):
+  // a mark at each part's start + 10 s. Says whether it was cut.
+  async function keepOnly(name, parts, label) {
+    if (!parts.length || !(await client.gameVideo('cut', name, parts).catch(() => false))) return false;
+    const old = vidMarks[name] || [];
+    let at = 0; // each part's start in the cut video
+    vidMarks[name] = parts.flatMap(([a, z], k) => {
+      const m = [...(label ? [{ s: at + 10, from: at, text: label(k) }] : []), ...old.filter((x) => x.s >= a && x.s <= z).map((x) => ({ ...x, s: at + x.s - a, from: Math.max(at, at + (x.from ?? x.s - 10) - a) }))];
+      at += z - a;
+      return m;
+    });
+    store.set('lpc-vid-marks', JSON.stringify(vidMarks));
+    return true;
   }
   // ---- Aion 2 dungeons on the Recording page: every run in the game's own logs (from its first day), each dungeon's
   // runs, best and usual time and respawns, and the last 7 days. A dungeon's name is yours to give: the log has only
@@ -9351,13 +9380,17 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // Watch (no marks) plays the whole video with its highlights on the timeline.
   // ponytail: apps before 1.19 read the whole video into memory (clipBytes); 1.19 streams it (client.media)
   let reel = [];
+  function reelOf(marks) { // [[from, to] s] each highlight plays, overlapping ones joined; from: a dungeon run's fight starts there
+    const out = [];
+    for (const m of marks) { const last = out[out.length - 1], a = Math.max(0, m.from ?? m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = Math.max(last[1], z); else out.push([a, z]); }
+    return out;
+  }
   async function playGame(name, marks = []) {
     if (!(await openPlayer('game', name, vidMarks[name] || marks))) {
       if (!(await client.gameVideo('open', name))) return notify('Couldn’t open that video. It may have been moved or deleted.', true);
       return notify(marks.length === 1 ? `Opened in your video player: skip to ${mmss(Math.floor(Math.max(0, marks[0].s - 10)))}.` : 'Opened in your video player. Update the app to watch highlights here.', true);
     }
-    reel = [];
-    for (const m of marks) { const last = reel[reel.length - 1], a = Math.max(0, m.from ?? m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = z; else reel.push([a, z]); } // from: a dungeon run's fight starts there
+    reel = reelOf(marks);
     if (reel.length) vid.addEventListener('playerready', () => nextMark(), { once: true }); // after the trimmer takes the whole video
     else vid.play().catch(() => {});
     $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}${marks.length ? `: ${marks.length === 1 ? marks[0].text : 'highlights'}` : ''}`;
@@ -14852,7 +14885,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss']]) {
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -15064,6 +15097,15 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       'Rooms only dial the seats that are taken. Before, every Premade in a room dialled all ten seats every 15 seconds, which was most of what our server handled; a two-person room now sends it nothing once you’re both in.',
       'Our server pauses counting Riot games at 80% of its free daily requests, so voice rooms keep working, and Settings, Our server shows the whole server’s use. The relay for friends whose routers can’t connect goes only to players in a room.',
       'Who has Premade (for whoever runs it) shows how each copy ran on its last day used and which features get used, counts only. Settings, App turns it off with the same switch.',
+    ]],
+    [128, 'November 7: League match videos keep only the highlights', [
+      'Desktop app 1.41.0: Keep only the highlights, on the Clips page under Record every match, cuts each game’s video down to its highlights when the game ends (your kills, deaths, multikills, Aces, objectives and towers), as Aion 2 runs keep only their boss fights. On by default: a whole game took 1.5 to 7.7 GB. Untick it to keep whole games.',
+      'Finishing a match video when a game ends no longer copies the whole file, so it takes seconds, and quitting Premade during that waits for it. A video Premade was still finishing when it closed is finished at the next start, and the half-made copies older runs left behind (several GB each) go to the Recycle Bin after a day.',
+    ]],
+    [127, 'November 7: Premade picks itself back up', [
+      'Desktop app 1.41.0: if Premade’s page crashes or hangs for 30 seconds, the app loads it again and puts you back in the room you were in. With no internet when it starts, it says it can’t reach Premade and tries again, right away once you’re back online. The overlay and the Aion 2 meter come back the same way.',
+      'Copy connection log, in Settings, App, now copies the last 24 hours, even from before a restart: the app keeps a log file of the last 3 days with its crashes, the page’s errors, settings that couldn’t be saved and its memory every 10 minutes.',
+      'The downloader (yt-dlp) and FFmpeg are checked against the SHA-256 their makers publish before they’re used the first time, and refused if they don’t match.',
     ]],
     [126, 'November 7: deaths and a minimize button on the Aion 2 DPS meter', [
       'Desktop app 1.40.0: each player’s bar on the DPS meter shows a red skull and how many times they died in that fight, like Abyss DPS Meter, in the pop-up and in your room. Hover a bar for it too.',
@@ -15765,8 +15807,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
       ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
       ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
-      ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The last 500 lines, kept in memory only.',
-        'Settings, App: Copy connection log, right after a drop, then paste it to whoever builds the app.', '#connLogBtn'],
+      ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The desktop app also writes it in a log file with its own crashes, the page’s errors, saves that failed and its memory every 10 minutes, keeps the last 3 days and copies the last 24 hours, so it still has a drop from before a restart. On the website: the last 500 lines, in memory only.',
+        'Settings, App: Copy connection log after a drop, even after restarting, then paste it to whoever builds the app.', '#connLogBtn'],
+      ['Picks itself back up', 'If Premade’s page crashes or hangs for 30 seconds, the app loads it again and puts you back in your room. With no internet it says it can’t reach Premade and tries again, right away once you’re back online. The overlay and the Aion 2 meter come back the same way.',
+        'Nothing to set up. The connection log says when it happened.', '#connLogBtn', 'app'],
       ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
         'Nothing to set up. When a new version is out, Update to it in Settings, App, or in the status bar.', '#appVersion', 'app'],
       ['Install as an app', 'Premade in its own window, from your browser.', 'Settings, App: Install as an app, in Chrome or Edge.', '#installBtn', 'web'],
@@ -15915,10 +15959,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Recording in the menu: Aion 2 dungeons, under Your recordings. Click a dungeon to give it a name.', '#aionRunsBox', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
-      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin.',
-        'Off until you tick it: the Clips page, Whole matches and highlights, Record every match.', '#optGameVideo, #vidBox', 'app'],
+      ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin. Keep only the highlights (on by default) cuts each game down to its highlights when it ends, so a game takes a fraction of the several GB it took whole. A video Premade was still finishing when it closed is finished at the next start, and half-made files a day old go to the Recycle Bin.',
+        'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Untick Keep only the highlights to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
       ['Download from a link', 'Paste a link from YouTube, TikTok (without the watermark), Instagram, X, Reddit, Facebook, Twitch and about 1,700 more sites, and the app saves the video up to 1080p, or just its sound as an MP3, in Downloads\\Premade.',
-        'The Clips page, Download from a link. The first one fetches the downloader, about 150 MB.', '#h-dl', 'app'],
+        'The Clips page, Download from a link. The first one fetches the downloader, about 150 MB, and checks it against the SHA-256 its makers publish.', '#h-dl', 'app'],
       ['Convert a file', 'Turn a video into an MP4, an MP4 under 10 MB for Discord, WebM, a GIF or just its sound; a song into MP3, M4A, WAV, FLAC or Opus; a picture into PNG, JPG, WebP or BMP. The new file goes next to the old one, made on this computer.',
         'The Clips page, Convert a file. It uses the downloader’s ffmpeg, fetched the first time.', '#h-cv', 'app'],
     ]],
