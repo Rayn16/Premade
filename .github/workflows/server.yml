@@ -1,0 +1,42 @@
+# Our server (server/, the Cloudflare Worker at league-proxchat.league-proxchat-server.workers.dev): on each push to the
+# owner branch that changes server/, its tests run under `wrangler dev`, then it deploys, with the secrets
+# CLOUDFLARE_API_TOKEN (Workers Scripts: Edit) and CLOUDFLARE_ACCOUNT_ID that Rayan adds in GitHub > Premade > Settings >
+# Secrets and variables > Actions. The Worker's own secrets (RIOT_KEY, TURN_KEY_*, GH_TOKEN, OWNER_KEY, CF_*) stay in
+# Cloudflare: a deploy doesn't touch them. Without the GitHub secrets it only tests. Run it by hand too (Run workflow).
+name: Server
+on:
+  push:
+    branches: [claude/voice-clips-6a9va7]
+    paths: ['server/**', '.github/workflows/server.yml']
+  workflow_dispatch:
+concurrency: { group: server-deploy, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tests
+        working-directory: server
+        run: |
+          npm i --no-save --no-audit --no-fund wrangler@4 ws@8.22.0
+          export WRANGLER="$PWD/node_modules/.bin/wrangler" NODE_PATH="$PWD/node_modules"
+          for t in lock stats budget aug push squad riot; do echo "== $t"; node $t.test.js; done
+      - name: Deploy
+        if: env.HAS_KEY == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server
+          wranglerVersion: '4'
+          command: deploy
+      - name: What went live
+        run: |
+          echo "server/worker.js sha256 $(sha256sum server/worker.js | cut -c1-8) (deployed: ${HAS_KEY})"
+          [ "$HAS_KEY" = true ] || echo "::notice::Not deployed: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as GitHub secrets to deploy from here."

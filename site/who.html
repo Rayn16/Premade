@@ -53,9 +53,10 @@ td.muted { color: var(--muted); }
   <section id="list" class="panel" hidden>
     <p id="sum" role="status"></p>
     <div class="wrap"><table>
-      <thead><tr><th>League accounts</th><th>Voice name</th><th>App</th><th>First opened</th><th>Last seen</th></tr></thead>
+      <thead><tr><th>League accounts</th><th>Voice name</th><th>App</th><th>First opened</th><th>Last seen</th><th>Last day used</th></tr></thead>
       <tbody id="rows"></tbody>
     </table></div>
+    <p id="use" class="hint" hidden></p>
     <p class="hint">Each device that opened Premade in the last year, the last seen first. A device without League accounts yet hasn't opened League with Premade, or given its Riot ID on the website.</p>
   </section>
 </main>
@@ -71,6 +72,20 @@ td.muted { color: var(--muted); }
   const app = (v) => (v === 'web' ? 'Website' : v === 'old' ? 'App 1.2 or older' : `App ${v}`);
   const heads = [...document.querySelectorAll('thead th')].map((th) => th.textContent); // each cell's label on a phone
   function cell(text, muted, i) { const td = document.createElement('td'); td.textContent = text; td.dataset.label = heads[i]; if (muted) td.className = 'muted'; return td; }
+  // a copy's last day used (its hello's day) and the features used on every copy's last day in the past week, as in
+  // index.html's Settings > Our server (healthText, useText there: keep them the same)
+  function healthText(d) {
+    if (!d || !d.h) return '—';
+    const h = d.h, n = (k, one, many = one + 's') => (h[k] ? `${h[k]} ${h[k] === 1 ? one : many}` : '');
+    return [new Date(d.d + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric' }) + ':', [n('start', 'start'), n('crash', 'crash', 'crashes'), n('err', 'page error'), n('fail', 'failed connection'), n('relay', 'friend through the relay', 'friends through the relay'), h.mem ? `app memory peak ${h.mem} MB` : ''].filter(Boolean).join(', ') || 'nothing counted'].join(' ');
+  }
+  function useText(apps) {
+    const week = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10), sum = {};
+    let n = 0;
+    for (const a of apps) if (a.day && a.day.u && a.day.d >= week) { n++; for (const [k, v] of Object.entries(a.day.u)) sum[k] = (sum[k] || 0) + v; }
+    const top = Object.entries(sum).sort((a, b) => b[1] - a[1]);
+    return top.length ? `Features used on ${n === 1 ? 'one copy’s' : `${n} copies’`} last day in the past week (a page opened, #, or a click in it): ${top.map(([k, v]) => `${k} ${v}`).join(', ')}.` : '';
+  }
   function ask(note) { $('list').hidden = true; $('keyBox').hidden = false; $('keyNote').textContent = note; $('key').focus(); }
   async function show(key) {
     let r = null;
@@ -83,9 +98,11 @@ td.muted { color: var(--muted); }
     $('sum').textContent = apps.length ? `${apps.length} device${apps.length === 1 ? '' : 's'}, ${n} seen in the last 7 days.` : 'Nobody has opened Premade since the list began.';
     $('rows').replaceChildren(...apps.map((a) => {
       const tr = document.createElement('tr'), riot = Array.isArray(a.riot) ? a.riot.join(', ') : '';
-      tr.append(...[[riot || 'Not known yet', !riot], [a.name || '—', !a.name], [app(a.v)], [when(a.first)], [when(a.last)]].map(([text, muted], i) => cell(text, muted, i)));
+      tr.append(...[[riot || 'Not known yet', !riot], [a.name || '—', !a.name], [app(a.v)], [when(a.first)], [when(a.last)], [healthText(a.day), !a.day]].map(([text, muted], i) => cell(text, muted, i)));
       return tr;
     }));
+    $('use').textContent = useText(apps);
+    $('use').hidden = !$('use').textContent;
     $('keyBox').hidden = true;
     $('list').hidden = false;
   }

@@ -252,7 +252,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
     // who has Premade: Ana's page told our server when it opened, and again with the name she picked
     const hi = ana.context().hellos;
-    assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [] }, { v: 'web', name: 'Ana', riot: [] }], 'a hello when Premade opens, and one with her name');
+    const code = await ana.evaluate(() => localStorage.getItem('lpc-code'));
+    assert.match(code, /^Friend#P-\d{4}$/, 'a Premade code, made before she had a name');
+    assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [code] }, { v: 'web', name: 'Ana', riot: [code] }], 'a hello when Premade opens, and one with her name, with her Premade code (no day yet: her first)');
+    assert.equal(await ana.textContent('#frCode'), code, 'shown under Add a friend');
     assert(/^[0-9a-f-]{36}$/.test(hi[0].id) && hi.every((h) => h.id === hi[0].id) && hi[0].id === await ana.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
     // turned off in Settings > App, a new name sends nothing; turned on again, a hello at once
     const rename = (n) => ana.evaluate((n) => { const el = document.getElementById('name'); el.value = n; el.dispatchEvent(new Event('change')); }, n);
@@ -1017,7 +1020,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
       const { key } = JSON.parse(r.request().postData() || '{}');
       whoAsked.push(r.request().url());
       if (key !== 'owner key') return r.fulfill({ status: 403, body: 'Not the owner key', headers: { 'access-control-allow-origin': '*' } });
-      r.fulfill({ json: { apps: [{ v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW', 'Smurf#EUW'], first: now - 30 * 86400, last: now - 60 },
+      r.fulfill({ json: { apps: [{ v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW', 'Smurf#EUW'], first: now - 30 * 86400, last: now - 60, day: { d: new Date(Date.now() - 864e5).toISOString().slice(0, 10), h: { start: 3, crash: 1, fail: 2, relay: 1, mem: 412 }, u: { 'Screen share': 4, '#aion': 2 } } },
         { v: 'web', name: '<b>Kev</b>', riot: [], first: now - 20 * 86400, last: now - 10 * 86400 }] }, headers: { 'access-control-allow-origin': '*' } });
     });
     const wp = await ana.context().newPage();
@@ -1031,6 +1034,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await wp.waitForSelector('#rows tr');
     assert.strictEqual(await wp.textContent('#sum'), '2 devices, 1 seen in the last 7 days.');
     assert.deepStrictEqual(await wp.$$eval('#rows tr', (l) => l.map((tr) => [...tr.cells].slice(0, 3).map((c) => c.textContent))), [['Rayan#EUW, Smurf#EUW', 'Rayan', 'App 1.13.0'], ['Not known yet', '<b>Kev</b>', 'Website']]);
+    const days = await wp.$$eval('#rows tr', (l) => l.map((tr) => tr.cells[5].textContent)); // how each copy ran on its last day, and what got used
+    assert.match(days[0], /: 3 starts, 1 crash, 2 failed connections, 1 friend through the relay, app memory peak 412 MB$/);
+    assert.equal(days[1], '—');
+    assert.equal(await wp.textContent('#use'), 'Features used on one copy’s last day in the past week (a page opened, #, or a click in it): Screen share 4, #aion 2.');
     await wp.goto('http://127.0.0.1:8080/who.html?peer=evil.example:80'); // the key it kept, and only ever to our server
     await wp.waitForSelector('#rows tr');
     assert.deepStrictEqual(whoAsked.map((u) => new URL(u).host), [PEER, PEER, 'league-proxchat.league-proxchat-server.workers.dev']);
@@ -1044,14 +1051,24 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.waitForSelector('#whoRows tr');
     assert.match(await ana.textContent('#whoNote'), /^2 devices, 1 seen in the last 7 days/);
     assert.deepStrictEqual(await ana.$$eval('#whoRows tr', (l) => l.map((tr) => [...tr.cells].slice(0, 3).map((c) => c.textContent))), [['Rayan#EUW, Smurf#EUW', 'Rayan', 'App 1.13.0'], ['Not known yet', '<b>Kev</b>', 'Website']]);
+    assert.match(await ana.$eval('#whoRows tr', (tr) => tr.cells[5].textContent), /: 3 starts, 1 crash, 2 failed connections, 1 friend through the relay, app memory peak 412 MB$/);
+    assert.match(await ana.textContent('#whoUse'), /: Screen share 4, #aion 2\.$/);
     assert(await ana.isHidden('#whoForm') && (await ana.evaluate(() => localStorage.getItem('premade-owner'))) === 'owner key' && whoAsked.length === 5 && new URL(whoAsked[4]).host === PEER, 'the key kept, and sent to our server');
     const op = await player(browser, 'Owner', [1920, 1080]), opAsked = []; // a link with another server can't send the kept key there
     await op.context().route('**/who', (r) => { opAsked.push(new URL(r.request().url()).host); r.fulfill({ status: 403, headers: { 'access-control-allow-origin': '*' } }); });
-    await op.addInitScript(() => localStorage.setItem('premade-owner', 'owner key'));
+    await op.addInitScript(() => { localStorage.setItem('premade-owner', 'owner key'); if (!localStorage.getItem('lpc-usage')) localStorage.setItem('lpc-usage', JSON.stringify({ d: '2026-11-01', h: { start: 2, err: 1 }, u: { 'Screen share': 1 }, prev: null })); });
     await op.goto('http://127.0.0.1:8080/index.html?peer=evil.example:80&debug');
     await op.evaluate(() => { document.getElementById('whoBox').open = true; });
     await op.waitForFunction(() => /didn’t work/.test(document.getElementById('whoNote').textContent));
     assert.deepStrictEqual(opAsked, ['league-proxchat.league-proxchat-server.workers.dev'], 'the kept key only ever to our server');
+    // this copy's counts: the last day before today goes with the hello; today's keep counting, and are kept when the page goes
+    assert.deepStrictEqual(op.context().hellos[0].day, { d: '2026-11-01', h: { start: 2, err: 1 }, u: { 'Screen share': 1 } }, 'the last day used, with the hello');
+    await op.click('.nav[data-view="settings"]');
+    await op.evaluate(() => document.querySelector('#whoBox summary').click()); // Our server stays hidden with no server to ask
+    await op.reload();
+    const usage = await op.evaluate(() => JSON.parse(localStorage.getItem('lpc-usage')));
+    assert.equal(usage.d, new Date().toISOString().slice(0, 10));
+    assert(usage.h.start === 1 && usage.u['#settings'] >= 1 && usage.u['Our server'] >= 1, `today's counts: ${JSON.stringify(usage)}`);
     await op.context().close();
     console.log('who has Premade: a wrong key turned away, then the list with each device\'s accounts, name and app, the key kept and only sent to our server, on who.html and in Settings');
     // themes: red and black by default, Light, your own main colour, Custom, Light with the computer's light mode
