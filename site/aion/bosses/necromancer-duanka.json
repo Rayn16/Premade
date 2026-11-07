@@ -1,0 +1,27 @@
+{
+ "name": "Necromancer Duanka",
+ "map": 600092,
+ "dungeon": "Ferocious Horn Den",
+ "runs": 2,
+ "from": "read off Rayan's run videos, 5-7 Nov 2026",
+ "casts": [
+  {
+   "name": "Mau Necromancy",
+   "secs": 9,
+   "hp": 50,
+   "seen": 2,
+   "shape": "a long dark line out from the boss",
+   "at": null,
+   "do": ""
+  },
+  {
+   "name": "Soul Caller",
+   "secs": 4,
+   "hp": 5,
+   "seen": 1,
+   "shape": "",
+   "at": null,
+   "do": ""
+  }
+ ]
+}

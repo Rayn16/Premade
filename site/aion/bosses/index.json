@@ -1,0 +1,56 @@
+{
+ "600092": {
+  "dungeon": "Ferocious Horn Den",
+  "bosses": [
+   "watchdog-kwapo",
+   "necromancer-duanka",
+   "ferocious-horn-nuakum"
+  ]
+ },
+ "600072": {
+  "dungeon": "Vakron Sky Island",
+  "bosses": [
+   "thamon",
+   "vakron"
+  ]
+ },
+ "600012": {
+  "dungeon": "Urugugu Canyon",
+  "bosses": [
+   "guardian-captain-raur",
+   "judge-urahum",
+   "divine-auldor"
+  ]
+ },
+ "600011": {
+  "dungeon": "Canyon's Secret",
+  "bosses": [
+   "guardian-captain-raur",
+   "judge-urahum",
+   "divine-auldor"
+  ]
+ },
+ "600022": {
+  "dungeon": "Fire Temple",
+  "bosses": [
+   "red-spark-ignus",
+   "black-smoke-murute"
+  ]
+ },
+ "600002": {
+  "dungeon": "Krao Cave",
+  "bosses": [
+   "neglected-gadioton",
+   "enhanced-harcon",
+   "ultimate-berk"
+  ]
+ },
+ "600031": {
+  "dungeon": "Draupnir Expedition",
+  "bosses": [
+   "predator-saraswati",
+   "phantasmal-lakshmi",
+   "transcendent-bakarma"
+  ]
+ }
+}

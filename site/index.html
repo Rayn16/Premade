@@ -844,6 +844,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .cursets { display: grid; gap: 10px; }
 .cursets { padding-top: 12px; border-top: 1px solid var(--line); }
 .roomdps { width: 100%; height: 300px; border: 0; border-radius: 6px; }
+.raidrows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.raidrows li { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.raidrows input { flex: 1 1 8em; min-width: 0; }
+.raidrows input[type="number"] { flex: 0 0 4.5em; }
+.guideboss h4 { margin: 10px 0 4px; }
+.guidecast { display: grid; gap: 4px; margin-bottom: 6px; }
 #roomCards .ph .hint { margin-left: auto; font: 400 12px/1 var(--body); letter-spacing: 0; }
 #roomCards .players { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 #roomCards .player { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pic" "main" "vol" "mute"; justify-items: center; text-align: center; border-left-width: 1px; }
@@ -1204,6 +1210,15 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
               <div id="roomDps" class="cursets client-only" hidden>
                 <h3 class="ph">Aion 2 DPS</h3>
                 <iframe id="roomDpsFrame" class="roomdps" title="Aion 2 DPS meter"></iframe>
+                <div id="raidBox">
+                  <h3 class="ph">Raid roles</h3>
+                  <p id="raidNote" class="hint"></p>
+                  <ul id="raidJobs" class="raidrows"></ul>
+                  <div class="toolbar"><button id="raidAddJob" class="btn small" type="button">Add a job</button><button id="raidLudra" class="btn small" type="button">Ludra’s usual jobs and marks</button></div>
+                  <h4>Callouts at the boss’s health</h4>
+                  <ul id="raidMarks" class="raidrows"></ul>
+                  <div class="toolbar"><button id="raidAddMark" class="btn small" type="button">Add a mark</button><button id="raidClear" class="btn small" type="button">Clear the sheet</button></div>
+                </div>
               </div>
               <div class="cursets pc-only">
                 <h3 class="ph">Screen share</h3>
@@ -2180,6 +2195,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <p id="vsNote" class="hint">Two tries at the same boss, started together at the pull. The left one has the controls and its sound; the right one follows it.</p>
         </div>
       </section>
+      <section id="aionGuideBox" class="panel client-only" aria-labelledby="h-aguide" hidden>
+        <h2 id="h-aguide" class="ph">Aion 2 dungeon guide</h2>
+        <label class="check"><input id="optAionGuide" type="checkbox"> Guide me on the overlay: each dungeon’s bosses as I go in, what to do when a boss casts, with a countdown, and a call before its health gets to a cast</label>
+        <label class="check"><input id="optAionSay" type="checkbox"> Read Aion 2 callouts out loud</label>
+        <div id="aionGuide" class="guidelist"></div>
+        <p class="hint">Each boss’s casts come from recorded runs: its countdown, the health it comes at and when after the pull. Every run you record (Each Aion 2 dungeon run, above) adds to them, and casts are read off the game’s cast bar only while a run records. Write what to do next to a cast; it’s what the overlay says.</p>
+      </section>
     </section>
 
     <section class="view" data-view="re4" aria-label="RE4 co-op" hidden>
@@ -2532,7 +2554,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, aionGuide: true, aionSay: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -2944,6 +2966,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('roomView').toggleAttribute('data-game', inGameNow());
     $('roomDps').hidden = !client || !store.get('lpc-aion') || inGameNow(); // Aion 2's DPS meter for those who play it (meter.html, as in the pop-up; its pop-out button opens that)
     if (!$('roomDps').hidden && !$('roomDpsFrame').getAttribute('src')) { $('roomDpsFrame').onload = () => aionMeterTheme(); $('roomDpsFrame').src = 'meter.html?embed'; } // in the theme's colours
+    raidDraw();
     renderRoomCard();
     $('phase').textContent = inGameNow()
       ? `In game: proximity is on. ${inGame} of ${peers.size + 1} players have their minimap tracked; you hear only those close to you.`
@@ -3152,7 +3175,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share, see: opts.roomScreen && !!share, sq: squad ? squad.code : '',
     ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
-    ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }),
+    ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }), ...(slot === hostSlot() && raidMsg() && { rd: raidMsg() }),
   });
   let faceSent = '';
   let teams = { n: 0, a: [], b: [] }, roles = { n: 0, map: {} }; // room games: the host's balanced teams and roles
@@ -3170,6 +3193,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (m.t === 'see') { p.wantSee = m.on === true; p.seeH = +m.h > 0 ? Math.min(2160, +m.h) : 0; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done; h: how tall their tile is
     if (m.t === 'shq') { const v = seen.get(p); if (v && typeof m.why === 'string') v.why = m.why; return; } // what holds back their screen you watch
     if (m.t === 'pt') return void ptMsg(p, m);
+    if (m.t === 'raid') return raidTake(m.raid);
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
@@ -3203,7 +3227,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       p.sq = typeof m.sq === 'string' && /^[a-z0-9]{12}$/.test(m.sq) ? m.sq : '';
       takeMode(m.rm, p.slot);
       takeSwap(m.sw, p.slot);
-      if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeMvp(m.mv, p.slot); takeFs(m.fs); }
+      if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeMvp(m.mv, p.slot); takeFs(m.fs); raidTake(m.rd); }
       if (p.champ) ddSoon();
     }
     if (m.t === 'face' && typeof m.img === 'string' && m.img.startsWith('data:image/jpeg;base64,') && m.img.length < 12000) p.face = m.img;
@@ -5771,12 +5795,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
     const practice = on(league && league.mode === 'PRACTICETOOL') ? [comboLine(), jgLine()].filter(Boolean) : [];
-    const aion = aionCard && !league && !overlayHide ? aionLines() : null;
+    const aion = aionCard && !league && !overlayHide ? aionLines() : null, guideL = guideLines();
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const talkers = talk ? [...peers.values()].filter((p) => p.talking && p.out > 0.02).map(shown) : [], lines = overlayOn ? chats.filter((c) => now - c.at < 8000).map(({ name, text }) => ({ name, text })) : [];
     const anyHas = any && !overlayEdit && (talkers.length > 0 || lines.length > 0); // friends talking or writing, not your own voice
-    const visible = (any && !overlayEdit ? anyHas : talk || meOn || overlayOn) || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion;
+    const visible = (any && !overlayEdit ? anyHas : talk || meOn || overlayOn) || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion || !!guideL;
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
     const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
     const cards = overlayEdit || overlayHide ? null : tftAugCards();
@@ -5788,7 +5812,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     let s = !visible && !full ? { visible: false } : {
-      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, aion, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, aion, guide: guideL, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
       parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
@@ -5817,6 +5841,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (!overlayHide && !boardNow() && boardCan()) { boardKey = true; notify(`Everyone’s rank is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides the overlay.` : ''}`, true); }
     else if (!league && store.get('lpc-aion')) {
       aionCard = !aionCard;
+      guideHide = !aionCard; // the guide and raid card go with it, and come back with it
       if (aionCard) overlayHide = false;
       notify(aionCard ? `Aion 2 is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides it.` : ''}` : 'Aion 2 is off the overlay.', true);
     } else {
@@ -7044,6 +7069,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const sched = JSON.stringify((s && s.sched) || {});
     if (sched !== aionSchedWas) { aionSchedWas = sched; if (sched !== '{}') aionPut('lpc-aion-sched', { ...load('lpc-aion-sched', {}), ...s.sched, at: Date.now() }); }
     if (s && s.bosses && s.bosses.at !== aionBossesWas) { aionBossesWas = s.bosses.at; aionPut('lpc-aion-bosses', { ...load('lpc-aion-bosses', {}), [s.bosses.world]: s.bosses }); }
+    guideHp();
     const party = JSON.stringify((s && s.members) || []);
     if (party !== aionPartyWas) { aionPartyWas = party; aionParty(s.members || []); }
     aionPublish();
@@ -7223,7 +7249,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (name === 'overlay') ovOpen();
     if (name === 'help') renderRemoteHelp();
     if (name === 're4') re4();
-    if (name === 'record') loadAionRuns();
+    if (name === 'record') { loadAionRuns(); guideDraw(); }
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
     else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
@@ -9326,7 +9352,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     store.set('lpc-vid-marks', JSON.stringify(vidMarks));
   }
   async function crumbTick() {
-    if (!client || !client.aionLog || !opts.aionRec || league || performance.now() - crumbAt < 5000) return;
+    if (!client || !client.aionLog || !(opts.aionRec || opts.aionGuide) || league || performance.now() - crumbAt < 5000) return;
     crumbAt = performance.now();
     const r = await client.aionLog(crumb && crumb.file, crumb && crumb.size).catch(() => null);
     if (!r || typeof r.text !== 'string') return;
@@ -9338,10 +9364,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       if (map === null) continue;
       // the same dungeon loaded again: you came back in after dying or a wipe; a mark on its video, playing the minute before
       if (map && map === c.map && screenRec && screenRec.run) { runMark(screenRec, crumbTime(t), 'Back in after a death', 60); screenRec.re.push(Math.round((crumbTime(t) - screenRec.at) / 1000)); }
+      if (map !== c.map) guideEnter(map, crumbTime(t));
       c.map = map;
     }
     const inside = isDungeon(c.map), run = screenRec && screenRec.run ? screenRec : null;
-    if (inside && !screenRec && !c.rec) {
+    if (inside && !screenRec && !c.rec && opts.aionRec) {
       c.rec = true; // once per run, even if you stop it
       runStart(c.map, false);
     }
@@ -9449,7 +9476,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         r.castAt = t;
         runRead(r, runInk(cast, RUN_INK.white, 3), (s) => {
           const name = s.replace(/\d+(?:\.\d)?/g, '').replace(/[^A-Za-z' ]/g, ' ').replace(/\s+/g, ' ').trim(), secs = /(\d+(?:\.\d)?)\D*$/.exec(s); // "<cast> <seconds left>" between the bar's end marks
-          if (/[A-Za-z]{3}/.test(name) && r.castAt === t) { r.casts.push({ t, name, secs: secs ? (secs[1].includes('.') ? +secs[1] : secs[1] / 10) : null }); r.castOk = t; } // it always shows tenths: a lost dot
+          if (/[A-Za-z]{3}/.test(name) && r.castAt === t) { r.casts.push({ t, name, secs: secs ? (secs[1].includes('.') ? +secs[1] : secs[1] / 10) : null }); r.castOk = t; guideCast(r.casts[r.casts.length - 1], r.at + t * 1000); } // it always shows tenths: a lost dot
         });
       }
       if (r.castOk === r.castAt) boss();
@@ -9496,7 +9523,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function bossWatch(r, map, open) {
     Object.assign(r, { run: true, map, open, boss: [], names: [], hp: [], casts: [], kills: [], re: [], deaths: [], seen: Date.now() });
-    const t = r.stream.getVideoTracks()[0].clone(), stop = CameraBox.watch(new MediaStream([t]), 1000, (src, w, h) => runFrame(r, src, w, h));
+    const t = r.stream.getVideoTracks()[0].clone(), stop = CameraBox.watch(new MediaStream([t]), 1000, (src, w, h) => { runFrame(r, src, w, h); guideHp(); });
     r.unwatch = () => {
       stop();
       t.stop();
@@ -9524,7 +9551,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         casts: keep(r.casts, (x, s) => ({ t: s, name: x.name, secs: x.secs })), marks: vidMarks[name] || [],
         deaths: keep(r.deaths, (x, s) => ({ t: s, name: x.name, me: x.me })), // Live fight's, when it's on (What's new 133)
       };
-      client.gameVideo('json', name, JSON.stringify(tl)).catch(() => {});
+      client.gameVideo('json', name, JSON.stringify(scriptLearn(tl))).catch(() => {});
       runKeep(name, tl);
     };
   }
@@ -9717,6 +9744,208 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     vsB.currentTime = vs.b;
     vsA.currentTime = vs.a;
     vsA.play().catch(() => {});
+  });
+  // ---- Aion 2 boss scripts, the dungeon guide and the raid sheet (owner review 42, 43, 34; 2026-11-07). A boss script is
+  // one small file per boss in aion/bosses/ (index.json: { map: { dungeon, bosses: [file names, in order] } }), read off
+  // Rayan's run videos: each named cast with its countdown (secs), the health it first came at (hp, %; hps when it comes
+  // at several), when after the pull (at, s), in how many runs it was seen (seen), what it looks like (shape) and what to
+  // do (do). Each run's timeline adds its numbers to this PC's copy (lpc-aion-scripts { boss: script }), while the file's
+  // words (do, shape) and new casts still come through; your own note per cast (lpc-aion-notes { 'boss|cast': text })
+  // wins over both. In a dungeon the overlay lists its bosses for 30 s; a cast the run reader reads off the cast bar says
+  // what it is and counts down; the boss's health (Live fight's, else the run reader's) going under a cast's % + 5 calls
+  // it. The room's raid sheet gives each player their own jobs on the overlay and calls its marks 5% before and at them.
+  // The overlay shortcut over Aion 2 shows the Aion 2 card, then hides it and all of this (guideHide), then shows both.
+  let bossIdx = null, guideHide = false;
+  const bossFiles = {}, aionScripts = load('lpc-aion-scripts', {}), aionNotes = load('lpc-aion-notes', {});
+  const guideIndex = () => (bossIdx = bossIdx || fetch('aion/bosses/index.json').then((r) => r.json()).catch(() => { bossIdx = null; return {}; }));
+  const bossFile = (f) => (bossFiles[f] = bossFiles[f] || fetch(`aion/bosses/${f}.json`).then((r) => r.json()).catch(() => { delete bossFiles[f]; return null; }));
+  async function seedsOf(map) { const e = (await guideIndex())[map]; return { e, seeds: e ? (await Promise.all(e.bosses.map(bossFile))).filter(Boolean) : [] }; }
+  const guide = { map: 0, at: 0, dungeon: '', bosses: [], seeds: {}, cast: null, calls: [], fired: new Map() };
+  const sameBoss = (a, b) => { const x = augKey(a), y = augKey(b); return !!x && !!y && (x.includes(y) || y.includes(x) || 1 - lev(x, y) / Math.max(x.length, y.length) > 0.7); };
+  function scriptMix(l, s) { // this PC's numbers with the file's words and the casts only the file has
+    if (!l || !s) return l || s || null;
+    return { ...l, casts: [...l.casts.map((c) => { const x = s.casts.find((y) => y.name === c.name); return x ? { ...c, do: x.do, shape: x.shape, hps: x.hps } : c; }), ...s.casts.filter((x) => !l.casts.some((c) => c.name === x.name))] };
+  }
+  const scriptOf = (n) => scriptMix(aionScripts[n], guide.seeds[n]);
+  const bossNear = (n) => (n && guide.bosses.find((b) => sameBoss(b, n))) || '';
+  const castNote = (boss, c) => aionNotes[`${boss}|${c.name}`] || c.do || c.shape || ''; // your note, else the file's, else what it looks like
+  async function guideEnter(map, at) { // a map loaded (at: when, ms): a dungeon's bosses and their scripts
+    if (map === guide.map) return;
+    Object.assign(guide, { map, at: isDungeon(map) && Date.now() - at < 60000 ? Date.now() : 0, dungeon: '', bosses: [], seeds: {}, cast: null });
+    if (!isDungeon(map) || !opts.aionGuide) return;
+    const { e, seeds } = await seedsOf(map);
+    if (guide.map !== map) return;
+    guide.dungeon = (e && e.dungeon) || aionMapNames[map] || '';
+    guide.seeds = Object.fromEntries(seeds.map((s) => [s.name, s]));
+    guide.bosses = [...new Set([...seeds.map((s) => s.name), ...(runBosses()[map] || []), ...Object.values(aionScripts).filter((s) => s.map === map).map((s) => s.name)])];
+  }
+  function guideSay(text) {
+    const now = Date.now();
+    guide.calls = [...guide.calls.filter((c) => now - c.at < 5000), { text, at: now }];
+    if (opts.aionSay && !overlayHide && !guideHide) speak(text);
+    pushOverlay();
+  }
+  function guideCast(c, at) { // a cast the run reader read: { name, secs }, its frame at (ms)
+    if (!opts.aionGuide || !c || !c.name) return;
+    let f = null;
+    for (const b of guide.bosses) for (const x of (scriptOf(b) || {}).casts || []) if (!f && sameBoss(c.name, x.name)) f = { boss: b, cast: x };
+    const secs = c.secs ?? (f && f.cast.secs), name = f ? f.cast.name : c.name, note = f ? castNote(f.boss, f.cast).split(';')[0] : '';
+    const said = f ? aionNotes[`${f.boss}|${f.cast.name}`] || f.cast.do : ''; // read out: the cast and what to do, not what it looks like
+    guide.cast = { name, note, secs: !!secs, end: at + (secs || 5) * 1000 }; // from the frame it was read off, so Tesseract's wait isn't added
+    guideSay(said ? `${name}: ${said}` : name);
+  }
+  function guideHp() { // the boss's health, each time it may have changed: marks called once a pull per target, as the health goes under them
+    const rd = raidNow();
+    if (!opts.aionGuide && !rd) return;
+    const f = aionFight && aionFight.players && aionFight.pct != null ? aionFight : null, r = screenRec && screenRec.run ? screenRec : null;
+    const fresh = r && r.hpLast != null && Math.round((Date.now() - r.at) / 1000) - r.hpAt < 3;
+    const tg = f ? String(f.target || '') : fresh && r.names.length ? r.names[r.names.length - 1][1] : '', pct = f ? +f.pct : fresh ? r.hpLast : null;
+    if (!tg || !Number.isFinite(pct)) return;
+    let st = guide.fired.get(tg);
+    if (!st || pct > st.pct + 20) { if (guide.fired.size > 50) guide.fired.clear(); guide.fired.set(tg, (st = { pct, done: new Set() })); } // a new pull of this target
+    const was = st.pct, boss = bossNear(tg);
+    st.pct = pct;
+    const marks = [...(opts.aionGuide && boss ? (scriptOf(boss) || {}).casts || [] : []).flatMap((c) => (c.hps || [c.hp]).filter((h) => h > 0 && h < 100).map((hp) => ({ hp, text: c.name, soon: true }))),
+      ...(rd ? rd.marks.filter((m) => m.text && (m.boss ? sameBoss(m.boss, tg) : !!boss)) : [])]; // a mark for any boss: the dungeon's bosses, never trash
+    for (const m of marks) for (const [at, say, k] of [[m.hp + 5, `${m.text} soon (${m.hp}%)`, 's'], ...(m.soon ? [] : [[m.hp, `${m.text} now`, 'n']])]) {
+      const key = `${m.hp}|${m.text}|${k}`;
+      if (pct <= at && was > at && !st.done.has(key)) { st.done.add(key); guideSay(say); } // crossed just now, not first seen under it
+    }
+  }
+  const aionBusy = () => (!!crumb && isDungeon(crumb.map)) || !!(aionFight && aionFight.players) || !!(screenRec && screenRec.run);
+  const meAs = () => myName || `Player ${slot + 1}`; // as others' Who lists name you
+  function guideLines() { // the overlay's guide card, or null
+    if (league || overlayHide || guideHide) return null;
+    const now = Date.now(), l = [], c = opts.aionGuide && guide.cast && now < guide.cast.end + 1000 ? guide.cast : null, rd = raidNow();
+    if (opts.aionGuide && guide.at && now - guide.at < 30000 && guide.bosses.length) l.push(`${guide.dungeon || 'Bosses'}: ${guide.bosses.join(' › ')}`);
+    if (c) l.push(`${c.name}${c.secs ? ` ${Math.max(0, Math.ceil((c.end - now) / 1000))} s` : ''}${c.note ? ` · ${c.note}` : ''}`);
+    for (const x of guide.calls) if (now - x.at < 5000 && !(c && x.text.startsWith(c.name))) l.push(x.text);
+    const jobs = rd && aionBusy() ? rd.jobs.filter((j) => j.text && (!j.who || j.who === meAs())).map((j) => j.text) : [];
+    if (jobs.length) l.push(`Your jobs: ${jobs.join(', ')}`);
+    return l.length ? l : null;
+  }
+  async function scriptAdd(tl) { // a run's timeline (E1's <video>.json): its bosses' casts, when after the pull and at what health, into this PC's scripts
+    const { e, seeds } = await seedsOf(tl.map);
+    for (const b of tl.bosses || []) {
+      if (!b.name || /^Boss fight \d/.test(b.name) || b.from == null || b.to == null) continue;
+      const seed = seeds.find((x) => sameBoss(x.name, b.name)), name = seed ? seed.name : b.name; // the file's name for a boss read a bit off
+      const pull = b.hp && b.hp.length ? b.hp[0][0] : b.from + 10, old = scriptMix(aionScripts[name], seed);
+      const s = (aionScripts[name] = old ? JSON.parse(JSON.stringify(old)) : { name, map: tl.map, dungeon: tl.dungeon || (e && e.dungeon) || null, runs: 0, casts: [] });
+      s.runs = (s.runs || 0) + 1;
+      if (b.kill != null) { s.kills = (s.kills || 0) + 1; s.kill = Math.round(s.kill ? s.kill + (b.kill - pull - s.kill) / s.kills : b.kill - pull); }
+      const first = new Set(); // a cast that comes again in the same fight counts once, at its first
+      for (const c of (tl.casts || []).filter((x) => x.name && x.t >= b.from && x.t <= b.to)) {
+        const x = s.casts.find((y) => sameBoss(y.name, c.name)), k = x ? x.name : c.name;
+        if (first.has(k)) continue;
+        first.add(k);
+        const hp = (b.hp || []).filter(([t]) => t <= c.t).pop(), v = { secs: c.secs, hp: hp ? hp[1] : null, at: c.t - pull };
+        if (!x) { s.casts.push({ name: c.name, ...v, seen: 1, n: Object.fromEntries(Object.entries(v).map(([q, y]) => [q, y == null ? 0 : 1])) }); continue; }
+        x.seen = (x.seen || 0) + 1;
+        x.n = x.n || { secs: x.secs == null ? 0 : x.seen - 1, hp: x.hp == null ? 0 : x.seen - 1, at: x.at == null ? 0 : x.seen - 1 };
+        for (const q of ['secs', 'hp', 'at']) if (v[q] != null) { x.n[q]++; x[q] = x[q] == null ? v[q] : Math.round((x[q] + (v[q] - x[q]) / x.n[q]) * 10) / 10; } // ponytail: a running mean, not a median; one misread drags it
+      }
+      s.casts.sort((p, q) => (p.at ?? 1e9) - (q.at ?? 1e9));
+    }
+    store.set('lpc-aion-scripts', JSON.stringify(aionScripts));
+  }
+  function scriptLearn(tl) { scriptAdd(tl); return tl; } // the timeline as it was, for the file beside the video
+  // the room's raid sheet: anyone in the room edits it, the newest wins ({t:'raid'}), and the host's 'me' repeats it
+  // (rd) for whoever joins later. jobs [{ id, text, who: a name, '' for everyone }], marks [{ id, hp, text, boss: '' for
+  // any boss of the dungeon }]. An edit changes only its own row (by id), so one coming in while you type isn't lost.
+  let raid = { room: '', at: 0, jobs: [], marks: [] }, raidWas = '';
+  const raidNow = () => (room && raid.room === room ? raid : null);
+  const raidMsg = () => { const r = raidNow(); return r && (r.jobs.length || r.marks.length) ? { at: r.at, jobs: r.jobs, marks: r.marks } : null; };
+  const rowId = () => Math.random().toString(36).slice(2, 10);
+  function raidTake(x) {
+    if (!x || typeof x !== 'object' || !Number.isFinite(x.at) || (raidNow() && x.at <= raid.at)) return;
+    const s = (v, n) => String(v ?? '').slice(0, n), id = (v) => (typeof v === 'string' && /^[a-z0-9]{1,12}$/.test(v) ? v : rowId());
+    raid = { room, at: x.at, jobs: (Array.isArray(x.jobs) ? x.jobs : []).slice(0, 20).map((j) => ({ id: id(j && j.id), text: s(j && j.text, 60), who: s(j && j.who, 24) })),
+      marks: (Array.isArray(x.marks) ? x.marks : []).slice(0, 12).map((m) => ({ id: id(m && m.id), hp: Math.max(1, Math.min(99, Math.round(+(m && m.hp)) || 50)), text: s(m && m.text, 60), boss: s(m && m.boss, 40) })) };
+    raidDraw();
+  }
+  function raidSet(jobs, marks) { raidTake({ at: Math.max(Date.now(), raid.at + 1), jobs, marks }); if (peer) sendOnce({ t: 'raid', raid: raidMsg() || { at: raid.at, jobs: [], marks: [] } }); }
+  // ponytail: Ludra's jobs and HP marks as community guides put them (allthings.how, expcarry, 7 Nov 2026), unconfirmed in game
+  const RAID_LUDRA = { jobs: ['Red orb', 'Red orb backup', 'Orb interceptor', 'Orb interceptor', 'Soul Stone breaker', 'Caller'].map((text) => ({ text, who: '' })),
+    marks: [{ hp: 50, text: 'Arena splits', boss: 'Rahu' }, { hp: 25, text: 'Adds', boss: 'Rahu' }, { hp: 50, text: 'Tile phase', boss: 'Ludra' }, { hp: 25, text: 'Tile phase, then stagger: burst', boss: 'Ludra' }] };
+  function raidDraw() {
+    const box = $('raidBox'), r = raidNow() || { jobs: [], marks: [] }, names = ['', meAs(), ...[...peers.values()].map(nameOf)], sig = JSON.stringify([r.at, names]);
+    if (!box || box.hidden || box.contains(document.activeElement) || sig === raidWas) return; // not while you type in it (again when you leave it), nor unchanged
+    raidWas = sig;
+    const inp = (v, attrs) => Object.assign(document.createElement('input'), { value: v, ...attrs }), del = () => Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: '×', ariaLabel: 'Remove' });
+    $('raidJobs').replaceChildren(...r.jobs.map((j) => {
+      const li = document.createElement('li'), who = document.createElement('select');
+      li.dataset.id = j.id;
+      who.append(...[...new Set([...names, j.who])].map((n) => new Option(n || 'Everyone', n, false, n === j.who)));
+      who.ariaLabel = 'Who';
+      li.append(inp(j.text, { maxLength: 60, ariaLabel: 'Job', placeholder: 'Red orb' }), who, del());
+      return li;
+    }));
+    $('raidMarks').replaceChildren(...r.marks.map((m) => {
+      const li = document.createElement('li');
+      li.dataset.id = m.id;
+      li.append(inp(m.hp, { type: 'number', min: 1, max: 99, ariaLabel: 'Health %' }), inp(m.text, { maxLength: 60, ariaLabel: 'Callout', placeholder: 'Tile phase' }),
+        inp(m.boss, { maxLength: 40, ariaLabel: 'Boss', placeholder: 'Any of the dungeon’s bosses' }), del());
+      return li;
+    }));
+    $('raidNote').textContent = r.jobs.length || r.marks.length ? 'Everyone in the room sees this sheet. Over Aion 2 your overlay shows only your jobs, and the callouts when the boss’s health gets there (Live fight on, or the run recording).' : 'No raid sheet yet. Add jobs and give each to a player, or start from Ludra’s usual ones (from community guides, not checked in game yet).';
+  }
+  if ($('raidBox')) {
+    $('raidBox').addEventListener('change', (e) => { // that row's new values, into the sheet as it is now
+      const li = e.target.closest('li'), r = raidNow() || { jobs: [], marks: [] };
+      if (!li) return;
+      const v = li.querySelectorAll('input, select');
+      raidSet(r.jobs.map((j) => (j.id === li.dataset.id ? { ...j, text: v[0].value.trim(), who: v[1].value } : j)),
+        r.marks.map((m) => (m.id === li.dataset.id ? { ...m, hp: +v[0].value, text: v[1].value.trim(), boss: v[2].value.trim() } : m)));
+    });
+    $('raidBox').addEventListener('click', (e) => {
+      const b = e.target.closest('button'), r = raidNow() || { jobs: [], marks: [] };
+      if (!b) return;
+      b.blur();
+      const li = b.ariaLabel === 'Remove' && b.closest('li');
+      if (li) raidSet(r.jobs.filter((j) => j.id !== li.dataset.id), r.marks.filter((m) => m.id !== li.dataset.id));
+      if (b.id === 'raidAddJob') raidSet([...r.jobs, { id: rowId(), text: '', who: '' }], r.marks);
+      if (b.id === 'raidAddMark') raidSet(r.jobs, [...r.marks, { id: rowId(), hp: 50, text: '', boss: '' }]);
+      if (b.id === 'raidLudra') raidSet(RAID_LUDRA.jobs, RAID_LUDRA.marks);
+      if (b.id === 'raidClear') raidSet([], []);
+    });
+    $('raidBox').addEventListener('focusout', () => setTimeout(raidDraw));
+  }
+  // the guide's page part (Recording page): each dungeon's bosses with their casts, and your note per cast
+  const noteIn = (b, c) => { const i = Object.assign(document.createElement('input'), { value: aionNotes[`${b}|${c.name}`] || c.do || '', maxLength: 80, placeholder: 'What to do' }); i.dataset.k = `${b}|${c.name}`; return i; };
+  async function guideDraw() {
+    if (!$('aionGuideBox')) return;
+    $('aionGuideBox').hidden = !client || !store.get('lpc-aion');
+    if ($('aionGuideBox').hidden) return;
+    const idx = await guideIndex(), seeds = (await Promise.all([...new Set(Object.values(idx).flatMap((e) => e.bosses))].map(bossFile))).filter(Boolean);
+    const all = {};
+    for (const s of seeds) all[s.name] = s;
+    for (const n of Object.keys(aionScripts)) all[n] = scriptMix(aionScripts[n], all[n]);
+    const by = new Map();
+    for (const s of Object.values(all)) { const d = s.dungeon || (idx[s.map] && idx[s.map].dungeon) || aionMapNames[s.map] || `Dungeon ${s.map}`; (by.get(d) || by.set(d, []).get(d)).push(s); }
+    $('aionGuide').replaceChildren(...[...by].map(([d, l]) => {
+      const det = document.createElement('details'), sum = document.createElement('summary');
+      sum.textContent = `${d}: ${l.map((s) => s.name).join(', ')}`;
+      det.append(sum, ...l.map((s) => {
+        const div = document.createElement('div');
+        div.className = 'guideboss';
+        div.append(Object.assign(document.createElement('h4'), { textContent: `${s.name}${s.runs ? ` · ${s.runs} run${s.runs === 1 ? '' : 's'}` : ''}${s.kill ? ` · kill ${mmss(s.kill)} after the pull` : ''}` }));
+        if (!s.casts.length) div.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'No cast read yet.' }));
+        for (const c of s.casts) {
+          const row = document.createElement('label'), hp = c.hps ? c.hps.join('%, ') : c.hp;
+          row.className = 'field guidecast';
+          row.append(`${c.name}${c.secs ? ` · ${c.secs} s` : ''}${hp ? ` · at ${hp}%` : ''}${c.at != null ? ` · ${mmss(Math.max(0, c.at))} in` : ''}${c.shape ? ` · ${c.shape}` : ''}`, noteIn(s.name, c));
+          div.append(row);
+        }
+        return div;
+      }));
+      return det;
+    }));
+  }
+  $('aionGuide')?.addEventListener('change', (e) => {
+    const k = e.target.dataset && e.target.dataset.k;
+    if (!k) return;
+    aionNotes[k] = e.target.value.trim();
+    store.set('lpc-aion-notes', JSON.stringify(aionNotes));
   });
   // ---- Aion 2 dungeons on the Recording page: every run in the game's own logs (from its first day), each dungeon's
   // runs, best and usual time and respawns, and the last 7 days. A dungeon's name is yours to give: the log has only
@@ -15423,7 +15652,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { aionGuide: () => { guide.map = 0; if (crumb) guideEnter(crumb.map, 0); pushOverlay(); }, themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
@@ -15434,7 +15663,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
+    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optAionGuide', 'aionGuide'], ['optAionSay', 'aionSay'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -15641,6 +15870,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [135, 'November 7: a guide through every Aion 2 dungeon, and raid roles', [
+      'Over Aion 2, the overlay lists a dungeon’s bosses as you go in. When a boss starts a big cast, it says what to do and counts down (“Blue Light of Destruction 25 s · Out of the vortex”), and a little before the boss’s health gets to a cast it says it’s coming. Read out loud if you like (Recording page, Aion 2 dungeon guide).',
+      'Each boss’s casts, countdowns and the health they come at were read off recorded runs, and every run you record adds to them. Write what to do next to any cast on the Recording page; that’s what the overlay says.',
+      'Raid roles in your room’s Current room card: give each job to a player and set callouts at the boss’s health. Everyone sees the sheet, and each player’s overlay shows only their own jobs. Ludra’s usual jobs and marks are one click (from community guides, not checked in game yet).',
+    ]],
     [134, 'November 7: review your Aion 2 runs', [
       'Each Aion 2 run on the Recording page has a strip under it: its boss fights, the bosses’ casts and every death, each boss’s time from the pull against your best, and which cast was up at each death. Click a fight or a death to watch it.',
       'Aion 2 boss practice, on the same page, adds up every recorded run: tries, kills, deaths and times per boss, the cast that costs you the most, and which boss and cast to practise next.',
@@ -16351,6 +16585,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'In your room, Current room card, Aion 2 DPS, once you’ve picked your Aion 2 characters and outside a League game. Live fight has to be on (Aion 2 page, DPS).', '#roomDps, #createBtn', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it. With Live fight on, it also names the skills Aion 2’s website doesn’t list.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
+      ['Aion 2 dungeon guide', 'In each Aion 2 dungeon the overlay lists its bosses as you go in. When a boss starts a big cast, it says what to do and counts down, and it calls a cast a little before the boss’s health gets to it. Each boss’s casts come from recorded runs (Ferocious Horn Den’s and more from Rayan’s), every run you record adds to them, and you write your own note per cast.',
+        'Recording page, Aion 2 dungeon guide, on by default, with Read Aion 2 callouts out loud. Casts are read while Each Aion 2 dungeon run records; the overlay needs Aion 2 in Borderless window mode.', '#aionGuideBox, #optAionGuide', 'app'],
+      ['Aion 2 raid roles', 'A raid sheet in your room: jobs given to players (red orb, orb interceptors, Soul Stone breaker, caller) and callouts at the boss’s health, like a tile phase at 50% and 25%. Everyone in the room sees the sheet and can change it; over Aion 2 each player’s overlay shows only their own jobs, and the callouts 5% before and at each mark.',
+        'In your room, Current room card, Raid roles (under Aion 2 DPS). Ludra’s usual jobs and marks fills it from community guides, not checked in game yet. The callouts need Live fight on, or a run recording with the boss targeted.', '#raidBox, #raidLudra', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters.', '#kOverlay', 'app'],
     ]],
