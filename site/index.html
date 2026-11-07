@@ -398,6 +398,8 @@ dialog.wizard::backdrop { background: rgb(1 10 19 / 0.78); }
 .wz footer { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .wz footer .ghost { margin-right: auto; border-color: transparent; background: none; color: var(--muted); }
 .wcheck { display: flex; gap: 14px; align-items: center; }
+#wPlays { border: 0; margin: 0; padding: 0; }
+#wPlays legend { padding: 0 0 4px; }
 #wMini { width: 120px; height: 120px; border-radius: 6px; background: #000; flex: none; }
 
 /* the Pregame page (the ready check, champ select, the tier list) and the Game page; and Stats' LP chart, reports and clips */
@@ -1118,7 +1120,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     <section class="view" data-view="voice" aria-label="Rooms">
       <div id="joinView" class="join">
         <header class="pagehead">
-          <div><h1 class="title">Rooms</h1><p class="sub">Hop in a room and your friends get louder as you walk up to them.</p></div>
+          <div><h1 class="title">Rooms</h1><p class="sub">Hang out with friends: talk, chat, share screens and clip. In a League game they get louder as you walk up to them.</p></div>
           <div class="toolbar">
           <button id="createBtn" class="btn primary" type="button">Create room</button>
           <form id="joinForm" class="codeform" aria-label="Have a code?">
@@ -2238,8 +2240,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     <section class="step" data-step="1">
       <span class="eyebrow">Step 1 of 4</span>
       <h2 id="wTitle" class="title">Welcome to Premade</h2>
-      <p>Voice chat for League where champions sound louder the closer they are on the minimap. Setup takes a minute.</p>
+      <p>Voice rooms for you and your friends: talk, chat, share screens and clip the best bits. Setup takes a minute.</p>
       <label class="field">What should friends call you? <input id="wName" maxlength="24" autocomplete="nickname"></label>
+      <fieldset id="wPlays" class="field"><legend>What do you play?</legend>
+        <label class="check"><input type="checkbox" value="league"> League of Legends or TFT</label>
+        <label class="check"><input type="checkbox" value="aion"> Aion 2</label>
+        <label class="check"><input type="checkbox" value="other"> Something else</label>
+      </fieldset>
     </section>
     <section class="step" data-step="2" hidden>
       <span class="eyebrow">Step 2 of 4</span>
@@ -2257,8 +2264,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     </section>
     <section class="step" data-step="4" hidden>
       <span class="eyebrow">Step 4 of 4</span>
-      <h2 class="title">You're all set</h2>
-      <p>Create a room on the Rooms page and send your friends its code, or join theirs. You can change your name and mic later in Voice settings, at the bottom of that page.</p>
+      <h2 class="title">Get in a room with your friends</h2>
+      <p>Create a room and send your friends its code, or type the code a friend sent you.</p>
+      <div class="toolbar"><button id="wCreate" class="btn primary" type="button">Create a room</button><form id="wJoin" class="codeform"><input id="wCode" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Code" aria-label="Room code"><button class="btn">Join</button></form></div>
+      <p id="wLeague" class="hint">In League you don't need a code: start a game and you join your game's room by itself, where teammates get louder as you walk up to them.</p>
+      <p class="hint">You can change your name and mic later in Voice settings, at the bottom of the Rooms page.</p>
       <p class="hint">Features, at the bottom of the menu, shows everything else Premade can do and how to set it up.</p>
     </section>
     <footer><button id="wSkip" class="btn ghost" type="button">Skip setup</button><button id="wBack" class="btn" type="button" hidden>Back</button><button id="wNext" class="btn primary" type="button">Next</button></footer>
@@ -3069,7 +3079,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (!p || !m || typeof m !== 'object') return;
     if (m.t === 'hi' && typeof m.name === 'string') { p.name = m.name.slice(0, 24); applyPlayerAudio(p); }
     if (m.t === 'bye') { drop(id, false, true); for (const c of p.conns) c.close(); return; }
-    if (/^(chat|part|fpart|fileGet|fileGone|pin|react|chatEdit|chatDel|typing|chatHist)$/.test(m.t)) return chatMsg(p, m);
+    if (/^(chat|part|fpart|fileGet|fileGone|pin|react|chatEdit|chatDel|typing|chatHist|chatAsk)$/.test(m.t)) return chatMsg(p, m);
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
@@ -3207,7 +3217,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     for (const c of pd.conns) { p.conns.add(c); welcome(c); }
     hello(p);
     getResume(p);
-    if (slot === hostSlot() && msgs.size) tell(p, chatHist()); // the room's recent chat, for whoever joins
+    if (slot === hostSlot() && roomKeep.size) tell(p, chatHist()); // the room's recent chat, for whoever joins (older apps only ask the host)
+    keepReady.then(() => { if (peers.get(id) === p) { p.asked = true; tellOnce(p, { t: 'chatAsk', ids: [...roomKeep.keys()].slice(-KEEP) }); } }); // what they have that you missed
     for (const m of pd.early) onData(id, m); // first, so the call is made with their settings
     if (pd.call) answer(pd.call);
     else if (slot < p.slot) callPeer(id);
@@ -4065,6 +4076,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('createBtn').disabled = $('joinBtn').disabled = true;
     if (!myName) setName('');
     room = code;
+    keepLoad(code);
     roomKey = cleanKey(key);
     prefix = `lolprox-${room}-`;
     let key0 = '';
@@ -4127,6 +4139,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function leaveRoom() {
     if (!peer) return;
+    keepSave(true); // while room is still this room's
     if (roomListingState) updateRoomListing(true);
     roomCreator = roomListed = false;
     endGame();
@@ -4398,15 +4411,17 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     act('Reply', 'Reply', () => { replyTo = m.id; editing = ''; chatBar(); $('chatText').focus(); });
     act(m.pin ? 'Unpin' : 'Pin', m.pin ? 'Unpin' : 'Pin', () => pinMsg(m.id, !m.pin, true));
     if (m.from === 'me' && m.text) act('Edit', 'Edit', () => editMsg(m.id));
-    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); if (sess) sess.log.delete(m.id); dropMsg(m.id); unshare(m.id); } });
+    if (m.from === 'me') act('Delete', 'Delete', () => { if (confirm('Delete this message for everyone?')) { sendOnce({ t: 'chatDel', id: m.id }); roomKeep.delete(m.id); if (sess) sess.log.delete(m.id); dropMsg(m.id); unshare(m.id); } });
     li.append(acts);
     sessSave(); // an edit, a reaction or a picture that's in
+    keepSave();
   }
   function addMsg(m, before) {
     if (!m.id || msgs.has(m.id)) return null;
     m.react = {};
     msgs.set(m.id, m);
-    if (sess) sess.log.set(m.id, m);
+    if (sess && !m.old) sess.log.set(m.id, m); // not what this PC kept from before
+    if (m.text && !m.to && !m.dm) { roomKeep.set(m.id, m); if (roomKeep.size > KEEP + 50) roomKeep.delete(roomKeep.keys().next().value); }
     draw(m);
     const log = $('chatLog'), end = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     log.insertBefore(m.el, before || null);
@@ -4426,6 +4441,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     offers.delete(id);
     getEnd(id);
     m.el.remove();
+    if (roomKeep.has(id)) roomKeep.set(id, keepRow(m));
     if (sess && sess.log.has(id)) sess.log.set(id, sessRow(m)); // Past sessions keep its words, not its node and listeners (they piled up past the 100 shown)
     if (m.pin) pinsShow();
     if (m.url && m.url.startsWith('blob:')) URL.revokeObjectURL(m.url);
@@ -4555,19 +4571,24 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (m.t === 'pin' && own) { if (m.on === true && !own.pin) notify(`${nameOf(p)} pinned a message`); return pinMsg(m.id, m.on === true); }
     if (m.t === 'react' && own) return react(m.id, m.e, nameOf(p), m.on === true);
     if (m.t === 'chatEdit' && own && own.from === p.id && typeof m.text === 'string' && m.text.trim()) { own.text = m.text.trim().slice(0, 1000); own.edited = true; return draw(own); }
-    if (m.t === 'chatDel' && own && own.from === p.id) { if (sess) sess.log.delete(m.id); unshare(m.id); return dropMsg(m.id); }
+    if (m.t === 'chatDel' && own && own.from === p.id) { roomKeep.delete(m.id); if (sess) sess.log.delete(m.id); unshare(m.id); return dropMsg(m.id); }
     if (m.t === 'typing') { p.typingAt = performance.now(); return typingShow(); }
-    if (m.t === 'chatHist' && Array.isArray(m.list) && p.slot === hostSlot()) {
-      const first = $('chatLog').firstElementChild;
-      for (const h of m.list.slice(-60)) {
-        if (!h || typeof h.text !== 'string' || !h.text.trim() || typeof h.id !== 'string' || !/^\w{1,16}$/.test(h.id)) continue;
-        addMsg({ id: h.id, from: h.by === peer.id ? 'me' : peers.has(h.by) ? h.by : '', who: String(h.who || '').slice(0, 24) || 'Someone', text: h.text.trim().slice(0, 1000), at: Number.isFinite(h.at) ? h.at : Date.now(), re: typeof h.re === 'string' ? h.re : '', edited: h.edited === true, pin: h.pin === true }, first);
-      }
+    if (m.t === 'chatAsk' && Array.isArray(m.ids)) return tellOnce(p, chatHist(new Set(m.ids.slice(-KEEP))));
+    if (m.t === 'chatHist' && Array.isArray(m.list) && (p.slot === hostSlot() || p.asked)) { p.asked = false; histAdd(m.list.slice(-HIST_MAX)); }
+  }
+  // past messages (from who's there, or kept on this PC) go in by time, not at the end
+  function histAdd(list, old) {
+    const log = $('chatLog');
+    for (const h of list) {
+      if (!h || typeof h.text !== 'string' || !h.text.trim() || typeof h.id !== 'string' || !/^\w{1,16}$/.test(h.id) || msgs.has(h.id)) continue;
+      const at = Number.isFinite(h.at) ? h.at : Date.now(), before = [...log.children].find((li) => (msgs.get(li.dataset.id) || {}).at > at);
+      addMsg({ id: h.id, from: !old && h.by === peer.id ? 'me' : !old && peers.has(h.by) ? h.by : '', who: String(h.who || '').slice(0, 24) || 'Someone', text: h.text.trim().slice(0, 1000), at, re: typeof h.re === 'string' ? h.re : '', edited: h.edited === true, pin: h.pin === true, old }, before);
     }
   }
-  const chatHist = () => {
-    const all = [...msgs.values()].filter((m) => m.text && !m.to && !m.dm), list = all.filter((m, i) => i >= all.length - 30 || m.pin).slice(-60); // the last 30 and what's pinned
-    return { t: 'chatHist', list: list.map((m) => ({ id: m.id, by: m.from === 'me' ? peer.id : m.from, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, pin: !!m.pin })) };
+  // to whoever joins: the last 30 and what's pinned; to whoever asks: up to HIST_MAX they don't have
+  const chatHist = (have) => {
+    const all = [...roomKeep.values()].filter((m) => !have || !have.has(m.id)).sort((a, b) => a.at - b.at), list = all.filter((m, i) => i >= all.length - (have ? HIST_MAX : 30) || m.pin).slice(-HIST_MAX);
+    return { t: 'chatHist', list: list.map((m) => ({ id: m.id, by: m.from === 'me' ? peer.id : m.from || '', who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, pin: !!m.pin })) };
   };
   function typingShow() {
     const now = performance.now(), who = [...peers.values()].filter((p) => now - (p.typingAt || 0) < 4000).map(nameOf);
@@ -4755,8 +4776,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       r.onerror = () => ok(null);
     } catch { ok(null); }
   });
-  async function histDo(name, mode, fn) {
-    const db = await histDb;
+  async function histDo(name, mode, fn, dbp = histDb) {
+    const db = await dbp;
     if (!db) return null;
     return new Promise((ok) => {
       const t = db.transaction(name, mode), r = fn(t.objectStore(name));
@@ -4779,6 +4800,41 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     }, now ? 0 : 2000);
   }
   setInterval(() => sessSave(), 60000);
+  // What's new 130: each room's chat, kept on this PC (its own IndexedDB, the last KEEP text messages per room, 30
+  // days after you were last in it), shown when you come back; on joining you ask each friend there for what you missed
+  // (chatAsk with the ids you have) and they ask you. Nothing on our server. Off with Keep my voice sessions.
+  const KEEP = 200, HIST_MAX = 120;
+  let roomKeep = new Map(), keepReady = Promise.resolve(), keepT = 0; // id -> a message (or its row once it's off screen), this room's public text
+  const chatDb = new Promise((ok) => {
+    try {
+      const r = indexedDB.open('premade-roomchat', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('rooms', { keyPath: 'room' });
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => ok(null);
+    } catch { ok(null); }
+  });
+  const keepRow = (m) => (m.el ? { id: m.id, who: m.who, text: m.text, at: m.at, re: m.re, edited: !!m.edited, pin: !!m.pin } : m);
+  function keepLoad(code) {
+    roomKeep = new Map();
+    if (!opts.history) return (keepReady = Promise.resolve());
+    const old = Date.now() - HIST_DAYS * 864e5;
+    keepReady = histDo('rooms', 'readwrite', (o) => {
+      const r = o.openCursor(); // rooms you haven't been in for 30 days go
+      r.onsuccess = () => { const c = r.result; if (!c) return; if (!(c.value.at >= old)) c.delete(); c.continue(); };
+      return o.get(code);
+    }, chatDb).then((k) => { if (room === code && k && Array.isArray(k.msgs)) histAdd(k.msgs.slice(-KEEP), true); });
+    return keepReady;
+  }
+  function keepSave(now) {
+    const k = roomKeep, r = room;
+    if (!opts.history || !r) return;
+    clearTimeout(keepT);
+    const go = () => {
+      const list = [...k.values()].map(keepRow).sort((a, b) => a.at - b.at).slice(-KEEP);
+      if (list.length) histDo('rooms', 'readwrite', (o) => o.put({ room: r, at: Date.now(), msgs: list }), chatDb);
+    };
+    if (now) go(); else keepT = setTimeout(go, 2000);
+  }
   function sessFile(id, blob) { if (sess) histDo('files', 'readwrite', (o) => o.put({ id, sess: sess.id, blob })); }
   // the sessions in these 30 days, newest first; older ones and their pictures are deleted
   async function histList() {
@@ -14695,10 +14751,14 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- setup wizard, on first launch and from Settings
   const setup = $('setup');
   let step = 1;
-  if (PHONE) setup.querySelectorAll('.step .eyebrow').forEach((e, i) => { e.textContent = `Step ${[1, 2, 2, 3][i]} of 3`; }); // no screen check on a phone
+  // what you play (store lpc-plays): the screen check finds League's minimap, so only League players on a PC get it
+  const plays = () => [...$('wPlays').querySelectorAll('input:checked')].map((i) => i.value);
   function showStep(n) {
-    if (n === 3 && PHONE) n = step < 3 ? 4 : 2; // no screen to check on a phone
+    const mini = !PHONE && plays().includes('league');
+    if (n === 3 && !mini) n = step < 3 ? 4 : 2;
     step = n;
+    setup.querySelectorAll('.step .eyebrow').forEach((e, i) => { e.textContent = `Step ${mini || i < 2 ? i + 1 : i} of ${mini ? 4 : 3}`; });
+    $('wLeague').hidden = !plays().includes('league');
     for (const s of setup.querySelectorAll('.step')) s.hidden = +s.dataset.step !== n;
     setup.querySelectorAll('.steps li').forEach((li, i) => li.toggleAttribute('data-done', i < n));
     $('wBack').hidden = n === 1;
@@ -14727,13 +14787,18 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function openSetup() {
     $('wName').value = myName;
+    const had = store.get('lpc-plays') || '';
+    for (const i of $('wPlays').querySelectorAll('input')) i.checked = had.split(',').includes(i.value);
     showStep(1);
     setup.showModal();
   }
   $('wNext').addEventListener('click', () => {
-    if (step === 1) setName($('wName').value);
+    if (step === 1) { setName($('wName').value); store.set('lpc-plays', plays().join(',')); }
     if (step < 4) showStep(step + 1); else closeSetup();
   });
+  $('wPlays').addEventListener('change', () => showStep(1));
+  $('wCreate').addEventListener('click', () => { closeSetup(); joinRoom(newCode(), false, '', true); });
+  $('wJoin').addEventListener('submit', (e) => { e.preventDefault(); if (!cleanRoom($('wCode').value)) return $('wCode').focus(); closeSetup(); joinRoom($('wCode').value); });
   $('wBack').addEventListener('click', () => showStep(step - 1));
   $('wSkip').addEventListener('click', closeSetup);
   $('wShare').addEventListener('click', () => { if (!share) startShare(); });
@@ -14967,6 +15032,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [130, 'November 7: room chat that stays, and a first start for what you play', [
+      'Each room’s chat now stays on your PC: come back to a room and its last 200 messages are there. When you join, the friends in it send you what you missed while you were out, straight from their PC; nothing is kept on our server. Untick Keep my voice sessions to turn it off.',
+      'The first start asks what you play: League’s screen check is only for League and TFT players, and it ends with Create a room or a friend’s code, so you start in a room with your friends. The Rooms page no longer says everyone gets louder as you walk up, only in a League game.',
+      'Desktop app 1.42.0: TFT has its own app since November 4. Premade now also looks for TFT’s own client next to League’s, and the connection log (Settings, App) notes which Riot apps run, so one TFT game shows what still works.',
+    ]],
     [126, 'November 7: deaths and a minimize button on the Aion 2 DPS meter', [
       'Desktop app 1.40.0: each player’s bar on the DPS meter shows a red skull and how many times they died in that fight, like Abyss DPS Meter, in the pop-up and in your room. Hover a bar for it too.',
       'The DPS pop-up has a minimize button (the line, next to close): the window shrinks to its title bar, with the fight and the clock still in it, and grows back to its size with the same button.',
@@ -15601,7 +15671,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       ['Files of any size', 'Send any file, as big as you like, straight from your PC: it shows in the chat with its name and size, and each friend who clicks Download picks where to save it and gets it from you directly, never through a server. Drop a file on a friend’s card to send it to them alone. If a connection drops, the download waits for them and carries on where it stopped.', 'The + next to the chat box, or drop a file on the chat or on a friend’s card in your room. Friends download it while you stay in the room.', '#chatAttach, #players, #createBtn'],
       ['Pins, search and Files', 'Pin a message and it stays above the chat for everyone, with its links, and whoever joins later sees it too. Search the chat as you type, or every past session’s chat. Files lists every picture, video and file shared in this room, this time and before.', 'Point at a message for Pin; the search box and Files above the room chat; Search past chats in Past sessions.', '#chatFind, #chatFilesBtn, #histFind, #createBtn'],
       ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat in your room. On unless you untick Keep my voice sessions.', '#optHistory'],
-      ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing. Whoever joins sees the last 30 messages.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
+      ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
+      ['Room chat that stays', 'Each room’s chat stays on your PC: come back to a room and its last 200 messages are there, and the friends in it send you what you missed while you were out (and you send them theirs), straight from their PC. Nothing is kept on our server. Rooms you haven’t been in for 30 days are forgotten.', 'In your room’s chat, by itself. Off when you untick Keep my voice sessions, under Past sessions.', '#chatLog, #optHistory'],
+      ['Setup for what you play', 'The first start asks your name and what you play, tests your mic, checks your League screen only if you play League, and ends with you creating a room or joining a friend’s. Get set up on Features leaves out League’s steps if you don’t play it.', 'Runs on your first start; Run setup again in Settings, App.', '#setupAgain'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal (which stands in for the browser’s own noise filter, as Discord’s Krisp does, so your voice stays clear) and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
         'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],
       ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Normal and Faster send your voice at 80 kbps, so it stays clear up to its high tones. Faster uses shorter packets and a shorter playback buffer when supported. Your voice goes ahead of everything else on your connection, as on Discord. Help reports measured network and audio-buffer delay, and a privacy code: the call is end-to-end encrypted, and if you and a friend see the same code, nobody is listening in between. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
@@ -15897,7 +15969,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       }));
     }
     let done = 0;
-    $('setupList').replaceChildren(...SETUP.map(([name, how, now, act], i) => {
+    const plays = store.get('lpc-plays'), rows = !plays || plays.includes('league') ? SETUP : SETUP.filter(([name]) => !['Your League screen', 'League in Borderless'].includes(name)); // League's steps for League players (and whoever didn't say)
+    $('setupList').replaceChildren(...rows.map(([name, how, now, act], i) => {
       const [h, state] = now(), li = document.createElement('li'), body = document.createElement('div'), st = document.createElement('span'), dot = document.createElement('span'), b = act();
       if (h === 'good') done++;
       li.className = 'feat';
@@ -15910,7 +15983,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       if (b) li.append(b);
       return li;
     }));
-    $('setupNote').textContent = done === SETUP.length ? 'All set. Have a good game.' : `${done} of ${SETUP.length} done. Run setup again walks you through your name${PHONE ? ' and mic' : ', mic and screen'}.`;
+    $('setupNote').textContent = done === rows.length ? 'All set. Have a good game.' : `${done} of ${rows.length} done. Run setup again walks you through your name${PHONE || rows !== SETUP ? ' and mic' : ', mic and screen'}.`;
     featFilter();
   }
   // Show me: the page a spot is on (and its Stats tab and settings box), then the spot itself with a flash, or the part

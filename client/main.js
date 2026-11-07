@@ -157,14 +157,28 @@ ipcMain.on('screen', (e, id) => {
 });
 
 // ---- League's window mode for the ready check, from its settings file (the overlay only shows over Borderless).
-// LPC_LEAGUE_DIR: a stand-in League folder, for client.test.js.
+// LPC_LEAGUE_DIR: a stand-in League folder, for client.test.js. League's folders first, then every other Riot game's:
+// TFT has its own app since 4 Nov 2026, and its client API (a lockfile in its folder, if it writes one like League's)
+// is found there too.
 function leagueDirs() {
   const dirs = [process.env.LPC_LEAGUE_DIR];
   try {
     const installs = JSON.parse(fs.readFileSync(path.join(process.env.ProgramData || 'C:\\ProgramData', 'Riot Games', 'RiotClientInstalls.json'), 'utf8'));
-    dirs.push(...Object.keys(installs.associated_client || {}).filter((k) => /league of legends/i.test(k)));
-  } catch {}
-  return [...dirs, 'C:\\Riot Games\\League of Legends'].filter(Boolean);
+    const all = Object.keys(installs.associated_client || {}), lol = (k) => /league of legends/i.test(k);
+    dirs.push(...all.filter(lol), 'C:\\Riot Games\\League of Legends', ...all.filter((k) => !lol(k)));
+  } catch { dirs.push('C:\\Riot Games\\League of Legends'); }
+  return [...new Set(dirs.filter(Boolean))];
+}
+// For the connection log: which Riot apps run and which Riot folders have a client lockfile, a line each time that
+// changes (checked every 30 s), so one TFT game in TFT's own app shows how Premade can find it
+let riotSeen = '';
+async function riotCheck(diag) {
+  let apps = '';
+  try { apps = [...new Set([...(await run('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 2500 })).matchAll(/^"([^"]*(?:riot|league|tft|teamfight)[^"]*)\.exe"/gim)].map((m) => m[1]))].sort().join(', '); } catch {}
+  const locks = [];
+  for (const d of leagueDirs()) if (await fs.promises.access(path.join(d, 'lockfile')).then(() => true, () => false)) locks.push(d);
+  const line = `Riot apps running: ${apps || 'none'}; client lockfile in: ${locks.join(', ') || 'none'}`;
+  if (line !== riotSeen) { riotSeen = line; diag(line); }
 }
 ipcMain.handle('window-mode', async (e) => {
   if (!fromSite(e)) return '';
@@ -1528,6 +1542,7 @@ app.whenReady().then(async () => {
   win.on('restore', () => diag('window restored'));
   app.on('child-process-gone', (e, d) => diag(`${d.name || d.type} process ended: ${d.reason}, exit code ${d.exitCode}`));
   setInterval(fullSpeed, 10000);
+  if (process.platform === 'win32') setInterval(() => riotCheck(diag), 30000);
   if (app.isPackaged) app.setAsDefaultProtocolClient('lolprox');
   win.removeMenu();
   await moveSaved(ses); // once, from 1.16 (win first: closing the only window would quit)
