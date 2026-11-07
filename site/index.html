@@ -148,6 +148,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--link); }
 .hint { color: var(--muted); font-size: 14px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.checkout { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.5 var(--mono); color: var(--fg); background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 10px; max-height: calc(50vh / var(--zoom, 1)); overflow: auto; user-select: text; }
 .re4grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 @container app (max-width: 900px) { .re4grid { grid-template-columns: minmax(0, 1fr); } }
 .re4rows { display: grid; gap: 8px; }
@@ -2069,7 +2070,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <label class="check client-only"><input id="optWithLeague" type="checkbox"> Start with League: Premade waits in the background from when Windows starts, and opens when League does</label>
           <label class="check"><input id="optTest" type="checkbox"> Use the test version: new changes reach you here first, before they go live for everyone</label>
           <label class="check"><input id="optHello" type="checkbox"> Let whoever runs Premade and my friends see I have it: my League accounts, Premade code, voice name and app version, and for whoever runs it, how Premade ran each day and which of its features I used (counts only)</label>
-          <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="connLogBtn" class="btn small" type="button">Copy connection log</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
+          <div class="toolbar"><button id="newsBtn" class="btn small" type="button">What's new</button><button id="connLogBtn" class="btn small" type="button">Copy connection log</button><button id="checkBtn" class="btn small" type="button">Check this PC</button><button id="backupBtn" class="btn small" type="button">Back up</button><label class="btn small">Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button class="tip" type="button" popovertarget="t-backup" aria-label="About backups">?</button></div>
+          <pre id="checkOut" class="checkout" role="status" hidden></pre>
           <p id="perf" class="hint client-only" role="status"></p>
           <p id="patchNote" class="hint lcu-only" role="status"></p>
           <p class="hint">Premade isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
@@ -4123,6 +4125,104 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const text = [`Premade connection log${day ? ', the last 24 hours' : ''}, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, copied ${new Date().toISOString()}`, ...(day ? [day] : connLog)].join('\n');
     try { await navigator.clipboard.writeText(text); notify('Connection log copied. Paste it to whoever builds the app.', true); }
     catch { notify('Could not copy the connection log. Allow clipboard access and try again.', true); }
+  });
+
+  // ---- PC check-up (Settings, App: Check this PC, app 1.43): runs the parts that only a real PC can show, here and in
+  // the app (client.checkup: the screen share sound filter, overlay window, Npcap, the downloader's tools, the drives,
+  // Windows' Communications setting, the app's memory now), and copies a report to paste to whoever builds Premade.
+  // Nothing keeps running after it: each test connection, canvas, timer and mic it opens is closed in its finally.
+  let pttSeen = 0;
+  const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function pcPair(config, video) { // two connections on this PC talking to each other; says { a, b, dc, h264, close }
+    const a = new RTCPeerConnection(config), b = new RTCPeerConnection(config), stop = [];
+    let h264 = false; // the video goes as H.264, as screen shares do where Chromium has it
+    const close = () => { for (const f of stop) f(); a.close(); b.close(); };
+    try {
+      a.onicecandidate = (e) => e.candidate && b.addIceCandidate(e.candidate).catch(() => {});
+      b.onicecandidate = (e) => e.candidate && a.addIceCandidate(e.candidate).catch(() => {});
+      const dc = a.createDataChannel('check');
+      if (video) {
+        const c = document.createElement('canvas'), g = c.getContext('2d');
+        c.width = 640; c.height = 360;
+        const t = setInterval(() => { g.fillStyle = `hsl(${Math.random() * 360} 60% 50%)`; g.fillRect(Math.random() * 600, Math.random() * 320, 40, 40); }, 33);
+        const track = c.captureStream(30).getVideoTracks()[0];
+        stop.push(() => { clearInterval(t); track.stop(); });
+        const tr = a.addTransceiver(track, { direction: 'sendonly' }), want = (RTCRtpSender.getCapabilities('video')?.codecs || []).filter((x) => /h264/i.test(x.mimeType));
+        if ((h264 = want.length > 0 && !!tr.setCodecPreferences)) tr.setCodecPreferences(want);
+      }
+      await a.setLocalDescription();
+      await b.setRemoteDescription(a.localDescription);
+      await b.setLocalDescription();
+      await a.setRemoteDescription(b.localDescription);
+      return { a, b, dc, h264, close };
+    } catch (err) { close(); throw err; }
+  }
+  async function relayCheck() { // a call that may only go through our relay (TURN): it works on this network or not
+    await turnReady;
+    const ice = ((peerOpts.config && peerOpts.config.iceServers) || []).filter((s) => [].concat(s.urls).some((u) => /^turns?:/.test(u)));
+    if (!ice.length) return { ok: null, name: 'Relay (TURN)', say: 'no relay passwords yet: join a room once, then check again' };
+    const p = await pcPair({ iceServers: ice, iceTransportPolicy: 'relay' });
+    try {
+      const at = performance.now();
+      while (p.dc.readyState !== 'open' && performance.now() - at < 10000) await sleepMs(100);
+      if (p.dc.readyState !== 'open') return { ok: false, name: 'Relay (TURN)', say: 'no call through the relay in 10 s: friends whose routers can’t connect directly won’t hear you on this network' };
+      const st = [...(await p.a.getStats()).values()], pair = st.find((r) => r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded'), loc = pair && st.find((r) => r.id === pair.localCandidateId);
+      return { ok: true, name: 'Relay (TURN)', say: `works in ${Math.round(performance.now() - at)} ms${loc ? ` over ${loc.relayProtocol || loc.protocol}` : ''}${pair && pair.currentRoundTripTime != null ? `, round trip ${Math.round(pair.currentRoundTripTime * 1000)} ms` : ''}` };
+    } finally { p.close(); }
+  }
+  async function encoderCheck() { // which H.264 encoder screen shares get: the graphics card's, or the processor's (OpenH264)
+    const p = await pcPair({ iceServers: [] }, true);
+    try {
+      for (let i = 0; i < 40; i++) {
+        await sleepMs(200);
+        const out = [...(await p.a.getStats()).values()].find((r) => r.type === 'outbound-rtp' && r.kind === 'video' && r.framesEncoded > 0 && r.encoderImplementation);
+        if (out) {
+          const hw = out.powerEfficientEncoder ?? !/openh264|libvpx|unknown/i.test(out.encoderImplementation);
+          return { ok: hw || null, name: p.h264 ? 'H.264 encoder' : 'Video encoder (no H.264 here)', say: `${out.encoderImplementation}${hw ? ' (graphics card)' : ' (processor: screen shares cost more CPU)'}` };
+        }
+      }
+      return { ok: false, name: p.h264 ? 'H.264 encoder' : 'Video encoder (no H.264 here)', say: 'no video encoded in 8 s' };
+    } finally { p.close(); }
+  }
+  async function checkMic() { // the mic voice chat uses: the open one, or the picked one opened for the check-up
+    const t = raw && raw.getAudioTracks()[0];
+    if (t && t.readyState === 'live') return { track: t, opened: null };
+    const ins = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput'), want = store.get('lpc-mic') || notBtMic(ins); // as openMic picks
+    const opened = await navigator.mediaDevices.getUserMedia({ audio: want && ins.some((d) => d.deviceId === want) ? { deviceId: { exact: want } } : true });
+    return { track: opened.getAudioTracks()[0], opened };
+  }
+  function micLine(s) {
+    const set = s.getSettings(), rate = set.sampleRate || 0;
+    return { ok: !rate || rate >= 44100, name: 'Mic', say: `${s.label || 'default'}: ${rate ? `${rate / 1000} kHz` : 'rate not said'}${set.channelCount ? `, ${set.channelCount} channel${set.channelCount > 1 ? 's' : ''}` : ''}${rate && rate < 44100 ? ' (phone quality: a Bluetooth headset in headset mode?)' : ''}` };
+  }
+  async function pttCheck(note) { // the app reads the push to talk key itself (GetAsyncKeyState), so it works behind League
+    if (!client || !keys.ptt) return { ok: null, name: 'Push to talk', say: client ? 'no key set' : 'the app reads it behind games; here only while this tab is in front' };
+    if (!keysOk.ptt) return { ok: false, name: 'Push to talk', say: `${keyName(keys.ptt)}: the app can’t read keys on this PC` };
+    const at = performance.now();
+    note(`Hold ${keyName(keys.ptt)} now…`);
+    while (pttSeen < at && performance.now() - at < 6000) await sleepMs(100);
+    return { ok: pttSeen >= at || null, name: 'Push to talk', say: pttSeen >= at ? `${keyName(keys.ptt)} read by the app` : `${keyName(keys.ptt)} not pressed in 6 s, so not tested` };
+  }
+  $('checkBtn').addEventListener('click', async () => {
+    const btn = $('checkBtn'), out = $('checkOut'), lines = [], note = (t) => { out.textContent = t; };
+    btn.disabled = true;
+    out.hidden = false;
+    let mic = null;
+    const step = async (what, f) => { note(`Checking ${what}…`); try { const r = await f(); lines.push(...[].concat(r)); } catch (err) { lines.push({ ok: false, name: what, say: String(err && err.message || err) }); } };
+    try {
+      await step('the relay', relayCheck);
+      await step('the mic', async () => { try { mic = await checkMic(); } catch (err) { return { ok: false, name: 'Mic', say: `couldn’t open it: ${err.name || err.message}` }; } return micLine(mic.track); });
+      await step('the video encoder', encoderCheck); // Chromium names the encoder only while the page has a mic or camera open
+      await step('push to talk', () => pttCheck(note));
+      if (client && client.checkup) await step('the app', () => client.checkup());
+      else lines.push({ ok: null, name: 'App parts', say: client ? 'need the next app update' : 'only in the Windows app' });
+      const text = [`Premade PC check-up, ${client ? `app ${client.version}` : 'website'}, ${navigator.userAgent}, ${new Date().toISOString()}`,
+        ...lines.map((l) => `${l.ok === true ? 'OK  ' : l.ok === false ? 'FIX ' : '--  '}${l.name}: ${l.say}`)].join('\n');
+      note(text);
+      clog(`check-up: ${lines.filter((l) => l.ok === false).map((l) => l.name).join(', ') || 'all fine'}`);
+      try { await navigator.clipboard.writeText(text); notify('Check-up copied. Paste it to whoever builds the app.', true); }
+      catch { notify('Check-up done. Select the report under the buttons to copy it.', true); }
+    } finally { if (mic && mic.opened) mic.opened.getTracks().forEach((t) => t.stop()); btn.disabled = false; }
   });
 
   // ---- a phone keeps its screen on while you're in a room: one that locks itself can stop the page, and your voice with it.
@@ -15344,6 +15444,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [133, 'November 7: check this PC', [
+      'Settings, App: Check this PC tests what only a real PC can show: a call through our relay on your network, whether screen shares use your graphics card, your mic’s quality, your push to talk key, and in the app the screen share sound filter, the overlay, Windows turning sounds down, the downloader, free space and half-made videos on your recording drives, and Premade’s memory. Each line says OK or what to fix, and the report is copied for you to paste to whoever builds Premade.',
+    ]],
     [132, 'November 7: Aion 2 runs keep the kill, and name each boss', [
       'Desktop app 1.43.0: an Aion 2 run cut down to its boss fights now keeps each kill: a fight runs until its Boss Defeated banner, not until the boss’s health bar goes. Menus with a bar in them, elites and the walking between them are left out, since a fight is kept only with a kill or a boss that died in that dungeon before.',
       'Each fight is marked with its boss’s name, read off the game’s picture, a dungeon Premade hasn’t named yet gets its name from your quest tracker (rename it on the Recording page if it picks up an objective instead), and each run’s video gets a timeline file beside it in its folder: the bosses, kills, respawns, each cast with its countdown, and the boss’s health over the fight.',
@@ -16081,6 +16184,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
       ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The desktop app also writes it in a log file with its own crashes, the page’s errors, saves that failed and its memory every 10 minutes, keeps the last 3 days and copies the last 24 hours, so it still has a drop from before a restart. On the website: the last 500 lines, in memory only.',
         'Settings, App: Copy connection log after a drop, even after restarting, then paste it to whoever builds the app.', '#connLogBtn'],
+      ['PC check-up', 'Tests what only a real PC can show: a call through our relay on your network, your graphics card’s video encoder, your mic’s quality and the key you hold to speak, and in the app the screen share sound filter, the overlay, Windows turning sounds down, the downloader, free space and half-made videos on your recording drives, and Premade’s memory. Each line says OK or what to fix.',
+        'Settings, App: Check this PC, then paste the copied report to whoever builds the app.', '#checkBtn'],
       ['Picks itself back up', 'If Premade’s page crashes or hangs for 30 seconds, the app loads it again and puts you back in your room. With no internet it says it can’t reach Premade and tries again, right away once you’re back online. The overlay and the Aion 2 meter come back the same way.',
         'Nothing to set up. The connection log says when it happened.', '#connLogBtn', 'app'],
       ['Updates', 'The app loads the newest page every time it starts and installs its own updates. After a League patch it checks it still reads League right, and it shows how much of your PC it uses.',
@@ -16400,7 +16505,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('key').hidden = !hashKey;
   if (client) {
     client.on('league', onLeague);
-    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'rec') toggleScreenRec(); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') pushTalk(k === 'ptt-down'); else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
+    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'rec') toggleScreenRec(); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') { if (k === 'ptt-down') pttSeen = performance.now(); pushTalk(k === 'ptt-down'); } else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
     client.useScreen(store.get('lpc-screen') || '');
     if (client.record) client.record(opts.record);
     // an app link (lolprox://join/<room>[.<password>], from "Open this room in the desktop app") brings you into that room
