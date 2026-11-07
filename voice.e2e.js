@@ -234,6 +234,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ana.evaluate(() => document.getElementById('setup').open), 'setup wizard on first launch');
     await shot(ana, 'wizard-1');
     await ana.fill('#wName', 'Ana');
+    assert.strictEqual(await ana.textContent('#setup .step:not([hidden]) .eyebrow'), 'Step 1 of 3', 'no screen check until she says she plays League');
+    await ana.check('#wPlays input[value="league"]');
+    assert.strictEqual(await ana.textContent('#setup .step:not([hidden]) .eyebrow'), 'Step 1 of 4', 'League players check their screen');
     await ana.click('#wNext');
     await ana.click('#micTest');
     await waitFor(ana, () => document.getElementById('micLevel').value > 0, null, 'Ana\'s mic meter moving in the wizard');
@@ -246,8 +249,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ana, () => /Found your minimap/.test(document.getElementById('wScreen').textContent), null, 'the wizard to find Ana\'s minimap');
     await shot(ana, 'wizard-3');
     await ana.click('#wNext');
+    assert(await ana.isVisible('#wCreate') && await ana.isVisible('#wLeague'), 'it ends with a room with friends, and how League finds you one');
     await ana.click('#wNext');
-    assert(!(await ana.evaluate(() => document.getElementById('setup').open)) && await ana.evaluate(() => localStorage.getItem('lpc-setup') === '1' && localStorage.getItem('lpc-name') === 'Ana'), 'wizard done and remembered');
+    assert(!(await ana.evaluate(() => document.getElementById('setup').open)) && await ana.evaluate(() => localStorage.getItem('lpc-setup') === '1' && localStorage.getItem('lpc-name') === 'Ana' && localStorage.getItem('lpc-plays') === 'league'), 'wizard done and remembered');
     assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id === 'micHome' && el.closest('main > .view').dataset.view === 'voice'), 'mic settings back in Voice settings');
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
     // who has Premade: Ana's page told our server when it opened, and again with the name she picked
@@ -1398,6 +1402,30 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await gus.evaluate(() => document.getElementById('newsDlg').open)), 'not again');
     await gus.context().close();
     console.log('What’s new: once after an update, not on a first launch');
+
+    // room chat that stays (What's new 130): Lou leaves and misses Kim's "two"; back alone, Lou sees "one" from her own
+    // PC; Kim comes back and Lou asks her for what she missed, so "two" lands after "one", each once
+    const kim = await player(browser, 'Kim', [1280, 720]), lou = await player(browser, 'Lou', [1280, 720]);
+    const R2 = 'stayroom', chat = (pg) => pg.$$eval('#chatLog li', (l) => l.map((li) => li.textContent.match(/(one|two)/)[1]));
+    const say2 = async (pg, t) => { await pg.fill('#chatText', t); await pg.press('#chatText', 'Enter'); };
+    await join(kim, R2); await join(lou, R2);
+    await hears(lou, ['Kim'], null, 'Kim and Lou in a room');
+    await say2(kim, 'one');
+    await waitFor(lou, () => document.querySelectorAll('#chatLog li').length === 1, null, 'Kim\'s "one" for Lou');
+    await lou.click('#leaveBtn');
+    await say2(kim, 'two');
+    await kim.waitForTimeout(300);
+    await kim.click('#leaveBtn');
+    await lou.goto('about:blank'); await join(lou, R2);
+    await waitFor(lou, () => document.querySelectorAll('#chatLog li').length === 1, null, 'Lou\'s kept chat when she comes back alone');
+    assert.deepStrictEqual(await chat(lou), ['one'], 'from her own PC');
+    await kim.goto('about:blank'); await join(kim, R2);
+    await waitFor(lou, () => document.querySelectorAll('#chatLog li').length === 2, null, 'what Lou missed, from Kim');
+    assert.deepStrictEqual(await chat(lou), ['one', 'two'], 'in order');
+    await waitFor(kim, () => document.querySelectorAll('#chatLog li').length === 2, null, 'Kim\'s own kept chat');
+    assert.deepStrictEqual(await chat(kim), ['one', 'two'], 'each once');
+    await kim.context().close(); await lou.context().close();
+    console.log('room chat that stays: kept on each PC, and what you missed from who\'s there');
 
     // App size (Settings > Look): the whole app at 150%, still the window's size, and kept after a restart; at 200% the
     // rail is down to its icons, as the layout's breakpoints see the zoomed width
