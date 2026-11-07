@@ -352,9 +352,16 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert.deepStrictEqual(got, [['at', 960, 1080], ['mouse', 2, 0], ['mouse', 4, 0], ['key', 0x1e, 8], ['key', 0x1e, 10], ['key', 0x4b, 9], ['mouse', 0x800, 1200]], JSON.stringify(got));
     assert.deepStrictEqual([...held.keys], ['ArrowLeft'], 'still down, to let go when it ends');
     // 1.27: their Ctrl+V puts the text they copied on your clipboard first (text only); nothing goes in while it's paused
+    got.length = 0;
     controlInput(held, { k: 'clip', text: 'from Ben' });
     controlInput(held, { k: 'clip', text: { toString: () => 'not text' } });
+    controlInput(held, { k: 'kd', c: 'KeyV' });
+    assert.deepStrictEqual(got, [], 'their V waits for the clipboard (Electron 45 writes it async)');
+    await held.wait;
     assert.strictEqual(await clipboard.readText(), 'from Ben');
+    assert.deepStrictEqual(got, [['key', 0x2f, 8]], 'then their V goes in: ' + JSON.stringify(got));
+    assert.strictEqual(held.wait, null, 'nothing left waiting');
+    controlInput(held, { k: 'ku', c: 'KeyV' });
     got.length = 0;
     controlInput({ ...held, paused: true }, { k: 'kd', c: 'KeyB', x: 0.5, y: 0.5 });
     assert.deepStrictEqual(got, [], 'paused');
