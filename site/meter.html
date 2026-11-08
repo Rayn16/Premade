@@ -175,7 +175,7 @@ function draw() {
   const cls = new Map(members.map((m) => [m.name, m.className || CLASS_OF_PC[Math.floor((m.cls - 5) / 4)]])), cp = new Map(members.map((m) => [m.name, m.cp]));
   const names = read('lpc-aion-skills') || {}, skill = (id) => { // a learnt "X (extra hits)" takes X's icon
     const name = names[id] || (SKILLS[id] || [])[0] || `Skill ${id}`, k = SKILLS[id] || Object.values(SKILLS).find(([n]) => n === name.replace(/ \(extra hits\)$/, ''));
-    return { name, icon: k && NC_ICONS + k[1] + '.png' }; };
+    return { name, icon: k?.[1] && NC_ICONS + k[1] + '.png' }; };
   $('#live').classList.toggle('on', !!(fresh && f && f.active));
   if (!live || live.state === 'off' || !fresh) { $('#t').textContent = ''; return empty('Live fight is off', 'Turn it on in Premade: Aion 2, DPS.'); }
   if (!f || !f.players || !f.players.length) {
