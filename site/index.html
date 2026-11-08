@@ -7055,7 +7055,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const now = Date.now();
     if (!force && now - aionWritten < 250) { aionLater = aionLater || setTimeout(() => { aionLater = 0; aionPublish(true); }, 250 - (now - aionWritten)); return; } // the latest goes out a moment later
     aionWritten = now;
-    aionPut('lpc-aion-live', { at: now, state: aionState, party: opts.aionParty, fight: aionFight && aionFight.players ? aionFight : null });
+    // in a dungeon each player's deaths are the whole run's (all its bosses), not the fight's (Rayan, 8 Nov); after you
+    // leave, still on the fight that was up
+    const f = aionFight && aionFight.players ? aionFight : null, run = f && aionRun && (!aionRun.done || f.target === aionRun.target) ? aionRun : null;
+    aionPut('lpc-aion-live', { at: now, state: aionState, party: opts.aionParty, fight: run ? { ...f, players: f.players.map((p) => ({ ...p, deaths: run.deaths.filter((d) => d.name === p.name).length })) } : f });
   }
   // party members: server, level and item level come with the party; class, combat power, gear and skill names from
   // NC's pages, asked once per member
@@ -7092,6 +7095,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   if (client && client.on) client.on('aion-live', (s) => {
     aionFight = s;
+    if (s && s.players && aionRun && !aionRun.done) { runDeaths(aionRun, s, true); aionRun.target = s.target; }
     if (s && s.off) aionState = 'game';
     else if (aionState === 'game') aionState = 'on';
     const tix = JSON.stringify((s && s.tickets) || []);
@@ -9373,6 +9377,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ponytail: dungeons told apart by their map number only, from three weeks of Rayan's log; a new kind needs adding
   const isDungeon = (m) => Math.floor(m / 1000) === 600 || m >= 900000;
   let crumb = null, crumbAt = 0; // { file, size, map (the one loaded last), rec (this run started the recording) }
+  let aionRun = null; // { at, deaths, target, done }: the dungeon run the meter's deaths add up over, from entering it to leaving
   const CRUMB = /^\[(\S+)\] \[\d\] (.+?)\r?$/gm;
   const crumbTime = (t) => Date.parse(t.replace(/\.(\d+)/, (_, f) => '.' + (f + '00').slice(0, 3)).replace(/([+-]\d\d)(\d\d)$/, '$1:$2'));
   const crumbMap = (e) => { const m = /LoadComplete\.Map\((\d+)\)/.exec(e); return m ? +m[1] : /^Flow\.(?:QuitFromIngame|GotoLobby)/.test(e) ? 0 : null; };
@@ -9384,7 +9389,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     store.set('lpc-vid-marks', JSON.stringify(vidMarks));
   }
   async function crumbTick() {
-    if (!client || !client.aionLog || !(opts.aionRec || opts.aionGuide) || league || performance.now() - crumbAt < 5000) return;
+    if (!client || !client.aionLog || !(opts.aionRec || opts.aionGuide || opts.aionLive) || league || performance.now() - crumbAt < 5000) return;
     crumbAt = performance.now();
     const r = await client.aionLog(crumb && crumb.file, crumb && crumb.size).catch(() => null);
     if (!r || typeof r.text !== 'string') return;
@@ -9397,6 +9402,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       // the same dungeon loaded again: you came back in after dying or a wipe; a mark on its video, playing the minute before
       if (map && map === c.map && screenRec && screenRec.run) { runMark(screenRec, crumbTime(t), 'Back in after a death', 60); screenRec.re.push(Math.round((crumbTime(t) - screenRec.at) / 1000)); }
       if (map !== c.map) guideEnter(map, crumbTime(t));
+      if (map !== c.map && isDungeon(map)) aionRun = { at: Date.now(), deaths: [], target: '', done: false }; // the same one loaded again (back in after a death) goes on
+      else if (map !== c.map && aionRun) aionRun.done = true;
       c.map = map;
     }
     const inside = isDungeon(c.map), run = screenRec && screenRec.run ? screenRec : null;
@@ -9587,7 +9594,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       runKeep(name, tl);
     };
   }
-  function runDeaths(r, f) { // Live fight's deaths (a party player's HP going to 0) as seconds of the run
+  function runDeaths(r, f, all) { // Live fight's deaths (a party player's HP going to 0, or anyone's with all) as seconds of the run
     if (!f.active) return; // a fight that's over: its deaths came while it was on, or before the run
     const t = Math.round((Date.now() - r.at) / 1000), since = t - (f.secs | 0) - 15;
     // a player's count is of their deaths in this fight's time (so another target's fight then has them too): only more
@@ -9595,7 +9602,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     // ponytail: a player first shown as "Player 123" and named later counts their earlier deaths again; a death event from
     // client/aionlive.js would end that (an app change)
     for (const p of f.players) {
-      if (!p.me && !p.party) continue;
+      if (!all && !p.me && !p.party) continue;
       const had = r.deaths.filter((d) => d.name === p.name && d.t >= since).length;
       for (let i = had; i < (p.deaths | 0) && r.deaths.length < 500; i++) r.deaths.push({ t, name: p.name, me: !!p.me });
     }
@@ -15904,6 +15911,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [140, 'November 8: Aion 2 deaths count the whole dungeon', [
+      'The skull on the Aion 2 DPS pop-up (and in your room’s meter) now adds up each player’s deaths over the whole dungeon run, all three bosses, instead of starting again at every boss. It starts from 0 when you go into the next dungeon; coming back in after a wipe keeps counting. Outside a dungeon it still counts the fight.',
+    ]],
     [139, 'November 7: full screen videos hide their controls', [
       'A screen share or video in full screen now hides its control bar, the dark shade under it and the mouse after 3 seconds without moving the mouse, like any video player. Move the mouse or press a key and they come back; paused, they stay.',
     ]],
@@ -16621,7 +16631,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Open Aion 2: Today is in its menu.', '#aionFrame'],
       ['Aion 2 live fight', 'In the desktop app, everyone’s damage, DPS, share and crits on what you fight, and the boss’s HP, live, on the Aion 2 page and the overlay’s Aion 2 card, with each player’s top skills (icon, crit rate, hits, average and biggest hit), past fights, your party’s class, level, item level, combat power and gear, and your entry tickets. It follows what your party is hitting, moves on to the next mob as soon as one dies, and keeps a boss you beat up for 15 seconds. It reads Aion 2’s traffic with Npcap, as Abyss DPS Meter does, so NC’s rules can ban accounts for it: off until you turn it on. Only my party narrows it to everyone in your party during that fight.',
         'Aion 2 page: DPS (Live fight), Today (Entry tickets) and Profile (Your party now).', '#aionFrame', 'app'],
-      ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills with their icons, crit rate and hits on a click, a skull with how many times each player died in the fight, a compact mode, and a minimize button that shrinks it to its title bar and back. It stays on top, opens where you left it and keeps its size.',
+      ['Aion 2 DPS pop-up', 'In the desktop app, the live fight in its own small window over the game, like Abyss DPS Meter: the boss’s HP, a bar per player in their class colour with their CP, DPS and share, or with Total damage (the arrows button) each player’s damage to the boss so far and the party’s total, top skills with their icons, crit rate and hits on a click, a skull with how many times each player died in the whole dungeon run, adding up over all its bosses until the next run (in the fight outside a dungeon), a compact mode, and a minimize button that shrinks it to its title bar and back. It stays on top, opens where you left it and keeps its size.',
         'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 rotation tests', 'With Live fight on, name a test, hit a training dummy, and each fight you finish is a run: the DPS page shows each test’s average DPS, opener (0-10 s) and burst (10-20 s) damage and top skills against the test before it. Same gear, change one thing, 3-5 runs of about 3 minutes.',
         'Aion 2 page: DPS, Rotation tests, or the flask on the DPS pop-up. Stop hitting for 30 s to end a run.', '#aionFrame', 'app'],

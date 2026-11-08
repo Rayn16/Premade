@@ -1,6 +1,7 @@
 // Test of Aion 2 rotation tests and pace (What's new 130), in headless Chromium with a stand-in for the desktop app:
 // site/index.html follows Live fight's snapshots, keeps each run of a named test (opener 0-10 s, burst 10-20 s) and the
 // fastest kill's HP each second; site/meter.html shows the pace against it and starts a test from its flask button.
+// Deaths on the meter add up over a whole dungeon run (What's new 140): from Aion 2's map log to the next dungeon.
 // Needs playwright: NODE_PATH=$(npm root -g) node aiondps.e2e.js
 const fs = require('fs');
 const path = require('path');
@@ -19,7 +20,9 @@ function fakeApp() {
   const on = {};
   window.emit = (n, v) => (on[n] || []).forEach((fn) => fn(v));
   window.lpcClient = { version: '1.40.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
-    overlay() {}, on(n, fn) { (on[n] = on[n] || []).push(fn); }, aionLive: async () => 'on', aionFights: async () => [] };
+    overlay() {}, on(n, fn) { (on[n] = on[n] || []).push(fn); }, aionLive: async () => 'on', aionFights: async () => [], captureSources: async () => [],
+    // Aion 2's map log: window.crumbs, lines added by the test
+    aionLog: async (file, from) => (window.crumbs ? { file: 'a.breadcrumb.log', size: window.crumbs.length, text: window.crumbs.slice(file ? from : 0) } : null) };
   localStorage.setItem('lpc-setup', '1');
   localStorage.setItem('lpc-name', 'Rayan');
   localStorage.setItem('lpc-news', '9999');
@@ -88,6 +91,32 @@ const snap = (target, secs, killed) => ({ active: true, target, secs, pct: targe
     await meter.click('#testGo');
     assert.strictEqual(await page.evaluate(() => localStorage.getItem('lpc-aion-test')), null, 'and stopped');
     assert(await meter.evaluate(() => document.querySelector('#test').hidden), 'the test bar closes');
+    // deaths through a dungeon: each boss fight counts its own (Live fight), the meter shows the run's
+    const dg = await browser.newContext(), d = await dg.newPage();
+    await d.clock.install();
+    await d.addInitScript(fakeApp);
+    d.on('pageerror', (e) => errors.push(e.message));
+    await d.goto(`http://127.0.0.1:${PORT}/index.html?debug`);
+    await d.waitForFunction(() => typeof emit === 'function');
+    const map = async (m) => { await d.evaluate((m) => { window.crumbs = (window.crumbs || '') + `[2026-11-08T01:00:00.000+0300] [0] Flow.Teleport.LoadComplete.Map(${m})\n`; }, m); await d.clock.runFor(6000); };
+    const boss = async (target, rayan, sam) => { // a fight 30 s long, then a minute's walk
+      await d.evaluate((f) => emit('aion-live', f), { active: true, target, secs: 30, players: [{ name: 'Rayan', me: true, party: true, deaths: rayan, damage: 1, dps: 1, share: 50 }, { name: 'Sam', party: true, deaths: sam, damage: 1, dps: 1, share: 50 }] });
+      await d.clock.runFor(1000);
+      const deaths = await d.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-live')).fight.players.map((p) => p.deaths));
+      await d.clock.runFor(60000);
+      return deaths;
+    };
+    await map(1110); await map(600092);
+    assert.deepStrictEqual(await boss('Kwapo', 1, 0), [1, 0], 'first boss');
+    assert.deepStrictEqual(await boss('Mau Totem', 1, 1), [2, 1], 'the second boss adds to the first');
+    await map(600092); // back in after a wipe: the same run
+    assert.deepStrictEqual(await boss('Nuakum', 0, 2), [2, 3], 'the third adds too');
+    await map(1110);
+    assert.deepStrictEqual(await boss('Nuakum', 0, 2), [2, 3], 'left: the last boss keeps the run’s');
+    assert.deepStrictEqual(await boss('Dummy', 1, 0), [1, 0], 'outside a dungeon, the fight’s');
+    await map(600022);
+    assert.deepStrictEqual(await boss('Ignus', 1, 0), [1, 0], 'a new run starts at 0');
+    await dg.close();
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('aiondps.e2e: ok');
   } finally { await browser.close(); server.close(); }
