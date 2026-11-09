@@ -1520,7 +1520,7 @@ ipcMain.handle('keys', (e, k) => {
       // app 1.45.1: while a Change button waits for keys ({ capture: true }), the keys pressed are read here too and sent
       // as 'combo:Alt+Z': keys another app took as its hotkey (NVIDIA's Alt+Z, Alt+R, Alt+F1...) never reach the page
       if (k.capture) {
-        const CAP = [...Array(26)].map((x, i) => [String.fromCharCode(65 + i), 65 + i]).concat([...Array(10)].map((x, i) => [String(i), 0x30 + i]), [...Array(12)].map((x, i) => ['F' + (i + 1), 0x70 + i]), Object.entries(VK).slice(-6)); // app 1.45.2: PageUp to Delete too
+        const CAP = [...Array(26)].map((x, i) => [String.fromCharCode(65 + i), 65 + i]).concat([...Array(10)].map((x, i) => [String(i), 0x30 + i]), [...Array(12)].map((x, i) => ['F' + (i + 1), 0x70 + i]), Object.entries(VK).slice(-6)); // app 1.46.1: PageUp to Delete too
         const was = new Set(CAP.filter(([, c]) => keyState(c) & 0x8000).map(([n]) => n));
         const capTimer = setInterval(() => {
           if (win.isDestroyed()) return;
