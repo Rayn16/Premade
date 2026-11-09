@@ -52,5 +52,35 @@
    "phantasmal-lakshmi",
    "transcendent-bakarma"
   ]
+ },
+ "610062": {
+  "dungeon": "Shattered Arkanis Level 4",
+  "bosses": [
+   "siliator-of-deceit",
+   "ruthilis-of-pain",
+   "talisra-of-the-void"
+  ]
+ },
+ "600063": {
+  "dungeon": "Shattered Arkanis Level 1",
+  "bosses": [
+   "siliator-of-deceit",
+   "ruthilis-of-pain",
+   "talisra-of-the-void"
+  ]
+ },
+ "600053": {
+  "dungeon": "Deus Research Base Level 1",
+  "bosses": [
+   "gelcos",
+   "nazmun"
+  ]
+ },
+ "610052": {
+  "dungeon": "Deus Research Base Level 4",
+  "bosses": [
+   "gelcos",
+   "nazmun"
+  ]
  }
 }

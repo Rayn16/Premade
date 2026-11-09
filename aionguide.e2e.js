@@ -38,13 +38,15 @@ function fakeApp() { // the app 1.42 as the run reader needs it; window.scene dr
     gameVideo: async (what, name, parts) => { calls.push(what); if (what === 'json') window.timeline = JSON.parse(parts); return what === 'start' ? 'Game 2026-11-07 08-00-00 Recording.webm' : what === 'list' ? [] : true; },
   };
   window.enter = (map) => { log += `[${stamp()}] [0] Flow.Teleport.LoadComplete.Map(${map})\n`; };
-  window.live = (target, pct) => (on['aion-live'] || []).forEach((f) => f({ target, pct, secs: 30, players: [{ name: 'Rayan', dps: 1000, share: 100 }] }));
+  window.live = (target, pct, secs = 30) => (on['aion-live'] || []).forEach((f) => f({ target, pct, secs, players: [{ name: 'Rayan', dps: 1000, share: 100 }] }));
+  window.fight = (f) => (on['aion-fight'] || []).forEach((fn) => fn(f)); // Live fight's finished fight
   localStorage.setItem('lpc-setup', '1'); localStorage.setItem('lpc-news', '9999'); localStorage.setItem('lpc-aion', '1');
   setInterval(() => {
     const g = cv.getContext('2d'), s = window.scene || '';
     g.fillStyle = `hsl(${Date.now() % 360},30%,20%)`; g.fillRect(0, 0, 2560, 1440);
-    if (s) { g.fillStyle = '#20e0f0'; g.fillRect(1140, 112, 280, 4); g.fillStyle = '#c8d020'; g.fillRect(1080, 69, 300, 7); g.fillStyle = '#ff3030'; g.font = 'bold 22px sans-serif'; g.fillText('Ferocious Horn Nuakum', 1160, 56); }
+    if (s) { g.fillStyle = '#20e0f0'; g.fillRect(1140, 112, 280, 4); g.fillStyle = '#c8d020'; g.fillRect(1080, 69, 300, 7); g.fillStyle = '#ff3030'; g.font = 'bold 22px sans-serif'; g.fillText(window.bossName || 'Ferocious Horn Nuakum', 1160, 56); }
     if (s === 'cast') { g.fillStyle = '#c02020'; g.fillRect(1120, 1132, 320, 30); g.fillStyle = '#fff'; g.font = 'bold 16px sans-serif'; g.fillText('Blue Light of Destruction 20.0', 1124, 1153); }
+    if (s === 'complete') { g.fillStyle = '#000'; g.fillRect(0, 0, 2560, 240); g.fillStyle = '#fff'; g.font = 'bold 36px sans-serif'; g.fillText('Transcendence Complete', 1040, 212); } // a Level 4's end
     if (s === 'banner') { g.fillStyle = '#000'; g.fillRect(0, 0, 2560, 200); g.fillStyle = '#fff'; g.font = 'bold 40px sans-serif'; g.fillText('Boss Defeated', 1150, 125); }
   }, 250);
   navigator.mediaDevices.getDisplayMedia = async () => cv.captureStream(4);
@@ -78,6 +80,7 @@ const seen = (page, re, what, timeout = 20000) => page.waitForFunction((re) => s
     await ana.evaluate(() => { live('Ferocious Horn Nuakum', 40); live('Ferocious Horn Nuakum', 23); });
     await seen(ana, /Blue Light of Destruction soon \(20%\)/, 'a call before its health gets to the cast');
     await ana.evaluate(() => window.play);
+    await seen(ana, /^Ferocious Horn Den cleared in \d+:\d\d, your best/, 'its last boss’s banner: the run card');
     await ana.evaluate(() => enter(1110));
     await ana.waitForFunction(() => window.timeline, null, { timeout: 20000 });
     const sc = await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-scripts'))['Ferocious Horn Nuakum']);
@@ -87,6 +90,32 @@ const seen = (page, re, what, timeout = 20000) => page.waitForFunction((re) => s
     assert(await ana.evaluate(() => document.getElementById('aionGuideBox').closest('.view').dataset.view === 'aionov' && document.getElementById('kAionOv').textContent === document.getElementById('kOverlay').textContent && document.getElementById('aionOvNote').hidden), 'the guide and the overlay key on the Aion 2 overlay page');
     await ana.evaluate(() => { const i = document.querySelector('#aionGuide input[data-k="Watchdog Kwapo|Thunder Cry"]'); i.value = 'Spread out'; i.dispatchEvent(new Event('change', { bubbles: true })); });
     assert.strictEqual(await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-notes'))['Watchdog Kwapo|Thunder Cry']), 'Spread out', 'a note per cast kept');
+
+    // Rayan's runs 8-9 Nov: a Level 4 dungeon, its last boss's Complete screen, Live fight's boss fights named, the run card
+    await ana.evaluate(() => { shown.length = 0; window.timeline = null; enter(610062); });
+    await seen(ana, /Shattered Arkanis Level 4: Siliator of Deceit › Ruthilis of Pain › Talisra of the Void/, 'a Level 4 dungeon is a dungeon, with its bosses');
+    await ana.waitForFunction(() => calls.filter((c) => c === 'start').length === 2, null, { timeout: 10000 });
+    const named = (secs) => ana.waitForFunction((secs) => { live('', 75, secs); return (JSON.parse(localStorage.getItem('lpc-aion-live')).fight || {}).target === 'Talisra of the Void'; }, secs, { timeout: 30000, polling: 1000 });
+    await ana.evaluate(() => { window.bossName = 'Talisra of the Void'; window.scene = 'boss'; });
+    await named(30);
+    await ana.evaluate(() => { window.scene = 'complete'; setTimeout(() => { window.scene = ''; }, 4000); });
+    await seen(ana, /^Shattered Arkanis Level 4 cleared in \d+:\d\d, your best/, 'the Complete screen is the last boss’s kill, and the run card shows', 30000);
+    await ana.waitForTimeout(12000); // her bar gone 10 s and more: the next one is another fight
+    await ana.evaluate(() => { enter(610062); window.scene = 'boss'; }); // Again
+    await ana.waitForTimeout(6000);
+    await named(4);
+    await ana.evaluate(() => fight({ target: '', at: Date.now() - 5000, secs: 5, hp: 0, pct: 0, killed: true, players: [{ name: 'Rayan', me: true, dps: 20000, damage: 100000 }] }));
+    await seen(ana, /^Shattered Arkanis Level 4 cleared in \d+:\d\d, (your best|best \d+:\d\d) \| Talisra of the Void 0:05 \| Your DPS 20\.0k/, 'Again is a new run; Live fight’s kill clears it, with her time and your DPS', 20000);
+    assert.deepStrictEqual(await ana.evaluate(() => [JSON.parse(localStorage.getItem('lpc-aion-boss-fights'))[0].target, JSON.parse(localStorage.getItem('lpc-aion-history'))[0].target]), ['Talisra of the Void', 'Talisra of the Void'], 'the boss fight named and kept');
+    await ana.evaluate(() => { window.scene = ''; window.bossName = ''; enter(1110); });
+    await ana.waitForFunction(() => window.timeline, null, { timeout: 20000 });
+    const tl2 = await ana.evaluate(() => window.timeline);
+    assert(tl2.map === 610062 && tl2.dungeon === 'Shattered Arkanis Level 4' && tl2.kills.length === 2 && tl2.kills.every((k) => k.name === 'Talisra of the Void') && !tl2.respawns.length && tl2.bosses.some((b) => b.name === 'Talisra of the Void'),
+      `her kills (the Complete screen, Live fight's) and no respawn for Again: ${JSON.stringify({ kills: tl2.kills, respawns: tl2.respawns, bosses: tl2.bosses.map((b) => b.name) })}`);
+    await ana.evaluate(() => document.querySelector('.nav[data-view="record"]').click());
+    await ana.waitForSelector('#aionClearsBox:not([hidden]) #aionClears tr');
+    const day = await ana.$$eval('#aionClears tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));
+    assert.deepStrictEqual(day.map((r) => [r[1], r[2], r[5]]), [['Shattered Arkanis Level 4', '2', '20.0k'], ['Ferocious Horn Den', '1', '–']], 'clears by day: each dungeon’s clears and your DPS (Live fight’s)');
 
     // 34: the raid sheet in a room
     const ben = await player(browser, 'Ben');
@@ -113,7 +142,10 @@ const seen = (page, re, what, timeout = 20000) => page.waitForFunction((re) => s
     const MINS = +(process.env.MINS || 0);
     if (MINS) {
       const cdp = await ana.context().newCDPSession(ana), out = [];
-      await ana.evaluate(() => { enter(600092); window.loop = setInterval(() => { const t = Math.floor(Date.now() / 1000) % 60; window.scene = t < 20 ? 'boss' : t < 24 ? 'cast' : ''; live(t % 2 ? 'Ferocious Horn Nuakum' : 'Ludra', 100 - (t * 5) / 3); }, 1000); });
+      await ana.evaluate(() => { enter(600092); window.loop = setInterval(() => { // Live fight's unnamed boss fights too, named off the screen, and a finished fight every 10 s (the kept lists fill up)
+        const t = Math.floor(Date.now() / 1000) % 60; window.scene = t < 20 ? 'boss' : t < 24 ? 'cast' : ''; live(t % 3 ? (t % 2 ? 'Ferocious Horn Nuakum' : 'Ludra') : '', 100 - (t * 5) / 3);
+        if (t % 10 === 0) fight({ target: '', at: Date.now() - 30000, secs: 30 + t, hp: 0, pct: 0, killed: t === 0, players: [{ name: 'Rayan', me: true, dps: 20000, damage: 600000 }] });
+      }, 1000); });
       for (let m = 1; m <= MINS; m++) {
         for (let k = 0; k < 4; k++) { await ben.evaluate((k) => document.getElementById(k % 2 ? 'raidClear' : 'raidLudra').click(), k); await new Promise((r) => setTimeout(r, 15000)); }
         await cdp.send('HeapProfiler.collectGarbage');

@@ -38,6 +38,7 @@ function fakeApp() {
   localStorage.setItem('lpc-setup', '1');
   localStorage.setItem('lpc-name', 'Rayan');
   localStorage.setItem('lpc-news', '9999');
+  localStorage.setItem('lpc-opts', JSON.stringify({ aionGuide: false })); // the dungeon named from the quest tracker, not the guide's files (aionguide.e2e.js has those)
   setInterval(() => { // Aion 2's top middle and cast bar as window.scene says
     const g = cv.getContext('2d'), s = window.scene || '';
     g.fillStyle = `hsl(${Date.now() % 360},30%,20%)`; g.fillRect(0, 0, 2560, 1440);
@@ -79,6 +80,9 @@ function fakeApp() {
     await page.evaluate(() => { const at = new Date(Date.now() - 2000).toISOString().replace('Z', '+0000'); log += `[${at}] [0] Flow.Teleport.LoadComplete.Map(600092)\n`; });
     await page.waitForFunction(() => (JSON.parse(localStorage.getItem('lpc-vid-marks') || '{}')['Game 2026-11-05 07-27-03 Recording.webm'] || []).length === 1, null, { timeout: 8000 });
     await page.waitForFunction(() => window.done, null, { timeout: 150000 });
+    await page.evaluate(() => { const at = new Date(Date.now() - 1000).toISOString().replace('Z', '+0000'); log += `[${at}] [0] Flow.Teleport.LoadComplete.Map(600092)\n`; });
+    await page.waitForTimeout(6000);
+    assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-vid-marks'))['Game 2026-11-05 07-27-03 Recording.webm'].length), 1, 'a reload just after a kill (the game moving you on) isn’t a death');
     await page.evaluate(() => { log += '[2026-11-05T07:56:27.18+0300] [0] Flow.Teleport.LoadComplete.Map(1110)\n'; });
     await page.waitForFunction(() => calls.includes('end'), null, { timeout: 8000 });
     await page.waitForFunction(() => window.cut, null, { timeout: 8000 });
@@ -101,8 +105,8 @@ function fakeApp() {
     await page.evaluate(() => document.querySelector('.nav[data-view="record"]').click());
     await page.waitForSelector('#aionRunsBox:not([hidden]) #aionRuns tr');
     const rows = await page.$$eval('#aionRuns tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));
-    assert.deepStrictEqual(rows[0], ['Dungeon 600072', '2', '10:00', '12:00', '0.5'], 'runs, best, usual, respawns');
-    assert.deepStrictEqual(rows.map((r) => r[0]), ['Dungeon 600072', 'Ferocious Horn Den'], 'quick story dungeons aren’t dungeon runs; a run names its dungeon from the quest tracker');
+    assert.deepStrictEqual(rows[0], ['Vakron Sky Island', '2', '10:00', '12:00', '0.5'], 'runs, best, usual, map reloads; named from the guide’s files');
+    assert.deepStrictEqual(rows.map((r) => r[0]), ['Vakron Sky Island', 'Ferocious Horn Den'], 'quick story dungeons aren’t dungeon runs; a run names its dungeon from the quest tracker');
     assert.match(await page.textContent('#aionWeek'), /^Last 7 days: 3 dungeon runs, [\d.]+ hours/, 'the week');
     console.log('aionrec: ok');
   } finally { await browser.close(); server.close(); }

@@ -1,0 +1,27 @@
+{
+ "name": "Talisra of the Void",
+ "map": 610062,
+ "dungeon": "Shattered Arkanis Level 4",
+ "runs": 10,
+ "from": "read off Rayan's run videos, 8-9 Nov 2026",
+ "casts": [
+  {
+   "name": "Refracting Spear",
+   "secs": 3.4,
+   "hp": null,
+   "seen": 2,
+   "shape": "orange lanes across the arena, spears land on them",
+   "at": null,
+   "do": ""
+  },
+  {
+   "name": "Cast Fall",
+   "secs": 4.1,
+   "hp": null,
+   "seen": 6,
+   "shape": "",
+   "at": null,
+   "do": ""
+  }
+ ]
+}

@@ -2181,13 +2181,18 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       <section id="aionRunsBox" class="panel" aria-labelledby="h-aruns" hidden>
         <h2 id="h-aruns" class="ph">Aion 2 dungeons</h2>
         <p id="aionWeek" class="hint"></p>
-        <div class="tablewrap"><table class="ready"><thead><tr><th>Dungeon</th><th>Runs</th><th>Best</th><th>Usual</th><th>Respawns a run</th></tr></thead><tbody id="aionRuns"></tbody></table></div>
+        <div class="tablewrap"><table class="ready"><thead><tr><th>Dungeon</th><th>Runs</th><th>Best</th><th>Usual</th><th>Map reloads a run</th></tr></thead><tbody id="aionRuns"></tbody></table></div>
         <p class="hint">From Aion 2’s own log, since its first day on this PC. Click a dungeon to name it: the log knows them only by number. A run’s video marks each time you came back in after dying, and the Combat Analysis fights read during it; ▶ Highlights plays just those.</p>
+        <div id="aionClearsBox" hidden>
+          <h3 class="ph">Clears by day</h3>
+          <div class="tablewrap"><table class="ready"><thead><tr><th>Day</th><th>Dungeon</th><th>Clears</th><th>Best</th><th>Usual</th><th>Your DPS</th></tr></thead><tbody id="aionClears"></tbody></table></div>
+          <p class="hint">Each clear Premade saw (the last boss’s kill), from entering to that kill. Your DPS is on the bosses, from Live fight.</p>
+        </div>
       </section>
       <section id="aionReviewBox" class="panel" aria-labelledby="h-arev" hidden>
         <h2 id="h-arev" class="ph">Aion 2 boss practice</h2>
         <p id="aionNext" role="status"></p>
-        <div class="tablewrap"><table class="ready"><thead><tr><th>Boss</th><th>Tries</th><th>Kills</th><th>Deaths</th><th>Best</th><th>Usual</th><th>Costliest cast</th></tr></thead><tbody id="aionPractice"></tbody></table></div>
+        <div class="tablewrap"><table class="ready"><thead><tr><th>Boss</th><th>Tries</th><th>Kills</th><th>Deaths</th><th>Best</th><th>Usual</th><th>Costliest cast</th><th>Your deaths</th></tr></thead><tbody id="aionPractice"></tbody></table></div>
         <p class="hint">From the runs Premade recorded: time from the pull to the kill, and each death in a boss fight with the cast that was up then. Deaths come from Live fight when it’s on; without it, each time you came back in counts, with the cast in the minute before.</p>
         <h3 class="ph">Side by side</h3>
         <div id="vsBox">
@@ -7093,7 +7098,22 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     aionFight = null;
     aionPublish(true);
   }
+  // the meter names players only (client/aionlive.js): a boss fight gets its name off the screen, from the run reader's
+  // boss bar while it shows the same health (Rayan's runs 8-9 Nov: every boss fight saved with no name, so pace and the
+  // Pull log mixed all three). Kept per fight, by when it started: the last 20.
+  // ponytail: trash you hit at the boss's health while the boss is targeted would get its name; rare, and short
+  const aionNames = new Map();
+  function liveName(s) {
+    const start = Date.now() - s.secs * 1000;
+    for (const [a, n] of aionNames) if (Math.abs(a - start) < 4000) return n;
+    const r = screenRec && screenRec.run ? screenRec : null, t = r ? Math.round((Date.now() - r.at) / 1000) : 0, n = r && r.names[r.names.length - 1];
+    if (!n || !(n[0] >= r.barAt) || !(t - r.hpAt <= 2) || s.pct == null || !(Math.abs(s.pct - r.hpLast) <= 3)) return ''; // its name read since this bar showed, its health just now
+    aionNames.set(start, n[1]);
+    if (aionNames.size > 20) aionNames.delete(aionNames.keys().next().value);
+    return n[1];
+  }
   if (client && client.on) client.on('aion-live', (s) => {
+    if (s && s.players && !s.target) s.target = liveName(s);
     aionFight = s;
     if (s && s.players && aionRun && !aionRun.done) { runDeaths(aionRun, s, true); aionRun.target = s.target; }
     if (s && s.off) aionState = 'game';
@@ -7119,14 +7139,15 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // damage and skill shares. Only Live fight's own numbers; the last 5 targets' curves, 30 minutes each at most.
   const aionCurves = new Map();
   function aionTrack(f) {
-    if (!f.target) return; // unnamed targets would share one curve
-    const now = Date.now();
-    let c = aionCurves.get(f.target);
-    aionCurves.delete(f.target); // kept in order of last use, so the 5-target cap drops the adds, not the boss
+    const now = Date.now(), k = f.target || ''; // unnamed fights share '' (one at a time): a boss's curve goes on under the name liveName gives it a few seconds in
+    let c = aionCurves.get(k);
+    const u = k && aionCurves.get(''); // this fight's curve from before it had its name (not an earlier pull's under it)
+    if (u && f.secs - u.sec >= 0 && f.secs - u.sec <= 3) { c = u; aionCurves.delete(''); }
+    aionCurves.delete(k); // kept in order of last use, so the 5-target cap drops the adds, not the boss
     // the same fight only while its clock has run on with real time: one under the same name later starts over; one first
     // seen late (Premade restarted) gets no opener or pace
     if (!c || f.secs < c.sec || f.secs - c.sec > (now - c.at) / 1000 + 3) c = { sec: f.secs > 3 ? f.secs - 1 : -1, late: f.secs > 3, hp: [], dmg: [] };
-    aionCurves.set(f.target, c);
+    aionCurves.set(k, c);
     if (aionCurves.size > 5) aionCurves.delete(aionCurves.keys().next().value);
     c.at = now;
     if (f.secs <= c.sec || f.secs > 1800) return;
@@ -7135,7 +7156,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     c.sec = f.secs;
   }
   function aionDone(f) {
-    const c = aionCurves.get(f.target);
+    const c = f.target && aionCurves.get(f.target);
     if (!c || Math.abs(c.sec - f.secs) > 3) return;
     aionCurves.delete(f.target);
     if (f.killed && !c.late && c.hp.some((v) => v != null)) {
@@ -7151,9 +7172,31 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       open: c.dmg[10] ?? null, burst: c.dmg[20] != null && c.dmg[10] != null ? c.dmg[20] - c.dmg[10] : null, skills: (me.skills || []).map((k) => [k.id, k.share]) };
     aionPut('lpc-aion-tests', [run, ...load('lpc-aion-tests', [])].slice(0, 300));
   }
-  let aionHist = [];
-  if (client && client.on) client.on('aion-fight', (f) => { aionHist = [f, ...aionHist].slice(0, 200); aionPut('lpc-aion-history', aionHist); aionDone(f); });
-  if (client && client.aionFights) client.aionFights().then((l) => { aionHist = Array.isArray(l) ? l : []; aionPut('lpc-aion-history', aionHist); });
+  // finished fights: the app keeps the newest 200 (aion-fights.json), most of them trash (Rayan's, 9 Nov: 160 under a
+  // minute, so a day and a half). Boss fights (named here, or a minute and more) are also kept here
+  // (lpc-aion-boss-fights, newest 100), and lpc-aion-history is both, newest first, 200 at most.
+  let aionHist = [], aionApp = [], aionBossHist = load('lpc-aion-boss-fights', []);
+  function aionHistSet() {
+    const b = new Set(aionBossHist.map((f) => f.at)); // the same fight in both: this copy has its name
+    aionHist = [...aionBossHist, ...aionApp.filter((f) => !b.has(f.at)).slice(0, 200 - aionBossHist.length)].sort((x, y) => y.at - x.at);
+    aionPut('lpc-aion-history', aionHist);
+  }
+  if (client && client.on) client.on('aion-fight', (f) => {
+    const n = !f.target && [...aionNames].find(([a]) => Math.abs(a - f.at) < 4000);
+    if (n) f = { ...f, target: n[1] };
+    aionApp = [f, ...aionApp].slice(0, 200);
+    if (n || f.secs >= 60) { aionBossHist = [f, ...aionBossHist].slice(0, 100); aionPut('lpc-aion-boss-fights', aionBossHist); }
+    aionHistSet();
+    aionDone(f);
+    runFought(f);
+  });
+  if (client && client.aionFights) client.aionFights().then((l) => {
+    aionApp = Array.isArray(l) ? l : [];
+    const had = new Set(aionBossHist.map((f) => f.at));
+    aionBossHist = [...aionBossHist, ...aionApp.filter((f) => f.secs >= 60 && !had.has(f.at))].sort((x, y) => y.at - x.at).slice(0, 100);
+    aionPut('lpc-aion-boss-fights', aionBossHist);
+    aionHistSet();
+  });
   // the meter pop-up (desktop app 1.36): the DPS tab asks with lpc-aion-meter '1' or '0' (then '|' and a time); this
   // page gives it the theme's colours (lpc-aion-theme) and says '0' again when it's closed in its own window
   const aionMeterTheme = () => { const cs = getComputedStyle(document.documentElement), v = {};
@@ -9375,7 +9418,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // to its own plain log (client aion-log); entering a dungeon (map 600000s, or 900000 and up: party, daily and challenge
   // dungeons; the quick story ones aren't) records Aion 2's window like Record does, leaving it stops. Read every 5 s.
   // ponytail: dungeons told apart by their map number only, from three weeks of Rayan's log; a new kind needs adding
-  const isDungeon = (m) => Math.floor(m / 1000) === 600 || m >= 900000;
+  // (610000s: a dungeon's Level 4, Transcendence, like Shattered Arkanis' 610062; Rayan's log 5-9 Nov)
+  const isDungeon = (m) => Math.floor(m / 1000) === 600 || Math.floor(m / 1000) === 610 || m >= 900000;
   let crumb = null, crumbAt = 0; // { file, size, map (the one loaded last), rec (this run started the recording) }
   let aionRun = null; // { at, deaths, target, done }: the dungeon run the meter's deaths add up over, from entering it to leaving
   const CRUMB = /^\[(\S+)\] \[\d\] (.+?)\r?$/gm;
@@ -9397,13 +9441,18 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const done = r.text.lastIndexOf('\n') + 1; // a line still being written waits for the next read
     c.size = r.size - new TextEncoder().encode(r.text.slice(done)).length;
     for (const [, t, e] of r.text.slice(0, done).matchAll(CRUMB)) {
-      const map = crumbMap(e);
+      const map = crumbMap(e), at = crumbTime(t);
       if (map === null) continue;
-      // the same dungeon loaded again: you came back in after dying or a wipe; a mark on its video, playing the minute before
-      if (map && map === c.map && screenRec && screenRec.run) { runMark(screenRec, crumbTime(t), 'Back in after a death', 60); screenRec.re.push(Math.round((crumbTime(t) - screenRec.at) / 1000)); }
-      if (map !== c.map) guideEnter(map, crumbTime(t));
-      if (map !== c.map && isDungeon(map)) aionRun = { at: Date.now(), deaths: [], target: '', done: false }; // the same one loaded again (back in after a death) goes on
+      // the same dungeon loaded again: you came back in after dying or a wipe (a mark on its video, playing the minute
+      // before), or the game moved you on after a boss died (Shattered Arkanis, 8-9 Nov: 7 s to 2 minutes after each kill,
+      // and Again after the last one). With Live fight on it's coming back in only after your death; without it, only
+      // with no kill read in the 2 minutes before
+      const rr = map && map === c.map && screenRec && screenRec.run ? screenRec : null, s = rr ? Math.round((at - rr.at) / 1000) : 0;
+      if (rr && (opts.aionLive ? rr.deaths.some((d) => d.me && s - d.t <= 120) : !rr.kills.some((k) => k.t <= s && s - k.t <= 120))) { runMark(rr, at, 'Back in after a death', 60); rr.re.push(s); }
+      // a new run on entering, and on Again after a clear; back in after a death goes on
+      if ((map !== c.map || (aionRun && aionRun.clear)) && isDungeon(map)) aionRun = { at, deaths: [], target: '', done: false, clear: 0 };
       else if (map !== c.map && aionRun) aionRun.done = true;
+      if (map !== c.map) guideEnter(map, at);
       c.map = map;
     }
     const inside = isDungeon(c.map), run = screenRec && screenRec.run ? screenRec : null;
@@ -9438,7 +9487,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // bosses, kills, respawns, casts and health read.
   // ponytail: places measured on Rayan's 2560x1440 videos (6-7 Nov 2026) as shares of the screen; another UI size needs
   // measuring again. Nothing read by Tesseract at all (it failed): the gauge's fights are kept as before.
-  const RUN_AT = { name: [0.4492, 0.025, 0.1133, 0.0181], hp: [0.4219, 0.0479, 0.157, 0.0049], cast: [0.4375, 0.7861, 0.125, 0.0208], top: [0.3906, 0.0278, 0.2188, 0.0937],
+  // top reaches down to a Level 4 dungeon's "Transcendence Complete" (y 0.137-0.149 on Rayan's 8-9 Nov videos): its last boss's kill, with no Defeated banner
+  const RUN_AT = { name: [0.4492, 0.025, 0.1133, 0.0181], hp: [0.4219, 0.0479, 0.157, 0.0049], cast: [0.4375, 0.7861, 0.125, 0.0208], top: [0.3906, 0.0278, 0.2188, 0.13],
     quest: [0.8781, 0.25, 0.0121, 0.1111] }; // the quest tracker's gold diamond: its row (y 380-402 in a party dungeon, 478-500 in a challenge) has the dungeon's name
   const RUN_INK = { // how much a pixel is text, 0 to 1 (over 0.5 counts): kept soft for Tesseract, which reads the game's thin outlined letters better that way
     name: (r, g, b) => Math.max(r - Math.max(g, b) - 50, Math.min(r, g) - b - 60) / 80, // red: a higher level than you; yellow: yours
@@ -9493,8 +9543,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const s = text.replace(/[^A-Za-z' -]/g, '').replace(/\s+/g, ' ').trim(), k = augKey(s);
     if ((s.match(/[A-Za-z]/g) || []).length < 4) return '';
     let best = s, top = 0.75;
-    for (const n of new Set([...r.names.map((x) => x[1]), ...Object.values(runBosses()).flat()])) {
-      const v = k.includes(augKey(n)) ? 1 : 1 - lev(k, augKey(n)) / Math.max(k.length, augKey(n).length, 1); // a banner's misread first line before the name
+    const own = guide.map === r.map ? guide.bosses : []; // the dungeon's bosses (its guide files) win even read a bit worse: "B Ruthili Pain" is Ruthilis of Pain (8 Nov)
+    for (const n of new Set([...own, ...r.names.map((x) => x[1]), ...Object.values(runBosses()).flat()])) {
+      const v = (k.includes(augKey(n)) ? 1 : 1 - lev(k, augKey(n)) / Math.max(k.length, augKey(n).length, 1)) + (own.includes(n) ? 0.15 : 0); // a banner's misread first line before the name
       if (v > top) { top = v; best = n; }
     }
     return best;
@@ -9505,6 +9556,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (gauge && named) { // a boss you target: its name now and then, its health when it changes
       boss();
       const hp = runHp(runCrop(src, w, h, 'hp'));
+      if (hp !== null && !(t - r.hpAt <= 10 && hp <= r.hpLast + 20)) { r.nameAt = -99; r.barAt = t; } // another fight (after a gap, or back at full health): its name now, for Live fight (liveName)
       if (hp !== null && (hp !== r.hpLast || t - r.hpAt > 10)) { r.hpLast = hp; r.hp.push([t, hp]); } // and again after a gap: another fight
       if (hp !== null) r.hpAt = t;
       if (!(t - r.nameAt < 20)) { r.nameAt = t; runRead(r, runInk(nm, RUN_INK.name, 3), (s) => { const n = runName(r, s); if (n) r.names.push([t, n]); }); }
@@ -9520,14 +9572,19 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       }
       if (r.castOk === r.castAt) boss();
     } else r.castAt = 0;
-    if (t < 300 && !(t - r.questAt < 10) && isDungeon(r.map) && !aionMapNames[r.map]) { r.questAt = t; runQuest(r, src, w, h); }
+    if (guide.map === r.map && guide.dungeon) r.dungeon = guide.dungeon; // the guide's files name it (or you did)
+    else if (t < 300 && !(t - r.questAt < 10) && isDungeon(r.map) && !aionMapNames[r.map]) { r.questAt = t; runQuest(r, src, w, h); }
     if (named || runHp(runCrop(src, w, h, 'hp')) !== null) return; // the banner comes once the target's bar has gone (its own cyan line passes for the gauge)
     const top = runCrop(src, w, h, 'top'), white = runShare(top, RUN_INK.top);
     if (white > 0.01 && Math.abs(white - (r.topWas || 0)) > 0.002 && !(t - r.topAt < 2)) { // a banner, read when it changes
       r.topAt = t; r.topWas = white;
       runRead(r, runInk(top, RUN_INK.top, 2), (s) => {
-        const p = s.split(/\s*Defeated\b/), who = (p.length > 2 ? p[1] : p[0]).trim(); // "Boss Defeated" over "<name> Defeated"; not your own death
-        if (p.length > 1 && !/\b(you|been|were|was)\b/i.test(who) && !r.kills.some((k) => t - k.t < 10)) { r.kills.push({ t, name: /^boss$/i.test(who) ? '' : runName(r, who) }); r.seen = Date.now(); }
+        const p = s.split(/\s*Defeated\b/), who = (p.length > 2 ? p[1] : p[0]).trim(), done = /\bComplete\b/i.test(s) && t - (r.boss[r.boss.length - 1] ?? -99) <= 30; // "Boss Defeated" over "<name> Defeated"; not your own death; Complete only just after a boss
+        if ((done || (p.length > 1 && !/\b(you|been|were|was)\b/i.test(who))) && !r.kills.some((k) => t - k.t < (done ? 60 : 10))) { // the Complete screen stays up a while
+          r.kills.push({ t, name: done ? (guide.map === r.map && Object.keys(guide.seeds).pop()) || '' : /^boss$/i.test(who) ? '' : runName(r, who) }); // Complete: the guide's last boss
+          r.seen = Date.now();
+          runKilled(r.kills[r.kills.length - 1].name || (r.names[r.names.length - 1] || [])[1], done); // "Boss Defeated": the boss whose bar just went
+        }
       });
     }
   }
@@ -9540,7 +9597,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const [, y0, , qh] = RUN_AT.quest, mid = y0 + (qh * row) / H;
     runRead(r, runInk(runCrop(src, w, h, 'qtext', [0.8891, mid - 0.009, 0.1031, 0.018]), RUN_INK.gold, 3), (s) => {
       const n = s.replace(/[^A-Za-z' -]/g, '').replace(/\s+/g, ' ').trim(); // not a quest ("[Lv. 46] ...") nor an objective of the dungeon: one seen once
-      if (/^\[?\s*Lv/i.test(s) || n.length < 4 || aionMapNames[r.map]) return;
+      if (/^\W*[Il|]?\s*L[vy]\b/i.test(s) || n.length < 4 || aionMapNames[r.map]) return; // "[Lv" read as "ILy" too (Deus Research Base, 9 Nov)
       if (r.quest !== n) { r.quest = n; return; }
       aionMapNames[r.map] = n.slice(0, 40); // ponytail: a dungeon showing an objective from the start (Draupnir: "Forgotten Commander") gets that; renamed on the Recording page
       store.set('lpc-aion-maps', JSON.stringify(aionMapNames));
@@ -9584,7 +9641,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       const at = (t) => { if (!cut) return t; let o = 0; for (const [a, z] of parts) { if (t >= a && t <= z) return o + t - a; o += z - a; } return null; }; // a second of the run in the saved video
       const keep = (l, f) => l.map((x) => { const s = at(x.t ?? x[0]); return s === null ? null : f(x, s); }).filter((x) => x !== null);
       const tl = { // the run's timeline beside its video, times in seconds of that video (parts: what was kept of the whole run)
-        game: 'Aion 2', map, dungeon: aionMapNames[map] || null, start: new Date(r.at).toISOString(), parts: cut ? parts : null,
+        game: 'Aion 2', map, dungeon: r.dungeon || aionMapNames[map] || null, start: new Date(r.at).toISOString(), parts: cut ? parts : null,
         bosses: fights.map((f, k) => ({ name: label(k), from: at(f.a), to: at(f.z), kill: f.kill === null ? null : at(f.kill), hp: keep(r.hp.filter(([t]) => t >= f.a && t <= f.z), (x, s) => [s, x[1]]) })),
         kills: keep(r.kills, (x, s) => ({ t: s, name: x.name || null })), respawns: keep(r.re.map((t) => ({ t })), (x, s) => s),
         casts: keep(r.casts, (x, s) => ({ t: s, name: x.name, secs: x.secs })), marks: vidMarks[name] || [],
@@ -9606,6 +9663,42 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       const had = r.deaths.filter((d) => d.name === p.name && d.t >= since).length;
       for (let i = had; i < (p.deaths | 0) && r.deaths.length < 500; i++) r.deaths.push({ t, name: p.name, me: !!p.me });
     }
+  }
+  function runFought(f) { // a fight Live fight finished: a boss kill the screen didn't read (Talisra, 8-9 Nov: no Defeated banner) goes on the run's video
+    const r = screenRec && screenRec.run ? screenRec : null, z = r ? Math.round((f.at - r.at) / 1000 + f.secs) : 0;
+    if (!f.killed || !f.target) return;
+    if (r && r.boss.some((t) => t >= z - f.secs && t <= z) && !r.kills.some((k) => Math.abs(k.t - z) < 15)) r.kills.push({ t: z, name: f.target });
+    runKilled(f.target);
+  }
+  function runKilled(name, done) { // a boss died (its banner, or Live fight's kill): the dungeon's last one (its guide's), or a Level 4's Complete screen, clears it
+    const last = guide.map === (crumb && crumb.map) && Object.keys(guide.seeds).pop();
+    if (done || (last && name && sameBoss(name, last))) runClear();
+  }
+  // ---- the run card (Rayan's runs 5-9 Nov, idea 4): on a clear, the overlay shows for 30 s its time against your best
+  // there, each boss's time, your DPS on them against your usual, your deaths, and a note when your DPS is 20% under
+  // the night's first clears. Clears in lpc-aion-clears (newest 300); the Recording page lists them by day.
+  let runCard = null; // { at, lines }
+  function runClear() {
+    const a = aionRun, map = crumb && crumb.map, dungeon = (guide.map === map && guide.dungeon) || aionMapNames[map] || `Dungeon ${map}`;
+    if (!a || a.clear || a.done) return;
+    a.clear = Date.now();
+    setTimeout(() => { // Live fight saves a kill 3 s after the last hit
+      const won = aionHist.filter((f) => f.target && f.killed && f.at >= a.at && f.at < a.clear).sort((x, y) => x.at - y.at), me = (f) => (f.players || []).find((p) => p.me);
+      const end = won.length ? Math.max(...won.map((f) => f.at + f.secs * 1000)) : a.clear, dmg = won.reduce((n, f) => n + ((me(f) || {}).damage || 0), 0), secs = won.reduce((n, f) => n + f.secs, 0);
+      const c = { at: a.at, map, dungeon, secs: Math.round((end - a.at) / 1000), dps: dmg && secs ? Math.round(dmg / secs) : null,
+        deaths: opts.aionLive ? a.deaths.filter((d) => d.me).length : null, bosses: won.map((f) => ({ name: f.target, secs: f.secs, dps: (me(f) || {}).dps ?? null })) };
+      const old = load('lpc-aion-clears', []), same = old.filter((x) => x.map === map), best = same.length ? Math.min(...same.map((x) => x.secs)) : null;
+      const usual = same.filter((x) => x.dps).slice(0, 20).map((x) => x.dps), night = same.filter((x) => x.dps && c.at - x.at < 6 * 36e5).reverse().slice(0, 2);
+      const lines = [`${dungeon} cleared in ${mmss(c.secs)}${best == null || c.secs <= best ? ', your best' : `, best ${mmss(best)}`}`];
+      if (c.bosses.length) lines.push(c.bosses.map((b) => `${b.name} ${mmss(b.secs)}`).join(' · '));
+      const u = usual.length >= 3 ? runMid(usual) : null, n = night.length === 2 ? (night[0].dps + night[1].dps) / 2 : null;
+      if (c.dps) lines.push(`Your DPS ${bigNum(c.dps)}${u ? ` (usual ${bigNum(u)}, ${c.dps >= u ? '+' : ''}${Math.round((100 * (c.dps - u)) / u)}%)` : ''}${c.deaths != null ? ` · ${c.deaths} death${c.deaths === 1 ? '' : 's'}` : ''}`);
+      if (c.dps && n && c.dps < 0.8 * n) lines.push(`Your DPS is ${Math.round(100 - (100 * c.dps) / n)}% under tonight’s first clears (${bigNum(Math.round(n))})`);
+      store.set('lpc-aion-clears', JSON.stringify([c, ...old].slice(0, 300)));
+      runCard = { at: Date.now(), lines };
+      pushOverlay();
+      setTimeout(pushOverlay, 30100);
+    }, 6000);
   }
   const RUN_TOWN = new Set([0, 901, 1010, 1110]); // the lobby, character select and the two towns (Rayan's log, 16 Oct to 5 Nov)
   let runSpot = 0, runNo = {}; // seconds in a row with a boss bar outside a dungeon; maps where one turned out not to be a boss: until when
@@ -9718,13 +9811,27 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('aionNext').textContent = `Practise next: ${n.name}. ` + (n.top ? `${n.top[1]} of your ${n.deaths} death${n.deaths > 1 ? 's' : ''} there came during ${n.top[0]}.`
       : n.deaths || n.tries > n.killed ? `${n.deaths} death${n.deaths === 1 ? '' : 's'} and ${n.tries - n.killed} tr${n.tries - n.killed === 1 ? 'y' : 'ies'} without a kill in ${n.tries}.`
       : n.mid != null ? `No deaths there; your usual kill (${mmss(n.mid)}) is ${mmss(n.mid - n.best)} slower than your best.` : 'No deaths there.');
+    const have = new Set(vidsList.filter((v) => !v.rec).map((v) => v.name)), reels = {};
+    // the death reel (idea 5, 9 Nov): the 10 s before each of your deaths to a boss (Live fight's), in the videos still here
+    for (const [name, tl] of Object.entries(aionRunTl)) if (have.has(name)) for (const d of runDeathsOf(tl)) {
+      const b = d.me && !d.re ? runBossAt(tl, d) : null; // not each time you came back in: the death's moment isn't known
+      if (!b || !runNamed(b)) continue;
+      const c = runCastAt(tl, d), l = (reels[b.name] = reels[b.name] || []);
+      if (!l.length || l[l.length - 1][0] !== name) l.push([name, []]); // [video, marks], newest video first
+      l[l.length - 1][1].push({ s: d.t, from: Math.max(0, d.t - 10), text: c ? `You died during ${c}` : 'You died' });
+    }
     $('aionPractice').replaceChildren(...rows.slice(0, 8).map((o) => {
-      const tr = document.createElement('tr');
-      tr.append(...[o.name, o.tries, o.killed, o.deaths, o.best != null ? mmss(o.best) : '–', o.mid != null ? mmss(o.mid) : '–', o.top ? `${o.top[0]} (${o.top[1]})` : '–'].map((v) => Object.assign(document.createElement('td'), { textContent: v })));
+      const tr = document.createElement('tr'), l = reels[o.name] || [], k = l.reduce((n, x) => n + x[1].length, 0);
+      tr.append(...[o.name, o.tries, o.killed, o.deaths, o.best != null ? mmss(o.best) : '–', o.mid != null ? mmss(o.mid) : '–', o.top ? `${o.top[0]} (${o.top[1]})` : '–', '–'].map((v) => Object.assign(document.createElement('td'), { textContent: v })));
+      if (k) {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: `▶ ${k}`, title: `The 10 s before each of your ${k} death${k > 1 ? 's' : ''} to ${o.name}` });
+        b.addEventListener('click', () => { reelNext = l.slice(1); playGame(...l[0]); });
+        tr.lastChild.replaceChildren(b);
+      }
       return tr;
     }));
     // side by side: tries at a boss whose videos are still here
-    const have = new Set(vidsList.filter((v) => !v.rec).map((v) => v.name)), tries = {};
+    const tries = {};
     for (const [name, tl] of Object.entries(aionRunTl)) if (have.has(name)) tl.bosses.forEach((b, k) => { if (runNamed(b)) (tries[b.name] = tries[b.name] || []).push({ id: `${k}|${name}`, name, b, start: tl.start }); });
     vsTries = Object.fromEntries(Object.entries(tries).filter(([, l]) => l.length > 1));
     $('vsBox').hidden = !Object.keys(vsTries).length;
@@ -9855,7 +9962,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const meAs = () => myName || `Player ${slot + 1}`; // as others' Who lists name you
   function guideLines() { // the overlay's guide card, or null
     if (league || overlayHide || guideHide) return null;
-    const now = Date.now(), l = [], c = opts.aionGuide && guide.cast && now < guide.cast.end + 1000 ? guide.cast : null, rd = raidNow();
+    const now = Date.now(), l = runCard && now - runCard.at < 30000 ? [...runCard.lines] : [], c = opts.aionGuide && guide.cast && now < guide.cast.end + 1000 ? guide.cast : null, rd = raidNow();
     if (opts.aionGuide && guide.at && now - guide.at < 30000 && guide.bosses.length) l.push(`${guide.dungeon || 'Bosses'}: ${guide.bosses.join(' › ')}`);
     if (c) l.push(`${c.name}${c.secs ? ` ${Math.max(0, Math.ceil((c.end - now) / 1000))} s` : ''}${c.note ? ` · ${c.note}` : ''}`);
     for (const x of guide.calls) if (now - x.at < 5000 && !(c && x.text.startsWith(c.name))) l.push(x.text);
@@ -9991,7 +10098,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // its map number.
   // ponytail: reads every log each time the page opens (about 50 KB a day of play); keep a summary if it gets slow
   let aionMapNames = load('lpc-aion-maps', {});
-  function crumbRuns(texts) { // -> { runs: [{ map, name, at, end, re (respawns) }], play: ms in the game per file [[at, end]] }
+  function crumbRuns(texts, idx = {}) { // -> { runs: [{ map, name, at, end, re (the same map loaded again) }], play: ms in the game per file [[at, end]]; idx: the guide's names
     const runs = [], play = [];
     for (const text of texts) {
       let cur = null, a = 0, z = 0;
@@ -10008,16 +10115,16 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       if (cur) { cur.end = z; runs.push(cur); }
       if (z > a) play.push([a, z]);
     }
-    for (const r of runs) r.name = aionMapNames[r.map] || `Dungeon ${r.map}`;
+    for (const r of runs) r.name = aionMapNames[r.map] || (idx[r.map] && idx[r.map].dungeon) || `Dungeon ${r.map}`;
     return { runs: runs.sort((x, y) => x.at - y.at), play };
   }
   async function loadAionRuns() {
     const texts = client && client.aionLog ? await client.aionLog('*').catch(() => null) : null;
     $('aionRunsBox').hidden = !Array.isArray(texts) || !texts.length;
     if ($('aionRunsBox').hidden) return;
-    const { runs, play } = crumbRuns(texts), week = Date.now() - 7 * 864e5, mid = (l) => l.slice().sort((a, b) => a - b)[l.length >> 1];
+    const { runs, play } = crumbRuns(texts, await guideIndex()), week = Date.now() - 7 * 864e5, mid = (l) => l.slice().sort((a, b) => a - b)[l.length >> 1];
     const wk = runs.filter((r) => r.at > week), hours = play.reduce((n, [a, z]) => n + Math.max(0, z - Math.max(a, week)), 0) / 36e5;
-    $('aionWeek').textContent = `Last 7 days: ${wk.length} dungeon run${wk.length === 1 ? '' : 's'}, ${hours.toFixed(1)} hours with Aion 2 open, ${wk.reduce((n, r) => n + r.re, 0)} respawns in dungeons.`;
+    $('aionWeek').textContent = `Last 7 days: ${wk.length} dungeon run${wk.length === 1 ? '' : 's'}, ${hours.toFixed(1)} hours with Aion 2 open, ${wk.reduce((n, r) => n + r.re, 0)} map reloads in dungeons (after a death, or moving on after a boss).`;
     const by = new Map();
     for (const r of runs) if (r.end - r.at > 120000) (by.get(r.map) || by.set(r.map, []).get(r.map)).push(r); // under 2 minutes: went in and straight out
     $('aionRuns').replaceChildren(...[...by.values()].sort((x, y) => y.length - x.length).map((l) => {
@@ -10032,6 +10139,14 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       const cells = [l.length, mmss(Math.min(...t)), mmss(mid(t)), (l.reduce((n, r) => n + r.re, 0) / l.length).toFixed(1)].map((v) => Object.assign(document.createElement('td'), { textContent: v }));
       tr.append(Object.assign(document.createElement('td'), {}), ...cells);
       tr.firstChild.append(name);
+      return tr;
+    }));
+    const days = new Map(); // the run cards' clears (lpc-aion-clears, newest first), the last 14 days
+    for (const c of load('lpc-aion-clears', [])) if (c.at > Date.now() - 14 * 864e5) { const k = `${new Date(c.at).toLocaleDateString()}|${c.map}`; (days.get(k) || days.set(k, []).get(k)).push(c); }
+    $('aionClearsBox').hidden = !days.size;
+    $('aionClears').replaceChildren(...[...days].slice(0, 20).map(([k, l]) => {
+      const tr = document.createElement('tr'), t = l.map((c) => c.secs), d = l.filter((c) => c.dps).map((c) => c.dps);
+      tr.append(...[k.split('|')[0], l[0].dungeon, l.length, mmss(Math.min(...t)), mmss(mid(t)), d.length ? bigNum(Math.round(d.reduce((n, v) => n + v, 0) / d.length)) : '–'].map((v) => Object.assign(document.createElement('td'), { textContent: v })));
       return tr;
     }));
   }
@@ -10187,7 +10302,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // video, so it opens in your video player instead.
   // Watch (no marks) plays the whole video with its highlights on the timeline.
   // ponytail: apps before 1.19 read the whole video into memory (clipBytes); 1.19 streams it (client.media)
-  let reel = [];
+  let reel = [], reelNext = []; // reelNext: [[video, marks]] played after this one's (the death reel)
   function reelOf(marks) { // [[from, to] s] each highlight plays, overlapping ones joined; from: a dungeon run's fight starts there
     const out = [];
     for (const m of marks) { const last = out[out.length - 1], a = Math.max(0, m.from ?? m.s - 10), z = m.s + 5; if (last && a <= last[1]) last[1] = Math.max(last[1], z); else out.push([a, z]); }
@@ -10206,7 +10321,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function nextMark() {
     const r = reel.shift(), d = Number.isFinite(vid.duration) ? vid.duration : 0;
-    if (!r) return;
+    if (!r) { if (reelNext.length) playGame(...reelNext.shift()); return; }
     $('trimFrom').value = Math.min(r[0], d);
     $('trimTo').value = Math.min(r[1], d);
     showTrim();
@@ -10691,7 +10806,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     }
     edReset();
     showEdit(false);
-    clipDlg.showModal();
+    if (!clipDlg.open) clipDlg.showModal(); // the death reel's next video opens in it
     return true;
   }
   async function playClip(name) {
@@ -10913,6 +11028,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('trimFrom').addEventListener('input', () => { $('trimFrom').value = Math.min(+$('trimFrom').value, +$('trimTo').value - 1); vid.currentTime = +$('trimFrom').value; showTrim(); });
   $('trimTo').addEventListener('input', () => { $('trimTo').value = Math.max(+$('trimTo').value, +$('trimFrom').value + 1); vid.currentTime = +$('trimTo').value; showTrim(); });
   vid.addEventListener('timeupdate', () => { if (!vid.paused && +$('trimTo').value < vid.duration - 0.5 && vid.currentTime >= +$('trimTo').value) { vid.pause(); nextMark(); } });
+  vid.addEventListener('ended', () => { if (reel.length || reelNext.length) nextMark(); }); // a highlight running to the video's end
   // the cut, from the bytes in memory, or (streamed) from the video's first MB and the part around the cut
   // ponytail: guesses where the cut is in a streamed file from its share of the length (the bit rate barely moves),
   // with 20 s to spare on each side
@@ -10945,6 +11061,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('clipClose').addEventListener('click', () => clipDlg.close());
   clipDlg.addEventListener('close', () => {
     reel = [];
+    reelNext = [];
     stripRun++;
     strip.removeAttribute('src');
     strip.load();
@@ -15911,7 +16028,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
-    [141, 'November 8: every Aion 2 skill has its name on the DPS meter', [
+    [142, 'November 9: Aion 2 runs that know Shattered Arkanis', [
+      'Level 4 (Transcendence) dungeons like Shattered Arkanis now count as dungeons: they record from going in, get the dungeon guide and their deaths add up per run. The last boss’s kill is read off the Transcendence Complete screen (or Live fight), so Talisra of the Void’s fights stay in the video. The reload after each boss dies is no longer counted as coming back after a death.',
+      'Live fight’s boss fights get their boss’s name off the screen while a run records, so the Pull log and your pace are per boss, and boss fights are kept past the newest 200 fights.',
+      'When a dungeon’s last boss dies, the overlay shows your clear time against your best, each boss’s time, your DPS against your usual and your deaths, and warns when your DPS has dropped 20% over the night. The Recording page lists your clears by day.',
+      'Boss practice has a ▶ for your deaths: the 10 seconds before each of your deaths to that boss, one after another. The dungeon guide has Shattered Arkanis and Deus Research Base, with Talisra’s Refracting Spear and Cast Fall.',
+    ]],
+    [141,'November 8: every Aion 2 skill has its name on the DPS meter', [
       'The DPS meter named every skill on NC’s character pages, but chain skills those pages leave out showed as numbers, like “Skill 11420000”. All 51 of them now have their names (11420000 is Gladiator’s Smashing Blow, 11440000 is Upward Strike), on the pop-up, your room and the Aion 2 DPS page. They have no icon yet.',
     ]],
     [140, 'November 8: Aion 2 deaths count the whole dungeon', [
@@ -16638,13 +16761,13 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Aion 2 page: DPS, Pop out (with Live fight on). Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
       ['Aion 2 rotation tests', 'With Live fight on, name a test, hit a training dummy, and each fight you finish is a run: the DPS page shows each test’s average DPS, opener (0-10 s) and burst (10-20 s) damage and top skills against the test before it. Same gear, change one thing, 3-5 runs of about 3 minutes.',
         'Aion 2 page: DPS, Rotation tests, or the flask on the DPS pop-up. Stop hitting for 30 s to end a run.', '#aionFrame', 'app'],
-      ['Aion 2 pull log', 'Every attempt at each boss from Live fight (HP left, time, deaths, party DPS) with your best, and on the DPS pop-up your pace against your fastest kill at the same second.',
+      ['Aion 2 pull log', 'Every attempt at each boss from Live fight (HP left, time, deaths, party DPS) with your best, and on the DPS pop-up your pace against your fastest kill at the same second. Live fight names only players, so while a dungeon run records, each boss fight gets its boss’s name off the screen, and boss fights are kept past the newest 200 fights.',
         'Aion 2 page: DPS, Pull log. The pace shows on the pop-up’s boss HP once you’ve killed that boss with Live fight on.', '#aionFrame', 'app'],
       ['Aion 2 DPS in your voice room', 'The live fight meter in your room’s Current room card, the same as the DPS pop-up, so it’s there while you talk: the boss’s HP and a bar per player with DPS, share and deaths, Total damage, compact mode and top skills on a click. Its pop-out button opens the DPS pop-up over the game.',
         'In your room, Current room card, Aion 2 DPS, once you’ve picked your Aion 2 characters and outside a League game. Live fight has to be on (Aion 2 page, DPS).', '#roomDps, #createBtn', 'app'],
       ['Aion 2 DPS tracker', 'While Aion 2 is open, the app reads each fight off the game’s own Combat Analysis (Ctrl+X) once its numbers stop: battle time, DPS, total damage, target and top skills. The DPS page charts your best DPS each day and shows your friends’ best next to yours. It reads only Aion 2’s window, as you see it. With Live fight on, it also names the skills Aion 2’s website doesn’t list.',
         'On by itself once you’ve picked your Aion 2 characters: open Combat Analysis for a few seconds after a fight. Open Aion 2, DPS, to see them or turn it off. Aion 2 in Borderless or Windowed mode.', '#aionFrame', 'app'],
-      ['Aion 2 dungeon guide', 'In each Aion 2 dungeon the overlay lists its bosses as you go in. When a boss starts a big cast, it says what to do and counts down, and it calls a cast a little before the boss’s health gets to it. Each boss’s casts come from recorded runs (Ferocious Horn Den’s and more from Rayan’s), every run you record adds to them, and you write your own note per cast.',
+      ['Aion 2 dungeon guide', 'In each Aion 2 dungeon the overlay lists its bosses as you go in. When a boss starts a big cast, it says what to do and counts down, and it calls a cast a little before the boss’s health gets to it. Each boss’s casts come from recorded runs (Ferocious Horn Den’s, Shattered Arkanis’ and Deus Research Base’s and more from Rayan’s), every run you record adds to them, and you write your own note per cast.',
         'Aion 2 overlay page, Aion 2 dungeon guide, on by default, with Read Aion 2 callouts out loud. Casts are read while Each Aion 2 dungeon run records; the overlay needs Aion 2 in Borderless window mode.', '#aionGuideBox, #optAionGuide', 'app'],
       ['Aion 2 raid roles', 'A raid sheet in your room: jobs given to players (red orb, orb interceptors, Soul Stone breaker, caller) and callouts at the boss’s health, like a tile phase at 50% and 25%. Everyone in the room sees the sheet and can change it; over Aion 2 each player’s overlay shows only their own jobs, and the callouts 5% before and at each mark.',
         'In your room, Current room card, Raid roles (under Aion 2 DPS). Ludra’s usual jobs and marks fills it from community guides, not checked in game yet. The callouts need Live fight on, or a run recording with the boss targeted.', '#raidBox, #raidLudra', 'app'],
@@ -16829,14 +16952,16 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
-      ['Record each Aion 2 dungeon run', 'Every party, daily and challenge dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality, and cut down to just its boss fights when it ends: each from 10 seconds before the pull to just after its Boss Defeated banner, named after its boss, with menus, elites and walking left out, and the dungeon named from your quest tracker. A boss fight on any other map (a field boss, new content) is recorded too. Premade reads the boss’s name, health bar, cast bar and banner off the game’s picture and knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page, each boss fight marked, with a timeline file beside each (bosses, kills, respawns, casts with their countdowns, health).',
+      ['Record each Aion 2 dungeon run', 'Every party, daily, challenge and Level 4 (Transcendence) dungeon you run in Aion 2 is recorded by itself, from going in until you leave, at your Recording quality, and cut down to just its boss fights when it ends: each from 10 seconds before the pull to just after its Boss Defeated banner (a Level 4’s last boss: its Transcendence Complete screen, or Live fight’s kill), named after its boss, with menus, elites and walking left out, and the dungeon named from your quest tracker. A boss fight on any other map (a field boss, new content) is recorded too. Premade reads the boss’s name, health bar, cast bar and banner off the game’s picture and knows from the game’s own log which map you’re on, so nothing touches the game. The videos are on the Recording page, each boss fight marked, with a timeline file beside each (bosses, kills, respawns, casts with their countdowns, health).',
         'Recording in the menu: Each Aion 2 dungeon run and Keep only the boss fights (both on by default). Turn the second off to keep whole runs.', '#optAionRec, #optAionBoss', 'app'],
-      ['Aion 2 dungeon times and weekly recap', 'Every dungeon run since you started Aion 2, from the game’s own log: how many runs, your best and usual time and respawns a run for each dungeon, and your last 7 days (runs, hours, respawns). Each run’s video marks the moments you came back in after dying and your Combat Analysis fights, and ▶ Highlights plays only those.',
+      ['Aion 2 dungeon times and weekly recap', 'Every dungeon run since you started Aion 2, from the game’s own log: how many runs, your best and usual time and map reloads a run for each dungeon (after a death, or the game moving you on after a boss), and your last 7 days (runs, hours, reloads). Each run’s video marks the moments you came back in after dying (not the reloads after a boss dies) and your Combat Analysis fights, and ▶ Highlights plays only those.',
         'Recording in the menu: Aion 2 dungeons, under Your recordings. Click a dungeon to give it a name.', '#aionRunsBox', 'app'],
       ['Aion 2 run review', 'Under each Aion 2 run on the Recording page, a strip of the run: its boss fights (gold once killed), the bosses’ casts and each death, with every boss’s time from the pull to the kill against your best and the cast that was up at each death, like “2 of 3 deaths during Blue Light of Destruction”. Click a fight or a death to watch it. Deaths come from Live fight when it’s on, otherwise from each time you came back in.',
         'Recording in the menu: Your recordings. Runs recorded from this update on have it.', '#recList', 'app'],
-      ['Aion 2 boss practice', 'Every boss in your recorded runs: tries, kills, deaths, your best and usual time and the cast that cost you the most deaths, with the boss and cast to practise next at the top.',
-        'Recording in the menu: Aion 2 boss practice, once a recorded run has a boss fight.', '#aionReviewBox', 'app'],
+      ['Aion 2 boss practice', 'Every boss in your recorded runs: tries, kills, deaths, your best and usual time and the cast that cost you the most deaths, with the boss and cast to practise next at the top. Your deaths’ ▶ plays the 10 seconds before each of your deaths to that boss, one after another, with the cast that was up.',
+        'Recording in the menu: Aion 2 boss practice, once a recorded run has a boss fight. The deaths come from Live fight.', '#aionReviewBox', 'app'],
+      ['Aion 2 run card and clears by day', 'When a dungeon’s last boss dies, the overlay shows for 30 seconds your clear time against your best there, each boss’s time, your DPS on the bosses against your usual and your deaths, and says so when your DPS is 20% or more under your first clears that night. The Recording page lists your clears by day: how many, best and usual time and your DPS.',
+        'By itself over Aion 2 in a dungeon with a guide (the Aion 2 overlay page lists them); boss times and DPS need Live fight on. Recording in the menu: Aion 2 dungeons, Clears by day.', '#aionClearsBox', 'app'],
       ['Aion 2 runs side by side', 'Two of your tries at the same boss, say your best kill and your last wipe, playing side by side from the pull, so you can see what you did differently at the same second.',
         'Recording in the menu: Aion 2 boss practice, Side by side. Pick the boss and two tries, then Play both from the pull.', '#vsBox', 'app'],
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',

@@ -71,7 +71,12 @@ function fakeApp(port) {
     // 45: practice
     await page.waitForSelector('#aionReviewBox:not([hidden])');
     const rows = await page.$$eval('#aionPractice tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));
-    assert.deepStrictEqual(rows, [['Nuakum', '2', '1', '3', '1:05', '1:05', 'Blue Light of Destruction (2)'], ['Duanka', '1', '1', '0', '0:35', '0:35', '–']], 'per boss: tries, kills, your deaths (not Sam’s), best, usual, costliest cast');
+    assert.deepStrictEqual(rows, [['Nuakum', '2', '1', '3', '1:05', '1:05', 'Blue Light of Destruction (2)', '▶ 2'], ['Duanka', '1', '1', '0', '0:35', '0:35', '–', '–']], 'per boss: tries, kills, your deaths (not Sam’s), best, usual, costliest cast, your deaths on video (Live fight’s, not coming back in)');
+    // the death reel: from 10 s before your first death to Nuakum, then the next
+    await page.click('#aionPractice tr:first-child button');
+    await page.waitForFunction(() => document.getElementById('clipDlg').open && Math.abs(document.querySelector('#clipDlg video').currentTime - 100) < 1.5, null, { timeout: 10000 });
+    await page.waitForFunction(() => +document.getElementById('trimFrom').value === 120, null, { timeout: 25000 }); // the second (138 s) is past this 2-minute stand-in's end
+    await page.evaluate(() => document.getElementById('clipDlg').close());
     assert.strictEqual(await page.textContent('#aionNext'), 'Practise next: Nuakum. 2 of your 3 deaths there came during Blue Light of Destruction.');
     // 37: side by side, from the pull
     assert.deepStrictEqual(await page.$$eval('#vsBoss option', (l) => l.map((o) => o.value)), ['Nuakum'], 'only a boss with two tries still on the PC');

@@ -74,6 +74,11 @@ const snap = (target, secs, killed) => ({ active: true, target, secs, pct: targe
     await kill(30); await kill(33);
     const pace = await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-pace')).Nuakum);
     assert.deepStrictEqual([pace.secs, pace.hp[0], pace.hp[10], pace.hp.length], [30, 100, 70, 31], 'the fastest kill, HP each second');
+    // a boss fight with no name for its first seconds (Live fight names players only; the screen names it a moment in): its pace from the pull
+    await page.evaluate((s) => { for (const x of s) emit('aion-live', x); }, [...Array.from({ length: 31 }, (_, i) => ({ ...snap('Nuakum', i), target: i < 5 ? '' : 'Gelcos' })), { ...snap('Nuakum', 31, true), target: 'Gelcos' }]);
+    await page.evaluate((f) => emit('aion-fight', { ...f, target: 'Gelcos', killed: true, at: Date.now() }), snap('Nuakum', 31, true));
+    const gel = await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-aion-pace')).Gelcos);
+    assert.deepStrictEqual([gel.secs, gel.hp[0], gel.hp.length], [31, 100, 32], 'named a few seconds in, its pace still starts at the pull');
     // the pop-up: 10 s in at 65% is 5% ahead of the best kill's 70%
     const meter = await ctx.newPage();
     meter.on('pageerror', (e) => errors.push(e.message));
