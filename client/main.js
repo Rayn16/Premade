@@ -1462,7 +1462,7 @@ function saveBounds() {
 // The combo trainer (app 1.15) asks the same of League's usual keys while the page wants it in a Practice Tool game:
 // abilities, summoner spells, items and right clicks, each press sent as { k, t } (t in ms), but not Ctrl+Q and the
 // like, which level up an ability.
-const VK = { Mouse3: 4, Mouse4: 5, Mouse5: 6, Tab: 9, CapsLock: 0x14, Space: 0x20, Backquote: 0xc0, ShiftLeft: 0xa0, ShiftRight: 0xa1, ControlLeft: 0xa2, ControlRight: 0xa3, AltLeft: 0xa4, AltRight: 0xa5 };
+const VK = { Mouse3: 4, Mouse4: 5, Mouse5: 6, Tab: 9, CapsLock: 0x14, Space: 0x20, Backquote: 0xc0, ShiftLeft: 0xa0, ShiftRight: 0xa1, ControlLeft: 0xa2, ControlRight: 0xa3, AltLeft: 0xa4, AltRight: 0xa5, PageUp: 0x21, PageDown: 0x22, End: 0x23, Home: 0x24, Insert: 0x2d, Delete: 0x2e };
 function vk(code) {
   let m;
   if ((m = /^Key([A-Z])$/.exec(code))) return m[1].charCodeAt(0);
@@ -1492,7 +1492,7 @@ ipcMain.handle('keys', (e, k) => {
   // the overlay key on Windows is read like push to talk, not as a hotkey: Windows fires a hotkey only with exactly its
   // modifiers down, so Alt+V did nothing while Shift or Ctrl was also held (attack move, levelling up an ability) or
   // when another app had taken it. Its keys down, others allowed, counts once per press.
-  const hot = typeof k.overlay === 'string' && /^((Ctrl|Alt|Shift)\+)*([A-Z]|\d|F\d{1,2})$/.test(k.overlay) ? k.overlay.split('+') : [];
+  const hot = typeof k.overlay === 'string' && /^((Ctrl|Alt|Shift)\+)*([A-Z]|\d|F\d{1,2}|PageUp|PageDown|Home|End|Insert|Delete)$/.test(k.overlay) ? k.overlay.split('+') : [];
   const hotKey = hot.length ? vk(hot[hot.length - 1].replace(/^([A-Z])$/, 'Key$1').replace(/^(\d)$/, 'Digit$1')) : 0;
   const hotMods = hot.slice(0, -1).map((m) => ({ Ctrl: 0x11, Alt: 0x12, Shift: 0x10 })[m]);
   if (process.platform === 'win32') {
@@ -1520,7 +1520,7 @@ ipcMain.handle('keys', (e, k) => {
       // app 1.45.1: while a Change button waits for keys ({ capture: true }), the keys pressed are read here too and sent
       // as 'combo:Alt+Z': keys another app took as its hotkey (NVIDIA's Alt+Z, Alt+R, Alt+F1...) never reach the page
       if (k.capture) {
-        const CAP = [...Array(26)].map((x, i) => [String.fromCharCode(65 + i), 65 + i]).concat([...Array(10)].map((x, i) => [String(i), 0x30 + i]), [...Array(12)].map((x, i) => ['F' + (i + 1), 0x70 + i]));
+        const CAP = [...Array(26)].map((x, i) => [String.fromCharCode(65 + i), 65 + i]).concat([...Array(10)].map((x, i) => [String(i), 0x30 + i]), [...Array(12)].map((x, i) => ['F' + (i + 1), 0x70 + i]), Object.entries(VK).slice(-6)); // app 1.45.2: PageUp to Delete too
         const was = new Set(CAP.filter(([, c]) => keyState(c) & 0x8000).map(([n]) => n));
         const capTimer = setInterval(() => {
           if (win.isDestroyed()) return;
@@ -1529,7 +1529,7 @@ ipcMain.handle('keys', (e, k) => {
             if (was.has(n)) continue;
             was.add(n);
             const mods = [[0x11, 'Ctrl'], [0x12, 'Alt'], [0x10, 'Shift']].filter(([m]) => keyState(m) & 0x8000).map(([, m]) => m);
-            if (win.isFocused() && (mods.length || n[0] === 'F' && n.length > 1)) win.webContents.send('key', 'combo:' + [...mods, n].join('+'));
+            if (win.isFocused() && (mods.length || /^(F\d+|PageUp|PageDown|Insert)$/.test(n))) win.webContents.send('key', 'combo:' + [...mods, n].join('+'));
           }
         }, 15);
         clearInterval(pttTimer);
