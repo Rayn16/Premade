@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('lpcClient', {
   notify: (title, body, action) => ipcRenderer.send('notify', String(title || ''), String(body || ''), action && typeof action === 'object' ? action : null),
   overlay: (state) => ipcRenderer.send('overlay', state),
   overlayDone: () => ipcRenderer.send('overlay-done'),
+  overlayMouse: (on) => ipcRenderer.send('overlay-mouse', !!on), // app 1.46: Aion 2's panels
+  overlayProg: (m) => ipcRenderer.send('overlay-prog', m && typeof m === 'object' ? { id: String(m.id || ''), x: +m.x, y: +m.y, open: m.open, go: m.go ? String(m.go) : '' } : null),
   discord: (state) => ipcRenderer.send('discord', state),
   update: () => ipcRenderer.send('update'),
   lcu: (method, path, body) => ipcRenderer.invoke('lcu', method, path, body),

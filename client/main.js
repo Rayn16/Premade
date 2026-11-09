@@ -695,7 +695,9 @@ function hider() {
 // 300x360 times the page's scale, at a corner (pos) or where it was dragged (box: fractions of the screen). While the
 // page moves it (edit) it takes the mouse so it can be dragged, and says where it was left (overlay-moved). With
 // everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
-let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, moveTimer = null, overlayRevision = 0;
+// With Aion 2's panels on it (prog, app 1.46) the mouse still goes through to the game, but the page hears it move and
+// takes it while it's over a panel (overlay-mouse), so a panel can be opened, closed, dragged and clicked.
+let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, passing = false, moveTimer = null, overlayRevision = 0;
 const display = async () => {
   if (overlayState.any && frontDisplay) return frontDisplay; // who's talking in another game: on that game's screen
   const s = chosen(await screens(false));
@@ -756,9 +758,10 @@ async function placeOverlay(s, revision = ++overlayRevision) {
     keepUp(overlay, () => base + 'overlay.html', 'overlay');
     loadFresh(overlay, base + 'overlay.html');
   }
-  if (editing !== !!s.edit) {
+  if (editing !== !!s.edit || passing !== !!s.prog) {
     editing = !!s.edit;
-    overlay.setIgnoreMouseEvents(!editing);
+    passing = !!s.prog;
+    overlay.setIgnoreMouseEvents(!editing, { forward: passing && !editing });
     overlay.setFocusable(editing);
   }
   const k = Math.min(2, Math.max(0.7, +s.scale || 1)), box = s.pos === 'custom' && s.box && Number.isFinite(s.box.x) && Number.isFinite(s.box.y) ? s.box : null;
@@ -779,6 +782,9 @@ async function placeOverlay(s, revision = ++overlayRevision) {
   overlay.showInactive();
 }
 ipcMain.on('overlay-done', (e) => { if (fromSite(e) && win) win.webContents.send('overlay-moved', { done: true }); }); // its Done button
+ipcMain.on('overlay-mouse', (e, on) => { if (fromSite(e) && overlay && passing && !editing) overlay.setIgnoreMouseEvents(!on, { forward: true }); });
+// a panel dragged, opened or closed, or a line clicked: the page keeps it
+ipcMain.on('overlay-prog', (e, m) => { if (fromSite(e) && win && !win.isDestroyed() && m && typeof m === 'object') win.webContents.send('overlay-moved', { prog: m }); });
 
 // ---- Discord status, through Discord's local pipe (what games use for "Playing"). The page sends { clientId,
 // activity } or null to clear it; while Discord isn't running it tries again every 20 s.

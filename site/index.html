@@ -2254,10 +2254,16 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       <section class="panel" aria-labelledby="h-aov">
         <h2 id="h-aov" class="ph">Show it over Aion 2</h2>
         <div class="setrows">
-          <div class="setrow keyrow"><div><b>Overlay key</b><small>Outside a League game it shows the Aion 2 card, then hides it and the guide, then shows both again. In a League game it’s League’s overlay key.</small></div><kbd id="kAionOv"></kbd><button class="btn small" type="button" data-key="overlay">Change</button></div>
+          <div class="setrow keyrow"><div><b>Overlay key</b><small>Outside a League game it shows the Aion 2 card and your progression panels, then hides them and the guide, then shows them again. In a League game it’s League’s overlay key.</small></div><kbd id="kAionOv"></kbd><button class="btn small" type="button" data-key="overlay">Change</button></div>
         </div>
         <p id="aionOvNote" class="hint">Pick your Aion 2 characters on the Aion 2 page first. Until then the key doesn’t show the Aion 2 card.</p>
         <p class="hint">The card has the next field bosses back, the daily reset and the dailies your character has left, or the fight while Live fight is on (Aion 2 page, DPS). Aion 2 has to be in Borderless window mode. Where it sits and its size follow League, Overlay, Layout (the rest).</p>
+      </section>
+      <section id="aionProgBox" class="panel client-only" aria-labelledby="h-aprog">
+        <h2 id="h-aprog" class="ph">Progression panels</h2>
+        <p class="hint">With the Aion 2 card, the tracker’s tools for your strongest character, down the right of the screen. Click a panel’s title to open or close it, drag the title to move it, click a line to open that page of the tracker here. Only the panels take the mouse; everywhere else your clicks go to the game. Needs desktop app 1.46.</p>
+        <div id="aionProgPick" class="setrows"></div>
+        <button id="aionProgBack" class="btn small" type="button">Put them back on the right</button>
       </section>
       <section id="aionGuideBox" class="panel client-only" aria-labelledby="h-aguide" hidden>
         <h2 id="h-aguide" class="ph">Aion 2 dungeon guide</h2>
@@ -2572,10 +2578,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, aionGuide: true, aionSay: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, aionGuide: true, aionSay: true, aionProg: null, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
+  if (!opts.aionProg || typeof opts.aionProg !== 'object') opts.aionProg = {};
+  opts.aionProg = { hide: [], at: {}, open: { plan: true }, ...opts.aionProg }; // Aion 2's panels on the overlay: which are off, where each was dragged, which are open
   const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', ptt: '', ...load('lpc-keys', {}) };
   if (keys.overlay === 'Ctrl+Shift+O') keys.overlay = 'Alt+V'; // the old default, kept by anyone who changed another key
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
@@ -5791,7 +5799,43 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const f = aionFight && aionFight.players && opts.aionLive ? aionFight : null; // the live fight first, while it's on
     if (f) return [`${f.target || 'Fight'}${f.pct != null ? ` ${f.pct}%` : ''} · ${fightClock(f.secs)}`, ...f.players.slice(0, 5).map((p) => `${p.name} ${bigNum(p.dps)}/s ${p.share}%`)];
     const c = load('lpc-aion-card', null); return c && Date.now() - c.at < 120e3 && Array.isArray(c.lines) ? c.lines.slice(0, 6).map(String) : ['Aion 2: loading…']; };
-  addEventListener('storage', (e) => { if (e.key === 'lpc-aion-card' && aionCard) pushOverlay(); }); // every 30 s from its page
+  addEventListener('storage', (e) => { if ((e.key === 'lpc-aion-card' || e.key === 'lpc-aion-prog') && aionCard) pushOverlay(); }); // every 30 s from its page
+  // Aion 2's progression panels (What's new 143, app 1.46): what the tracker last wrote (lpc-aion-prog, every 30 s), less
+  // the ones turned off, each with where it was dragged and whether it's open
+  const PROG = [['gear', 'Gear next'], ['unlock', 'Next unlock'], ['checkup', 'Checkup'], ['arcana', 'Arcana'], ['events', 'Rift and Abyss'], ['plan', 'Tonight’s plan']];
+  const progOk = () => !!client && !!client.version && !newer('1.46.0', client.version);
+  function progNow() {
+    const c = load('lpc-aion-prog', null), o = opts.aionProg;
+    if (!progOk() || !c || !(Date.now() - c.at < 120e3) || !Array.isArray(c.panels)) return null;
+    const list = c.panels.filter((p) => p && PROG.some(([id]) => id === p.id) && !o.hide.includes(p.id))
+      .map((p) => ({ id: p.id, title: String(p.title || ''), lines: (Array.isArray(p.lines) ? p.lines : []).slice(0, 8), open: !!o.open[p.id], ...o.at[p.id] }));
+    return list.length ? list : null;
+  }
+  function progMoved(m) { // from the overlay: a panel dragged (x, y), opened or closed (open), or a line clicked (go: the tracker's page)
+    const o = opts.aionProg, f = $('aionFrame');
+    if (/^#\/[\w/%.-]*$/.test(m.go || '')) {
+      if (!f.getAttribute('src')) f.src = AION_URL + m.go;
+      else try { f.contentWindow.location.hash = m.go; } catch { f.src = AION_URL + m.go; }
+      view('aion');
+      if (client.front) client.front();
+      return;
+    }
+    if (!PROG.some(([id]) => id === m.id)) return;
+    if (Number.isFinite(m.x) && Number.isFinite(m.y)) o.at[m.id] = { x: clamp(m.x), y: clamp(m.y) };
+    if (typeof m.open === 'boolean') o.open[m.id] = m.open;
+    saveOpts();
+    pushOverlay();
+  }
+  function progPick() { // the Aion 2 overlay page: a box per panel
+    $('aionProgPick').replaceChildren(...PROG.map(([id, name]) => {
+      const l = document.createElement('label'), c = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !opts.aionProg.hide.includes(id) });
+      l.className = 'check';
+      c.addEventListener('change', () => { opts.aionProg.hide = c.checked ? opts.aionProg.hide.filter((x) => x !== id) : [...opts.aionProg.hide, id]; saveOpts(); pushOverlay(); });
+      l.append(c, ` ${name}`);
+      return l;
+    }));
+  }
+  $('aionProgBack').addEventListener('click', () => { opts.aionProg.at = {}; saveOpts(); pushOverlay(); });
   const chats = []; // the last few chat messages, for the overlay
   // Who's talking in other games (What's new 122): in a room outside League, while the window in front fills its screen
   // (app 1.38: frontApp, checked each second only while it's needed) or, as set, whenever Premade isn't in front. It
@@ -5813,12 +5857,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
     const practice = on(league && league.mode === 'PRACTICETOOL') ? [comboLine(), jgLine()].filter(Boolean) : [];
-    const aion = aionCard && !league && !overlayHide ? aionLines() : null, guideL = guideLines();
+    const aion = aionCard && !league && !overlayHide ? aionLines() : null, guideL = guideLines(), prog = aion && !overlayEdit ? progNow() : null;
     // in voice swap, a talker shows as the player whose spot their voice comes from
     const shown = (p) => { const s = spotOf(p), q = s === p.slot ? p : s === slot ? null : slotted(s) || p; return q ? { name: nameOf(q), pic: picOf(q), team: teamOf(q) } : { name: 'Someone at your spot', pic: '', team: '' }; };
     const talkers = talk ? [...peers.values()].filter((p) => p.talking && p.out > 0.02).map(shown) : [], lines = overlayOn ? chats.filter((c) => now - c.at < 8000).map(({ name, text }) => ({ name, text })) : [];
     const anyHas = any && !overlayEdit && (talkers.length > 0 || lines.length > 0); // friends talking or writing, not your own voice
-    const visible = (any && !overlayEdit ? anyHas : talk || meOn || overlayOn) || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion || !!guideL;
+    const visible = (any && !overlayEdit ? anyHas : talk || meOn || overlayOn) || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0 || !!aion || !!guideL || !!prog;
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
     const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
     const cards = overlayEdit || overlayHide ? null : tftAugCards();
@@ -5827,11 +5871,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
     // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
     // TFT ratings and Mayhem's independent full-screen card layer, and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
+    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || !!prog || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     let s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, aion, guide: guideL, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
-      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, prog, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(any && { any: true }),
@@ -6871,6 +6915,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('optZoom').addEventListener('change', (e) => { opts.zoom = +e.target.value; saveOpts(); document.documentElement.style.setProperty('--zoom', opts.zoom); });
   if (client) client.on('overlay-moved', (m) => {
     if (m && m.done) return moveOverlay(false);
+    if (m && m.prog && typeof m.prog === 'object') return progMoved(m.prog);
     if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
     opts.overlayBox = { x: clamp(m.x), y: clamp(m.y) };
     opts.overlayPos = $('optPos').value = 'custom';
@@ -7328,7 +7373,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (name === 'help') renderRemoteHelp();
     if (name === 're4') re4();
     if (name === 'record') loadAionRuns();
-    if (name === 'aionov') { $('aionOvNote').hidden = !!store.get('lpc-aion'); guideDraw(); }
+    if (name === 'aionov') { $('aionOvNote').hidden = !!store.get('lpc-aion'); guideDraw(); progPick(); }
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
     else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
@@ -16028,6 +16073,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [143, 'November 9: Aion 2’s progression tools on the overlay', [
+      'The tracker’s tools for your strongest character now come over Aion 2 with the Aion 2 card (Alt+V outside a League game): Gear next (the top 3 upgrades with their odds), Next unlock, Checkup, Arcana, the Spacetime Rift and Abyss bosses, and Tonight’s plan. Click a panel’s title to open or close it, drag it anywhere on the screen, and click a line to open that page of the tracker in Premade. Only the panels take the mouse: everywhere else your clicks still go to the game.',
+      'Pick which panels show on the Aion 2 overlay page, Progression panels. Needs desktop app 1.46, which updates itself.',
+    ]],
     [142, 'November 9: Aion 2 runs that know Shattered Arkanis', [
       'Level 4 (Transcendence) dungeons like Shattered Arkanis now count as dungeons: they record from going in, get the dungeon guide and their deaths add up per run. The last boss’s kill is read off the Transcendence Complete screen (or Live fight), so Talisra of the Void’s fights stay in the video. The reload after each boss dies is no longer counted as coming back after a death.',
       'Live fight’s boss fights get their boss’s name off the screen while a run records, so the Pull log and your pace are per boss, and boss fights are kept past the newest 200 fights.',
@@ -16773,6 +16822,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'In your room, Current room card, Raid roles (under Aion 2 DPS). Ludra’s usual jobs and marks fills it from community guides, not checked in game yet. The callouts need Live fight on, or a run recording with the boss targeted.', '#raidBox, #raidLudra', 'app'],
       ['Aion 2 on the overlay', 'Over Aion 2: the next field bosses back, the daily reset and the dailies your character has left, or the fight while Live fight is on. Its own page, Aion 2 overlay, has the key that shows it and the dungeon guide. Aion 2 has to be in Borderless window mode.',
         'The overlay shortcut (Alt+V) while you’re not in a League game, once you’ve picked your Aion 2 characters. Change it on the Aion 2 overlay page.', '#kAionOv', 'app'],
+      ['Aion 2 progression panels', 'With the Aion 2 card, the tracker’s Gear next, Next unlock, Checkup, Arcana, Rift and Abyss times and Tonight’s plan as panels over the game: click a title to open or close one, drag it anywhere, click a line to open that tracker page in Premade. Only the panels take the mouse.',
+        'The overlay key (Alt+V) outside a League game. Aion 2 overlay page, Progression panels: pick which show, or put them back on the right. Desktop app 1.46.', '#aionProgBox', 'app'],
     ]],
     ['RE4 co-op', 'Play Resident Evil 4 (2023) with a friend through the co-op mod’s Direct Connect, over Tailscale.', [
       ['RE4 co-op page', 'Checks every part on this PC: Tailscale, which carries the game through any router, Windows Firewall, the co-op mod’s own server blocked, the game port open only to your friend, which co-op mod is in the game (the mod’s files are checked against the version we looked at) and your last save backup. Play backs up your saves and starts RE4 through Steam, and ClayBTV’s mod, adjusted for Premade, goes on as Guest and connects you to your host over Direct Connect by itself.',

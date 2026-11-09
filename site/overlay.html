@@ -110,6 +110,22 @@ body:not(.full) #call { display: none; }
 .buy img { flex: none; width: 22px; height: 22px; border-radius: 3px; }
 .cam { display: grid; gap: 4px; padding: 6px; }
 .cam img, .cam .ph { display: block; width: 320px; aspect-ratio: 16 / 9; object-fit: contain; border-radius: 4px; background: #000; }
+/* Aion 2's progression panels (prog, app 1.46): over the whole screen, each where it was dragged, else down the right
+   edge; only they take the mouse */
+#prog { position: absolute; inset: 0; pointer-events: none; }
+.pcol { position: absolute; top: 12%; right: 1%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pp { pointer-events: auto; width: 260px; box-sizing: border-box; padding: 0; border-color: var(--gold); }
+#prog > .pp { position: absolute; }
+.pp .ph { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-weight: 700; cursor: grab; touch-action: none; }
+.pp .ph svg { margin-left: auto; transition: transform 0.15s; }
+.pp:not(.open) .ph svg { transform: rotate(-90deg); }
+.pp.drag { position: fixed; }
+.pp.drag .ph { cursor: grabbing; }
+.pp ul { display: none; margin: 0; padding: 0 10px 6px; list-style: none; }
+.pp.open ul { display: grid; gap: 4px; }
+.pp li { padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+.pp li:hover { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.pp li .sub { display: block; font-size: 12px; }
 button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; border: 1px solid var(--gold); border-radius: 4px; background: var(--accent); color: var(--accent-fg); font: 600 13px/1.2 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
 </style>
 </head>
@@ -117,6 +133,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
 <div id="main"></div>
 <div id="parts"></div>
 <div id="mayhem" aria-hidden="true"></div>
+<div id="prog"></div>
 <div id="call" class="pill nudge" data-part="call"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span></span></div>
 <script>
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
@@ -247,9 +264,64 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     c.append(el('team', String(a.title || '')), ...(Array.isArray(a.lines) ? a.lines : []).map((t) => el('', String(t))));
     return c;
   }
+  // Aion 2's progression panels (prog: [{ id, title, lines: [[text, under it, tracker page]], open, x, y }], app 1.46):
+  // the title opens or closes one, dragging the title moves it, a line opens that page of the tracker in Premade. The
+  // window lets the mouse through to the game except over a panel (overlayMouse). Not redrawn mid-drag.
+  const prog = document.getElementById('prog'), CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  let drag = null, overPanel = false, progWas = '';
+  const mouse = (on) => { if (on !== overPanel) { overPanel = on; if (api.overlayMouse) api.overlayMouse(on); } };
+  addEventListener('mousemove', (e) => mouse(!!drag || !!(e.target.closest && e.target.closest('.pp'))));
+  function renderProg(list, k) {
+    if (drag) return;
+    const j = JSON.stringify([list, k, innerWidth, innerHeight]);
+    if (j === progWas) return; // the same: kept, so a hover or a press under way isn't cut
+    progWas = j;
+    const col = el('pcol'), out = [];
+    for (const p of list) {
+      const box = el('toast pp' + (p.open ? ' open' : '')), head = el('ph'), ul = document.createElement('ul');
+      box.style.zoom = k;
+      head.append(String(p.title || ''));
+      head.insertAdjacentHTML('beforeend', CHEV);
+      for (const [t, sub, go] of Array.isArray(p.lines) ? p.lines : []) {
+        const li = document.createElement('li');
+        li.append(String(t || ''), ...(sub ? [Object.assign(document.createElement('span'), { className: 'sub', textContent: String(sub) })] : []));
+        if (go) li.onclick = () => api.overlayProg && api.overlayProg({ id: p.id, go: String(go) });
+        ul.append(li);
+      }
+      head.onpointerdown = (e) => {
+        if (e.button !== 0) return;
+        head.setPointerCapture(e.pointerId);
+        const r = box.getBoundingClientRect();
+        drag = { box, dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY, moved: false };
+      };
+      head.onpointermove = (e) => {
+        if (!drag || drag.box !== box) return;
+        if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 5) return;
+        if (!drag.moved) { drag.moved = true; box.classList.add('drag'); } // out of the column (fixed: moving it in the page would end the drag)
+        const r = box.getBoundingClientRect();
+        box.style.left = `${Math.min(Math.max(0, e.clientX - drag.dx), innerWidth - r.width) / innerWidth * 100}%`;
+        box.style.top = `${Math.min(Math.max(0, e.clientY - drag.dy), innerHeight - r.height) / innerHeight * 100}%`;
+      };
+      head.onpointerup = head.onpointercancel = (e) => {
+        if (!drag || drag.box !== box) return;
+        const d = drag, r = box.getBoundingClientRect();
+        drag = null;
+        box.classList.remove('drag');
+        if (!api.overlayProg) return;
+        if (d.moved) api.overlayProg({ id: p.id, x: Math.round(r.left / innerWidth * 1000) / 1000, y: Math.round(r.top / innerHeight * 1000) / 1000 });
+        else if (e.type === 'pointerup') { box.classList.toggle('open'); api.overlayProg({ id: p.id, open: box.classList.contains('open') }); }
+        mouse(!!(e.target.closest && e.target.closest('.pp')));
+      };
+      box.append(head, ul);
+      if (Number.isFinite(p.x) && Number.isFinite(p.y)) { box.style.left = `${Math.min(1, Math.max(0, p.x)) * 100}%`; box.style.top = `${Math.min(1, Math.max(0, p.y)) * 100}%`; out.push(box); }
+      else col.append(box);
+    }
+    prog.replaceChildren(...(col.childElementCount ? [col] : []), ...out);
+  }
   const THEME = ['bg', 'panel', 'raised', 'fg', 'muted', 'gold', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'good', 'bad'];
   let lastOverlayState = null;
   const renderOverlay = (s) => {
+    if (!s.visible || !Array.isArray(s.prog)) { progWas = ''; drag = null; prog.replaceChildren(); mouse(false); }
     if (!s.visible) { call.classList.remove('on'); parts.replaceChildren(); mayhemLayer.replaceChildren(); main.replaceChildren(); return; }
     const t = s.theme || {}; // a colour for each, or League's (an empty value takes the page's own back)
     for (const k of THEME) document.documentElement.style.setProperty('--' + k, typeof t[k] === 'string' && CSS.supports('color', t[k]) ? t[k] : '');
@@ -351,6 +423,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       b.style.top = `${Math.min(1, Math.max(0, +c.y)) * 100}%`;
       return b;
     }) : [];
+    if (Array.isArray(s.prog)) renderProg(s.prog, k);
     parts.replaceChildren(...own, ...cards);
     mayhemLayer.replaceChildren(...mayCards);
     main.replaceChildren(...(players ? board(s.board, out) : out));
