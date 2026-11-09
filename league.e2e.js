@@ -1443,6 +1443,14 @@ const leagueData = (over = {}) => ({
     await pc.$eval('#kOverlay + button', (b) => b.click());
     await pc.evaluate(() => lpcClient.emit('key', 'combo:Alt+V'));
     await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+V', null, 'Alt+V back');
+    await pc.$eval('#kOverlay + button', (b) => b.click());
+    await pc.keyboard.press('PageUp');
+    await wait(pc, () => document.getElementById('kOverlay').textContent === 'PageUp', null, 'PageUp alone as the overlay key');
+    await pc.$eval('#kOverlay + button', (b) => b.click());
+    await pc.keyboard.press('Delete'); // alone it would be taken from typing everywhere
+    assert.strictEqual(await text(pc, '#kOverlay + button'), 'Hold Ctrl, Alt or Shift too…');
+    await pc.keyboard.press('Alt+V');
+    await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+V', null, 'Alt+V back again');
     // its key: everyone's rank (no tips in a game), then hidden, then back
     await pc.evaluate(() => { lpcClient.emit('key', 'overlay'); lpcClient.emit('key', 'overlay'); }); // held: Windows repeats it
     await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Alt+V again hides the overlay.'); }, null, 'everyone’s rank on the overlay by its key');

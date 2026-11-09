@@ -15690,7 +15690,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const keyName = (c) => c.replace(/^(Key|Digit)/, '').replace(/^Numpad/, 'Numpad ').replace(/^Mouse/, 'Mouse ').replace('Backquote', '`').replace('CapsLock', 'Caps Lock')
     .replace(/^(Alt|Control|Shift)(Left|Right)$/, (m, a, b) => `${b} ${a === 'Control' ? 'Ctrl' : a}`);
   const comboOf = (e) => {
-    const k = (/^Key([A-Z])$/.exec(e.code) || /^Digit(\d)$/.exec(e.code) || /^(F\d{1,2})$/.exec(e.code) || [])[1];
+    const k = (/^Key([A-Z])$/.exec(e.code) || /^Digit(\d)$/.exec(e.code) || /^(F\d{1,2}|PageUp|PageDown|Home|End|Insert|Delete)$/.exec(e.code) || [])[1]; // and the keys above the arrows
     return k ? [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', k].filter(Boolean).join('+') : '';
   };
   const mouseCode = (e) => ({ 1: 'Mouse3', 3: 'Mouse4', 4: 'Mouse5' })[e.button] || '';
@@ -15730,7 +15730,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     }
     if (e.type !== 'keydown') return;
     const c = comboOf(e);
-    if (c.includes('+') || /^F\d/.test(c)) { keys[capture] = c; capture = ''; applyKeys(); }
+    if (c.includes('+') || /^(F\d|PageUp$|PageDown$|Insert$)/.test(c)) { keys[capture] = c; capture = ''; applyKeys(); } // alone, Home, End and Delete would be taken from typing everywhere
     else if (c) { lone = true; renderKeys(); } // a letter alone would fire while you type
   }
   // while a button waits for keys, the app lets go of its Windows hotkeys: Windows hands a hotkey's keys to the app that
@@ -16073,6 +16073,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [144, 'November 9: PageUp and PageDown as shortcuts', [
+      'Change on a shortcut now takes PageUp, PageDown and Insert on their own, and Home, End and Delete with Ctrl, Alt or Shift: before, the button just waited. Needs desktop app 1.46.0, which updates itself.',
+    ]],
     [143, 'November 9: Aion 2’s progression tools on the overlay', [
       'The tracker’s tools for your strongest character now come over Aion 2 with the Aion 2 card (Alt+V outside a League game): Gear next (the top 3 upgrades with their odds), Next unlock, Checkup, Arcana, the Spacetime Rift and Abyss bosses, and Tonight’s plan. Click a panel’s title to open or close it, drag it anywhere on the screen, and click a line to open that page of the tracker in Premade. Only the panels take the mouse: everywhere else your clicks still go to the game.',
       'Pick which panels show on the Aion 2 overlay page, Progression panels. Needs desktop app 1.46, which updates itself.',
@@ -16845,7 +16848,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
       ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
-        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift. Keys another app uses as its shortcut work too (app 1.45.1).', '#kShow', 'app'],
+        'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift. Keys another app uses as its shortcut work too (app 1.45.1), and so do PageUp, PageDown and Insert (app 1.46.0).', '#kShow', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
       ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
