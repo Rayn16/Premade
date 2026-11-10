@@ -827,6 +827,97 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 #curRoom { grid-area: cur; }
 #roomCards { grid-area: players; }
 #roomSide { grid-area: side; display: none; }
+
+/* Chess in the room's Games panel (What's new 145): its own board colors in every theme, pieces from the system's
+   chess symbols */
+#roomGames { --sq-light: #c3b2b4; --sq-dark: #735b5f; --pc-white: #fffaf8; --pc-black: #1a1013; --pc-edge: #0b0809;
+  --card-r: #e5484d; --card-y: #f2c230; --card-g: #30a46c; --card-b: #3e8ef7; --card-k: #221a1d; --card-ink: #1c1404;
+  --pieces: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
+.chgrid { display: grid; gap: 14px; }
+.chopts { align-items: end; }
+.chseg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.chseg button { padding: 9px 14px; border: 0; background: var(--raised); color: var(--muted); font: 600 13.5px/1 var(--body); cursor: pointer; }
+.chseg button + button { border-left: 1px solid var(--line); }
+.chseg button[aria-pressed="true"] { background: color-mix(in srgb, var(--gold) 16%, var(--raised)); color: var(--gold-hi); box-shadow: inset 0 -2px var(--gold); }
+.chrules { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.chrules summary { padding: 10px 12px; cursor: pointer; font-size: 14px; color: var(--muted); }
+.chrules[open] summary { border-bottom: 1px solid var(--line); }
+.chrulelist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 10px; margin: 0; padding: 12px; list-style: none; }
+.chrulelist li { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13.5px; }
+.chrulelist .chcard { width: 42px; padding: 3px; border-radius: 5px; }
+.chrulelist .chcard b { font-size: 15px; }
+.chrulelist .chcard small, .chrulelist .chcard i { display: none; }
+.chrulenote { margin: 0; padding: 0 12px 12px; font-size: 13.5px; color: var(--muted); }
+.chhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.chhead h3 { margin: 0; font: 700 18px/1.2 var(--display); letter-spacing: 0.04em; color: var(--gold-hi); }
+.chpill { font: 500 12px/1 var(--mono); padding: 5px 8px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); color: var(--muted); }
+.chstatus { margin: 0; padding: 9px 12px; border-left: 3px solid var(--gold); border-radius: 4px; background: var(--raised); font-weight: 600; }
+.chstatus.chdone { border-left-color: var(--good); }
+.chess { display: grid; grid-template-columns: minmax(0, 480px) minmax(230px, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "board top" "board mid" "board bot"; gap: 12px 18px; }
+.chboardbox { grid-area: board; position: relative; width: 100%; max-width: 520px; align-self: start; }
+.chtop { grid-area: top; } .chmid { grid-area: mid; display: grid; gap: 12px; align-content: start; min-width: 0; } .chbot { grid-area: bot; }
+@container app (max-width: 1240px) {
+  .chess { grid-template-columns: minmax(0, 520px); grid-template-rows: none; grid-template-areas: "top" "board" "bot" "mid"; justify-content: center; }
+}
+.chboard { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px var(--gold-line), 0 14px 36px rgb(0 0 0 / 0.45); touch-action: none; user-select: none; -webkit-user-select: none; container-type: inline-size; }
+.chsq { position: relative; display: grid; place-items: center; aspect-ratio: 1; padding: 0; border: 0; border-radius: 0; background-color: var(--sq-light); cursor: pointer; }
+.chsq.chd { background-color: var(--sq-dark); }
+.chsq.chlast { background-color: color-mix(in srgb, var(--gold) 34%, var(--sq-light)); }
+.chsq.chd.chlast { background-color: color-mix(in srgb, var(--gold) 34%, var(--sq-dark)); }
+.chsq.chsel { box-shadow: inset 0 0 0 3px var(--gold-hi); }
+.chsq.chhot { background-image: radial-gradient(circle, rgb(255 107 107 / 0.95) 0 24%, rgb(255 107 107 / 0.5) 46%, transparent 70%); }
+.chsq.chdot::after { content: ""; position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgb(11 8 9 / 0.4); }
+.chsq.chring::after { content: ""; position: absolute; inset: 5%; border-radius: 50%; box-shadow: inset 0 0 0 0.9cqi rgb(11 8 9 / 0.45); }
+.chsq.chhome::after { content: ""; position: absolute; inset: 10%; border: 0.5cqi dashed #3ccf8e; border-radius: 12%; background: rgb(60 207 142 / 0.18); }
+.chpc { font-family: var(--pieces); font-weight: 400; line-height: 1; pointer-events: none; }
+.chsq .chpc { font-size: 10cqi; }
+.chpc.chw { color: var(--pc-white); text-shadow: 1px 0 var(--pc-edge), -1px 0 var(--pc-edge), 0 1px var(--pc-edge), 0 -1px var(--pc-edge), 1px 1px var(--pc-edge), -1px -1px var(--pc-edge), 1px -1px var(--pc-edge), -1px 1px var(--pc-edge), 0 3px 5px rgb(0 0 0 / 0.4); }
+.chpc.chb { color: var(--pc-black); text-shadow: 0 0 1px rgb(255 255 255 / 0.4), 0 3px 5px rgb(0 0 0 / 0.35); }
+.chboard.chlift .chsq.chsel .chpc { opacity: 0.25; }
+.chco { position: absolute; font: 600 2.2cqi/1 var(--mono); pointer-events: none; color: var(--sq-dark); }
+.chd .chco { color: var(--sq-light); }
+.chco.chrk { top: 5%; left: 7%; } .chco.chfl { bottom: 5%; right: 7%; }
+.chghost { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; }
+.chover { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 16px; border-radius: 4px; background: rgb(11 8 9 / 0.74); color: #f4eeee; text-align: center; }
+.chover b { font: 700 clamp(22px, 5cqi, 30px)/1.1 var(--display); letter-spacing: 0.04em; color: #fff; }
+.chpromo { display: flex; gap: 8px; }
+.chpromo button { width: 64px; height: 64px; border: 1px solid var(--gold-line); border-radius: 8px; background: var(--raised); cursor: pointer; font: 44px/1 var(--pieces); }
+.chseat { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
+.chseat.chrun { border-color: var(--gold-line); box-shadow: inset 3px 0 var(--gold); }
+.chswatch { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 1px solid var(--muted); background: var(--pc-black); }
+.chswatch.chw { background: var(--pc-white); border-color: var(--pc-edge); }
+.chnm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.chclock { padding: 6px 8px; border-radius: 4px; background: var(--bg); color: var(--muted); font: 500 16px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.chrun .chclock { color: var(--gold-hi); background: color-mix(in srgb, var(--gold) 18%, var(--bg)); }
+.chclock.chlow { color: var(--bad) !important; }
+.chtaken { display: flex; flex-wrap: wrap; align-items: center; min-height: 26px; gap: 0 1px; padding: 4px 2px 0; font: 21px/1 var(--pieces); }
+.chtaken .chlead { margin-left: 6px; font: 500 12px/1 var(--mono); color: var(--muted); }
+.chbot .chtaken { padding: 0 2px 4px; }
+.chzone { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.chdeckrow { display: flex; align-items: center; gap: 16px; }
+.chdeckrow > * { flex: none; }
+.chdeck { display: grid; place-content: center; gap: 4px; width: 78px; aspect-ratio: 5 / 7; padding: 6px; border: 1px solid var(--gold-line); border-radius: 8px; background: repeating-linear-gradient(135deg, var(--raised) 0 6px, var(--panel) 6px 12px); color: var(--gold-hi); font: 700 11px/1.2 var(--display); letter-spacing: 0.06em; text-align: center; cursor: pointer; }
+.chdeck small { font: 500 10px/1.2 var(--mono); letter-spacing: 0; color: var(--muted); }
+.chdeck.chready { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.chdeck:disabled { cursor: default; opacity: 0.6; }
+.chcard { position: relative; display: grid; place-content: center; justify-items: center; width: 78px; aspect-ratio: 5 / 7; padding: 6px; border-radius: 8px; color: #fff; background: var(--card-r); box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.85), 0 6px 14px rgb(0 0 0 / 0.35); }
+.chcard[data-c="y"] { background: var(--card-y); color: var(--card-ink); }
+.chcard[data-c="g"] { background: var(--card-g); }
+.chcard[data-c="b"] { background: var(--card-b); }
+.chcard[data-c="k"] { border: 3px solid transparent; background: linear-gradient(var(--card-k), var(--card-k)) padding-box, conic-gradient(var(--card-r) 0 25%, var(--card-y) 0 50%, var(--card-g) 0 75%, var(--card-b) 0) border-box; box-shadow: 0 6px 14px rgb(0 0 0 / 0.35); }
+.chcard b { font: 700 30px/1 var(--display); }
+.chcard small { margin-top: 4px; font: 600 9.5px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; }
+.chcard i { position: absolute; top: 7px; left: 9px; font: 700 11px/1 var(--display); font-style: normal; }
+.chcard.chempty { background: none; border: 1px dashed var(--line); box-shadow: none; color: var(--muted); font-size: 12px; text-align: center; }
+.chcard.chnew { animation: chcardin 0.28s ease-out; }
+@keyframes chcardin { from { transform: rotateY(90deg); } to { transform: none; } }
+.chsay { margin: 0; font-size: 14px; }
+.chchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chchip { display: inline-grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font: 26px/1 var(--pieces); }
+.chchip[aria-pressed="true"] { border-color: var(--good); box-shadow: 0 0 0 2px rgb(60 207 142 / 0.35); }
+.chchip:disabled { opacity: 0.35; cursor: default; }
+.choffer { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .chcard.chnew { animation: none; } }
 .roombar { grid-area: bar; display: none; }
 #roomView[data-game] .roomgrid { grid-template-areas: "players side" "main side" "main cur" "bar bar"; }
 #roomView[data-game] #roomSide { display: grid; }
@@ -1188,6 +1279,51 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
                 <p id="chatBar" class="chatbar" hidden><span id="chatBarText"></span> <button id="chatBarX" class="btn small" type="button">Cancel</button></p>
                 <div id="chatPick" class="chatpick"></div>
                 <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture, video or file (any size)" aria-label="Send a picture, video or file">+</button><input id="chatFile" type="file" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
+              </section>
+              <section id="roomGames" class="panel" aria-labelledby="h-games">
+                <h2 id="h-games" class="ph">Games <span id="chWatch" class="hint"></span></h2>
+                <div id="chIdle" class="chgrid">
+                  <p class="hint">Play chess with someone in this room. Everyone else can watch.</p>
+                  <div class="toolbar chopts">
+                    <label class="field">Play with <select id="chWho"></select></label>
+                    <div class="field">Mode <div id="chMode" class="chseg" role="group" aria-label="Mode"><button type="button" data-mode="normal" aria-pressed="true">Normal</button><button type="button" data-mode="cards" aria-pressed="false">Card Chess</button></div></div>
+                    <label class="field">Clock <select id="chClock"><option value="0">No clock</option><option value="3">3 min each</option><option value="5">5 min each</option><option value="10">10 min each</option></select></label>
+                    <button id="chPlay" class="btn primary" type="button">Play</button>
+                  </div>
+                  <details class="chrules">
+                    <summary>How Card Chess works</summary>
+                    <ul id="chRuleList" class="chrulelist"></ul>
+                    <p class="chrulenote">One shared deck of 44 cards: in 4 colors, 0, 1, 1, 2, 2, 3, 3, Skip, Reverse and +2, plus 2 Wild and 2 Wild +4. The colors are only for looks. When the deck runs out, the played cards are shuffled back in.</p>
+                  </details>
+                </div>
+                <div id="chGame" class="chgrid" hidden>
+                  <div class="chhead"><h3 id="chTitle">Chess</h3><span id="chModeTag" class="chpill"></span><span id="chClockTag" class="chpill"></span></div>
+                  <p id="chStatus" class="chstatus" role="status"></p>
+                  <div class="chess">
+                    <div class="chtop"><div id="chTopSeat" class="chseat"><span class="chswatch"></span><span class="chnm"></span><span class="chclock"></span></div><div id="chTopTaken" class="chtaken" aria-label="Pieces they took"></div></div>
+                    <div class="chboardbox">
+                      <div id="chBoard" class="chboard" role="group" aria-label="Chess board"></div>
+                      <div id="chPromo" class="chover" hidden><span>Turn the pawn into</span><div id="chPromoBtns" class="chpromo"></div></div>
+                      <div id="chResult" class="chover" hidden><b id="chResTitle"></b><span id="chResWhy"></span><div class="toolbar"><button id="chRematch" class="btn primary" type="button">Rematch</button><button id="chClose" class="btn" type="button">Close</button></div></div>
+                    </div>
+                    <div class="chbot"><div id="chBotTaken" class="chtaken" aria-label="Pieces you took"></div><div id="chBotSeat" class="chseat"><span class="chswatch"></span><span class="chnm"></span><span class="chclock"></span></div></div>
+                    <div class="chmid">
+                      <div id="chZone" class="chzone" hidden>
+                        <div class="chdeckrow">
+                          <button id="chFlip" class="chdeck" type="button"><span>Flip a card</span><small id="chDeckN"></small></button>
+                          <div id="chCard" class="chcard chempty">No card yet</div>
+                        </div>
+                        <p id="chSay" class="chsay" aria-live="polite"></p>
+                        <div id="chWild" class="toolbar" hidden><button class="btn small" type="button" data-n="1">1 move</button><button class="btn small" type="button" data-n="2">2 moves</button><button class="btn small" type="button" data-n="3">3 moves</button></div>
+                        <div id="chBackBox" class="chchips" hidden></div>
+                        <div><button id="chEnd" class="btn small" type="button" hidden>End turn</button></div>
+                      </div>
+                      <div id="chOffer" class="choffer" hidden><span></span><div class="toolbar"><button id="chYes" class="btn small primary" type="button">Accept</button><button id="chNo" class="btn small" type="button">No thanks</button></div></div>
+                      <div id="chActs" class="toolbar"><button id="chDraw" class="btn small" type="button">Offer draw</button><button id="chResign" class="btn small" type="button">Resign</button></div>
+                      <p id="chWatchNote" class="hint" hidden></p>
+                    </div>
+                  </div>
+                </div>
               </section>
               <details id="histBox" class="panel">
                 <summary id="h-hist" class="ph">Past sessions</summary>
@@ -2847,6 +2983,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     p.echo.port.onmessage = null;
     p.row.remove();
     p.chip.remove();
+    chDraw(); // Play with: who's left
     // the host's mute goes with them once they're gone for good, so whoever takes their slot next isn't muted
     if (isHost() && hostMuted(p.slot)) setTimeout(() => { if (isHost() && hostMuted(p.slot) && !slotted(p.slot)) { takeHostMute({ n: nextN(hm.n), s: hm.s.filter((s) => s !== p.slot) }, slot); send(meMsg()); } }, left ? 0 : 30000);
     if (left && p.hello) gone(nameOf(p));
@@ -3222,6 +3359,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (m.t === 'raid') return raidTake(m.raid);
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
+    if (m.t === 'chess') return chTake(p, m.g);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
       if (!roomKey) notify(`${nameOf(p)} locked the room`);
@@ -4415,6 +4553,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     myGuess = { n: 0, g: {} };
     hm = { n: 0, s: [] };
     resetGames();
+    chReset();
     $('readyBox').hidden = true;
     slot = -1;
     autoJoined = false;
@@ -4520,6 +4659,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function hello(p) {
     p.hello = true;
+    chHello(p);
+    chDraw();
     const name = nameOf(p);
     if (sess) { sess.people.add(name); sessSave(); }
     if (leaving.has(name)) { clearTimeout(leaving.get(name)); leaving.delete(name); return; }
@@ -14987,6 +15128,495 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     renderRoomGames();
   }
 
+  // ---- Chess in the room's Games panel (What's new 145): two in the room play, everyone else watches. A game is a
+  // header (id, the players' names, mode, clock, seed) plus every action so far; after each action the player sends the
+  // whole game ({t:'chess', g}) and every Premade replays it with the same rules, so an illegal or out-of-order list
+  // is refused. Whoever joins gets the game from everyone there (hello). Card Chess flips cards from a deck shuffled by
+  // the seed, so everyone gets the same cards without the deck being sent. Clocks belong to the players' names
+  // (Reverse swaps armies, not clocks); each action carries the milliseconds since the one before (ms), charged to
+  // whoever's turn it was. Sides are kept by name, as slots change when someone rejoins.
+  const CH_FILES = 'abcdefgh', CH_GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+  const CH_NAME = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' }, CH_WORTH = { K: 0, Q: 9, R: 5, B: 3, N: 3, P: 1 };
+  const CH_START = 'rnbqkbnrpppppppp' + '.'.repeat(32) + 'PPPPPPPPRNBQKBNR';
+  const CH_STEPS = { N: [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]], B: [[-1, -1], [-1, 1], [1, -1], [1, 1]], R: [[-1, 0], [1, 0], [0, -1], [0, 1]] };
+  CH_STEPS.Q = CH_STEPS.K = [...CH_STEPS.B, ...CH_STEPS.R];
+  const CH_DECK = ['r', 'y', 'g', 'b'].flatMap((c) => ['0', '1', '1', '2', '2', '3', '3', 'S', 'R', '+2'].map((v) => c + v)).concat('kW', 'kW', 'k+4', 'k+4');
+  const CH_BIG = { 0: '0', 1: '1', 2: '2', 3: '3', S: '⊘', R: '⇄', '+2': '+2', W: '1–3', '+4': '+4' };
+  const CH_SUB = { 0: 'no move', 1: 'move', 2: 'moves', 3: 'moves', S: 'skip', R: 'reverse', '+2': 'bring back', W: 'wild', '+4': 'wild' };
+  const CH_RULES = [['g2', 'Make that many moves in a row (1 to 3). End turn stops early.'], ['r0', 'No move: your turn passes.'], ['bS', 'Skip: the other player misses a turn, so you flip again.'],
+    ['yR', 'Reverse: you swap armies and the board turns around. You play on with your new army.'], ['g+2', 'Bring back 2 of your taken pieces to their starting squares.'],
+    ['kW', 'Wild: pick 1, 2 or 3 moves.'], ['k+4', 'Wild +4: bring back up to 4 taken pieces.'], ['', 'Take the king to win. There’s no check in Card Chess, and a red king can be taken.']];
+  const CH_HOME = { R: [0, 7], N: [1, 6], B: [2, 5], Q: [3], K: [4], P: [8, 9, 10, 11, 12, 13, 14, 15] }; // black's; white's mirror them
+  const CH_BY = /^(resign|offer|accept|decline|flag)$/; // actions either player makes, with by: their name
+  const chOther = (s) => (s === 'w' ? 'b' : 'w'), chColor = (s) => (s === 'w' ? 'white' : 'black');
+  const chGlyph = (t) => CH_GLYPH[t] + '︎';
+  const chHomes = (side, t) => CH_HOME[t].map((i) => (side === 'b' ? i : (7 - (i >> 3)) * 8 + (i & 7)));
+  const chFree = (S, side, t) => chHomes(side, t).filter((i) => !S.board[i]);
+  function chRng(seed) { // mulberry32: the same cards on every Premade
+    return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  const chShuffle = (a, rnd) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function chAttacked(b, i, by) { // is square i attacked by side by
+    const r = i >> 3, c = i & 7, at = (r1, c1) => (r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8 ? b[r1 * 8 + c1] : '');
+    const pr = by === 'w' ? r + 1 : r - 1;
+    if (at(pr, c - 1) === by + 'P' || at(pr, c + 1) === by + 'P') return true;
+    if (CH_STEPS.N.some(([dr, dc]) => at(r + dr, c + dc) === by + 'N') || CH_STEPS.K.some(([dr, dc]) => at(r + dr, c + dc) === by + 'K')) return true;
+    for (const [dr, dc] of CH_STEPS.Q) {
+      for (let r1 = r + dr, c1 = c + dc; r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8; r1 += dr, c1 += dc) {
+        const q = b[r1 * 8 + c1];
+        if (!q) continue;
+        if (q[0] === by && (q[1] === 'Q' || q[1] === (dr && dc ? 'B' : 'R'))) return true;
+        break;
+      }
+    }
+    return false;
+  }
+  function chMoves(S, side) { // [from, to] without the check rule, with castling (the king's two steps) and en passant
+    const b = S.board, out = [];
+    for (let i = 0; i < 64; i++) {
+      const p = b[i];
+      if (!p || p[0] !== side) continue;
+      const t = p[1], r = i >> 3, c = i & 7;
+      if (t === 'P') {
+        const d = side === 'w' ? -1 : 1, r1 = r + d;
+        if (r1 < 0 || r1 > 7) continue;
+        if (!b[r1 * 8 + c]) {
+          out.push([i, r1 * 8 + c]);
+          if (r === (side === 'w' ? 6 : 1) && !b[(r + 2 * d) * 8 + c]) out.push([i, (r + 2 * d) * 8 + c]);
+        }
+        for (const c1 of [c - 1, c + 1]) {
+          const j = r1 * 8 + c1;
+          if (c1 >= 0 && c1 < 8 && ((b[j] && b[j][0] !== side) || (j === S.ep && b[r * 8 + c1] === chOther(side) + 'P'))) out.push([i, j]);
+        }
+        continue;
+      }
+      const slides = t === 'B' || t === 'R' || t === 'Q';
+      for (const [dr, dc] of CH_STEPS[t]) {
+        for (let r1 = r + dr, c1 = c + dc; r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8; r1 += dr, c1 += dc) {
+          const q = b[r1 * 8 + c1];
+          if (q && q[0] === side) break;
+          out.push([i, r1 * 8 + c1]);
+          if (q || !slides) break;
+        }
+      }
+    }
+    const k = side === 'w' ? 60 : 4; // castling: the rights, a rook in its corner, nothing between; in Normal not out of, through or into check
+    if (b[k] === side + 'K') {
+      for (const [right, rook, between, pass] of [['K', k + 3, [k + 1, k + 2], [k, k + 1, k + 2]], ['Q', k - 4, [k - 1, k - 2, k - 3], [k, k - 1, k - 2]]]) {
+        if (!S.castle.includes(side === 'w' ? right : right.toLowerCase()) || b[rook] !== side + 'R' || between.some((j) => b[j])) continue;
+        if (S.mode === 'normal' && pass.some((j) => chAttacked(b, j, chOther(side)))) continue;
+        out.push([k, pass[2]]);
+      }
+    }
+    return out;
+  }
+  function chAfter(S, f, t) { // the board after a move
+    const b = S.board.slice(), p = b[f];
+    if (p[1] === 'P' && t === S.ep && !b[t]) b[(f & ~7) | (t & 7)] = '';
+    if (p[1] === 'K' && Math.abs(t - f) === 2) { const rf = t > f ? f + 3 : f - 4; b[(f + t) >> 1] = b[rf]; b[rf] = ''; }
+    b[t] = p;
+    b[f] = '';
+    return b;
+  }
+  const chCheck = (b, side) => { const k = b.indexOf(side + 'K'); return k >= 0 && chAttacked(b, k, chOther(side)); }; // in check, or (Card Chess) can be taken
+  const chLegal = (S, side) => chMoves(S, side).filter(([f, t]) => !chCheck(chAfter(S, f, t), side));
+  const chNow = (S) => (S.over || S.phase !== 'move' ? [] : S.mode === 'normal' ? chLegal(S, S.turn) : chMoves(S, S.turn));
+  function chCanMate(b, side) { // more than a lone king or a king and one bishop or knight
+    const own = b.filter((p) => p && p[0] === side && p[1] !== 'K');
+    return own.some((p) => /[PRQ]/.test(p[1])) || own.length > 1;
+  }
+  function chTooFew(b) { // neither side can checkmate: kings with at most one minor piece, or bishops all on one color
+    const rest = b.map((p, i) => [p, i]).filter(([p]) => p && p[1] !== 'K');
+    if (rest.some(([p]) => /[PRQ]/.test(p[1]))) return false;
+    if (rest.length <= 1) return true;
+    return rest.every(([p]) => p[1] === 'B') && new Set(rest.map(([, i]) => ((i >> 3) + (i & 7)) % 2)).size === 1;
+  }
+  function chRep(S) { // counts this position for the threefold rule (en passant only when it can be taken)
+    const ep = S.ep >= 0 && chLegal(S, S.turn).some(([f, t]) => t === S.ep && S.board[f][1] === 'P') ? S.ep : -1;
+    const key = S.board.join() + S.turn + S.castle + ep;
+    S.reps.set(key, (S.reps.get(key) || 0) + 1);
+    return S.reps.get(key);
+  }
+  const chEnd = (S, title, why) => { S.over = { title, why }; return true; };
+  const chPass = (S, say) => { S.turn = chOther(S.turn); S.phase = 'flip'; S.left = S.back = 0; S.say = say; return true; };
+  function chStartBack(S, n) {
+    const me = S.players[S.turn], label = n === 2 ? '+2' : 'Wild +4';
+    if (!S.out[S.turn].some((t) => chFree(S, S.turn, t).length)) return chPass(S, `${label}: ${me} has ${S.out[S.turn].length ? 'no taken piece with a free starting square' : 'no taken pieces'}, so the turn passes.`);
+    S.back = Math.min(n, S.out[S.turn].length);
+    S.phase = 'back';
+    S.say = `${label}: ${me} brings back up to ${S.back} taken piece${S.back > 1 ? 's' : ''}. Pick a piece, then a green square.`;
+    return true;
+  }
+  function chMoveOn(S, say) { // Card Chess: after the moves were counted out, the turn goes on or passes
+    if (S.left <= 0) return chPass(S, '');
+    if (!chMoves(S, S.turn).length) return chPass(S, 'No piece can move, so the turn passes.');
+    S.say = say || `${S.players[S.turn]} has ${S.left} more move${S.left > 1 ? 's' : ''}.`;
+    return true;
+  }
+  function chStep(S, a) { // one action -> true when the rules allow it
+    if (!a || typeof a !== 'object' || S.over) return false;
+    const side = S.turn, me = S.players[side], them = S.players[chOther(side)], by = a.by, isP = by === S.players.w || by === S.players.b;
+    const foe = by === S.players.w ? S.players.b : S.players.w;
+    if (S.clock) S.time[me] -= Number.isFinite(a.ms) ? Math.max(0, Math.min(36e5, a.ms)) : 0;
+    if (a.k === 'resign') return isP && chEnd(S, `${foe} wins`, `${by} resigned`);
+    if (a.k === 'offer') { if (!isP || S.offer) return false; S.offer = by; return true; }
+    if (a.k === 'accept') return isP && !!S.offer && S.offer !== by && chEnd(S, 'Draw', 'Agreed by both players');
+    if (a.k === 'decline') { if (!isP || !S.offer || S.offer === by) return false; S.offer = ''; return true; }
+    if (a.k === 'flag') { // the clock of whoever's turn it is ran out
+      if (!isP || !S.clock || S.time[me] > 1500) return false;
+      S.time[me] = 0;
+      return chCanMate(S.board, chOther(side)) ? chEnd(S, `${them} wins`, `${me} ran out of time`) : chEnd(S, 'Draw', `${me} ran out of time, and ${them} can’t checkmate`);
+    }
+    if (a.k === 'm') {
+      if (!Number.isInteger(a.f) || !Number.isInteger(a.t) || !chNow(S).some(([f, t]) => f === a.f && t === a.t)) return false;
+      const p = S.board[a.f];
+      if ((p[1] === 'P' && (a.t >> 3) === (side === 'w' ? 0 : 7)) !== /^[QRBN]$/.test(a.p || '')) return false; // a pawn on the far row needs its piece
+      const b = chAfter(S, a.f, a.t), cap = S.board[a.t] || (p[1] === 'P' && a.t === S.ep ? chOther(side) + 'P' : '');
+      if (a.p) b[a.t] = side + a.p;
+      S.board = b;
+      if (cap) S.out[cap[0]].push(cap[1]);
+      for (const [sq, r] of [[60, /[KQ]/g], [63, /K/g], [56, /Q/g], [4, /[kq]/g], [7, /k/g], [0, /q/g]]) if (a.f === sq || a.t === sq) S.castle = S.castle.replace(r, '');
+      S.ep = p[1] === 'P' && Math.abs(a.t - a.f) === 16 ? (a.f + a.t) >> 1 : -1;
+      S.half = p[1] === 'P' || cap ? 0 : S.half + 1;
+      S.last = [a.f, a.t];
+      S.offer = '';
+      if (cap === chOther(side) + 'K') return chEnd(S, `${me} wins`, 'Took the king');
+      if (S.mode === 'cards') { S.left--; return chMoveOn(S); }
+      S.turn = chOther(side);
+      const seen = chRep(S);
+      if (!chLegal(S, S.turn).length) return chCheck(S.board, S.turn) ? chEnd(S, `${me} wins`, 'Checkmate') : chEnd(S, 'Draw', 'Stalemate: no legal move, and not in check');
+      if (chTooFew(S.board)) return chEnd(S, 'Draw', 'Neither side has enough pieces to checkmate');
+      if (seen >= 3) return chEnd(S, 'Draw', 'The same position three times');
+      if (S.half >= 100) return chEnd(S, 'Draw', '50 moves each without a capture or a pawn move');
+      return true;
+    }
+    if (S.mode !== 'cards') return false;
+    if (a.k === 'flip') {
+      if (S.phase !== 'flip') return false;
+      let note = '';
+      if (!S.deck.length) { S.deck = chShuffle(S.pile, S.rnd); S.pile = []; note = ' The deck ran out, so the played cards were shuffled back in.'; }
+      if (S.card) S.pile.push(S.card);
+      S.card = S.deck.pop();
+      S.flips++;
+      const v = S.card.slice(1);
+      if (/^[123]$/.test(v)) { S.left = +v; S.phase = 'move'; chMoveOn(S, v === '1' ? `${me} makes one move.` : `${me} makes ${v} moves in a row.`); }
+      else if (v === '0') chPass(S, `Zero: ${me} doesn’t move. ${them}’s turn.`);
+      else if (v === 'S') S.say = `Skip: ${them} misses a turn, so ${me} flips again.`;
+      else if (v === 'W') { S.phase = 'wild'; S.say = `Wild: ${me} picks 1, 2 or 3 moves.`; }
+      else if (v === 'R') {
+        S.players = { w: S.players.b, b: S.players.w };
+        S.turn = chOther(side);
+        S.say = `Reverse: ${me} and ${them} swap armies. ${me} plays on, now with ${chColor(S.turn)}: flip again.`;
+      } else chStartBack(S, v === '+2' ? 2 : 4);
+      S.say += note;
+      return true;
+    }
+    if (a.k === 'wild') {
+      if (S.phase !== 'wild' || ![1, 2, 3].includes(a.n)) return false;
+      S.left = a.n;
+      S.phase = 'move';
+      return chMoveOn(S, `Wild: ${me} picked ${a.n} move${a.n > 1 ? 's' : ''}.`);
+    }
+    if (a.k === 'back') {
+      if (S.phase !== 'back' || !S.out[side].includes(a.t) || !chFree(S, side, a.t).includes(a.i)) return false;
+      S.out[side].splice(S.out[side].indexOf(a.t), 1);
+      S.board[a.i] = side + a.t;
+      S.last = [a.i, a.i];
+      if (--S.back <= 0 || !S.out[side].some((t) => chFree(S, side, t).length)) return chPass(S, '');
+      S.say = `${me} can bring back ${S.back} more.`;
+      return true;
+    }
+    if (a.k === 'end') return (S.phase === 'move' || S.phase === 'back') && chPass(S, `${me} ended the turn.`);
+    return false;
+  }
+  // the game -> its state now, or null when a step breaks the rules; from n on, each action must be from's
+  function chReplay(g, from, n) {
+    const cards = g.mode === 'cards', rnd = chRng(g.seed);
+    const S = {
+      id: g.id, mode: g.mode, clock: g.clock, players: { w: g.w, b: g.b }, turn: 'w', castle: 'KQkq', ep: -1, half: 0, reps: new Map(), last: null, out: { w: [], b: [] }, over: null, offer: '',
+      board: [...CH_START].map((ch) => (ch === '.' ? '' : (ch < 'a' ? 'w' : 'b') + ch.toUpperCase())), time: { [g.w]: g.clock * 60000, [g.b]: g.clock * 60000 },
+      rnd, deck: cards ? chShuffle(CH_DECK.slice(), rnd) : [], pile: [], card: '', flips: 0, phase: cards ? 'flip' : 'move', left: 0, back: 0, say: cards ? `${g.w} plays white and goes first: flip a card.` : '',
+    };
+    if (!cards) chRep(S);
+    for (let i = 0; i < g.acts.length; i++) {
+      const a = g.acts[i];
+      if (i >= n && (a && CH_BY.test(a.k) ? a.by : S.players[S.turn]) !== from) return null;
+      if (!chStep(S, a)) return null;
+    }
+    return S;
+  }
+  const chName = (s) => typeof s === 'string' && s.length > 0 && s.length <= 24;
+  const chOk = (g) => g && typeof g === 'object' && typeof g.id === 'string' && /^\w{1,16}$/.test(g.id) && chName(g.w) && chName(g.b) && g.w !== g.b
+    && (g.mode === 'normal' || g.mode === 'cards') && [0, 3, 5, 10].includes(g.clock) && Number.isInteger(g.seed) && Number.isFinite(g.at) && Array.isArray(g.acts) && g.acts.length <= 3000;
+
+  let chG = null, chS = null, chAt = 0, chSel = -1, chBack = '', chPromo = null, chDrag = null, chTick = 0, chArm = 0, chFlips = 0;
+  const chMe = () => myName || `Player ${slot + 1}`;
+  const chMine = () => (!chS ? '' : chS.players.w === chMe() ? 'w' : chS.players.b === chMe() ? 'b' : '');
+  const chYou = (n) => (n === chMe() ? `${n} (you)` : n);
+  function chTake(p, g) { // a game from someone in the room
+    if (!chOk(g)) return;
+    const from = nameOf(p);
+    let S;
+    if (chG && g.id === chG.id) {
+      const n = chG.acts.length;
+      if (g.acts.length <= n || JSON.stringify(g.acts.slice(0, n)) !== JSON.stringify(chG.acts)) return; // nothing new, or not after ours
+      S = chReplay(g, from, n);
+    } else if (!chG || g.at > chG.at) S = chReplay(g, '', Infinity); // ponytail: a new game isn't checked against who sent it (whoever joins gets it from anyone); friends only
+    if (S) chApply(g, S, from);
+  }
+  function chApply(g, S, from) {
+    const was = chS, me = chMe(), mine = S.players.w === me || S.players.b === me;
+    chG = g;
+    chS = S;
+    chAt = performance.now();
+    chSel = -1;
+    chBack = '';
+    chPromo = null;
+    if (!was || was.id !== S.id) {
+      if (mine && from && g.acts.length === 0) notify(`${from} started ${S.mode === 'cards' ? 'Card Chess' : 'chess'} with you`, true);
+    }
+    if (S.over && !(was && was.id === S.id && was.over)) notify(`Chess: ${S.over.title}. ${S.over.why}.`);
+    else if (from && mine && !S.over && S.players[S.turn] === me && document.hidden) notify('Your move in chess', true);
+    chDraw();
+  }
+  function chAct(a) { // your action: checked like anyone's, then sent to the room
+    if (!chG || !chS || chS.over) return;
+    const g = { ...chG, acts: [...chG.acts, { ...a, ms: Math.round(performance.now() - chAt), ...(CH_BY.test(a.k) && { by: chMe() }) }] };
+    const S = chReplay(g, chMe(), chG.acts.length);
+    if (!S) return chDraw();
+    chApply(g, S, '');
+    sendOnce({ t: 'chess', g });
+  }
+  function chStart(w, b, mode, clock) {
+    const g = { id: Math.random().toString(36).slice(2, 12), w, b, mode, clock, seed: (Math.random() * 2 ** 31) | 0, at: Date.now(), acts: [] };
+    chApply(g, chReplay(g, '', 0), '');
+    sendOnce({ t: 'chess', g });
+  }
+  function chReset() { chG = chS = null; chDraw(); }
+  function chHello(p) { const [c] = p.conns; if (chG && c) c.send({ t: 'chess', g: chG }); }
+
+  // Input: click a piece then a square, or drag it there; keys work through the squares' buttons
+  function chPress(i, e) {
+    const S = chS, mine = chMine();
+    if (!S || S.over || chPromo || !mine || S.turn !== mine) return;
+    if (S.phase === 'back') { if (chBack && chFree(S, mine, chBack).includes(i)) chAct({ k: 'back', t: chBack, i }); return; }
+    const moves = chNow(S), p = S.board[i];
+    if (chSel >= 0 && moves.some((m) => m[0] === chSel && m[1] === i)) return chMove(chSel, i);
+    if (p && p[0] === mine && moves.some((m) => m[0] === i)) {
+      chSel = i;
+      chDraw();
+      if (e) chDrag = { i, x: e.clientX, y: e.clientY, ghost: null };
+      return;
+    }
+    if (chSel >= 0) { chSel = -1; chDraw(); }
+  }
+  function chMove(f, t) {
+    if (chS.board[f][1] === 'P' && (t >> 3 === 0 || t >> 3 === 7)) { chPromo = [f, t]; chSel = -1; return chDraw(); }
+    chAct({ k: 'm', f, t });
+  }
+  $('chBoard').addEventListener('pointerdown', (e) => {
+    const sq = e.target.closest('.chsq');
+    if (!sq || e.button > 0) return;
+    e.preventDefault();
+    chPress(+sq.dataset.i, e);
+  });
+  $('chBoard').addEventListener('click', (e) => { const sq = e.target.closest('.chsq'); if (sq && e.detail === 0) chPress(+sq.dataset.i); }); // Enter or Space
+  addEventListener('pointermove', (e) => {
+    if (!chDrag) return;
+    if (!chDrag.ghost) {
+      if (Math.hypot(e.clientX - chDrag.x, e.clientY - chDrag.y) < 5) return;
+      const p = chS.board[chDrag.i];
+      chDrag.ghost = Object.assign(document.createElement('span'), { className: 'chghost chpc ch' + p[0], textContent: chGlyph(p[1]) });
+      chDrag.ghost.style.fontSize = ($('chBoard').getBoundingClientRect().width / 8) * 0.85 + 'px';
+      chDrag.ghost.style.color = p[0] === 'w' ? '#fffaf8' : '#1a1013';
+      document.body.append(chDrag.ghost);
+      $('chBoard').classList.add('chlift');
+    }
+    chDrag.ghost.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`;
+  });
+  function chDrop(e) {
+    const d = chDrag;
+    chDrag = null;
+    if (!d || !d.ghost) return; // just a click: the piece stays picked
+    d.ghost.remove();
+    $('chBoard').classList.remove('chlift');
+    const sq = e.type === 'pointerup' && document.elementFromPoint(e.clientX, e.clientY)?.closest('.chsq');
+    if (sq && chS && chNow(chS).some((m) => m[0] === d.i && m[1] === +sq.dataset.i)) chMove(d.i, +sq.dataset.i);
+    else chDraw();
+  }
+  addEventListener('pointerup', chDrop);
+  addEventListener('pointercancel', chDrop);
+
+  // Drawing
+  function chCardEl(c) {
+    const el = document.createElement('div'), v = c.slice(1);
+    el.className = 'chcard';
+    el.dataset.c = c[0];
+    el.append(Object.assign(document.createElement('i'), { textContent: CH_BIG[v] }), Object.assign(document.createElement('b'), { textContent: CH_BIG[v] }), Object.assign(document.createElement('small'), { textContent: CH_SUB[v] }));
+    return el;
+  }
+  const chPc = (side, t) => Object.assign(document.createElement('span'), { className: 'chpc ch' + side, textContent: chGlyph(t) });
+  const chLeft = (name) => (chS.clock ? chS.time[name] - (chS.players[chS.turn] === name && !chS.over ? performance.now() - chAt : 0) : 0);
+  function chClocks() {
+    const fmt = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+    const bottom = chMine() || 'w';
+    for (const [id, c] of [['chTopSeat', chOther(bottom)], ['chBotSeat', bottom]]) {
+      const el = $(id).querySelector('.chclock'), ms = chLeft(chS.players[c]);
+      el.hidden = !chS.clock;
+      el.textContent = fmt(ms);
+      el.classList.toggle('chlow', ms < 20000);
+    }
+  }
+  function chTicker() { // the clock, while a game with one is on: the player whose turn it isn't calls time
+    const on = !!(chS && chS.clock && !chS.over);
+    if (on && !chTick) chTick = setInterval(() => {
+      if (!chS || chS.over || !chS.clock) return chTicker();
+      chClocks();
+      const turn = chS.players[chS.turn];
+      if (chMine() && chLeft(turn) <= 0) chAct({ k: 'flag' });
+    }, 200);
+    else if (!on && chTick) { clearInterval(chTick); chTick = 0; }
+  }
+  function chStatusText() {
+    const S = chS;
+    if (S.over) return `${S.over.title}: ${S.over.why}.`;
+    const n = S.players[S.turn], mine = n === chMe(), lead = mine ? 'Your turn' : `${n}’s turn`;
+    if (S.mode === 'normal') return (mine ? 'Your move' : `${n} to move`) + (chCheck(S.board, S.turn) ? ' · Check!' : '');
+    return { flip: `${lead}: flip a card`, move: `${lead}: ${S.left} move${S.left > 1 ? 's' : ''} left`, wild: `${lead}: pick 1, 2 or 3 moves`, back: `${lead}: bring back up to ${S.back} piece${S.back > 1 ? 's' : ''}` }[S.phase];
+  }
+  function chSeat(el, takenEl, c) {
+    const S = chS, n = S.players[c], took = S.out[chOther(c)].slice().sort((a, b) => CH_WORTH[b] - CH_WORTH[a]);
+    el.querySelector('.chswatch').className = 'chswatch ch' + c;
+    el.querySelector('.chnm').textContent = `${chYou(n)} · ${chColor(c)}`;
+    el.classList.toggle('chrun', S.turn === c && !S.over);
+    const lead = took.reduce((s, t) => s + CH_WORTH[t], 0) - S.out[c].reduce((s, t) => s + CH_WORTH[t], 0);
+    takenEl.replaceChildren(...took.map((t) => chPc(chOther(c), t)));
+    if (lead > 0) takenEl.append(Object.assign(document.createElement('span'), { className: 'chlead', textContent: '+' + lead }));
+  }
+  function chDraw() {
+    const S = chS, here = [...peers.values()].filter((p) => p.hello).map(nameOf);
+    const who = $('chWho'), keep = who.value;
+    if (who.options.length !== here.length || here.some((n, i) => who.options[i].value !== n)) {
+      who.replaceChildren(...here.map((n) => Object.assign(document.createElement('option'), { value: n, textContent: n })));
+      if (here.includes(keep)) who.value = keep;
+    }
+    $('chPlay').disabled = !here.length;
+    $('chPlay').title = here.length ? '' : 'Someone else needs to be in the room';
+    $('chIdle').hidden = !!S;
+    $('chGame').hidden = !S;
+    chTicker();
+    if (!S) { $('chWatch').textContent = ''; return; }
+    const watching = [chMe(), ...here].filter((n) => n !== S.players.w && n !== S.players.b);
+    $('chWatch').textContent = watching.length ? `${watching.join(', ')} watching` : '';
+    const mine = chMine(), bottom = mine || 'w', myTurn = mine && S.turn === mine && !S.over, moves = myTurn && !chPromo ? chNow(S) : [];
+    $('chTitle').textContent = `${S.players.w} vs ${S.players.b}`;
+    $('chModeTag').textContent = S.mode === 'cards' ? 'Card Chess' : 'Normal';
+    $('chClockTag').textContent = S.clock ? `${S.clock} min each` : 'No clock';
+    $('chStatus').textContent = chStatusText();
+    $('chStatus').classList.toggle('chdone', !!S.over);
+
+    const targets = new Set(moves.filter((m) => m[0] === chSel).map((m) => m[1]));
+    const greens = myTurn && S.phase === 'back' && chBack ? new Set(chFree(S, mine, chBack)) : new Set();
+    const red = ['w', 'b'].filter((c) => chCheck(S.board, c)).map((c) => S.board.indexOf(c + 'K'));
+    const cells = [];
+    for (let d = 0; d < 64; d++) {
+      const i = bottom === 'b' ? 63 - d : d, p = S.board[i], r = i >> 3, c = i & 7;
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'chsq' + ((r + c) % 2 ? ' chd' : '') });
+      b.dataset.i = i;
+      if (S.last && S.last.includes(i)) b.classList.add('chlast');
+      if (i === chSel) b.classList.add('chsel');
+      if (targets.has(i)) b.classList.add(p ? 'chring' : 'chdot');
+      if (greens.has(i)) b.classList.add('chhome');
+      if (red.includes(i)) b.classList.add('chhot');
+      if (p) b.append(chPc(p[0], p[1]));
+      if (d % 8 === 0) b.append(Object.assign(document.createElement('span'), { className: 'chco chrk', textContent: 8 - r }));
+      if (d >= 56) b.append(Object.assign(document.createElement('span'), { className: 'chco chfl', textContent: CH_FILES[c] }));
+      b.setAttribute('aria-label', CH_FILES[c] + (8 - r) + (p ? `, ${chColor(p[0])} ${CH_NAME[p[1]]}` : ''));
+      cells.push(b);
+    }
+    $('chBoard').replaceChildren(...cells);
+    chSeat($('chTopSeat'), $('chTopTaken'), chOther(bottom));
+    chSeat($('chBotSeat'), $('chBotTaken'), bottom);
+    chClocks();
+
+    $('chPromo').hidden = !chPromo;
+    if (chPromo) $('chPromoBtns').replaceChildren(...['Q', 'R', 'B', 'N'].map((t) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', value: t });
+      b.append(chPc(mine, t));
+      b.setAttribute('aria-label', CH_NAME[t]);
+      return b;
+    }));
+    $('chResult').hidden = !S.over;
+    $('chRematch').hidden = !mine;
+    if (S.over) { $('chResTitle').textContent = S.over.title; $('chResWhy').textContent = S.over.why; }
+
+    const cards = S.mode === 'cards';
+    $('chZone').hidden = !cards;
+    if (cards) {
+      $('chFlip').disabled = !(myTurn && S.phase === 'flip');
+      $('chFlip').classList.toggle('chready', !$('chFlip').disabled);
+      $('chDeckN').textContent = `${S.deck.length} in the deck`;
+      const face = S.card ? chCardEl(S.card) : Object.assign(document.createElement('div'), { className: 'chcard chempty', textContent: 'No card yet' });
+      face.id = 'chCard';
+      if (S.flips !== chFlips) { if (S.card) face.classList.add('chnew'); chFlips = S.flips; }
+      $('chCard').replaceWith(face);
+      $('chSay').textContent = S.say;
+      $('chWild').hidden = S.phase !== 'wild' || !!S.over;
+      for (const b of $('chWild').children) b.disabled = !myTurn;
+      $('chBackBox').hidden = S.phase !== 'back' || !!S.over;
+      if (S.phase === 'back') $('chBackBox').replaceChildren(...[...new Set(S.out[S.turn])].sort((a, b) => CH_WORTH[b] - CH_WORTH[a]).map((t) => {
+        const free = chFree(S, S.turn, t).length;
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'chchip', value: t, disabled: !myTurn || !free, title: free ? `Bring back a ${CH_NAME[t]}` : `Every ${CH_NAME[t]} starting square is taken` });
+        b.append(chPc(S.turn, t));
+        b.style.background = S.turn === 'w' ? 'var(--sq-dark)' : 'var(--sq-light)';
+        b.setAttribute('aria-pressed', chBack === t);
+        return b;
+      }));
+      $('chEnd').hidden = !(myTurn && (S.phase === 'move' || S.phase === 'back'));
+    }
+    $('chActs').hidden = !mine || !!S.over;
+    $('chDraw').disabled = !!S.offer;
+    $('chResign').textContent = chArm ? 'Resign? Click again' : 'Resign';
+    $('chOffer').hidden = !S.offer || !!S.over;
+    if (S.offer) {
+      const answer = mine && S.offer !== chMe();
+      $('chOffer').firstChild.textContent = S.offer === chMe() ? 'You offered a draw.' : `${S.offer} offered a draw.`;
+      $('chOffer').lastChild.hidden = !answer;
+    }
+    $('chWatchNote').hidden = !!mine || !!S.over;
+    $('chWatchNote').textContent = `You’re watching ${S.players.w} and ${S.players.b}. Only they can move.`;
+  }
+  $('chRuleList').replaceChildren(...CH_RULES.map(([c, text]) => {
+    const li = document.createElement('li');
+    li.append(c ? chCardEl(c) : Object.assign(chPc('w', 'K'), { style: 'font-size:30px;text-align:center' }), Object.assign(document.createElement('span'), { textContent: text }));
+    return li;
+  }));
+
+  // Buttons
+  $('chMode').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) for (const x of $('chMode').children) x.setAttribute('aria-pressed', x === b); });
+  $('chPlay').addEventListener('click', () => {
+    const opp = $('chWho').value;
+    if (!opp || opp === chMe()) return;
+    const [w, b] = Math.random() < 0.5 ? [chMe(), opp] : [opp, chMe()];
+    chStart(w, b, $('chMode').querySelector('[aria-pressed="true"]').dataset.mode, +$('chClock').value);
+  });
+  $('chRematch').addEventListener('click', () => chG && chStart(chG.b, chG.w, chG.mode, chG.clock)); // colors swap
+  $('chClose').addEventListener('click', chReset);
+  $('chPromoBtns').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && chPromo) { const [f, t] = chPromo; chPromo = null; chAct({ k: 'm', f, t, p: b.value }); } });
+  $('chFlip').addEventListener('click', () => chAct({ k: 'flip' }));
+  $('chWild').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) chAct({ k: 'wild', n: +b.dataset.n }); });
+  $('chBackBox').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { chBack = chBack === b.value ? '' : b.value; chDraw(); } });
+  $('chEnd').addEventListener('click', () => chAct({ k: 'end' }));
+  $('chDraw').addEventListener('click', () => chAct({ k: 'offer' }));
+  $('chYes').addEventListener('click', () => chAct({ k: 'accept' }));
+  $('chNo').addEventListener('click', () => chAct({ k: 'decline' }));
+  $('chResign').addEventListener('click', () => {
+    if (!chArm) { chArm = setTimeout(() => { chArm = 0; chDraw(); }, 3000); return chDraw(); }
+    clearTimeout(chArm);
+    chArm = 0;
+    chAct({ k: 'resign' });
+  });
+
   // Balance teams: each player's Solo/Duo rank as a number (Iron IV 0 LP is 0, Diamond I 99 LP 2,799, Master and up
   // 2,800 plus their LP); anyone whose rank isn't known (no desktop app with League, unranked, or not shared) counts as
   // the room's average. The teams are a random one of the most even splits, within half a division.
@@ -16073,6 +16703,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [145, 'November 10: chess in your room', [
+      'Play chess with a friend in your room, under Games below the chat, while everyone else watches. Pick Normal, with the full rules and draws, or Card Chess: flip a card each turn for 1 to 3 moves, Skip, Reverse, or bring taken pieces back, and take the king to win. An optional clock gives each of you 3, 5 or 10 minutes. Whoever joins later sees the game.',
+    ]],
     [144, 'November 9: PageUp and PageDown as shortcuts', [
       'Change on a shortcut now takes PageUp, PageDown and Insert on their own, and Home, End and Delete with Ctrl, Alt or Shift: before, the button just waited. Needs desktop app 1.46.0, which updates itself.',
     ]],
@@ -16791,6 +17424,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Voice settings, Talking: Change or Set key.', '#kMute'],
       ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
         'Voice settings, Popups and sounds.', '#optNotify'],
+      ['Chess with friends', 'Play chess with someone in your room while everyone else watches live, and whoever joins later sees the game in progress. Click a piece then a square, or drag it; dots show the legal moves. Normal has the full rules: castling, en passant, promotion where you pick the piece, check and checkmate, and draws by stalemate, too few pieces, the same position three times, 50 moves or an offer. Card Chess is the extra mode: flip a card from one shared deck each turn for 1 to 3 moves, Skip, Reverse (you swap armies), +2 or Wild +4 to bring taken pieces back; there is no check, and taking the king wins. Pick no clock or 3, 5 or 10 minutes each; Resign and Rematch any time.',
+        'In your room, under Games below the chat: pick who to play, Normal or Card Chess, and a clock, then Play. It starts for both of you at once.', '#roomGames, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
@@ -17225,6 +17860,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   if (params.has('debug')) window.lpc = {
     slot: () => slot,
     room: () => room,
+    chessDraw: () => chDraw(),
+    chessReplay: (g) => { const S = chReplay({ id: 'x', w: 'A', b: 'B', mode: 'normal', clock: 0, seed: 1, at: 0, ...g }, '', Infinity); return S && { over: S.over, board: S.board.join(), turn: S.turn, castle: S.castle, phase: S.phase, card: S.card, players: S.players, out: S.out, left: S.left, back: S.back, say: S.say, deck: S.deck.slice() }; },
+    chess: () => chS && { ...chS, rnd: undefined, reps: undefined, deck: chS.deck.slice(-3), acts: chG.acts.length },
     phoneQuality,
     jungler: (r, tl) => junglerEl(r, tl),
     foes: () => (share && share.foes ? share.foes.list.map(({ name, id, seen, zone, where, lane, called, dead }) => ({ name, id, seen, zone, where, lane, called, dead })) : null),
