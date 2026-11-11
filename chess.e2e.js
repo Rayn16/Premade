@@ -118,6 +118,46 @@ const line = (moves) => moves.split(' ').map((m) => mv(m));
     assert(s.board.split(',')[sq('d1')] === 'wQ' && s.turn === 'b', 'the queen back on d1');
     console.log('Card Chess: numbers, 0, End turn, Reverse, Skip, +2 put-backs, taking the king');
 
+    // What's new 146: Swap, Freeze and Shield in games with d: 2; a game without d keeps the old 44 cards
+    const old = await R({ mode: 'cards', seed: 7, acts: [] }), neu = await R({ mode: 'cards', d: 2, seed: 7, acts: [] });
+    assert(old.deck.length === 44 && !old.deck.some((c) => /^k[XFH]$/.test(c)) && neu.deck.length === 50 && neu.deck.filter((c) => /^k[XFH]$/.test(c)).length === 6, 'old games keep the 44 cards, new ones have 50');
+    const find2 = (want) => ana.evaluate((want) => { // in the page: thousands of seeds a second
+      for (let seed = 1; seed < 300000; seed++) { const t = lpc.chessReplay({ mode: 'cards', d: 2, seed, acts: [] }).deck.slice(-want.length).reverse().map((c) => c.slice(1)); if (want.every((v, i) => v == null || v === t[i])) return seed; }
+      return 0;
+    }, want);
+    const D = (seed, acts) => R({ mode: 'cards', d: 2, seed, acts });
+    const at = (s, x) => s.board.split(',')[sq(x)];
+    seed = await find2(['X']);
+    s = await D(seed, [{ k: 'flip' }]);
+    assert(s.phase === 'swap' && s.turn === 'w', 'Swap: pick two pieces');
+    s = await D(seed, [{ k: 'flip' }, { k: 'swap', a: sq('e1'), b: sq('d1') }]);
+    assert(at(s, 'd1') === 'wK' && at(s, 'e1') === 'wQ' && s.castle === 'kq' && s.phase === 'flip' && s.turn === 'w', `the king and queen swapped, castling gone, flip again: ${s.castle}`);
+    assert.strictEqual(await D(seed, [{ k: 'flip' }, { k: 'swap', a: sq('e2'), b: sq('e1') }]), null, 'a pawn can’t land on the first row');
+    assert.strictEqual(await D(seed, [{ k: 'flip' }, { k: 'swap', a: sq('e2'), b: sq('e7') }]), null, 'only your own pieces');
+    s = await D(seed, [{ k: 'flip' }, { k: 'skipcard' }]);
+    assert(s.phase === 'flip' && s.turn === 'w', 'Don’t use: flip again');
+    seed = await find2(['F', '3', '3']);
+    const frz = [{ k: 'flip' }, { k: 'freeze', i: sq('e7') }, { k: 'flip' }, ...line('e2e3 a2a3 b2b3'), { k: 'flip' }];
+    s = await D(seed, frz);
+    assert(s.turn === 'b' && s.frozen.length === 1 && s.frozen[0].by === 'A', 'black’s e7 frozen by A');
+    assert.strictEqual(await D(seed, [...frz, mv('e7e5')]), null, 'a frozen piece can’t move');
+    assert.strictEqual(await D(seed, [{ k: 'flip' }, { k: 'freeze', i: sq('e2') }]), null, 'Freeze: only their pieces');
+    s = await D(seed, [...frz, ...line('a7a6 a6a5 b7b6')]);
+    assert(s.turn === 'w' && !s.frozen.length, 'the freeze ends when A’s turn comes back');
+    s = await D(seed, [{ k: 'flip' }, { k: 'freeze', i: sq('f7') }, { k: 'flip' }, ...line('e2e3 d1h5 h5f7')]);
+    assert(s.out.b.includes('P') && !s.frozen.length && at(s, 'f7') === 'wQ', 'a frozen piece can still be taken, and the freeze goes with it');
+    seed = await find2(['3', 'H', '3', '3']);
+    const shd = [{ k: 'flip' }, ...line('e2e3 d1h5 a2a3'), { k: 'flip' }, { k: 'shield', i: sq('f7') }, { k: 'flip' }, ...line('a7a6 a6a5 b7b6'), { k: 'flip' }];
+    s = await D(seed, shd);
+    assert(s.turn === 'w' && s.shields.length === 1 && s.shields[0].by === 'B', 'f7 shielded by B');
+    assert.strictEqual(await D(seed, [...shd, mv('h5f7')]), null, 'a shielded piece can’t be taken');
+    s = await D(seed, [...shd, ...line('h5h6 a3a4 b2b3')]);
+    assert(s.turn === 'b' && !s.shields.length, 'the shield ends when B’s turn comes back');
+    s = await D(seed, [{ k: 'flip' }, ...line('e2e3 d1h5 h5f7'), { k: 'flip' }, { k: 'shield', i: sq('e8') }, { k: 'flip' }, ...line('a7a6 a6a5 b7b6'), { k: 'flip' }]);
+    assert(s.turn === 'w' && s.shields[0].i === sq('e8'), 'the king shielded');
+    assert.strictEqual(await D(seed, [{ k: 'flip' }, ...line('e2e3 d1h5 h5f7'), { k: 'flip' }, { k: 'shield', i: sq('e8') }, { k: 'flip' }, ...line('a7a6 a6a5 b7b6'), { k: 'flip' }, mv('f7e8')]), null, 'a shielded king can’t be taken');
+    console.log('Card Chess 146: Swap (no pawn on the end rows), Freeze (still takeable), Shield (the king too), each ending at the card player’s next turn; old games keep the old deck');
+
     // ---- two players and a watcher
     const ROOM = await ana.evaluate(() => lpc.room());
     await join(ben, ROOM);
@@ -139,6 +179,7 @@ const line = (moves) => moves.split(' ').map((m) => mv(m));
         await join(cat, ROOM);
         await waitFor(cat, () => lpc.chess() && lpc.chess().acts === 4 && /watching/.test(document.getElementById('chWatchNote').textContent), null, 'the game for Cat, who came later');
         assert((await cat.locator('#chActs').isHidden()) && (await cat.textContent('#chWatch')).includes('Cat'), 'Cat only watches');
+        assert.deepStrictEqual(await cat.evaluate(() => lpc.chessSounds()), [], 'no sounds for a whole game arriving');
         pageOf.Cat = cat;
       }
     }
@@ -146,6 +187,30 @@ const line = (moves) => moves.split(' ').map((m) => mv(m));
     for (const p of [ana, ben, pageOf.Cat]) await waitFor(p, () => lpc.chess().over && lpc.chess().over.why === 'Checkmate' && !document.getElementById('chResult').hidden, null, 'checkmate everywhere');
     assert.strictEqual(await pageOf.Cat.evaluate(() => lpc.chess().board.join()), await ana.evaluate(() => lpc.chess().board.join()), 'the same board for the watcher');
     console.log(`room: ${players.w} mated ${players.b} by clicking, Cat joined at move 4 and saw it all`);
+
+    // sounds: moves, your turn only for the players, the end; a capture; nothing with the speaker off
+    const snd = (p) => p.evaluate(() => lpc.chessSounds());
+    const [sw, sb, sc] = [await snd(pageOf[players.w]), await snd(pageOf[players.b]), await snd(pageOf.Cat)];
+    assert(sw.includes('move') && sw.includes('turn') && sw.at(-1) === 'win' && sb.includes('turn') && sb.at(-1) === 'lose', `players: ${sw} / ${sb}`);
+    assert(sc.includes('move') && !sc.includes('turn') && sc.at(-1) === 'draw', `the watcher: ${sc}`);
+    await pageOf.Cat.click('#chSound');
+    assert.strictEqual(await pageOf.Cat.evaluate(() => localStorage.getItem('lpc-chess-sound')), '0', 'the speaker off is kept');
+    await ana.click('#chClose');
+    await ana.click('#chPlay');
+    await waitFor(ben, () => lpc.chess() && lpc.chess().acts === 0 && !lpc.chess().over, null, 'a second Normal game for Ben');
+    const p2 = await ben.evaluate(() => lpc.chess().players);
+    for (const [i, m] of ['e2e4', 'd7d5', 'e4d5'].entries()) {
+      await click(pageOf[p2[i % 2 ? 'b' : 'w']], m.slice(0, 2), m.slice(2));
+      await waitFor(ana, (n) => lpc.chess().acts === n, i + 1, `move ${i + 1}`);
+      await waitFor(ben, (n) => lpc.chess().acts === n, i + 1, `move ${i + 1}`);
+    }
+    await waitFor(pageOf.Cat, () => lpc.chess().acts === 3, null, 'the capture for Cat');
+    assert((await snd(ana)).includes('capture') && (await snd(ben)).includes('capture'), 'a capture sounds heavier');
+    assert.deepStrictEqual(await snd(pageOf.Cat), sc, 'nothing with the speaker off');
+    await ana.click('#chResign');
+    await ana.click('#chResign');
+    await waitFor(ana, () => lpc.chess().over, null, 'the second game over');
+    console.log(`sounds: ${sw.join(' ')}; the watcher has no "turn", a capture, the speaker off kept quiet`);
 
     // a move dragged, then Card Chess dealing both the same cards
     await ana.click('#chClose');
@@ -159,6 +224,7 @@ const line = (moves) => moves.split(' ').map((m) => mv(m));
     await waitFor(ben, () => lpc.chess().acts === 1, null, 'the flip on Ben’s page');
     const cards = [await ana.evaluate(() => lpc.chess().card), await ben.evaluate(() => lpc.chess().card), await pageOf.Cat.evaluate(() => lpc.chess().card)];
     assert(cards[0] && cards.every((c) => c === cards[0]), `the same card everywhere: ${cards}`);
+    assert((await snd(ana)).includes('flip') && (await snd(ben)).includes('flip'), 'the flip sounds');
     console.log(`Card Chess: ${cp.w} flipped ${cards[0]}, the same card on all three pages`);
 
     // ---- memory: 200 redraws and 3 games in a row
