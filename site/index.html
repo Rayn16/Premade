@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#010a13">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <script>
   if (window.lpcClient) document.documentElement.classList.add('in-client'); // the Windows client (client/preload.js)
   if (window.lpcClient && window.lpcClient.lcu) document.documentElement.classList.add('has-lcu'); // version 1.6+: League's own client
@@ -25,37 +25,37 @@
    starts from red and black, and lpcLook puts your own colours over it.
    A dashboard: sections down the left like Discord, the chosen one in the middle, a status bar along the bottom. */
 :root {
-  --display: "Cinzel", Georgia, serif;
+  --display: var(--body); /* one font everywhere (2026-11-12), the name kept for the places that use it */
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 :root, [data-theme="red"], [data-theme="custom"] {
   --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a;
-  --gold: #ff4f5a; --gold-hi: #ffffff; --gold-line: #7a1f28; --accent: #d9202d; --accent-fg: #ffffff; --link: #ff5c66; --talk: #ffffff;
+  --gold: #e9e1e2; --gold-hi: #ffffff; --gold-line: #463a3d; --accent: #d9202d; --accent-fg: #ffffff; --link: #e9e1e2; --talk: #ffffff;
   --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   color-scheme: dark;
 }
 [data-theme="league"] {
   --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
-  --gold: #c8aa6e; --gold-hi: #f0e6d2; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --link: #0ac8b9; --talk: #0ac8b9;
+  --gold: #c8aa6e; --gold-hi: #f0e6d2; --gold-line: #2c3d55; --accent: #0ac8b9; --accent-fg: #010a13; --link: #0ac8b9; --talk: #0ac8b9;
   --best: #c8aa6e; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   color-scheme: dark;
 }
 [data-theme="light"] {
   --bg: #f2eee4; --panel: #fffdf7; --raised: #f5efe1; --fg: #0a1428; --muted: #575550; --line: #dcd2bd;
-  --gold: #85662b; --gold-hi: #4d3a12; --gold-line: #c8aa6e; --accent: #03717d; --accent-fg: #ffffff; --link: #03717d; --talk: #03717d;
+  --gold: #85662b; --gold-hi: #4d3a12; --gold-line: #cfc6b4; --accent: #03717d; --accent-fg: #ffffff; --link: #03717d; --talk: #03717d;
   --best: #85662b; --good: #1a7443; --warn: #8a5d00; --bad: #b3261e;
   color-scheme: light;
 }
 [data-theme="purple"] {
   --bg: #0c0913; --panel: #151022; --raised: #1e1730; --fg: #efeaf8; --muted: #a39cb5; --line: #2e2445;
-  --gold: #b794ff; --gold-hi: #f5f0ff; --gold-line: #5b3f99; --accent: #7c4dff; --accent-fg: #ffffff; --link: #b794ff; --talk: #c4a8ff;
+  --gold: #b794ff; --gold-hi: #f5f0ff; --gold-line: #3d3356; --accent: #7c4dff; --accent-fg: #ffffff; --link: #b794ff; --talk: #c4a8ff;
   --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   color-scheme: dark;
 }
 [data-theme="green"] {
   --bg: #07100d; --panel: #0d1915; --raised: #13231d; --fg: #e8f3ee; --muted: #93a89f; --line: #1f3a30;
-  --gold: #5ee6a8; --gold-hi: #f0fff7; --gold-line: #1f6b4f; --accent: #27c381; --accent-fg: #07100d; --link: #4fdc9c; --talk: #7dffc4;
+  --gold: #5ee6a8; --gold-hi: #f0fff7; --gold-line: #2b4a3e; --accent: #27c381; --accent-fg: #07100d; --link: #4fdc9c; --talk: #7dffc4;
   --best: #e8b84a; --good: #3ccf8e; --warn: #e3b341; --bad: #ff6b6b;
   color-scheme: dark;
 }
@@ -84,9 +84,9 @@ a { color: var(--link); }
 .rail .group { margin: 12px 8px 4px; font: 600 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .nav { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); font: 500 13.5px/1.2 var(--body); text-align: left; cursor: pointer; }
 .nav svg { width: 16px; height: 16px; flex: none; }
-.nav:hover { color: var(--fg); background: var(--raised); }
-.nav[aria-current="page"] { color: var(--gold-hi); border-color: var(--gold-line); background: color-mix(in srgb, var(--gold) 10%, var(--raised)); box-shadow: inset 2px 0 var(--gold); }
-.nav[aria-current="page"] svg { color: var(--gold); }
+@media (hover: hover) { .nav:hover { color: var(--fg); background: var(--raised); } }
+.nav:active { background: var(--raised); }
+.nav[aria-current="page"] { color: var(--fg); background: color-mix(in srgb, var(--fg) 9%, var(--raised)); }
 /* League: one button at the foot of the rail, as before; its pages are tabs along the top of main */
 .rail .league { margin: auto 0 10px; padding: 10px 12px; gap: 12px; border-color: var(--gold-line); font: 600 12.5px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; }
 .rail .league svg { width: 20px; height: 20px; }
@@ -142,8 +142,8 @@ main > #msg:not(:empty) { margin-top: 16px; }
 
 svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 14px; min-width: 0; align-content: start; }
-.title { font: 700 clamp(22px, 2.6vw, 30px)/1.15 var(--display); letter-spacing: 0.04em; color: var(--gold-hi); }
-.ph { display: flex; align-items: center; gap: 8px; font: 700 13.5px/1.2 var(--display); letter-spacing: 0.06em; color: var(--gold-hi); }
+.title { font: 600 clamp(22px, 2.6vw, 30px)/1.15 var(--display); color: var(--gold-hi); }
+.ph { display: flex; align-items: center; gap: 8px; font: 600 14px/1.2 var(--display); color: var(--gold-hi); }
 .panel > .ph:first-child { margin: -16px -16px 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--link); }
 .hint { color: var(--muted); font-size: 14px; }
@@ -161,7 +161,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .re4steps li { counter-increment: re4; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--raised); }
 .re4steps li::before { content: counter(re4); font: 500 11px/1 var(--mono); color: var(--gold); margin-right: 8px; }
 .btn { font: 600 13.5px/1 var(--body); padding: 9px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); cursor: pointer; }
-.btn:hover { border-color: var(--gold-line); color: var(--gold-hi); }
+@media (hover: hover) { .btn:hover { border-color: var(--gold-line); color: var(--gold-hi); } }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .btn.primary:hover { filter: brightness(1.1); }
 .btn.small { padding: 7px 12px; font-size: 13px; }
@@ -227,7 +227,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .player[data-team="enemy"] { border-left-color: #ff5c5c; }
 .pic { grid-area: pic; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--raised); border: 2px solid var(--gold-line); font: 700 18px/1 var(--display); color: var(--gold); transition: box-shadow 0.15s, border-color 0.15s; }
 .pic img { width: 100%; height: 100%; object-fit: cover; }
-.player[data-talking] .pic { border-color: var(--talk); box-shadow: 0 0 0 3px color-mix(in srgb, var(--talk) 35%, transparent), 0 0 18px color-mix(in srgb, var(--talk) 65%, transparent); }
+.player[data-talking] .pic { border-color: var(--talk); box-shadow: 0 0 0 3px color-mix(in srgb, var(--talk) 35%, transparent); }
 .player[data-dead] .pic { filter: grayscale(1) brightness(0.7); }
 .pmain { grid-area: main; display: grid; gap: 2px; min-width: 0; }
 .pname { display: flex; align-items: center; gap: 8px; font-weight: 600; overflow-wrap: anywhere; }
@@ -377,16 +377,16 @@ body.compact .app { grid-template: "chips" auto "bar" auto / minmax(0, 1fr); hei
 body.compact :is(.rail, main, .toasts, #sbLeague) { display: none !important; }
 body.compact .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 2px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; }
-.chip[data-talking] { border-color: var(--talk); box-shadow: 0 0 10px color-mix(in srgb, var(--talk) 55%, transparent); }
+.chip[data-talking] { border-color: var(--talk); }
 .chip[data-talking] .dot { background: var(--talk); }
 .chips:empty::before { content: attr(data-empty); color: var(--muted); font-size: 13px; }
 
 /* popups */
 .toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100% - 32px)); pointer-events: none; }
 .phone .toasts { inset: calc(12px + env(safe-area-inset-top)) 16px auto; max-width: none; justify-items: stretch; }
-.toast { white-space: pre-line; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--fg); box-shadow: 0 10px 28px rgb(0 0 0 / 0.4); font-size: 14px; animation: toast-in 0.2s ease-out; }
-@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .toast { animation: none; } .pic { transition: none; } }
+.toast { white-space: pre-line; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--gold-line); background: var(--raised); color: var(--fg); box-shadow: 0 10px 28px rgb(0 0 0 / 0.4); font-size: 14px; }
+
+:root[data-motion="reduced"] .pic { transition: none; }
 
 /* the setup wizard */
 dialog.wizard { width: min(580px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--gold-line); border-radius: 10px; background: var(--panel); color: var(--fg); box-shadow: 0 30px 80px rgb(0 0 0 / 0.55); }
@@ -774,7 +774,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .tftrec th, .tftrec td { padding: 1px; }
 .tftrec img { display: block; width: 22px; height: 22px; border: 2px solid transparent; border-radius: 4px; }
 .tftrec th img { opacity: 0.85; }
-.tftrec .want img { border-color: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.tftrec .want img { border-color: var(--gold); }
 /* the Overlay page's layout: your screen with League's score, abilities and minimap sketched in, overlay.html in a frame
    the size of the screen shrunk to fit (ovDraw), and a box over each part to drag. The frame keeps the overlay's own
    colour scheme, so it stays see-through. */
@@ -922,7 +922,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .chchip[aria-pressed="true"] { border-color: var(--good); box-shadow: 0 0 0 2px rgb(60 207 142 / 0.35); }
 .chchip:disabled { opacity: 0.35; cursor: default; }
 .choffer { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); font-size: 14px; }
-@media (prefers-reduced-motion: reduce) { .chcard.chnew { animation: none; } }
+:root[data-motion="reduced"] .chcard.chnew { animation: none; }
 /* Last Card (What's new 148): the Card Chess cards, the players around the table, your hand along the bottom */
 #gamePick { justify-self: start; }
 .lcpick { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -934,10 +934,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .lcstatus.lcmine { border-left-color: var(--good); }
 .lcsecs { margin-left: auto; font: 500 13px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .lcsecs.lclow { color: var(--bad); }
-/* the table: a red burst like a comic panel, the players around it, the pile in the middle with the turn order ring */
+/* the table: a plain felt, the players around it, the pile in the middle with the turn order ring */
 .lctable { position: relative; aspect-ratio: 16 / 11; min-height: 380px; border-radius: 18px; overflow: hidden; container-type: inline-size;
-  background: repeating-conic-gradient(from 3deg at 50% 46%, rgb(0 0 0 / 0.16) 0 3deg, transparent 3deg 11deg), radial-gradient(ellipse at 50% 46%, #ff3b3f 0, #c3131c 34%, #6e0910 72%, #2a0306 100%);
-  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.08), inset 0 0 80px rgb(0 0 0 / 0.6), 0 14px 36px rgb(0 0 0 / 0.45); }
+  background: #5a1117; }
 .lcseats { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
 .lcseat { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: grid; grid-template-columns: auto auto; grid-template-areas: "name name" "av fan" "badge badge"; align-items: center; gap: 3px 6px; z-index: 1; }
 .lcname { grid-area: name; justify-self: start; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 10px 3px 8px; clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); background: #2b8fd6; color: #fff; font: 700 12.5px/1.2 var(--body); text-shadow: 0 1px 0 rgb(0 0 0 / 0.4); }
@@ -970,7 +969,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .lcdeck { grid-area: deck; position: relative; display: grid; place-items: end center; padding: 0 0 6px; border: 0; background: none; cursor: pointer; }
 .lcdeck::before { content: ""; width: 74px; aspect-ratio: 5 / 7; border-radius: 9px; background: var(--back); box-shadow: 2px 2px 0 #f6e7c8, 4px 4px 0 #3a0a0e, 6px 6px 0 #f6e7c8, 8px 8px 0 #3a0a0e, 10px 12px 18px rgb(0 0 0 / 0.5); transition: transform 0.12s; }
 .lcdeck small { position: absolute; bottom: -12px; padding: 2px 7px; border-radius: 999px; background: rgb(0 0 0 / 0.65); color: #fff; font: 600 11px/1.3 var(--mono); white-space: nowrap; }
-.lcdeck.lcready::before { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--card-y), 2px 2px 0 #f6e7c8, 4px 4px 0 #3a0a0e, 6px 6px 0 #f6e7c8, 8px 8px 0 #3a0a0e, 0 0 26px rgb(255 214 64 / 0.7); }
+.lcdeck.lcready::before { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--card-y), 2px 2px 0 #f6e7c8, 4px 4px 0 #3a0a0e, 6px 6px 0 #f6e7c8, 8px 8px 0 #3a0a0e; }
 .lcdeck:disabled { cursor: default; }
 .lcpilebox { grid-area: pile; position: relative; }
 .lcpile { position: relative; width: 104px; aspect-ratio: 5 / 7; }
@@ -990,9 +989,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .lccol[data-col="g"] { background: var(--card-g); }
 .lccol[data-col="b"] { background: var(--card-b); }
 /* Last Card's cards: a white edge, the color, a tilted lighter band, the big symbol outlined in black; backs in Premade red and gold */
-#roomGames { --back: radial-gradient(circle at 50% 50%, transparent 0 34%, #f6e7c8 35% 38%, transparent 39%), repeating-linear-gradient(45deg, rgb(255 255 255 / 0.06) 0 4px, transparent 4px 9px), linear-gradient(160deg, #d3202a, #6d0810); }
+#roomGames { --back: radial-gradient(circle at 50% 50%, transparent 0 34%, #f6e7c8 35% 38%, transparent 39%) #a3161f; }
 .lccard { --w: 92px; --cc: var(--card-r); position: relative; display: block; flex: none; width: var(--w); aspect-ratio: 5 / 7; padding: 0; border: 0; border-radius: calc(var(--w) * 0.11); background: #fbf7f2; color: #fff; overflow: hidden; box-shadow: 0 6px 14px rgb(0 0 0 / 0.45); font: inherit; }
-.lccard::before { content: ""; position: absolute; inset: calc(var(--w) * 0.06); border-radius: calc(var(--w) * 0.07); background: linear-gradient(-62deg, transparent 30%, rgb(255 255 255 / 0.28) 30% 70%, transparent 70%), var(--cc); }
+.lccard::before { content: ""; position: absolute; inset: calc(var(--w) * 0.06); border-radius: calc(var(--w) * 0.07); background: var(--cc); }
 .lccard[data-c="y"] { --cc: var(--card-y); }
 .lccard[data-c="g"] { --cc: var(--card-g); }
 .lccard[data-c="b"] { --cc: var(--card-b); }
@@ -1014,7 +1013,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .lchand { display: flex; justify-content: safe center; margin-top: -78px; padding: 30px 12px 10px; overflow-x: auto; scrollbar-width: thin; position: relative; z-index: 2; }
 .lchand .lccard { --w: 100px; margin-left: calc(var(--w) * -0.3); cursor: default; transform: translateY(calc(var(--arc) + var(--lift, 0px))) rotate(var(--r)); transform-origin: 50% 130%; transition: transform 0.14s ease-out, filter 0.14s; }
 .lchand .lccard:first-child { margin-left: 0; }
-.lchand .lccard.lcok { --lift: -18px; cursor: pointer; box-shadow: 0 0 0 3px var(--card-y), 0 0 22px rgb(255 214 64 / 0.55), 0 10px 18px rgb(0 0 0 / 0.5); }
+.lchand .lccard.lcok { --lift: -18px; cursor: pointer; box-shadow: 0 0 0 3px var(--card-y), 0 10px 18px rgb(0 0 0 / 0.5); }
 .lchand .lccard.lcok:hover, .lchand .lccard.lcok:focus-visible { --lift: -30px; z-index: 1; }
 .lchand .lccard.lcno { filter: saturate(0.55) brightness(0.62); }
 .lchand.lcwait .lccard.lcno { filter: none; }
@@ -1037,7 +1036,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   .lchand { margin-top: -30px; }
   .lchand .lccard { --w: 68px; }
 }
-@media (prefers-reduced-motion: reduce) { .lchand .lccard, .lcdeck::before { transition: none; } .lcring g, .lcseat.lcturn .lcav, .lccard.chnew { animation: none; } }
+:root[data-motion="reduced"] :is(.lchand .lccard, .lcdeck::before) { transition: none; } :root[data-motion="reduced"] :is(.lcring g, .lcseat.lcturn .lcav, .lccard.chnew) { animation: none; }
 .roombar { grid-area: bar; display: none; }
 #roomView[data-game] .roomgrid { grid-template-areas: "players side" "main side" "main cur" "bar bar"; }
 #roomView[data-game] #roomSide { display: grid; }
@@ -1164,6 +1163,49 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 #recBox[data-on] .recbig::before { content: none; }
 .rectime { font: 600 28px/1 var(--mono); color: var(--fg); }
 #recBox[data-on] .rectime { color: var(--bad); }
+
+/* Motion (Settings > Look > Animations, 2026-11-12): calm, and only transform and opacity, so it costs no layout while
+   a game runs. data-motion on <html>: on; reduced (Windows' Show animations off, or picked): what moves becomes a short
+   fade, through --m; off (Pause animations while a game runs): everything instant. Things appearing ease out; what
+   leaves takes 80% of the time. The overlay (overlay.html) has none of it. */
+:root { --t-press: 120ms; --t-pop: 180ms; --t-sheet: 260ms; --t-page: 150ms; --t-move: 340ms; --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-io: cubic-bezier(0.77, 0, 0.175, 1); --m: 1; }
+:root[data-motion="reduced"] { --m: 0; }
+:root[data-motion="off"] :is(*, *::before, *::after, ::backdrop) { animation: none !important; transition: none !important; }
+:root { --press: calc(1 - 0.04 * var(--m)); --from: calc(1 - 0.05 * var(--m)); --rise: calc(12px * var(--m)); }
+/* press: buttons shrink a little; rows (.nav) change colour instead */
+:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip) { transition: transform var(--t-press) var(--ease-out), background-color var(--t-press), border-color var(--t-press), color var(--t-press); }
+:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip):active:not(:disabled) { transform: scale(var(--press)); }
+.nav { transition: background-color var(--t-press), color var(--t-press); }
+#optMotion { max-width: 300px; }
+/* popovers and dialogs come in from 95% and fade, and leave a little faster; Esc closes the top one (the browser's own) */
+[popover], dialog.wizard, dialog.wizard::backdrop { opacity: 0; transition: opacity calc(var(--t) * 0.8) var(--ease-out), transform calc(var(--t) * 0.8) var(--ease-out), overlay calc(var(--t) * 0.8) allow-discrete, display calc(var(--t) * 0.8) allow-discrete; }
+[popover] { --t: var(--t-pop); transform: scale(var(--from)); transform-origin: top left; }
+dialog.wizard, dialog.wizard::backdrop { --t: var(--t-sheet); }
+dialog.wizard { transform: scale(var(--from)); }
+:is([popover]:popover-open, dialog.wizard[open], dialog.wizard[open]::backdrop) { opacity: 1; transform: none; transition-duration: var(--t); }
+@starting-style { :is([popover]:popover-open, dialog.wizard[open], dialog.wizard[open]::backdrop) { opacity: 0; } :is([popover]:popover-open, dialog.wizard[open]) { transform: scale(var(--from)); } }
+.toast { animation: pop-in var(--t-sheet) var(--ease-out) both; }
+.toast.bye { animation: pop-out calc(var(--t-sheet) * 0.8) var(--ease-out) both; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(var(--rise)) scale(var(--from)); } }
+@keyframes pop-out { to { opacity: 0; transform: translateY(calc(var(--rise) / 2)) scale(var(--from)); } }
+/* a page picked in the menu fades in; one opened by a shortcut is just there */
+.view.enter { animation: page-in var(--t-page) var(--ease-out); }
+@keyframes page-in { from { opacity: 0; } }
+/* the big moments, each under half a second: the post-game result lands with a ring, checkmate topples the king, the
+   Last Card places fly in */
+#postHead { position: relative; }
+#postHead.land { animation: land 420ms var(--ease-out) both; }
+#postHead.land::after { content: ""; position: absolute; left: -6px; top: 50%; width: 28px; height: 28px; margin-top: -14px; border: 2px solid var(--fg); border-radius: 50%; opacity: 0; pointer-events: none; animation: ring 380ms 100ms var(--ease-out); }
+#postHead.land[data-r="Win"]::after { border-color: var(--good); }
+#chResult:not([hidden]) { animation: land 360ms var(--ease-out) both; }
+.chmate .chpc { display: inline-block; transform-origin: 50% 90%; animation: topple 460ms var(--ease-io) both; }
+.chmated .chpc { display: inline-block; transform: rotate(calc(90deg * var(--m))); opacity: 0.55; }
+.lcplaces li { animation: land 320ms var(--ease-out) both; }
+.lcplaces li:nth-child(2) { animation-delay: 30ms; } .lcplaces li:nth-child(3) { animation-delay: 60ms; } .lcplaces li:nth-child(4) { animation-delay: 90ms; }
+.lcplaces li:nth-child(5) { animation-delay: 120ms; } .lcplaces li:nth-child(6) { animation-delay: 150ms; }
+@keyframes land { 0% { opacity: 0; transform: translateY(var(--rise)) scale(var(--from)); } 60% { opacity: 1; } 100% { transform: none; } }
+@keyframes ring { 0% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(calc(1 + 0.6 * var(--m))); } }
+@keyframes topple { 0% { transform: none; } 20% { transform: rotate(calc(-6deg * var(--m))); } 100% { transform: rotate(calc(90deg * var(--m))); opacity: 0.55; } }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -2394,6 +2436,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
           <div id="customRow" class="toolbar" hidden><label class="check">Background <input id="optCustomBg" type="color"></label><label class="check">Text <input id="optCustomFg" type="color"></label></div>
           <div class="toolbar"><label class="check">Main colour <input id="optMain" type="color"></label><button id="mainReset" class="btn small" type="button">Use the theme’s colour</button></div>
           <label class="check"><input id="optThemeAuto" type="checkbox"> Light when my computer is in light mode</label>
+          <label class="field">Animations <select id="optMotion"><option value="auto">Follow Windows</option><option value="on">On</option><option value="reduced">Reduced: short fades, nothing moves</option></select></label>
+          <label class="check"><input id="optMotionGame" type="checkbox"> Pause animations while a game runs (League or Aion 2)</label>
           <label class="check client-only"><input id="optChampLook" type="checkbox"> Main colour from the champion I’m playing, taken from its splash art</label>
         </section>
         <section class="panel">
@@ -2886,6 +2930,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
+    motion: 'auto', motionGame: false,
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, aionGuide: true, aionSay: true, aionProg: null, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
@@ -4867,7 +4912,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     el.className = 'toast';
     el.textContent = text;
     $('toasts').append(el);
-    setTimeout(() => el.remove(), 6000);
+    setTimeout(() => { el.classList.add('bye'); setTimeout(() => el.remove(), 210); }, 6000);
     if (!client && document.hidden && window.Notification && Notification.permission === 'granted') new Notification('Premade', { body: text, icon: 'icon-192.png', silent: true });
     pushOverlay();
   }
@@ -7719,9 +7764,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('re4Update').addEventListener('click', () => { if ($('re4NewCode').value.trim()) re4('join', $('re4NewCode').value.trim()); });
   $('re4Remove').addEventListener('click', () => { if (confirm('Remove RE4 co-op from this PC? Its firewall rules and friends list go; Tailscale and your saves stay.')) re4('remove'); });
   setInterval(() => { if (!document.querySelector('.view[data-view="re4"]').hidden && !document.hidden) re4(); }, 15000);
-  function view(name) {
+  function view(name, fade) { // fade: picked in the menu, so the page fades in (a shortcut's page is just there)
     bump('u', '#' + name);
-    for (const v of document.querySelectorAll('main > .view')) v.hidden = v.dataset.view !== name;
+    for (const v of document.querySelectorAll('main > .view')) { v.hidden = v.dataset.view !== name; v.classList.toggle('enter', !!fade); }
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     const lol = $('leagueTabs').contains(document.querySelector(`.nav[data-view="${name}"]`)); // a League page: its tabs show and League is lit
     $('leagueTabs').hidden = !lol;
@@ -7746,8 +7791,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (name === 'game' || name === 'pregame') renderGame();
   }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
-  for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view));
-  $('leagueNav').addEventListener('click', () => view(leaguePage));
+  for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view, true));
+  $('leagueNav').addEventListener('click', () => view(leaguePage, true));
   $('sbTrack').addEventListener('click', () => view('prox'));
 
   // ---- League's own client (desktop app 1.6+): the ready check, champ select with everyone's rank and recent games,
@@ -12595,6 +12640,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       return;
     }
     const lp = lpLog.find((e) => e.id === r.id), rep = reportEl(r);
+    $('postHead').classList.remove('land');
+    void $('postHead').offsetWidth; // restarts the landing
+    $('postHead').classList.add('land');
     $('postHead').textContent = [p.win ? 'Victory' : 'Defeat', champName(p.champ), `${p.k}/${p.d}/${p.a}`, `${Math.round(r.len / 60)} min`, QUEUES[r.queue] || MODES[r.mode] || cap(r.mode),
       lp ? `${lp.delta >= 0 ? '+' : ''}${lp.delta} LP` : '', `score ${p.score}${p.badge ? ` (${p.badge})` : ''}`, whenText(r.at)].filter(Boolean).join(' · ');
     rep.prepend(rep.querySelector('.rmore')); // how you played first, then everyone's scores
@@ -15622,7 +15670,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const chOk = (g) => g && typeof g === 'object' && typeof g.id === 'string' && /^\w{1,16}$/.test(g.id) && chName(g.w) && chName(g.b) && g.w !== g.b
     && (g.mode === 'normal' || g.mode === 'cards') && [0, 3, 5, 10].includes(g.clock) && Number.isInteger(g.seed) && Number.isFinite(g.at) && Array.isArray(g.acts) && g.acts.length <= 3000 && (g.d == null || g.d === 2);
 
-  let chG = null, chS = null, chAt = 0, chSel = -1, chBack = '', chPromo = null, chDrag = null, chTick = 0, chArm = 0, chFlips = 0;
+  let chG = null, chS = null, chAt = 0, chSel = -1, chBack = '', chPromo = null, chDrag = null, chTick = 0, chArm = 0, chFlips = 0, chMateSeen = '';
   const chMe = () => myName || `Player ${slot + 1}`;
   const chMine = () => (!chS ? '' : chS.players.w === chMe() ? 'w' : chS.players.b === chMe() ? 'b' : '');
   const chYou = (n) => (n === chMe() ? `${n} (you)` : n);
@@ -15864,6 +15912,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const targets = new Set(moves.filter((m) => m[0] === chSel).map((m) => m[1]));
     const greens = !myTurn ? new Set() : S.phase === 'back' && chBack ? new Set(chFree(S, mine, chBack)) : /^(swap|freeze|shield)$/.test(S.phase) ? chPicks(S) : new Set();
     const red = chDanger(S), fz = new Set(S.frozen.map((e) => e.i)), sh = new Set(S.shields.map((e) => e.i));
+    const mateKey = S.over && S.over.why === 'Checkmate' ? S.board.join() : '', mated = mateKey && (mateKey === chMateSeen ? 'chmated' : 'chmate'); // the king topples once, then lies there
+    chMateSeen = mateKey;
     const cells = [];
     for (let d = 0; d < 64; d++) {
       const i = bottom === 'b' ? 63 - d : d, p = S.board[i], r = i >> 3, c = i & 7;
@@ -15876,6 +15926,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       if (red.includes(i)) b.classList.add('chhot');
       if (fz.has(i)) b.classList.add('chfrozen');
       if (sh.has(i)) b.classList.add('chshield');
+      if (mated && p && p[0] === S.turn && p[1] === 'K') b.classList.add(mated);
       if (p) b.append(chPc(p[0], p[1]));
       if (d % 8 === 0) b.append(Object.assign(document.createElement('span'), { className: 'chco chrk', textContent: 8 - r }));
       if (d >= 56) b.append(Object.assign(document.createElement('span'), { className: 'chco chfl', textContent: CH_FILES[c] }));
@@ -17265,14 +17316,14 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { aionGuide: () => { guide.map = 0; if (crumb) guideEnter(crumb.map, 0); pushOverlay(); }, themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { motionGame: () => motionTick(), aionGuide: () => { guide.map = 0; if (crumb) guideEnter(crumb.map, 0); pushOverlay(); }, themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
-    ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'],
+    ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
@@ -17427,6 +17478,18 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const top = bins.reduce((a, b) => (b[3] > a[3] ? b : a));
     return top[3] ? '#' + top.slice(0, 3).map((v) => Math.round(v / top[3]).toString(16).padStart(2, '0')).join('') : '';
   }
+  // Animations (Settings > Look): Follow Windows (its Show animations), On or Reduced; and none at all while League is in
+  // a game or Premade is watching Aion 2's window, if ticked. Checked every 2 s, so motion comes back when the game closes.
+  const osCalm = matchMedia('(prefers-reduced-motion: reduce)');
+  function motionTick() {
+    const m = opts.motionGame && (league || dps) ? 'off' : opts.motion === 'on' || opts.motion === 'reduced' ? opts.motion : osCalm.matches ? 'reduced' : 'on';
+    if (document.documentElement.dataset.motion !== m) document.documentElement.dataset.motion = m;
+  }
+  $('optMotion').value = ['on', 'reduced'].includes(opts.motion) ? opts.motion : 'auto';
+  $('optMotion').addEventListener('change', (e) => { opts.motion = e.target.value; saveOpts(); motionTick(); });
+  osCalm.addEventListener('change', motionTick);
+  setInterval(motionTick, 2000);
+  motionTick();
   $('optChampLook').checked = !!opts.champLook;
   $('optChampLook').addEventListener('change', (e) => { opts.champLook = e.target.checked; saveOpts(); relook(); champLook(); });
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (opts.themeAuto) relook(); });
@@ -17483,6 +17546,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [149, 'November 12: a cleaner look, and calm animations', [
+      'One font everywhere, red only on the main button, and no glows, in every theme. Chess and Last Card get the plainer look too.',
+      'Buttons give a little when you press them, popups, dialogs and messages ease in and out, and a page picked in the menu fades in (shortcuts stay instant). A win or loss, a checkmate and the Last Card places land with a short flourish.',
+      'Settings, Look: Animations follows Windows unless you pick On or Reduced (short fades, nothing moves), and Pause animations while a game runs turns them all off while League or Aion 2 is up.',
+    ]],
     [148, 'November 12: Last Card, a card game for your whole room', [
       'Games in your room now has Last Card next to Chess: 2 to 10 of you play at once, everyone else watches. Match the top card’s color or number, and play Skip, Reverse, +2, Wild and Wild +4, plus Premade’s own Swap (trade hands), Freeze (they miss a turn) and Shield (block a +2 or +4). Stack +2s and +4s, press Last card as you play your second-to-last card or get caught for +2, and play on for places until one is left. 30 seconds a turn.',
     ]],
@@ -18279,6 +18347,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift. Keys another app uses as its shortcut work too (app 1.45.1), and so do PageUp, PageDown and Insert (app 1.46.0).', '#kShow', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
+      ['Animations', 'Calm motion: buttons give a little when pressed, popups and pages ease in, and a win, a checkmate or a Last Card win lands with a short flourish. Reduced turns movement into short fades; it can pause by itself while League or Aion 2 runs. The in-game overlay never animates.', 'Settings, Look: Animations (Follow Windows unless you pick On or Reduced) and Pause animations while a game runs (off until you tick it).', '#optMotion'],
       ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
       ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
       ['Your Discord server', 'Your game results with your LP and rank-ups, and your clips under 10 MB, post themselves in a channel of your Discord server.', 'Settings, Your Discord server: paste a webhook link from Discord (Server Settings, Integrations, Webhooks).', '#optHook', 'app'],
