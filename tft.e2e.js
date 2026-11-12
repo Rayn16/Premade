@@ -208,12 +208,6 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
 const text = (page, sel) => page.locator(sel).textContent();
 const texts = (page, sel) => page.$$eval(sel, (l) => l.map((e) => e.textContent));
 const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name });
-async function join(page) { // a voice room by its invite link, which the page reads when it loads
-  await page.goto(`${URL_}#tftr`);
-  await page.reload();
-  await page.click('#joinBtn');
-  await wait(page, () => lpc.slot() >= 0, null, 'in the room');
-}
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
@@ -273,25 +267,8 @@ async function join(page) { // a voice room by its invite link, which the page r
     assert.deepStrictEqual(await ana.$$eval('#tftOdds tr', (l) => [l.length, ...[l[6], l[10]].map((r) => [...r.cells].map((c) => c.textContent).join(' '))]), [11, 'Level 7 19% 30% 40% 10% 1%', 'Level 11 1% 2% 12% 50% 35%']);
     console.log('website: My comps saved, opened and deleted, kept over a restart; a pasted code opens, another set’s refused; the shop odds');
 
-    // ---- a comp sent to a voice room: Ben's chat has a Copy team code button for it
-    await join(ana);
-    const [bctx, ben] = await context(browser, { name: 'Ben' });
-    await join(ben);
-    await wait(ana, () => lpc.peers().some((p) => p.name === 'Ben'), null, 'Ben in Ana’s room', 30000);
-    await ana.click('#leagueNav'); await ana.click('.nav[data-view="tft"]');
-    await wait(ana, () => document.querySelectorAll('#tftBoard .tftunit').length === 3, null, 'Ana’s comp');
-    await ana.click('#tftShare');
-    await wait(ana, () => lpc.toasts().includes('Sent to your room'), null, 'sent');
-    await wait(ben, () => [...document.querySelectorAll('#chatLog li')].some((li) => li.textContent.includes('TFT comp, 3 Solar, 1 Sniper: ') && li.querySelector('button')), null, 'the comp in Ben’s chat');
-    const btn = ben.locator('#chatLog li button', { hasText: 'Copy team code' });
-    assert.strictEqual(await btn.getAttribute('title'), CODE('413', '429', '801'), 'the code behind the button');
-    await ben.click('.nav[data-view="voice"]');
-    await btn.click();
-    await wait(ben, () => lpc.toasts().includes('Team code copied. In League, open the Team Planner and press Paste.'), null, 'copied from the chat');
-    assert.strictEqual(await ben.evaluate(() => navigator.clipboard.readText()), CODE('413', '429', '801'));
-    await bctx.close();
+    assert(await ana.isHidden('#tftShare'), 'no Send to my room: the room chat is off the page (What’s new 152)');
     await actx.close();
-    console.log('room: a comp sent from TFT shows in a friend’s chat with Copy team code');
 
     // ---- the roll calculator, the item recipes, and My comps closest to the board first
     const [cctx, cam] = await context(browser, { name: 'Cam' });

@@ -1826,8 +1826,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Platinum IV · 12 LP · With you: 13W 7L'), null, 'the friend’s rank and your record together');
     await wait(fr, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Gold II · 63 LP, +18 today'), null, 'your rank on the friend’s card for you');
     assert(await pc.locator('#players .watch').isHidden(), 'no Watch while the friend isn’t playing');
-    await fr.fill('#chatText', 'gg wp');
-    await fr.press('#chatText', 'Enter');
+    await fr.evaluate(() => { document.getElementById('chatText').value = 'gg wp'; document.getElementById('chatForm').requestSubmit(); }); // off the room page since What's new 152; the phone remote still has it
     await wait(phone, () => /Fren\s*gg wp/.test(document.getElementById('chatLog').textContent), null, 'the friend’s message on the phone');
     assert((await embs(pc, '#players .plol .emb')).includes('TFT_Regalia_Platinum.png'), 'the emblem on the friend’s card');
     await fr.evaluate((d) => lpcClient.emit('league', d), leagueData({ me: { champ: 'Garen', champName: 'Garen', team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 } }));

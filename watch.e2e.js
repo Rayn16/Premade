@@ -3,8 +3,7 @@
 // window sends it), Ben gets the banner and Joins at the same spot; pause, seek, speed and skip from different pages;
 // Up next with Play now, Remove and a playlist; Ben catches up after an ad; Cat joins the room late and lands on the
 // spot; a video that can't play outside YouTube is skipped; the corner player on another page and when scrolled away
-// (the frame never re-made, never under 356x200); Close and leaving the room take the player away; a chat link's
-// Watch together button; and DOM nodes and listeners stay flat over 30 opens and closes.
+// (the frame never re-made, never under 356x200); Close and leaving the room take the player away; and DOM nodes and listeners stay flat over 30 opens and closes.
 //   NODE_PATH=/path/to/node_modules node watch.e2e.js
 const fs = require('fs');
 const path = require('path');
@@ -192,13 +191,9 @@ const box = (page) => page.evaluate(() => { const b = document.getElementById('w
     await cat.click('#wtEnd');
     await waitFor(ana, () => lpc.wt().v === '' && document.getElementById('roomWatch').hidden && ytFake.live() === 0, null, 'End for everyone on Ana’s page');
 
-    // 10: a YouTube link in the room chat gets a Watch together button
-    await cat.fill('#chatText', 'look https://www.youtube.com/watch?v=ddddddddddd');
-    await cat.press('#chatText', 'Enter');
-    await waitFor(ben, () => document.querySelector('#chatLog button[data-wt="ddddddddddd"]'), null, 'the chat button');
-    await ben.click('#chatLog button[data-wt="ddddddddddd"]');
-    await playing(ben, 'ddddddddddd', 'the chat link for Ben');
-    await waitFor(ana, () => /Ben is watching/.test(document.getElementById('wtJoinText').textContent), null, 'Ben’s banner');
+    // a new video after End for everyone
+    await cat.evaluate(() => lpc.wtPick('ddddddddddd'));
+    await playing(cat, 'ddddddddddd', 'Cat’s new video');
 
     // memory: 30 opens and closes on Ana's page
     const cdp = await ana.context().newCDPSession(ana);

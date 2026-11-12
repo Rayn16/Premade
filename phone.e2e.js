@@ -104,13 +104,7 @@ const shown = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].fi
     assert.deepStrictEqual(await shown(bo, '#shareBtn, #sbVersion'), [], 'no League screen share on a phone');
     await nav(bo, 'Rooms').click();
 
-    await ana.fill('#chatText', 'hi from the PC'); await ana.press('#chatText', 'Enter');
-    await bo.waitForFunction(() => document.getElementById('chatLog').innerText.includes('hi from the PC'), null, { timeout: 10000 });
-    await bo.fill('#chatText', 'hi from my phone'); await bo.press('#chatText', 'Enter');
-    await ana.waitForFunction(() => document.getElementById('chatLog').innerText.includes('hi from my phone'), null, { timeout: 10000 });
-    await bo.tap('#chatLog li'); // a tap shows a message's buttons under it, so its text stays readable
-    const [txt, acts] = await bo.evaluate(() => { const li = document.querySelector('#chatLog li'); return [li.querySelector('b'), li.querySelector('.acts')].map((e) => e.getBoundingClientRect().bottom); });
-    assert(acts > txt, 'message buttons sit under the message on a phone');
+    assert(await bo.isHidden('#chatText'), 'no room chat on the room page (What’s new 152)');
 
     for (const v of ['Rooms', 'Friends', 'Settings', 'Features']) { // by name: the bottom menu's icons keep theirs
       await nav(bo, v).click();

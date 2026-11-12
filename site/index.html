@@ -1417,7 +1417,7 @@ dialog.wizard { transform: scale(var(--from)); }
     <section class="view" data-view="voice" aria-label="Rooms">
       <div id="joinView" class="join">
         <header class="pagehead">
-          <div><h1 class="title">Rooms</h1><p class="sub">Hang out with friends: talk, chat, share screens and clip. In a League game they get louder as you walk up to them.</p></div>
+          <div><h1 class="title">Rooms</h1><p class="sub">Hang out with friends: talk, share screens and clip. In a League game they get louder as you walk up to them.</p></div>
           <div class="toolbar">
           <button id="createBtn" class="btn primary" type="button">Create room</button>
           <form id="joinForm" class="codeform" aria-label="Have a code?">
@@ -1453,6 +1453,10 @@ dialog.wizard { transform: scale(var(--from)); }
           <p id="connectionStatus" class="hint" role="status" hidden></p>
           <div class="roomgrid">
             <div class="stack roommain">
+              <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
+                <h2 id="h-screens" class="ph">Screens <button id="sideBtn" class="btn small" type="button" hidden>Side by side</button></h2>
+                <div id="screenGrid" class="screengrid"></div>
+              </section>
               <section id="roomWatch" class="panel" aria-labelledby="h-watch" hidden>
                 <h2 id="h-watch" class="ph">Watch together</h2>
                 <div id="wtJoinBox" class="wtjoin"><p id="wtJoinText"></p><button id="wtJoin" class="btn primary" type="button">Join</button></div>
@@ -1462,11 +1466,7 @@ dialog.wizard { transform: scale(var(--from)); }
                 <h3 class="ph">Up next</h3>
                 <ol id="wtQueue" class="plain wtq" data-empty="A video picked while one plays waits here."></ol>
               </section>
-              <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
-                <h2 id="h-screens" class="ph">Screens <button id="sideBtn" class="btn small" type="button" hidden>Side by side</button></h2>
-                <div id="screenGrid" class="screengrid"></div>
-              </section>
-              <section class="panel" aria-labelledby="h-chat">
+              <section id="roomChat" class="panel" aria-labelledby="h-chat" hidden><!-- off since What's new 152: Rayan doesn't use it; the code and kept chat stay -->
                 <h2 id="h-chat" class="ph">Chat</h2>
                 <div class="chattools"><input id="chatFind" class="chatfind" type="search" autocomplete="off" placeholder="Search the chat" aria-label="Search the room chat"> <button id="chatFilesBtn" class="btn small" type="button" aria-pressed="false">Files</button></div>
                 <div id="chatPins" class="chatpins" hidden></div>
@@ -1570,7 +1570,7 @@ dialog.wizard { transform: scale(var(--from)); }
                   </div>
                 </div>
               </section>
-              <details id="histBox" class="panel">
+              <details id="histBox" class="panel" hidden><!-- off since What's new 152, like the chat -->
                 <summary id="h-hist" class="ph">Past sessions</summary>
                 <p class="hint">Every voice room you’re in, who was there and its chat with the pictures and videos, kept on this computer for 30 days, then deleted.</p>
                 <label class="check"><input id="optHistory" type="checkbox"> Keep my voice sessions and their chat</label>
@@ -2223,7 +2223,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <div class="toolbar">
               <button id="tftCopy" class="btn primary" type="button">Copy team code</button>
               <button id="tftSave" class="btn small" type="button">Save</button>
-              <button id="tftShare" class="btn small" type="button">Send to my room</button>
+              <button id="tftShare" class="btn small" type="button" hidden>Send to my room</button>
               <button id="tftClear" class="btn small" type="button">Clear</button>
             </div>
             <p id="tftCodeNote" class="hint" role="status"></p>
@@ -11243,7 +11243,7 @@ dialog.wizard { transform: scale(var(--from)); }
     el.className = 'clip';
     el.dataset.name = c.name;
     el.toggleAttribute('data-fav', fav);
-    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small send" type="button">Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
+    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small send" type="button" hidden>Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
     const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(/\.webm$/i, '');
     img.src = c.pic || 'icon-192.png';
     if (!c.pic) img.style.objectFit = 'contain';
@@ -16583,7 +16583,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function wtFind() {
     if (client && client.youtube) return client.youtube();
-    notify(client ? 'Finding videos needs the newest Premade app: it updates by itself, then restart it.' : 'Finding videos needs the Premade app on a PC. Here, a YouTube link sent in the room chat gets a Watch together button.', true);
+    notify(client ? 'Finding videos needs the newest Premade app: it updates by itself, then restart it.' : 'Finding videos needs the Premade app on a PC. Here you can join, watch and control what a friend on a PC starts.', true);
   }
 
   // the player: one YouTube frame in #wtBox, outside the room, so it's never moved in the page (that would reload it);
@@ -17868,6 +17868,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [152, 'November 12: a tidier room', [
+      'Your friends’ shared screens now sit at the top of your room, above Watch together.',
+      'The room chat and Past sessions are gone from the room page. Chats you already kept stay on your PC.',
+    ]],
     [151, 'November 12: YouTube Premium in Watch together', [
       'Sign in to YouTube in the Find a video window (Watch together, desktop app) and the room’s player plays with your account, so YouTube Premium means no ads for you. Already signed in there? It carries over, nothing to do. Each friend signs in on their own PC.',
     ]],
@@ -18580,7 +18584,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // showing now goes to the part of the page it's on), and 'app' when it needs the desktop app or 'web' when it's only
   // on the website. Add a line here with every new feature.
   const FEATURES = [
-    ['Rooms', 'Hang out with friends: join a room, talk, share your screens and chat. Premade opens on it.', [
+    ['Rooms', 'Hang out with friends: join a room, talk and share your screens. Premade opens on it.', [
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; hidden rooms show only to the friends the host ticks, at the top of their list. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
@@ -18598,13 +18602,6 @@ dialog.wizard { transform: scale(var(--from)); }
         'Nothing to set up: join a room and start a game. The Current room card keeps the code, how long you’ve been in, the invite link, Lock, Share screen and Leave.', '#roomCards, #curRoom, #createBtn'],
       ['Hide the room, and host controls', 'The host can hide the room: it leaves Open voice rooms, and only the friends they tick under Who can see it find it there and join in one click. It gets a password too (the invite link carries it), and unticking someone in the room keeps them in but stops them coming back. The host can also remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
         'Hide room, in your room’s Current room panel. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
-      ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
-      ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
-      ['Files of any size', 'Send any file, as big as you like, straight from your PC: it shows in the chat with its name and size, and each friend who clicks Download picks where to save it and gets it from you directly, never through a server. Drop a file on a friend’s card to send it to them alone. If a connection drops, the download waits for them and carries on where it stopped.', 'The + next to the chat box, or drop a file on the chat or on a friend’s card in your room. Friends download it while you stay in the room.', '#chatAttach, #players, #createBtn'],
-      ['Pins, search and Files', 'Pin a message and it stays above the chat for everyone, with its links, and whoever joins later sees it too. Search the chat as you type, or every past session’s chat. Files lists every picture, video and file shared in this room, this time and before.', 'Point at a message for Pin; the search box and Files above the room chat; Search past chats in Past sessions.', '#chatFind, #chatFilesBtn, #histFind, #createBtn'],
-      ['Past sessions', 'Every voice room you’re in, who was there and its whole chat with the pictures and videos, kept on this computer for 30 days, then deleted. Open one to read it again, or delete it.', 'Past sessions, under the chat in your room. On unless you untick Keep my voice sessions.', '#optHistory'],
-      ['Replies, reactions and mentions', 'Point at a message to reply, react, or edit or delete your own (Up arrow edits your last one). @name pings someone even in a game, @everyone pings the room. **bold**, *italics*, `code` and ||spoilers||, and who’s typing.', 'Point at a message in the room chat; type @ in the box.', '#chatText, #createBtn'],
-      ['Room chat that stays', 'Each room’s chat stays on your PC: come back to a room and its last 200 messages are there, and the friends in it send you what you missed while you were out (and you send them theirs), straight from their PC. Nothing is kept on our server. Rooms you haven’t been in for 30 days are forgotten.', 'In your room’s chat, by itself. Off when you untick Keep my voice sessions, under Past sessions.', '#chatLog, #optHistory'],
       ['Setup for what you play', 'The first start asks your name and what you play, tests your mic, checks your League screen only if you play League, and ends with you creating a room or joining a friend’s. Get set up on Features leaves out League’s steps if you don’t play it.', 'Runs on your first start; Run setup again in Settings, App.', '#setupAgain'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal (which stands in for the browser’s own noise filter, as Discord’s Krisp does, so your voice stays clear) and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
         'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],
@@ -18615,11 +18612,11 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Popups and sounds', 'Popups when friends join, leave or write, chimes and mute beeps, a note when you talk while muted, and an echo check when a friend’s speakers send your voice back.',
         'Voice settings, Popups and sounds.', '#optNotify'],
       ['Chess with friends', 'Play chess with someone in your room while everyone else watches live, and whoever joins later sees the game in progress. Click a piece then a square, or drag it; dots show the legal moves. Normal has the full rules: castling, en passant, promotion where you pick the piece, check and checkmate, and draws by stalemate, too few pieces, the same position three times, 50 moves or an offer. Card Chess is the extra mode: flip a card from one shared deck each turn for 1 to 3 moves, Skip, Reverse (you swap armies), +2 or Wild +4 to bring taken pieces back, Swap two of your pieces, Freeze one of theirs or Shield one of yours until your next turn; there is no check, and taking the king wins. Pick no clock or 3, 5 or 10 minutes each; Resign and Rematch any time. Wooden clicks sound for moves, captures, check, card flips, your turn, your last 10 seconds and the end; the speaker button turns them off.',
-        'In your room, under Games below the chat: pick who to play, Normal or Card Chess, and a clock, then Play. It starts for both of you at once. The speaker button by Games turns the sounds on or off.', '#roomGames, #chSound, #createBtn'],
+        'In your room, under Games: pick who to play, Normal or Card Chess, and a clock, then Play. It starts for both of you at once. The speaker button by Games turns the sounds on or off.', '#roomGames, #chSound, #createBtn'],
       ['Last Card', 'A card game for your whole room: 2 to 10 play, everyone else watches, and whoever joins later sees the table and everyone’s card count, never a hand. Match the top card’s color, number or symbol; Skip, Reverse and +2 in four colors, Wild and Wild +4, and Premade’s own black cards: Swap trades your whole hand with a player you pick, Freeze makes one miss their next turn, Shield blocks a +2 or +4 aimed at you. +2s and +4s stack, and whoever can’t add one draws the total. Can’t play? Draw 1, and play it if it fits. Press Last card as you play your second-to-last card, or the next player can catch you for +2. Whoever runs out of cards takes the next place and the rest play on. 30 seconds a turn: run out and Premade draws for you, 3 in a row and you’re out of that game, as is anyone who leaves the room. Reload and you get your hand back.',
-        'In your room, under Games below the chat: pick Last Card, untick anyone who isn’t playing, then Play. It deals 7 cards each at once. Rematch keeps the same players. The speaker button by Games turns the sounds off.', '#roomGames, #lcPlay'],
+        'In your room, under Games: pick Last Card, untick anyone who isn’t playing, then Play. It deals 7 cards each at once. Rematch keeps the same players. The speaker button by Games turns the sounds off.', '#roomGames, #lcPlay'],
       ['Watch together', 'Watch YouTube with your room: every friend who presses Join plays the same video straight from YouTube, at the same spot, as sharp as YouTube gives them. Anyone in the room can play, pause, move along the bar, change the speed or skip, and the panel says who did it. A video picked while one plays waits in Up next, a YouTube playlist adds its videos, and anyone can play one now or remove it. A friend who gets an ad or a slow moment jumps back to the room’s spot, and whoever joins the room later lands there too. On another page, or with the panel scrolled away, a small player follows you in a corner; drag it to another corner. Volume and captions are yours only. Sign in to YouTube in the Find a video window and the player plays with your account, so YouTube Premium means no ads for you; otherwise YouTube shows its own ads, and videos whose owner turned off playing outside YouTube are skipped.',
-        'In your room’s Current room card: Watch together opens YouTube’s own site in a Premade window (desktop app); search, then click a video and it plays in the room. Friends press Join at the top of the room. On a phone or the website, send a YouTube link in the room chat and press Watch together under it.', '#wtBtn, #createBtn'],
+        'In your room’s Current room card: Watch together opens YouTube’s own site in a Premade window (desktop app); search, then click a video and it plays in the room. Friends press Join at the top of the room. On a phone or the website, join, watch and control what a friend on a PC starts.', '#wtBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
@@ -18812,7 +18809,6 @@ dialog.wizard { transform: scale(var(--from)); }
         'On TFT, pick champions or paste a code, press Copy team code, then in League open the Team Planner (TFT tab, beside Play, or top right in a game) and press Paste.', '#tftBuild'],
       ['My comps', 'Comps you save, to open or copy again any time. With champions on the board, the comps you’re closest to come first, with who you still need.',
         'Save, under Team codes. In a game, press Snapshot in League’s Team Planner, copy its code and paste it in Team code on TFT.', '#tftMineBox'],
-      ['Send a comp to your room', 'Your comp goes to the room chat, where a team code gets its own Copy team code button for everyone.', 'Send to my room, under Team codes, while you’re in a voice room.', '#tftShare'],
       ['Your TFT games', 'Your TFT, Double Up and Hyper Roll ranks, your last 20 games with your average place, top 4s, the traits and augments you play most, and each game’s final board as a team code.',
         'Nothing to set up: open TFT in the desktop app while League is running. Profile’s TFT tab has the same boards for anyone on your server.', '#tftGamesBox', 'app'],
       ['Shop odds', 'The chance of each champion cost in your shop at every level, from Riot’s data for this patch.', 'Nothing to set up.', '#tftOddsBox'],
@@ -18893,7 +18889,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const SETUP = [
     ['Get the desktop app', 'The Windows app shares your screen without asking, shows the overlay over League and reads League’s own data: your champion, champ select, ranks and timers. If Windows warns about it, press More info, then Run anyway.',
       () => (client ? appCell(readyNow().app) : ['', 'You’re on the website']), () => !client && Object.assign(document.createElement('a'), { className: 'btn small primary', href: ROOT + 'Premade-Setup.exe', download: '', textContent: 'Get the desktop app' })],
-    ['Your name', 'What friends see on your card and in the chat.', () => (myName ? ['good', myName] : ['bad', 'Not set yet']), () => goBtn('#name')],
+    ['Your name', 'What friends see on your card.', () => (myName ? ['good', myName] : ['bad', 'Not set yet']), () => goBtn('#name')],
     ['Your mic', 'Press Test mic and talk: the bar moves. Then press Set the gate for me, so typing and fans stay out. Headphones keep friends from hearing themselves.',
       () => { const m = readyNow().mic; return m === 'off' ? ['bad', 'Not tested yet'] : CELLS.mic[m]; }, () => goBtn('#micTest')],
     ['A room with your friends', 'Create room on the Rooms page and send your friends the invite link, or join theirs with its code. With the desktop app you can also just start a game: everyone in it with the app lands in its room.',

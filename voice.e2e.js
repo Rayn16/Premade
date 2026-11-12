@@ -145,6 +145,8 @@ let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion
 const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
 const toProx = async (p) => { await p.click('#leagueNav'); await p.click('.nav[data-view="prox"]'); }; // League, Proximity voice: the map, modes, room games, tracking
 const toRooms = (p) => p.click('.nav[data-view="voice"]');
+// the room chat is off the page since What's new 152, but the overlay, the phone remote and Send to my room still use it
+const say = (p, t) => p.evaluate((t) => { document.getElementById('chatText').value = t; document.getElementById('chatForm').requestSubmit(); }, t);
 const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
 ['Annie', 'Ashe', 'Garen', 'Lux', 'Darius', 'Jinx', 'Leona', 'Zed', 'Ahri', 'Thresh', 'Vayne', 'Malphite', 'Ezreal', 'Sona', 'Yasuo', 'Teemo', 'Caitlyn', 'Nasus', 'Morgana', 'Riven', 'Braum'].forEach((n, i) => {
   CHAMPS[n] = { id: n, key: String(i + 1), name: n, title: `the ${n} of the test`, tags: [['Mage', 'Marksman', 'Fighter', 'Tank', 'Support', 'Assassin'][i % 6]], stats: { attackrange: 125 + 25 * i }, blurb: story(n) };
@@ -665,9 +667,10 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('three players: everyone connected; Cat and Ben hear each other in the lobby, Ana is in a game');
     await waitFor(ana, () => lpc.toasts().includes('Cat joined the room'), null, 'a popup on Ana\'s page when Cat joined');
 
-    // room chat, with a link
-    await ana.fill('#chatText', 'brb, build: https://example.com/build');
-    await ana.press('#chatText', 'Enter');
+    // the room page (What's new 152): screens above Watch together, no chat or Past sessions
+    assert(await ana.evaluate(() => document.getElementById('roomScreens').nextElementSibling.id === 'roomWatch' && document.getElementById('roomChat').hidden && document.getElementById('histBox').hidden), 'screens above Watch together; chat and Past sessions off the page');
+    // room chat (for the overlay and the phone remote), with a link
+    await say(ana, 'brb, build: https://example.com/build');
     await waitFor(ben, () => /Ana\s*brb, build: https:\/\/example\.com\/build/.test(document.getElementById('chatLog').textContent) && document.querySelector('#chatLog a[href="https://example.com/build"]'), null, 'Ana\'s message with its link in Ben\'s chat');
     await waitFor(cat, () => document.getElementById('chatLog').children.length === 1, null, 'Ana\'s message in Cat\'s chat');
     assert.strictEqual(await ana.$$eval('#chatLog li', (l) => l.length), 1, 'and in Ana\'s own');
@@ -726,41 +729,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(popups.filter((t) => t === 'Cat joined the room').length <= 1 && !popups.includes('Cat left the room'), `no popups for Cat's reconnect: ${JSON.stringify(popups)}`);
     const sounds = await ana.evaluate(() => lpc.played());
     assert(sounds.includes('leave') && sounds.filter((t) => t === 'join').length === 2, `chimes when Ben left and Ben and Cat joined: ${sounds}`);
-
-    // like Discord: a reply that mentions, a reaction, a picture sent peer to peer in pieces, an edit, formatting, a delete
-    await ben.evaluate(() => document.querySelector('#chatLog li .acts button[title="Reply"]').click());
-    assert(/Replying to Ana/.test(await ben.textContent('#chatBar')), 'the reply bar');
-    await ben.fill('#chatText', '@An');
-    await ben.press('#chatText', 'Tab');
-    assert.strictEqual(await ben.inputValue('#chatText'), '@Ana ', '@ suggests Ana and Tab fills her in');
-    await ben.type('#chatText', 'gg');
-    await ben.press('#chatText', 'Enter');
-    await waitFor(ana, () => { const li = document.querySelector('#chatLog li:last-child'); return li && li.classList.contains('pinged') && /↪ Ana: brb/.test(li.querySelector('.quote').textContent) && li.querySelector('.mention').textContent === '@Ana' && lpc.toasts().some((t) => t.startsWith('Ben mentioned you: @Ana gg')); }, null, 'Ben\'s reply pings Ana');
-    assert(!(await cat.evaluate(() => document.querySelector('#chatLog li:last-child').classList.contains('pinged'))), 'not a ping for Cat');
-    await cat.evaluate(() => document.querySelector('#chatLog li .acts button[title="React 🔥"]').click());
-    await waitFor(ana, () => { const b = document.querySelector('#chatLog li .reacts button'); return b && b.textContent === '🔥 1' && b.title === 'Cat'; }, null, 'Cat\'s 🔥 on Ana\'s message');
-    const ward = Buffer.alloc(300000, 7);
-    await ana.setInputFiles('#chatFile', { name: 'ward.png', mimeType: 'image/png', buffer: ward });
-    for (const pg of [ben, cat]) await waitFor(pg, async () => { const img = document.querySelector('#chatLog img.chatmedia'); return !!img && (await (await fetch(img.src)).blob()).size === 300000; }, null, 'Ana\'s picture, all 300 KB of it');
-    await ben.press('#chatText', 'ArrowUp');
-    assert.strictEqual(await ben.inputValue('#chatText'), '@Ana gg', 'Up arrow edits your last message');
-    await ben.fill('#chatText', '@Ana gg wp, **big** ||secret||');
-    await ben.press('#chatText', 'Enter');
-    await waitFor(ana, () => [...document.querySelectorAll('#chatLog li')].some((li) => /gg wp/.test(li.textContent) && /\(edited\)/.test(li.textContent) && li.querySelector('strong').textContent === 'big' && li.querySelector('.spoiler').textContent === 'secret'), null, 'Ben\'s edit, with bold and a spoiler');
-    ben.once('dialog', (d) => d.accept());
-    await ben.evaluate(() => [...document.querySelectorAll('#chatLog li')].find((li) => /gg wp/.test(li.textContent)).querySelector('.acts button[title="Delete"]').click());
-    await waitFor(ana, () => document.querySelectorAll('#chatLog li').length === 2 && !/gg wp/.test(document.getElementById('chatLog').textContent), null, 'Ben\'s message gone for Ana');
-    console.log('room chat like Discord: a reply with a mention, a reaction, a picture peer to peer, an edit with formatting, a delete');
-    // past sessions: this one on Ana's list with who's here and its chat and picture; one older than 30 days deleted
-    await ana.evaluate(() => new Promise((ok) => { const r = indexedDB.open('premade-sessions', 1); r.onsuccess = () => { const t = r.result.transaction('sessions', 'readwrite'); t.objectStore('sessions').put({ id: 1, room: 'oldold', start: Date.now() - 40 * 864e5, end: Date.now() - 31 * 864e5, people: ['Old'], msgs: [] }); t.oncomplete = ok; }; }));
-    await new Promise((r) => setTimeout(r, 2500));
-    await ana.evaluate(() => { document.getElementById('histBox').open = true; });
-    await waitFor(ana, () => { const t = document.getElementById('histRows').textContent; return /Ben, Cat · 2 messages/.test(t) && !/OLDOLD/.test(t); }, null, 'this session on Ana\'s list, the 31-day-old one gone');
-    await ana.click('#histRows button');
-    await waitFor(ana, async () => /Ana\s*brb, build/.test(document.getElementById('histLog').textContent) && document.querySelector('#histLog li .reacts').textContent === '🔥 1' && !!document.querySelector('#histLog img.chatmedia') && (await (await fetch(document.querySelector('#histLog img.chatmedia').src)).blob()).size === 300000, null, 'the session\'s chat, reaction and picture');
-    await ana.click('#histClose');
-    await ana.evaluate(() => { document.getElementById('histBox').open = false; });
-    console.log('past sessions: this one with who was there, its chat and picture; one older than 30 days deleted');
 
     // hiding the room: Ana, the host, hides it, shared with Fay (ticked the last time she hid one); Fay, with only the
     // code, is turned away, but finds it at the top of her Open voice rooms and joins without typing the password
@@ -1386,7 +1354,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     console.log('Legends and Immersive: Baron, soul, spree, steal, Ace, speed, multikill, ghost, Herald, Voidgrubs, inhibitor, tower, river and victory voices');
 
     // the overlay: room chat, who can hear you and your voice's effects
-    await eve.evaluate(() => { document.getElementById('chatText').value = 'gank top'; document.getElementById('chatForm').requestSubmit(); });
+    await say(eve, 'gank top');
     await waitFor(dee, () => { const s = lpcClient.calls.filter(([k]) => k === 'overlay').pop()[1]; return s.chat.some((c) => c.name === 'Eve' && c.text === 'gank top') && s.hear && s.hear.includes('Eve') && s.fx.includes('Victory'); }, null, 'chat, who hears you and your voice on Dee\'s overlay');
     assert(!(await dee.evaluate(() => lpc.toasts().some((t) => t.includes('gank top')))), 'chat on the overlay, not as a popup');
     // voice swap's countdown on the overlay
@@ -1444,29 +1412,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await gus.context().close();
     console.log('What’s new: once after an update, not on a first launch');
 
-    // room chat that stays (What's new 130): Lou leaves and misses Kim's "two"; back alone, Lou sees "one" from her own
-    // PC; Kim comes back and Lou asks her for what she missed, so "two" lands after "one", each once
-    const kim = await player(browser, 'Kim', [1280, 720]), lou = await player(browser, 'Lou', [1280, 720]);
-    const R2 = 'stayroom', chat = (pg) => pg.$$eval('#chatLog li', (l) => l.map((li) => li.textContent.match(/(one|two)/)[1]));
-    const say2 = async (pg, t) => { await pg.fill('#chatText', t); await pg.press('#chatText', 'Enter'); };
-    await join(kim, R2); await join(lou, R2);
-    await hears(lou, ['Kim'], null, 'Kim and Lou in a room');
-    await say2(kim, 'one');
-    await waitFor(lou, () => document.querySelectorAll('#chatLog li').length === 1, null, 'Kim\'s "one" for Lou');
-    await lou.click('#leaveBtn');
-    await say2(kim, 'two');
-    await kim.waitForTimeout(300);
-    await kim.click('#leaveBtn');
-    await lou.goto('about:blank'); await join(lou, R2);
-    await waitFor(lou, () => document.querySelectorAll('#chatLog li').length === 1, null, 'Lou\'s kept chat when she comes back alone');
-    assert.deepStrictEqual(await chat(lou), ['one'], 'from her own PC');
-    await kim.goto('about:blank'); await join(kim, R2);
-    await waitFor(lou, () => document.querySelectorAll('#chatLog li').length === 2, null, 'what Lou missed, from Kim');
-    assert.deepStrictEqual(await chat(lou), ['one', 'two'], 'in order');
-    await waitFor(kim, () => document.querySelectorAll('#chatLog li').length === 2, null, 'Kim\'s own kept chat');
-    assert.deepStrictEqual(await chat(kim), ['one', 'two'], 'each once');
-    await kim.context().close(); await lou.context().close();
-    console.log('room chat that stays: kept on each PC, and what you missed from who\'s there');
 
     // App size (Settings > Look): the whole app at 150%, still the window's size, and kept after a restart; at 200% the
     // rail is down to its icons, as the layout's breakpoints see the zoomed width
