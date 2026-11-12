@@ -148,6 +148,8 @@ const box = (page) => page.evaluate(() => { const b = document.getElementById('w
 
     // 6: the corner player on another page and when the panel scrolls away; the frame is never made again
     const made = await ana.evaluate(() => ytFake.made);
+    await ana.evaluate(() => document.getElementById('wtSlot').scrollIntoView({ block: 'center' })); // Up next grew, so the slot may have scrolled away
+    await waitFor(ana, () => !document.getElementById('wtBox').classList.contains('corner'), null, 'docked in the panel');
     const docked = await box(ana);
     assert(!docked.corner && docked.w > 500, `docked in the panel: ${JSON.stringify(docked)}`);
     await ana.evaluate(() => document.querySelector('.nav[data-view="settings"]').click());
