@@ -923,6 +923,74 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .chchip:disabled { opacity: 0.35; cursor: default; }
 .choffer { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .chcard.chnew { animation: none; } }
+/* Last Card (What's new 148): the Card Chess cards, the players around the table, your hand along the bottom */
+#gamePick { justify-self: start; }
+.lcpick { display: flex; flex-wrap: wrap; gap: 6px; }
+.lcpick button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--muted); font: 500 13px/1 var(--body); cursor: pointer; }
+.lcpick button[aria-pressed="true"] { border-color: var(--good); color: var(--fg); }
+.lcpick button[aria-pressed="true"]::before { content: "✓"; color: var(--good); }
+.lcpick button:disabled { cursor: default; }
+.lcstatus { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.lcstatus.lcmine { border-left-color: var(--good); }
+.lcsecs { margin-left: auto; font: 500 13px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.lcsecs.lclow { color: var(--bad); }
+.lcseats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 158px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lcseat { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); overflow: hidden; }
+.lcseat .lcwho { flex: 1; min-width: 0; }
+.lcseat .lcwho b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.lcseat .lcwho small { display: block; font: 500 12px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.lcseat.lcturn { border-color: var(--gold-line); box-shadow: inset 3px 0 var(--gold); }
+.lcseat.lcdone { opacity: 0.62; }
+.lcbadges { display: grid; gap: 3px; justify-items: end; }
+.lcbadge { font: 600 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space: nowrap; }
+.lcbadge.lcshout { border-color: var(--warn); color: var(--warn); }
+.lcbadge.lcice { border-color: var(--card-b); color: var(--card-b); }
+.lcbadge.lcplace { border-color: var(--good); color: var(--good); }
+.lcbar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--gold); }
+.lcbar.lclow { background: var(--bad); }
+.lctable { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 14px 20px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: radial-gradient(120% 160% at 30% 0%, color-mix(in srgb, var(--gold) 8%, var(--bg)), var(--bg) 70%); }
+.lcdeck { display: grid; place-content: center; justify-items: center; gap: 6px; width: 78px; aspect-ratio: 5 / 7; padding: 6px; border: 1px solid var(--gold-line); border-radius: 8px; background: repeating-linear-gradient(135deg, var(--raised) 0 6px, var(--panel) 6px 12px); color: var(--gold-hi); cursor: pointer; font: 700 26px/1 var(--display); }
+.lcdeck small { font: 500 10px/1.2 var(--mono); color: var(--muted); }
+.lcdeck.lcready { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.lcdeck:disabled { cursor: default; opacity: 0.7; }
+.lcpilebox { position: relative; padding: 6px; border-radius: 13px; box-shadow: 0 0 0 3px var(--ring, transparent); }
+.lcstack { position: absolute; top: -12px; right: -14px; padding: 5px 8px; border-radius: 999px; background: var(--bad); color: #fff; font: 700 15px/1 var(--display); }
+.lcinfo { display: grid; gap: 8px; min-width: 0; align-content: center; }
+.lccolor { display: inline-flex; align-items: center; gap: 8px; font: 600 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.lccolor::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--ring, transparent); }
+.lcdir { font: 500 12.5px/1.2 var(--mono); color: var(--muted); }
+.lclog { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--muted); }
+.lclog li:first-child { color: var(--fg); }
+.lcchoice { display: grid; gap: 10px; justify-items: start; padding: 12px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); font-weight: 600; }
+.lccol { width: 72px; height: 48px; border: 0; border-radius: 8px; color: #fff; font: 600 13px/1 var(--body); cursor: pointer; box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.85); background: var(--card-r); }
+.lccol[data-col="y"] { background: var(--card-y); color: var(--card-ink); }
+.lccol[data-col="g"] { background: var(--card-g); }
+.lccol[data-col="b"] { background: var(--card-b); }
+.lchandbox { display: grid; gap: 4px; }
+.lchandhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.lchandhead > b { font: 700 13.5px/1.2 var(--display); letter-spacing: 0.06em; color: var(--gold-hi); }
+.lclast[aria-pressed="true"], .lccatch { border-color: var(--warn); color: var(--warn); }
+.lchand { display: flex; padding: 18px 6px 8px; overflow-x: auto; scrollbar-width: thin; }
+.lchand .chcard { flex: none; width: 66px; margin-right: -12px; border: 0; font: inherit; cursor: default; transition: transform 0.12s ease-out, filter 0.12s; }
+.lchand .chcard[data-c="k"] { border: 3px solid transparent; }
+.lchand .chcard:last-child { margin-right: 0; }
+.lchand .chcard b { font-size: 26px; }
+.lchand .chcard.lcok { cursor: pointer; transform: translateY(-10px); outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+.lchand .chcard.lcok:hover, .lchand .chcard.lcok:focus-visible { transform: translateY(-16px); z-index: 1; }
+.lchand .chcard.lcno { filter: saturate(0.5) brightness(0.68); }
+.lchand.lcwait .chcard.lcno { filter: none; }
+.lcend { display: grid; gap: 12px; justify-items: start; padding: 16px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); }
+.lcend > b { font: 700 20px/1.2 var(--display); color: var(--gold-hi); }
+.lcplaces { display: grid; gap: 6px; width: min(320px, 100%); margin: 0; padding: 0; list-style: none; }
+.lcplaces li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.lcplaces li:first-child { border-color: var(--card-y); }
+.lcplaces .lcn { width: 40px; font: 700 16px/1 var(--display); color: var(--gold-hi); }
+@container app (max-width: 520px) {
+  .lctable { grid-template-columns: auto auto; justify-content: start; }
+  .lcinfo { grid-column: 1 / -1; }
+  .lchand .chcard { width: 58px; margin-right: -16px; }
+}
+@media (prefers-reduced-motion: reduce) { .lchand .chcard { transition: none; } }
 .roombar { grid-area: bar; display: none; }
 #roomView[data-game] .roomgrid { grid-template-areas: "players side" "main side" "main cur" "bar bar"; }
 #roomView[data-game] #roomSide { display: grid; }
@@ -1286,7 +1354,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
                 <form id="chatForm" class="chatform roomform"><button id="chatAttach" class="btn" type="button" title="Send a picture, video or file (any size)" aria-label="Send a picture, video or file">+</button><input id="chatFile" type="file" multiple hidden><input id="chatText" maxlength="1000" autocomplete="off" placeholder="Message everyone in the room. @ to mention" aria-label="Message"><button class="btn">Send</button></form>
               </section>
               <section id="roomGames" class="panel" aria-labelledby="h-games">
-                <h2 id="h-games" class="ph">Games <span id="chWatch" class="hint"></span><button id="chSound" class="btn small chsnd" type="button" aria-pressed="true" title="Chess sounds" aria-label="Chess sounds">🔊</button></h2>
+                <h2 id="h-games" class="ph">Games <span id="chWatch" class="hint"></span><span id="lcWatch" class="hint" hidden></span><button id="chSound" class="btn small chsnd" type="button" aria-pressed="true" title="Game sounds" aria-label="Game sounds">🔊</button></h2>
+                <div id="gamePick" class="chseg" role="group" aria-label="Game"><button type="button" data-g="chess" aria-pressed="true">Chess</button><button type="button" data-g="lc" aria-pressed="false">Last Card</button></div>
+                <div id="chBox" class="chgrid">
                 <div id="chIdle" class="chgrid">
                   <p class="hint">Play chess with someone in this room. Everyone else can watch.</p>
                   <div class="toolbar chopts">
@@ -1326,6 +1396,48 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
                       <div id="chOffer" class="choffer" hidden><span></span><div class="toolbar"><button id="chYes" class="btn small primary" type="button">Accept</button><button id="chNo" class="btn small" type="button">No thanks</button></div></div>
                       <div id="chActs" class="toolbar"><button id="chDraw" class="btn small" type="button">Offer draw</button><button id="chResign" class="btn small" type="button">Resign</button></div>
                       <p id="chWatchNote" class="hint" hidden></p>
+                    </div>
+                  </div>
+                </div>
+                </div>
+                <div id="lcBox" class="chgrid" hidden>
+                  <div id="lcIdle" class="chgrid">
+                    <p class="hint">Play Last Card with your room: 2 to 10 players, 30 seconds a turn. Anyone you leave out watches.</p>
+                    <div class="field">Who plays<div id="lcWho" class="lcpick"></div></div>
+                    <div class="toolbar"><button id="lcPlay" class="btn primary" type="button">Play</button></div>
+                    <details class="chrules">
+                      <summary>How Last Card works</summary>
+                      <ul id="lcRules" class="chrulelist"></ul>
+                      <p class="chrulenote">114 cards. In red, yellow, green and blue: one 0, two each of 1 to 9, Skip, Reverse and +2. Plus 4 Wild, 4 Wild +4, and 2 each of Swap, Freeze and Shield. When the deck runs out, the played cards are shuffled back in.</p>
+                    </details>
+                  </div>
+                  <div id="lcGame" class="chgrid" hidden>
+                    <div class="chhead"><h3>Last Card</h3><span id="lcN" class="chpill"></span><span class="chpill">30 s a turn</span></div>
+                    <p id="lcStatusBox" class="chstatus lcstatus" role="status"><span id="lcStatus"></span><span id="lcSecs" class="lcsecs"></span></p>
+                    <ul id="lcSeats" class="lcseats" aria-label="Players in seat order"></ul>
+                    <div id="lcTable" class="lctable">
+                      <button id="lcDeck" class="lcdeck" type="button" aria-label="Draw a card"><span>P</span><small id="lcDeckN"></small></button>
+                      <div id="lcPileBox" class="lcpilebox"><div id="lcPile"></div><span id="lcStack" class="lcstack" hidden></span></div>
+                      <div class="lcinfo"><span id="lcColor" class="lccolor"></span><span id="lcDir" class="lcdir"></span><ol id="lcLog" class="lclog" aria-live="polite"></ol></div>
+                    </div>
+                    <div id="lcChoice" class="lcchoice" hidden><span id="lcChoiceT"></span><div id="lcChoiceBtns" class="toolbar"></div></div>
+                    <div id="lcHandBox" class="lchandbox">
+                      <div class="lchandhead">
+                        <b>Your cards</b>
+                        <div class="toolbar">
+                          <button id="lcDraw" class="btn small" type="button">Draw a card</button>
+                          <button id="lcKeep" class="btn small" type="button" hidden>Keep it</button>
+                          <button id="lcLast" class="btn small lclast" type="button" aria-pressed="false" hidden>Last card!</button>
+                          <button id="lcCatch" class="btn small lccatch" type="button" hidden></button>
+                        </div>
+                      </div>
+                      <div id="lcHand" class="lchand" role="group" aria-label="Your cards"></div>
+                    </div>
+                    <p id="lcWatchNote" class="hint" hidden></p>
+                    <div id="lcEnd" class="lcend" hidden>
+                      <b>Places</b>
+                      <ol id="lcPlaces" class="lcplaces"></ol>
+                      <div class="toolbar"><button id="lcRematch" class="btn primary" type="button">Rematch</button><button id="lcClose" class="btn" type="button">Close</button></div>
                     </div>
                   </div>
                 </div>
@@ -2989,6 +3101,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     p.row.remove();
     p.chip.remove();
     chDraw(); // Play with: who's left
+    lcDraw();
     // the host's mute goes with them once they're gone for good, so whoever takes their slot next isn't muted
     if (isHost() && hostMuted(p.slot)) setTimeout(() => { if (isHost() && hostMuted(p.slot) && !slotted(p.slot)) { takeHostMute({ n: nextN(hm.n), s: hm.s.filter((s) => s !== p.slot) }, slot); send(meMsg()); } }, left ? 0 : 30000);
     if (left && p.hello) gone(nameOf(p));
@@ -3365,6 +3478,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (m.t === 'guess') return takeGuess(p.slot, m);
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'chess') return chTake(p, m.g);
+    if (m.t === 'lc') return lcTake(p, m.g);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
       if (!roomKey) notify(`${nameOf(p)} locked the room`);
@@ -4559,6 +4673,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     hm = { n: 0, s: [] };
     resetGames();
     chReset();
+    lcReset();
     $('readyBox').hidden = true;
     slot = -1;
     autoJoined = false;
@@ -4666,6 +4781,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     p.hello = true;
     chHello(p);
     chDraw();
+    lcHello(p);
+    lcDraw();
     const name = nameOf(p);
     if (sess) { sess.people.add(name); sessSave(); }
     if (leaving.has(name)) { clearTimeout(leaving.get(name)); leaving.delete(name); return; }
@@ -15750,6 +15867,423 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     chAct({ k: 'resign' });
   });
 
+  // ---- Last Card in the room's Games panel (What's new 148): 2 to 10 in the room play a color-and-number card game,
+  // everyone else watches. Like chess, a game is a header (id, the players' names in seat order, seed) plus every
+  // action ({t:'lc', g}); every Premade replays it with the rules below, so a wrong or out-of-turn action is refused.
+  // The deck comes from the seed, so every page deals the same hands without sending them, and shows you only yours.
+  // Only the player whose turn it is acts: at 30 s their own page plays the turn for them ('time'); a player who left
+  // the room is dropped by the next player still here, 10 s into their turn ('drop'). Two lists that split settle on
+  // the one whose first different action sorts first as JSON. ponytail: every PC can work out every hand (dev tools).
+  const LC = (() => {
+    const COLS = ['r', 'y', 'g', 'b'], CNAME = { r: 'red', y: 'yellow', g: 'green', b: 'blue' };
+    const DECK = COLS.flatMap((c) => ['0', ...[...'123456789'].flatMap((n) => [n, n]), 'S', 'S', 'R', 'R', '+2', '+2'].map((v) => c + v))
+      .concat(Array(4).fill('kW'), Array(4).fill('k+4'), 'kX', 'kX', 'kF', 'kF', 'kH', 'kH'); // 114 cards
+    const VNAME = { S: 'Skip', R: 'Reverse', '+2': '+2', W: 'Wild', '+4': 'Wild +4', X: 'Swap', F: 'Freeze', H: 'Shield' };
+    const val = (c) => c.slice(1);
+    const cardName = (c) => (c[0] === 'k' ? VNAME[val(c)] : `${CNAME[c[0]]} ${VNAME[val(c)] || val(c)}`);
+    const ord = (n) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+    function deal(names, seed) {
+      const r = chRng(seed), deck = chShuffle(DECK.slice(), r);
+      const players = names.map((name) => ({ name, hand: deck.splice(0, 7), place: 0, frozen: false, shout: false, outs: 0 }));
+      const top = deck.splice(deck.findIndex((c) => /^[rygb]\d$/.test(c)), 1)[0]; // the pile starts on a number card
+      return { r, players, deck, pile: [top], color: top[0], dir: 1, turn: Math.floor(r() * names.length), stack: 0, drawn: -1,
+        pending: null, forgot: -1, catchable: -1, shoutNext: false, places: [], dropped: [], over: false, log: [] };
+    }
+    const top = (S) => S.pile[S.pile.length - 1];
+    const live = (S) => S.players.filter((p) => !p.place); // place: 0 still playing, 1, 2... finished, -1 dropped
+    const say = (S, t) => { S.log.unshift(t); S.log.length = Math.min(S.log.length, 4); };
+    const targets = (S) => S.players.map((q, j) => j).filter((j) => j !== S.turn && !S.players[j].place);
+    function step(S, i, n) { while (n > 0) { i = (i + S.dir + S.players.length) % S.players.length; if (!S.players[i].place) n--; } return i; }
+    function fits(S, c) {
+      const t = val(top(S)), v = val(c);
+      if (S.stack) return c === 'kH' || (v === '+2' && t === '+2') || (v === '+4' && (t === '+2' || t === '+4'));
+      return c[0] === 'k' || c[0] === S.color || v === t;
+    }
+    function take(S, p, n) { // draw n; an empty deck takes the played cards under the top one, shuffled
+      for (let k = 0; k < n; k++) {
+        if (!S.deck.length && S.pile.length > 1) { const keep = S.pile.pop(); S.deck = chShuffle(S.pile, S.r); S.pile = [keep]; }
+        if (!S.deck.length) break;
+        p.hand.push(S.deck.pop());
+      }
+      p.shout = false;
+    }
+    function play(S, i, call) { // call: Last card was pressed for this play
+      const p = S.players[S.turn], c = p.hand[i];
+      if (S.over || S.pending || c == null || !fits(S, c) || (S.drawn >= 0 && i !== S.drawn)) return false;
+      S.catchable = S.drawn = -1;
+      p.outs = 0;
+      p.hand.splice(i, 1);
+      S.pile.push(c);
+      S.forgot = p.hand.length === 1 && !call ? S.turn : -1;
+      p.shout = S.shoutNext = p.hand.length === 1 && !!call;
+      if (c === 'kH' && S.stack) { say(S, `${p.name} blocked +${S.stack} with a Shield.`); S.stack = 0; return pass(S, 1); }
+      if (c[0] === 'k') { S.pending = { k: 'color', c }; return true; }
+      S.color = c[0];
+      const v = val(c);
+      if (v === '+2') S.stack += 2;
+      say(S, `${p.name} played ${cardName(c)}${S.stack ? `: +${S.stack} for the next player` : ''}.`);
+      if (v === 'S') return pass(S, 2);
+      if (v === 'R') { S.dir = -S.dir; return pass(S, live(S).length === 2 && p.hand.length ? 2 : 1); } // with 2 players, Reverse works like Skip
+      return pass(S, 1);
+    }
+    function pickColor(S, col) {
+      if (!S.pending || S.pending.k !== 'color' || !COLS.includes(col)) return false;
+      const p = S.players[S.turn], c = S.pending.c;
+      S.color = col;
+      if (c === 'k+4') S.stack += 4;
+      say(S, `${p.name} played ${cardName(c)} and picked ${CNAME[col]}${S.stack ? `: +${S.stack} for the next player` : ''}.`);
+      if ((c === 'kF' || (c === 'kX' && p.hand.length)) && targets(S).length) { S.pending = { k: 'who', c }; return true; } // a last Swap swaps nothing
+      return pass(S, 1);
+    }
+    function pickWho(S, j) {
+      if (!S.pending || S.pending.k !== 'who' || !targets(S).includes(j)) return false;
+      const p = S.players[S.turn], q = S.players[j];
+      if (S.pending.c === 'kX') { [p.hand, q.hand] = [q.hand, p.hand]; p.shout = q.shout = false; say(S, `${p.name} swapped hands with ${q.name}.`); }
+      else { q.frozen = true; say(S, `${p.name} froze ${q.name}: they miss their next turn.`); }
+      return pass(S, 1);
+    }
+    function draw(S) {
+      if (S.over || S.pending || S.drawn >= 0) return false;
+      const p = S.players[S.turn], had = p.hand.length;
+      S.catchable = -1;
+      p.outs = 0;
+      if (S.stack) { const n = S.stack; take(S, p, n); S.stack = 0; say(S, `${p.name} drew ${n} cards.`); return pass(S, 1); }
+      take(S, p, 1);
+      if (p.hand.length > had && fits(S, p.hand[had])) { S.drawn = had; return true; } // it fits: play it or keep it
+      say(S, `${p.name} drew a card.`);
+      return pass(S, 1);
+    }
+    function keep(S) {
+      if (S.over || S.drawn < 0) return false;
+      S.drawn = -1;
+      say(S, `${S.players[S.turn].name} drew a card and kept it.`);
+      return pass(S, 1);
+    }
+    function catchIt(S) { // only the player whose turn it is, before they do anything else
+      const j = S.catchable;
+      if (S.over || j < 0) return false;
+      const q = S.players[j];
+      S.catchable = -1;
+      take(S, q, 2);
+      say(S, `${S.players[S.turn].name} caught ${q.name} without a Last card call: +2.`);
+      return true;
+    }
+    function pass(S, n) { // the turn ends: finishers take a place, frozen players sit one out
+      const p = S.players[S.turn];
+      S.pending = null;
+      if (S.shoutNext && p.shout) say(S, `${p.name}: Last card!`);
+      S.shoutNext = false;
+      if (!p.hand.length && !p.place) { p.place = S.places.push(p.name); say(S, `${p.name} is out of cards: ${ord(p.place)} place.`); }
+      if (live(S).length < 2) return end(S);
+      let i = step(S, S.turn, n);
+      while (S.players[i].frozen) {
+        const q = S.players[i];
+        q.frozen = false;
+        if (S.stack) { take(S, q, S.stack); say(S, `${q.name} is frozen: draws ${S.stack} and misses the turn.`); S.stack = 0; }
+        else say(S, `${q.name} is frozen and misses the turn.`);
+        i = step(S, i, 1);
+      }
+      S.catchable = S.forgot >= 0 && S.forgot !== i && S.players[S.forgot].hand.length === 1 && !S.players[S.forgot].place ? S.forgot : -1;
+      S.forgot = -1;
+      S.turn = i;
+      return true;
+    }
+    function drop(S, p, why) { // left the room, or 3 timeouts in a row: last place still open
+      const had = S.players[S.turn] === p;
+      p.place = -1;
+      S.dropped.push(p);
+      S.deck.unshift(...p.hand);
+      p.hand = [];
+      say(S, why);
+      if (live(S).length < 2) return end(S);
+      if (had) { S.pending = null; S.drawn = -1; S.catchable = -1; S.turn = step(S, S.turn, 1); }
+      return true;
+    }
+    function end(S) {
+      for (const p of live(S)) p.place = S.places.push(p.name);
+      for (const p of S.dropped.slice().reverse()) p.place = S.places.push(p.name);
+      Object.assign(S, { over: true, pending: null, drawn: -1, catchable: -1 });
+      return true;
+    }
+    function bestColor(hand) { // the color you hold most of (ties: the first), the same on every page
+      const n = { r: 0, y: 0, g: 0, b: 0 };
+      for (const c of hand) if (c[0] !== 'k') n[c[0]]++;
+      return COLS.reduce((a, b) => (n[b] > n[a] ? b : a));
+    }
+    function timeout(S) { // 30 s gone: Premade draws a card for you and passes
+      if (S.over) return false;
+      const p = S.players[S.turn], outs = p.outs + 1;
+      if (S.pending && S.pending.k === 'color') pickColor(S, bestColor(p.hand));
+      if (S.pending && S.pending.k === 'who') pickWho(S, targets(S)[0]);
+      else if (S.drawn >= 0) keep(S);
+      else if (!S.pending && S.players[S.turn] === p) { draw(S); if (S.drawn >= 0) keep(S); }
+      p.outs = outs;
+      if (outs >= 3 && !p.place) drop(S, p, `${p.name} ran out of time 3 turns in a row and is out of this game.`);
+      return true;
+    }
+    function act(S, a) { // one action from a game's list -> true when the rules allow it
+      if (!a || typeof a !== 'object' || S.over) return false;
+      switch (a.k) {
+        case 'play': return Number.isInteger(a.i) && play(S, a.i, a.call === true);
+        case 'color': return pickColor(S, a.c);
+        case 'who': return Number.isInteger(a.j) && pickWho(S, a.j);
+        case 'draw': return draw(S);
+        case 'keep': return keep(S);
+        case 'catch': return catchIt(S);
+        case 'time': return timeout(S);
+        case 'drop': { const p = S.players[S.turn]; return drop(S, p, `${p.name} left the room and is out of this game.`); }
+      }
+      return false;
+    }
+    return { COLS, CNAME, VNAME, val, cardName, ord, deal, top, live, targets, step, fits, act };
+  })();
+  const LC_BIG = { S: '⊘', R: '⇄', '+2': '+2', W: '★', '+4': '+4', X: '⇅', F: '❄︎', H: '◈' };
+  const LC_SUB = { S: 'skip', R: 'reverse', '+2': 'draw 2', W: 'wild', '+4': 'wild +4', X: 'swap', F: 'freeze', H: 'shield' };
+  const LC_TURN = 30000;
+  const LC_ORDER = 'rygbk', LC_VORD = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'S', 'R', '+2', 'W', '+4', 'X', 'F', 'H'];
+  const lcSortKey = (c) => LC_ORDER.indexOf(c[0]) * 100 + LC_VORD.indexOf(LC.val(c));
+  // the game -> its state now, or null when an action breaks the rules; from n on, each action must be from's
+  function lcReplay(g, from, n) {
+    const S = LC.deal(g.names, g.seed);
+    for (let i = 0; i < g.acts.length; i++) {
+      const a = g.acts[i], turn = S.players[S.turn].name;
+      if (i >= n && (a && a.k === 'drop' ? from === turn || !LC.live(S).some((p) => p.name === from) : from !== turn)) return null;
+      if (!LC.act(S, a)) return null;
+    }
+    return S;
+  }
+  const lcOk = (g) => g && typeof g === 'object' && typeof g.id === 'string' && /^\w{1,16}$/.test(g.id) && Array.isArray(g.names) && g.names.length >= 2 && g.names.length <= 10
+    && g.names.every(chName) && new Set(g.names).size === g.names.length && Number.isInteger(g.seed) && Number.isFinite(g.at) && Array.isArray(g.acts) && g.acts.length <= 6000;
+
+  let lcG = null, lcS = null, lcAt = 0, lcTick = 0, lcArmed = false, lcPileLen = 0, lcGame = 'chess';
+  const lcOut = new Set(); // names you unticked in Who plays
+  const lcHere = () => [...peers.values()].filter((p) => p.hello).map(nameOf);
+  const lcMeI = () => (lcS ? lcS.players.findIndex((p) => p.name === chMe()) : -1);
+  function lcTake(p, g) { // a game from someone in the room
+    if (!lcOk(g)) return;
+    const from = nameOf(p);
+    let S;
+    if (lcG && g.id === lcG.id) {
+      const n = lcG.acts.length;
+      let k = 0;
+      while (k < n && k < g.acts.length && JSON.stringify(g.acts[k]) === JSON.stringify(lcG.acts[k])) k++;
+      if (k >= g.acts.length) return; // nothing new
+      if (k === n) S = lcReplay(g, from, n);
+      else if (JSON.stringify(g.acts[k]) < JSON.stringify(lcG.acts[k])) S = lcReplay(g, '', Infinity); // a split: theirs sorts first, so everyone keeps theirs
+    } else if (!lcG || g.at > lcG.at) S = lcReplay(g, '', Infinity); // ponytail: a new game isn't checked against who sent it; friends only
+    if (S) lcApply(g, S, from);
+  }
+  function lcApply(g, S, from) {
+    const was = lcS, same = was && lcG.id === g.id, grew = same ? g.acts.length - lcG.acts.length : 0, me = chMe();
+    const meI = S.players.findIndex((p) => p.name === me), turnNow = !S.over && meI === S.turn, turnWas = same && !was.over && was.players[was.turn].name === me;
+    if (grew === 1 && /^(play|draw|keep|time)$/.test(g.acts[g.acts.length - 1].k)) chSnd('flip');
+    if (grew > 0 && S.over && !was.over) chSnd(meI < 0 ? 'draw' : S.players[meI].place === 1 ? 'win' : 'lose');
+    else if (grew > 0 && turnNow && !turnWas) chSnd('turn', 0.25);
+    if (!same) {
+      lcArmed = false;
+      lcPileLen = 0;
+      if (meI >= 0 && from && !g.acts.length) { notify(`${from} started Last Card with you`, true); lcPick('lc'); }
+    }
+    if (S.over && !(same && was.over)) notify(`Last Card: ${S.places[0]} wins.`);
+    else if (from && turnNow && !turnWas && document.hidden) notify('Your turn in Last Card', true);
+    lcG = g;
+    lcS = S;
+    lcAt = performance.now();
+    lcDraw();
+  }
+  function lcAct(a) { // your action: checked like anyone's, then sent to the room
+    if (!lcG || !lcS || lcS.over) return;
+    const g = { ...lcG, acts: [...lcG.acts, { ...a, ms: Math.round(performance.now() - lcAt) }] };
+    const S = lcReplay(g, chMe(), lcG.acts.length);
+    if (!S) return lcDraw();
+    lcApply(g, S, '');
+    sendOnce({ t: 'lc', g });
+  }
+  function lcStart(names) {
+    const g = { id: Math.random().toString(36).slice(2, 12), names: chShuffle(names.slice(), Math.random), seed: (Math.random() * 2 ** 31) | 0, at: Date.now(), acts: [] };
+    lcApply(g, lcReplay(g, '', 0), '');
+    sendOnce({ t: 'lc', g });
+  }
+  function lcReset() { lcG = lcS = null; lcDraw(); }
+  function lcHello(p) { const [c] = p.conns; if (lcG && c) c.send({ t: 'lc', g: lcG }); }
+  function lcPick(game) {
+    lcGame = game;
+    for (const b of $('gamePick').children) b.setAttribute('aria-pressed', b.dataset.g === game);
+    $('chBox').hidden = $('chWatch').hidden = game !== 'chess';
+    $('lcBox').hidden = $('lcWatch').hidden = game !== 'lc';
+    lcDraw();
+  }
+  function lcTicker() { // while a game is on: the turn's clock, your own timeout, and dropping a player who left
+    const on = !!(lcS && !lcS.over);
+    if (on && !lcTick) lcTick = setInterval(() => {
+      if (!lcS || lcS.over) return lcTicker();
+      const S = lcS, left = Math.max(0, LC_TURN - (performance.now() - lcAt)), turn = S.players[S.turn].name, me = chMe();
+      const bar = $('lcSeats').querySelector('.lcturn .lcbar');
+      if (bar) { bar.style.width = `${left / (LC_TURN / 100)}%`; bar.classList.toggle('lclow', left < 10000); }
+      $('lcSecs').textContent = `${Math.ceil(left / 1000)} s`;
+      $('lcSecs').classList.toggle('lclow', left < 10000);
+      if (turn === me) { if (!left) lcAct({ k: 'time' }); return; }
+      const here = new Set([me, ...lcHere()]);
+      if (!LC.live(S).some((p) => here.has(p.name))) { if (!left) lcReset(); return; } // every player left: the watchers let it go
+      if (here.has(turn) || LC_TURN - left < 10000) return;
+      for (let i = LC.step(S, S.turn, 1); i !== S.turn; i = LC.step(S, i, 1)) { // the next player still in the room drops them
+        if (here.has(S.players[i].name)) { if (S.players[i].name === me) lcAct({ k: 'drop' }); return; }
+      }
+    }, 250);
+    else if (!on && lcTick) { clearInterval(lcTick); lcTick = 0; }
+  }
+  function lcCardEl(c, tag = 'div') {
+    const el = document.createElement(tag), v = LC.val(c), big = LC_BIG[v] || v;
+    el.className = 'chcard';
+    el.dataset.c = c[0];
+    el.append(Object.assign(document.createElement('i'), { textContent: big }), Object.assign(document.createElement('b'), { textContent: big }));
+    if (LC_SUB[v]) el.append(Object.assign(document.createElement('small'), { textContent: LC_SUB[v] }));
+    return el;
+  }
+  function lcStatusText(me) {
+    const S = lcS;
+    if (S.over) return 'Game over.';
+    const p = S.players[S.turn], t = LC.top(S), mine = S.turn === me;
+    if (!mine) {
+      const what = !S.pending ? '' : S.pending.k === 'color' ? ' is picking a color' : S.pending.c === 'kX' ? ' is picking who to swap with' : ' is picking who to freeze';
+      return (me >= 0 && S.players[me].place > 0 ? `You finished ${LC.ord(S.players[me].place)}. ` : '') + (what ? p.name + what + '.' : `${p.name}’s turn.`);
+    }
+    if (S.pending) return S.pending.k === 'color' ? 'Pick the next color.' : S.pending.c === 'kX' ? 'Pick who to swap hands with.' : 'Pick who to freeze.';
+    if (S.drawn >= 0) return `You drew ${LC.cardName(S.players[me].hand[S.drawn])}. It fits: play it or keep it.`;
+    if (S.stack) return `+${S.stack} on you: stack a ${LC.val(t) === '+4' ? '+4' : '+2 or +4'}, play a Shield, or draw ${S.stack}.`;
+    const v = LC.val(t);
+    return `Your turn: play ${LC.CNAME[S.color]}${t[0] === 'k' ? '' : `, a ${/\d/.test(v) ? v : LC.VNAME[v]}`}, a black card, or draw.`;
+  }
+  function lcSeatEl(p, i) {
+    const S = lcS, li = document.createElement('li'), n = p.hand.length;
+    li.className = 'lcseat' + (i === S.turn && !S.over ? ' lcturn' : '') + (p.place ? ' lcdone' : '');
+    const who = Object.assign(document.createElement('span'), { className: 'lcwho' });
+    who.append(Object.assign(document.createElement('b'), { textContent: chYou(p.name) }),
+      Object.assign(document.createElement('small'), { textContent: p.place > 0 ? `${LC.ord(p.place)} place` : p.place < 0 ? 'Dropped' : `${n} card${n === 1 ? '' : 's'}` }));
+    const badges = Object.assign(document.createElement('span'), { className: 'lcbadges' });
+    const badge = (cls, text) => badges.append(Object.assign(document.createElement('span'), { className: 'lcbadge ' + cls, textContent: text }));
+    if (p.place > 0) badge('lcplace', LC.ord(p.place));
+    if (p.frozen) badge('lcice', '❄ Frozen');
+    if (p.shout && n === 1 && !p.place) badge('lcshout', 'Last card!');
+    li.append(who, badges, Object.assign(document.createElement('span'), { className: 'lcbar' }));
+    return li;
+  }
+  function lcDraw() {
+    const S = lcS, here = lcHere(), me = chMe();
+    $('lcIdle').hidden = !!S;
+    $('lcGame').hidden = !S;
+    lcTicker();
+    if (!S) {
+      $('lcWatch').textContent = '';
+      for (const n of lcOut) if (!here.includes(n)) lcOut.delete(n);
+      const who = [me, ...here];
+      $('lcWho').replaceChildren(...who.map((n) => {
+        const b = Object.assign(document.createElement('button'), { type: 'button', textContent: chYou(n), disabled: n === me, value: n });
+        b.setAttribute('aria-pressed', !lcOut.has(n));
+        return b;
+      }));
+      const n = who.filter((x) => !lcOut.has(x)).length;
+      $('lcPlay').disabled = n < 2 || n > 10;
+      $('lcPlay').title = n < 2 ? 'Someone else needs to be in the room' : n > 10 ? 'Up to 10 players: untick some' : '';
+      return;
+    }
+    const meI = lcMeI(), P = S.players[meI], mine = !!P && S.turn === meI && !S.over, free = mine && !S.pending && S.drawn < 0;
+    const watching = [me, ...here].filter((n) => !S.players.some((p) => p.name === n));
+    $('lcWatch').textContent = watching.length ? `${watching.join(', ')} watching` : '';
+    if (!P || P.hand.length !== 2) lcArmed = false;
+    $('lcN').textContent = `${S.players.length} players`;
+    $('lcStatus').textContent = lcStatusText(meI);
+    $('lcStatusBox').classList.toggle('lcmine', mine);
+    $('lcSecs').hidden = S.over;
+    $('lcSeats').replaceChildren(...S.players.map(lcSeatEl));
+    $('lcTable').hidden = $('lcHandBox').hidden = S.over || !P;
+    if (!S.over && !P) $('lcTable').hidden = false;
+    $('lcWatchNote').hidden = !!P || S.over;
+    $('lcWatchNote').textContent = 'You’re watching. You’ll be dealt in next game.';
+    $('lcEnd').hidden = !S.over;
+    $('lcChoice').hidden = true;
+    if (S.over) {
+      $('lcPlaces').replaceChildren(...S.places.map((n, k) => {
+        const li = document.createElement('li');
+        li.append(Object.assign(document.createElement('span'), { className: 'lcn', textContent: LC.ord(k + 1) }), Object.assign(document.createElement('span'), { textContent: chYou(n) + (S.dropped.some((p) => p.name === n) ? ' (dropped)' : '') }));
+        return li;
+      }));
+      $('lcRematch').hidden = !P;
+      $('lcRematch').disabled = S.players.filter((p) => p.name === me || here.includes(p.name)).length < 2;
+      return;
+    }
+    const t = LC.top(S), pc = lcCardEl(t);
+    if (S.pile.length !== lcPileLen) { pc.classList.add('chnew'); lcPileLen = S.pile.length; }
+    $('lcPile').replaceChildren(pc);
+    $('lcPileBox').style.setProperty('--ring', `var(--card-${S.color})`);
+    $('lcColor').style.setProperty('--ring', `var(--card-${S.color})`);
+    $('lcColor').textContent = `Color: ${LC.CNAME[S.color]}`;
+    $('lcStack').hidden = !S.stack;
+    $('lcStack').textContent = `+${S.stack}`;
+    $('lcDir').textContent = S.dir > 0 ? 'Order: left to right →' : 'Order: right to left ←';
+    $('lcDeckN').textContent = `${S.deck.length} left`;
+    $('lcDeck').disabled = !free;
+    $('lcDeck').classList.toggle('lcready', free);
+    $('lcLog').replaceChildren(...S.log.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
+    if (!P) return;
+
+    const choose = mine && S.pending;
+    $('lcChoice').hidden = !choose;
+    if (choose && S.pending.k === 'color') {
+      $('lcChoiceT').textContent = 'Pick the next color';
+      $('lcChoiceBtns').replaceChildren(...LC.COLS.map((c) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'lccol', textContent: LC.CNAME[c][0].toUpperCase() + LC.CNAME[c].slice(1) }); b.dataset.col = c; return b; }));
+    } else if (choose) {
+      $('lcChoiceT').textContent = S.pending.c === 'kX' ? 'Swap your whole hand with' : 'Freeze, so they miss their next turn';
+      $('lcChoiceBtns').replaceChildren(...LC.targets(S).map((j) => { const q = S.players[j], b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: `${q.name} · ${q.hand.length} card${q.hand.length === 1 ? '' : 's'}` }); b.dataset.j = j; return b; }));
+    }
+    $('lcDraw').hidden = S.drawn >= 0 && mine;
+    $('lcDraw').disabled = !free;
+    $('lcDraw').textContent = mine && S.stack ? `Draw ${S.stack}` : 'Draw a card';
+    $('lcKeep').hidden = !(mine && S.drawn >= 0);
+    $('lcLast').hidden = !(mine && !S.pending && P.hand.length === 2);
+    $('lcLast').setAttribute('aria-pressed', lcArmed);
+    $('lcLast').textContent = lcArmed ? 'Last card! ✓' : 'Last card!';
+    $('lcCatch').hidden = !(mine && S.catchable >= 0);
+    if (S.catchable >= 0) $('lcCatch').textContent = `Catch ${S.players[S.catchable].name}!`;
+    $('lcHand').classList.toggle('lcwait', !mine);
+    if (P.place > 0) return $('lcHand').replaceChildren(Object.assign(document.createElement('p'), { className: 'hint', textContent: `You’re out of cards: ${LC.ord(P.place)} place. You’re watching the rest.` }));
+    const order = P.hand.map((c, i) => i).sort((a, b) => lcSortKey(P.hand[a]) - lcSortKey(P.hand[b]));
+    $('lcHand').replaceChildren(...order.map((i) => {
+      const c = P.hand[i], ok = mine && !S.pending && LC.fits(S, c) && (S.drawn < 0 || i === S.drawn), b = lcCardEl(c, 'button');
+      b.type = 'button';
+      b.dataset.i = i;
+      b.classList.add(ok ? 'lcok' : 'lcno');
+      b.setAttribute('aria-label', LC.cardName(c) + (ok ? '' : ', can’t be played now'));
+      if (!ok) b.setAttribute('aria-disabled', 'true');
+      return b;
+    }));
+  }
+  $('lcRules').replaceChildren(...[['g7', 'Match the top card’s color, number or symbol. Black cards go on anything, and you pick the next color.'],
+    ['rS', 'Skip: the next player misses a turn.'], ['yR', 'Reverse: the order turns around. With 2 players it works like Skip.'],
+    ['b+2', '+2: the next player draws 2, or stacks a +2 or +4 to pass the total on.'], ['kW', 'Wild: pick the next color.'],
+    ['k+4', 'Wild +4: pick the color. The next player draws 4, or stacks another +4.'],
+    ['kX', 'Swap: pick the color, then trade your whole hand with a player you pick.'],
+    ['kF', 'Freeze: pick the color, then a player you pick misses their next turn.'],
+    ['kH', 'Shield: when a +2 or +4 hits you, play it and you draw nothing. Any other time it works like a Wild.'],
+    ['', 'Can’t play? Draw 1. If it fits, you can play it straight away.'],
+    ['', 'Two cards left? Press Last card as you play one. Forget, and the next player can catch you: +2.'],
+    ['', 'Out of cards takes the next place. The rest play on until one is left. 30 seconds a turn, and 3 timeouts in a row drop you.']].map(([c, text]) => {
+    const li = document.createElement('li');
+    li.append(c ? lcCardEl(c) : document.createElement('span'), Object.assign(document.createElement('span'), { textContent: text }));
+    return li;
+  }));
+  $('gamePick').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) lcPick(b.dataset.g); });
+  $('lcWho').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || b.disabled) return; if (lcOut.has(b.value)) lcOut.delete(b.value); else lcOut.add(b.value); lcDraw(); });
+  $('lcPlay').addEventListener('click', () => { const names = [chMe(), ...lcHere()].filter((n) => !lcOut.has(n)); if (names.length >= 2 && names.length <= 10) lcStart(names); });
+  $('lcRematch').addEventListener('click', () => { if (!lcS) return; const here = [chMe(), ...lcHere()], names = lcS.players.map((p) => p.name).filter((n) => here.includes(n)); if (names.length >= 2) lcStart(names); });
+  $('lcClose').addEventListener('click', lcReset);
+  $('lcHand').addEventListener('click', (e) => { const b = e.target.closest('button.chcard'); if (b && b.classList.contains('lcok')) { const call = lcArmed; lcArmed = false; lcAct({ k: 'play', i: +b.dataset.i, call }); } });
+  $('lcChoiceBtns').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) lcAct(b.dataset.col ? { k: 'color', c: b.dataset.col } : { k: 'who', j: +b.dataset.j }); });
+  for (const id of ['lcDraw', 'lcDeck']) $(id).addEventListener('click', () => lcAct({ k: 'draw' }));
+  $('lcKeep').addEventListener('click', () => lcAct({ k: 'keep' }));
+  $('lcCatch').addEventListener('click', () => lcAct({ k: 'catch' }));
+  $('lcLast').addEventListener('click', () => { lcArmed = !lcArmed; lcDraw(); });
+
   // Balance teams: each player's Solo/Duo rank as a number (Iron IV 0 LP is 0, Diamond I 99 LP 2,799, Master and up
   // 2,800 plus their LP); anyone whose rank isn't known (no desktop app with League, unranked, or not shared) counts as
   // the room's average. The teams are a random one of the most even splits, within half a division.
@@ -16836,6 +17370,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [148, 'November 12: Last Card, a card game for your whole room', [
+      'Games in your room now has Last Card next to Chess: 2 to 10 of you play at once, everyone else watches. Match the top card’s color or number, and play Skip, Reverse, +2, Wild and Wild +4, plus Premade’s own Swap (trade hands), Freeze (they miss a turn) and Shield (block a +2 or +4). Stack +2s and +4s, press Last card as you play your second-to-last card or get caught for +2, and play on for places until one is left. 30 seconds a turn.',
+    ]],
     [146, 'November 11: chess sounds and three new cards', [
       'Chess in your room now sounds like a wooden board: a click for each move, a heavier one for a capture, a double knock for check, and a ping when it’s your turn. Turn them off with the speaker button next to Games.',
       'Card Chess has three new cards, two of each: Swap two of your pieces, Freeze one of theirs or Shield one of yours until your next turn. Then you flip again. Don’t use skips the card.',
@@ -17563,6 +18100,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'Voice settings, Popups and sounds.', '#optNotify'],
       ['Chess with friends', 'Play chess with someone in your room while everyone else watches live, and whoever joins later sees the game in progress. Click a piece then a square, or drag it; dots show the legal moves. Normal has the full rules: castling, en passant, promotion where you pick the piece, check and checkmate, and draws by stalemate, too few pieces, the same position three times, 50 moves or an offer. Card Chess is the extra mode: flip a card from one shared deck each turn for 1 to 3 moves, Skip, Reverse (you swap armies), +2 or Wild +4 to bring taken pieces back, Swap two of your pieces, Freeze one of theirs or Shield one of yours until your next turn; there is no check, and taking the king wins. Pick no clock or 3, 5 or 10 minutes each; Resign and Rematch any time. Wooden clicks sound for moves, captures, check, card flips, your turn, your last 10 seconds and the end; the speaker button turns them off.',
         'In your room, under Games below the chat: pick who to play, Normal or Card Chess, and a clock, then Play. It starts for both of you at once. The speaker button by Games turns the sounds on or off.', '#roomGames, #chSound, #createBtn'],
+      ['Last Card', 'A card game for your whole room: 2 to 10 play, everyone else watches, and whoever joins later sees the table and everyone’s card count, never a hand. Match the top card’s color, number or symbol; Skip, Reverse and +2 in four colors, Wild and Wild +4, and Premade’s own black cards: Swap trades your whole hand with a player you pick, Freeze makes one miss their next turn, Shield blocks a +2 or +4 aimed at you. +2s and +4s stack, and whoever can’t add one draws the total. Can’t play? Draw 1, and play it if it fits. Press Last card as you play your second-to-last card, or the next player can catch you for +2. Whoever runs out of cards takes the next place and the rest play on. 30 seconds a turn: run out and Premade draws for you, 3 in a row and you’re out of that game, as is anyone who leaves the room. Reload and you get your hand back.',
+        'In your room, under Games below the chat: pick Last Card, untick anyone who isn’t playing, then Play. It deals 7 cards each at once. Rematch keeps the same players. The speaker button by Games turns the sounds off.', '#roomGames, #lcPlay'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
@@ -18001,6 +18540,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     chessSounds: () => [...chPlayed],
     chessReplay: (g) => { const S = chReplay({ id: 'x', w: 'A', b: 'B', mode: 'normal', clock: 0, seed: 1, at: 0, ...g }, '', Infinity); return S && { over: S.over, board: S.board.join(), turn: S.turn, castle: S.castle, phase: S.phase, card: S.card, frozen: S.frozen, shields: S.shields, players: S.players, out: S.out, left: S.left, back: S.back, say: S.say, deck: S.deck.slice() }; },
     chess: () => chS && { ...chS, rnd: undefined, reps: undefined, deck: chS.deck.slice(-3), acts: chG.acts.length },
+    lcDraw: () => lcDraw(),
+    lcRules: LC,
+    lcReplay: (g, from = '', n = Infinity) => { const S = lcReplay(g, from, n); return S && { ...S, r: undefined }; },
+    lc: () => lcS && { ...lcS, r: undefined, deck: lcS.deck.length, acts: lcG.acts.length, id: lcG.id, names: lcG.names },
     phoneQuality,
     jungler: (r, tl) => junglerEl(r, tl),
     foes: () => (share && share.foes ? share.foes.list.map(({ name, id, seen, zone, where, lane, called, dead }) => ({ name, id, seen, zone, where, lane, called, dead })) : null),
