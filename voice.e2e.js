@@ -169,11 +169,14 @@ async function player(browser, name, screen, { setup = true, client = false, den
   if (process.env.PEER) await ctx.route(/\/riot\//, (r) => r.fulfill({ status: 404, headers: cors })); // no Riot data, as with a local PeerServer
   ctx.hellos = []; // what the page tells our server about this device (/hello, who has Premade)
   await ctx.route('**/hello', (r) => { ctx.hellos.push(JSON.parse(r.request().postData())); r.fulfill({ status: 204, headers: cors }); });
-  await ctx.route('**/rooms', (r) => {
-    if (r.request().method() === 'GET') return r.fulfill({ json: [...OPEN_ROOMS.values()].map(({ room, count, playing }) => ({ room, count, playing })), headers: cors });
+  await ctx.route(/\/rooms(\?|$)/, (r) => { // as our server: open rooms, plus hidden ones shared with one of the asker's Riot IDs (me)
+    if (r.request().method() === 'GET') {
+      const me = JSON.parse(new URL(r.request().url()).searchParams.get('me') || '[]').map((n) => n.toLowerCase());
+      return r.fulfill({ json: [...OPEN_ROOMS.values()].filter((x) => !x.allow || x.allow.some((n) => me.includes(n.toLowerCase()))).map(({ room, count, playing, allow, key, n }) => (allow ? { room, count, playing, hidden: true, key, n } : { room, count, playing })), headers: cors });
+    }
     const b = JSON.parse(r.request().postData() || '{}');
-    if (b.remove || b.locked) { if (OPEN_ROOMS.get(b.room)?.owner === b.owner) OPEN_ROOMS.delete(b.room); }
-    else OPEN_ROOMS.set(b.room, { room: b.room, owner: b.owner, count: b.count, playing: b.playing });
+    if (b.remove || b.locked && !(b.hidden && b.allow.length)) { if (OPEN_ROOMS.get(b.room)?.owner === b.owner) OPEN_ROOMS.delete(b.room); }
+    else OPEN_ROOMS.set(b.room, { room: b.room, owner: b.owner, count: b.count, playing: b.playing, ...(b.hidden && { allow: b.allow, key: b.key, n: b.n }) });
     r.fulfill({ json: { ok: true }, headers: cors });
   });
   await ctx.addInitScript(fakeScreen, screen);
@@ -759,31 +762,66 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.evaluate(() => { document.getElementById('histBox').open = false; });
     console.log('past sessions: this one with who was there, its chat and picture; one older than 30 days deleted');
 
-    // locking the room: Ana, the host, locks it; Fay, who only has the code, is turned away until she types the password
-    assert(await ana.isVisible('#lockBtn') && await ben.isHidden('#lockBtn'), 'only the host can lock');
+    // hiding the room: Ana, the host, hides it, shared with Fay (ticked the last time she hid one); Fay, with only the
+    // code, is turned away, but finds it at the top of her Open voice rooms and joins without typing the password
+    const fay = await player(browser, 'Fay', [1920, 1080], { denoise: true });
+    await fay.goto(URL_);
+    const FAY = await fay.evaluate(() => localStorage.getItem('lpc-code')); // her Premade code, which her page asks with
+    await ana.evaluate((n) => localStorage.setItem('lpc-hide-allow', JSON.stringify([n])), FAY);
+    await ana.context().route('**/friends', (r) => r.fulfill({ json: { has: { [FAY.toLowerCase()]: Math.round(Date.now() / 1000) }, inv: [] }, headers: { 'access-control-allow-origin': '*' } })); // Fay has Premade
+    await ana.evaluate((n) => { document.getElementById('frId').value = n; document.getElementById('frAdd').requestSubmit(); }, FAY); // Ana adds her on Friends
+    assert(await ana.isVisible('#lockBtn') && await ben.isHidden('#lockBtn'), 'only the host can hide');
+    assert.strictEqual(await ana.textContent('#lockBtn'), 'Hide room');
     await ana.click('#lockBtn');
     const KEY = await ana.evaluate(() => lpc.key());
     assert(/^[a-z]{6}$/.test(KEY) && (await ana.evaluate(() => location.hash)) === `#${ROOM}.${KEY}`, `a password, in the invite link: ${KEY}`);
     await waitFor(ben, (k) => lpc.key() === k && document.getElementById('lockNote').textContent.includes(k.toUpperCase()), KEY, 'Ben told the password');
     await waitFor(cat, (k) => lpc.key() === k, KEY, 'Cat told the password');
+    await waitFor(ana, (n) => { const c = document.querySelector('#hideList input'); return !!c && c.checked && c.parentNode.textContent.trim() === n && !!document.getElementById('hideBox').offsetParent; }, FAY, 'Ana\'s tick for Fay kept from last time');
+    assert(await ben.isHidden('#hideBox') && /only friends the host ticked/.test(await ben.textContent('#lockNote')), 'only the host ticks; Ben is told it\'s hidden');
+    for (let i = 0; i < 50 && !OPEN_ROOMS.get(ROOM)?.allow; i++) await new Promise((r) => setTimeout(r, 100));
+    assert.deepStrictEqual(OPEN_ROOMS.get(ROOM)?.allow, [FAY], 'listed only for Fay');
     if (process.env.PEER) { // our server checks the password itself: a socket that sends none is turned away
       const ws = new (require('ws'))(`ws://${PEER}/peerjs?key=peerjs&id=lolprox-${ROOM}-9&token=t9&version=1.5.4`), got = [];
       ws.on('message', (m) => { got.push(JSON.parse(m).type); if (got.length === 1) ws.send(JSON.stringify({ type: 'LOCK', payload: { key: '' } })); });
       await new Promise((ok) => ws.on('close', ok));
       assert.deepStrictEqual(got, ['OPEN', 'INVALID-KEY'], 'a stranger turned away by our server');
     }
-    const fay = await player(browser, 'Fay', [1920, 1080], { denoise: true });
-    await fay.goto(`${URL_}#${ROOM}`);
+    await fay.fill('#code', ROOM); // only the code
     await fay.click('#joinBtn');
     await waitFor(fay, () => lpc.slot() < 0 && !document.getElementById('key').hidden && /is locked/.test(document.getElementById('msg').textContent), null, 'Fay turned away');
     assert.strictEqual((await others(ana)).length, 2, 'Fay never showed up for Ana');
-    await fay.fill('#key', KEY.toUpperCase());
-    await fay.click('#joinBtn');
-    await hears(fay, ['Ana', 'Ben', 'Cat'], null, 'Fay in with the password');
+    await fay.click('#refreshOpenRooms');
+    await waitFor(fay, (r) => { const row = document.querySelector('#openRooms .toolbar'); return !!row && row.textContent.includes(r.toUpperCase()) && /Shared with you by Ana/.test(row.textContent); }, ROOM, 'Ana\'s room on top of Fay\'s Open voice rooms');
+    await fay.click('#openRooms .toolbar button');
+    await hears(fay, ['Ana', 'Ben', 'Cat'], null, 'Fay in from her list, no password typed');
     await waitFor(fay, () => /Ana\s*brb, build/.test(document.getElementById('chatLog').textContent), null, 'the room\'s recent chat for Fay, from the host');
     await hears(ana, ['Ben', 'Cat', 'Fay'], null, 'Ana hears Fay');
     await waitFor(ana, () => lpc.inGame().includes('Fay'), null, 'Fay in the game Ana is playing (checked once a second)');
     assert(await fay.evaluate(() => lpc.denoise()), 'Fay\'s smart noise removal is on');
+    // Ana unticks Fay: she stays, but the password changes and her page doesn't keep it, so she can't come back
+    await ana.click('#hideList input');
+    await waitFor(fay, (k) => lpc.key() && lpc.key() !== k, KEY, 'a new password');
+    const KEYU = await ana.evaluate(() => lpc.key());
+    await waitFor(ben, (k) => lpc.key() === k, KEYU, 'Ben has the new password');
+    for (let i = 0; i < 50 && OPEN_ROOMS.has(ROOM); i++) await new Promise((r) => setTimeout(r, 100));
+    assert(!OPEN_ROOMS.has(ROOM), 'nobody ticked: off the list');
+    await new Promise((r) => setTimeout(r, 1500));
+    await hears(fay, ['Ana', 'Ben', 'Cat'], null, 'Fay still in after the untick');
+    assert.deepStrictEqual(await ana.evaluate(() => JSON.parse(localStorage.getItem('lpc-hide-allow'))), [], 'the untick kept for next time');
+    await fay.click('#leaveBtn');
+    await hears(ana, ['Ben', 'Cat'], null, 'Fay left');
+    assert(await fay.isHidden('#key') || !(await fay.inputValue('#key')), 'her page didn\'t keep the password');
+    await fay.goto(`${URL_}#${ROOM}.${KEY}`); // the old invite link
+    await fay.reload();
+    await fay.click('#joinBtn');
+    await waitFor(fay, () => lpc.slot() < 0 && /wrong or out of date/.test(document.getElementById('msg').textContent), null, 'the old link turned away');
+    // the invite link still lets in anyone it's sent to, ticked or not
+    await fay.goto(`${URL_}#${ROOM}.${KEYU}`);
+    await fay.reload();
+    await fay.click('#joinBtn');
+    await hears(fay, ['Ana', 'Ben', 'Cat'], null, 'Fay in with the invite link');
+    await hears(ana, ['Ben', 'Cat', 'Fay'], null, 'Ana hears Fay again');
     // the host removes Fay: everyone left gets a new password, so Fay's old one stops working
     const fayRec = (await others(ana)).find((p) => p.name === 'Fay');
     ana.once('dialog', (d) => d.accept());
@@ -792,13 +830,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hears(ana, ['Ben', 'Cat'], null, 'Fay gone for Ana');
     await hears(ben, ['Ana', 'Cat'], null, 'Fay gone for Ben');
     const KEY2 = await ana.evaluate(() => lpc.key());
-    assert(KEY2 !== KEY && (await ben.evaluate(() => lpc.key())) === KEY2 && (await cat.evaluate(() => lpc.key())) === KEY2, 'a new password for everyone left');
-    assert.strictEqual(await fay.inputValue('#key'), KEY, 'the old password still filled in for Fay');
+    assert(KEY2 !== KEYU && (await ben.evaluate(() => lpc.key())) === KEY2 && (await cat.evaluate(() => lpc.key())) === KEY2, 'a new password for everyone left');
+    assert.strictEqual(await fay.inputValue('#key'), KEYU, 'the old password still filled in for Fay');
     await fay.click('#joinBtn');
     await waitFor(fay, () => lpc.slot() < 0 && /wrong or out of date/.test(document.getElementById('msg').textContent), null, 'Fay\'s old password turned away');
     assert.strictEqual((await others(ana)).length, 2, 'Fay stayed out: ' + JSON.stringify(await others(ana)));
     await fay.context().close();
-    console.log(`room lock: password ${KEY}; Fay kept out without it, let in with it, removed, and the old password stopped working`);
+    // ticks ride in the host's 'me', so the next host keeps the room listed for the same friends
+    await ana.click('#hideList input');
+    await waitFor(ben, (n) => lpc.hide().length === 1 && lpc.hide()[0] === n, FAY, 'Ben knows the room is shared with Fay');
+    console.log(`hidden room: password ${KEY}; Fay kept out with just the code, in from her list, unticked and kept out, in with the invite link, removed, and the old password stopped working`);
 
     // game modes: only the host (Ana) picks; everyone gets it
     assert(await ben.$eval('#modeSel', (el) => el.disabled) && !(await ana.$eval('#modeSel', (el) => el.disabled)), 'only the host picks the mode');

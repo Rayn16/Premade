@@ -85,7 +85,7 @@ async function player(browser, name, client) {
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|ddragon\.leagueoflegends\.com/, (r) => r.abort());
   const cors = { 'access-control-allow-origin': '*' };
   await ctx.route('**/hello', (r) => r.fulfill({ status: 204, headers: cors }));
-  await ctx.route('**/rooms', (r) => {
+  await ctx.route(/\/rooms(\?|$)/, (r) => { // GET asks with ?me= (your Riot IDs, for hidden rooms)
     if (r.request().method() === 'GET') return r.fulfill({ json: [...OPEN_ROOMS.values()], headers: cors });
     const b = JSON.parse(r.request().postData() || '{}');
     if (b.remove || b.locked) OPEN_ROOMS.delete(b.room);
