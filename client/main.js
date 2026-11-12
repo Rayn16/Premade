@@ -551,8 +551,9 @@ ipcMain.handle('aion-meter-small', (e, h) => {
   else if (!(h > 0) && meterTall) { aionMeter.setBounds({ ...b, height: meterTall }); meterTall = 0; aionMeter.setMinimumSize(260, 120); }
   return !!meterTall;
 });
-// Watch together (app 1.47): YouTube's own site in a Premade window, with its own cookies, no preload, sandboxed and
-// muted for good. Opening a video there (a /watch, /shorts or youtu.be address) sends it to the page instead
+// Watch together (app 1.47): YouTube's own site in a Premade window, no preload, sandboxed and muted for good. Since
+// 1.47.1 it shares Premade's cookies, so a YouTube account signed in there (Premium: no ads) is the one the room's
+// player plays with. Opening a video there (a /watch, /shorts or youtu.be address) sends it to the page instead
 // ('yt-pick'), and the window goes back to where you were, so you can pick the next one.
 const ytPick = (u) => {
   let x;
@@ -563,6 +564,19 @@ const ytPick = (u) => {
   return /^[\w-]{11}$/.test(v || '') ? { v, list: /^[\w-]{10,64}$/.test(list) ? list : '' } : null;
 };
 let ytWin = null;
+// once: a sign-in made in 1.47.0's window (its own cookies) moves to Premade's, so nobody signs in twice
+async function ytSignIn(ses) {
+  const done = path.join(app.getPath('userData'), 'youtube-sign-in-moved');
+  if (fs.existsSync(done)) return;
+  try {
+    for (const c of await session.fromPartition('persist:yt').cookies.get({})) {
+      if (!/(^|\.)(youtube|google)\.com$/.test(c.domain)) continue;
+      const host = c.name.startsWith('__Host-');
+      await ses.cookies.set({ url: `https://${c.domain.replace(/^\./, '')}${c.path}`, name: c.name, value: c.value, path: c.path, secure: c.secure, httpOnly: c.httpOnly, sameSite: c.sameSite, ...(!host && c.domain.startsWith('.') && { domain: c.domain }), ...(c.expirationDate && { expirationDate: c.expirationDate }) }).catch(() => {});
+    }
+    fs.writeFileSync(done, '');
+  } catch (err) { logLine(`YouTube sign-in move: ${err.message}`); }
+}
 const ytFile = () => path.join(app.getPath('userData'), 'youtube-window.json');
 ipcMain.handle('youtube', (e) => {
   if (!fromSite(e)) return false;
@@ -570,8 +584,8 @@ ipcMain.handle('youtube', (e) => {
   let at = {};
   try { at = JSON.parse(fs.readFileSync(ytFile(), 'utf8')); } catch {}
   const fits = screen.getAllDisplays().some((d) => at.x >= d.bounds.x && at.y >= d.bounds.y && at.x < d.bounds.x + d.bounds.width - 40 && at.y < d.bounds.y + d.bounds.height - 40);
-  const ses = session.fromPartition('persist:yt');
-  ses.setPermissionRequestHandler((wc, perm, ok) => ok(perm === 'fullscreen'));
+  const ses = session.defaultSession; // its permissions: only Premade's pages get more than full screen
+  ytSignIn(ses);
   ytWin = new BrowserWindow({
     ...(fits ? { x: at.x, y: at.y } : {}), width: Math.max(480, +at.width || 1000), height: Math.max(400, +at.height || 720), minWidth: 480, minHeight: 400,
     title: 'Find a video: click one to watch it together', icon: path.join(__dirname, 'icon.png'), backgroundColor: '#0f0f0f',
