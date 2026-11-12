@@ -1840,6 +1840,7 @@ ipcMain.handle('point', (e, m) => { // '' shown, else why not
 app.whenReady().then(async () => {
   const ses = session.defaultSession;
   ses.setDisplayMediaRequestHandler(async (req, done) => {
+    if (!String((req.frame && req.frame.url) || req.securityOrigin || '').startsWith(SITE)) return done({}); // since 1.47.1 YouTube's window shares this session: only Premade's pages get a screen
     const requestedId = captureSourceId;
     captureSourceId = '';
     const s = requestedId
