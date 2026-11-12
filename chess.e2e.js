@@ -30,7 +30,7 @@ async function player(browser, name) {
   await ctx.route(/fonts\.(googleapis|gstatic)\.com|ddragon\.leagueoflegends\.com/, (r) => r.abort());
   const cors = { 'access-control-allow-origin': '*' };
   await ctx.route('**/hello', (r) => r.fulfill({ status: 204, headers: cors }));
-  await ctx.route('**/rooms', (r) => r.fulfill({ json: r.request().method() === 'GET' ? [] : { ok: true }, headers: cors }));
+  await ctx.route(/\/rooms(\?|$)/, (r) => r.fulfill({ json: r.request().method() === 'GET' ? [] : { ok: true }, headers: cors }));
   await ctx.addInitScript((n) => { localStorage.setItem('lpc-setup', '1'); localStorage.setItem('lpc-name', n); localStorage.setItem('lpc-news', '9999'); localStorage.setItem('lpc-opts', JSON.stringify({ denoise: false, autoShare: false })); }, name);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.log(`[${name}] page error:`, e.message));

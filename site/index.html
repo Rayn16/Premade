@@ -1457,9 +1457,14 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
               <div class="curcode"><span class="hint">Room code</span><b id="curCode"></b></div>
               <div class="curbtns">
                 <button id="copyBtn" class="btn" type="button">Copy invite link</button>
-                <span class="curlock"><button id="lockBtn" class="btn" type="button" hidden>Lock room</button><button class="tip" type="button" popovertarget="t-lock" aria-label="About locking the room">?</button></span>
+                <span class="curlock"><button id="lockBtn" class="btn" type="button" hidden>Hide room</button><button class="tip" type="button" popovertarget="t-lock" aria-label="About hiding the room">?</button></span>
                 <button id="generalShareBtn" class="btn primary pc-only" type="button">Share screen or app</button>
                 <button id="leaveBtn" class="btn leave" type="button">Leave</button>
+              </div>
+              <div id="hideBox" class="cursets" hidden>
+                <h3 class="ph">Who can see it</h3>
+                <p id="hideNote" class="hint"></p>
+                <div id="hideList" class="stack"></div>
               </div>
               <div id="roomDps" class="cursets client-only" hidden>
                 <h3 class="ph">Aion 2 DPS</h3>
@@ -2704,7 +2709,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
 <div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it in their room, straight from your PC. In a game only your own team does, never the other team. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
-<div id="t-lock" class="tipbox" popover>Only the host can lock the room: whoever made it, or once they leave, the player listed first (their card says host). Locking gives the room a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link includes it, and it stays locked until everyone leaves. The host can also remove someone, which changes the password so they can't come back. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
+<div id="t-lock" class="tipbox" popover>Only the host can hide the room: whoever made it, or once they leave, the player listed first (their card says host). A hidden room leaves Open voice rooms, and only the friends the host ticks under Who can see it find it there, with a Join button. It also gets a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link and Invite include it, and it stays hidden until everyone leaves. Untick a friend who's in the room and they stay, but the password changes, so they can't come back once they leave. The host can also remove someone, which changes the password the same way. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
 <div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 80, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
@@ -3228,7 +3233,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     $('roomName').textContent = room;
     $('lockBtn').hidden = !peer || !!roomKey || hostSlot() !== slot;
     $('lockNote').hidden = !roomKey;
-    $('lockNote').textContent = `Locked. Password: ${roomKey.toUpperCase()}. The invite link includes it.`;
+    $('lockNote').textContent = `Hidden${roomKey && !isHost() ? ': only friends the host ticked see it' : ''}. Password: ${roomKey.toUpperCase()}. The invite link includes it.`;
+    renderHide();
     $('autoNote').hidden = !opts.autoRoom;
     for (const p of peers.values()) renderPlayer(p);
     renderMode();
@@ -3456,7 +3462,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share, see: opts.roomScreen && !!share, sq: squad ? squad.code : '',
     ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
-    ...(hm.n && slot === hostSlot() && { hm }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }), ...(slot === hostSlot() && raidMsg() && { rd: raidMsg() }),
+    ...(hm.n && slot === hostSlot() && { hm }), ...(roomKey && slot === hostSlot() && { hide: hideTo }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }), ...(slot === hostSlot() && raidMsg() && { rd: raidMsg() }),
   });
   let faceSent = '';
   let teams = { n: 0, a: [], b: [] }, roles = { n: 0, map: {} }; // room games: the host's balanced teams and roles
@@ -3481,8 +3487,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (m.t === 'lc') return lcTake(p, m.g);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
-      if (!roomKey) notify(`${nameOf(p)} locked the room`);
+      if (!roomKey) notify(`${nameOf(p)} hid the room`);
       roomKey = m.key;
+      if (typeof m.out === 'string' && mineIds().has(acctOf(m.out))) hideOut = true;
       if (out) { notify(`${nameOf(p)} removed ${nameOf(out)} from the room`); const cs = [...out.conns]; drop(m.remove, true); cs.forEach((c) => c.close()); }
       return keyChanged();
     }
@@ -3510,7 +3517,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       p.sq = typeof m.sq === 'string' && /^[a-z0-9]{12}$/.test(m.sq) ? m.sq : '';
       takeMode(m.rm, p.slot);
       takeSwap(m.sw, p.slot);
-      if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeMvp(m.mv, p.slot); takeFs(m.fs); raidTake(m.rd); }
+      if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeHide(m.hide); takeMvp(m.mv, p.slot); takeFs(m.fs); raidTake(m.rd); }
       if (p.champ) ddSoon();
     }
     if (m.t === 'face' && typeof m.img === 'string' && m.img.startsWith('data:image/jpeg;base64,') && m.img.length < 12000) p.face = m.img;
@@ -3627,15 +3634,51 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   const setHash = () => history.replaceState(null, '', '#' + room + (roomKey ? '.' + roomKey : '')); // app 1.41 rejoins it after the page crashes
   function keyChanged() { setHash(); render(); pushDiscord(); }
+  // Hide room (What's new 147): the host's lock, plus the friends it's shared with (hideTo, their Riot IDs), who find it in
+  // their Open voice rooms with its password (updateRoomListing; our server lists it only for them). The ticks are kept
+  // for the next room you hide (lpc-hide-allow), and ride in the host's 'me' (hide), so the next host keeps them.
+  let hideTo = [], hideOut = false; // hideOut: the host unticked you, so your page doesn't keep the password once you leave
   $('lockBtn').addEventListener('click', () => {
     if (!peer || roomKey || hostSlot() !== slot) return;
     roomKey = newCode(6);
+    hideTo = load('lpc-hide-allow', []);
+    if (!Array.isArray(hideTo)) hideTo = [];
+    roomListed = true;
     send({ t: 'lock', key: roomKey });
-    updateRoomListing(true);
+    send(meMsg());
+    updateRoomListing();
     toServer();
-    notify('Room locked. Friends who join now need the invite link or the password.', true);
+    notify('Room hidden: only the friends you tick under Who can see it find it. Anyone else needs your invite link or the password.', true);
     keyChanged();
   });
+  // Unticking someone gives the room a new password (out: them), so whoever was in stays, but can't come back after leaving
+  function hideTick(n, on) {
+    if (!roomKey || !isHost()) return;
+    hideTo = hideTo.filter((x) => acctOf(x) !== acctOf(n)).concat(on ? [n] : []).slice(-50);
+    store.set('lpc-hide-allow', JSON.stringify(hideTo));
+    if (!on) { roomKey = newCode(6); send({ t: 'lock', key: roomKey, out: n }); toServer(); }
+    send(meMsg());
+    updateRoomListing();
+    keyChanged();
+  }
+  const takeHide = (h) => { if (!Array.isArray(h) || !roomKey) return; hideTo = h.filter((n) => typeof n === 'string' && RIOT_ID.test(n)).slice(0, 50); if (hideTo.length) roomListed = true; };
+  function renderHide() { // the host's ticks: friends with Premade, and whoever's ticked
+    const box = $('hideBox'), show = !!peer && !!roomKey && isHost();
+    box.hidden = !show;
+    if (!show) return;
+    const on = new Set(hideTo.map(acctOf)), names = frRows().filter((x) => x.has || on.has(acctOf(x.riot))).map((x) => x.riot);
+    for (const n of hideTo) if (!names.some((x) => acctOf(x) === acctOf(n))) names.push(n);
+    const k = JSON.stringify([names, [...on]]);
+    if (box.dataset.key === k) return;
+    box.dataset.key = k;
+    $('hideNote').textContent = names.length ? 'Ticked friends see this room in their Open voice rooms and can join it. Nobody else sees it.' : 'Your friends with Premade show here to tick. Add friends on the Friends page.';
+    $('hideList').replaceChildren(...names.map((n) => {
+      const c = Object.assign(document.createElement('input'), { type: 'checkbox', checked: on.has(acctOf(n)) }), l = Object.assign(document.createElement('label'), { className: 'check' });
+      c.addEventListener('change', () => hideTick(n, c.checked));
+      l.append(c, ` ${n}`);
+      return l;
+    }));
+  }
   // The host removes someone: the others get a new password (they drop that player too), and that player is told
   function removePlayer(id) {
     const p = peers.get(id);
@@ -4662,8 +4705,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     clearTimeout(roomReconnectTimer);
     roomReconnectTimer = null;
     roomReconnectAttempt = 0;
-    if (roomKey) { $('key').value = roomKey; $('key').hidden = false; } // for coming back
+    if (roomKey && !hideOut) { $('key').value = roomKey; $('key').hidden = false; } // for coming back
     room = prefix = roomKey = '';
+    hideTo = [];
+    hideOut = false;
     rm = { ...MODE0 };
     sw = { ...SW0 };
     rmBy = swBy = hmBy = -1;
@@ -4703,18 +4748,21 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('joinForm').addEventListener('submit', (e) => { e.preventDefault(); joinRoom($('code').value, false, $('key').hidden ? '' : $('key').value); });
   $('leaveBtn').addEventListener('click', () => { left = { room, at: Math.round(Date.now() / 1000) }; leaveRoom(); });
 
-  // An unlocked room you made, or one that was listed when you came in, is kept listed by its maker and, once they leave,
+  // An open room you made, or one that was listed when you came in, is kept listed by its maker and, once they leave,
   // by the host. The Worker's lease lasts 2 minutes, so it's renewed every 45 s, and lapses if the app closes unexpectedly.
+  // A hidden room is listed the same way, but only for the friends it's shared with (hidden, allow), and with nobody
+  // ticked it's off the list. An older server takes locked: true as "off the list".
   let roomListingState = '', roomListedAt = 0, roomListed = false;
   let openRoomRows = [];
   async function updateRoomListing(remove = false) {
-    if (!room || !remove && (!peer || roomKey || !roomListed || !roomCreator && !isHost())) return;
+    remove ||= !!roomKey && !hideTo.length;
+    if (!room || (remove ? !roomListingState : !peer || !roomListed || !roomCreator && !isHost())) return;
     const count = Math.min(10, peers.size + 1), playingNow = !!inGameNow();
-    const state = `${room}|${count}|${playingNow}|${!!roomKey}|${remove}`;
+    const state = `${room}|${count}|${playingNow}|${roomKey}|${hideTo.join()}|${remove}`;
     if (!remove && state === roomListingState && Date.now() - roomListedAt < 40000) return;
     roomListingState = remove ? '' : state;
     roomListedAt = Date.now();
-    await fetch(`${serverUrl}/rooms`, { method: 'POST', body: JSON.stringify({ room, owner: myDevice, count, playing: playingNow, remove, locked: !!roomKey }) }).catch(() => {});
+    await fetch(`${serverUrl}/rooms`, { method: 'POST', body: JSON.stringify({ room, owner: myDevice, count, playing: playingNow, remove, locked: !!roomKey, ...(!remove && roomKey && { hidden: true, allow: hideTo, key: roomKey, n: myName }) }) }).catch(() => {});
   }
   async function refreshOpenRooms() {
     const voiceView = document.querySelector('main > .view[data-view="voice"]');
@@ -4722,7 +4770,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     const button = $('refreshOpenRooms');
     button.disabled = true;
     button.textContent = 'Refreshing…';
-    const list = await fetch(`${serverUrl}/rooms`).then((r) => r.ok ? r.json() : null).catch(() => null);
+    const me = opts.hello ? [...mineIds()].filter(Boolean) : []; // your Riot IDs and Premade code: hidden rooms shared with you come too
+    const list = await fetch(`${serverUrl}/rooms${me.length ? '?me=' + encodeURIComponent(JSON.stringify(me)) : ''}`).then((r) => r.ok ? r.json() : null).catch(() => null);
     button.disabled = false;
     button.textContent = 'Refresh';
     if (!Array.isArray(list)) { $('openRoomsNote').textContent = 'Could not load open rooms. Try again.'; return; }
@@ -4731,24 +4780,24 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function renderOpenRooms() {
     const query = $('openRoomsSearch').value.trim().toLocaleLowerCase();
-    const rows = openRoomRows.filter((x) => !query || x.room.toLowerCase().includes(query)
+    const rows = openRoomRows.filter((x) => !query || x.room.toLowerCase().includes(query) || String(x.n || '').toLocaleLowerCase().includes(query)
       || `${Number.isInteger(x.count) ? x.count : ''}/10 players ${x.playing ? 'in game playing' : 'waiting in lobby'}`.includes(query));
-    rows.sort((a, b) => Number(!!b.playing) - Number(!!a.playing) || (b.count || 0) - (a.count || 0) || a.room.localeCompare(b.room));
+    rows.sort((a, b) => Number(!!b.hidden) - Number(!!a.hidden) || Number(!!b.playing) - Number(!!a.playing) || (b.count || 0) - (a.count || 0) || a.room.localeCompare(b.room));
     $('openRoomsNote').textContent = !openRoomRows.length ? 'No open rooms right now.' : rows.length ? 'Join an open room without a code. In-game rooms with more players are shown first.' : 'No open rooms match that search.';
-    $('openRooms').replaceChildren(...rows.map(({ room: code, count, playing }) => {
+    $('openRooms').replaceChildren(...rows.map(({ room: code, count, playing, hidden, key, n }) => {
       const row = document.createElement('div'); row.className = 'toolbar';
       const people = Number.isInteger(count) ? `${Math.max(1, Math.min(10, count))}/10 players` : 'Open room';
       const phase = playing ? 'In game' : 'Waiting in lobby';
       row.append(Object.assign(document.createElement('span'), { className: 'code', textContent: code.toUpperCase() }),
-        Object.assign(document.createElement('span'), { className: 'hint', textContent: `${people} · ${phase}` }),
-        Object.assign(document.createElement('button'), { className: 'btn primary small', type: 'button', textContent: 'Join', onclick: () => joinRoom(code) }));
+        Object.assign(document.createElement('span'), { className: 'hint', textContent: `${hidden ? `Shared with you by ${String(n || 'a friend')} · ` : ''}${people} · ${phase}` }),
+        Object.assign(document.createElement('button'), { className: 'btn primary small', type: 'button', textContent: 'Join', onclick: () => joinRoom(code, false, hidden ? String(key || '') : '') }));
       return row;
     }));
   }
   $('openRoomsSearch').addEventListener('input', renderOpenRooms);
   $('refreshOpenRooms').addEventListener('click', refreshOpenRooms);
   setInterval(() => { updateRoomListing(); refreshOpenRooms(); }, 45000);
-  refreshOpenRooms();
+  setTimeout(refreshOpenRooms); // once the rest of the page has set up (your Riot IDs)
 
   client && client.on('notification-action', (action) => {
     if (!action || action.type !== 'room-invite' || !cleanRoom(action.room)) return;
@@ -16942,6 +16991,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 
   async function groupTick() { // once a second
     friendsLoop();
+    renderHide();
     if (!profView.hidden) renderProFriends(); else profileData();
     const shown = !!$('groupBox').offsetParent;
     if (shown) renderGroup();
@@ -17372,6 +17422,10 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   const NEWS = [
     [148, 'November 12: Last Card, a card game for your whole room', [
       'Games in your room now has Last Card next to Chess: 2 to 10 of you play at once, everyone else watches. Match the top card’s color or number, and play Skip, Reverse, +2, Wild and Wild +4, plus Premade’s own Swap (trade hands), Freeze (they miss a turn) and Shield (block a +2 or +4). Stack +2s and +4s, press Last card as you play your second-to-last card or get caught for +2, and play on for places until one is left. 30 seconds a turn.',
+    ]],
+    [147, 'November 12: hide your room from everyone but the friends you pick', [
+      'Lock room is now Hide room. Your room leaves Open voice rooms, and only the friends you tick under Who can see it find it there, at the top with your name and a Join button. No password to type.',
+      'Your ticks are kept for the next room you hide. Untick a friend who’s in the room and they stay, but can’t come back once they leave. Your invite link still lets in anyone you send it to.',
     ]],
     [146, 'November 11: chess sounds and three new cards', [
       'Chess in your room now sounds like a wooden board: a click for each move, a heavier one for a capture, a double knock for check, and a ping when it’s your turn. Turn them off with the speaker button next to Games.',
@@ -18065,7 +18119,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   // on the website. Add a line here with every new feature.
   const FEATURES = [
     ['Rooms', 'Hang out with friends: join a room, talk, share your screens and chat. Premade opens on it.', [
-      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; locked rooms stay private. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
+      ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; hidden rooms show only to the friends the host ticks, at the top of their list. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
@@ -18080,8 +18134,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
         'In your room, under In this room.', '#cardBox, #createBtn'],
       ['Your room in a game', 'Once a game starts your room turns into a game screen: each player as a row with how far away they are and their volume, the minimap with your hearing range, who’s in hearing range, your mic’s level, and a bar at the foot with your mic key and Clip last 30s.',
         'Nothing to set up: join a room and start a game. The Current room card keeps the code, how long you’ve been in, the invite link, Lock, Share screen and Leave.', '#roomCards, #curRoom, #createBtn'],
-      ['Lock the room, and host controls', 'The host can lock the room with a password (the invite link carries it), remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
-        'Lock room, at the top of your room. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
+      ['Hide the room, and host controls', 'The host can hide the room: it leaves Open voice rooms, and only the friends they tick under Who can see it find it there and join in one click. It gets a password too (the invite link carries it), and unticking someone in the room keeps them in but stops them coming back. The host can also remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
+        'Hide room, in your room’s Current room panel. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
       ['Room chat', 'Text chat for everyone in the room, also on the overlay and the phone remote. Links open in your browser.', 'Chat, in your room.', '#chatText, #createBtn'],
       ['Pictures and videos in the chat', 'Send pictures, GIFs and videos (up to 50 MB) to everyone in the room, straight from your PC to theirs. Paste them, drop them on the chat or pick them with +, and send a clip with Send to room on the Clips page. Links to pictures, videos and YouTube show inline.', 'The + next to the chat box, in your room.', '#chatAttach, #createBtn'],
       ['Files of any size', 'Send any file, as big as you like, straight from your PC: it shows in the chat with its name and size, and each friend who clicks Download picks where to save it and gets it from you directly, never through a server. Drop a file on a friend’s card to send it to them alone. If a connection drops, the download waits for them and carries on where it stopped.', 'The + next to the chat box, or drop a file on the chat or on a friend’s card in your room. Friends download it while you stay in the room.', '#chatAttach, #players, #createBtn'],
@@ -18586,6 +18640,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       return { max: e.maxBitrate || 0, priority: e.networkPriority, target, mic: raw.getAudioTracks()[0].getSettings() };
     },
     key: () => roomKey,
+    hide: () => hideTo, // the friends a hidden room is shared with, as this page knows them
     news: () => NEWS[0][1], // the newest What's new entry
     played: () => [...played],
     hurt: () => hurtLevel,

@@ -179,11 +179,19 @@ export default {
         return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
       }
     }
-    if (url.pathname === '/rooms' && req.method === 'GET') return Response.json(await directory(env).list(), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    if (url.pathname === '/rooms' && req.method === 'GET') { // me: the asking page's own Riot IDs (a JSON list), for the hidden rooms shared with them
+      let me = [];
+      try { me = riotIdList(JSON.parse(url.searchParams.get('me') || '[]'), 20).map(low); } catch {}
+      return Response.json(await directory(env).list(me), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    }
     if (url.pathname === '/rooms' && req.method === 'POST') {
       const b = await req.json().catch(() => null);
       if (!b || !/^[a-z0-9]{4,20}$/.test(b.room) || !DEVICE.test(b.owner) || (b.count != null && (!Number.isInteger(b.count) || b.count < 1 || b.count > 10)) || (b.playing != null && typeof b.playing !== 'boolean')) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
-      if (b.remove === true || b.locked === true) await directory(env).remove(b.room, b.owner);
+      // a hidden room (Hide room): listed only for the Riot IDs in allow, with its password and the host's name
+      const allow = b.hidden === true ? riotIdList(b.allow, 50).map(low) : [], key = typeof b.key === 'string' && /^[a-z]{6}$/.test(b.key) ? b.key : '';
+      if (b.remove === true) await directory(env).remove(b.room, b.owner);
+      else if (allow.length && key) await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true, { allow, key, n: typeof b.n === 'string' ? b.n.slice(0, 24) : '' });
+      else if (b.locked === true) await directory(env).remove(b.room, b.owner);
       else await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true);
       return Response.json({ ok: true }, { headers: CORS });
     }
@@ -262,7 +270,9 @@ export default {
 
 const directory = (env) => env.DIRECTORY.get(env.DIRECTORY.idFromName('open-rooms'));
 
-// Open room listings use short leases, so a host that closes unexpectedly disappears automatically.
+// Open room listings use short leases, so a host that closes unexpectedly disappears automatically. A hidden room's row
+// keeps hide ({ allow, key, n }) and is listed only for a page whose own Riot IDs (me) include one in allow.
+// ponytail: trusts the Riot IDs a page says are its own, like /invite does; fine among friends
 export class Directory extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -271,14 +281,20 @@ export class Directory extends DurableObject {
     const columns = new Set(this.sql.exec('PRAGMA table_info(rooms)').toArray().map((x) => x.name));
     if (!columns.has('count')) this.sql.exec('ALTER TABLE rooms ADD COLUMN count INTEGER NOT NULL DEFAULT 1');
     if (!columns.has('playing')) this.sql.exec('ALTER TABLE rooms ADD COLUMN playing INTEGER NOT NULL DEFAULT 0');
+    if (!columns.has('hide')) this.sql.exec("ALTER TABLE rooms ADD COLUMN hide TEXT NOT NULL DEFAULT ''");
   }
-  async put(room, owner, count = 1, playing = false) {
-    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing', room, owner, Date.now() + 120000, count, playing ? 1 : 0);
+  async put(room, owner, count = 1, playing = false, hide = null) {
+    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing, hide) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing, hide = excluded.hide', room, owner, Date.now() + 120000, count, playing ? 1 : 0, hide ? JSON.stringify(hide) : '');
   }
   async remove(room, owner) { this.sql.exec('DELETE FROM rooms WHERE room = ? AND owner = ?', room, owner); }
-  async list() {
+  async list(me = []) {
     this.sql.exec('DELETE FROM rooms WHERE expires < ?', Date.now());
-    return this.sql.exec('SELECT room, count, playing FROM rooms ORDER BY room').toArray().map(({ room, count, playing }) => ({ room, count, playing: !!playing }));
+    const mine = new Set(me);
+    return this.sql.exec('SELECT room, count, playing, hide FROM rooms ORDER BY room').toArray().flatMap(({ room, count, playing, hide }) => {
+      if (!hide) return [{ room, count, playing: !!playing }];
+      const h = JSON.parse(hide);
+      return h.allow.some((x) => mine.has(x)) ? [{ room, count, playing: !!playing, hidden: true, key: h.key, n: h.n }] : [];
+    });
   }
 }
 
