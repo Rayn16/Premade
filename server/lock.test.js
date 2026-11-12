@@ -1,6 +1,8 @@
 // Checks locked rooms under `wrangler dev`: an open room passes everything on; once the host locks it, a newcomer is
 // let in only with the password's key, a wrong or missing key is turned away, only the host can change the key, a
-// removed player's socket closes, and the lock is forgotten once everyone has left.
+// removed player's socket closes, and the lock is forgotten once everyone has left. And who's in: each player let in
+// hears ROOM {ids} whenever that changes (join, leave, let in, removed), and a player outside a locked room never does;
+// the relays (TURN) come before OPEN and again when asked, and /turn itself gives only STUN.
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node lock.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -34,6 +36,7 @@ async function reaches(p, q) {
   return offers(q, p) > n;
 }
 const turnedAway = (p) => p.closed && p.got.some((m) => m.type === 'INVALID-KEY');
+const ids = (p) => { const r = p.got.filter((m) => m.type === 'ROOM').pop(); return r ? r.payload.ids.map((x) => +x.split('-').pop()).sort() : null; };
 
 (async () => {
   for (let i = 0; ; i++) {
@@ -44,13 +47,24 @@ const turnedAway = (p) => p.closed && p.got.some((m) => m.type === 'INVALID-KEY'
   // an open room: everything passes, and a key from someone who isn't the host changes nothing
   const ana = await join(0), ben = await join(1);
   await sleep(300);
-  assert.deepEqual(ana.got.map((m) => m.type), ['OPEN']);
+  assert.deepEqual(ana.got.map((m) => m.type), ['TURN', 'ROOM', 'OPEN', 'ROOM']);
+  assert.deepEqual(ana.got[0].payload, { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] }); // no TURN key here
+  assert.deepEqual(ana.got[1].payload.ids, [ana.id]);
+  assert.deepEqual(ids(ana), [0, 1]);
+  assert.deepEqual(ids(ben), [0, 1]);
+  ana.ws.send(JSON.stringify({ type: 'TURN' }));
+  await sleep(300);
+  assert.equal(ana.got.filter((m) => m.type === 'TURN').length, 2, 'the relays again when asked');
+  assert.deepEqual(await (await fetch(`http://127.0.0.1:${PORT}/turn`)).json(), { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] });
   lock(ana, ''); lock(ben, K2);
   assert(await reaches(ana, ben) && await reaches(ben, ana), 'an open room passes offers on');
   const cat0 = await join(2);
   lock(cat0, '');
   assert(await reaches(cat0, ana), 'Ben\'s key didn\'t lock the room');
+  assert.deepEqual(ids(ana), [0, 1, 2]);
   cat0.ws.close();
+  await sleep(300);
+  assert.deepEqual(ids(ana), [0, 1], 'Cat left');
 
   // the host locks it: those already in stay in
   lock(ana, K1);
@@ -67,10 +81,14 @@ const turnedAway = (p) => p.closed && p.got.some((m) => m.type === 'INVALID-KEY'
   await sleep(300);
   assert(turnedAway(dee), 'a wrong key: turned away');
   assert(!dee.got.some((m) => m.type === 'OFFER') && !cat.got.some((m) => m.type === 'OFFER'), 'nothing passed to them');
+  assert(ids(cat) === null && ids(dee) === null, 'nobody outside a locked room hears who\'s in');
+  assert.deepEqual(ids(ana), [0, 1], 'nor is listed');
   const eve = await join(2);
   lock(eve, K1);
   await sleep(300);
   assert(!eve.closed && await reaches(eve, ana) && await reaches(ana, eve), 'the right key: let in');
+  assert.deepEqual(ids(ana), [0, 1, 2]);
+  assert.deepEqual(ids(eve), [0, 1, 2]);
   // Ben, who isn't the host, can't change it
   lock(ben, K2);
   await sleep(300);
@@ -82,6 +100,7 @@ const turnedAway = (p) => p.closed && p.got.some((m) => m.type === 'INVALID-KEY'
   lock(ana, K2, eve.id);
   await sleep(300);
   assert(eve.closed && !eve.got.some((m) => m.type === 'INVALID-KEY'), 'Eve\'s socket closed');
+  assert.deepEqual(ids(ana), [0, 1], 'Eve removed');
   const eve2 = await join(2, eve.token);
   lock(eve2, K1);
   await sleep(300);
