@@ -934,63 +934,110 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .lcstatus.lcmine { border-left-color: var(--good); }
 .lcsecs { margin-left: auto; font: 500 13px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .lcsecs.lclow { color: var(--bad); }
-.lcseats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 158px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.lcseat { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); overflow: hidden; }
-.lcseat .lcwho { flex: 1; min-width: 0; }
-.lcseat .lcwho b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
-.lcseat .lcwho small { display: block; font: 500 12px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
-.lcseat.lcturn { border-color: var(--gold-line); box-shadow: inset 3px 0 var(--gold); }
-.lcseat.lcdone { opacity: 0.62; }
-.lcbadges { display: grid; gap: 3px; justify-items: end; }
-.lcbadge { font: 600 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space: nowrap; }
-.lcbadge.lcshout { border-color: var(--warn); color: var(--warn); }
-.lcbadge.lcice { border-color: var(--card-b); color: var(--card-b); }
-.lcbadge.lcplace { border-color: var(--good); color: var(--good); }
-.lcbar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--gold); }
-.lcbar.lclow { background: var(--bad); }
-.lctable { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 14px 20px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: radial-gradient(120% 160% at 30% 0%, color-mix(in srgb, var(--gold) 8%, var(--bg)), var(--bg) 70%); }
-.lcdeck { display: grid; place-content: center; justify-items: center; gap: 6px; width: 78px; aspect-ratio: 5 / 7; padding: 6px; border: 1px solid var(--gold-line); border-radius: 8px; background: repeating-linear-gradient(135deg, var(--raised) 0 6px, var(--panel) 6px 12px); color: var(--gold-hi); cursor: pointer; font: 700 26px/1 var(--display); }
-.lcdeck small { font: 500 10px/1.2 var(--mono); color: var(--muted); }
-.lcdeck.lcready { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
-.lcdeck:disabled { cursor: default; opacity: 0.7; }
-.lcpilebox { position: relative; padding: 6px; border-radius: 13px; box-shadow: 0 0 0 3px var(--ring, transparent); }
-.lcstack { position: absolute; top: -12px; right: -14px; padding: 5px 8px; border-radius: 999px; background: var(--bad); color: #fff; font: 700 15px/1 var(--display); }
-.lcinfo { display: grid; gap: 8px; min-width: 0; align-content: center; }
-.lccolor { display: inline-flex; align-items: center; gap: 8px; font: 600 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
-.lccolor::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--ring, transparent); }
+/* the table: a red burst like a comic panel, the players around it, the pile in the middle with the turn order ring */
+.lctable { position: relative; aspect-ratio: 16 / 11; min-height: 380px; border-radius: 18px; overflow: hidden; container-type: inline-size;
+  background: repeating-conic-gradient(from 3deg at 50% 46%, rgb(0 0 0 / 0.16) 0 3deg, transparent 3deg 11deg), radial-gradient(ellipse at 50% 46%, #ff3b3f 0, #c3131c 34%, #6e0910 72%, #2a0306 100%);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.08), inset 0 0 80px rgb(0 0 0 / 0.6), 0 14px 36px rgb(0 0 0 / 0.45); }
+.lcseats { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+.lcseat { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: grid; grid-template-columns: auto auto; grid-template-areas: "name name" "av fan" "badge badge"; align-items: center; gap: 3px 6px; z-index: 1; }
+.lcname { grid-area: name; justify-self: start; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 10px 3px 8px; clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); background: #2b8fd6; color: #fff; font: 700 12.5px/1.2 var(--body); text-shadow: 0 1px 0 rgb(0 0 0 / 0.4); }
+.lcav { grid-area: av; position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 10px; border: 3px solid #fff; background: hsl(var(--h) 55% 42%); color: #fff; font: 700 21px/1 var(--display); box-shadow: 3px 4px 0 rgb(0 0 0 / 0.55); transform: rotate(-4deg); }
+.lccount { position: absolute; right: -10px; bottom: -8px; min-width: 24px; padding: 3px 5px; border: 2px solid #111; border-radius: 6px; background: #fff; color: #111; font: 800 14px/1 var(--mono); text-align: center; transform: rotate(4deg); }
+.lcfan { grid-area: fan; display: flex; align-items: flex-end; height: 40px; padding-left: 4px; }
+.lcfan .lcback { --w: 24px; margin-left: -15px; transform: rotate(var(--r)); transform-origin: 50% 120%; box-shadow: 1px 2px 3px rgb(0 0 0 / 0.5); }
+.lcfan .lcback:first-child { margin-left: 0; }
+.lcseat .lcbadges { grid-area: badge; display: flex; flex-wrap: wrap; gap: 3px; }
+.lcbadge { font: 700 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; border: 2px solid #111; border-radius: 6px; background: #fff; color: #111; white-space: nowrap; }
+.lcbadge.lcshout { background: var(--card-y); }
+.lcbadge.lcice { background: #bfe3ff; }
+.lcbadge.lcplace { background: var(--good); }
+.lcseat.lcturn .lcname { background: var(--card-y); color: #1c1404; text-shadow: none; }
+.lcseat.lcturn .lcav { animation: lcglow 1.1s ease-in-out infinite alternate; }
+@keyframes lcglow { from { box-shadow: 3px 4px 0 rgb(0 0 0 / 0.55), 0 0 0 0 rgb(255 214 64 / 0.9); } to { box-shadow: 3px 4px 0 rgb(0 0 0 / 0.55), 0 0 0 7px rgb(255 214 64 / 0); } }
+.lcseat.lcme { left: 14px; top: auto; bottom: 18px; transform: none; }
+.lcseat.lcdone { opacity: 0.55; }
+.lcbar { grid-column: 1 / -1; height: 4px; width: 0; border-radius: 2px; background: var(--card-y); }
+.lcseat:not(.lcturn) .lcbar { display: none; }
+.lcbar.lclow { background: #fff; }
+.lcmid { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); display: grid; grid-template-columns: auto auto; grid-template-areas: "deck pile" "color color"; align-items: center; justify-items: center; gap: 10px 22px; }
+.lcring { position: absolute; left: 50%; top: 42%; width: 300px; height: 300px; transform: translate(-50%, -50%); overflow: visible; pointer-events: none; }
+.lcring.lcccw { transform: translate(-50%, -50%) scaleX(-1); }
+.lcring g { transform-box: view-box; transform-origin: 50% 50%; animation: lcspin 14s linear infinite; }
+.lcring path { fill: none; stroke: #ffb03a; stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.5)); }
+.lcring g path { marker-end: url(#lcArrow); }
+.lcring marker path { fill: #ffb03a; stroke: none; }
+@keyframes lcspin { to { transform: rotate(360deg); } }
+.lcdeck { grid-area: deck; position: relative; display: grid; place-items: end center; padding: 0 0 6px; border: 0; background: none; cursor: pointer; }
+.lcdeck::before { content: ""; width: 74px; aspect-ratio: 5 / 7; border-radius: 9px; background: var(--back); box-shadow: 2px 2px 0 #f6e7c8, 4px 4px 0 #3a0a0e, 6px 6px 0 #f6e7c8, 8px 8px 0 #3a0a0e, 10px 12px 18px rgb(0 0 0 / 0.5); transition: transform 0.12s; }
+.lcdeck small { position: absolute; bottom: -12px; padding: 2px 7px; border-radius: 999px; background: rgb(0 0 0 / 0.65); color: #fff; font: 600 11px/1.3 var(--mono); white-space: nowrap; }
+.lcdeck.lcready::before { transform: translateY(-6px); box-shadow: 0 0 0 3px var(--card-y), 2px 2px 0 #f6e7c8, 4px 4px 0 #3a0a0e, 6px 6px 0 #f6e7c8, 8px 8px 0 #3a0a0e, 0 0 26px rgb(255 214 64 / 0.7); }
+.lcdeck:disabled { cursor: default; }
+.lcpilebox { grid-area: pile; position: relative; }
+.lcpile { position: relative; width: 104px; aspect-ratio: 5 / 7; }
+.lcpile .lccard { --w: 104px; position: absolute; inset: 0; transform: rotate(var(--r)); }
+.lcpile .lccard:last-child { box-shadow: 0 0 0 4px var(--ring, transparent), 0 14px 30px rgb(0 0 0 / 0.55); }
+.lcstack { position: absolute; top: -16px; right: -26px; z-index: 2; padding: 8px 10px; background: #111; color: var(--card-y); font: 800 22px/1 var(--display); clip-path: polygon(50% 0, 63% 22%, 92% 10%, 80% 38%, 100% 52%, 77% 64%, 88% 92%, 60% 80%, 48% 100%, 37% 79%, 8% 90%, 21% 62%, 0 48%, 22% 36%, 10% 8%, 37% 21%); padding: 18px 20px; }
+.lccolor { grid-area: color; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: #fff; font: 600 11.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.lccolor::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--ring, transparent); box-shadow: 0 0 0 2px #fff; }
+.lcinfo { order: 1; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; }
 .lcdir { font: 500 12.5px/1.2 var(--mono); color: var(--muted); }
-.lclog { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--muted); }
+.lclog { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--muted); }
 .lclog li:first-child { color: var(--fg); }
-.lcchoice { display: grid; gap: 10px; justify-items: start; padding: 12px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); font-weight: 600; }
-.lccol { width: 72px; height: 48px; border: 0; border-radius: 8px; color: #fff; font: 600 13px/1 var(--body); cursor: pointer; box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.85); background: var(--card-r); }
+.lcchoice { position: absolute; left: 50%; bottom: 92px; z-index: 3; transform: translateX(-50%); display: grid; gap: 12px; justify-items: center; padding: 16px 18px; border: 3px solid #111; border-radius: 12px; background: #fff; color: #111; font: 700 15px/1.2 var(--body); box-shadow: 6px 7px 0 rgb(0 0 0 / 0.6); max-width: calc(100% - 24px); }
+.lcchoice .btn { background: #f3eded; color: #111; border-color: #111; }
+.lccol { width: 64px; height: 44px; border: 3px solid #111; border-radius: 10px; color: #fff; font: 700 13px/1 var(--body); cursor: pointer; box-shadow: 3px 3px 0 #111; background: var(--card-r); }
 .lccol[data-col="y"] { background: var(--card-y); color: var(--card-ink); }
 .lccol[data-col="g"] { background: var(--card-g); }
 .lccol[data-col="b"] { background: var(--card-b); }
+/* Last Card's cards: a white edge, the color, a tilted lighter band, the big symbol outlined in black; backs in Premade red and gold */
+#roomGames { --back: radial-gradient(circle at 50% 50%, transparent 0 34%, #f6e7c8 35% 38%, transparent 39%), repeating-linear-gradient(45deg, rgb(255 255 255 / 0.06) 0 4px, transparent 4px 9px), linear-gradient(160deg, #d3202a, #6d0810); }
+.lccard { --w: 92px; --cc: var(--card-r); position: relative; display: block; flex: none; width: var(--w); aspect-ratio: 5 / 7; padding: 0; border: 0; border-radius: calc(var(--w) * 0.11); background: #fbf7f2; color: #fff; overflow: hidden; box-shadow: 0 6px 14px rgb(0 0 0 / 0.45); font: inherit; }
+.lccard::before { content: ""; position: absolute; inset: calc(var(--w) * 0.06); border-radius: calc(var(--w) * 0.07); background: linear-gradient(-62deg, transparent 30%, rgb(255 255 255 / 0.28) 30% 70%, transparent 70%), var(--cc); }
+.lccard[data-c="y"] { --cc: var(--card-y); }
+.lccard[data-c="g"] { --cc: var(--card-g); }
+.lccard[data-c="b"] { --cc: var(--card-b); }
+.lccard[data-c="k"] { --cc: #1b1416; }
+.lccard[data-c="k"]::before { background: radial-gradient(circle at 50% 50%, transparent 0 30%, #1b1416 31%), conic-gradient(var(--card-r) 0 25%, var(--card-y) 0 50%, var(--card-g) 0 75%, var(--card-b) 0); }
+.lccard b, .lccard i { position: absolute; color: #fff; font-family: var(--display), "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif; font-weight: 700; font-style: normal; line-height: 1; -webkit-text-stroke: calc(var(--w) * 0.018) #111; paint-order: stroke fill; text-shadow: calc(var(--w) * 0.03) calc(var(--w) * 0.03) 0 #111; }
+.lccard b { inset: 0; display: grid; place-items: center; font-size: calc(var(--w) * 0.5); }
+.lccard i { font-size: calc(var(--w) * 0.19); top: calc(var(--w) * 0.11); left: calc(var(--w) * 0.12); }
+.lccard i:last-child { top: auto; left: auto; bottom: calc(var(--w) * 0.11); right: calc(var(--w) * 0.12); transform: rotate(180deg); }
+.lccard.chnew { animation: lcin 0.32s ease-out; }
+@keyframes lcin { from { transform: translateY(-40px) rotate(-30deg) scale(1.25); opacity: 0.2; } }
+.lcback { display: block; width: var(--w); aspect-ratio: 5 / 7; border-radius: calc(var(--w) * 0.14); border: calc(var(--w) * 0.06) solid #fbf7f2; background: var(--back); }
+.chrulelist .lccard { --w: 42px; }
+.chrulelist .lccard i { display: none; }
 .lchandbox { display: grid; gap: 4px; }
 .lchandhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .lchandhead > b { font: 700 13.5px/1.2 var(--display); letter-spacing: 0.06em; color: var(--gold-hi); }
 .lclast[aria-pressed="true"], .lccatch { border-color: var(--warn); color: var(--warn); }
-.lchand { display: flex; padding: 18px 6px 8px; overflow-x: auto; scrollbar-width: thin; }
-.lchand .chcard { flex: none; width: 66px; margin-right: -12px; border: 0; font: inherit; cursor: default; transition: transform 0.12s ease-out, filter 0.12s; }
-.lchand .chcard[data-c="k"] { border: 3px solid transparent; }
-.lchand .chcard:last-child { margin-right: 0; }
-.lchand .chcard b { font-size: 26px; }
-.lchand .chcard.lcok { cursor: pointer; transform: translateY(-10px); outline: 2px solid var(--gold-hi); outline-offset: 3px; }
-.lchand .chcard.lcok:hover, .lchand .chcard.lcok:focus-visible { transform: translateY(-16px); z-index: 1; }
-.lchand .chcard.lcno { filter: saturate(0.5) brightness(0.68); }
-.lchand.lcwait .chcard.lcno { filter: none; }
+.lchand { display: flex; justify-content: safe center; margin-top: -78px; padding: 30px 12px 10px; overflow-x: auto; scrollbar-width: thin; position: relative; z-index: 2; }
+.lchand .lccard { --w: 100px; margin-left: calc(var(--w) * -0.3); cursor: default; transform: translateY(calc(var(--arc) + var(--lift, 0px))) rotate(var(--r)); transform-origin: 50% 130%; transition: transform 0.14s ease-out, filter 0.14s; }
+.lchand .lccard:first-child { margin-left: 0; }
+.lchand .lccard.lcok { --lift: -18px; cursor: pointer; box-shadow: 0 0 0 3px var(--card-y), 0 0 22px rgb(255 214 64 / 0.55), 0 10px 18px rgb(0 0 0 / 0.5); }
+.lchand .lccard.lcok:hover, .lchand .lccard.lcok:focus-visible { --lift: -30px; z-index: 1; }
+.lchand .lccard.lcno { filter: saturate(0.55) brightness(0.62); }
+.lchand.lcwait .lccard.lcno { filter: none; }
+.lchandbox .lchandhead { order: 2; position: relative; z-index: 3; }
 .lcend { display: grid; gap: 12px; justify-items: start; padding: 16px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); }
 .lcend > b { font: 700 20px/1.2 var(--display); color: var(--gold-hi); }
 .lcplaces { display: grid; gap: 6px; width: min(320px, 100%); margin: 0; padding: 0; list-style: none; }
 .lcplaces li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .lcplaces li:first-child { border-color: var(--card-y); }
 .lcplaces .lcn { width: 40px; font: 700 16px/1 var(--display); color: var(--gold-hi); }
-@container app (max-width: 520px) {
-  .lctable { grid-template-columns: auto auto; justify-content: start; }
-  .lcinfo { grid-column: 1 / -1; }
-  .lchand .chcard { width: 58px; margin-right: -16px; }
+@container app (max-width: 620px) {
+  .lctable { aspect-ratio: 4 / 5; min-height: 0; }
+  .lcav { width: 36px; height: 36px; font-size: 16px; }
+  .lcname { font-size: 11px; max-width: 86px; }
+  .lcfan { display: none; }
+  .lcring { width: 230px; height: 230px; }
+  .lcpile { width: 80px; }
+  .lcpile .lccard { --w: 80px; }
+  .lcdeck::before { width: 56px; }
+  .lchand { margin-top: -30px; }
+  .lchand .lccard { --w: 68px; }
 }
-@media (prefers-reduced-motion: reduce) { .lchand .chcard { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .lchand .lccard, .lcdeck::before { transition: none; } .lcring g, .lcseat.lcturn .lcav, .lccard.chnew { animation: none; } }
 .roombar { grid-area: bar; display: none; }
 #roomView[data-game] .roomgrid { grid-template-areas: "players side" "main side" "main cur" "bar bar"; }
 #roomView[data-game] #roomSide { display: grid; }
@@ -1414,13 +1461,17 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
                   <div id="lcGame" class="chgrid" hidden>
                     <div class="chhead"><h3>Last Card</h3><span id="lcN" class="chpill"></span><span class="chpill">30 s a turn</span></div>
                     <p id="lcStatusBox" class="chstatus lcstatus" role="status"><span id="lcStatus"></span><span id="lcSecs" class="lcsecs"></span></p>
-                    <ul id="lcSeats" class="lcseats" aria-label="Players in seat order"></ul>
                     <div id="lcTable" class="lctable">
-                      <button id="lcDeck" class="lcdeck" type="button" aria-label="Draw a card"><span>P</span><small id="lcDeckN"></small></button>
-                      <div id="lcPileBox" class="lcpilebox"><div id="lcPile"></div><span id="lcStack" class="lcstack" hidden></span></div>
-                      <div class="lcinfo"><span id="lcColor" class="lccolor"></span><span id="lcDir" class="lcdir"></span><ol id="lcLog" class="lclog" aria-live="polite"></ol></div>
+                      <ul id="lcSeats" class="lcseats" aria-label="Players around the table"></ul>
+                      <div class="lcmid">
+                        <svg id="lcRing" class="lcring" viewBox="0 0 200 200" aria-hidden="true"><defs><marker id="lcArrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs><g><path d="M17.3 69.9A88 88 0 0 1 182.7 69.9"/><path d="M182.7 130.1A88 88 0 0 1 17.3 130.1"/></g></svg>
+                        <button id="lcDeck" class="lcdeck" type="button" aria-label="Draw a card"><small id="lcDeckN"></small></button>
+                        <div id="lcPileBox" class="lcpilebox"><div id="lcPile" class="lcpile"></div><span id="lcStack" class="lcstack" hidden></span></div>
+                        <span id="lcColor" class="lccolor"></span>
+                      </div>
+                      <div id="lcChoice" class="lcchoice" hidden><span id="lcChoiceT"></span><div id="lcChoiceBtns" class="toolbar"></div></div>
                     </div>
-                    <div id="lcChoice" class="lcchoice" hidden><span id="lcChoiceT"></span><div id="lcChoiceBtns" class="toolbar"></div></div>
+                    <div class="lcinfo"><span id="lcDir" class="lcdir"></span><ol id="lcLog" class="lclog" aria-live="polite"></ol></div>
                     <div id="lcHandBox" class="lchandbox">
                       <div class="lchandhead">
                         <b>Your cards</b>
@@ -16183,11 +16234,18 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   }
   function lcCardEl(c, tag = 'div') {
     const el = document.createElement(tag), v = LC.val(c), big = LC_BIG[v] || v;
-    el.className = 'chcard';
+    el.className = 'lccard';
     el.dataset.c = c[0];
-    el.append(Object.assign(document.createElement('i'), { textContent: big }), Object.assign(document.createElement('b'), { textContent: big }));
-    if (LC_SUB[v]) el.append(Object.assign(document.createElement('small'), { textContent: LC_SUB[v] }));
+    el.append(Object.assign(document.createElement('i'), { textContent: big }), Object.assign(document.createElement('b'), { textContent: big }), Object.assign(document.createElement('i'), { textContent: big }));
+    if (LC_SUB[v]) el.title = LC_SUB[v];
     return el;
+  }
+  const lcBack = (w, r) => { const el = document.createElement('span'); el.className = 'lcback'; el.style.cssText = `--w:${w}px;--r:${r}deg`; return el; };
+  function lcSpot(S, i, meI) { // where a seat sits around the table, in %: you at the bottom left, the rest round the top in turn order
+    const n = S.players.length, k = (i - Math.max(meI, 0) + n) % n;
+    if (meI >= 0 && !k) return null; // .lcme: pinned to the bottom left
+    const slots = meI >= 0 ? n - 1 : n, a = (meI >= 0 ? (slots === 1 ? 270 : 165 + ((k - 1) * 210) / (slots - 1)) : 90 + (k * 360) / n) * (Math.PI / 180);
+    return [50 + 39 * Math.cos(a), 47 + 36 * Math.sin(a)];
   }
   function lcStatusText(me) {
     const S = lcS;
@@ -16204,17 +16262,21 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     return `Your turn: play ${LC.CNAME[S.color]}${t[0] === 'k' ? '' : `, a ${/\d/.test(v) ? v : LC.VNAME[v]}`}, a black card, or draw.`;
   }
   function lcSeatEl(p, i) {
-    const S = lcS, li = document.createElement('li'), n = p.hand.length;
-    li.className = 'lcseat' + (i === S.turn && !S.over ? ' lcturn' : '') + (p.place ? ' lcdone' : '');
-    const who = Object.assign(document.createElement('span'), { className: 'lcwho' });
-    who.append(Object.assign(document.createElement('b'), { textContent: chYou(p.name) }),
-      Object.assign(document.createElement('small'), { textContent: p.place > 0 ? `${LC.ord(p.place)} place` : p.place < 0 ? 'Dropped' : `${n} card${n === 1 ? '' : 's'}` }));
+    const S = lcS, li = document.createElement('li'), n = p.hand.length, at = lcSpot(S, i, lcMeI());
+    li.className = 'lcseat' + (at ? '' : ' lcme') + (i === S.turn && !S.over ? ' lcturn' : '') + (p.place ? ' lcdone' : '');
+    if (at) li.style.cssText = `--x:${at[0]}%;--y:${at[1]}%`;
+    li.setAttribute('aria-label', `${chYou(p.name)}: ${p.place > 0 ? `${LC.ord(p.place)} place` : p.place < 0 ? 'dropped' : `${n} card${n === 1 ? '' : 's'}`}`);
+    const av = Object.assign(document.createElement('span'), { className: 'lcav', textContent: (p.name[0] || '?').toUpperCase() });
+    av.style.setProperty('--h', [...p.name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7));
+    av.append(Object.assign(document.createElement('span'), { className: 'lccount', textContent: p.place > 0 ? LC.ord(p.place) : n }));
+    const fan = Object.assign(document.createElement('span'), { className: 'lcfan' }), m = Math.min(n, S.players.length > 6 ? 4 : 10);
+    for (let k = 0; k < m; k++) fan.append(lcBack(24, (k - (m - 1) / 2) * 7));
     const badges = Object.assign(document.createElement('span'), { className: 'lcbadges' });
     const badge = (cls, text) => badges.append(Object.assign(document.createElement('span'), { className: 'lcbadge ' + cls, textContent: text }));
-    if (p.place > 0) badge('lcplace', LC.ord(p.place));
+    if (p.place < 0) badge('', 'Dropped');
     if (p.frozen) badge('lcice', '❄ Frozen');
     if (p.shout && n === 1 && !p.place) badge('lcshout', 'Last card!');
-    li.append(who, badges, Object.assign(document.createElement('span'), { className: 'lcbar' }));
+    li.append(Object.assign(document.createElement('span'), { className: 'lcname', textContent: chYou(p.name) }), av, fan, badges, Object.assign(document.createElement('span'), { className: 'lcbar' }));
     return li;
   }
   function lcDraw() {
@@ -16261,11 +16323,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
       $('lcRematch').disabled = S.players.filter((p) => p.name === me || here.includes(p.name)).length < 2;
       return;
     }
-    const t = LC.top(S), pc = lcCardEl(t);
-    if (S.pile.length !== lcPileLen) { pc.classList.add('chnew'); lcPileLen = S.pile.length; }
-    $('lcPile').replaceChildren(pc);
-    $('lcPileBox').style.setProperty('--ring', `var(--card-${S.color})`);
-    $('lcColor').style.setProperty('--ring', `var(--card-${S.color})`);
+    const shown = S.pile.slice(-3).map((c, k, a) => { const el = lcCardEl(c), at = S.pile.length - a.length + k; el.style.setProperty('--r', `${((at * 47) % 25) - 12}deg`); return el; });
+    if (S.pile.length !== lcPileLen) { shown.at(-1).classList.add('chnew'); lcPileLen = S.pile.length; }
+    $('lcPile').replaceChildren(...shown);
+    $('lcTable').style.setProperty('--ring', `var(--card-${S.color})`);
+    $('lcRing').classList.toggle('lcccw', S.dir < 0);
     $('lcColor').textContent = `Color: ${LC.CNAME[S.color]}`;
     $('lcStack').hidden = !S.stack;
     $('lcStack').textContent = `+${S.stack}`;
@@ -16296,10 +16358,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
     if (S.catchable >= 0) $('lcCatch').textContent = `Catch ${S.players[S.catchable].name}!`;
     $('lcHand').classList.toggle('lcwait', !mine);
     if (P.place > 0) return $('lcHand').replaceChildren(Object.assign(document.createElement('p'), { className: 'hint', textContent: `You’re out of cards: ${LC.ord(P.place)} place. You’re watching the rest.` }));
-    const order = P.hand.map((c, i) => i).sort((a, b) => lcSortKey(P.hand[a]) - lcSortKey(P.hand[b]));
-    $('lcHand').replaceChildren(...order.map((i) => {
+    const order = P.hand.map((c, i) => i).sort((a, b) => lcSortKey(P.hand[a]) - lcSortKey(P.hand[b])), mid = (order.length - 1) / 2, tilt = Math.min(4, 30 / order.length);
+    $('lcHand').replaceChildren(...order.map((i, k) => {
       const c = P.hand[i], ok = mine && !S.pending && LC.fits(S, c) && (S.drawn < 0 || i === S.drawn), b = lcCardEl(c, 'button');
       b.type = 'button';
+      b.style.cssText = `--r:${(k - mid) * tilt}deg;--arc:${Math.round((k - mid) ** 2 * tilt * 0.35)}px`;
       b.dataset.i = i;
       b.classList.add(ok ? 'lcok' : 'lcno');
       b.setAttribute('aria-label', LC.cardName(c) + (ok ? '' : ', can’t be played now'));
@@ -16326,7 +16389,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
   $('lcPlay').addEventListener('click', () => { const names = [chMe(), ...lcHere()].filter((n) => !lcOut.has(n)); if (names.length >= 2 && names.length <= 10) lcStart(names); });
   $('lcRematch').addEventListener('click', () => { if (!lcS) return; const here = [chMe(), ...lcHere()], names = lcS.players.map((p) => p.name).filter((n) => here.includes(n)); if (names.length >= 2) lcStart(names); });
   $('lcClose').addEventListener('click', lcReset);
-  $('lcHand').addEventListener('click', (e) => { const b = e.target.closest('button.chcard'); if (b && b.classList.contains('lcok')) { const call = lcArmed; lcArmed = false; lcAct({ k: 'play', i: +b.dataset.i, call }); } });
+  $('lcHand').addEventListener('click', (e) => { const b = e.target.closest('button.lccard'); if (b && b.classList.contains('lcok')) { const call = lcArmed; lcArmed = false; lcAct({ k: 'play', i: +b.dataset.i, call }); } });
   $('lcChoiceBtns').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) lcAct(b.dataset.col ? { k: 'color', c: b.dataset.col } : { k: 'who', j: +b.dataset.j }); });
   for (const id of ['lcDraw', 'lcDeck']) $(id).addEventListener('click', () => lcAct({ k: 'draw' }));
   $('lcKeep').addEventListener('click', () => lcAct({ k: 'keep' }));

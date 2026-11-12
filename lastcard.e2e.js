@@ -168,7 +168,7 @@ const clickTurn = (page) => page.evaluate(() => {
     await ana.click('#lcPlay');
     const pages = { Ana: ana, Ben: ben, Cat: cat };
     for (const p of [ben, cat]) await waitFor(p, () => lpc.lc() && !document.getElementById('lcBox').hidden && !document.getElementById('lcGame').hidden, null, 'the game, and the picker on Last Card');
-    const hands = await Promise.all([ana, ben, cat].map((p) => p.evaluate(() => document.querySelectorAll('#lcHand .chcard').length)));
+    const hands = await Promise.all([ana, ben, cat].map((p) => p.evaluate(() => document.querySelectorAll('#lcHand .lccard').length)));
     assert.deepStrictEqual(hands, [7, 7, 7], 'all three get 7 cards at once');
     const acts = (p) => p.evaluate(() => lpc.lc().acts);
     const sync = async (n) => { for (const p of Object.values(pages)) await waitFor(p, (n) => lpc.lc() && lpc.lc().acts >= n, n, `action ${n} everywhere`); };
@@ -194,7 +194,7 @@ const clickTurn = (page) => page.evaluate(() => {
     if (await ben.locator('#joinBtn').isVisible()) await ben.click('#joinBtn');
     await ben.waitForFunction(() => window.lpc && lpc.slot() >= 0, null, { timeout: 15000 });
     await ben.click('#gamePick [data-g="lc"]');
-    await waitFor(ben, () => lpc.lc() && document.querySelectorAll('#lcHand .chcard').length > 0, null, 'Ben’s hand after a reload');
+    await waitFor(ben, () => lpc.lc() && document.querySelectorAll('#lcHand .lccard').length > 0, null, 'Ben’s hand after a reload');
     assert.strictEqual(await ben.evaluate(() => lpc.lc().players.find((q) => q.name === 'Ben').hand.join()), benHand, 'the same hand');
     for (const p of Object.values(pages)) await inRoom(p, 3);
     await turns(20);
