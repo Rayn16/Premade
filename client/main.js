@@ -6,7 +6,7 @@
 // and installing its own updates. It keeps tracking and audio at full speed while League has focus, opens where you
 // left it, and opens other sites in your browser.
 // preload.js hands all this to the page as window.lpcClient.
-const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard, powerMonitor } = require('electron');
+const { app, BrowserWindow, session, desktopCapturer, dialog, shell, ipcMain, screen, globalShortcut, nativeImage, Notification, clipboard, powerMonitor, net: enet } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), https = require('https'), net = require('net'), os = require('os'), path = require('path'), zlib = require('zlib');
 const { execFile, execFileSync, spawn } = require('child_process');
 
@@ -550,6 +550,59 @@ ipcMain.handle('aion-meter-small', (e, h) => {
   if (h > 0 && !meterTall) { meterTall = b.height; aionMeter.setMinimumSize(260, 20); aionMeter.setBounds({ ...b, height: Math.min(120, Math.max(20, Math.round(h))) }); }
   else if (!(h > 0) && meterTall) { aionMeter.setBounds({ ...b, height: meterTall }); meterTall = 0; aionMeter.setMinimumSize(260, 120); }
   return !!meterTall;
+});
+// Watch together (app 1.47): YouTube's own site in a Premade window, with its own cookies, no preload, sandboxed and
+// muted for good. Opening a video there (a /watch, /shorts or youtu.be address) sends it to the page instead
+// ('yt-pick'), and the window goes back to where you were, so you can pick the next one.
+const ytPick = (u) => {
+  let x;
+  try { x = new URL(u); } catch { return null; }
+  if (!/^(www\.|m\.|music\.)?youtube\.com$|^youtu\.be$/.test(x.hostname)) return null;
+  const v = x.hostname === 'youtu.be' ? x.pathname.slice(1) : x.pathname === '/watch' ? x.searchParams.get('v') : (x.pathname.match(/^\/shorts\/([\w-]{11})$/) || [])[1];
+  const list = x.searchParams.get('list') || '';
+  return /^[\w-]{11}$/.test(v || '') ? { v, list: /^[\w-]{10,64}$/.test(list) ? list : '' } : null;
+};
+let ytWin = null;
+const ytFile = () => path.join(app.getPath('userData'), 'youtube-window.json');
+ipcMain.handle('youtube', (e) => {
+  if (!fromSite(e)) return false;
+  if (ytWin && !ytWin.isDestroyed()) { if (ytWin.isMinimized()) ytWin.restore(); ytWin.focus(); return true; }
+  let at = {};
+  try { at = JSON.parse(fs.readFileSync(ytFile(), 'utf8')); } catch {}
+  const fits = screen.getAllDisplays().some((d) => at.x >= d.bounds.x && at.y >= d.bounds.y && at.x < d.bounds.x + d.bounds.width - 40 && at.y < d.bounds.y + d.bounds.height - 40);
+  const ses = session.fromPartition('persist:yt');
+  ses.setPermissionRequestHandler((wc, perm, ok) => ok(perm === 'fullscreen'));
+  ytWin = new BrowserWindow({
+    ...(fits ? { x: at.x, y: at.y } : {}), width: Math.max(480, +at.width || 1000), height: Math.max(400, +at.height || 720), minWidth: 480, minHeight: 400,
+    title: 'Find a video: click one to watch it together', icon: path.join(__dirname, 'icon.png'), backgroundColor: '#0f0f0f',
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false },
+  });
+  ytWin.removeMenu();
+  const wc = ytWin.webContents;
+  wc.setAudioMuted(true);
+  wc.on('page-title-updated', (ev) => ev.preventDefault()); // keeps saying what it's for
+  let last = '', lastAt = 0;
+  const pick = (ev, url, main) => {
+    const p = main !== false && ytPick(url); // not a frame inside the page
+    if (!p) return;
+    if (p.v !== last || Date.now() - lastAt > 1500) { last = p.v; lastAt = Date.now(); if (win && !win.isDestroyed()) win.webContents.send('yt-pick', p); }
+    if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack(); else wc.loadURL('https://www.youtube.com/');
+  };
+  wc.on('did-navigate', pick);
+  wc.on('did-navigate-in-page', pick);
+  wc.setWindowOpenHandler(({ url }) => { if (ytPick(url)) pick(null, url); else openOut(url); return { action: 'deny' }; });
+  ytWin.on('close', () => { try { fs.writeFileSync(ytFile(), JSON.stringify(ytWin.getNormalBounds())); } catch {} });
+  ytWin.on('closed', () => { ytWin = null; });
+  ytWin.loadURL('https://www.youtube.com/');
+  return true;
+});
+// a video's title for Up next, from YouTube's oEmbed (no key)
+ipcMain.handle('yt-title', async (e, v) => {
+  if (!fromSite(e) || !/^[\w-]{11}$/.test(v)) return '';
+  try {
+    const r = await enet.fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + v)}`, { signal: AbortSignal.timeout(6000) });
+    return r.ok ? String((await r.json()).title || '').slice(0, 200) : '';
+  } catch { return ''; }
 });
 // finished fights (a boss killed, or 20 s or more of fighting), the newest 200, in the app's own folder
 const aionFightsFile = () => path.join(app.getPath('userData'), 'aion-fights.json');
@@ -1875,4 +1928,4 @@ async function moveSaved(ses = session.defaultSession) {
   finally { w.destroy(); for (const s of schemes) ses.protocol.unhandle(s); }
 }
 
-module.exports = { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved, fetchTo, withRoom, seekable, logLine, logFlush }; // for client.test.js
+module.exports = { ytPick, summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved, fetchTo, withRoom, seekable, logLine, logFlush }; // for client.test.js

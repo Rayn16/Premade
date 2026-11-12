@@ -66,5 +66,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   log: (line) => ipcRenderer.send('log', String(line)), // app 1.41: the log file
   logRead: () => ipcRenderer.invoke('log-read'),
   checkup: () => ipcRenderer.invoke('checkup'), // app 1.43: PC check-up
-  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+  youtube: () => ipcRenderer.invoke('youtube'), // app 1.47: Watch together's Find a video window
+  ytTitle: (v) => ipcRenderer.invoke('yt-title', String(v)),
+  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert', 'yt-pick'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

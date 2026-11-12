@@ -828,6 +828,30 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 #roomCards { grid-area: players; }
 #roomSide { grid-area: side; display: none; }
 
+/* Watch together (What's new 150): the YouTube player lives in #wtBox, placed over the Watch panel's slot or in a
+   corner, never under YouTube's 200 px (356x200 at 16:9) and never covered */
+.wtjoin { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; }
+.wtjoin p { margin: 0; }
+.wtbox { position: fixed; z-index: 40; width: 358px; /* 356 inside the border */ background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.wtvid { aspect-ratio: 16 / 9; background: #000; }
+.wtvid > div, .wtvid iframe { display: block; width: 100%; height: 100%; border: 0; }
+.wtbar, .wtmini { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; }
+.wtbar input[type=range] { flex: 1 1 120px; min-width: 0; }
+.wtvol { display: flex; align-items: center; gap: 4px; }
+.wtvol input { width: 90px; }
+.wttime { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); }
+.wtbox.corner { box-shadow: 0 10px 28px rgb(0 0 0 / 0.45); }
+.wtbox.corner .wtbar, .wtbox:not(.corner) .wtmini { display: none; }
+.wtgrip { cursor: grab; padding: 0 4px; touch-action: none; user-select: none; color: var(--muted); }
+.wtbox:fullscreen { display: flex; flex-direction: column; width: 100% !important; border: 0; border-radius: 0; }
+.wtbox:fullscreen .wtvid { flex: 1; aspect-ratio: auto; }
+.wtq { display: grid; gap: 6px; }
+.wtq:empty::before { content: attr(data-empty); color: var(--muted); font-size: 13px; }
+.wtq li { display: flex; align-items: center; gap: 8px; }
+.wtq li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wtq img { width: 64px; height: 36px; object-fit: cover; border-radius: 4px; background: #000; }
+.wtprobe { position: fixed; left: -10000px; top: 0; }
+
 /* Chess in the room's Games panel (What's new 145): its own board colors in every theme, pieces from the system's
    chess symbols */
 #roomGames { --sq-light: #c3b2b4; --sq-dark: #735b5f; --pc-white: #fffaf8; --pc-black: #1a1013; --pc-edge: #0b0809;
@@ -1427,6 +1451,15 @@ dialog.wizard { transform: scale(var(--from)); }
           <p id="connectionStatus" class="hint" role="status" hidden></p>
           <div class="roomgrid">
             <div class="stack roommain">
+              <section id="roomWatch" class="panel" aria-labelledby="h-watch" hidden>
+                <h2 id="h-watch" class="ph">Watch together</h2>
+                <div id="wtJoinBox" class="wtjoin"><p id="wtJoinText"></p><button id="wtJoin" class="btn primary" type="button">Join</button></div>
+                <div id="wtSlot" hidden></div>
+                <div><b id="wtTitle"></b><p id="wtWho" class="hint" role="status"></p><p id="wtNote" class="hint" role="status"></p></div>
+                <div class="toolbar"><button id="wtFind" class="btn small" type="button">Find a video</button><button id="wtLeave" class="btn small" type="button">Stop watching</button><button id="wtEnd" class="btn small" type="button">End for everyone</button><a class="hint" href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a></div>
+                <h3 class="ph">Up next</h3>
+                <ol id="wtQueue" class="plain wtq" data-empty="A video picked while one plays waits here."></ol>
+              </section>
               <section id="roomScreens" class="panel" aria-labelledby="h-screens" hidden>
                 <h2 id="h-screens" class="ph">Screens <button id="sideBtn" class="btn small" type="button" hidden>Side by side</button></h2>
                 <div id="screenGrid" class="screengrid"></div>
@@ -1552,6 +1585,7 @@ dialog.wizard { transform: scale(var(--from)); }
                 <button id="copyBtn" class="btn" type="button">Copy invite link</button>
                 <span class="curlock"><button id="lockBtn" class="btn" type="button" hidden>Hide room</button><button class="tip" type="button" popovertarget="t-lock" aria-label="About hiding the room">?</button></span>
                 <button id="generalShareBtn" class="btn primary pc-only" type="button">Share screen or app</button>
+                <button id="wtBtn" class="btn" type="button">Watch together</button>
                 <button id="leaveBtn" class="btn leave" type="button">Leave</button>
               </div>
               <div id="hideBox" class="cursets" hidden>
@@ -2659,6 +2693,19 @@ dialog.wizard { transform: scale(var(--from)); }
   </footer>
 </div>
 
+<div id="wtBox" class="wtbox" hidden>
+  <div class="wtvid"><div id="wtPlayer"></div></div>
+  <div class="wtbar">
+    <button id="wtPlay" class="btn small" type="button">Pause</button>
+    <span id="wtTime" class="wttime">0:00</span><input id="wtSeek" type="range" min="0" max="0" step="1" value="0" aria-label="Where in the video"><span id="wtDur" class="wttime">0:00</span>
+    <button id="wtNext" class="btn small" type="button">Next</button>
+    <select id="wtSpeed" aria-label="Speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+    <button id="wtCc" class="btn small" type="button" aria-pressed="false" title="Captions (yours only)">CC</button>
+    <label class="wtvol" title="The video’s volume (yours only)">🔊<input id="wtVol" type="range" min="0" max="100" value="70" aria-label="Video volume (yours only)"></label>
+    <button id="wtFull" class="btn small" type="button">Full screen</button>
+  </div>
+  <div class="wtmini"><span id="wtGrip" class="wtgrip" title="Drag to another corner" aria-hidden="true">⠿</span><button id="wtMiniPlay" class="btn small" type="button">Pause</button><button id="wtBack" class="btn small" type="button">Back to the room</button><button id="wtClose" class="btn small" type="button">Close</button></div>
+</div>
 <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
 <dialog id="setup" class="wizard" aria-labelledby="wTitle">
@@ -3581,6 +3628,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (/^(draft|draftA|draftEnd|mvp|mvpV|mvpR)$/.test(m.t)) return gameMsg(p.slot, m);
     if (m.t === 'chess') return chTake(p, m.g);
     if (m.t === 'lc') return lcTake(p, m.g);
+    if (m.t === 'wt') return wtTake(p, m.w);
     if (m.t === 'lock' && p.slot === hostSlot() && /^[a-z]{6}$/.test(m.key)) {
       const out = peers.get(m.remove);
       if (!roomKey) notify(`${nameOf(p)} hid the room`);
@@ -4815,6 +4863,7 @@ dialog.wizard { transform: scale(var(--from)); }
     resetGames();
     chReset();
     lcReset();
+    wtReset();
     $('readyBox').hidden = true;
     slot = -1;
     autoJoined = false;
@@ -4928,6 +4977,7 @@ dialog.wizard { transform: scale(var(--from)); }
     chDraw();
     lcHello(p);
     lcDraw();
+    wtHello(p);
     const name = nameOf(p);
     if (sess) { sess.people.add(name); sessSave(); }
     if (leaving.has(name)) { clearTimeout(leaving.get(name)); leaving.delete(name); return; }
@@ -5010,7 +5060,16 @@ dialog.wizard { transform: scale(var(--from)); }
         a.rel = 'noopener';
         out.push(a);
         const yt = m[1].match(/^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/i);
-        if (yt) { const y = a.cloneNode(); y.className = 'chatyt'; y.append(chatMedia('image', `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`)); shown.push(y); }
+        if (yt) {
+          const y = a.cloneNode(), w = chatEl('button', 'btn small', 'Watch together');
+          y.className = 'chatyt';
+          y.append(chatMedia('image', `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`));
+          w.type = 'button';
+          w.dataset.wt = yt[1];
+          const list = (m[1].match(/[?&]list=([\w-]{10,64})/) || [])[1];
+          if (list) w.dataset.list = list;
+          shown.push(y, w);
+        }
         else if (/\.(png|jpe?g|gif|webp|avif)(\?\S*)?$/i.test(m[1])) shown.push(chatMedia('image', m[1]));
         else if (/\.(mp4|webm|mov)(\?\S*)?$/i.test(m[1])) shown.push(chatMedia('video', m[1]));
       } else if (m[2]) out.push(Object.assign(tftBtn('Copy team code', () => tftCopy(m[2])), { title: m[2] })); // a TFT comp, for League's Team Planner
@@ -7787,6 +7846,7 @@ dialog.wizard { transform: scale(var(--from)); }
     else if (name === 'aion') try { $('aionFrame').contentWindow.aionShown?.(); } catch {} // another site's in a local copy
     if (name === 'voice') refreshOpenRooms();
     main.scrollTop = 0;
+    queueMicrotask(wtPlace); // the Watch together player follows you to a corner
     render();
     if (name === 'game' || name === 'pregame') renderGame();
   }
@@ -16447,6 +16507,266 @@ dialog.wizard { transform: scale(var(--from)); }
   $('lcCatch').addEventListener('click', () => lcAct({ k: 'catch' }));
   $('lcLast').addEventListener('click', () => { lcArmed = !lcArmed; lcDraw(); });
 
+  // Watch together (What's new 150): one YouTube video for the room. Each Premade plays it straight from YouTube (the
+  // IFrame Player API, loaded the first time someone watches) and the room only shares the state, {t:'wt', w}, the whole
+  // of it on every change: w = { id, n, v (video), title, on (playing), at (seconds when it changed), r (speed),
+  // q (Up next), who (started it), by, did, x (the title a did is about) }. The highest n wins, on a tie the smaller by.
+  // Each page keeps an anchor (when w arrived) and seeks its own player when it's more than 1.5 s off: that's the
+  // catch-up after an ad or a stall, and for late joiners. Nothing the player does by itself is sent, except a pause or
+  // play from a click on the video. YouTube's rules: each friend presses Join, the player is never hidden or covered.
+  const WT_ID = /^[\w-]{11}$/, WT_R = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  let wt = null, wtAt = 0, wtJoined = false, wtP = null, wtReady = false, wtLoaded = '', wtCmd = 0, wtSeekAt = 0, wtTick = 0, wtAC = null, wtRO = null, wtApiP = null, wtTitle = '', wtSeeking = false, wtNewAt = 0;
+  let wtVol = Math.min(100, Math.max(0, +(store.get('lpc-wt-vol') ?? 70))), wtCc = store.get('lpc-wt-cc') === '1', wtSpot = store.get('lpc-wt-corner') || 'br';
+  const wtNow = () => (!wt ? 0 : wt.on ? wt.at + ((performance.now() - wtAt) / 1000) * wt.r : wt.at);
+  const wtName = (w) => w.title || (w.v === wtLoaded && wtTitle) || 'a YouTube video';
+  function wtClean(w) { // what a friend sent, checked
+    if (!w || typeof w !== 'object' || typeof w.id !== 'string' || !Number.isInteger(w.n) || w.n < 1) return null;
+    const s = (x, n) => (typeof x === 'string' ? x.slice(0, n) : '');
+    return {
+      id: s(w.id, 12), n: w.n, v: WT_ID.test(w.v) ? w.v : '', title: s(w.title, 200), on: w.on === true, at: Number.isFinite(w.at) ? Math.max(0, w.at) : 0,
+      r: WT_R.includes(w.r) ? w.r : 1, q: Array.isArray(w.q) ? w.q.filter((i) => i && WT_ID.test(i.v)).slice(0, 50).map((i) => ({ v: i.v, title: s(i.title, 200), by: s(i.by, 24) })) : [],
+      who: s(w.who, 24), by: s(w.by, 24), did: s(w.did, 12), x: s(w.x, 200),
+    };
+  }
+  function wtTake(p, raw) {
+    const w = wtClean(raw);
+    if (!w || (wt && (w.n < wt.n || (w.n === wt.n && w.by >= wt.by)))) return; // older, or lost the tie
+    const was = wt;
+    if (!was || was.v !== w.v) wtNewAt = performance.now();
+    wtSet(w);
+    if (w.v && (!was || !was.v) && w.did === 'start') notify(`${w.who} is watching: ${wtName(w)}`, true);
+    if (w.did === 'end') notify(`${w.by} ended Watch together`);
+    if (w.did === 'blocked') notify(`“${w.x || 'That video'}” can’t play outside YouTube, so it was skipped`);
+  }
+  function wtSet(w) { wt = w; wtAt = performance.now(); if (!w.v) wtJoined = false; wtShow(); }
+  function wtChange(ch, did) { // your change, for the whole room
+    const base = wt || { id: Math.random().toString(36).slice(2, 12), n: 0, v: '', title: '', on: false, at: 0, r: 1, q: [], who: '', x: '' };
+    const w = { ...base, at: wtNow(), x: '', ...ch, n: base.n + 1, by: chMe(), did };
+    wtSet(w);
+    sendOnce({ t: 'wt', w });
+  }
+  function wtHello(p) { const [c] = p.conns; if (wt && wt.v && c) c.send({ t: 'wt', w: { ...wt, at: wtNow() } }); }
+  function wtReset() { wt = null; wtJoined = false; wtShow(); }
+  const wtNextOf = (ch = {}) => (wt.q.length ? { v: wt.q[0].v, title: wt.q[0].title, q: wt.q.slice(1), at: 0, on: true, ...ch } : null);
+  function wtSaid() {
+    const w = wt, t = `“${w.x || wtName(w)}”`;
+    return ({
+      start: `${w.by} started it`, play: `${w.by} played`, pause: `${w.by} paused`, seek: `${w.by} moved to ${mmss(w.at)}`, speed: `${w.by} set the speed to ${w.r}×`,
+      next: `${w.by} skipped to the next video`, now: `${w.by} played ${t} now`, add: `${w.by} added ${w.x || 'a video'} to Up next`, rm: `${w.by} removed ${t} from Up next`,
+      ended: 'Up next is on', over: 'That was the last video. Find another one, or End for everyone.', blocked: `${t} can’t play outside YouTube (its owner turned that off, or it’s age-restricted), so it was skipped`,
+    })[w.did] || '';
+  }
+
+  // your picks: from the app's YouTube window, or a YouTube link in the room chat; a playlist adds its videos from the
+  // one picked on (at most 50), read by a player that's only cued, never played, off the page
+  async function wtPick(v, list) {
+    if (!room) return notify('Join a room first, then pick a video', true);
+    let ids = [v];
+    if (list) ids = await wtApi().then(() => new Promise((ok) => {
+      const box = document.createElement('div'), el = document.createElement('div');
+      box.className = 'wtprobe';
+      box.append(el);
+      document.body.append(box);
+      let p = null;
+      const end = (l) => { clearTimeout(t); try { p.destroy(); } catch {} box.remove(); const i = l.indexOf(v); ok((i >= 0 ? l.slice(i) : [v, ...l]).filter((x) => WT_ID.test(x)).slice(0, 50)); };
+      const t = setTimeout(() => end([]), 8000);
+      p = new YT.Player(el, { width: 200, height: 200, events: { onReady: () => p.cuePlaylist({ list, listType: 'playlist' }), onStateChange: (e) => { if (e.data === 5) end(p.getPlaylist() || []); } } });
+    })).catch(() => [v]);
+    const titles = await Promise.all(ids.map((id) => (client && client.ytTitle ? client.ytTitle(id).catch(() => '') : '')));
+    const items = ids.map((id, i) => ({ v: id, title: titles[i] || '', by: chMe() }));
+    if (!wt || !wt.v) {
+      wtJoined = true;
+      wtChange({ v: items[0].v, title: items[0].title, q: items.slice(1), at: 0, on: true, r: 1, who: chMe() }, 'start');
+    } else wtChange({ q: [...wt.q, ...items].slice(0, 50), x: items.length > 1 ? `${items.length} videos` : `“${items[0].title || 'a video'}”` }, 'add');
+  }
+  function wtFind() {
+    if (client && client.youtube) return client.youtube();
+    notify(client ? 'Finding videos needs the newest Premade app: it updates by itself, then restart it.' : 'Finding videos needs the Premade app on a PC. Here, a YouTube link sent in the room chat gets a Watch together button.', true);
+  }
+
+  // the player: one YouTube frame in #wtBox, outside the room, so it's never moved in the page (that would reload it);
+  // it's only placed, over the Watch panel's slot while that's on screen, else in a corner of the page
+  function wtApi() {
+    if (window.YT && YT.Player) return Promise.resolve();
+    return (wtApiP ||= new Promise((ok, no) => {
+      window.onYouTubeIframeAPIReady = ok;
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => { wtApiP = null; s.remove(); no(new Error('YouTube didn’t load')); };
+      document.head.append(s);
+    }));
+  }
+  async function wtOpen() {
+    if (wtAC) return;
+    wtAC = new AbortController();
+    const sig = { signal: wtAC.signal, passive: true };
+    main.addEventListener('scroll', wtPlace, sig);
+    window.addEventListener('resize', wtPlace, sig);
+    document.addEventListener('fullscreenchange', wtPlace, sig);
+    wtRO = new ResizeObserver(() => wtPlace());
+    wtRO.observe($('wtSlot'));
+    wtRO.observe($('wtBox'));
+    $('wtBox').hidden = false;
+    $('wtVol').value = wtVol;
+    $('wtCc').setAttribute('aria-pressed', wtCc);
+    wtPlace();
+    try { await wtApi(); } catch { $('wtNote').textContent = 'YouTube didn’t load. Check your internet, then Close and Join again.'; return; }
+    if (!wtAC || wtP) return; // closed meanwhile
+    const el = document.createElement('div');
+    $('wtPlayer').replaceChildren(el);
+    wtP = new YT.Player(el, {
+      width: '100%', height: '100%',
+      playerVars: { controls: 0, disablekb: 1, playsinline: 1, rel: 0, cc_load_policy: wtCc ? 1 : 0, origin: location.origin },
+      events: {
+        onReady: () => { wtReady = true; wtP.setVolume(wtVol); wtSync(); },
+        onStateChange: wtState,
+        onError: (e) => {
+          // ponytail: an error says nothing of which video it's about, so one coming just after a friend moved the room on
+          // is taken for the old video's; the friend's own player reports the new one's
+          if (!wt || wt.v !== wtLoaded || ![2, 5, 100, 101, 150].includes(e.data) || performance.now() - wtNewAt < 700) return;
+          const x = wtName(wt);
+          wtChange({ ...(wtNextOf() || { v: '', title: '', on: false }), x }, 'blocked');
+          notify(`“${x}” can’t play outside YouTube, so it was skipped`);
+        },
+      },
+    });
+    wtTick = setInterval(wtTicked, 500);
+  }
+  function wtStop() {
+    if (!wtAC) return;
+    if (document.fullscreenElement === $('wtBox')) document.exitFullscreen().catch(() => {});
+    wtAC.abort();
+    wtAC = null;
+    wtRO.disconnect();
+    wtRO = null;
+    clearInterval(wtTick);
+    try { if (wtP) wtP.destroy(); } catch {}
+    wtP = null;
+    wtReady = false;
+    wtLoaded = wtTitle = '';
+    $('wtPlayer').replaceChildren();
+    $('wtBox').hidden = true;
+  }
+  function wtSync() { // this page's player to the room's spot
+    if (!wtReady || !wt || !wt.v) return;
+    const t = wtNow(), now = performance.now();
+    if (wtLoaded !== wt.v) {
+      wtLoaded = wt.v;
+      wtTitle = '';
+      wtCmd = wtSeekAt = now;
+      if (wt.on) wtP.loadVideoById(wt.v, t); else wtP.cueVideoById(wt.v, t);
+    } else {
+      const st = wtP.getPlayerState();
+      if (st !== 0 && Math.abs(wtP.getCurrentTime() - t) > 1.5 && now - wtSeekAt > 3000) { wtCmd = wtSeekAt = now; wtP.seekTo(t, true); }
+      if (wt.on && st !== 1 && st !== 3 && st !== 0) { wtCmd = now; wtP.playVideo(); }
+      if (!wt.on && (st === 1 || st === 3)) { wtCmd = now; wtP.pauseVideo(); }
+    }
+    if (wtP.getPlaybackRate() !== wt.r) wtP.setPlaybackRate(wt.r);
+  }
+  function wtState(e) {
+    if (!wt || !wt.v || wt.v !== wtLoaded) return;
+    if (e.data === 1 && !wtTitle) { wtTitle = (wtP.getVideoData() || {}).title || ''; wtShow(); }
+    if (e.data === 0 && wtNow() < wtP.getDuration() - 3) return; // an old video's end, or someone moved back
+    if (e.data === 0) return wtChange(wtNextOf() || { on: false, at: wtP.getDuration() }, wt.q.length ? 'ended' : 'over');
+    if (performance.now() - wtCmd < 1500) return; // what we asked for
+    if (e.data === 2 && wt.on) wtChange({ on: false, at: wtP.getCurrentTime() }, 'pause'); // a click on the video
+    else if (e.data === 1 && !wt.on) wtChange({ on: true, at: wtP.getCurrentTime() }, 'play');
+  }
+  function wtTicked() {
+    if (!wtReady) return;
+    wtSync();
+    const d = wtP.getDuration() || 0, t = Math.min(wtNow(), d || Infinity);
+    if (!wtSeeking) { $('wtSeek').max = Math.floor(d); $('wtSeek').value = Math.floor(t); }
+    $('wtTime').textContent = mmss(t);
+    $('wtDur').textContent = mmss(d);
+  }
+  function wtPlace() {
+    if (!wtAC) return;
+    const box = $('wtBox'), z = main.currentCSSZoom || 1;
+    if (document.fullscreenElement === box) return;
+    const slot = $('wtSlot'), r = slot.getBoundingClientRect(), m = main.getBoundingClientRect();
+    const seen = !$('roomView').hidden && !$('wtSlot').hidden && r.width > 0 && Math.min(r.bottom, m.bottom) - Math.max(r.top, m.top) >= r.height / 2;
+    box.classList.toggle('corner', !seen);
+    if (seen) {
+      Object.assign(box.style, { left: `${r.left / z}px`, top: `${r.top / z}px`, width: `${r.width / z}px` });
+      slot.style.height = `${box.offsetHeight}px`;
+      return;
+    }
+    box.style.width = '';
+    const w = box.offsetWidth * z, h = box.offsetHeight * z, gap = 12 * z;
+    const x = wtSpot[1] === 'l' ? m.left + gap : m.right - w - gap, y = wtSpot[0] === 't' ? m.top + gap : m.bottom - h - gap;
+    Object.assign(box.style, { left: `${Math.max(0, x) / z}px`, top: `${Math.max(0, y) / z}px` });
+  }
+
+  // the Watch panel, the Join banner and Up next
+  function wtShow() {
+    const on = !!(wt && wt.v);
+    $('roomWatch').hidden = !on;
+    if (!on) { wtStop(); $('wtQueue').replaceChildren(); return; }
+    $('wtTitle').textContent = wtName(wt);
+    $('wtWho').textContent = wtSaid();
+    $('wtNote').textContent = '';
+    $('wtJoinBox').hidden = wtJoined;
+    $('wtJoinText').textContent = `${wt.who || 'Someone'} is watching: ${wtName(wt)}`;
+    $('wtSlot').hidden = !wtJoined;
+    $('wtPlay').textContent = $('wtMiniPlay').textContent = wt.on ? 'Pause' : 'Play';
+    $('wtSpeed').value = String(wt.r);
+    $('wtQueue').replaceChildren(...wt.q.map((i, n) => {
+      const li = document.createElement('li'), img = document.createElement('img'), b = document.createElement('span');
+      img.src = `https://i.ytimg.com/vi/${i.v}/default.jpg`;
+      img.alt = '';
+      img.loading = 'lazy';
+      b.textContent = `${n + 1}. ${i.title || 'YouTube video'}${i.by ? ` (${i.by})` : ''}`;
+      li.append(img, b);
+      for (const [k, t] of [['now', 'Play now'], ['rm', 'Remove']]) { const x = document.createElement('button'); x.className = 'btn small'; x.type = 'button'; x.dataset.k = k; x.dataset.v = i.v; x.textContent = t; li.append(x); }
+      return li;
+    }));
+    if (wtJoined) { wtOpen(); wtSync(); } else wtStop();
+    wtPlace();
+  }
+  $('wtBtn').addEventListener('click', wtFind);
+  $('wtFind').addEventListener('click', wtFind);
+  $('wtJoin').addEventListener('click', () => { wtJoined = true; wtShow(); });
+  for (const id of ['wtClose', 'wtLeave']) $(id).addEventListener('click', () => { wtJoined = false; wtShow(); });
+  $('wtEnd').addEventListener('click', () => wt && wtChange({ v: '', title: '', q: [], on: false, at: 0 }, 'end'));
+  for (const id of ['wtPlay', 'wtMiniPlay']) $(id).addEventListener('click', () => wt && wt.v && wtChange({ on: !wt.on }, wt.on ? 'pause' : 'play'));
+  $('wtNext').addEventListener('click', () => { const n = wt && wt.v && wtNextOf(); if (n) wtChange(n, 'next'); else $('wtNote').textContent = 'Nothing in Up next yet.'; });
+  $('wtSeek').addEventListener('input', () => { wtSeeking = true; $('wtTime').textContent = mmss(+$('wtSeek').value); });
+  $('wtSeek').addEventListener('change', () => { wtSeeking = false; if (wt && wt.v) wtChange({ at: +$('wtSeek').value }, 'seek'); });
+  $('wtSpeed').addEventListener('change', () => wt && wt.v && wtChange({ r: +$('wtSpeed').value }, 'speed'));
+  $('wtVol').addEventListener('input', () => { wtVol = +$('wtVol').value; store.set('lpc-wt-vol', String(wtVol)); if (wtReady) wtP.setVolume(wtVol); });
+  $('wtCc').addEventListener('click', () => {
+    wtCc = !wtCc;
+    store.set('lpc-wt-cc', wtCc ? '1' : '0');
+    $('wtCc').setAttribute('aria-pressed', wtCc);
+    if (wtReady) { if (wtCc) wtP.loadModule('captions'); else wtP.unloadModule('captions'); }
+  });
+  $('wtFull').addEventListener('click', () => { $('wtBox').classList.remove('corner'); $('wtBox').requestFullscreen().catch(() => {}); });
+  $('wtBack').addEventListener('click', () => { view('voice'); $('roomWatch').scrollIntoView({ block: 'start' }); wtPlace(); });
+  $('wtQueue').addEventListener('click', (e) => {
+    const b = e.target.closest('button'), i = b && wt ? wt.q.findIndex((x) => x.v === b.dataset.v) : -1;
+    if (i < 0) return;
+    const it = wt.q[i], q = wt.q.filter((_, j) => j !== i);
+    if (b.dataset.k === 'rm') wtChange({ q, x: it.title }, 'rm');
+    else wtChange({ v: it.v, title: it.title, q, at: 0, on: true, x: it.title }, 'now');
+  });
+  $('chatLog').addEventListener('click', (e) => { const b = e.target.closest('button[data-wt]'); if (b) wtPick(b.dataset.wt, b.dataset.list || ''); });
+  $('wtGrip').addEventListener('pointerdown', (e) => {
+    const box = $('wtBox'), z = main.currentCSSZoom || 1, dx = e.clientX - box.getBoundingClientRect().left, dy = e.clientY - box.getBoundingClientRect().top;
+    $('wtGrip').setPointerCapture(e.pointerId);
+    const move = (ev) => Object.assign(box.style, { left: `${(ev.clientX - dx) / z}px`, top: `${(ev.clientY - dy) / z}px` });
+    const up = (ev) => {
+      $('wtGrip').removeEventListener('pointermove', move);
+      const m = main.getBoundingClientRect();
+      wtSpot = (ev.clientY < (m.top + m.bottom) / 2 ? 't' : 'b') + (ev.clientX < (m.left + m.right) / 2 ? 'l' : 'r');
+      store.set('lpc-wt-corner', wtSpot);
+      wtPlace();
+    };
+    $('wtGrip').addEventListener('pointermove', move);
+    $('wtGrip').addEventListener('pointerup', up, { once: true });
+  });
+  if (client && client.on) client.on('yt-pick', (p) => { if (p && WT_ID.test(p.v)) wtPick(p.v, typeof p.list === 'string' ? p.list : ''); });
+
   // Balance teams: each player's Solo/Duo rank as a number (Iron IV 0 LP is 0, Diamond I 99 LP 2,799, Master and up
   // 2,800 plus their LP); anyone whose rank isn't known (no desktop app with League, unranked, or not shared) counts as
   // the room's average. The teams are a random one of the most even splits, within half a division.
@@ -17546,6 +17866,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [150, 'November 12: Watch together in your room', [
+      'Watch YouTube with your room: press Watch together in the Current room card, find a video on YouTube’s own site in the Premade window that opens, and click it. It plays at the top of your room for everyone who presses Join, at the same spot.',
+      'Anyone in the room can play, pause, move along the bar, change the speed or skip, and the panel says who did it. A video picked while one plays goes to Up next (a playlist adds its videos); anyone can play one now or remove it.',
+      'A friend who gets an ad or a slow moment jumps back to the room’s spot afterwards, so nobody waits. Open another page, or scroll down, and a small player follows you in a corner (drag it to another one). The video has its own volume and captions, yours only.',
+      'On a phone or the website you can join, watch and control; a YouTube link sent in the room chat gets a Watch together button there.',
+    ]],
     [149, 'November 12: a cleaner look, and calm animations', [
       'One font everywhere, red only on the main button, and no glows, in every theme. Chess and Last Card get the plainer look too.',
       'Buttons give a little when you press them, popups, dialogs and messages ease in and out, and a page picked in the menu fades in (shortcuts stay instant). A win or loss, a checkmate and the Last Card places land with a short flourish.',
@@ -18287,6 +18613,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'In your room, under Games below the chat: pick who to play, Normal or Card Chess, and a clock, then Play. It starts for both of you at once. The speaker button by Games turns the sounds on or off.', '#roomGames, #chSound, #createBtn'],
       ['Last Card', 'A card game for your whole room: 2 to 10 play, everyone else watches, and whoever joins later sees the table and everyone’s card count, never a hand. Match the top card’s color, number or symbol; Skip, Reverse and +2 in four colors, Wild and Wild +4, and Premade’s own black cards: Swap trades your whole hand with a player you pick, Freeze makes one miss their next turn, Shield blocks a +2 or +4 aimed at you. +2s and +4s stack, and whoever can’t add one draws the total. Can’t play? Draw 1, and play it if it fits. Press Last card as you play your second-to-last card, or the next player can catch you for +2. Whoever runs out of cards takes the next place and the rest play on. 30 seconds a turn: run out and Premade draws for you, 3 in a row and you’re out of that game, as is anyone who leaves the room. Reload and you get your hand back.',
         'In your room, under Games below the chat: pick Last Card, untick anyone who isn’t playing, then Play. It deals 7 cards each at once. Rematch keeps the same players. The speaker button by Games turns the sounds off.', '#roomGames, #lcPlay'],
+      ['Watch together', 'Watch YouTube with your room: every friend who presses Join plays the same video straight from YouTube, at the same spot, as sharp as YouTube gives them. Anyone in the room can play, pause, move along the bar, change the speed or skip, and the panel says who did it. A video picked while one plays waits in Up next, a YouTube playlist adds its videos, and anyone can play one now or remove it. A friend who gets an ad or a slow moment jumps back to the room’s spot, and whoever joins the room later lands there too. On another page, or with the panel scrolled away, a small player follows you in a corner; drag it to another corner. Volume and captions are yours only. YouTube shows its own ads, and videos whose owner turned off playing outside YouTube are skipped.',
+        'In your room’s Current room card: Watch together opens YouTube’s own site in a Premade window (desktop app); search, then click a video and it plays in the room. Friends press Join at the top of the room. On a phone or the website, send a YouTube link in the room chat and press Watch together under it.', '#wtBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
@@ -18727,6 +19055,8 @@ dialog.wizard { transform: scale(var(--from)); }
     chessReplay: (g) => { const S = chReplay({ id: 'x', w: 'A', b: 'B', mode: 'normal', clock: 0, seed: 1, at: 0, ...g }, '', Infinity); return S && { over: S.over, board: S.board.join(), turn: S.turn, castle: S.castle, phase: S.phase, card: S.card, frozen: S.frozen, shields: S.shields, players: S.players, out: S.out, left: S.left, back: S.back, say: S.say, deck: S.deck.slice() }; },
     chess: () => chS && { ...chS, rnd: undefined, reps: undefined, deck: chS.deck.slice(-3), acts: chG.acts.length },
     lcDraw: () => lcDraw(),
+    wt: () => wt && { ...wt, now: wtNow(), joined: wtJoined, player: !!wtP, loaded: wtLoaded, corner: $('wtBox').classList.contains('corner'), listening: !!wtAC },
+    wtPick: (v, list) => wtPick(v, list || ''), // as the app's YouTube window sends a pick ('yt-pick')
     lcRules: LC,
     lcReplay: (g, from = '', n = Infinity) => { const S = lcReplay(g, from, n); return S && { ...S, r: undefined }; },
     lc: () => lcS && { ...lcS, r: undefined, deck: lcS.deck.length, acts: lcG.acts.length, id: lcG.id, names: lcG.names },
