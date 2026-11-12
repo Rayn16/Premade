@@ -237,7 +237,20 @@ const clickTurn = (page) => page.evaluate(() => {
     // ---- memory: 200 redraws and 3 games in a row
     const cdp = await ana.context().newCDPSession(ana);
     await cdp.send('Performance.enable');
-    const metrics = async () => { await ana.evaluate(() => new Promise((r) => setTimeout(r, 300))); const { metrics: m } = await cdp.send('Performance.getMetrics'); const g = (n) => m.find((x) => x.name === n).value; return [g('Nodes'), g('JSEventListeners')]; };
+    // the room page's own listeners swing by up to 90 and back on a cycle of about 15 s, with no game played and with
+    // the game's sounds off too (9 games in a row didn't grow), so a leak is judged on the lowest reading over 16 s,
+    // each after a garbage collection
+    const metrics = async () => {
+      const best = [Infinity, Infinity];
+      for (let k = 0; k < 20; k++) {
+        await ana.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+        await cdp.send('HeapProfiler.collectGarbage');
+        const { metrics: m } = await cdp.send('Performance.getMetrics'), g = (n) => m.find((x) => x.name === n).value;
+        best[0] = Math.min(best[0], g('Nodes'));
+        best[1] = Math.min(best[1], g('JSEventListeners'));
+      }
+      return best;
+    };
     pages.Ana = ana; pages.Ben = ben;
     await ana.evaluate(() => { for (let i = 0; i < 200; i++) lpc.lcDraw(); });
     await cdp.send('HeapProfiler.collectGarbage');
