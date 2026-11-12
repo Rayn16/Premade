@@ -7,6 +7,8 @@
 // Aion 2: /aion/boss, /aion/ticks and /aion/fights take a kill, a tick or a fight only for a Riot ID the device said
 // hello with, and the 30-minute cron starts the tracker's update on GitHub with GH_TOKEN (here a stand-in GitHub on GH_PORT),
 // and tells Premade's health.yml when the site goes down and when it's back, once each.
+// Open voice rooms (/rooms): an open room is listed for everyone, a hidden one (Hide room) only for a page that asks with
+// one of the Riot IDs it's shared with, with its password; a hidden room with nobody ticked is off the list.
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -209,5 +211,18 @@ function join(id, token, ip) { // resolves with the server's first message type:
   siteUp = true;
   assert.deepEqual(await health(), [{ ref: 'claude/voice-clips-6a9va7', inputs: { down: '' } }], 'back up');
   assert.deepEqual(await health(), []);
+  const rooms = (me) => fetch(`${BASE}/rooms${me ? '?me=' + encodeURIComponent(JSON.stringify(me)) : ''}`).then((r) => r.json());
+  const listing = (b) => fetch(BASE + '/rooms', { method: 'POST', body: JSON.stringify({ owner: '11111111-2222-4333-8444-555555555555', ...b }) });
+  await listing({ room: 'openr', count: 2, playing: false });
+  await listing({ room: 'hidr', count: 3, playing: true, locked: true, hidden: true, allow: ['Sam#EUW', 'not a riot id'], key: 'abcdef', n: 'Rayan' });
+  const openR = { room: 'openr', count: 2, playing: false }, hid = { room: 'hidr', count: 3, playing: true, hidden: true, key: 'abcdef', n: 'Rayan' };
+  assert.deepEqual(await rooms(), [openR], 'a hidden room isn\'t listed for everyone');
+  assert.deepEqual(await rooms(['Bob#NA1']), [openR], 'nor for someone not ticked');
+  assert.deepEqual(await rooms(['bob#na1', 'sam#euw']), [hid, openR], 'but is for Sam, in any case');
+  assert.equal((await fetch(BASE + '/rooms?me=%7B')).status, 200, 'a broken me is no one');
+  await listing({ room: 'hidr', count: 3, playing: true, locked: true });
+  assert.deepEqual(await rooms(['Sam#EUW']), [openR], 'nobody ticked: off the list');
+  await listing({ room: 'openr', remove: true });
+  assert.deepEqual(await rooms(), []);
   console.log('stats ok');
 })().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => { try { process.kill(-wr.pid); } catch {} fs.rmSync(persist, { recursive: true, force: true }); });
