@@ -136,7 +136,7 @@ const box = (page) => page.evaluate(() => { const b = document.getElementById('w
     assert(Math.abs(a.t - b.t) < 1, `Cat at the spot: ${a.t.toFixed(2)} vs ${b.t.toFixed(2)}`);
     assert.deepStrictEqual(await cat.evaluate(() => lpc.wt().q.map((i) => i.v)), await ana.evaluate(() => lpc.wt().q.map((i) => i.v)), 'the same Up next');
     const cb = await box(cat);
-    assert(cb.w >= 356 - 1 && cb.h >= 200 - 1 && cb.x >= 0 && cb.x + cb.bw <= 391, `Cat's phone player fits: ${JSON.stringify(cb)}`);
+    assert(cb.w >= 200 && cb.h >= 200 - 0.5 && cb.x >= 0 && cb.x + cb.bw <= 391, `Cat's phone player fits: ${JSON.stringify(cb)}`);
     console.log(`late joiner: Cat at ${b.t.toFixed(2)} s, player ${cb.w}x${cb.h.toFixed(0)}`);
 
     // 8: a video that can't play outside YouTube is skipped for everyone

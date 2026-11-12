@@ -81,7 +81,7 @@ process.env.LPC_LEAGUE = 'https://127.0.0.1:8084';
 process.env.LPC_LEAGUE_DIR = tmp; // League's folder, for the window mode in Config/
 fs.mkdirSync(path.join(tmp, 'Config'));
 const { app, BrowserWindow, globalShortcut, screen, shell, clipboard } = require('electron');
-const { summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved, fetchTo } = require('./main.js');
+const { ytPick, summary, vk, CTL_SCAN, controlInput, controlStart, ctlBlocked, lcuOk, linkRoom, hider, moveSaved, fetchTo } = require('./main.js');
 assert(app.getPath('userData').endsWith(path.sep + 'League Proximity Chat'), 'settings stay in the folder from before the rename to Premade');
 app.setPath('videos', path.join(tmp, 'Videos')); // where clips go
 app.setPath('documents', path.join(tmp, 'Documents')); // where test recordings go
@@ -153,6 +153,13 @@ assert(!lcuOk('DELETE', '/lol-perks/v1/pages') && !lcuOk('get', '/lol-gameflow/v
   && !lcuOk('GET', '/lol-ranked/v1/ranked-stats/../../lol-store/v1/purchase') && !lcuOk('GET', '/lol-summoner/v1/current-summoner?x=1') && !lcuOk('GET', null), 'nothing else');
 assert.deepStrictEqual(summary(null), { inGame: false });
 assert.deepStrictEqual(summary({ allPlayers: GAME.allPlayers }), { inGame: false }, 'spectating is not playing');
+// Watch together's Find a video window: which addresses are a video picked (app 1.47)
+assert.deepStrictEqual(ytPick('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s'), { v: 'dQw4w9WgXcQ', list: '' });
+assert.deepStrictEqual(ytPick('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLabcdefghij01'), { v: 'dQw4w9WgXcQ', list: 'PLabcdefghij01' });
+assert.deepStrictEqual(ytPick('https://www.youtube.com/shorts/dQw4w9WgXcQ'), { v: 'dQw4w9WgXcQ', list: '' });
+assert.deepStrictEqual(ytPick('https://youtu.be/dQw4w9WgXcQ'), { v: 'dQw4w9WgXcQ', list: '' });
+assert.deepStrictEqual(ytPick('https://m.youtube.com/watch?v=dQw4w9WgXcQ'), { v: 'dQw4w9WgXcQ', list: '' });
+assert.deepStrictEqual(['https://www.youtube.com/', 'https://www.youtube.com/results?search_query=x', 'https://www.youtube.com/watch?v=short', 'https://evil.com/watch?v=dQw4w9WgXcQ', 'https://youtube.com.evil.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/@chan', 'not a url'].map(ytPick), [null, null, null, null, null, null, null], 'nothing else');
 // app links: lolprox://join/<room>[.<password>] on the command line, nothing else
 assert.strictEqual(linkRoom(['Premade.exe', '--allow-file-access', 'lolprox://join/ABCD.qwerty/']), 'abcd.qwerty');
 assert.strictEqual(linkRoom(['x', 'lolprox://join/g0123456789a']), 'g0123456789a');
