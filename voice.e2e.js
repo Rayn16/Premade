@@ -1128,7 +1128,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual(await look('accent', 'accent-fg', 'gold'), ['#ffd700', '#000000', '#ffd700'], 'gold of your own: black text on its buttons, and readable as it is');
     assert(await ana.isVisible('#mainReset'));
     await ana.click('#mainReset');
-    assert.deepStrictEqual([...await look('accent', 'gold'), await ana.inputValue('#optMain'), await ana.isHidden('#mainReset')], ['#d9202d', '#ff4f5a', '#d9202d', true], 'the theme’s own colour again');
+    assert.deepStrictEqual([...await look('accent', 'gold'), await ana.inputValue('#optMain'), await ana.isHidden('#mainReset')], ['#d9202d', '#e9e1e2', '#d9202d', true], 'the theme’s own colour again');
     // Custom: your own page and text colours, starting from red and black, made readable if they aren't
     await ana.check('input[name="theme"][value="custom"]');
     assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'fg'), await ana.isVisible('#customRow'), await ana.inputValue('#optCustomBg')], ['custom', '#0b0809', '#f4eeee', true, '#0b0809'], 'Custom starts from red and black, with its colour pickers');
@@ -1324,7 +1324,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await dee.evaluate(() => lpc.micOn())), 'mute shortcut from the client');
     const muted = await dee.evaluate(() => lpcClient.calls.filter(([k]) => k === 'overlay').pop()[1]);
     assert(muted.muted === true, 'overlay shows you\'re muted');
-    assert.deepStrictEqual([muted.theme.bg, muted.theme.gold, muted.theme.talk], ['#0b0809', '#ff4f5a', '#ffffff'], 'the overlay in red and black too');
+    assert.deepStrictEqual([muted.theme.bg, muted.theme.gold, muted.theme.talk], ['#0b0809', '#e9e1e2', '#ffffff'], 'the overlay in red and black too');
     await dee.evaluate(() => lpcClient.emit('key', 'mute'));
 
     // hurt voice: rough and shaky as Dee's health drops
