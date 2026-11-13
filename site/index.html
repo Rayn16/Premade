@@ -19182,7 +19182,7 @@ dialog.wizard { transform: scale(var(--from)); }
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     lendStall: (name) => { const l = [...lends].find(([p]) => nameOf(p) === name)?.[1]; if (l) Object.defineProperty(l.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // your screen call to them stuck, as on Rayan's PC (28 Oct)
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
-    help: () => hs && { code: hs.code, on: hs.on, asking: hs.asking }, // Remote help: yours, offered or controlled
+    help: () => hs && { code: hs.code, on: hs.on, asking: hs.asking, open: hs.peer.open }, // Remote help: yours, offered or controlled (open: on our server)
     helpSend: (m) => ctlTo && hSend(ctlTo.conn, m), // as if from your page, to the PC you control or ask for
     augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,

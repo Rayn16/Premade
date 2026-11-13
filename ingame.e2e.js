@@ -399,12 +399,18 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert.strictEqual(await cat.evaluate(() => window.captures), capsCat, 'in place: the same capture');
       console.log('League mode: a new host keeps it; off again, full volume and the normal room; after the game the share stays the same capture');
       // leak check: League mode flipped 50 times and Cat's share switched in place 50 times (25 games): DOM nodes,
-      // listeners, the JS heap and captures stay flat
+      // listeners, the JS heap and captures stay flat. The room page's listeners swing by 64 and back every ~13 s with
+      // nothing happening (as in lastcard.e2e), so each is the lowest of 20 readings over 16 s, after garbage collection
       const cdp = await Promise.all([ben, cat].map((p) => p.context().newCDPSession(p)));
       const sample = async (i) => {
-        await cdp[i].send('HeapProfiler.collectGarbage');
-        const [{ usedSize }, dom] = await Promise.all([cdp[i].send('Runtime.getHeapUsage'), cdp[i].send('Memory.getDOMCounters')]);
-        return { heapMB: usedSize / 1048576, nodes: dom.nodes, listeners: dom.jsEventListeners };
+        const low = { heapMB: Infinity, nodes: Infinity, listeners: Infinity };
+        for (let k = 0; k < 20; k++) {
+          await new Promise((r) => setTimeout(r, 800));
+          await cdp[i].send('HeapProfiler.collectGarbage');
+          const [{ usedSize }, dom] = await Promise.all([cdp[i].send('Runtime.getHeapUsage'), cdp[i].send('Memory.getDOMCounters')]);
+          for (const [k2, v] of [['heapMB', usedSize / 1048576], ['nodes', dom.nodes], ['listeners', dom.jsEventListeners]]) low[k2] = Math.min(low[k2], v);
+        }
+        return low;
       };
       const before = [await sample(0), await sample(1)];
       for (let i = 0; i < 25; i++) {
@@ -448,7 +454,9 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
         ps.push([c, page]);
       }
       const [ana, ben, cat] = ps.map(([, p]) => p);
-      const offer = async () => { await ana.click('#helpOffer'); await wait(ana, () => !!lpc.help() && !document.getElementById('helpMine').hidden, null, 'Ana’s code'); return ana.evaluate(() => lpc.help().code); };
+      // Ana's code, once her page is on our server: a friend who dials before that waits 5 s for it to expire and 3 s
+      // more to dial again, which a busy machine could stretch past a wait
+      const offer = async () => { await ana.click('#helpOffer'); await wait(ana, () => !!lpc.help() && lpc.help().open && !document.getElementById('helpMine').hidden, null, 'Ana’s code'); return ana.evaluate(() => lpc.help().code); };
       const connect = async (p, code) => { await p.fill('#helpCode', code.replace(/(\d{3})/g, '$1 ')); await p.click('#helpGo'); };
       let code = await offer();
       assert.match(await ana.$eval('#helpMine', (e) => e.textContent), /^\d{3} \d{3} \d{3}$/, 'shown in threes');
