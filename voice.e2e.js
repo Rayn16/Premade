@@ -515,6 +515,17 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     await ben.evaluate(() => setBox(0.85, 0.15)); // Ben's camera jumps onto Ben's champion: the page learns that icon
     await waitFor(ben, () => lpc.me().by === 'icon', null, 'Ben followed by the champion icon');
+    // League mode, off in a new room: both in a game (minimaps tracked), yet everyone hears everyone and the room keeps its layout
+    await hears(ana, ['Ben'], 1, 'League mode off: Ben across the map at full volume');
+    await hears(ben, ['Ana'], 1, 'League mode off: Ana across the map at full volume');
+    await toRooms(ana); await toRooms(ben);
+    assert(await ana.evaluate(() => !document.getElementById('roomView').hasAttribute('data-game') && /^League mode is off/.test(document.getElementById('phase').textContent)), 'League mode off: the room keeps its layout in a game');
+    assert(await ben.$eval('#lolBtn', (b) => b.disabled && b.textContent === 'League mode: Off') && await ben.isVisible('#lolNote') && !(await ana.$eval('#lolBtn', (b) => b.disabled)), 'only the host flips League mode');
+    await ana.click('#lolBtn'); // the host turns it on for everyone
+    await waitFor(ben, () => lpc.mode().league && document.getElementById('lolBtn').getAttribute('aria-pressed') === 'true' && lpc.toasts().some((t) => t.startsWith('League mode on'))
+      && document.getElementById('roomView').hasAttribute('data-game'), null, 'League mode on for Ben, with a notice and the game layout');
+    console.log('League mode: off in a new room (full volume across the map, normal layout), only the host flips it, on for everyone with a notice');
+    await toProx(ana);
     await hears(ana, ['Ben'], 0, 'Ben across the map: silent');
     await hears(ben, ['Ana'], 0, 'Ana across the map: silent');
     assert.strictEqual((await volOf(ana, 'Ben')).volume, 0, 'audio element muted by distance');
@@ -1247,14 +1258,14 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await eve.evaluate(() => lpc.league({ inGame: false, phase: 'ChampSelect' }));
     await waitFor(eve, () => document.getElementById('statusRows').textContent === 'Eve (you)In champ select' && document.getElementById('sbLeague').textContent === 'League: in champ select', null, 'champ select on Eve\'s status window');
     await eve.evaluate(() => lpc.league({ inGame: false, phase: 'InProgress' }));
-    await waitFor(eve, () => /Loading into the game/.test(document.getElementById('statusRows').textContent) && document.getElementById('phase').dataset.game === '1', null, 'loading: the game has started for Eve');
+    await waitFor(eve, () => /Loading into the game/.test(document.getElementById('statusRows').textContent), null, 'loading: the game has started for Eve');
     console.log('League status: champ select, then loading into the game');
     await dee.evaluate((g) => lpc.league(g), game('Testchamp', 'ORDER'));
     await eve.evaluate((g) => lpc.league(g), game('Annie', 'ORDER', true));
     await eve.evaluate(() => setBox(0.41, 0.6)); // next to Dee, so they hear each other in the game
     await eve.evaluate(() => document.getElementById('shareBtn').click());
-    await waitFor(dee, (r) => lpc.room() === r && lpc.slot() >= 0, GAME_ROOM, 'Dee in the game\'s room');
-    await waitFor(eve, (r) => lpc.room() === r && lpc.slot() >= 0, GAME_ROOM, 'Eve in the game\'s room');
+    await waitFor(dee, (r) => lpc.room() === r && lpc.slot() >= 0 && lpc.mode().league, GAME_ROOM, 'Dee in the game\'s room, League mode on from the start');
+    await waitFor(eve, (r) => lpc.room() === r && lpc.slot() >= 0 && lpc.mode().league && document.getElementById('phase').dataset.game === '1', GAME_ROOM, 'Eve in the game\'s room, League mode on, the game layout');
     await hears(dee, ['Eve'], null, 'Dee hears Eve');
     await hears(eve, ['Dee'], null, 'Eve hears Dee');
     console.log('League data: Dee and Eve joined their game\'s room by themselves');

@@ -166,6 +166,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .btn.primary:hover { filter: brightness(1.1); }
 .btn.small { padding: 7px 12px; font-size: 13px; }
 .btn[aria-pressed="true"] { border-color: var(--bad); color: var(--bad); }
+#lolBtn[aria-pressed="true"] { border-color: var(--good); color: var(--good); }
 .btn.bad { border-color: var(--bad); color: var(--bad); } /* Dodge, once clicked */
 .btn.avoid { padding: 3px 8px; font-size: 12px; } /* Avoid, beside a player */
 .who > .avoid { margin-left: auto; }
@@ -1446,7 +1447,7 @@ dialog.wizard { transform: scale(var(--from)); }
               <h1 id="roomName" class="code"></h1>
               <p id="lockNote" class="hint" hidden></p>
             </div>
-            <div class="toolbar"><span id="roomLink" class="tag" data-t="close"></span></div>
+            <div class="toolbar"><span id="roomLink" class="tag" data-t="close"></span><button id="lolBtn" class="btn small" type="button" aria-pressed="false">League mode: Off</button><span id="lolNote" class="hint" hidden>The host picks</span><button class="tip" type="button" popovertarget="t-league" aria-label="About League mode">?</button></div>
           </header>
           <p id="phase" class="phase" role="status"></p>
           <p class="hint phone-only">Your screen stays on while you’re in a room, as a phone that locks itself can stop your voice.</p>
@@ -1734,7 +1735,7 @@ dialog.wizard { transform: scale(var(--from)); }
     </section>
     <section class="view" data-view="prox" aria-label="Proximity voice" hidden>
       <header class="pagehead"><div><h1 class="title">Proximity voice</h1><p class="sub">Friends in your game only hear you when your champions are close. Walk apart and the voices fade out on their own.</p></div></header>
-      <p id="proxNote" class="hint">Join or create a room on Rooms first. Proximity voice works on the room you’re in: once a League game starts, you hear each other by where your champions are, and after it everyone hears everyone again.</p>
+      <p id="proxNote" class="hint">Join or create a room on Rooms first. Proximity voice works on the room you’re in once its host turns League mode on: then in a League game you hear each other by where your champions are, and after it everyone hears everyone again.</p>
       <div id="proxRoom" class="view" hidden>
         <div class="toolbar">
           <button id="readyBtn" class="btn" type="button">Ready check</button>
@@ -2850,11 +2851,12 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-code" class="tipbox" popover>Friends can join by choosing an open room on the Rooms page, typing this code on the site or in the Windows client, or opening your invite link. Rooms you create are listed while they are active and unlocked. Everyone in the same game should be in the same room.</div>
 <div id="t-range" class="tipbox" popover>How far away you can hear other champions, in game units; 1,350 is about how far a champion sees. It starts at 1,200. Voices fade to silent at the edge, the way Fade says. It only changes what you hear.</div>
 <div id="t-fade" class="tipbox" popover>How voices fade as their champions move away; all of them reach silence at the edge of your hearing range. Normal: full volume up to two thirds of the range, then down to silent. Gentle: quieter little by little from close by. Realistic: like real sound, half as loud each time the distance doubles. Sharp: full volume until just before the edge. The dashed ring on the map shows where the fade starts.</div>
-<div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
+<div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; with League mode on, once it starts you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
 <div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it in their room, straight from your PC. Games don’t change that: everyone keeps seeing it. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
 <div id="t-lock" class="tipbox" popover>Only the host can hide the room: whoever made it, or once they leave, the player listed first (their card says host). A hidden room leaves Open voice rooms, and only the friends the host ticks under Who can see it find it there, with a Join button. It also gets a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link and Invite include it, and it stays hidden until everyone leaves. Untick a friend who's in the room and they stay, but the password changes, so they can't come back once they leave. The host can also remove someone, which changes the password the same way. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
-<div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
+<div id="t-league" class="tipbox" popover>On: once a League game starts, you hear each other by where your champions are, the room shows the game layout and Game mode works. Off: everyone hears everyone at full volume, in games too, and your shared screen stays as it is. The host picks for everyone, and it stays that way between games. The room Premade makes for a game starts with it on.</div>
+<div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. It works while League mode (at the top of the room) is on. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 80, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
 <div id="t-denoise" class="tipbox" popover>An AI filter (RNNoise) that takes keyboard clicks, fans and background noise out of your mic while keeping your voice. Turn it off if your voice sounds robotic.</div>
 <div id="t-atten" class="tipbox" popover>Like Discord’s attenuation: while a friend you can hear is talking, every other app’s sound, your game too, goes down by this much, and back up a second after they stop. Unlike Windows’ own setting it only happens while someone talks. Desktop app only.</div>
@@ -3116,6 +3118,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // In the lobby nobody has a minimap, so everyone hears everyone at full volume. Once a game has started (yours or
   // theirs, loading screen included) only distance counts, and a voice whose spot isn't known is silent.
   function volumeFor(p, at) {
+    if (!rm.league) return 1; // League mode off: everyone at full volume, in games too
     if (fresh(me) && fresh(at)) return fadeAt(dist(at) / range);
     return inGameNow() || playsNow(p) ? 0 : 1;
   }
@@ -3142,7 +3145,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (foe && foe !== duelWith && performance.now() - duelAt > 20000) { duelAt = performance.now(); notify(`Showdown: just you and ${nameOf(foe)}.`, true); }
     duelWith = foe;
     for (const p of peers.values()) {
-      const at = heardAt(p), known = fresh(me) && fresh(at);
+      const at = heardAt(p), known = rm.league && fresh(me) && fresh(at);
       p.vol = volumeFor(p, at);
       p.faded = !!foe && p !== foe;
       p.muffle = known ? Terrain.muffle(me, at) : 0;
@@ -3313,6 +3316,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (p.muted) return 'Muted by you';
     const dead = p.dead ? `Dead${p.respawn ? `, back in ${p.respawn} s` : ''}. ` : '';
     // the other team: no distance or direction (the map hides them too), only what you'd hear anyway
+    if (!rm.league && (inGameNow() || playsNow(p))) return dead + 'Full volume: League mode is off';
     const at = heardAt(p), moved = spotOf(p) !== p.slot ? 'Voice swap, from someone else’s spot: ' : '';
     if (teamOf(p) === 'enemy') return dead + (p.scrambled ? 'Other team, scrambled: ' : 'Other team: ') + (fresh(at) && fresh(me) ? 'heard only when near you' : 'silent until both of your minimaps are tracked');
     if (!fresh(at)) return dead + (moved || (p.vol ? 'In the lobby (no minimap yet): ' : 'Minimap not tracked: ')) + (p.vol ? 'full volume' : 'silent during a game');
@@ -3394,13 +3398,14 @@ dialog.wizard { transform: scale(var(--from)); }
     $('empty').hidden = peers.size > 0;
     $('empty').textContent = peer ? 'No one else is here yet. Send them the room code or the invite link.' : 'You’re not in a room yet.';
     const inGame = [...peers.values()].filter((p) => fresh(p.pos)).length + (fresh(me) ? 1 : 0);
-    $('phase').dataset.game = inGameNow() ? 1 : 0;
-    $('roomView').toggleAttribute('data-game', inGameNow());
+    const lolNow = rm.league && inGameNow(); // the game layout only in League mode
+    $('phase').dataset.game = lolNow ? 1 : 0;
+    $('roomView').toggleAttribute('data-game', lolNow);
     $('roomDps').hidden = !client || !store.get('lpc-aion') || inGameNow(); // Aion 2's DPS meter for those who play it (meter.html, as in the pop-up; its pop-out button opens that)
     if (!$('roomDps').hidden && !$('roomDpsFrame').getAttribute('src')) { $('roomDpsFrame').onload = () => aionMeterTheme(); $('roomDpsFrame').src = 'meter.html?embed'; } // in the theme's colours
     raidDraw();
     renderRoomCard();
-    $('phase').textContent = inGameNow()
+    $('phase').textContent = !rm.league ? 'League mode is off: everyone hears everyone at full volume, in games too.' : inGameNow()
       ? `In game: proximity is on. ${inGame} of ${peers.size + 1} players have their minimap tracked; you hear only those close to you.`
       : 'Lobby: everyone hears everyone at full volume. Once the game starts, you only hear players close to you on the map.';
     $('shareBtn').textContent = share && share.mode === 'league' ? 'Stop sharing' : 'Share League screen';
@@ -3414,7 +3419,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('face').hidden = !(share && fresh(me) && me.by === 'icon');
     $('pickForm').hidden = !(share && share.mode === 'league' && share.sq && !(fresh(me) && me.learned));
     if (!$('pickForm').hidden) ddSoon(); // the list of names; after a failure, Find me tries again
-    $('me').textContent = share && share.mode === 'general' ? 'You’re sharing a screen or app with the room. League minimap tracking is off for this share.' : !share ? 'Share the screen League is on so the page can see your minimap. Until then you’re heard in the lobby, but not once a game starts.'
+    $('me').textContent = share && share.mode === 'general' ? 'You’re sharing a screen or app with the room. League minimap tracking is off for this share.' : !share ? `Share the screen League is on so the page can see your minimap.${rm.league ? ' Until then you’re heard in the lobby, but not once a game starts.' : ''}`
       : !share.sq ? share.hint || 'Looking for your minimap. Make sure you shared the whole screen League is on.'
       : fresh(me) && me.by === 'icon' ? `Following this champion: ${pct(me.x)} across, ${pct(me.y)} down the minimap.`
       : fresh(me) && me.learned ? 'Your champion isn’t on the minimap, so following your camera box for now.'
@@ -3534,8 +3539,8 @@ dialog.wizard { transform: scale(var(--from)); }
     if (shown === roomMapEl) { if (roomMapEl.width !== S) roomMapEl.width = roomMapEl.height = S; roomMapEl.getContext('2d').drawImage(mapEl, 0, 0); }
     const off = [...peers.values()].filter((p) => !fresh(p.pos)).map(nameOf);
     const hid = [...peers.values()].some((p) => fresh(p.pos) && teamOf(p) === 'enemy');
-    $('offmap').textContent = [fresh(me) ? '' : share ? 'Looking for your champion on your minimap.' : PHONE ? 'A phone isn’t on the map, so you and friends in a game can’t hear each other until it ends.' : 'Share your League screen to put yourself on the map.',
-      off.length ? `Not on the map yet, ${inGameNow() ? 'so silent' : 'heard at full volume'}: ${off.join(', ')}.` : '', hid ? 'The other team is hidden on the map.' : ''].filter(Boolean).join(' ');
+    $('offmap').textContent = [fresh(me) ? '' : share ? 'Looking for your champion on your minimap.' : PHONE ? `A phone isn’t on the map${rm.league ? ', so you and friends in a game can’t hear each other until it ends' : ''}.` : 'Share your League screen to put yourself on the map.',
+      off.length ? `Not on the map yet, ${rm.league && inGameNow() ? 'so silent' : 'heard at full volume'}: ${off.join(', ')}.` : '', hid ? 'The other team is hidden on the map.' : ''].filter(Boolean).join(' ');
   }
   const mapTalk = () => (look.dark ? look.talk : '#0ac8b9'); // the theme's talking glow; in Light League's teal, as Light's own is too dark for a minimap
   function marker(g, x, y, r, k, color, img, label, talking, dim, dead) {
@@ -4802,6 +4807,7 @@ dialog.wizard { transform: scale(var(--from)); }
     updateRoomListing();
     if (!created && !roomKey) fetch(`${serverUrl}/rooms`).then((r) => r.json()).then((l) => { if (room === code && Array.isArray(l) && l.some((x) => x && x.room === code)) { roomListed = true; updateRoomListing(); } }).catch(() => {});
     joinedAt = performance.now();
+    rm.league = GAME_ROOM.test(room); // both teams can be in a game's room: proximity from the start, so the other team never hears yours
     sessStart();
     $('key').hidden = true;
     setHash();
@@ -5661,17 +5667,21 @@ dialog.wizard { transform: scale(var(--from)); }
     showdown: 'When you and one enemy are alone near each other, everyone else fades, so you hear only each other. Needs the desktop app, to know the teams.',
     chaos: 'Legends, Immersive and Gibberish at once. Needs the desktop app.',
   };
-  const MODE0 = { n: 0, mode: 'classic', with: 'any', every: 3, deaths: true, pitch: true };
+  // league: League mode, the host's switch on the room page. On, a League game brings proximity voice, the game layout
+  // and Game mode; off (new rooms), everyone hears everyone in games too. The room made for a game starts with it on.
+  const MODE0 = { n: 0, mode: 'classic', with: 'any', every: 3, deaths: true, pitch: true, league: false };
   let rm = { ...MODE0 }, rmBy = -1; // the room's mode, and whose it is (a slot)
-  const has = (part) => (MODES_ON[rm.mode] || []).includes(part);
+  const has = (part) => rm.league && (MODES_ON[rm.mode] || []).includes(part);
   // from: the slot it came from
   function takeMode(r, from) {
     if (!r || typeof r !== 'object' || !Number.isInteger(r.n) || r.n < 1 || !Object.hasOwn(MODE_TEXT, r.mode)) return;
     const back = !rm.n && hostSlot() === slot && performance.now() - joinedAt < 10000; // a host who just came in
     if (!back && (from !== hostSlot() || (r.n <= rm.n && from === rmBy))) return;
-    const was = rm.mode;
+    const was = rm.mode, lol = rm.league;
     rmBy = from;
-    rm = { n: r.n, mode: r.mode, with: ['any', 'team', 'other'].includes(r.with) ? r.with : 'any', every: Math.max(1, Math.min(5, Math.round(r.every) || 3)), deaths: r.deaths !== false, pitch: r.pitch !== false };
+    rm = { n: r.n, mode: r.mode, with: ['any', 'team', 'other'].includes(r.with) ? r.with : 'any', every: Math.max(1, Math.min(5, Math.round(r.every) || 3)), deaths: r.deaths !== false, pitch: r.pitch !== false,
+      league: typeof r.league === 'boolean' ? r.league : GAME_ROOM.test(room) }; // a host on an older page: the room's start
+    if (rm.league !== lol) { notify(rm.league ? 'League mode on: in games you hear each other by where your champions are.' : 'League mode off: everyone hears everyone, in games too.', true); applyFx(); }
     if (rm.mode === was) return volumes();
     if (rm.mode === 'swap') { sw = { ...sw, map: {}, pitch: {}, next: 0 }; guessed = new Map(); guessTot = {}; } // the host shuffles afresh, and the guessing starts over
     notify(`Game mode: ${$('modeSel').querySelector(`[value="${rm.mode}"]`).textContent}`, true);
@@ -5684,6 +5694,7 @@ dialog.wizard { transform: scale(var(--from)); }
     send(meMsg());
   }
   $('modeSel').addEventListener('change', (e) => setMode({ mode: e.target.value }));
+  $('lolBtn').addEventListener('click', () => setMode({ league: !rm.league }));
   $('swapWith').addEventListener('change', (e) => setMode({ with: e.target.value }));
   $('swapEvery').addEventListener('change', (e) => setMode({ every: +e.target.value }));
   $('swapDeaths').addEventListener('change', (e) => setMode({ deaths: e.target.checked }));
@@ -5698,7 +5709,11 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const el of $('modeRow').querySelectorAll('select, input')) el.disabled = !host;
     for (const el of $('modeRow').querySelectorAll('select.pillsel')) el.dispatchEvent(new Event('pillsync'));
     $('swapOpts').hidden = rm.mode !== 'swap';
-    $('modeNote').textContent = MODE_TEXT[rm.mode] + (left ? ` Next reshuffle in ${mmss(left)}.` : '') + (host ? '' : ' The host picks the mode.');
+    $('lolBtn').textContent = `League mode: ${rm.league ? 'On' : 'Off'}`;
+    $('lolBtn').setAttribute('aria-pressed', String(rm.league));
+    $('lolBtn').disabled = !host;
+    $('lolNote').hidden = host;
+    $('modeNote').textContent = (rm.league ? '' : 'League mode is off, so no Game mode for now: the host turns it on at the top of the room. ') + MODE_TEXT[rm.mode] + (left ? ` Next reshuffle in ${mmss(left)}.` : '') + (host ? '' : ' The host picks the mode.');
     renderGuess();
   }
 
@@ -5816,11 +5831,11 @@ dialog.wizard { transform: scale(var(--from)); }
 
   // ---- who can hear you now: everyone not on the other team who's close enough, by their own hearing range, to where
   // your voice comes from (your spot, or the one voice swap gave it). The other team is left out: it would give away
-  // who's near you.
+  // who's near you. With League mode off, everyone in the room.
   function hearMe() {
     const s = swapOn() && Number.isInteger(sw.map[slot]) ? sw.map[slot] : slot, at = s === slot ? me : (slotted(s) || {}).pos;
-    return [...peers.values()].filter((p) => teamOf(p) !== 'enemy' && p.call && (s === p.slot
-      || (fresh(at) && fresh(p.pos) ? Math.hypot(at.x - p.pos.x, at.y - p.pos.y) * MAP < p.range : !inGameNow() && !playsNow(p)))).map(nameOf);
+    return [...peers.values()].filter((p) => p.call && (!rm.league || (teamOf(p) !== 'enemy' && (s === p.slot
+      || (fresh(at) && fresh(p.pos) ? Math.hypot(at.x - p.pos.x, at.y - p.pos.y) * MAP < p.range : !inGameNow() && !playsNow(p)))))).map(nameOf);
   }
 
   // ---- ready check: everyone's setup in one table, from the ready part of their 'me' messages. Pressing it asks
@@ -5942,11 +5957,13 @@ dialog.wizard { transform: scale(var(--from)); }
     if (r.bt) add('ok', 'Their mic is in phone quality (a Bluetooth headset’s mic, most likely), which makes what they hear sound like a phone call too. A separate mic, or the headset’s own USB dongle, fixes it.');
     if (r.clip) add('ok', `Their mic is too loud, so their voice crackles: they should ${r.phone ? 'hold their phone a little further from their mouth' : 'turn it down in Windows’ sound settings'}.`);
     if (r.ptt) add('', 'They use push to talk, so they’re heard only while they hold their key.');
-    if (r.phone) add('', 'They’re on their phone, which can’t be on the map: once a game starts, nobody in it hears them.');
-    else if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen in League, Proximity voice.');
-    else if (!r.map) add('ok', 'Their minimap isn’t found: they should share the screen League is on, set League to Borderless, and be in a game, not the client.');
-    else add('good', 'Their minimap is found.');
-    if (playsNow(p) && !fresh(p.pos)) add('bad', 'This game their champion isn’t tracked, so you can’t hear them.');
+    if (rm.league) { // only League mode needs the minimap to be heard in a game
+      if (r.phone) add('', 'They’re on their phone, which can’t be on the map: once a game starts, nobody in it hears them.');
+      else if (!r.share) add('bad', 'They aren’t sharing their screen, so once a game starts nobody hears them. The desktop app shares it by itself; on the website it’s Share League screen in League, Proximity voice.');
+      else if (!r.map) add('ok', 'Their minimap isn’t found: they should share the screen League is on, set League to Borderless, and be in a game, not the client.');
+      else add('good', 'Their minimap is found.');
+      if (playsNow(p) && !fresh(p.pos)) add('bad', 'This game their champion isn’t tracked, so you can’t hear them.');
+    }
     if (r.app === 'web') { if (!r.phone) add('', 'They use the website. The desktop app adds League’s own data, the overlay and shortcuts that work in a game.'); }
     else if (oldApp(r.app)) add('ok', r.app === 'old' ? 'Their app is very old: they need the installer from the site.' : `Their app is ${r.app} and ${latest} is out: restarting the app installs it.`);
     else add('good', `App ${r.app}.`);
@@ -6017,7 +6034,7 @@ dialog.wizard { transform: scale(var(--from)); }
       dlg.showModal();
     });
   }
-  async function startShare(mode = 'league', src = '') { // src: a screen or window to share in general mode without the picker
+  async function startShare(mode = 'league', src = '') { // src: a screen or window to share in general mode without the picker (an auto League share keeps its screen's there)
     let stream;
     const previousShare = share;
     const audioMode = client && client.shareAudioMode ? client.shareAudioMode() : { filter: false };
@@ -6103,8 +6120,20 @@ dialog.wizard { transform: scale(var(--from)); }
     if (audioMode.warning) notify('Could not check whether Discord is running. Screen audio stays on, but Discord audio may be included.');
     if (audioMode.filter && s.filteredAudio) $('roomSoundState').textContent = opts.roomSound ? `Screen audio is being shared with the room, without Premade's voices${audioMode.discord ? ' or Discord' : ''}.` : 'Screen audio is captured, but sharing is off. Turn it on here to share sound.';
     s.track.addEventListener('ended', () => { if (share === s) { stopShare(); notify('Screen sharing stopped.'); } });
-    s.stop = mode === 'league' ? CameraBox.watch(stream, 200, (src, w, h) => {
-      if (share !== s) return;
+    s.stop = () => {};
+    if (mode === 'league') watchShare(s);
+    trackedAt = 0;
+    if (mode === 'general') { me.t = -Infinity; send(posMsg()); }
+    lendTick();
+    render();
+  }
+  // reads the minimap (and League's surrender vote box) five times a second while the share is a League one: started
+  // once a share first reads and left on till it stops, as an auto share switches in place (readShare)
+  function watchShare(s) {
+    if (s.watched) return;
+    s.watched = true;
+    s.stop = CameraBox.watch(new MediaStream([s.track]), 200, (src, w, h) => {
+      if (share !== s || s.mode !== 'league') return;
       if (!s.sq || s.frames++ % 25 === 0) s.sq = CameraBox.locateMinimap(cctx, src, w, h); // again every 5 s, in case Minimap Scale changed
       if (!s.sq && ++s.miss % 10 === 0) { s.hint = shareHint(s); render(); }
       if (s.sq) s.miss = 0;
@@ -6118,10 +6147,18 @@ dialog.wizard { transform: scale(var(--from)); }
       // League's surrender vote box (votePop): on after 2 frames with it, off after 2 without
       if (league && SR.test(league.mode) && opts.overlayWin) { s.vote = CameraBox.seeVote(cctx, src, w, h) ? Math.min(3, s.vote + 1) : Math.max(0, s.vote - 1); s.wide = w / h; }
       volumes();
-    }) : () => {};
+    });
+  }
+  // an auto share starts or stops reading the minimap on the same track, so friends watching it never reconnect
+  function readShare(s, on) {
+    const mode = on ? 'league' : 'general';
+    if (s.mode === mode) return;
+    s.mode = mode;
+    s.sq = null;
+    s.vote = 0;
     trackedAt = 0;
-    if (mode === 'general') { me.t = -Infinity; send(posMsg()); }
-    lendTick();
+    if (on) watchShare(s);
+    else { me.t = -Infinity; send(posMsg()); }
     render();
   }
   // Why no minimap shows after a couple of seconds. cctx still holds the screen corner locateMinimap looked at.
@@ -6587,7 +6624,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // the minimap read for the callouts: the app shares the screen Settings picks by itself in a Summoner's Rift game (in
   // any game in a room when you let teammates watch your screen), and stops once the game ends if it started it; it
   // tries again 30 s after a share that didn't start. Out of a game the auto share is your main screen (no minimap to
-  // read); it swaps to League's share when a game starts and back to the main screen when it ends in a room.
+  // read). In a game it reads the minimap when it's on League's screen, in place (readShare: friends don't reconnect).
+  // It moves to League's screen when a game starts, and back to the main screen when it ends, only with League mode
+  // on or outside a room; with League mode off it stays on its screen.
   let autoShareAt = -Infinity;
   let shareOff = ''; // the game or room you stopped sharing in yourself: not shared again until the next one
   function autoShare() {
@@ -6595,11 +6634,18 @@ dialog.wizard { transform: scale(var(--from)); }
     if (share && share.auto && !at) stopShare();
     // with Share my screen by itself (opts.autoShare, on) every game and every room you join is shared, from launch if
     // Premade opens mid-game; sharing reads the minimap and shows your screen to the room, it never joins one
-    const mode = league || !client || !client.captureSource ? 'league' : 'general', swap = !!share && share.auto && share.mode !== mode;
+    const old = !client || !client.captureSource, mode = league || old ? 'league' : 'general', free = !peer || rm.league, want = mode + free;
+    const swap = !old && !!share && share.auto && share.want !== want; // what the auto share was last set for (want) changed
     if (!client || (share && !swap) || !(foesOn() || (opts.lendScreen && !!league && !!peer) || (opts.autoShare && !!at && at !== shareOff)) || performance.now() - autoShareAt < (swap ? 3000 : 30000)) return;
     autoShareAt = Infinity; // none again till this one is done
-    (mode === 'league' ? Promise.resolve('') : client.screens().then((l) => (l.find((x) => x.main) || l[0] || {}).id || ''))
-      .then((id) => (mode === 'league' || id) && startShare(mode, id)).then(() => { if (share) share.auto = true; })
+    const s = swap ? share : null;
+    (old ? Promise.resolve([]) : client.screens()).then((l) => {
+      const pick = (id) => (l.find((x) => x.id === id) || l.find((x) => x.main) || l[0] || {}).id || '', lol = pick(store.get('lpc-screen')); // League's, as client/main.js chosen() picks
+      const to = s && !free ? s.src : mode === 'league' ? lol : pick(''), read = mode === 'league' && to === lol;
+      if (s && share !== s) return null; // stopped meanwhile
+      if (s && to === s.src) { readShare(s, read); return s; }
+      return (read || to) && startShare(read ? 'league' : 'general', to).then(() => share !== s && share); // the old one still on: try again
+    }).then((x) => { if (x && x === share) Object.assign(x, { auto: true, want }); })
       .finally(() => { autoShareAt = performance.now(); });
   }
   $('optJgCall').checked = !!opts.jgCall;
@@ -17868,6 +17914,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [154, 'November 13: League mode is your choice', [
+      'Rooms no longer switch to League mode by themselves when a game starts: everyone keeps hearing everyone at full volume, your shared screen stays on with no reconnecting, and the room page keeps its normal look.',
+      'The host turns League mode on or off for the whole room with the League mode button at the top of the room. On, a League game brings proximity voice, the game layout and Game modes, as before, and it stays on between games until the host turns it off. The room Premade makes for a game starts with it on.',
+      'With League mode off and League on the screen you share, the minimap tracker, callouts and the surrender pop-up still work in a game.',
+    ]],
     [153, 'November 13: your screen stays on in games', [
       'Your shared screen no longer cuts off for your room when a League game starts. Everyone in the room keeps seeing it, in or out of the game.',
     ]],
@@ -18597,7 +18648,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Side by side and zoom', 'Watch every screen in your room full screen side by side; full screen, the controls and the mouse hide after 3 seconds without moving the mouse. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
-      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room, and the screen League is on once a game starts, so your room sees it and the minimap tracker, callouts and the surrender vote pop-up work without pressing Share. When the game ends it goes back to your main screen. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
+      ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room. In a game the minimap tracker, callouts and the surrender vote pop-up read it without pressing Share when League is on that screen, and friends watching it don’t reconnect. With League mode on, or outside a room, it moves to the screen League is on when that’s another one, and back to your main screen when the game ends. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing at the top of your room and that room or game stays unshared.', '#optAutoShare', 'app'],
       ['Player cards', 'Each friend’s champion, rank, record with you and connection, with Close, Near or Far once you’re in a game. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
         'In your room, under In this room.', '#cardBox, #createBtn'],
@@ -18702,9 +18753,11 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Who has Premade', 'Whoever runs Premade can see who has it: the League accounts, Premade code, voice name and app version on each device, and when Premade was first and last opened there; how each copy ran on its last day used (starts, crashes, page errors, failed connections, friends reached through the relay, memory peak), so a bad update shows on friends’ copies first; and which features everyone used that day (counts only, never content).',
         'On unless you turn it off: Settings, App, Let whoever runs Premade and my friends see I have it. The Privacy Policy says what’s kept. Whoever runs Premade sees the list in Settings, Our server, with the owner key.', '#optHello, #whoKey'],
     ]],
-    ['League: Proximity voice', 'In League, Proximity voice: your room hears each other by where your champions are once a League game starts.', [
-      ['Proximity voice', 'Friends sound louder the closer their champions are to yours on the minimap, and fade to silent at the edge of your hearing range. Before a game starts, everyone hears everyone. The live map shows everyone, your range as a gold ring and who can hear you.',
-        'Join a room with your friends on Rooms, then share your League screen in League, Proximity voice. That’s all it takes.', '#map, #createBtn'],
+    ['League: Proximity voice', 'In League, Proximity voice: with League mode on, your room hears each other by where your champions are in a League game.', [
+      ['League mode', 'The host’s switch for the whole room. On, a League game brings proximity voice, the game layout of the room page and Game modes; off, the room stays a normal hangout in games: everyone hears everyone at full volume and shared screens stay as they are. It stays as the host left it between games, and the room Premade makes for a game starts with it on.',
+        'League mode at the top of your room; only the host can press it.', '#lolBtn, #createBtn'],
+      ['Proximity voice', 'Friends sound louder the closer their champions are to yours on the minimap, and fade to silent at the edge of your hearing range, in rooms whose host turned League mode on. Before a game starts, everyone hears everyone. The live map shows everyone, your range as a gold ring and who can hear you.',
+        'Join a room with your friends on Rooms, the host turns League mode on at the top of the room, then share your League screen in League, Proximity voice.', '#map, #createBtn'],
       ['Your game’s room by itself', 'When a game loads, the desktop app joins a room made for that game, so everyone in it with the app hears each other without a code. It never moves you out of a room you joined yourself, or out of a room someone else is in, so a friend who isn’t playing keeps you.',
         'On unless you turn it off: Voice settings, In a game.', '#optAutoRoom', 'app'],
       ['Hearing range and fade', 'How far away you hear other champions (1,200 to start; 1,350 is about how far a champion sees), and how voices fade: Normal, Gentle, Realistic or Sharp. It only changes what you hear.',

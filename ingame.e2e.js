@@ -80,7 +80,8 @@ function fakeApp([lcu, colour]) {
   g.fillStyle = colour; g.fillRect(0, 0, 1280, 720);
   let n = 0;
   setInterval(() => { g.fillStyle = n++ % 2 ? colour : '#000'; g.fillRect(0, 0, 1, 1); }, 100);
-  navigator.mediaDevices.getDisplayMedia = async (c) => { // with a tone for its sound, when asked
+  navigator.mediaDevices.getDisplayMedia = async (c) => { // with a tone for its sound, when asked; captures counts them
+    window.captures = (window.captures || 0) + 1;
     const s = cv.captureStream(10);
     if (c && c.audio) { const a = new AudioContext(), d = a.createMediaStreamDestination(), o = a.createOscillator(); o.connect(d); o.start(); s.addTrack(d.stream.getAudioTracks()[0]); }
     return s;
@@ -293,7 +294,22 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await lol(ana, { champ: 'Ahri', team: 'ORDER' });
       await lol(ben, { champ: 'Garen', team: 'ORDER', dead: true, respawn: 40 });
       await lol(cat, { champ: 'Zed', team: 'CHAOS', dead: true, respawn: 40 });
-      for (const p of [ana, ben, cat]) await wait(p, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'swapped to League’s screen share once the game starts (What’s new 50, 84)', 10000);
+      // League mode (What's new 154), off in a new room: the game starts and nothing changes in the room. The main
+      // screen is League's here, so the share reads it in place (no new capture, so no reconnect) and everyone hears
+      // everyone, though no minimap is found
+      const captures = () => Promise.all([ana, ben, cat].map((p) => p.evaluate(() => window.captures)));
+      const caps = await captures();
+      for (const p of [ana, ben, cat]) await wait(p, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'the shared screen reads League in place once the game starts (What’s new 50, 84, 154)', 10000);
+      const roomNow = (p) => p.evaluate(() => [lpc.mode().league, document.getElementById('roomView').hasAttribute('data-game'), lpc.peers().map((x) => x.vol).join()]);
+      await ana.waitForTimeout(1500);
+      assert.deepStrictEqual(await Promise.all([ana, ben, cat].map(roomNow)), Array(3).fill([false, false, '1,1']), 'League mode off: full volume and the normal room layout in a game');
+      assert.deepStrictEqual(await captures(), caps, 'the same capture: nobody reconnects');
+      assert.match(await ana.textContent('#phase'), /^League mode is off/);
+      await ana.click('#lolBtn'); // the host turns it on for everyone: proximity, so nobody without a tracked minimap is heard
+      for (const p of [ana, ben, cat]) await wait(p, () => lpc.mode().league && document.getElementById('roomView').hasAttribute('data-game') && lpc.peers().every((x) => x.vol === 0), null, 'League mode on: the game layout and proximity');
+      for (const p of [ben, cat]) await wait(p, () => lpc.toasts().includes('League mode on: in games you hear each other by where your champions are.'), null, 'told League mode is on');
+      assert.deepStrictEqual(await captures(), caps, 'still the same capture');
+      console.log('League mode: off, a game changes nothing in the room (full volume, normal layout, the share read in place); the host turns it on for everyone');
       assert.deepStrictEqual(await Promise.all([ana, ben, cat].map((p) => p.evaluate(() => [lpc.cam(), lpc.lends(), !!lpcClient.lastOverlay.screen]))), [[null, [], false], [null, [], false], [null, [], false]], 'nothing until Ana lets teammates watch');
       await cat.$eval('#optAutoShare', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
       await wait(cat, () => document.querySelector('#shareBtn').textContent === 'Share League screen', null, 'turned off, it stops');
@@ -369,7 +385,41 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ana, () => !lpc.lends().length, null, 'turned off, Ana stops sending it');
       await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'and Ben’s screens box closes');
       await wait(cat, () => !lpc.seen().length, null, 'and Cat’s');
-      for (const [c] of ps) await c.close();
+      // the host leaves: Ben, the new host, keeps League mode on and can turn it off; off, Cat hears everyone again and
+      // the room page goes back to normal. The game ends: the share stops reading, still the same capture
+      await ps[0][0].close();
+      await wait(ben, () => lpc.peers().length === 1 && !document.getElementById('lolBtn').disabled && lpc.mode().league, null, 'Ben the host, League mode still on');
+      assert.strictEqual(await cat.evaluate(() => lpc.mode().league), true, 'still on for Cat');
+      await ben.click('#lolBtn');
+      await wait(cat, () => !lpc.mode().league && lpc.peers()[0].vol === 1 && !document.getElementById('roomView').hasAttribute('data-game') && lpc.toasts().includes('League mode off: everyone hears everyone, in games too.'), null, 'League mode off for Cat: full volume, normal layout');
+      await wait(cat, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'Cat’s share back since Cat turned Share by itself on again', 40000);
+      const capsCat = await cat.evaluate(() => window.captures);
+      await cat.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
+      await wait(cat, () => document.querySelector('#generalShareBtn').textContent === 'Stop sharing', null, 'Cat’s share back to the room share after the game', 10000);
+      assert.strictEqual(await cat.evaluate(() => window.captures), capsCat, 'in place: the same capture');
+      console.log('League mode: a new host keeps it; off again, full volume and the normal room; after the game the share stays the same capture');
+      // leak check: League mode flipped 50 times and Cat's share switched in place 50 times (25 games): DOM nodes,
+      // listeners, the JS heap and captures stay flat
+      const cdp = await Promise.all([ben, cat].map((p) => p.context().newCDPSession(p)));
+      const sample = async (i) => {
+        await cdp[i].send('HeapProfiler.collectGarbage');
+        const [{ usedSize }, dom] = await Promise.all([cdp[i].send('Runtime.getHeapUsage'), cdp[i].send('Memory.getDOMCounters')]);
+        return { heapMB: usedSize / 1048576, nodes: dom.nodes, listeners: dom.jsEventListeners };
+      };
+      const before = [await sample(0), await sample(1)];
+      for (let i = 0; i < 25; i++) {
+        await ben.click('#lolBtn'); await ben.click('#lolBtn');
+        await lol(cat, { champ: 'Zed', team: 'CHAOS' });
+        await wait(cat, () => document.querySelector('#shareBtn').textContent === 'Stop sharing', null, 'reading in a game', 10000);
+        await cat.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
+        await wait(cat, () => document.querySelector('#generalShareBtn').textContent === 'Stop sharing', null, 'not reading after it', 10000);
+      }
+      assert.strictEqual(await cat.evaluate(() => window.captures), capsCat, '50 switches, not one new capture');
+      await cat.waitForTimeout(7000); // the notices' popups go after 6 s
+      const after = [await sample(0), await sample(1)];
+      console.log(`leak check, Ben then Cat, before: ${JSON.stringify(before)}, after: ${JSON.stringify(after)}`);
+      for (const [i, b] of before.entries()) assert(after[i].nodes - b.nodes < 200 && after[i].listeners - b.listeners < 50 && after[i].heapMB - b.heapMB < 3, `flat: ${JSON.stringify([b, after[i]])}`);
+      for (const [c] of ps.slice(1)) await c.close();
       console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat on the other team sees it too, Ana turning hers off ends it; Ben’s pointer on Ana’s screen until Ana turns it off');
     }
 
