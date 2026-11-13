@@ -2852,7 +2852,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-fade" class="tipbox" popover>How voices fade as their champions move away; all of them reach silence at the edge of your hearing range. Normal: full volume up to two thirds of the range, then down to silent. Gentle: quieter little by little from close by. Realistic: like real sound, half as loud each time the distance doubles. Sharp: full volume until just before the edge. The dashed ring on the map shows where the fade starts.</div>
 <div id="t-status" class="tipbox" popover>Where everyone is in League, as the desktop app sees it: in the client, in a lobby, finding a match, in champ select, loading or in game. Players on the website show as not known, or in game once their minimap is tracked. Before a game everyone hears everyone; once it starts, you only hear players close to you on the map.</div>
 <div id="t-track" class="tipbox" popover>Sharing your screen lets the page read your minimap and follow your champion's icon, so your camera can roam. It learns which icon is yours from your camera: early in a game, hold Space for a couple of seconds while you walk, or play with the camera locked. If the gold circle isn't on you, press Not my champion. In the Windows client it knows your champion from League itself.</div>
-<div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it in their room, straight from your PC. In a game only your own team does, never the other team. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
+<div id="t-screens" class="tipbox" popover>While you share your screen, everyone in the room sees it in their room, straight from your PC. Games don’t change that: everyone keeps seeing it. You’re told who’s watching. Turn it off and your screen isn’t shown to anyone; you still see theirs. Hide on someone’s screen hides it until you press Show screen on their card.</div>
 <div id="t-lock" class="tipbox" popover>Only the host can hide the room: whoever made it, or once they leave, the player listed first (their card says host). A hidden room leaves Open voice rooms, and only the friends the host ticks under Who can see it find it there, with a Join button. It also gets a password: friends already in stay in, and anyone joining with just the code has to type it. The invite link and Invite include it, and it stays hidden until everyone leaves. Untick a friend who's in the room and they stay, but the password changes, so they can't come back once they leave. The host can also remove someone, which changes the password the same way. Our server checks the password too, so nobody without it gets through to anyone in the room. The host can also mute a noisy mic for everyone (Mute for all on a card), and that player sees why.</div>
 <div id="t-mode" class="tipbox" popover>The host picks the mode for everyone in the room. <b>Classic</b>: proximity chat, nothing else. <b>Legends</b>: your voice changes with the game: deep and booming with Baron, fiery with Elder, your team's dragon soul, a big metal shell with Herald, buzzing with Voidgrubs, crumbling stone when your team takes a tower, a super minion's when it takes an inhibitor, bigger on a killing spree, a cocky echo after a steal, a stadium echo on an Ace, and cheering or gloomy after the game. <b>Immersive</b>: hollow and spooky while dead, watery in the river, a whoosh when you're really fast. <b>Gibberish</b>: the other team comes out as scrambled nonsense. <b>Voice swap</b>: every voice comes from someone else's spot on the map, reshuffled now and then, with a warning first and a reveal after. <b>Showdown</b>: when you and one enemy are alone near each other, everyone else fades, so you hear only each other. <b>Chaos</b>: Legends, Immersive and Gibberish at once. Everything but the river voice and Voice swap needs League's own data, so the desktop app. In Voice swap you can also guess who's behind each voice: right guesses score at each reveal.</div>
 <div id="t-studio" class="tipbox" popover>Clearer, fuller sound for a good mic with headphones. It turns off the browser's echo cancelling, noise cutting and volume levelling, and sends your voice at 96 kbps instead of 80, which uses a bit more internet. Without headphones, others may hear themselves echo.</div>
@@ -6045,6 +6045,7 @@ dialog.wizard { transform: scale(var(--from)); }
       reuseFilter = activeShare.filteredAudio;
       share = null;
     } else if (activeShare) stopShare();
+    if (reuseSound) for (const t of stream.getAudioTracks()) t.stop(); // the new capture's own sound, unused: left running, each game start's swap kept one more
     const s = share = { mode, src, track: stream.getVideoTracks()[0], sound: reuseSound || stream.getAudioTracks()[0], follower: new CameraBox.Follower(), frames: 0, sq: null, miss: 0, hint: '', vote: 0, ...(reuseFilter && { filteredAudio: reuseFilter }) };
     for (const l of lends.values()) { l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
     lends.clear();
@@ -6772,20 +6773,20 @@ dialog.wizard { transform: scale(var(--from)); }
     }
   }
   function lendTick() { // every second, and when a teammate asks
-    const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee && sameSide(p)));
+    const ok = (p) => !!share && !!peer && peers.get(idFor(p.slot)) === p && ((opts.lendScreen && !!p.watch && p.dead && mate(p)) || (opts.roomScreen && !!p.wantSee));
     for (const [p, l] of lends) {
       // a call whose path is down 10 s is closed, so the one below takes its place: a stuck one never came back
       const pc = l.call.peerConnection, down = !!pc && ['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState);
       if (!down) l.okAt = performance.now();
       if (!ok(p) || performance.now() - l.okAt > 10000) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
       else {
-        if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && sameSide(p));
+        if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee);
         if (l.on && l.room && l.h !== Math.min(+opts.shareQ, p.seeH || Infinity)) lendSet(p, l);
       }
     }
     for (const p of peers.values()) {
       if (lends.has(p) || !ok(p)) continue;
-      const room = !!(opts.roomScreen && p.wantSee && sameSide(p)), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
+      const room = !!(opts.roomScreen && p.wantSee), sound = room && share.sound ? share.sound.clone() : null; // a dead teammate's has no sound: they're in a game
       if (sound) sound.enabled = !!opts.roomSound;
       const track = share.track.clone(), call = peer.call(idFor(p.slot), new MediaStream([track, sound].filter(Boolean)), { metadata: { screen: true }, sdpTransform: h264First });
       if (!call) { track.stop(); if (sound) sound.stop(); continue; }
@@ -6812,12 +6813,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // Screens in the room (opts.roomScreen, on, the toggle under Players in your room): while you share your screen
   // ('me' says see), everyone in the room sees it by itself in a tile in their room (#roomScreens), sent the same
   // way as lending above, to each one who asks ({t:'see', on}). Hide on a tile stops theirs and puts Show screen on
-  // their card; hidden names are kept (lpc-screens-hidden). In a game only your own team, so the other team never sees
-  // your screen (the same ponytail as lending: each app's own word on its team). Off: yours isn't shown; you still see
-  // theirs. Sent at the Screen share quality under Players (a third of the recording rate: 1080p 30 fps is ~2.8 Mbps).
+  // their card; hidden names are kept (lpc-screens-hidden). Games don't change who sees it (Rayan, 13 Nov: "fix it that
+  // everyone can see it"; it was only your own team in a game, which cut it off for the room as a game started). Off:
+  // yours isn't shown; you still see theirs. Sent at the Screen share quality under Players (a third of the recording rate: 1080p 30 fps is ~2.8 Mbps).
   // ponytail: one call per watcher; a room of 10 all watching one PC at 1080p 30 fps is ~25 Mbps up
-  const sameSide = (p) => (league ? mate(p) : !p.team);
-  const canSee = (p) => !!p.see && sameSide(p) && peers.get(idFor(p.slot)) === p;
+  const canSee = (p) => !!p.see && peers.get(idFor(p.slot)) === p;
   const screensHidden = new Set(load('lpc-screens-hidden', []));
   const seen = new Map(); // a screen in your room -> { call, asked, tile, vid }
   function seeTick() { // every second
@@ -17868,6 +17868,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [153, 'November 13: your screen stays on in games', [
+      'Your shared screen no longer cuts off for your room when a League game starts. Everyone in the room keeps seeing it, in or out of the game.',
+    ]],
     [152, 'November 12: a tidier room', [
       'Your friends’ shared screens now sit at the top of your room, above Watch together.',
       'The room chat and Past sessions are gone from the room page. Chats you already kept stay on your PC.',
@@ -18589,7 +18592,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. In a game only your own team sees it, never the other team, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. It stays on for everyone when a game starts, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included.',
         'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareQ, #changeShareBtn, #createBtn'],
       ['Side by side and zoom', 'Watch every screen in your room full screen side by side; full screen, the controls and the mouse hide after 3 seconds without moving the mouse. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',

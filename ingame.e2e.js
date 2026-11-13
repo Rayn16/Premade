@@ -317,8 +317,8 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ana, () => !lpc.lends().length, null, 'Ana stops sending it');
 
       // screens in the room (What's new 52): Ben, on Ana's team, sees Ana's screen on his Voice page by itself, even with
-      // his own hidden; Hide stops it until Show screen; Cat on the other team never gets it, not even by asking; Ana
-      // turning it off ends it
+      // his own hidden; Hide stops it until Show screen; Cat on the other team sees it too, as a game no longer cuts it
+      // off for anyone (Rayan, 13 Nov: "fix it that everyone can see it"); Ana turning it off ends it
       await ana.$eval('#optRoomScreen', (e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
       await ben.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
       const screens = (p) => p.evaluate(() => lpc.seen().map((s) => s.name));
@@ -332,7 +332,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ben, () => /^\d+p · \d+ fps/.test(document.querySelector('#screenGrid .shq').textContent), null, 'size and frame rate on the tile', 15000);
       const benH = await ben.evaluate(() => lpc.seen()[0].h);
       assert.ok([360, 540, 720, 1080, 1440, 2160].includes(benH), `Ben asks for his tile's height: ${benH}`);
-      await wait(ana, (h) => lpc.lendH()[0] === Math.min(1080, h), benH, 'Ana sends Ben that size');
+      await wait(ana, (h) => lpc.lendH()[lpc.lends().indexOf('Ben')] === Math.min(1080, h), benH, 'Ana sends Ben that size');
       assert.strictEqual(await ben.$eval('#screenGrid .pop', (b) => b.textContent), 'Pop out');
       assert.strictEqual(await ben.$eval('#screenGrid video', (v) => v.muted), false, 'not muted');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');
@@ -354,27 +354,23 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ana, () => (lpcClient.points || []).some((m) => m.d) && lpcClient.points.at(-1).d === false && lpc.toasts().includes('Ben is pointing at your screen. Turn it off under Players in your room.'), null, 'Ben’s pointer and line in Ana’s app');
       const pt = await ana.evaluate(() => lpcClient.points[0]);
       assert(pt.who === 'Ben' && Math.abs(pt.x - 0.5) < 0.02 && Math.abs(pt.y - 0.5) < 0.02, `Ben’s pointer in the middle of Ana’s screen: ${JSON.stringify(pt)}`);
-      await cat.evaluate(() => lpc.send({ t: 'pt', x: 0.1, y: 0.1 }));
       await ana.$eval('#optLetPoint', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
       await ben.mouse.move(at[0], at[1] + 30);
       await wait(ben, () => lpc.toasts().includes('Ana: They turned off pointing on their screen.') && document.querySelector('#screenGrid .pt').textContent === 'Point', null, 'Ben told, and his pointing off');
-      assert(!(await ana.evaluate(() => lpcClient.points.some((m) => m.x === 0.1))), 'nothing from Cat');
-      await cat.waitForTimeout(2000);
-      assert.deepStrictEqual(await screens(cat), [], 'Cat sees no screen from the other team');
-      await cat.evaluate(() => lpc.send({ t: 'see', on: true }));
-      await cat.waitForTimeout(3000);
-      assert.deepStrictEqual(await ana.evaluate(() => lpc.lends()), ['Ben'], 'never to the other team');
+      await wait(cat, () => { const s = lpc.seen(); return s.length === 1 && s[0].name === 'Ana' && s[0].call && s[0].video > 0; }, null, 'Cat on the other team sees Ana’s screen too', 30000);
+      assert.deepStrictEqual((await ana.evaluate(() => lpc.lends())).sort(), ['Ben', 'Cat'], 'everyone in the room gets it in a game');
       await ben.click('#screenGrid figcaption button'); // Hide
       await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'hidden on Ben’s page');
-      await wait(ana, () => !lpc.lends().length, null, 'and Ana stops sending it');
+      await wait(ana, () => !lpc.lends().includes('Ben'), null, 'and Ana stops sending it to Ben');
       await wait(ben, () => !!document.querySelector('#players li .screen:not([hidden])'), null, 'Show screen on Ana’s card');
       await ben.click('#players li .screen:not([hidden])');
       await wait(ben, () => lpc.seen().length === 1 && lpc.seen()[0].call, null, 'back after Show screen', 30000);
       await ana.$eval('#optRoomScreen', (e) => { e.checked = false; e.dispatchEvent(new Event('change')); });
       await wait(ana, () => !lpc.lends().length, null, 'turned off, Ana stops sending it');
       await wait(ben, () => !lpc.seen().length && document.getElementById('roomScreens').hidden, null, 'and Ben’s screens box closes');
+      await wait(cat, () => !lpc.seen().length, null, 'and Cat’s');
       for (const [c] of ps) await c.close();
-      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat never does, Ana turning hers off ends it; Ben’s pointer on Ana’s screen until Ana turns it off');
+      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat on the other team sees it too, Ana turning hers off ends it; Ben’s pointer on Ana’s screen until Ana turns it off');
     }
 
     // ---- Remote help (What's new 83): no room, no screen share. Ana's code, Ben types it in: Ana's app says no; Ben
