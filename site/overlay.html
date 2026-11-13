@@ -85,9 +85,9 @@ body.board { font-size: calc(1.25vh * var(--k, 1)); }
 .may-rate .augs { font-size: 1vh; color: var(--fg); text-align: center; }
 .may-rate .augtrack { width: 100%; height: 0.6vh; border-radius: 999px; background: color-mix(in srgb, var(--fg) 12%, transparent); overflow: hidden; }
 .may-rate .augfill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold-line), var(--gold)); transition: width 0.4s; }
-.may-rate.good .augp { color: var(--gold); }
-.may-rate.good .augfill { background: linear-gradient(90deg, var(--gold), #f3dca0); }
-.may-rate .augtag { justify-self: center; padding: 0; border: 0; border-radius: 0; font-size: 0.95vh; font-weight: 700; }
+.may-rate.good .augp { color: var(--gold); text-shadow: 0 0 1.2vh var(--gold), 0 2px 4px #000; }
+.may-rate.good .augfill { background: linear-gradient(90deg, var(--gold), #f3dca0); box-shadow: 0 0 1vh var(--gold); }
+.may-rate .augtag { justify-self: center; padding: 0; border: 0; border-radius: 0; font-size: 1.3vh; font-weight: 700; }
 .may-rate .augtag.good { color: var(--good); }
 .may-rate .augtag.bad { color: var(--bad); }
 /* the card over League's end screen (after) */
@@ -139,7 +139,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what the Overlay page picks: the objective timers, kills and gold
   // difference (game), your CS a minute (cs) and your CS and gold against your lane opponent (lane), in ARAM: Mayhem
-  // what kind of augment suits your champion (aug), in TFT the item recipes (tft), in Practice Tool your key presses
+  // your champion's best augments, else what kind suits it (aug), in TFT the item recipes (tft), in Practice Tool your key presses
   // and combo times and your jungle clear's camps (practice, app 1.15), your mic when it's
   // muted or you're talking, who can hear you, the effects on your voice, who's talking (a teal glow, red for the other
   // team), voice swap's countdown, room chat and the last popups, as see-through as the slider says (opacity). While
@@ -159,7 +159,9 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // of it several times a second; the Overlay page sends no img and gets an empty frame). Your team's chance to win
   // comes at the end of the objective timers' line, and during a surrender vote also on a card of its own (vote: like
   // after's) beside League's vote box. While you pick an augment in TFT, cards puts on each augment card how you placed
-  // with it ({ x, y: the middle of its foot, as shares of the screen; t: the words; k: good or bad }).
+  // with it ({ x, y: the middle of its foot, as shares of the screen; t: the words; k: good or bad }), and in ARAM: Mayhem
+  // mayhemCards each card's tier over a DeepScore bar (p, s: its words, v: the bar 0-1; tierOnly: tier and score only;
+  // k: good on the strongest, which glows; g: Reroll? on the weakest when it's C or D and not rerolled).
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const main = document.getElementById('main'), parts = document.getElementById('parts'), mayhemLayer = document.getElementById('mayhem'), call = document.getElementById('call');
@@ -416,7 +418,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
         const top = el('augt'), track = el('augtrack'), fill = el('augfill');
         top.append(el('augp', tierOnly ? `Tier ${c.tier || '?'}` : String(c.p || '')), el('augs', tierOnly ? `${c.score ?? ''} DeepScore` : String(c.s || '')));
         if (bar) { fill.style.width = `${Math.min(1, Math.max(0, v)) * 100}%`; track.append(fill); }
-        b.append(...(bar ? [track] : []), top);
+        b.append(...(bar ? [track] : []), top, ...(c.g ? [el('augtag' + (c.gk === 'good' || c.gk === 'bad' ? ' ' + c.gk : ''), String(c.g))] : []));
         b.title = String(c.t || '');
       }
       b.style.left = `${Math.min(1, Math.max(0, +c.x)) * 100}%`;
