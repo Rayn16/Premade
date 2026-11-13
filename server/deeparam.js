@@ -1,34 +1,44 @@
 // DeepARAM's champion page (deeparam.com/champions/<id>), read for Premade's ARAM: Mayhem augment cards. It's a Next.js
-// page: its data comes as React Server Component rows ("<id>:<JSON>" lines) pushed by self.__next_f scripts, and its
-// elements point at later rows with "$L<id>". Read: the patch, each augment (rarity, pick rate, DeepScore and its tier,
-// Boost: the win rate points it adds, from lift), the 2 best augment pairs, and the build its side panel shows (the
-// best core build, then the top 4th, 5th and 6th item), as Riot item ids in buying order.
+// page: its data comes as React Server Component rows ("<id>:<JSON>" lines inside the JavaScript strings of its
+// self.__next_f scripts), and its elements point at other rows with "$L<id>". Read: the patch, each augment (rarity,
+// pick rate, DeepScore and its tier, Boost: the win rate points it adds, from lift), the 2 best augment pairs, and the
+// build its side panel shows (the best core build, then the top 4th, 5th and 6th item), as Riot item ids in buying
+// order. A Worker's CPU time is short (10 ms), so it's read off the page's escaped text, and only the side panel's
+// rows are decoded.
+const text = (s) => JSON.parse(`"${s}"`); // a script string's escaped text, as it reads
 export function deepAram(html) {
   const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
-  let flight = '';
-  for (const m of html.matchAll(/self\.__next_f\.push\(\[1,("[^"\\]*(?:\\.[^"\\]*)*")\]\)/g)) try { flight += JSON.parse(m[1]); } catch {}
-  const raw = {}, got = {}; // each row's JSON, parsed only when it's used (Workers' CPU time is short)
-  for (const line of flight.split('\n')) { const m = /^([0-9a-f]+):([[{].*)$/.exec(line); if (m) raw[m[1]] = m[2]; }
-  const row = (k) => { if (k && !(k in got)) try { got[k] = JSON.parse(raw[k]); } catch { got[k] = null; } return k ? got[k] : null; };
-  const rowWith = (...s) => Object.keys(raw).find((k) => s.every((x) => raw[k].includes(x)));
-  const find = (n, ok) => { if (ok(n)) return n; if (n && typeof n === 'object') for (const v of Object.values(n)) { const r = find(v, ok); if (r) return r; } return null; };
-  const table = (s, ok) => find(row(rowWith(...s)), (n) => !!n && Array.isArray(n.rows) && ok(n))?.rows || [];
-  const rows = table(['"deepScore":', '"rarity":'], (t) => t.rows.some((r) => r && r.deepScore != null && r.rarity)).filter((r) => r && typeof r.name === 'string' && /^(silver|gold|prismatic)$/.test(r.rarity) && Number.isFinite(r.deepScore)).map((r) => {
-    const score = Math.round(r.deepScore), href = /^\/augments\/([^/?#]+)$/.exec(r.href || '');
-    return { id: r.id | 0, name: r.name, rarity: r.rarity, pickRate: +r.pickRate || 0, deepScore: score, tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D',
-      ...(href && { href: href[1] }), ...(Number.isFinite(r.lift) && { boost: Math.round(r.lift * 1000) / 10 }) };
-  });
-  const pairs = table(['"id":"combos"', '"names":['], (t) => t.id === 'combos').slice(0, 2).map((r) => (r.names || []).map((n) => String(n.name))).filter((p) => p.length === 2);
-  // the side panel in page order: its headings' words and the items' ids
+  const rows = [], pairs = [], items = [];
+  for (const m of html.matchAll(/\\"id\\":(\d+),\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\",\\"tags\\":\[[^\]]*\],\\"rarity\\":\\"(silver|gold|prismatic)\\",\\"pickRate\\":([0-9.]+)(.*?)\\"deepScore\\":([0-9]+),\\"href\\":\\"\/augments\/([^\\"]+)\\"/g)) {
+    let name;
+    try { name = text(m[2]); } catch { continue; }
+    const score = +m[6], lift = /\\"lift\\":(-?[0-9.]+(?:e-?[0-9]+)?)/.exec(m[5]);
+    rows.push({ id: +m[1], name, rarity: m[3], pickRate: +m[4], deepScore: score, tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D', href: m[7], ...(lift && { boost: Math.round(+lift[1] * 1000) / 10 }) });
+  }
+  // the Augment combos table's first 2 rows (before the next table's label)
+  const c = /\\"id\\":\\"combos\\",\\"label\\":\\"[^\\"]*\\",\\"what\\":/.exec(html);
+  if (c) {
+    const end = html.indexOf('\\"label\\":', c.index + c[0].length), re = /\\"names\\":\[\{[^{}]*?\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\"\},\{[^{}]*?\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\"\}\]/g;
+    re.lastIndex = c.index;
+    for (let m, k = 0; k < 2 && (m = re.exec(html)) && (end < 0 || m.index < end); k++) try { pairs.push([text(m[1]), text(m[2])]); } catch {}
+  }
+  // the side panel in page order (its headings' words and its items' ids), the rows it points at decoded as needed
+  const at = new Map(), got = new Map();
+  for (const m of html.matchAll(/(?:\[1,"|\\n)([0-9a-f]+):/g)) at.set(m[1], m.index + m[0].length);
+  const row = (k) => {
+    if (!got.has(k)) { const re = /(?:[^\\"]|\\[^n])*/y; re.lastIndex = at.get(k); try { got.set(k, JSON.parse(text(re.exec(html)[0]))); } catch { got.set(k, null); } }
+    return got.get(k);
+  };
   const words = [], seen = new Set();
   const walk = (n) => {
-    if (typeof n === 'string') { const r = /^\$L?([0-9a-f]+)$/.exec(n); if (r && r[1] in raw) { if (!seen.has(r[1])) { seen.add(r[1]); walk(row(r[1])); } } else words.push(n); }
+    if (words.at(-1) === 'Best skill order') return; // the panel's end
+    if (typeof n === 'string') { const r = /^\$L?([0-9a-f]+)$/.exec(n); if (r && at.has(r[1])) { if (!seen.has(r[1])) { seen.add(r[1]); walk(row(r[1])); } } else words.push(n); }
     else if (Array.isArray(n)) { if (n[0] === '$') walk(n[3]); else n.forEach(walk); }
     else if (n && typeof n === 'object') { if (n.kind === 'items' && Number.isInteger(n.id)) words.push(n.id); if ('children' in n) walk(n.children); }
   };
-  const side = rowWith('"Best core build"');
-  if (side) { seen.add(side); walk(row(side)); }
+  const p = html.indexOf('\\"children\\":\\"Best core build\\"'), side = p < 0 ? null : [...at].filter(([, i]) => i < p).pop();
+  if (side) { seen.add(side[0]); walk(row(side[0])); }
   const from = (w, upTo) => { const i = words.indexOf(w), j = upTo ? words.indexOf(upTo, i) : -1; return i < 0 ? [] : words.slice(i + 1, j > i ? j : undefined).filter(Number.isInteger); };
-  const items = [...new Set([...from('Best core build', '4th item'), ...['4th item', '5th item', '6th item'].map((h) => from(h)[0]).filter(Boolean)])];
-  return { patch, rows, pairs, items: from('Best core build').length ? items : [] };
+  if (from('Best core build').length) items.push(...new Set([...from('Best core build', '4th item'), ...['4th item', '5th item', '6th item'].map((h) => from(h)[0]).filter(Boolean)]));
+  return { patch, rows, pairs, items };
 }
