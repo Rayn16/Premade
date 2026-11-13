@@ -24,7 +24,7 @@ export function deepAram(html) {
   }
   // the side panel in page order (its headings' words and its items' ids), the rows it points at decoded as needed
   const at = new Map(), got = new Map();
-  for (const m of html.matchAll(/(?:\[1,"|\\n)([0-9a-f]+):/g)) at.set(m[1], m.index + m[0].length);
+  for (const m of html.matchAll(/(?:\[1,"|(?<!\\)\\n)([0-9a-f]+):/g)) at.set(m[1], m.index + m[0].length);
   const row = (k) => {
     if (!got.has(k)) { const re = /(?:[^\\"]|\\[^n])*/y; re.lastIndex = at.get(k); try { got.set(k, JSON.parse(text(re.exec(html)[0]))); } catch { got.set(k, null); } }
     return got.get(k);
