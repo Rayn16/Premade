@@ -13,6 +13,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
 import { events } from './esports.js';
+import { deepAram } from './deeparam.js';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
@@ -25,29 +26,24 @@ const DEVICE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const riotIdList = (a, n) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string' && /^[^#]{1,32}#[^#]{1,8}$/.test(x)).slice(0, n) : []);
 // a page served from the same computer: one of our tests, not anyone's Premade, so its hello isn't kept
 const LOCAL = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+// day: what that copy did on the last day it was used before today (the page's lpc-usage), with no content: d, the
+// day; h, counts of its health (HEALTH); u, how often each feature was used (at most 80, by the feature's name)
+const HEALTH = new Set(['start', 'err', 'crash', 'fail', 'relay', 'mem']);
+const count = (n) => Number.isInteger(n) && n >= 0 && n <= 1e6;
+const dayOf = (x) => {
+  if (!x || typeof x !== 'object' || !/^\d{4}-\d\d-\d\d$/.test(x.d) || !x.h || typeof x.h !== 'object' || !x.u || typeof x.u !== 'object') return '';
+  const h = Object.entries(x.h).filter(([k, n]) => HEALTH.has(k) && count(n)), u = Object.entries(x.u).filter(([k, n]) => /^[#\p{L}\p{N} ,.:’'()+&/-]{1,48}$/u.test(k) && count(n) && n > 0).slice(0, 80);
+  return JSON.stringify({ d: x.d, h: Object.fromEntries(h), u: Object.fromEntries(u) });
+};
 const helloOf = (b) => {
   if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
-  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10) };
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10), day: dayOf(b.day) };
 };
 // the owner's key (the secret OWNER_KEY), checked in constant time; nobody is the owner without one
 const owner = (env, key) => {
   const [a, b] = [typeof key === 'string' ? key : '', env.OWNER_KEY || ''].map((s) => new TextEncoder().encode(s));
   return b.byteLength > 0 && a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
 };
-
-function deepAramAugments(html) {
-  const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
-  const re = /\\"id\\":(\d+),\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\",\\"tags\\":\[[^\]]*\],\\"rarity\\":\\"(silver|gold|prismatic)\\",\\"pickRate\\":([0-9.]+).*?\\"deepScore\\":([0-9]+),\\"href\\":\\"\/augments\/([^\\"]+)\\"/g;
-  const rows = [];
-  for (const m of html.matchAll(re)) {
-    let name;
-    try { name = JSON.parse(`"${m[2]}"`); } catch { continue; }
-    const score = +m[5];
-    rows.push({ id: +m[1], name, rarity: m[3], pickRate: +m[4], deepScore: score,
-      tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D', href: m[6] });
-  }
-  return { patch, rows };
-}
 
 // The Aion 2 tracker's Refresh now (/aion?q=name&s=server): one character's sheet straight from PLAYNC, in the shape
 // the tracker's fetch.py saves, kept 2 minutes so a busy button doesn't hammer PLAYNC
@@ -92,22 +88,57 @@ async function aionLive(req, name, server) {
 }
 
 // Cloudflare Realtime TURN (free up to 1,000 GB a month): the TURN_KEY_ID and TURN_KEY_TOKEN secrets make credentials
-// for a day, shared by everyone for an hour. No secrets: stun only, as before.
-// ponytail: anyone can fetch these, like the rest of the server; a per-room credential if the relay is ever misused
-let turnAt = 0, turnBody = null;
-async function turn(env) {
-  if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return Response.json({ iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] }, { headers: CORS });
-  if (!turnBody || Date.now() - turnAt > 3600000) {
-    const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
-      method: 'POST', headers: { authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({ ttl: 86400 }),
-    });
-    if (!r.ok) return Response.json({ error: `TURN ${r.status}` }, { status: 502, headers: CORS });
-    const { iceServers } = await r.json();
-    // port 53 is blocked by browsers and only slows the connection down (Cloudflare's docs)
-    turnBody = { iceServers: iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:53\b/.test(u)) })) };
-    turnAt = Date.now();
-  }
-  return Response.json(turnBody, { headers: CORS });
+// for 6 hours, shared by the rooms for an hour (so any handed out last 5 hours or more), and only to players connected
+// to a room: the Room object sends them as {type: 'TURN', payload: {iceServers}} before OPEN, and again when the page
+// asks ({type: 'TURN'}). /turn itself gives only STUN now (pages from before this still work, without the relay).
+const STUN = { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] };
+let turnAt = 0, turnBody = null, turnTry = null, turnFailed = 0;
+async function turnNew(env, ttl) { // new relay credentials from Cloudflare, lasting ttl seconds; throws when it doesn't answer in 3 s
+  const r = await fetch(`${env.TURN_API || 'https://rtc.live.cloudflare.com'}/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+    method: 'POST', headers: { authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({ ttl }), signal: AbortSignal.timeout(3000),
+  });
+  if (!r.ok) throw new Error(`TURN ${r.status}`);
+  const { iceServers } = await r.json();
+  if (!Array.isArray(iceServers) || !iceServers.length) throw new Error('TURN gave no servers');
+  // port 53 is blocked by browsers and only slows the connection down (Cloudflare's docs)
+  return { iceServers: iceServers.map((s) => ({ ...s, urls: [].concat(s.urls).filter((u) => !/:53\b/.test(u)) })) };
+}
+// the relay servers, else STUN only (no TURN key, or Cloudflare not answering): one ask at a time, shared by every
+// player joining meanwhile, and after a failure none for a minute, so joins don't each wait 3 s while it's down
+async function relays(env) {
+  if (!env.TURN_KEY_ID || !env.TURN_KEY_TOKEN) return STUN;
+  if (turnBody && Date.now() - turnAt < 3600000) return turnBody;
+  if (Date.now() - turnFailed < 60000) return turnBody || STUN; // an hour-old answer still has 5 hours left
+  turnTry ||= turnNew(env, 6 * 3600).then((b) => { turnBody = b; turnAt = Date.now(); }, (e) => { console.error('TURN:', e && e.message); turnFailed = Date.now(); }).finally(() => { turnTry = null; });
+  await turnTry;
+  return turnBody || STUN;
+}
+
+// Every 30 minutes (the cron): whether the site, the app's update file (latest.yml) and the relay answer, asked again
+// after 30 s before counting as down. When that's different from the last check, it starts Premade's health.yml on
+// GitHub (GH_TOKEN, which may run Premade's workflows) with what's down, '' once all is well again, and that opens or
+// closes an issue, which GitHub emails. Kept in the Stats object (health), so nothing goes to GitHub while it stays the same.
+const GH_UA = 'Premade (github.com/Rayn16/Premade)';
+async function downNow(env) {
+  const site = env.SITE_URL || 'https://rayn16.github.io/Premade/', bad = [];
+  const get = async (u, ok) => { const r = await fetch(u, { signal: AbortSignal.timeout(10000), headers: { 'user-agent': GH_UA } }); if (!r.ok) throw new Error(`HTTP ${r.status}`); if (!ok.test(await r.text())) throw new Error('not what it should be'); };
+  await get(site, /Premade/).catch((e) => bad.push(`the site, ${site} (${e.message})`));
+  await get(site + 'latest.yml', /^version: \d+\.\d+\.\d+/m).catch((e) => bad.push(`the app's update file, latest.yml (${e.message})`));
+  if (env.TURN_KEY_ID && env.TURN_KEY_TOKEN) await turnNew(env, 60).catch((e) => bad.push(`the relay, Cloudflare TURN (${e.message})`));
+  return bad;
+}
+async function health(env) {
+  if (!env.GH_TOKEN) return;
+  let bad = await downNow(env);
+  if (bad.length) { await new Promise((r) => setTimeout(r, +env.HEALTH_RETRY || 30000)); const again = await downNow(env); bad = bad.filter((b) => again.some((x) => x.split(' (')[0] === b.split(' (')[0])); }
+  // what's down, by name only: the same things down with another error ('HTTP 503', a timeout) is no news
+  const down = bad.join('; '), what = bad.map((b) => b.split(' (')[0]).join('; '), st = stats(env);
+  if (what === (await st.health())) return;
+  const r = await fetch(`${env.GH_API || 'https://api.github.com'}/repos/Rayn16/Premade/actions/workflows/health.yml/dispatches`, {
+    method: 'POST', body: JSON.stringify({ ref: env.HEALTH_REF || 'claude/voice-clips-6a9va7', inputs: { down } }),
+    headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': GH_UA },
+  });
+  if (r.ok) await st.health(what); else console.error('Premade health:', r.status); // not kept, so it's sent again in 30 minutes
 }
 
 export default {
@@ -119,27 +150,35 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/inbox' && req.headers.get('Upgrade') === 'websocket') return stats(env).fetch(req); // invites the moment they're sent
-    if (url.pathname === '/turn') return turn(env); // relay servers for voice and screens, for players whose routers can't connect directly
+    if (url.pathname === '/turn') return Response.json(STUN, { headers: CORS }); // the relays go only to players in a room (relays)
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
       const champion = url.searchParams.get('champ') || '';
       if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
       const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`;
-      try {
+      try { // fetch's cf options keep DeepARAM's page an hour in Cloudflare's cache; the Cache API does nothing on workers.dev
         const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
         if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
-        const { patch, rows } = deepAramAugments(await upstream.text());
+        const { patch, rows, pairs, items } = deepAram(await upstream.text());
         if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
-        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows }, { headers: { ...CORS, 'cache-control': 'public, max-age=1800' } });
+        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows, pairs, items }, { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
       } catch {
         return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
       }
     }
-    if (url.pathname === '/rooms' && req.method === 'GET') return Response.json(await directory(env).list(), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    if (url.pathname === '/rooms' && req.method === 'GET') { // me: the asking page's own Riot IDs (a JSON list), for the hidden rooms shared with them
+      let me = [];
+      try { me = riotIdList(JSON.parse(url.searchParams.get('me') || '[]'), 20).map(low); } catch {}
+      return Response.json(await directory(env).list(me), { headers: { ...CORS, 'cache-control': 'no-store' } });
+    }
     if (url.pathname === '/rooms' && req.method === 'POST') {
       const b = await req.json().catch(() => null);
       if (!b || !/^[a-z0-9]{4,20}$/.test(b.room) || !DEVICE.test(b.owner) || (b.count != null && (!Number.isInteger(b.count) || b.count < 1 || b.count > 10)) || (b.playing != null && typeof b.playing !== 'boolean')) return Response.json({ error: 'Invalid room listing' }, { status: 400, headers: CORS });
-      if (b.remove === true || b.locked === true) await directory(env).remove(b.room, b.owner);
+      // a hidden room (Hide room): listed only for the Riot IDs in allow, with its password and the host's name
+      const allow = b.hidden === true ? riotIdList(b.allow, 50).map(low) : [], key = typeof b.key === 'string' && /^[a-z]{6}$/.test(b.key) ? b.key : '';
+      if (b.remove === true) await directory(env).remove(b.room, b.owner);
+      else if (allow.length && key) await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true, { allow, key, n: typeof b.n === 'string' ? b.n.slice(0, 24) : '' });
+      else if (b.locked === true) await directory(env).remove(b.room, b.owner);
       else await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true);
       return Response.json({ ok: true }, { headers: CORS });
     }
@@ -209,15 +248,18 @@ export default {
     // 30-minute schedule only every 4 to 6 hours
     if (env.GH_TOKEN) ctx.waitUntil(fetch(`${env.GH_API || 'https://api.github.com'}/repos/Rayn16/aion2-tracker/actions/workflows/update.yml/dispatches`, {
       method: 'POST', body: '{"ref":"main"}',
-      headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'Premade (github.com/Rayn16/Premade)' },
+      headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': GH_UA },
     }).then((r) => { if (!r.ok) console.error('Aion 2 tracker update:', r.status); }, (e) => console.error('Aion 2 tracker update:', e)));
+    ctx.waitUntil(health(env).catch((e) => console.error('Premade health:', e && e.message)));
     await riot(env).kick();
   },
 };
 
 const directory = (env) => env.DIRECTORY.get(env.DIRECTORY.idFromName('open-rooms'));
 
-// Open room listings use short leases, so a host that closes unexpectedly disappears automatically.
+// Open room listings use short leases, so a host that closes unexpectedly disappears automatically. A hidden room's row
+// keeps hide ({ allow, key, n }) and is listed only for a page whose own Riot IDs (me) include one in allow.
+// ponytail: trusts the Riot IDs a page says are its own, like /invite does; fine among friends
 export class Directory extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -226,14 +268,20 @@ export class Directory extends DurableObject {
     const columns = new Set(this.sql.exec('PRAGMA table_info(rooms)').toArray().map((x) => x.name));
     if (!columns.has('count')) this.sql.exec('ALTER TABLE rooms ADD COLUMN count INTEGER NOT NULL DEFAULT 1');
     if (!columns.has('playing')) this.sql.exec('ALTER TABLE rooms ADD COLUMN playing INTEGER NOT NULL DEFAULT 0');
+    if (!columns.has('hide')) this.sql.exec("ALTER TABLE rooms ADD COLUMN hide TEXT NOT NULL DEFAULT ''");
   }
-  async put(room, owner, count = 1, playing = false) {
-    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing', room, owner, Date.now() + 120000, count, playing ? 1 : 0);
+  async put(room, owner, count = 1, playing = false, hide = null) {
+    this.sql.exec('INSERT INTO rooms (room, owner, expires, count, playing, hide) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(room) DO UPDATE SET owner = excluded.owner, expires = excluded.expires, count = excluded.count, playing = excluded.playing, hide = excluded.hide', room, owner, Date.now() + 120000, count, playing ? 1 : 0, hide ? JSON.stringify(hide) : '');
   }
   async remove(room, owner) { this.sql.exec('DELETE FROM rooms WHERE room = ? AND owner = ?', room, owner); }
-  async list() {
+  async list(me = []) {
     this.sql.exec('DELETE FROM rooms WHERE expires < ?', Date.now());
-    return this.sql.exec('SELECT room, count, playing FROM rooms ORDER BY room').toArray().map(({ room, count, playing }) => ({ room, count, playing: !!playing }));
+    const mine = new Set(me);
+    return this.sql.exec('SELECT room, count, playing, hide FROM rooms ORDER BY room').toArray().flatMap(({ room, count, playing, hide }) => {
+      if (!hide) return [{ room, count, playing: !!playing }];
+      const h = JSON.parse(hide);
+      return h.allow.some((x) => mine.has(x)) ? [{ room, count, playing: !!playing, hidden: true, key: h.key, n: h.n }] : [];
+    });
   }
 }
 
@@ -259,6 +307,7 @@ export class Room extends DurableObject {
     if (url.pathname.startsWith('/push/')) return push(req, this.ctx.storage, this.env);
     if (url.pathname.startsWith('/squad/')) return squad(req, this.ctx.storage, this.env, this);
     if (url.pathname === '/esports') return Response.json({ ev: await this.esports() }, { headers: CORS });
+    const ice = await relays(this.env); // first, so nothing else happens to this player's socket while it waits
     const [client, server] = Object.values(new WebSocketPair());
     const old = this.open(id), [any] = this.open(), lock = (any && any.deserializeAttachment().lock) || '';
     this.ctx.acceptWebSocket(server, [id]);
@@ -268,6 +317,8 @@ export class Room extends DurableObject {
       server.close(1000, 'ID is taken');
     } else {
       for (const ws of old) ws.close(1000, 'Reconnected'); // the same player coming back
+      server.send(JSON.stringify({ type: 'TURN', payload: ice })); // before OPEN, so the first calls can use them
+      this.roster();
       server.send(JSON.stringify({ type: 'OPEN' }));
       const room = id.slice(8, id.lastIndexOf('-'));
       if (!/^r[a-z0-9]{12}$/.test(room)) stats(this.env).seen(room, req.headers.get('cf-connecting-ip') || token).catch(() => {}); // not phone remotes
@@ -279,6 +330,7 @@ export class Room extends DurableObject {
     try { m = JSON.parse(data); } catch { return; }
     const a = ws.deserializeAttachment();
     if (m && m.type === 'LOCK') return this.lock(ws, a, m.payload || {});
+    if (m && m.type === 'TURN') return relays(this.env).then((r) => ws.send(JSON.stringify({ type: 'TURN', payload: r }))).catch(() => {}); // the page's refresh
     if (!m || !a.in || !RELAYED.has(m.type) || typeof m.dst !== 'string') return;
     const [to] = this.open(m.dst).filter((w) => w.deserializeAttachment().in);
     if (to) to.send(JSON.stringify({ type: m.type, src: a.id, dst: m.dst, payload: m.payload }));
@@ -287,21 +339,31 @@ export class Room extends DurableObject {
   lock(ws, a, { key, out }) {
     key = KEY.test(key) ? key : '';
     if (!a.in) {
-      if (key === a.lock) return ws.serializeAttachment({ ...a, in: true });
+      if (key === a.lock) { ws.serializeAttachment({ ...a, in: true }); return this.roster(); }
       ws.send(JSON.stringify({ type: 'INVALID-KEY', payload: { msg: 'This room is locked' } }));
       return ws.close(1000, 'Locked');
     }
     const ins = this.open().filter((w) => w.deserializeAttachment().in);
     if (!key || key === a.lock || slotOf(ws) !== Math.min(...ins.map(slotOf))) return;
+    let gone = false;
     for (const w of this.open()) {
       const b = w.deserializeAttachment();
-      if (b.id === out) w.close(1000, 'Removed');
-      else w.serializeAttachment({ ...b, lock: key });
+      if (b.id === out) { w.close(1000, 'Removed'); gone = true; } else w.serializeAttachment({ ...b, lock: key });
     }
+    if (gone) this.roster();
+  }
+  // Who's in (ROOM {ids}), to each player let in, whenever that changes: a page dials only those slots, not every empty
+  // one every 15 s (each try was ~20 messages relayed here). Messages out of here aren't billed.
+  roster(not) {
+    const ins = this.open().filter((w) => w !== not && w.deserializeAttachment().in);
+    const msg = JSON.stringify({ type: 'ROOM', payload: { ids: ins.map((w) => w.deserializeAttachment().id) } });
+    for (const w of ins) try { w.send(msg); } catch {}
   }
   webSocketClose(ws, code) {
     try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
+    this.roster(ws);
   }
+  webSocketError(ws) { this.roster(ws); }
   tell(msg) { return tellPhones(this.ctx.storage, msg); } // a squad's call or ping, on this remote code's phones (squad.js)
   esports() { return events(this, this.env); } // the esports object's matches, for the pick'em (squad.js)
 }
@@ -329,12 +391,14 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
+    if (!ctx.storage.sql.exec('PRAGMA table_info(apps)').toArray().some((c) => c.name === 'day')) ctx.storage.sql.exec("ALTER TABLE apps ADD COLUMN day TEXT NOT NULL DEFAULT ''"); // helloOf's day
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, lob TEXT NOT NULL DEFAULT '', PRIMARY KEY (dest, src))");
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aion (n TEXT, s TEXT, o TEXT, PRIMARY KEY (n, s)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionboss (s TEXT, b TEXT, at INTEGER, o TEXT, PRIMARY KEY (s, b)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aiontick (o TEXT, k TEXT, n INTEGER, at INTEGER, PRIMARY KEY (o, k)) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aionfight (o TEXT, at INTEGER, f TEXT, PRIMARY KEY (o, at)) WITHOUT ROWID');
+    ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT) WITHOUT ROWID');
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong')); // the inbox's keep-alive doesn't wake it
   }
   // o as the device's last hello gave it, when it's one of that hello's Riot IDs; else null
@@ -445,18 +509,23 @@ export class Stats extends DurableObject {
   webSocketClose(ws, code) {
     try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
   }
-  hello({ id, v, name, riot }) {
+  hello({ id, v, name, riot, day }) { // a hello without day (a page from before it) keeps the day already kept
     const now = Math.round(Date.now() / 1000);
-    this.ctx.storage.sql.exec('INSERT INTO apps VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v, name = excluded.name, riot = excluded.riot, last = excluded.last',
-      id, v, name, JSON.stringify(riot), now, now);
+    this.ctx.storage.sql.exec("INSERT INTO apps (id, v, name, riot, first, last, day) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v, name = excluded.name, riot = excluded.riot, last = excluded.last, day = CASE excluded.day WHEN '' THEN day ELSE excluded.day END",
+      id, v, name, JSON.stringify(riot), now, now, day);
   }
-  who() { // [{ v, name, riot: [Riot ID], first, last }], the last opened first
+  who() { // [{ v, name, riot: [Riot ID], first, last, day: { d, h, u } or null }], the last opened first
     const sql = this.ctx.storage.sql;
     // a year after the last opening, and the lines our tests' pages made before /hello turned away pages on the same
     // computer: app 1.13 or 1.15, voice name Rayan, no League account, all within 10 minutes (ponytail: drop that half
     // once who.html shows none)
     sql.exec("DELETE FROM apps WHERE last < ? OR (name = 'Rayan' AND riot = '[]' AND v IN ('1.13.0', '1.15.0') AND last - first < 600)", Math.round(Date.now() / 1000) - 365 * 86400);
-    return sql.exec('SELECT v, name, riot, first, last FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot) }));
+    return sql.exec('SELECT v, name, riot, first, last, day FROM apps ORDER BY last DESC LIMIT 500').toArray().map((r) => ({ ...r, riot: JSON.parse(r.riot), day: r.day ? JSON.parse(r.day) : null }));
+  }
+  health(down) { // what the cron's last check found down ('' for nothing), or with down, keeps it (health)
+    const sql = this.ctx.storage.sql;
+    if (down === undefined) return (sql.exec("SELECT v FROM kv WHERE k = 'health'").toArray()[0] || { v: '' }).v;
+    sql.exec("INSERT INTO kv VALUES ('health', ?) ON CONFLICT (k) DO UPDATE SET v = excluded.v", down);
   }
   prune() {
     this.ctx.storage.sql.exec('DELETE FROM salt WHERE day < ?', day());
@@ -603,6 +672,29 @@ export class Riot extends DurableObject {
     this.db.exec('INSERT INTO kv VALUES (?, ?) ON CONFLICT (k) DO UPDATE SET v = excluded.v', 'use', JSON.stringify(u));
   }
 
+  // The whole account's Durable Object requests today (UTC), every room, invite and Aion page included, from Cloudflare's
+  // GraphQL analytics (secrets CF_ACCOUNT_ID and CF_ANALYTICS_TOKEN, a read-only Account Analytics token): asked at most
+  // every 10 minutes, kept in memory. Analytics count each message a room hears in full, where the bill counts 20 as
+  // one, so it's on the high side, never the low. null without the secrets; req null when Cloudflare didn't answer.
+  async budget() {
+    const a = this.env.CF_ACCOUNT_ID, token = this.env.CF_ANALYTICS_TOKEN, today = day();
+    if (!a || !token) return null;
+    if (this.bud && this.bud.day === today && Date.now() - this.bud.at < (+this.env.BUDGET_EVERY || 600000)) return this.bud;
+    const was = this.bud && this.bud.day === today ? this.bud.req : null;
+    try {
+      const r = await fetch(this.env.CF_GRAPHQL || 'https://api.cloudflare.com/client/v4/graphql', {
+        method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, signal: AbortSignal.timeout(5000),
+        body: JSON.stringify({ query: 'query ($a: string!, $d: Date!) { viewer { accounts(filter: { accountTag: $a }) { durableObjectsInvocationsAdaptiveGroups(filter: { date: $d }, limit: 10) { sum { requests } } } } }', variables: { a, d: today } }),
+      });
+      const j = await r.json(), g = j && j.data && j.data.viewer && j.data.viewer.accounts && j.data.viewer.accounts[0];
+      if (!g || !Array.isArray(g.durableObjectsInvocationsAdaptiveGroups)) throw new Error(`${r.status} ${JSON.stringify((j && j.errors) || '').slice(0, 300)}`);
+      this.bud = { day: today, at: Date.now(), req: g.durableObjectsInvocationsAdaptiveGroups.reduce((n, x) => n + ((x.sum && x.sum.requests) || 0), 0) };
+    } catch (e) {
+      console.log('budget:', e && e.message);
+      this.bud = { day: today, at: Date.now(), req: was, err: true };
+    }
+    return this.bud;
+  }
   async fetch(req) { const t = Date.now(); try { return await this.route(req); } finally { this.use(t); } }
   async route(req) {
     const url = new URL(req.url), o = req.headers.get('origin') || '', cors = ORIGIN.test(o) ? { 'access-control-allow-origin': o, vary: 'origin' } : {};
@@ -613,10 +705,12 @@ export class Riot extends DurableObject {
       // [day, players asked, games found, games left]; use: what this object used of the free plan (lim) today; ed:
       // the same counts for Emerald and Diamond. With more (Settings > Our server): pros, the pro players' accounts
       // known, from Leaguepedia, last read at lp ({at, ok}); pools, the high elo players /riot/alike goes by (counting
-      // them reads every row, so not for the page's checks every minute)
+      // them reads every row, so not for the page's checks every minute); acct: the whole account's requests today, from
+      // Cloudflare's analytics (budget), and whether the counting is paused for them
       const { p, c, b, bn, old, today, total, by, at } = this.sumOf(), sw = this.swOf(), w = sw.w, e = this.sumOf('ed'), n = (t) => this.sql.exec(`SELECT COUNT(*) AS n FROM ${t}`).one().n;
       return new Response(JSON.stringify({ p, c, b, bn, old, today, total, by: by || { kr: total }, at, from: sw.lo < sw.hi ? sw.lo * DAY : undefined,
         on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined, use: { ...this.get('use', {}), lim: FREE },
+        acct: this.bud ? { req: this.bud.req, at: this.bud.at, day: this.bud.day, paused: !!this.paused, lim: FREE.req } : undefined,
         ed: { p: e.p, c: e.c, b: e.b, bn: e.bn, old: e.old, today: e.today, total: e.total, by: e.by || {}, at: e.at },
         ...(url.searchParams.has('more') && { pros: n('pros'), lp: this.get('lp', {}), pools: n('pools') }) }), { headers: json });
     }
@@ -783,6 +877,9 @@ export class Riot extends DurableObject {
     const t = Date.now();
     try {
       await this.ctx.storage.setAlarm(t + (+this.env.CRAWL_EVERY || 15000));
+      // past 80% of the day's free requests, the counting waits (asking again every 10 minutes) so rooms keep working
+      const b = await this.budget();
+      if ((this.paused = !!(b && b.req >= 0.8 * FREE.req))) return void (await this.ctx.storage.setAlarm(t + (+this.env.BUDGET_EVERY || 600000)));
       let big = false;
       try { big = await this.crawl(); } catch (e) { console.log('crawl:', e && e.message); }
       if (!big) try { await this.sweep(); } catch (e) { console.log('sweep:', e && e.message); }
