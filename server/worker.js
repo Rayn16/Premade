@@ -155,17 +155,13 @@ export default {
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
       const champion = url.searchParams.get('champ') || '';
       if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
-      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`, key = new Request(new URL(`/mayhem/augments?champ=${champion}`, req.url));
-      const hit = await caches.default.match(key); // read once an hour per champion: the page takes a few ms to read
-      if (hit) return hit;
-      try {
+      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`;
+      try { // fetch's cf options keep DeepARAM's page an hour in Cloudflare's cache; the Cache API does nothing on workers.dev
         const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
         if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
         const { patch, rows, pairs, items } = deepAram(await upstream.text());
         if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
-        const res = Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows, pairs, items }, { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
-        await caches.default.put(key, res.clone()).catch(() => {});
-        return res;
+        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows, pairs, items }, { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
       } catch {
         return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
       }

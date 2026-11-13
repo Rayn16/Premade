@@ -6,7 +6,7 @@
 export function deepAram(html) {
   const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
   let flight = '';
-  for (const m of html.matchAll(/self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g)) try { flight += JSON.parse(m[1]); } catch {}
+  for (const m of html.matchAll(/self\.__next_f\.push\(\[1,("[^"\\]*(?:\\.[^"\\]*)*")\]\)/g)) try { flight += JSON.parse(m[1]); } catch {}
   const raw = {}, got = {}; // each row's JSON, parsed only when it's used (Workers' CPU time is short)
   for (const line of flight.split('\n')) { const m = /^([0-9a-f]+):([[{].*)$/.exec(line); if (m) raw[m[1]] = m[2]; }
   const row = (k) => { if (k && !(k in got)) try { got[k] = JSON.parse(raw[k]); } catch { got[k] = null; } return k ? got[k] : null; };
