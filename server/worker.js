@@ -13,6 +13,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { push, tell as tellPhones } from './push.js';
 import { squad } from './squad.js';
 import { events } from './esports.js';
+import { deepAram } from './deeparam.js';
 
 const ID = /^lolprox-[a-z0-9]{1,20}-\d$/;
 const RELAYED = new Set(['OFFER', 'ANSWER', 'CANDIDATE', 'LEAVE', 'EXPIRE']);
@@ -43,20 +44,6 @@ const owner = (env, key) => {
   const [a, b] = [typeof key === 'string' ? key : '', env.OWNER_KEY || ''].map((s) => new TextEncoder().encode(s));
   return b.byteLength > 0 && a.byteLength === b.byteLength && crypto.subtle.timingSafeEqual(a, b);
 };
-
-function deepAramAugments(html) {
-  const patch = /<meta name="description" content="[^"]*?patch (\d+\.\d+)/i.exec(html)?.[1] || '';
-  const re = /\\"id\\":(\d+),\\"name\\":\\"((?:[^\\"\\\\]|\\\\.)*)\\",\\"tags\\":\[[^\]]*\],\\"rarity\\":\\"(silver|gold|prismatic)\\",\\"pickRate\\":([0-9.]+).*?\\"deepScore\\":([0-9]+),\\"href\\":\\"\/augments\/([^\\"]+)\\"/g;
-  const rows = [];
-  for (const m of html.matchAll(re)) {
-    let name;
-    try { name = JSON.parse(`"${m[2]}"`); } catch { continue; }
-    const score = +m[5];
-    rows.push({ id: +m[1], name, rarity: m[3], pickRate: +m[4], deepScore: score,
-      tier: score >= 70 ? 'S' : score >= 59 ? 'A' : score >= 44 ? 'B' : score >= 32 ? 'C' : 'D', href: m[6] });
-  }
-  return { patch, rows };
-}
 
 // The Aion 2 tracker's Refresh now (/aion?q=name&s=server): one character's sheet straight from PLAYNC, in the shape
 // the tracker's fetch.py saves, kept 2 minutes so a busy button doesn't hammer PLAYNC
@@ -168,13 +155,17 @@ export default {
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
       const champion = url.searchParams.get('champ') || '';
       if (!/^[A-Za-z][A-Za-z0-9]{1,30}$/.test(champion)) return Response.json({ error: 'Invalid champion' }, { status: 400, headers: CORS });
-      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`;
+      const source = `https://deeparam.com/champions/${encodeURIComponent(champion)}`, key = new Request(new URL(`/mayhem/augments?champ=${champion}`, req.url));
+      const hit = await caches.default.match(key); // read once an hour per champion: the page takes a few ms to read
+      if (hit) return hit;
       try {
         const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
         if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
-        const { patch, rows } = deepAramAugments(await upstream.text());
+        const { patch, rows, pairs, items } = deepAram(await upstream.text());
         if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
-        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows }, { headers: { ...CORS, 'cache-control': 'public, max-age=1800' } });
+        const res = Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows, pairs, items }, { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
+        await caches.default.put(key, res.clone()).catch(() => {});
+        return res;
       } catch {
         return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
       }
