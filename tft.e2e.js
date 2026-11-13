@@ -107,9 +107,9 @@ const DEEPARAM = { // our server's /mayhem/augments: DeepARAM's rows for a champ
   Ahri: [['Symphony of War', 'prismatic', 0.4, 72, 'S', 3.2], ['Mystic Punch', 'prismatic', 0.05, 40, 'C', -1.5], ['Witchful Thinking', 'prismatic', 0.2, 60, 'A', 1],
     ['Escape Plan', 'gold', 0.3, 55, 'B', 2], ['One Hit Wonder', 'gold', 0.1, 41, 'C', 0.5], ['Bad Gold', 'gold', 0.01, 10, 'D', -3], ['Blunt Force', 'silver', 0.2, 35, 'C', 0.2], ['ADAPt', 'silver', 0.1, 20, 'D', -0.4]]
     .map(([name, rarity, pickRate, deepScore, tier, boost]) => ({ name, rarity, pickRate, deepScore, tier, boost })),
-  MissFortune: [{ name: 'Symphony of War', rarity: 'silver', pickRate: 0.1, deepScore: 50, tier: 'B' }], // the server before its Nov 2026 update: no boost, best4 or items
+  MissFortune: [{ name: 'Symphony of War', rarity: 'silver', pickRate: 0.1, deepScore: 50, tier: 'B' }], // the server before its Nov 2026 update: no boost, pairs or items
 };
-const DEEPARAM_MORE = { Ahri: { best4: ['Symphony of War', 'Escape Plan', 'One Hit Wonder', 'Blunt Force'], items: [3020, 6655, 3157] } }; // the best 4 together and the Mayhem build
+const DEEPARAM_MORE = { Ahri: { pairs: [['Symphony of War', 'Escape Plan'], ['One Hit Wonder', 'Blunt Force'], ['ADAPt', 'Bad Gold']], items: [3020, 6655, 3157] } }; // the best augment pairs (2 shown) and the Mayhem build
 const ITEMS = { 1001: ['Boots', 300, ['Boots']], 3020: ['Sorcerer’s Shoes', 1100, ['Boots'], [1001]], 6655: ['Luden’s Echo', 2750], 3157: ['Zhonya’s Hourglass', 3250] }; // Data Dragon's item.json, the few the Mayhem build has
 const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
@@ -425,11 +425,11 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await wait(pc, () => /^Mystic Punch: /.test((window.lastOverlay.mayhemCards || [])[1]?.t), null, 'rerolled back', 10000);
     assert.deepStrictEqual((await cardsNow())[1], ['Mystic Punch', 'C tier', '40 DeepScore · 5% picked · -1.5 pts', 0.4, '', ''], 'a rerolled card’s hint is gone for good');
     console.log(`Mayhem reroll read in ${rerollMs} ms`);
-    // the server before its update (Miss Fortune here): no Boost, best 4 or build, and nothing breaks
+    // the server before its update (Miss Fortune here): no Boost, pairs or build, and nothing breaks
     await mayhemAt(250, false, 3, '', 'Miss Fortune');
     await wait(pc, () => lpc.mayRate('Symphony of War').t === 'Symphony of War: B tier (50 DeepScore), 10% pick rate on Miss Fortune · DeepARAM patch 26.21', null, 'display names resolve to their champion-specific rates');
     assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').s), '50 DeepScore · 10% picked', 'no Boost from the old server');
-    assert.strictEqual(await pc.evaluate(() => lpc.mayBest(true)), 'Best for Miss Fortune: Silver Symphony of War', 'no best 4 from the old server');
+    assert.strictEqual(await pc.evaluate(() => lpc.mayBest(true)), 'Best for Miss Fortune: Silver Symphony of War', 'no pairs from the old server');
     await mayhemAt(260, false, 3, 'UnresolvedChampion', '');
     assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: no 26.21 champion data', 'an unresolved champion never gets another champion’s rate');
     await mayhemAt(265, false, 3, '', '');
@@ -457,13 +457,13 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     const slow = (await reads()) - r1;
     assert(slow >= 1 && slow <= 3, `alive with picks owed: the middle read every 3 s (${slow} reads in 6.5 s)`);
     // dead: both picks, one after the other, each with its ratings; the best augments and the next item of DeepARAM's
-    // Mayhem build on the overlay, and on Game the best 4 together and the whole build
-    await mayhemAt(420, true, 11, 'Ahri', 'Ahri', [[3020, 1]]);
+    // Mayhem build on the overlay (your boots in ARAM's own copy, 223020), and on Game the best pairs and the whole build
+    await mayhemAt(420, true, 11, 'Ahri', 'Ahri', [[223020, 1]]);
     await wait(pc, (b) => window.lastOverlay.aug === b, BEST, 'the best augments while dead');
     await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.name === 'Luden’s Echo', null, 'the next item of the Mayhem build while dead');
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.buy), { name: 'Luden’s Echo', pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/item/6655.png', why: 'DeepARAM’s Mayhem build' });
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
-    await wait(pc, (b) => document.getElementById('augTips').textContent === b, `${BEST}. Best 4 together: Symphony of War, Escape Plan, One Hit Wonder, Blunt Force`, 'the best augments and the best 4 together on Game');
+    await wait(pc, (b) => document.getElementById('augTips').textContent === b, `${BEST}. Best pairs: Symphony of War + Escape Plan, One Hit Wonder + Blunt Force`, 'the best augments and the 2 best pairs on Game');
     await wait(pc, () => !document.getElementById('liveBuild').hidden, null, 'the Mayhem build on Game');
     assert.deepStrictEqual(await pc.evaluate(() => [document.querySelector('#liveBuild h3').textContent, [...document.querySelectorAll('#liveBuild .blist li')].map((l) => l.dataset.k + ':' + l.textContent.split('You have it')[0].split('Next')[0].replace(/[↑↓✕]/g, ''))]),
       ['DeepARAM’s Mayhem build on Ahri', ['have:Sorcerer’s Shoes', 'next:Luden’s Echo', ':Zhonya’s Hourglass']], 'the whole Mayhem build, what you have and what’s next');
