@@ -1620,7 +1620,6 @@ ipcMain.handle('keys', (e, k) => {
   const ok = {
     mute: reg(k.mute, () => win.webContents.send('key', 'mute')),
     clip: reg(k.clip, () => win.webContents.send('key', 'clip')),
-    clipLong: reg(k.clipLong, () => win.webContents.send('key', 'clipLong')), // app 1.48: the last 2 minutes
     rec: reg(k.rec, () => win.webContents.send('key', 'rec')), // app 1.28.6: Record your screen
     overlay: false, // below
     show: reg(k.show, () => {
