@@ -1628,6 +1628,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpcClient.calls.includes('copy Clip 5.webm') && lpc.toasts().some((t) => /^Copied “Clip 5”\. Paste it with Ctrl\+V/.test(t)), null, 'the clip copied');
     await pc.click('#clipGrid .cghead button:has-text("Make a reel")');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .cname')].some((e) => /^Ahri reel \d\d-\d\d$/.test(e.textContent)) && [...document.querySelectorAll('#clipGrid .ctag')].some((e) => e.textContent === 'Reel'), null, 'the reel in the game’s row');
+    if (process.env.SHOTS) await pc.locator('#clipGrid').screenshot({ path: path.join(process.env.SHOTS, 'clips-by-game.png') });
     const reel = await pc.evaluate(() => ({ call: lpcClient.calls.find((c) => typeof c === 'string' && c.startsWith('reel ')), meta: Object.keys(JSON.parse(localStorage.getItem('lpc-clip-meta'))) }));
     assert(/^reel Baron steal\.webm,/.test(reel.call) && reel.call.includes('Clip 4.webm,Clip 5.webm') && !reel.meta.includes('Clip 3.webm'), `the reel's clips in order, and Clip 3's notes gone with it: ${JSON.stringify(reel)}`);
     await pc.click('#clipsFolder');
