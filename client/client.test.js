@@ -114,11 +114,13 @@ const ev = (EventID, EventName, EventTime, more) => ({ EventID, EventName, Event
 const BIG = { ...GAME, events: { Events: [ev(0, 'GameStart', 0),
   ev(1, 'ChampionKill', 50, { KillerName: 'Rayan', VictimName: 'Friend' }), ev(2, 'Multikill', 51, { KillerName: 'Rayan', KillStreak: 2 }),
   ev(3, 'DragonKill', 60, { KillerName: 'Friend', DragonType: 'Water', Stolen: 'True' }), ev(4, 'BaronKill', 98, { KillerName: 'Rayan', Stolen: 'False' }),
-  ev(5, 'Ace', 99, { Acer: 'Friend', AcingTeam: 'CHAOS' }), ev(6, 'ChampionKill', 99.5, { KillerName: 'Friend', VictimName: 'Rayan' })] } };
+  ev(5, 'Ace', 99, { Acer: 'Friend', AcingTeam: 'CHAOS' }), ev(6, 'ChampionKill', 99.5, { KillerName: 'Friend', VictimName: 'Rayan' }),
+  ev(7, 'FirstBlood', 50.1, { Recipient: 'Rayan' }), ev(8, 'GameEnd', 99.8, { Result: 'Win' })] } }; // 1.48: solo kills, first blood and the win, for clips
 assert.deepStrictEqual(summary(BIG).events, [
-  { t: 50, team: 'ORDER', me: true, alive: true, e: 'kill', on: false }, { t: 51, team: 'ORDER', me: true, alive: true, e: 'multi', n: 2 },
+  { t: 50, team: 'ORDER', me: true, alive: true, e: 'kill', on: false, solo: true }, { t: 51, team: 'ORDER', me: true, alive: true, e: 'multi', n: 2 },
   { t: 60, team: 'CHAOS', me: false, alive: true, e: 'dragon', type: 'Water', stolen: true }, { t: 98, team: 'ORDER', me: true, alive: false, e: 'baron', type: '', stolen: false },
-  { t: 99, team: 'CHAOS', me: false, alive: false, e: 'ace' }, { t: 99.5, team: 'CHAOS', me: false, alive: false, e: 'kill', on: true }]);
+  { t: 99, team: 'CHAOS', me: false, alive: false, e: 'ace' }, { t: 99.5, team: 'CHAOS', me: false, alive: false, e: 'kill', on: true, solo: false },
+  { t: 50.1, team: '', me: true, alive: true, e: 'first' }, { t: 99.8, team: '', me: false, alive: false, e: 'end', win: true }]);
 const later = { ...BIG, allPlayers: [player('Rayan#EUW', 'ORDER', 'Wukong', 'MonkeyKing'), GAME.allPlayers[1]], gameData: { gameMode: 'CLASSIC', gameTime: 130 } };
 assert.strictEqual(summary(later).events.find((e) => e.e === 'baron').alive, false, 'dead when the team took Baron: still no Baron voice after respawning');
 const swapped = { ...GAME, allPlayers: [...GAME.allPlayers].reverse(), activePlayer: { riotId: 'Friend#EUW' } };
@@ -258,6 +260,35 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(binned.includes(c2) && binned.includes('Baron steal.webm') && !fs.existsSync(path.join(tmp, 'profile', 'Clip pictures', 'Baron steal.webm.jpg')), `to the Recycle Bin, pictures gone: ${binned}`);
     assert.strictEqual(await js('typeof lpcClient.clipDrag'), 'function');
     console.log(`clip gallery: pictures, cuts, rename, the Recycle Bin and the clean-up (binned ${binned.join(', ')})`);
+    // app 1.48: a real recording (H.264 and Opus, as the page's recorder writes) is saved as an .mp4 under the name the
+    // page asked for; a cut and a reel of .mp4 clips; rename keeps .mp4; the clean-up takes the "first" ones first
+    {
+      const { execFileSync } = require('child_process'), ff = execFileSync('which', ['ffmpeg']).toString().trim(), src = path.join(tmp, 'src.mkv');
+      execFileSync(ff, ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=320x180:rate=30:duration=3', '-f', 'lavfi', '-i', 'sine=duration=3', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'libopus', '-f', 'matroska', src]);
+      const secs = (n) => +execFileSync(ff.replace(/ffmpeg$/, 'ffprobe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path.join(dir, n)]).toString();
+      const send = (stem) => js(`lpcClient.clip(Uint8Array.from(atob(${JSON.stringify(fs.readFileSync(src).toString('base64'))}), (c) => c.charCodeAt(0)).buffer, new Uint8Array([255, 216, 255, 217]).buffer, undefined, ${JSON.stringify(stem)})`);
+      const plain = await send('Yasuo clip 21-03');
+      assert.strictEqual(plain, 'Yasuo clip 21-03.webm', 'without ffmpeg on this PC yet, the clip stays .webm');
+      process.env.PREMADE_FFMPEG = ff;
+      const m1 = await send('Yasuo triple kill 21-04'), m2 = await send('Yasuo triple kill 21-04'), m3 = await send('..\\evil');
+      const made = fs.readFileSync(path.join(dir, m1));
+      assert(m1 === 'Yasuo triple kill 21-04.mp4' && m2 === 'Yasuo triple kill 21-04 (2).mp4' && /^Clip \d{4}-.*\.mp4$/.test(m3), `clips named by the page, a bad name refused: ${[m1, m2, m3]}`);
+      assert(made.subarray(4, 8).toString() === 'ftyp' && made.includes('avc1') && made.includes('mp4a') && !fs.existsSync(path.join(dir, m1.replace('.mp4', '.webm'))) && Math.abs(secs(m1) - 3) < 0.3, 'an .mp4 with H.264 and AAC, the .webm gone');
+      assert.strictEqual((await js('lpcClient.clips()')).find((c) => c.name === m1).pic, 'data:image/jpeg;base64,/9j/2Q==', 'its picture follows it');
+      const cut2 = await js(`lpcClient.clipCut(${JSON.stringify(m1)}, 0.5, 2)`), reel = await js(`lpcClient.clipReel(${JSON.stringify([m1, m2, plain])}, 'Yasuo reel 21-04')`);
+      assert(cut2 === 'Yasuo triple kill 21-04 cut.mp4' && Math.abs(secs(cut2) - 1.5) < 0.3, `a cut of an .mp4: ${cut2}, ${secs(cut2)} s`);
+      assert(reel === 'Yasuo reel 21-04.mp4' && Math.abs(secs(reel) - 9) < 0.6, `a reel of three clips, one still .webm: ${reel}, ${secs(reel)} s`);
+      assert.strictEqual(await js(`lpcClient.clipReel(${JSON.stringify([m1, '../x.mp4'])}, 'x')`), '', 'a reel of anything but clips is refused');
+      assert.strictEqual(await js(`lpcClient.clipRename(${JSON.stringify(m2)}, 'Best one')`), 'Best one.mp4');
+      const media = await js(`fetch(lpcClient.media('clip', ${JSON.stringify(m1)})).then((r) => r.headers.get('content-type'))`);
+      assert.strictEqual(media, 'video/mp4');
+      assert.strictEqual(await js(`lpcClient.clipCopy(${JSON.stringify(m1)})`), process.platform === 'win32', 'Copy is Windows’ own');
+      const total = (await js('lpcClient.clips()')).reduce((n, c) => n + c.size, 0);
+      assert.deepStrictEqual(await js(`lpcClient.clipsClean(${total - 1}, [], ${JSON.stringify([reel])})`), [reel], 'the clean-up takes the ones named first, though newest');
+      for (const n of [plain, m1, 'Best one.mp4', m3, cut2]) await js(`lpcClient.clipTrash(${JSON.stringify(n)})`);
+      delete process.env.PREMADE_FFMPEG;
+      console.log(`clips as .mp4: ${m1} (H.264 + AAC), a cut, a reel of three and the clean-up's order`);
+    }
     // the performance meter
     const perf = await js('lpcClient.metrics()');
     assert(perf.cpu >= 0 && perf.cpu <= 100 && perf.mb > 30 && perf.mb < 5000, `the app's CPU and memory: ${JSON.stringify(perf)}`);
@@ -340,8 +371,8 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await until(() => !ov.isVisible(), 'the overlay hidden');
 
     // shortcuts: mute and show/hide register system-wide; push to talk needs Windows
-    const keys = await js(`lpcClient.keys({ mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', ptt: 'KeyV' })`);
-    assert.deepStrictEqual(keys, { mute: true, clip: true, rec: true, overlay: true, show: true, ptt: process.platform === 'win32' }, JSON.stringify(keys));
+    const keys = await js(`lpcClient.keys({ mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', clipLong: 'Ctrl+Shift+J', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', ptt: 'KeyV' })`);
+    assert.deepStrictEqual(keys, { mute: true, clip: true, clipLong: true, rec: true, overlay: true, show: true, ptt: process.platform === 'win32' }, JSON.stringify(keys));
     assert(['M', 'L', 'K', 'R'].every((k) => globalShortcut.isRegistered('Ctrl+Shift+' + k)));
     assert.strictEqual(globalShortcut.isRegistered('Alt+V'), process.platform !== 'win32', 'the overlay key: read like push to talk on Windows, a hotkey elsewhere');
     // a match found (Pregame settings): the window in front of League's client, on top for a moment only

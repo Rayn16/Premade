@@ -1013,16 +1013,19 @@ ipcMain.handle('clip-cut', async (e, n, from, to) => {
 });
 // A game's clips joined into one video, in the order given. As they are when they're all .mp4 from one recording;
 // otherwise (or when that fails) encoded again.
-// ponytail: clips of different sizes (the quality changed mid-game) can fail both ways and give ''; scale each first if it happens
+// ponytail: clips of different sizes (the quality changed mid-game) or one without sound fail both ways and give ''; scale each first if it happens
 ipcMain.handle('clip-reel', async (e, names, stem) => {
   const ffmpeg = ffmpegNow();
   if (!fromSite(e) || !ffmpeg || !Array.isArray(names) || names.length < 2 || names.length > 40 || !names.every(clipOk) || typeof stem !== 'string' || !clipOk(stem + '.mp4')) return '';
   const out = await freeName(stem.slice(0, 100), '.mp4', claim).catch(() => '');
   if (!out) return '';
-  const list = clipAt(out) + '.list.txt', go = (codec) => run(ffmpeg, ['-hide_banner', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, ...codec, '-movflags', '+faststart', clipAt(out)]);
+  // joined as they are (ffmpeg's concat list), or decoded and encoded again as one (its concat filter), which also takes .webm clips
+  const list = clipAt(out) + '.list.txt', enc = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-c:a', 'aac', '-b:a', '160k'];
+  const go = (args) => run(ffmpeg, ['-hide_banner', '-v', 'error', '-y', ...args, '-movflags', '+faststart', clipAt(out)]);
   try {
     await fs.promises.writeFile(list, names.map((n) => `file '${clipAt(n).replace(/'/g, "'\\''")}'`).join('\n'));
-    await (names.every((n) => extOf(n) === '.mp4') ? go(['-c', 'copy']) : Promise.reject()).catch(() => go(['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-c:a', 'aac', '-b:a', '160k']));
+    await (names.every((n) => extOf(n) === '.mp4') ? go(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy']) : Promise.reject())
+      .catch(() => go([...names.flatMap((n) => ['-i', clipAt(n)]), '-filter_complex', `${names.map((n, i) => `[${i}:v:0][${i}:a:0]`).join('')}concat=n=${names.length}:v=1:a=1[v][a]`, '-map', '[v]', '-map', '[a]', ...enc]));
     await fs.promises.copyFile(picAt(names[0]), picAt(out)).catch(() => {});
     return out;
   } catch { await fs.promises.unlink(clipAt(out)).catch(() => {}); return ''; }
