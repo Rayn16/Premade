@@ -348,13 +348,15 @@ function moments(d, all, me, game) {
     if (!seen.has(e.EventID)) seen.set(e.EventID, !me.isDead || now - e.EventTime > 5);
     const by = who(e.KillerName), t = Math.round((+e.EventTime || 0) * 10) / 10;
     const base = { t, team: by ? String(by.team) : '', me: by === me, alive: seen.get(e.EventID) };
-    if (e.EventName === 'ChampionKill' && (by === me || who(e.VictimName) === me)) out.push({ ...base, e: 'kill', on: who(e.VictimName) === me });
+    if (e.EventName === 'ChampionKill' && (by === me || who(e.VictimName) === me)) out.push({ ...base, e: 'kill', on: who(e.VictimName) === me, solo: by === me && !(Array.isArray(e.Assisters) && e.Assisters.length) }); // solo (app 1.48): a clip of your solo kill
     else if (e.EventName === 'ChampionKill' && Array.isArray(e.Assisters) && e.Assisters.some((n) => who(n) === me)) out.push({ ...base, e: 'assist' }); // for a match's highlights (app 1.20)
     else if (e.EventName === 'Multikill' && by === me) out.push({ ...base, e: 'multi', n: +e.KillStreak || 2 });
     else if (e.EventName === 'DragonKill' || e.EventName === 'BaronKill') {
       const what = e.EventName === 'BaronKill' ? 'baron' : e.DragonType === 'Elder' ? 'elder' : 'dragon';
       out.push({ ...base, e: what, type: String(e.DragonType || ''), stolen: String(e.Stolen) === 'True' });
     } else if (e.EventName === 'Ace') out.push({ ...base, e: 'ace', team: String(e.AcingTeam || ''), me: who(e.Acer) === me });
+    else if (e.EventName === 'FirstBlood' && who(e.Recipient) === me) out.push({ ...base, e: 'first', me: true }); // app 1.48, as the win: clips by themselves
+    else if (e.EventName === 'GameEnd') out.push({ ...base, e: 'end', win: String(e.Result) === 'Win' });
     else if (e.EventName === 'HeraldKill' || e.EventName === 'HordeKill') out.push({ ...base, e: e.EventName === 'HeraldKill' ? 'herald' : 'grubs' });
     else if (['TurretKilled', 'InhibKilled', 'InhibRespawned'].includes(e.EventName)) {
       const name = String(e.TurretKilled || e.InhibKilled || e.InhibRespawned || ''); // Turret_T1_L_03_A, Barracks_T2_C1: T1 is ORDER's, T2 CHAOS's
@@ -955,23 +957,83 @@ ipcMain.handle('video-folder', async (e, what) => { // get, pick or reset; says 
 });
 const picDir = () => path.join(app.getPath('userData'), 'Clip pictures');
 const bytes = (d) => (d instanceof ArrayBuffer ? Buffer.from(d) : ArrayBuffer.isView(d) ? Buffer.from(d.buffer, d.byteOffset, d.byteLength) : null);
-const clipOk = (n) => typeof n === 'string' && n.length <= 120 && /^[^\\/:*?"<>|\x00-\x1f.][^\\/:*?"<>|\x00-\x1f]*\.webm$/i.test(n) && !/\.part\.webm$/i.test(n); // not a cut being made (1.41)
+const clipOk = (n) => typeof n === 'string' && n.length <= 120 && /^[^\\/:*?"<>|\x00-\x1f.][^\\/:*?"<>|\x00-\x1f]*\.(webm|mp4)$/i.test(n) && !/\.part\.(webm|mp4)$/i.test(n); // not a cut being made (1.41); .mp4 since 1.48
+const EXT = /\.(webm|mp4)$/i, extOf = (n) => (EXT.exec(n) || ['.webm'])[0].toLowerCase();
 const clipAt = (n) => path.join(clipDir(), n), picAt = (n) => path.join(picDir(), n + '.jpg');
-ipcMain.handle('clip', async (e, data, pic, like) => {
-  const buf = fromSite(e) && bytes(data);
-  if (!buf || !buf.length || buf.length > 500e6) return '';
-  const d = new Date(), two = (n) => String(n).padStart(2, '0');
-  const stem = clipOk(like) ? like.replace(/\.webm$/i, '').slice(0, 100) + ' cut'
-    : `Clip ${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
-  await fs.promises.mkdir(clipDir(), { recursive: true });
+// App 1.48: a clip is saved as the page recorded it (H.264 in WebM), then made an .mp4 that phones, WhatsApp and
+// Discord play: ffmpeg copies the picture as it is and turns the sound into AAC (Electron's recorder can't write AAC
+// itself). Without ffmpeg yet (it's fetched meanwhile, for the next clip), or when it can't (a PC that records VP8),
+// the clip stays .webm. stem: the page's name for it ("Yasuo triple kill 21-04"); like: the clip a cut came from.
+const ffmpegNow = () => { const f = process.env.PREMADE_FFMPEG || path.join(toolDir(), 'ffmpeg.exe'); return fs.existsSync(f) ? f : ''; };
+const MP4 = ['-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart'];
+async function freeName(stem, ext, write) { // a new name each time: write(file) fails with EEXIST when it's taken
   for (let n = 1; n < 10; n++) {
-    const name = `${stem}${n > 1 ? ` (${n})` : ''}.webm`;
-    try { await fs.promises.writeFile(clipAt(name), buf, { flag: 'wx' }); } catch (err) { if (err.code === 'EEXIST') continue; throw err; }
-    const jpg = bytes(pic);
-    if (jpg && jpg.length < 2e6) await fs.promises.mkdir(picDir(), { recursive: true }).then(() => fs.promises.writeFile(picAt(name), jpg)).catch(() => {});
+    const name = `${stem}${n > 1 ? ` (${n})` : ''}${ext}`;
+    try { await write(clipAt(name)); } catch (err) { if (err.code === 'EEXIST') continue; throw err; }
     return name;
   }
   return '';
+}
+const claim = (f) => fs.promises.writeFile(f, '', { flag: 'wx' }); // takes a name for ffmpeg to write over (-y)
+async function toMp4(name) {
+  const ffmpeg = ffmpegNow();
+  if (!ffmpeg) { if (process.platform === 'win32') getTools().catch(() => {}); return name; }
+  const out = await freeName(name.replace(EXT, ''), '.mp4', claim).catch(() => '');
+  if (!out) return name;
+  try { await run(ffmpeg, ['-hide_banner', '-v', 'error', '-y', '-i', clipAt(name), ...MP4, clipAt(out)]); } catch { await fs.promises.unlink(clipAt(out)).catch(() => {}); return name; }
+  await fs.promises.unlink(clipAt(name)).catch(() => {});
+  await fs.promises.rename(picAt(name), picAt(out)).catch(() => {});
+  return out;
+}
+ipcMain.handle('clip', async (e, data, pic, like, stem) => {
+  const buf = fromSite(e) && bytes(data);
+  if (!buf || !buf.length || buf.length > 500e6) return '';
+  const d = new Date(), two = (n) => String(n).padStart(2, '0');
+  const base = clipOk(like) ? like.replace(EXT, '').slice(0, 100) + ' cut'
+    : typeof stem === 'string' && stem.length <= 80 && clipOk(stem + '.webm') ? stem
+    : `Clip ${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
+  await fs.promises.mkdir(clipDir(), { recursive: true });
+  const name = await freeName(base, '.webm', (f) => (fs.existsSync(f.replace(EXT, '.mp4')) ? Promise.reject(Object.assign(new Error('taken'), { code: 'EEXIST' })) : fs.promises.writeFile(f, buf, { flag: 'wx' })));
+  if (!name) return '';
+  const jpg = bytes(pic);
+  if (jpg && jpg.length < 2e6) await fs.promises.mkdir(picDir(), { recursive: true }).then(() => fs.promises.writeFile(picAt(name), jpg)).catch(() => {});
+  return toMp4(name);
+});
+// A cut of an .mp4 clip (the page cuts .webm itself): from and to in seconds, encoded again so it starts on the frame
+// you picked, saved as "... cut" with the clip's picture
+ipcMain.handle('clip-cut', async (e, n, from, to) => {
+  const ffmpeg = ffmpegNow();
+  if (!fromSite(e) || !clipOk(n) || !ffmpeg || !(from >= 0) || !(to > from)) return '';
+  const out = await freeName(n.replace(EXT, '').slice(0, 100) + ' cut', '.mp4', claim).catch(() => '');
+  if (!out) return '';
+  try { await run(ffmpeg, ['-hide_banner', '-v', 'error', '-y', '-ss', String(from), '-i', clipAt(n), '-t', String(to - from), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', clipAt(out)]); }
+  catch { await fs.promises.unlink(clipAt(out)).catch(() => {}); return ''; }
+  await fs.promises.copyFile(picAt(n), picAt(out)).catch(() => {});
+  return out;
+});
+// A game's clips joined into one video, in the order given. As they are when they're all .mp4 from one recording;
+// otherwise (or when that fails) encoded again.
+// ponytail: clips of different sizes (the quality changed mid-game) can fail both ways and give ''; scale each first if it happens
+ipcMain.handle('clip-reel', async (e, names, stem) => {
+  const ffmpeg = ffmpegNow();
+  if (!fromSite(e) || !ffmpeg || !Array.isArray(names) || names.length < 2 || names.length > 40 || !names.every(clipOk) || typeof stem !== 'string' || !clipOk(stem + '.mp4')) return '';
+  const out = await freeName(stem.slice(0, 100), '.mp4', claim).catch(() => '');
+  if (!out) return '';
+  const list = clipAt(out) + '.list.txt', go = (codec) => run(ffmpeg, ['-hide_banner', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, ...codec, '-movflags', '+faststart', clipAt(out)]);
+  try {
+    await fs.promises.writeFile(list, names.map((n) => `file '${clipAt(n).replace(/'/g, "'\\''")}'`).join('\n'));
+    await (names.every((n) => extOf(n) === '.mp4') ? go(['-c', 'copy']) : Promise.reject()).catch(() => go(['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-c:a', 'aac', '-b:a', '160k']));
+    await fs.promises.copyFile(picAt(names[0]), picAt(out)).catch(() => {});
+    return out;
+  } catch { await fs.promises.unlink(clipAt(out)).catch(() => {}); return ''; }
+  finally { await fs.promises.unlink(list).catch(() => {}); }
+});
+// Copy: the clip's file on the clipboard, as Explorer's Copy puts it, so Ctrl+V sends it in Discord or WhatsApp or
+// drops it in a folder. Electron's clipboard has no file list, so Windows' own Set-Clipboard does it (the path goes in
+// the environment, not the command line: nothing to quote).
+ipcMain.handle('clip-copy', async (e, n) => {
+  if (!fromSite(e) || !clipOk(n) || !fs.existsSync(clipAt(n)) || process.platform !== 'win32') return false;
+  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Set-Clipboard -LiteralPath $env:PREMADE_COPY'], { env: { ...process.env, PREMADE_COPY: clipAt(n) } }).then(() => true, () => false);
 });
 // the clips, newest first: { name, size, at, pic (a data: URL, or '') }
 async function clipList() {
@@ -988,7 +1050,7 @@ ipcMain.handle('clips', (e) => (fromSite(e) ? clipList() : []));
 ipcMain.handle('clip-read', (e, n) => (fromSite(e) && clipOk(n) ? fs.promises.readFile(clipAt(n)).catch(() => null) : null));
 ipcMain.handle('clip-rename', async (e, n, to) => {
   if (!fromSite(e) || !clipOk(n) || typeof to !== 'string') return '';
-  to = to.trim().replace(/\.webm$/i, '') + '.webm';
+  to = to.trim().replace(EXT, '') + extOf(n);
   if (!clipOk(to)) return '';
   if (to.toLowerCase() !== n.toLowerCase() && (await fs.promises.access(clipAt(to)).then(() => true, () => false))) return ''; // rename would replace it
   try { await fs.promises.rename(clipAt(n), clipAt(to)); } catch { return ''; }
@@ -1001,12 +1063,13 @@ async function binClip(n) {
   return true;
 }
 ipcMain.handle('clip-trash', (e, n) => (fromSite(e) && clipOk(n) ? binClip(n) : false));
-// the oldest clips that aren't favorites (keep) go to the bin until the folder is under limit bytes; says which went
-ipcMain.handle('clips-clean', async (e, limit, keep) => {
+// the oldest clips that aren't favorites (keep) go to the bin until the folder is under limit bytes; says which went.
+// first (app 1.48): those go before the others, oldest first (the clips made by themselves that you never opened)
+ipcMain.handle('clips-clean', async (e, limit, keep, first) => {
   if (!fromSite(e) || !(limit > 0)) return [];
-  const list = await clipList(), fav = new Set(Array.isArray(keep) ? keep : []), out = [];
+  const list = (await clipList()).reverse(), fav = new Set(Array.isArray(keep) ? keep : []), early = new Set(Array.isArray(first) ? first : []), out = [];
   let total = list.reduce((n, c) => n + c.size, 0);
-  for (const c of list.reverse()) {
+  for (const c of [...list.filter((x) => early.has(x.name)), ...list.filter((x) => !early.has(x.name))]) {
     if (total <= limit) break;
     if (!fav.has(c.name) && (await binClip(c.name))) { total -= c.size; out.push(c.name); }
   }
@@ -1089,7 +1152,7 @@ const mediaServer = require('http').createServer(async (req, res) => {
   let a = 0, z = all - 1;
   if (m && m[1]) { a = +m[1]; if (m[2]) z = Math.min(+m[2], all - 1); } else if (m && m[2]) a = Math.max(0, all - +m[2]);
   if (a > z) return res.writeHead(416, { ...cors, 'Content-Range': `bytes */${all}` }).end();
-  res.writeHead(m ? 206 : 200, { ...cors, 'Content-Type': 'video/webm', 'Content-Length': String(z - a + 1), ...(m && { 'Content-Range': `bytes ${a}-${z}/${all}` }) });
+  res.writeHead(m ? 206 : 200, { ...cors, 'Content-Type': extOf(n) === '.mp4' ? 'video/mp4' : 'video/webm', 'Content-Length': String(z - a + 1), ...(m && { 'Content-Range': `bytes ${a}-${z}/${all}` }) });
   if (req.method === 'HEAD') return res.end();
   fs.createReadStream(at(n), { start: a, end: z }).on('error', () => res.destroy()).pipe(res);
 }).listen(0, '127.0.0.1', () => { mediaBase = `http://127.0.0.1:${mediaServer.address().port}/${mediaKey}/`; });
@@ -1118,7 +1181,7 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
   if (what === 'end') return vidEnd(a);
   const list = async () => { // newest first: { name, size, at, rec (being recorded) }
     const out = [];
-    for (const name of (await fs.promises.readdir(vidDir()).catch(() => [])).filter(clipOk)) {
+    for (const name of (await fs.promises.readdir(vidDir()).catch(() => [])).filter((n) => clipOk(n) && extOf(n) === '.webm')) {
       const st = await fs.promises.stat(vidAt(name)).catch(() => null);
       if (st && st.isFile()) out.push({ name, size: st.size, at: st.mtimeMs, rec: vids.has(name) || finishing.has(name) });
     }
@@ -1132,7 +1195,7 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
     return out;
   }
   if (what === 'folder') { await fs.promises.mkdir(vidDir(), { recursive: true }).catch(() => {}); return (await shell.openPath(vidDir())) === ''; }
-  if (!clipOk(a) || vids.has(a) || finishing.has(a)) return false;
+  if (!clipOk(a) || extOf(a) !== '.webm' || vids.has(a) || finishing.has(a)) return false;
   if (what === 'open') return (await shell.openPath(vidAt(a))) === ''; // in your video player
   // ponytail: the whole video (about 300 MB for 30 minutes) goes to the page at once; a stream if that's too much
   if (what === 'read') return fs.promises.readFile(vidAt(a)).catch(() => null); // for its highlights in the page
@@ -1554,6 +1617,7 @@ ipcMain.handle('keys', (e, k) => {
   const ok = {
     mute: reg(k.mute, () => win.webContents.send('key', 'mute')),
     clip: reg(k.clip, () => win.webContents.send('key', 'clip')),
+    clipLong: reg(k.clipLong, () => win.webContents.send('key', 'clipLong')), // app 1.48: the last 2 minutes
     rec: reg(k.rec, () => win.webContents.send('key', 'rec')), // app 1.28.6: Record your screen
     overlay: false, // below
     show: reg(k.show, () => {

@@ -386,9 +386,11 @@ function fakeApp(version) {
     }),
     // 1.7: the gallery, with the clips kept here (and saved by nodeClip), the performance meter and test recordings
     ...(from('1.7') && {
-      async clip(data, pic, like) {
+      stems: [], // 1.48: the name the page asks for (this stand-in keeps "Clip N")
+      async clip(data, pic, like, stem) {
         const u8 = new Uint8Array(data);
         window.lastClip = u8;
+        if (!like) this.stems.push(stem);
         let bin = '';
         for (let i = 0; i < u8.length; i += 32768) bin += String.fromCharCode(...u8.subarray(i, i + 32768));
         const name = await window.nodeClip(btoa(bin), like || '');
@@ -408,7 +410,9 @@ function fakeApp(version) {
       },
       clipTrash: async (n) => fakeClips.delete(n),
       clipDrag(n) { this.calls.push('drag ' + n); },
-      async clipsClean(limit, keep) { this.calls.push(['clean', limit, keep]); return []; },
+      async clipsClean(limit, keep, first) { this.calls.push(['clean', limit, keep]); this.cleanFirst = first; return []; },
+      async clipCopy(n) { this.calls.push('copy ' + n); return fakeClips.has(n); },
+      async clipReel(names, stem) { this.calls.push('reel ' + names.join()); fakeClips.set(stem + '.mp4', { ...fakeClips.get(names[0]), at: Date.now() }); return stem + '.mp4'; },
       metrics: async () => ({ cpu: 3.2, mb: 412 }),
       record(on) { this.calls.push('record ' + on); },
       recordingsFolder() { this.calls.push('recordings-folder'); },
@@ -1523,17 +1527,36 @@ const leagueData = (over = {}) => ({
     }
     await league(leagueData({ t: 610, events: [...leagueData().events, { e: 'multi', t: 609, n: 2, me: true, team: 'ORDER' }] }));
     await wait(pc, () => lpc.toasts().some((t) => /^Clip saved of your multikill: Clip 3\.webm$/.test(t)), null, 'the multikill clip', 15000);
-    console.log(`clips: the key (${full.d.toFixed(1)} s), a 4 s cut (${short.d.toFixed(1)} s, plays from 0) and a multikill, all WebM with video and sound`);
+    // What's new 157: named after the champion and the moment; the long clip key; a solo kill clips by itself, and
+    // not with its box off; each clip remembers its game and why it was saved
+    await pc.evaluate(() => lpcClient.emit('key', 'clipLong'));
+    await wait(pc, () => lpc.clips().saved.length === 4, null, 'the long clip', 30000);
+    const extra = [...leagueData().events, { e: 'multi', t: 609, n: 2, me: true, team: 'ORDER' }];
+    await league(leagueData({ t: 640, events: [...extra, { e: 'kill', t: 639, me: true, solo: true, team: 'ORDER' }] }));
+    await wait(pc, () => lpc.toasts().some((t) => /^Clip saved of your solo kill: Clip 5\.webm$/.test(t)), null, 'the solo kill clip', 15000);
+    await pc.evaluate(() => document.getElementById('optClipSolo').click());
+    await league(leagueData({ t: 660, events: [...extra, { e: 'kill', t: 659, me: true, solo: true, team: 'ORDER' }] }));
+    await pc.waitForTimeout(6500);
+    await pc.evaluate(() => document.getElementById('optClipSolo').click());
+    const named = await pc.evaluate(() => ({ stems: lpcClient.stems, saved: lpc.clips().saved.length, meta: JSON.parse(localStorage.getItem('lpc-clip-meta')), games: JSON.parse(localStorage.getItem('lpc-clip-games')) }));
+    assert(named.saved === 5 && [/^Ahri clip \d\d-\d\d$/, /^Ahri clip \d\d-\d\d$/, /^Ahri double kill \d\d-\d\d$/, /^Ahri long clip \d\d-\d\d$/, /^Ahri solo kill \d\d-\d\d$/].every((re, i) => re.test(named.stems[i])), `clips named after the champion and the moment, none with Solo kills off: ${JSON.stringify(named.stems)}`);
+    assert(named.meta['Clip 3.webm'].w === 'multi' && named.meta['Clip 3.webm'].n === 2 && named.meta['Clip 4.webm'].l === 1 && named.meta['Clip 5.webm'].w === 'solo' && Object.values(named.meta).every((m) => m.g === GAME) && named.games[GAME].c === 'Ahri' && named.games[GAME].k === 3,
+      `each clip keeps its game and why: ${JSON.stringify(named)}`);
+    assert.deepStrictEqual(await pc.evaluate(() => lpcClient.cleanFirst), ['Clip 3.webm', 'Clip 5.webm'], 'the clean-up takes the clips made by themselves, never played, first');
+    console.log(`clips: the key (${full.d.toFixed(1)} s), a 4 s cut (${short.d.toFixed(1)} s, plays from 0), a multikill, the long clip key and a solo kill, all WebM with video and sound, named ${named.stems.join(', ')}`);
     // the gallery: each clip with its picture; keep one, rename one, drag one out, play and cut one, bin one
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="clips"]');
-    await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip .cname')].map((e) => e.textContent).join() === 'Clip 3,Clip 2,Clip 1', null, 'the gallery');
+    await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip .cname')].map((e) => e.textContent).join() === 'Clip 5,Clip 4,Clip 3,Clip 2,Clip 1', null, 'the gallery');
+    // one row for the game: the champion, the K/D/A and its clips, each tagged with what saved it
+    const gameRow = await pc.evaluate(() => ({ rows: document.querySelectorAll('#clipGrid .cgame').length, head: document.querySelector('#clipGrid .cghead').textContent, tags: [...document.querySelectorAll('#clipGrid .ctag')].map((e) => e.textContent + (e.hasAttribute('data-auto') ? '*' : '')).join() }));
+    assert(gameRow.rows === 1 && /^Ahri3 \/ 1 \/ 2 · Ranked · .* · 5 clips🎬 Make a reel of this game$/.test(gameRow.head) && gameRow.tags === 'Solo kill*,2 min,Double kill*,Key,Key', `the game's row: ${JSON.stringify(gameRow)}`);
     assert(await pc.$$eval('#clipGrid .shot', (imgs) => imgs.every((i) => i.src.startsWith('data:image/jpeg;base64,') && i.naturalWidth === 320)), 'a picture of the screen with each clip');
     const card = (n) => `:is(#clipGrid, #savedGrid) .clip:has(.cname:text-is("${n}"))`;
     await wait(pc, () => document.querySelector('#clipGrid .clip .kda img'), null, 'the champion on each card');
     assert.strictEqual(await text(pc, `${card('Clip 3')} .kda`), 'Ahri 3/1/2', 'your champion and K/D/A on the card');
     await pc.click(`${card('Clip 1')} .star`);
     assert(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-clip-favs')).includes('Clip 1.webm')) && (await text(pc, `${card('Clip 1')} .star`)) === '★ Saved', 'saved');
-    await wait(pc, () => [...document.querySelectorAll('#savedGrid .cname')].map((e) => e.textContent).join() === 'Clip 1' && [...document.querySelectorAll('#clipGrid .cname')].map((e) => e.textContent).join() === 'Clip 3,Clip 2', null, 'Clip 1 in Saved');
+    await wait(pc, () => [...document.querySelectorAll('#savedGrid .cname')].map((e) => e.textContent).join() === 'Clip 1' && [...document.querySelectorAll('#clipGrid .cname')].map((e) => e.textContent).join() === 'Clip 5,Clip 4,Clip 3,Clip 2', null, 'Clip 1 in Saved');
     await pc.click(`${card('Clip 2')} .ren`);
     await pc.fill(`#clipGrid form input`, 'Baron steal');
     await pc.press(`#clipGrid form input`, 'Enter');
@@ -1599,6 +1622,14 @@ const leagueData = (over = {}) => ({
     pc.once('dialog', (d) => d.accept());
     await pc.click(`${card('Clip 3')} .bin`);
     await wait(pc, () => ![...document.querySelectorAll('#clipGrid .cname')].some((e) => e.textContent === 'Clip 3'), null, 'Clip 3 binned');
+    // Copy puts the file on the clipboard; Make a reel joins the game's clips, oldest first, into one more in its row;
+    // a binned clip's notes go with it
+    await pc.click(`${card('Clip 5')} .copy`);
+    await wait(pc, () => lpcClient.calls.includes('copy Clip 5.webm') && lpc.toasts().some((t) => /^Copied “Clip 5”\. Paste it with Ctrl\+V/.test(t)), null, 'the clip copied');
+    await pc.click('#clipGrid .cghead button:has-text("Make a reel")');
+    await wait(pc, () => [...document.querySelectorAll('#clipGrid .cname')].some((e) => /^Ahri reel \d\d-\d\d$/.test(e.textContent)) && [...document.querySelectorAll('#clipGrid .ctag')].some((e) => e.textContent === 'Reel'), null, 'the reel in the game’s row');
+    const reel = await pc.evaluate(() => ({ call: lpcClient.calls.find((c) => typeof c === 'string' && c.startsWith('reel ')), meta: Object.keys(JSON.parse(localStorage.getItem('lpc-clip-meta'))) }));
+    assert(/^reel Baron steal\.webm,/.test(reel.call) && reel.call.includes('Clip 4.webm,Clip 5.webm') && !reel.meta.includes('Clip 3.webm'), `the reel's clips in order, and Clip 3's notes gone with it: ${JSON.stringify(reel)}`);
     await pc.click('#clipsFolder');
     assert(await pc.evaluate(() => lpcClient.calls.includes('clips-folder')));
     await shot(pc, 'clips');
@@ -1611,9 +1642,9 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('voiceNote').textContent === 'Your phrase is “that was sick”. Press Test to try it.', null, 'your phrase recorded', 90000);
     assert.strictEqual(await pc.inputValue('#optClipPhrase'), 'that was sick');
     await pc.check('#optClipVoice');
-    await wait(pc, () => lpc.toasts().includes('Clip saved when you said “that was sick”: Clip 6.webm'), null, 'the clip by voice', 60000);
+    await wait(pc, () => lpc.toasts().includes('Clip saved when you said “that was sick”: Clip 8.webm'), null, 'the clip by voice', 60000);
     assert(await pc.evaluate(() => !lpc.checks().bt && !lpc.checks().btNote), 'the fake mic is not a Bluetooth headset (only its label says so; voice.e2e checks the labels)');
-    assert.strictEqual(await text(pc, '#voiceNote'), 'Listening for “Premade, clip that” and “that was sick”.');
+    assert.strictEqual(await text(pc, '#voiceNote'), 'Listening for “Premade, clip that”, “that was sick” and “Premade, clip the fight”.');
     await shot(pc, 'clip-settings');
     await pc.uncheck('#optClipVoice');
     await wait(pc, () => !lpc.voice().loaded && !lpc.voice().ears, null, 'the speech recognition let go');
@@ -1931,13 +1962,14 @@ const leagueData = (over = {}) => ({
     lcu.phase = 'None';
     await league({ inGame: false, phase: 'None' });
     console.log('ARAM: the bench with Ahri first, taken with a click, then a reroll; on the phone too');
-    // Clip anywhere: outside a League game the clip key saves a "Screen clip", listed on the Recording page, not on Clips
+    // Clip anywhere: outside a League game the clip key saves a "Screen clip", listed on the Recording page
     await pc.click('.nav[data-view="record"]');
     await pc.check('#optClipsAll');
     await wait(pc, () => lpc.clips().on && lpc.clips().head, null, 'the screen kept outside League', 30000);
     await pc.evaluate(() => lpcClient.emit('key', 'clip'));
     await wait(pc, () => [...document.querySelectorAll('#anyGrid .cname')].some((e) => /^Screen clip /.test(e.textContent)), null, 'the clip on the Recording page', 30000);
-    assert(!(await pc.$$eval('#clipGrid .cname', (e) => e.some((x) => /^Screen clip /.test(x.textContent)))), 'not on the Clips page');
+    // and since What's new 157 on the Clips page too, in a row of its own under its day (Rayan, 2026-11-16)
+    assert(await pc.$$eval('#clipGrid .cgame', (rows) => rows.some((r) => r.querySelector('.cghead').textContent.startsWith('Screen clipsClip anywhere, outside League') && [...r.querySelectorAll('.cname')].every((x) => /^Screen clip /.test(x.textContent)))), 'in its own row on the Clips page');
     await pc.uncheck('#optClipsAll');
     await wait(pc, () => !lpc.clips().on, null, 'Clip anywhere off lets the screen go');
     console.log('clip anywhere: the clip key outside League saved a Screen clip, listed on the Recording page');

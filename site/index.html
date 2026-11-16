@@ -508,6 +508,15 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .clip .shot { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; display: block; cursor: grab; }
 .clip .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.cgames { display: grid; gap: 14px; }
+.cgame { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-width: 0; }
+.cghead { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.cgchamp { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--gold-line); }
+.cgwho { display: grid; flex: 1 1 180px; min-width: 0; }
+.cgwho b { font-size: 16px; }
+.cgwin { color: #4fb477; } .cgloss { color: #e06a6a; }
+.ctag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--fg); }
+.ctag[data-auto] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .vidlist { margin: 0; padding: 0; list-style: none; }
 .vidlist:empty { display: none; }
 #dlForm { grid-template-columns: minmax(0, 1fr) auto auto; }
@@ -2282,7 +2291,7 @@ dialog.wizard { transform: scale(var(--from)); }
         <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button><span id="clipCount" class="hint"></span></h2>
         <div id="clipFind" class="clipfind" hidden><input id="clipSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search clips and champions" aria-label="Search clips"><div class="pills" role="group" aria-label="Show"><button type="button" data-cf="all" aria-pressed="true">All</button><button type="button" data-cf="today" aria-pressed="false">Today</button><button type="button" data-cf="week" aria-pressed="false">This week</button></div></div>
         <p id="clipNote" class="hint"></p>
-        <div id="clipGrid" class="clips"></div>
+        <div id="clipGrid" class="cgames"></div>
         <ul id="clipList" class="cliplist" hidden></ul>
         <div id="clipStore" class="clipstore" hidden><span class="hint">Clip storage</span><b id="clipStoreText"></b><div class="wrbar store" aria-hidden="true"><span id="clipStoreBar"></span></div></div>
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
@@ -2337,15 +2346,24 @@ dialog.wizard { transform: scale(var(--from)); }
           <section class="panel">
             <h2 class="ph">Saving a clip <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
             <div class="keyrow"><span>Clip key</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
+            <div class="keyrow"><span>Long clip key: the last 2 minutes</span><kbd id="kClipLong"></kbd><button class="btn small" type="button" data-key="clipLong">Change</button><span></span></div>
             <p id="clipKeyNote" class="hint"></p>
-            <label class="check"><input id="optClipMulti" type="checkbox"> Save a clip by itself when I get a double kill or better</label>
-            <label class="check"><input id="optClipBig" type="checkbox"> And for my team's steals and Aces, and my pentakills</label>
+            <p class="hint">Save a clip by itself for:</p>
+            <label class="check"><input id="optClipMulti" type="checkbox"> My double kills or better</label>
+            <label class="check"><input id="optClipBig" type="checkbox"> My team's steals and Aces, and my pentakills</label>
+            <label class="check"><input id="optClipSolo" type="checkbox"> My solo kills</label>
+            <label class="check"><input id="optClipFirst" type="checkbox"> My first blood</label>
+            <label class="check"><input id="optClipTake" type="checkbox"> My team's Baron and Elder Dragon</label>
+            <label class="check"><input id="optClipWin" type="checkbox"> The win</label>
           </section>
           <section class="panel">
             <h2 class="ph">By voice <button class="tip" type="button" popovertarget="t-voiceclip" aria-label="About clips by voice">?</button></h2>
             <label class="check"><input id="optClipVoice" type="checkbox"> Save a clip when I say “Premade, clip that”</label>
             <label class="field">Or my own phrase <input id="optClipPhrase" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Record it, or type it"></label>
             <div class="toolbar"><button id="phraseRec" class="btn small" type="button">Record my phrase</button><button id="voiceTest" class="btn small" type="button">Test</button></div>
+            <p class="hint">“Premade, clip the fight” saves the last 2 minutes instead.</p>
+            <label class="field">Or my own phrase for 2 minutes <input id="optClipPhraseLong" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Record it, or type it"></label>
+            <div class="toolbar"><button id="phraseRecLong" class="btn small" type="button">Record my 2-minute phrase</button></div>
             <p id="voiceNote" class="hint" role="status"></p>
           </section>
         </div>
@@ -2862,7 +2880,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-atten" class="tipbox" popover>Like Discord’s attenuation: while a friend you can hear is talking, every other app’s sound, your game too, goes down by this much, and back up a second after they stop. Unlike Windows’ own setting it only happens while someone talks. Desktop app only.</div>
 <div id="t-gate" class="tipbox" popover>Others only hear you while your mic is louder than this. Talk normally and watch the bar, then raise the gate until typing and background noise stay below it but your voice doesn't. Or press Set the gate for me and stay quiet for 3 seconds: it listens to your room and puts the gate just above its noise.</div>
 <div id="t-out" class="tipbox" popover>Where everyone's voices come out. Using Wave Link? Pick its Voice Chat channel here, the same way you would in Discord.</div>
-<div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
+<div id="t-voiceclip" class="tipbox" popover>When it's on, the app listens to your mic during games for “Premade, clip that” and your own phrase, and saves a clip as the clip key does, even while you're muted. “Premade, clip the fight”, or your own phrase for it, saves the last 2 minutes. The speech recognition (Vosk) runs on this computer: nothing you say is sent anywhere or kept. The first time it downloads its English speech model, about 40 MB, and during games it takes about 200 MB of memory. Your own phrase: press Record my phrase and say it, or type it, in English, with at least two words you wouldn't say by accident.</div>
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
@@ -2897,7 +2915,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
-<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Here you can play, cut, rename and save your clips, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
+<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. The long clip key (Ctrl+Shift+J) and “Premade, clip the fight” save the last 2 minutes. Clips are .mp4, which phones, WhatsApp and Discord play; the first one is .webm while the app fetches FFmpeg to make them. Each game is a row with its clips. Here you can play, cut, rename and save your clips, copy one to paste into a chat, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
@@ -2976,7 +2994,7 @@ dialog.wizard { transform: scale(var(--from)); }
     overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, lobbyRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
-    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 0,
+    overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true, clipPhraseLong: '',
     overlayLane: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, letPoint: true, history: true,
@@ -2989,7 +3007,9 @@ dialog.wizard { transform: scale(var(--from)); }
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
   if (!opts.aionProg || typeof opts.aionProg !== 'object') opts.aionProg = {};
   opts.aionProg = { hide: [], at: {}, open: { plan: true }, ...opts.aionProg }; // Aion 2's panels on the overlay: which are off, where each was dragged, which are open
-  const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', ptt: '', ...load('lpc-keys', {}) };
+  // the clips folder's limit is on for everyone once (20 GB, Rayan 2026-11-16): after that, Any size stays what you picked
+  if (!store.get('lpc-cap20')) { if (!opts.clipCap) opts.clipCap = 20; store.set('lpc-cap20', '1'); }
+  const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', clipLong: 'Ctrl+Shift+J', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', ptt: '', ...load('lpc-keys', {}) };
   if (keys.overlay === 'Ctrl+Shift+O') keys.overlay = 'Alt+V'; // the old default, kept by anyone who changed another key
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
   // Screen audio used to default off. Apply the new default once to existing installs; afterward a user's choice sticks.
@@ -7882,7 +7902,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (lol) { leaguePage = name; $('leagueNav').setAttribute('aria-current', 'page'); }
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
-    if (name === 'clips') { loadClips(); loadVids(); }
+    if (name === 'clips') { loadClips(); loadVids().then(renderClips); } // again: a game's row shows its match video
     if (name === 'record') loadVids();
     if (name === 'settings') { loadScreens(); serverStats(); }
     if (name === 'features') renderFeatures();
@@ -9848,7 +9868,9 @@ dialog.wizard { transform: scale(var(--from)); }
   const clipNames = [];
   // Clip anywhere (Rayan, 2026-10-29: "make it work in everything not just league"): the same recording outside League
   // too, of the screen the app shares (main.js's chosen); its clips are named "Screen clip ..." and listed on the Recording page
-  const clipsOn = () => !!(opts.clips || opts.clipsAll), isAny = (n) => /^Screen clip /.test(n);
+  const clipsOn = () => !!(opts.clips || opts.clipsAll), isAny = (n) => /^Screen (long )?clip /.test(n);
+  // the long clip (its key, “Premade, clip the fight”) saves the last 2 minutes, so that much is always kept
+  const LONG = 120, ringSecs = () => Math.max(opts.clipLen, LONG) + 15;
   function clipsCheck() {
     const vid = vidOn(), kind = `${clipsOn()} ${vid} ${!!screenRec}`, want = !!(client && client.clip && (vid || opts.clipsAll || (opts.clips && league)));
     if (recorder && (!want || recorder.kind !== kind)) stopRec(); // over, or a setting changed: again with it
@@ -9897,9 +9919,9 @@ dialog.wizard { transform: scale(var(--from)); }
         else headChunk(r, e.data);
         // and no more than twice the bytes asked for: on a busy screen an encoder can make many times its bit rate (a
         // full screen of noise: 170 Mbps for the 14 asked, so the ring held 1 GB), and then a clip is shorter instead
-        const most = ((opts.clipLen + 15) * vRate(opts.clipQ, opts.clipFps)) / 4, size = (p) => p.blob.size || p.blob.length;
+        const most = (ringSecs() * vRate(opts.clipQ, opts.clipFps)) / 4, size = (p) => p.blob.size || p.blob.length;
         let bytes = r.parts.reduce((n, p) => n + size(p), 0);
-        while (r.parts.length && (performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000 || bytes > most)) { bytes -= size(r.parts.shift()); r.trimmed = true; }
+        while (r.parts.length && (performance.now() - r.parts[0].at > ringSecs() * 1000 || bytes > most)) { bytes -= size(r.parts.shift()); r.trimmed = true; }
       }
       if (r.flushed) { r.flushed(); r.flushed = null; }
     };
@@ -10991,46 +11013,87 @@ dialog.wizard { transform: scale(var(--from)); }
       return b ? await b.arrayBuffer() : null;
     } catch { return null; }
   }
-  const CLIP_WHY = { multi: ' of your multikill', penta: ' of your pentakill', steal: ' of the steal', ace: ' of the Ace' };
-  async function saveClip(why, secs = opts.clipLen, said = '') {
+  // why a clip was saved: what the toast says, and what its file and card are called
+  const CLIP_WHY = { multi: ' of your multikill', penta: ' of your pentakill', steal: ' of the steal', ace: ' of the Ace', solo: ' of your solo kill', first: ' of your first blood', baron: ' of Baron', elder: ' of the Elder Dragon', win: ' of the win' };
+  const CLIP_TAG = { key: 'clip', voice: 'clip', multi: 'multikill', penta: 'pentakill', steal: 'steal', ace: 'Ace', solo: 'solo kill', first: 'first blood', baron: 'Baron', elder: 'Elder Dragon', win: 'win', reel: 'reel' };
+  const EXT = /\.(webm|mp4)$/i, MULTI_TAG = ['', '', 'double kill', 'triple kill', 'quadra kill', 'pentakill'];
+  // what the page knows about each clip and its game (Rayan, 2026-11-16: the Clips page by game), kept on this computer:
+  // clipMeta[file name] = { g: game id, w: why, n: kills in a multikill, l: 1 a long clip, s: 1 once you played it };
+  // clipGames[game id] = { c: champion, k, d, a, r: result, q: 'Ranked' | 'ARAM'..., at, v: the match's video }.
+  // Both are pruned to the clips still in the folder each time the gallery loads.
+  let clipMeta = load('lpc-clip-meta', {}), clipGames = load('lpc-clip-games', {});
+  const saveMeta = () => { store.set('lpc-clip-meta', JSON.stringify(clipMeta)); store.set('lpc-clip-games', JSON.stringify(clipGames)); };
+  const autoClip = (n) => !!clipMeta[n] && !['key', 'voice', 'reel'].includes(clipMeta[n].w);
+  function keepGame(r) { // this game's line for its row, as it stands now
+    if (!curGame || !league) return 0;
+    const p = meIn() || {}, was = clipGames[curGame.id] || {};
+    const g = { c: p.champ || (league.me && league.me.champ) || was.c || '', k: p.k | 0, d: p.d | 0, a: p.a | 0, r: league.result || curGame.result || was.r || '', q: curGame.ranked ? 'Ranked' : curGame.custom ? 'Custom' : { ARAM: 'ARAM', PRACTICETOOL: 'Practice Tool' }[curGame.mode] || '', at: was.at || Date.now(), v: (r && r.game && r.game.name) || was.v || '' };
+    if (JSON.stringify(g) !== JSON.stringify(was)) { clipGames[curGame.id] = g; saveMeta(); }
+    return curGame.id;
+  }
+  async function saveClip(why, secs = opts.clipLen, said = '', n = 0) {
     const r = recorder;
     if (!r || !r.mr || !r.head || !clipsOn() || r.saving) return void ((why === 'key' || why === 'voice') && notify(r && r.saving ? 'Still saving the last clip…' : clipsOn() ? 'Clips are kept during a game, or anywhere with Clip anywhere on the Recording page.' : 'Clips are off: turn them on in Clip settings, on the Clips page, or Clip anywhere on the Recording page.', true));
     r.saving = true;
-    const lol = !!league;
+    const lol = !!league, long = secs >= LONG && secs > opts.clipLen;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
+      // only the seconds this clip needs (and a key frame's worth before them) are joined, not all 2 minutes kept;
       // joined here, not in a Blob: a Blob of the whole ring would copy it to the app's main process until a clean-up
-      const head = new Uint8Array(await r.head.arrayBuffer()), list = [...(r.trimmed ? [] : [head]), ...(await Promise.all(r.parts.map(async (p) => (p.blob instanceof Blob ? new Uint8Array(await p.blob.arrayBuffer()) : p.blob))))];
+      const since = performance.now() - (secs + 8) * 1000, keep = r.parts.filter((p) => p.at >= since), whole = keep.length === r.parts.length && !r.trimmed;
+      const head = new Uint8Array(await r.head.arrayBuffer()), list = [...(whole ? [head] : []), ...(await Promise.all(keep.map(async (p) => (p.blob instanceof Blob ? new Uint8Array(await p.blob.arrayBuffer()) : p.blob))))];
       const body = new Uint8Array(list.reduce((n, u) => n + u.length, 0));
       list.reduce((at, u) => (body.set(u, at), at + u.length), 0);
       const out = cutClip(head, body, secs);
-      let name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined));
+      // "Yasuo triple kill 21-04": the champion, the moment and the time, so the file says what it is wherever it goes
+      const d = new Date(), what = (why === 'multi' && MULTI_TAG[Math.min(5, n)]) || (long ? 'long clip' : CLIP_TAG[why] || 'clip');
+      const stem = `${lol ? String((league.me && league.me.champName) || 'League').replace(/[\\/:*?"<>|.\x00-\x1f]/g, '').trim() || 'League' : 'Screen'} ${what} ${two(d.getHours())}-${two(d.getMinutes())}`;
+      let name = out && (await client.clip(out, client.clips ? await shot(r.stream.getVideoTracks()[0]) : undefined, undefined, stem));
       if (!name) throw new Error('nothing to save');
-      if (!lol) name = (await client.clipRename(name, name.replace(/^Clip /, 'Screen clip ').replace(/\.webm$/i, '')).catch(() => '')) || name; // for the Recording page
+      if (!lol && /^Clip /.test(name)) name = (await client.clipRename(name, name.replace(/^Clip /, 'Screen clip ').replace(EXT, '')).catch(() => '')) || name; // an app before 1.48 names it itself; for the Recording page
       keepKda(name);
+      clipMeta[name] = { g: lol ? keepGame(r) : 0, w: why, ...(n && { n }), ...(long && { l: 1 }) };
+      saveMeta();
       clipNames.unshift(name);
       if (curGame) curGame.clips = (curGame.clips || 0) + 1; // for the card after the game
       notify(`Clip saved${said ? ` when you said “${said}”` : CLIP_WHY[why] || ''}: ${name}`, true);
-      if (opts.hookClips && out.length < 10e6) hookPost(`**${myName || 'Player'}**’s clip${(CLIP_WHY[why] || '').replace(' your ', ' a ')}`, [out, name]); // your Discord server
+      // ponytail: your Discord server gets the clip as recorded (.webm), under 10 MB; the .mp4 is in the folder
+      if (opts.hookClips && out.length < 10e6) hookPost(`**${myName || 'Player'}**’s clip${(CLIP_WHY[why] || '').replace(' your ', ' a ')}`, [out, name.replace(EXT, '.webm')]);
       await cleanClips();
       loadClips();
     } catch (err) { console.warn('clip:', err); notify('Couldn’t save that clip.', true); }
     r.saving = false;
   }
-  // the moments that save a clip by themselves: your double kill or better (5 s later, waiting for more kills), and
-  // with big moments on your pentakills and your team's steals of Dragon, Elder or Baron and Aces (3 s later)
+  // the moments that save a clip by themselves, each with its box in Clip settings: your double kill or better (5 s
+  // later, waiting for more kills) and your solo kills; your pentakills and your team's steals of Dragon, Elder or
+  // Baron and Aces; your first blood; your team's Baron and Elder; the win (at once: the game is about to close).
+  // Several close together make one clip, named after the biggest.
+  const MOMENT_RANK = ['win', 'solo', 'first', 'baron', 'elder', 'ace', 'steal', 'multi', 'penta'];
+  function momentOf(e) {
+    const ours = !!mine.team && e.team === mine.team;
+    if (e.e === 'multi' && e.me) return e.n >= 5 && opts.clipBig ? 'penta' : opts.clipMulti ? 'multi' : '';
+    if (e.e === 'ace' && ours) return opts.clipBig ? 'ace' : '';
+    if (e.stolen && ours && ['dragon', 'elder', 'baron'].includes(e.e) && opts.clipBig) return 'steal';
+    if ((e.e === 'baron' || e.e === 'elder') && ours) return opts.clipTake ? e.e : '';
+    if (e.e === 'kill' && e.me && e.solo) return opts.clipSolo ? 'solo' : '';
+    if (e.e === 'first' && e.me) return opts.clipFirst ? 'first' : '';
+    if (e.e === 'end' && e.win) return opts.clipWin ? 'win' : '';
+    return '';
+  }
+  let momentBest = null; // the biggest moment of the clip that's waiting: { why, n }
   function clipMoments() {
     if (recorder && recorder.game) keepMarks(recorder.game); // every second, with the game's video's highlights
     if (!league || !Array.isArray(league.events)) return;
+    if (curGame && clipGames[curGame.id]) keepGame(recorder); // the row's K/D/A and result follow the game
     if (momentRoom !== league.room) { momentRoom = league.room; momentT = -1; }
-    const team = mine.team, big = (e) => opts.clipBig && !!team && e.team === team && (e.e === 'ace' || (e.stolen && ['dragon', 'elder', 'baron'].includes(e.e)));
-    const want = league.events.filter((e) => e.t > momentT && ((e.e === 'multi' && e.me && (opts.clipMulti || (opts.clipBig && e.n >= 5))) || big(e)));
-    if (!want.length) return;
-    const e = want[want.length - 1];
-    momentT = Math.max(...want.map((x) => x.t));
-    if (gameNow() - e.t > 20) return; // from before the app was watching
+    const news = league.events.filter((e) => e.t > momentT);
+    if (!news.length) return;
+    momentT = Math.max(...news.map((x) => x.t)); // seen once, wanted or not: a box ticked later doesn't clip an old moment
+    const fresh = news.filter((e) => momentOf(e) && gameNow() - e.t <= 20); // not from before the app was watching
+    if (!fresh.length) return;
+    for (const e of fresh) { const why = momentOf(e); if (!momentBest || MOMENT_RANK.indexOf(why) >= MOMENT_RANK.indexOf(momentBest.why)) momentBest = { why, n: e.n | 0 }; }
     clearTimeout(clipTimer);
-    clipTimer = setTimeout(() => saveClip(e.e === 'multi' ? (e.n >= 5 ? 'penta' : 'multi') : e.e === 'ace' ? 'ace' : 'steal'), e.e === 'multi' ? 5000 : 3000);
+    clipTimer = setTimeout(() => { const m = momentBest; momentBest = null; saveClip(m.why, opts.clipLen, '', m.n); }, momentBest.why === 'win' ? 300 : ['multi', 'penta', 'solo'].includes(momentBest.why) ? 5000 : 3000);
   }
   // ---- clips by voice (desktop app): with it on, during a game the app listens to your mic for “Premade, clip that”
   // and your own phrase, and saves a clip as the clip key does. Vosk (vendor/vosk: Kaldi's speech recognition in
@@ -11039,13 +11102,14 @@ dialog.wizard { transform: scale(var(--from)); }
   // it's wanted: in a game, or while Record my phrase or Test listens. It listens for the phrases alone (a grammar,
   // with [unk] for every other word), which finds them in the middle of a sentence too. While enemy timers are on, it
   // listens for their phrases too, in every game.
-  const SAY = 'Premade, clip that';
+  const SAY = 'Premade, clip that', SAY_LONG = 'Premade, clip the fight';
   let vosk = null, ear = null, fired = false, testing = null, recording = false, voiceErr = '', voiceBusy = null;
   const ears = new Set();
   const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
-  const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
+  const phrases = () => [SAY, opts.clipPhrase, SAY_LONG, opts.clipPhraseLong].filter((p) => words(p).split(' ').length >= 2);
+  const longSaid = (p) => [SAY_LONG, opts.clipPhraseLong].some((x) => words(x) === words(p));
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
-  const quoted = (ps, or) => ps.map((p) => `“${p}”`).join(or);
+  const quoted = (ps, or) => ps.map((p) => `“${p}”`).reduce((all, p, i) => all + (i === ps.length - 1 ? or : ', ') + p); // A, B and C
   const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && clipsOn() && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
   const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
@@ -11092,7 +11156,7 @@ dialog.wizard { transform: scale(var(--from)); }
     fired = true; // once a sentence
     if (t) heardTimer(t);
     else if (testing) testing(p);
-    else if (!recording && opts.clipVoice) saveClip('voice', opts.clipLen, p);
+    else if (!recording && opts.clipVoice) saveClip('voice', longSaid(p) ? LONG : opts.clipLen, p);
   }
   function voiceOff() {
     for (const e of ears) e.remove();
@@ -11112,7 +11176,7 @@ dialog.wizard { transform: scale(var(--from)); }
     } else if (!voiceWant() && vosk) voiceOff();
   }
   function renderVoice() {
-    const short = opts.clipPhrase && words(opts.clipPhrase).split(' ').length < 2;
+    const short = [opts.clipPhrase, opts.clipPhraseLong].some((p) => p && words(p).split(' ').length < 2);
     $('voiceNote').textContent = voiceErr || (short ? 'Your own phrase needs two words or more, so it isn’t said by accident.'
       : !opts.clipVoice ? '' : !clipsOn() ? 'Turn on “Keep the last part of each game” too: that’s what a clip is saved from.'
       : `${ear ? 'Listening' : opts.clipsAll ? 'It listens' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
@@ -11132,7 +11196,7 @@ dialog.wizard { transform: scale(var(--from)); }
     voiceCheck();
   });
   // Record my phrase: writes down the first thing you say with two words or more (Vosk without the grammar)
-  $('phraseRec').addEventListener('click', async () => {
+  for (const [btn, key, box] of [['phraseRec', 'clipPhrase', 'optClipPhrase'], ['phraseRecLong', 'clipPhraseLong', 'optClipPhraseLong']]) $(btn).addEventListener('click', async () => {
     if (testing || recording) return;
     recording = true;
     if (!(await voiceOn())) { recording = false; return void ($('voiceNote').textContent = voiceErr); }
@@ -11150,21 +11214,23 @@ dialog.wizard { transform: scale(var(--from)); }
     recording = false;
     const ok = words(text).split(' ').length >= 2;
     if (ok) {
-      opts.clipPhrase = $('optClipPhrase').value = words(text);
+      opts[key] = $(box).value = words(text);
       saveOpts();
       if (ear) listen(v);
     }
     $('voiceNote').textContent = !text ? 'Didn’t hear anything. Check your mic in Voice settings and try again.'
-      : !ok ? `Heard “${text}”. Use two words or more, so it isn’t said by accident.` : `Your phrase is “${opts.clipPhrase}”. Press Test to try it.`;
+      : !ok ? `Heard “${text}”. Use two words or more, so it isn’t said by accident.` : `Your phrase is “${opts[key]}”. Press Test to try it.`;
     voiceCheck();
   });
-  $('optClipPhrase').value = opts.clipPhrase;
-  $('optClipPhrase').addEventListener('change', (e) => {
-    opts.clipPhrase = e.target.value.trim();
-    saveOpts();
-    if (ear) vosk.then(listen);
-    renderVoice();
-  });
+  for (const [box, key] of [['optClipPhrase', 'clipPhrase'], ['optClipPhraseLong', 'clipPhraseLong']]) {
+    $(box).value = opts[key];
+    $(box).addEventListener('change', (e) => {
+      opts[key] = e.target.value.trim();
+      saveOpts();
+      if (ear) vosk.then(listen);
+      renderVoice();
+    });
+  }
   renderVoice();
   // A WebM of the last secs seconds of the recording: its header (from head, its first chunk) with a Duration, then the
   // clusters from the last one that starts on a video key frame at least secs before the end, their timecodes moved to
@@ -11242,29 +11308,36 @@ dialog.wizard { transform: scale(var(--from)); }
   const saveFavs = () => store.set('lpc-clip-favs', JSON.stringify([...favs]));
   const hasGallery = () => !!(client && client.clips);
   async function loadClips() {
-    if (hasGallery()) try { gallery = (await client.clips()) || []; } catch { gallery = []; }
+    if (hasGallery()) try {
+      gallery = (await client.clips()) || [];
+      // what's kept about clips and games that are gone goes with them
+      const names = new Set(gallery.map((c) => c.name)), gone = Object.keys(clipMeta).filter((n) => !names.has(n));
+      for (const n of gone) delete clipMeta[n];
+      const used = new Set(Object.values(clipMeta).map((m) => String(m.g)));
+      for (const g of Object.keys(clipGames)) if (!used.has(g) && !(curGame && String(curGame.id) === g)) { delete clipGames[g]; gone.push(g); }
+      if (gone.length) saveMeta();
+    } catch { gallery = []; }
     renderClips();
   }
-  // the clean-up: the oldest clips that aren't saved go to the Recycle Bin until the folder is under your limit
+  // the clean-up: clips that aren't saved go to the Recycle Bin until the folder is under your limit, first the ones
+  // made by themselves that you never played, then the oldest
   async function cleanClips() {
     if (!opts.clipCap || !client || !client.clipsClean) return;
-    const gone = (await client.clipsClean(opts.clipCap * 1e9, [...favs]).catch(() => [])) || [];
+    const gone = (await client.clipsClean(opts.clipCap * 1e9, [...favs], Object.keys(clipMeta).filter((n) => autoClip(n) && !clipMeta[n].s)).catch(() => [])) || [];
     if (gone.length) notify(`Moved ${gone.length} old clip${gone.length > 1 ? 's' : ''} to the Recycle Bin, to keep the clips folder under ${opts.clipCap} GB.`, true);
   }
   function renderClips() {
     const g = hasGallery(), lol = gallery.filter((c) => !isAny(c.name)), n = g ? lol.length : clipNames.length;
     $('clipGrid').hidden = !g;
     $('clipList').hidden = g;
-    if (g) $('clipGrid').replaceChildren(...lol.filter((c) => !favs.has(c.name)).map(clipCard));
+    if (g) $('clipGrid').replaceChildren(...clipRows(gallery.filter((c) => !favs.has(c.name) && (!isAny(c.name) || clipMeta[c.name]))));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
     $('savedGrid').replaceChildren(...(g ? lol.filter((c) => favs.has(c.name)).map(clipCard) : []));
     $('anyGrid').replaceChildren(...(g ? gallery.filter((c) => isAny(c.name)).map(clipCard) : [])); // Clip anywhere's, on the Recording page
     $('anyNote').textContent = !client ? 'Clip anywhere needs the Premade app.' : !opts.clipsAll ? '' : `Press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''} in any app or game.${opts.clipVoice ? '' : ' Turn on Clips by voice in Clip settings, on the Clips page, to say it.'} Clips from outside League are listed here.`;
     renderSaved();
-    // Open Design: the picked clip big on the left, a search and date filter over the cards, and how full the folder is
-    const pick = lol.find((c) => c.name === stageName) || lol[0];
-    $('clipStage').hidden = !pick;
-    if (pick) { const card = clipCard(pick); card.classList.add('big'); $('clipStage').replaceChildren(card); }
+    // a search and date filter over the cards, and how full the folder is (the big picked clip of the Open Design layout
+    // went with the rows by game: the player opens over the page instead)
     $('clipFind').hidden = !g || !lol.length;
     $('clipCount').textContent = g && lol.length ? `${lol.length} clip${lol.length > 1 ? 's' : ''}` : '';
     filterClips();
@@ -11275,13 +11348,55 @@ dialog.wizard { transform: scale(var(--from)); }
     $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
   }
-  let stageName = '', clipFilter = 'all';
+  let clipFilter = 'all';
   function filterClips() {
     const q = $('clipSearch').value.trim().toLowerCase(), since = clipFilter === 'today' ? new Date().setHours(0, 0, 0, 0) : clipFilter === 'week' ? Date.now() - 7 * 864e5 : 0;
-    for (const el of $('clipGrid').children) {
-      const c = gallery.find((x) => x.name === el.dataset.name);
-      el.hidden = !!c && ((q && !el.textContent.toLowerCase().includes(q)) || c.at < since);
+    for (const row of $('clipGrid').children) {
+      const head = row.querySelector('.cghead').textContent.toLowerCase();
+      for (const el of row.querySelectorAll('.clip')) {
+        const c = gallery.find((x) => x.name === el.dataset.name);
+        el.hidden = !!c && ((q && !(head + ' ' + el.textContent.toLowerCase()).includes(q)) || c.at < since);
+      }
+      row.hidden = !row.querySelector('.clip:not([hidden])');
     }
+  }
+  // The Clips page by game (Rayan, 2026-11-16): each game is a row with your champion, the result, your K/D/A and its
+  // clips beside it, newest game first; its match video's button when Record every match made one; Make a reel joins
+  // its clips into one video. Clips from before this (and Clip anywhere's, from outside League) sit in a row a day.
+  function clipRows(list) {
+    const rows = new Map();
+    for (const c of list) {
+      const m = clipMeta[c.name], g = m && m.g && clipGames[m.g], key = g ? `g${m.g}` : `${isAny(c.name) ? 'any' : 'old'}${new Date(c.at).toDateString()}`;
+      if (!rows.has(key)) rows.set(key, { g, any: isAny(c.name), at: c.at, clips: [] });
+      rows.get(key).clips.push(c);
+    }
+    return [...rows.values()].map((r) => {
+      const el = document.createElement('section'), head = Object.assign(document.createElement('div'), { className: 'cghead' }), who = Object.assign(document.createElement('span'), { className: 'cgwho' });
+      el.className = 'cgame';
+      const c = r.g && champOf(r.g.c), when = whenText(r.g ? r.g.at : r.at), n = `${r.clips.length} clip${r.clips.length > 1 ? 's' : ''}`;
+      if (c) head.append(Object.assign(document.createElement('img'), { src: champPic(c.id), alt: '', className: 'cgchamp' }));
+      const title = document.createElement('b');
+      title.textContent = r.g ? (c && c.name) || 'League game' : r.any ? 'Screen clips' : 'Clips';
+      if (r.g && r.g.r) title.append(' ', Object.assign(document.createElement('span'), { className: r.g.r === 'Win' ? 'cgwin' : 'cgloss', textContent: r.g.r === 'Win' ? 'Win' : 'Loss' }));
+      who.append(title, Object.assign(document.createElement('span'), { className: 'sub', textContent: (r.g ? [`${r.g.k} / ${r.g.d} / ${r.g.a}`, r.g.q, when, n] : [r.any ? 'Clip anywhere, outside League' : '', when, n]).filter(Boolean).join(' · ') }));
+      head.append(who);
+      const btn = (text, fn) => { const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text }); b.addEventListener('click', () => fn(b)); head.append(b); };
+      const vid = r.g && r.g.v && vidsList.find((v) => v.name === r.g.v && !v.rec);
+      if (vid) { const marks = vidMarks[vid.name] || []; btn(marks.length ? '▶ Highlights' : '▶ Watch the match', () => playGame(vid.name, marks.length ? marks : undefined)); }
+      if (r.g && r.clips.length > 1 && client.clipReel) btn('🎬 Make a reel of this game', async (b) => {
+        b.disabled = true;
+        b.textContent = 'Making the reel…';
+        const d = new Date(r.g.at), first = r.clips[r.clips.length - 1].name;
+        const name = await client.clipReel(r.clips.filter((x) => (clipMeta[x.name] || {}).w !== 'reel').map((x) => x.name).reverse(), `${(c && c.name.replace(/[\\/:*?"<>|.]/g, '')) || 'League'} reel ${two(d.getHours())}-${two(d.getMinutes())}`).catch(() => '');
+        if (name) { clipMeta[name] = { g: clipMeta[first].g, w: 'reel' }; saveMeta(); keepKda(name, first); }
+        notify(name ? `Reel saved: ${name}` : 'Couldn’t make the reel. It needs FFmpeg, which Premade fetches with your first clip: try again in a minute.', true);
+        loadClips();
+      });
+      const grid = Object.assign(document.createElement('div'), { className: 'clips' });
+      grid.append(...r.clips.map(clipCard));
+      el.append(head, grid);
+      return el;
+    });
   }
   $('clipSearch').addEventListener('input', filterClips);
   for (const b of document.querySelectorAll('[data-cf]')) b.addEventListener('click', () => { clipFilter = b.dataset.cf; for (const x of document.querySelectorAll('[data-cf]')) x.setAttribute('aria-pressed', String(x === b)); filterClips(); });
@@ -11290,8 +11405,8 @@ dialog.wizard { transform: scale(var(--from)); }
     el.className = 'clip';
     el.dataset.name = c.name;
     el.toggleAttribute('data-fav', fav);
-    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small send" type="button" hidden>Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
-    const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(/\.webm$/i, '');
+    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small copy" type="button" hidden>Copy</button><button class="btn small send" type="button" hidden>Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
+    const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(EXT, ''), meta = clipMeta[c.name], copy = el.querySelector('.copy');
     img.src = c.pic || 'icon-192.png';
     if (!c.pic) img.style.objectFit = 'contain';
     img.title = 'Drag into Discord or a folder, or click to play';
@@ -11301,6 +11416,15 @@ dialog.wizard { transform: scale(var(--from)); }
     const kda = kdaLine(c.name);
     if (kda) el.querySelector('.cname').after(kda);
     el.querySelector('.sub').textContent = `${new Date(c.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${(c.size / 1e6).toFixed(1)} MB`;
+    if (meta) { // what saved it: by itself (a moment), or you (the key, your voice), and the long ones
+      const what = (meta.w === 'multi' && MULTI_TAG[Math.min(5, meta.n | 0)]) || CLIP_TAG[meta.w] || 'clip', tag = Object.assign(document.createElement('span'), { className: 'ctag', textContent: meta.l ? '2 min' : meta.w === 'key' ? 'Key' : meta.w === 'voice' ? 'Voice' : what[0].toUpperCase() + what.slice(1) });
+      tag.toggleAttribute('data-auto', autoClip(c.name));
+      el.querySelector('.sub').prepend(tag, ' ');
+    }
+    // Copy (app 1.48): the file on the clipboard, for Ctrl+V in Discord, WhatsApp or a folder
+    copy.hidden = !client.clipCopy;
+    copy.setAttribute('aria-label', `Copy ${label}`);
+    copy.addEventListener('click', async () => notify((await client.clipCopy(c.name).catch(() => false)) ? `Copied “${label}”. Paste it with Ctrl+V in Discord, WhatsApp or a folder.` : 'Couldn’t copy that clip. Drag its picture into Discord instead.', true));
     star.setAttribute('aria-pressed', String(fav));
     star.textContent = fav ? '★ Saved' : '☆ Save';
     star.setAttribute('aria-label', `${fav ? 'Stop saving' : 'Save'} ${label}`);
@@ -11309,7 +11433,7 @@ dialog.wizard { transform: scale(var(--from)); }
     el.querySelector('.send').addEventListener('click', async () => {
       const b = await client.clipRead(c.name).catch(() => null);
       if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
-      if (await sendFile(new File([b], c.name, { type: 'video/webm' }))) notify(`Sent “${label}” to your room`, true);
+      if (await sendFile(new File([b], c.name, { type: /\.mp4$/i.test(c.name) ? 'video/mp4' : 'video/webm' }))) notify(`Sent “${label}” to your room`, true);
     });
     el.querySelector('.ren').addEventListener('click', () => renameClip(c.name, el));
     el.querySelector('.bin').addEventListener('click', async () => {
@@ -11322,7 +11446,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function renameClip(name, el) {
     const form = document.createElement('form'), input = document.createElement('input'), ok = document.createElement('button');
     form.className = 'chatform';
-    input.value = name.replace(/\.webm$/i, '');
+    input.value = name.replace(EXT, '');
     input.maxLength = 100;
     input.setAttribute('aria-label', 'New name');
     ok.className = 'btn small';
@@ -11339,6 +11463,7 @@ dialog.wizard { transform: scale(var(--from)); }
       say('');
       if (favs.delete(name)) { favs.add(to); saveFavs(); }
       keepKda(to, name);
+      if (clipMeta[name] && to !== name) { clipMeta[to] = clipMeta[name]; delete clipMeta[name]; saveMeta(); }
       loadClips();
     });
   }
@@ -11364,7 +11489,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const b = await (kind === 'game' ? client.gameVideo('read', name) : client.clipRead(name)).catch(() => null);
       if (!b) return false;
       clipBytes = new Uint8Array(b);
-      clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/webm' }));
+      clipUrl = URL.createObjectURL(new Blob([clipBytes], { type: /\.mp4$/i.test(name) ? 'video/mp4' : 'video/webm' }));
       vid.src = clipUrl;
     }
     edReset();
@@ -11373,9 +11498,9 @@ dialog.wizard { transform: scale(var(--from)); }
     return true;
   }
   async function playClip(name) {
-    if (stageName !== name) { stageName = name; renderClips(); }
+    if (clipMeta[name] && !clipMeta[name].s) { clipMeta[name].s = 1; saveMeta(); } // played: the clean-up no longer takes it first
     if (!(await openPlayer('clip', name, []))) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
-    $('clipTitle').textContent = name.replace(/\.webm$/i, '');
+    $('clipTitle').textContent = name.replace(EXT, '');
     $('trimNote').textContent = 'Drag the white handles under the video, then save the cut as a new clip. Cuts land on the nearest second or two.';
   }
   vid.addEventListener('error', () => { if (clipDlg.open && vid.getAttribute('src')) $('trimNote').textContent = 'Couldn’t open that video. It may have been moved or deleted.'; });
@@ -11607,7 +11732,9 @@ dialog.wizard { transform: scale(var(--from)); }
   $('trimSave').addEventListener('click', async () => {
     const from = +$('trimFrom').value, to = +$('trimTo').value, re = edited();
     $('trimSave').disabled = true;
-    const out = await (re ? reEncode(from, to) : cutNow(from, to)).catch(() => null);
+    // an .mp4 clip's plain cut is the app's (ffmpeg); a .webm's is cut here, and an edit is recorded again here
+    const mp4 = !re && /\.mp4$/i.test(viewing) && client.clipCut, cutName = mp4 ? await client.clipCut(viewing, from, to).catch(() => '') : '';
+    const out = mp4 ? cutName : await (re ? reEncode(from, to) : cutNow(from, to)).catch(() => null);
     $('trimSave').disabled = false;
     if (!clipDlg.open) return;
     if (!out) return void ($('trimNote').textContent = re ? 'Couldn’t save your edit.' : 'Couldn’t cut this clip.');
@@ -11616,9 +11743,10 @@ dialog.wizard { transform: scale(var(--from)); }
     await new Promise((res) => { vid.addEventListener('seeked', res, { once: true }); setTimeout(res, 1500); });
     const pic = re && document.createElement('canvas').getContext('2d');
     if (pic) edDraw(pic, vid);
-    const name = await client.clip(out, await shot(pic ? pic.canvas : vid), viewing);
+    const name = mp4 ? cutName : await client.clip(out, await shot(pic ? pic.canvas : vid), viewing);
     if (name) keepKda(name, viewing);
-    $('trimNote').textContent = name ? `Saved the ${re ? 'edit' : 'cut'} as “${name.replace(/\.webm$/i, '')}”.` : 'Couldn’t save the cut.';
+    if (name && clipMeta[viewing]) { clipMeta[name] = { ...clipMeta[viewing], s: 1 }; saveMeta(); } // in its game's row, and yours to keep
+    $('trimNote').textContent = name ? `Saved the ${re ? 'edit' : 'cut'} as “${name.replace(EXT, '')}”.` : 'Couldn’t save the cut.';
     if (name) { await cleanClips(); loadClips(); }
   });
   $('clipClose').addEventListener('click', () => clipDlg.close());
@@ -17564,6 +17692,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('kMute').textContent = keys.mute || 'Off';
     $('kShow').textContent = keys.show || 'Off';
     $('kClip').textContent = keys.clip || 'Off';
+    $('kClipLong').textContent = keys.clipLong || 'Off';
     $('kRec').textContent = keys.rec || 'Off';
     $('kOverlay').textContent = $('kAionOv').textContent = keys.overlay || 'Off';
     $('kPtt').textContent = keys.ptt ? keyName(keys.ptt) : 'Off (open mic)';
@@ -17573,7 +17702,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('pttOff').hidden = !keys.ptt;
     const busy = (ks) => ks.filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]), taken = (b) => `Another app already uses ${b.join(' and ')}, so pick something else.`;
     $('keysNote').textContent = busy(['show', 'overlay']).length ? taken(busy(['show', 'overlay'])) : '';
-    $('clipKeyNote').textContent = busy(['clip']).length ? taken(busy(['clip'])) : '';
+    $('clipKeyNote').textContent = busy(['clip', 'clipLong']).length ? taken(busy(['clip', 'clipLong'])) : '';
     renderRec();
     $('talkNote').textContent = !client ? 'In a browser these work while this page is in front.'
       : busy(['mute']).length ? taken(busy(['mute']))
@@ -17609,6 +17738,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (e.repeat) return;
     if (keys.mute && !keysOk.mute && comboOf(e) === keys.mute) { e.preventDefault(); toggleMute(); }
     else if (keys.clip && !keysOk.clip && client && comboOf(e) === keys.clip) { e.preventDefault(); saveClip('key'); }
+    else if (keys.clipLong && !keysOk.clipLong && client && comboOf(e) === keys.clipLong) { e.preventDefault(); saveClip('key', LONG); }
     else if (keys.rec && !keysOk.rec && client && comboOf(e) === keys.rec) { e.preventDefault(); toggleScreenRec(); }
     else if (keys.overlay && !keysOk.overlay && client && comboOf(e) === keys.overlay) { e.preventDefault(); toggleOverlay(); }
     else if (keys.ptt && !keysOk.ptt && e.code === keys.ptt && !typing(e)) pushTalk(true);
@@ -17719,7 +17849,7 @@ dialog.wizard { transform: scale(var(--from)); }
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optLobbyRoom', 'lobbyRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
-    ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'],
+    ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'], ['optClipSolo', 'clipSolo'], ['optClipFirst', 'clipFirst'], ['optClipTake', 'clipTake'], ['optClipWin', 'clipWin'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
@@ -17944,6 +18074,14 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [157, 'November 16: Clips rebuilt', [
+      'The Clips page now has a row for each game: your champion, win or loss, your K/D/A and that game’s clips, plus its match video when Record every match made one.',
+      'A second key, Ctrl+Shift+J, saves the last 2 minutes for a whole fight. Saying “Premade, clip the fight” does the same with Clips by voice on.',
+      'More moments clip by themselves: your solo kills and first blood, your team’s Baron and Elder Dragon, and the win. Each has its own box in Clip settings.',
+      'Clips are now .mp4, named like “Yasuo triple kill 21-04”, so they play on phones, in WhatsApp and in Discord. Your first clip stays .webm while Premade fetches FFmpeg.',
+      'Each clip has Copy, to paste it into a chat with Ctrl+V, and each game has Make a reel of this game, which joins its clips into one video.',
+      'The clips folder now stays under 20 GB unless you change it in Clip settings: clips made by themselves that you never played go to the Recycle Bin first, and saved clips never go.',
+    ]],
     [156, 'November 16: Aion 2 Daevanion boards fixed', [
       'Each class guide’s main build in the Aion 2 tracker is now Game8’s own build: its skills, levels and stigmas come from the same Game8 page as its Daevanion maps, so every skill a map lights is in the skill list. Gladiator’s follows later.',
       'Node priority under each Game8 board now goes in the order of the green numbers on the map, instead of Game8’s separate text list that didn’t match it.',
@@ -18919,13 +19057,15 @@ dialog.wizard { transform: scale(var(--from)); }
         'Tick “Each augment’s tier” on the Overlay page. The desktop app reads the cards off your screen by itself (English game text on a 16:9 screen), with League in Borderless mode.', '#optTftAugs', 'app'],
     ]],
     ['League: Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
-      ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade.',
+      ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade. Clips are named after your champion and the moment (“Yasuo triple kill 21-04”) and saved as .mp4, which phones, WhatsApp and Discord play.',
         'Ctrl+Shift+K in a game. Change the key, the length and the quality in Clip settings.', '#kClip', 'app'],
-      ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
+      ['The long clip key', 'Saves the last 2 minutes instead, for a whole fight or a long play. Premade always keeps that much during a game.',
+        'Ctrl+Shift+J in a game, or say “Premade, clip the fight” with Clips by voice on. Change the key in Clip settings.', '#kClipLong', 'app'],
+      ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. “Premade, clip the fight”, or your own phrase for it, saves the last 2 minutes. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
-      ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, and for your team’s steals and Aces and your pentakills.', 'On unless you turn them off: Clip settings, Saving a clip.', '#optClipMulti', 'app'],
-      ['Your clips', 'Play, cut, rename, save or bin your clips, or drag one straight into Discord. Each card shows your champion and K/D/A. Save puts a clip or a match video in Saved, at the top of the Clips page, and it’s never moved to the Recycle Bin.',
-        'The Clips page: the clip you last played sits big on the left; search the list or show only today’s or this week’s. Clip storage shows how full the folder is; Clip settings has its size limit.', '#h-clips, #clipSearch', 'app'],
+      ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, a solo kill or first blood, for your team’s steals, Aces, Baron and Elder Dragon, your pentakills and the win. Moments close together make one clip, named after the biggest.', 'On unless you turn them off: Clip settings, Saving a clip has a box for each.', '#optClipMulti, #optClipSolo, #optClipFirst, #optClipTake, #optClipWin', 'app'],
+      ['Your clips', 'Each game is a row: your champion, win or loss, your K/D/A and that game’s clips, with its match video’s button when Record every match made one. Play, cut, rename, save or bin a clip, Copy it to paste into Discord or WhatsApp with Ctrl+V, or drag it straight into Discord. Make a reel of this game joins a game’s clips into one video. Save puts a clip or a match video in Saved, and it’s never moved to the Recycle Bin.',
+        'The Clips page: search the rows or show only today’s or this week’s. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, #optClipCap', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
         'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
       ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
@@ -19115,7 +19255,7 @@ dialog.wizard { transform: scale(var(--from)); }
   $('key').hidden = !hashKey;
   if (client) {
     client.on('league', onLeague);
-    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'rec') toggleScreenRec(); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') { if (k === 'ptt-down') pttSeen = performance.now(); pushTalk(k === 'ptt-down'); } else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
+    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'clipLong') saveClip('key', LONG); else if (k === 'rec') toggleScreenRec(); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') { if (k === 'ptt-down') pttSeen = performance.now(); pushTalk(k === 'ptt-down'); } else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
     client.useScreen(store.get('lpc-screen') || '');
     if (client.record) client.record(opts.record);
     // an app link (lolprox://join/<room>[.<password>], from "Open this room in the desktop app") brings you into that room
