@@ -510,8 +510,11 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .clip .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .cgames { display: grid; gap: 14px; }
-.cgame { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-width: 0; }
-.cghead { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.cgame { display: block; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-width: 0; }
+.cghead { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; cursor: pointer; }
+.cghead::before { content: ''; width: 7px; height: 7px; border: solid var(--gold); border-width: 0 2px 2px 0; transform: rotate(-45deg); }
+.cgame[open] > .cghead::before { transform: rotate(45deg); }
+.cgbody { display: grid; gap: 10px; margin-top: 10px; }
 .cgchamp { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--gold-line); }
 .cgwho { display: grid; flex: 1 1 180px; min-width: 0; }
 .cgwho b { font-size: 16px; }
@@ -7879,7 +7882,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (lol) { leaguePage = name; $('leagueNav').setAttribute('aria-current', 'page'); }
     if (name === 'profile') renderProfile();
     if (name === 'stats') renderStats();
-    if (name === 'clips') { loadClips(); loadVids().then(renderClips); } // again: a game's row shows its match video
+    if (name === 'clips') { loadClips(); loadVids(); } // again: a game's row shows its match video (renderVids draws the rows)
     if (name === 'record') loadVids();
     if (name === 'settings') { loadScreens(); serverStats(); }
     if (name === 'features') renderFeatures();
@@ -10741,8 +10744,10 @@ dialog.wizard { transform: scale(var(--from)); }
     vidKda[name] = m;
     store.set('lpc-vid-kda', JSON.stringify(vidKda));
   }
-  function kdaLine(name) { // older match videos without one: the champion from the end of the name
-    const m = vidKda[name], c = m ? champOf(m.c) : champByName((/^Game \S+ \S+ (.+?)(?: \(\d\))?\.webm$/i.exec(name) || [])[1] || '');
+  // older match videos without one: the champion from the end of the name
+  const vidChamp = (name) => (vidKda[name] ? champOf(vidKda[name].c) : champByName((/^Game \S+ \S+ (.+?)(?: \(\d\))?\.webm$/i.exec(name) || [])[1] || ''));
+  function kdaLine(name) {
+    const m = vidKda[name], c = vidChamp(name);
     if (!m && !c) return null;
     const el = Object.assign(document.createElement('span'), { className: 'kda' });
     if (c) el.append(Object.assign(document.createElement('img'), { src: champPic(c.id), alt: '' }));
@@ -10786,11 +10791,13 @@ dialog.wizard { transform: scale(var(--from)); }
     const games = vidsList.filter((v) => !isRec(v.name)), recs = vidsList.filter((v) => isRec(v.name)), rest = games.filter((v) => !vidSaved.has(v.name));
     $('recList').replaceChildren(...recs.map(vidRow));
     $('recsNote').textContent = recs.length ? 'Kept until you bin one.' : 'Nothing recorded yet: press Record above.';
-    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? 'Tick Record every match in Clip settings, at the top of this page, and each game you play is kept here, with its highlights.'
-      : !rest.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin. Save one to keep it.`;
-    $('vidList').replaceChildren(...rest.map(vidRow));
+    const where = client.clips ? 'in its row under Your clips' : 'here'; // rows by game (app 1.7+) hold the videos
+    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? `Tick Record every match in Clip settings, at the top of this page, and each game you play is kept ${where}, with its highlights.`
+      : !rest.length ? `No game videos yet: your next game is kept ${where}.` : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin. Save one to keep it.`;
+    $('vidList').replaceChildren(...(client.clips ? [] : rest.map(vidRow)));
     $('savedVids').replaceChildren(...games.filter((v) => vidSaved.has(v.name)).map(vidRow));
-    renderSaved();
+    if (client.clips) renderClips(); // its row
+    else renderSaved();
     renderReview();
     nextPic();
   }
@@ -10799,6 +10806,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function vidRow(v) {
     const li = document.createElement('li'), label = v.name.replace(/\.webm$/i, ''), kept = vidSaved.has(v.name), marks = vidMarks[v.name] || [], pic = vidPics[v.name];
     li.className = 'clip vcard';
+    li.dataset.vid = v.name;
     li.toggleAttribute('data-fav', kept);
     li.innerHTML = '<span class="thumb"><img class="shot" alt=""><span class="vlen"></span></span><span class="cname"></span><span class="sub"></span><div class="cacts"></div>';
     const img = li.querySelector('.shot'), acts = li.querySelector('.cacts');
@@ -10819,6 +10827,7 @@ dialog.wizard { transform: scale(var(--from)); }
     thumb.replaceWith(watch);
     watch.addEventListener('click', () => playGame(v.name));
     if (!isRec(v.name)) btn(kept ? '★ Saved' : '☆ Save', 'star', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); }).setAttribute('aria-pressed', String(kept));
+    btn('▶ Watch the match', '', () => playGame(v.name), `Watch ${label}`);
     if (marks.length) btn('▶ Highlights', 'primary', () => playGame(v.name, marks), `Play the highlights of ${label}`);
     btn('📁', '', () => client.gameVideo('show', v.name), `Show ${label} in its folder`).title = 'Show in folder';
     btn('🗑', '', async () => {
@@ -11257,7 +11266,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('clipStore').hidden = !g || !gallery.length;
     $('clipStoreText').textContent = opts.clipCap ? `${used.toFixed(1)} / ${opts.clipCap} GB` : `${used.toFixed(1)} GB`;
     $('clipStoreBar').style.width = `${opts.clipCap ? Math.min(100, (100 * used) / opts.clipCap) : 0}%`;
-    $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, below).',
+    $('clipNote').textContent = [n ? '' : opts.clips ? `No clips yet. During a game, press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''}${opts.clipMulti ? ', or get a double kill' : ''}.` : 'Clips are off (Clip settings, above).',
       g || !client ? '' : 'Restart the app to finish its update: version 1.7 adds the gallery.', g && n ? 'Drag a picture into Discord to send that clip.' : ''].filter(Boolean).join(' ');
   }
   let clipFilter = 'all';
@@ -11266,47 +11275,61 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const row of $('clipGrid').children) {
       const head = row.querySelector('.cghead').textContent.toLowerCase();
       for (const el of row.querySelectorAll('.clip')) {
-        const c = gallery.find((x) => x.name === el.dataset.name);
+        const c = gallery.find((x) => x.name === el.dataset.name) || vidsList.find((v) => v.name === el.dataset.vid);
         el.hidden = !!c && ((q && !(head + ' ' + el.textContent.toLowerCase()).includes(q)) || c.at < since);
       }
       row.hidden = !row.querySelector('.clip:not([hidden])');
+      if (q && !row.hidden) row.open = true;
     }
   }
-  // The Clips page by game (Rayan, 2026-11-16): each game is a row with your champion, the result, your K/D/A and its
-  // clips beside it, newest game first; its match video's button when Record every match made one; Make a reel joins
-  // its clips into one video. Clips from before this (and Clip anywhere's, from outside League) sit in a row a day.
+  // The Clips page by game (Rayan, 2026-11-16): each game is a row with your champion, the result, your K/D/A, newest
+  // game first; click it and it opens on its match video's card, when Record every match made one, and its clips
+  // (Rayan, 2026-11-17: "when i click on a match i get its clips and the full game"). A match video with no clips, or
+  // from before rows by game, is a row of its own. Make a reel joins a game's clips into one video. Clips from before
+  // this (and Clip anywhere's, from outside League) sit in a row a day.
+  const openRows = new Set(); // the rows you opened, still open when the page draws them again
   function clipRows(list) {
-    const rows = new Map();
+    const rows = new Map(), row = (key, r) => rows.get(key) || rows.set(key, { key, ...r, clips: [] }).get(key);
     for (const c of list) {
-      const m = clipMeta[c.name], g = m && m.g && clipGames[m.g], key = g ? `g${m.g}` : `${isAny(c.name) ? 'any' : 'old'}${new Date(c.at).toDateString()}`;
-      if (!rows.has(key)) rows.set(key, { g, any: isAny(c.name), at: c.at, clips: [] });
-      rows.get(key).clips.push(c);
+      const m = clipMeta[c.name], g = m && m.g && clipGames[m.g];
+      row(g ? `g${m.g}` : `${isAny(c.name) ? 'any' : 'old'}${new Date(c.at).toDateString()}`, { g, any: isAny(c.name), at: g ? g.at : c.at }).clips.push(c);
     }
-    return [...rows.values()].map((r) => {
-      const el = document.createElement('section'), head = Object.assign(document.createElement('div'), { className: 'cghead' }), who = Object.assign(document.createElement('span'), { className: 'cgwho' });
+    for (const v of vidsList) if (!isRec(v.name) && !vidSaved.has(v.name)) {
+      const id = Object.keys(clipGames).find((k) => clipGames[k].v === v.name);
+      row(id ? `g${id}` : v.name, { g: id && clipGames[id], at: id ? clipGames[id].at : v.at }).vid = v;
+    }
+    for (const k of openRows) if (!rows.has(k)) openRows.delete(k);
+    return [...rows.values()].sort((a, b) => b.at - a.at).map((r) => {
+      const el = document.createElement('details'), head = Object.assign(document.createElement('summary'), { className: 'cghead' }), who = Object.assign(document.createElement('span'), { className: 'cgwho' });
+      const body = Object.assign(document.createElement('div'), { className: 'cgbody' });
       el.className = 'cgame';
-      const c = r.g && champOf(r.g.c), when = whenText(r.g ? r.g.at : r.at), n = `${r.clips.length} clip${r.clips.length > 1 ? 's' : ''}`;
+      el.open = openRows.has(r.key);
+      el.addEventListener('toggle', () => (el.open ? openRows.add(r.key) : openRows.delete(r.key)));
+      const vk = !r.g && r.vid && vidKda[r.vid.name], c = r.g ? champOf(r.g.c) : r.vid && vidChamp(r.vid.name), when = whenText(r.at);
+      const n = r.clips.length ? `${r.clips.length} clip${r.clips.length > 1 ? 's' : ''}` : '', full = r.vid && (r.vid.rec ? 'recording now' : 'full game');
       if (c) head.append(Object.assign(document.createElement('img'), { src: champPic(c.id), alt: '', className: 'cgchamp' }));
       const title = document.createElement('b');
-      title.textContent = r.g ? (c && c.name) || 'League game' : r.any ? 'Screen clips' : 'Clips';
+      title.textContent = r.g || r.vid ? (c && c.name) || 'League game' : r.any ? 'Screen clips' : 'Clips';
       if (r.g && r.g.r) title.append(' ', Object.assign(document.createElement('span'), { className: r.g.r === 'Win' ? 'cgwin' : 'cgloss', textContent: r.g.r === 'Win' ? 'Win' : 'Loss' }));
-      who.append(title, Object.assign(document.createElement('span'), { className: 'sub', textContent: (r.g ? [`${r.g.k} / ${r.g.d} / ${r.g.a}`, r.g.q, when, n] : [r.any ? 'Clip anywhere, outside League' : '', when, n]).filter(Boolean).join(' · ') }));
+      who.append(title, Object.assign(document.createElement('span'), { className: 'sub', textContent: (r.g ? [`${r.g.k} / ${r.g.d} / ${r.g.a}`, r.g.q, when, n, full] : r.vid ? [vk && `${vk.k} / ${vk.d} / ${vk.a}`, when, n, full] : [r.any ? 'Clip anywhere, outside League' : '', when, n]).filter(Boolean).join(' · ') }));
       head.append(who);
-      const btn = (text, fn) => { const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text }); b.addEventListener('click', () => fn(b)); head.append(b); };
-      const vid = r.g && r.g.v && vidsList.find((v) => v.name === r.g.v && !v.rec);
-      if (vid) { const marks = vidMarks[vid.name] || []; if (marks.length) btn('▶ Highlights', () => playGame(vid.name, marks)); btn('▶ Watch the match', () => playGame(vid.name)); }
-      if (r.g && r.clips.length > 1 && client.clipReel) btn('🎬 Make a reel of this game', async (b) => {
-        b.disabled = true;
-        b.textContent = 'Making the reel…';
-        const d = new Date(r.g.at), first = r.clips[r.clips.length - 1].name;
-        const name = await client.clipReel(r.clips.filter((x) => (clipMeta[x.name] || {}).w !== 'reel').map((x) => x.name).reverse(), `${(c && c.name.replace(/[\\/:*?"<>|.]/g, '')) || 'League'} reel ${two(d.getHours())}-${two(d.getMinutes())}`).catch(() => '');
-        if (name) { clipMeta[name] = { g: clipMeta[first].g, w: 'reel' }; saveMeta(); keepKda(name, first); }
-        notify(name ? `Reel saved: ${name}` : 'Couldn’t make the reel. It needs FFmpeg, which Premade fetches with your first clip: try again in a minute.', true);
-        loadClips();
-      });
-      const grid = Object.assign(document.createElement('div'), { className: 'clips' });
-      grid.append(...r.clips.map(clipCard));
-      el.append(head, grid);
+      const box = (tag, className, ...kids) => { const e = Object.assign(document.createElement(tag), { className }); e.append(...kids); body.append(e); };
+      if (r.vid) box('ul', 'clips vidlist', vidRow(r.vid));
+      if (r.clips.length) box('div', 'clips', ...r.clips.map(clipCard));
+      if (r.g && r.clips.length > 1 && client.clipReel) {
+        const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: '🎬 Make a reel of this game' });
+        box('div', 'toolbar', b);
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          b.textContent = 'Making the reel…';
+          const d = new Date(r.g.at), first = r.clips[r.clips.length - 1].name;
+          const name = await client.clipReel(r.clips.filter((x) => (clipMeta[x.name] || {}).w !== 'reel').map((x) => x.name).reverse(), `${(c && c.name.replace(/[\\/:*?"<>|.]/g, '')) || 'League'} reel ${two(d.getHours())}-${two(d.getMinutes())}`).catch(() => '');
+          if (name) { clipMeta[name] = { g: clipMeta[first].g, w: 'reel' }; saveMeta(); keepKda(name, first); }
+          notify(name ? `Reel saved: ${name}` : 'Couldn’t make the reel. It needs FFmpeg, which Premade fetches with your first clip: try again in a minute.', true);
+          loadClips();
+        });
+      }
+      el.append(head, body);
       return el;
     });
   }
@@ -17987,7 +18010,7 @@ dialog.wizard { transform: scale(var(--from)); }
     [159, 'November 17: a tidier Clips page', [
       'Clip settings is now at the top of the Clips page, so you don’t scroll past all your clips to change one. Record every match, Keep only the highlights and how long match videos stay are in it too, under Whole matches.',
       'Download from a link and Convert a file are gone from the Clips page.',
-      'Each game’s row has Watch the match beside Highlights, to play its whole video from the start.',
+      'Your games are grouped: click a game to open it, with its full match on top (Watch the match, Highlights) and its clips under it. Games recorded without clips, and older match videos, get a row too.',
       'Only seeing highlights? Keep only the highlights (on unless you untick it) cuts each game’s video down to them when it ends. Untick it in Clip settings, Whole matches, to keep whole games, highlights marked in them.',
     ]],
     [157, 'November 16: Clips rebuilt', [
@@ -18977,7 +19000,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, a solo kill or first blood, for your team’s steals, Aces, Baron and Elder Dragon, your pentakills and the win. Moments close together make one clip, named after the biggest.', 'On unless you turn them off: Clip settings, Saving a clip has a box for each.', '#optClipMulti, #optClipSolo, #optClipFirst, #optClipTake, #optClipWin', 'app'],
-      ['Your clips', 'Each game is a row: your champion, win or loss, your K/D/A and that game’s clips, with Highlights and Watch the match when Record every match made its video. Play, cut, rename, save or bin a clip, Copy it to paste into Discord or WhatsApp with Ctrl+V, or drag it straight into Discord. Make a reel of this game joins a game’s clips into one video. Save puts a clip or a match video in Saved, and it’s never moved to the Recycle Bin.',
+      ['Your clips', 'Each game is a row: your champion, win or loss and your K/D/A. Click it to open its full match (Watch the match, Highlights) when Record every match made one, and its clips. Play, cut, rename, save or bin a clip, Copy it to paste into Discord or WhatsApp with Ctrl+V, or drag it straight into Discord. Make a reel of this game joins a game’s clips into one video. Save puts a clip or a match video in Saved, and it’s never moved to the Recycle Bin.',
         'The Clips page: search the rows or show only today’s or this week’s. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, #optClipCap', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
         'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],

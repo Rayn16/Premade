@@ -1547,8 +1547,9 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip .cname')].map((e) => e.textContent).join() === 'Clip 4,Clip 3,Clip 2,Clip 1', null, 'the gallery');
     // one row for the game: the champion, the K/D/A and its clips, each tagged with what saved it
     const gameRow = await pc.evaluate(() => ({ rows: document.querySelectorAll('#clipGrid .cgame').length, head: document.querySelector('#clipGrid .cghead').textContent, tags: [...document.querySelectorAll('#clipGrid .ctag')].map((e) => e.textContent + (e.hasAttribute('data-auto') ? '*' : '')).join() }));
-    assert(gameRow.rows === 1 && /^Ahri3 \/ 1 \/ 2 · Ranked · .* · 4 clips🎬 Make a reel of this game$/.test(gameRow.head) && gameRow.tags === 'Solo kill*,Double kill*,Key,Key', `the game's row: ${JSON.stringify(gameRow)}`);
+    assert(gameRow.rows === 1 && /^Ahri3 \/ 1 \/ 2 · Ranked · .* · 4 clips$/.test(gameRow.head) && gameRow.tags === 'Solo kill*,Double kill*,Key,Key', `the game's row: ${JSON.stringify(gameRow)}`);
     assert(await pc.$$eval('#clipGrid .shot', (imgs) => imgs.every((i) => i.src.startsWith('data:image/jpeg;base64,') && i.naturalWidth === 320)), 'a picture of the screen with each clip');
+    await pc.click('#clipGrid .cghead'); // the game's row, clicked open
     const card = (n) => `:is(#clipGrid, #savedGrid) .clip:has(.cname:text-is("${n}"))`;
     await wait(pc, () => document.querySelector('#clipGrid .clip .kda img'), null, 'the champion on each card');
     assert.strictEqual(await text(pc, `${card('Clip 3')} .kda`), 'Ahri 3/1/2', 'your champion and K/D/A on the card');
@@ -1624,7 +1625,7 @@ const leagueData = (over = {}) => ({
     // a binned clip's notes go with it
     await pc.click(`${card('Clip 4')} .copy`);
     await wait(pc, () => lpcClient.calls.includes('copy Clip 4.webm') && lpc.toasts().some((t) => /^Copied “Clip 4”\. Paste it with Ctrl\+V/.test(t)), null, 'the clip copied');
-    await pc.click('#clipGrid .cghead button:has-text("Make a reel")');
+    await pc.click('#clipGrid .cgame button:has-text("Make a reel")');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .cname')].some((e) => /^Ahri reel \d\d-\d\d$/.test(e.textContent)) && [...document.querySelectorAll('#clipGrid .ctag')].some((e) => e.textContent === 'Reel'), null, 'the reel in the game’s row');
     if (process.env.SHOTS) await pc.locator('#clipGrid').screenshot({ path: path.join(process.env.SHOTS, 'clips-by-game.png') });
     const reel = await pc.evaluate(() => ({ call: lpcClient.calls.find((c) => typeof c === 'string' && c.startsWith('reel ')), meta: Object.keys(JSON.parse(localStorage.getItem('lpc-clip-meta'))) }));
