@@ -197,12 +197,12 @@ const game = (over = {}, me = {}) => ({
       await page.waitForTimeout(2500);
       assert(!(await page.evaluate(() => lpcClient.shared || lpcClient.calls.some((x) => x.startsWith('video start')))), 'not in Practice Tool');
       await page.click('#leagueNav'); await page.click('.nav[data-view="clips"]');
-      await wait(page, () => !document.getElementById('vidBox').hidden && document.querySelectorAll('#vidList li').length === 1, null, 'the old game on the Clips page');
+      await wait(page, () => !document.getElementById('vidBox').hidden && document.querySelectorAll('#clipGrid .vcard').length === 1 && !document.querySelectorAll('#vidList li').length, null, 'the old game on the Clips page, in a row of its own');
       const events = [{ t: 61, e: 'kill', me: true, team: 'ORDER' }, { t: 62, e: 'kill', me: true, team: 'ORDER' }, { t: 62, e: 'multi', n: 2, me: true, team: 'ORDER' },
         { t: 65, e: 'kill', on: true, team: 'CHAOS' }, { t: 66, e: 'dragon', team: 'ORDER', type: 'Fire' }, { t: 67, e: 'baron', team: 'CHAOS', stolen: true }, { t: 68, e: 'tower', of: 'CHAOS', team: 'ORDER' }];
       await emit(game({ mode: 'CLASSIC', room: 'g00000000001', events }));
       await wait(page, () => lpcClient.calls.includes('video start Ahri'), null, 'the game recorded');
-      await wait(page, (n) => [...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(n.slice(0, -5)) && li.textContent.includes('recording now') && !li.querySelector('button')), NAME, 'recording now, on the Clips page');
+      await wait(page, (n) => [...document.querySelectorAll('#clipGrid .vcard')].some((li) => li.textContent.includes(n.slice(0, -5)) && li.textContent.includes('recording now') && !li.querySelector('button')), NAME, 'recording now, on the Clips page');
       await page.waitForTimeout(1500);
       await emit({ inGame: false });
       await wait(page, () => lpcClient.calls.some((x) => x.startsWith('video trash')), null, 'the game over');
@@ -218,11 +218,14 @@ const game = (over = {}, me = {}) => ({
         `the highlights’ part and the marks in it: ${JSON.stringify([cutParts, cutMarks])}`);
       assert.deepStrictEqual(await page.$$eval('#savedVids .cname', (l) => l.map((e) => e.textContent)), ['Game 2026-10-09 20-00-00 Lux'], 'the saved one in Saved');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Moved 1 game video older than 7 days to the Recycle Bin.'), null, 'the old one binned');
-      await wait(page, (n) => document.querySelectorAll('#vidList li').length === 1 && document.querySelector('#vidList li').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#vidList li .cacts button').length === 4, NAME, 'the game, ready to watch');
+      await wait(page, (n) => document.querySelectorAll('#clipGrid .vcard').length === 1 && document.querySelector('#clipGrid .vcard').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#clipGrid .vcard .cacts button').length === 5 && /^Ahri.* · full game$/.test(document.querySelector('#clipGrid .cghead').textContent), NAME, 'the game, ready to watch');
       assert.deepStrictEqual(await page.evaluate((n) => JSON.parse(localStorage.getItem('lpc-vid-marks'))[n].map((m) => m.text), NAME),
         ['Double kill', 'You died', 'Your team took Dragon', 'The enemy stole Baron', 'Took a tower'], 'its highlights, a double kill’s kills in it');
-      assert.match(await text(page, '#vidList li .sub'), / · 5 highlights$/, 'a card: when, size and how many highlights');
-      await page.click('#vidList li button:text-is("▶ Highlights")');
+      assert.match(await text(page, '#clipGrid .vcard .sub'), / · 5 highlights$/, 'a card: when, size and how many highlights');
+      // the game's row, clicked open: its full match (Rayan, 2026-11-17: "when i click on a match i get its clips and the full game")
+      assert(!(await page.isVisible('#clipGrid .vcard')), 'the row closed until you click it');
+      await page.click('#clipGrid .cghead');
+      await page.click('#clipGrid .vcard button:text-is("▶ Highlights")');
       await wait(page, () => document.getElementById('clipDlg').open && /: highlights$/.test(document.getElementById('clipTitle').textContent) && document.getElementById('clipVideo').src.startsWith('blob:'), null, 'the highlights in the player');
       await wait(page, () => !document.getElementById('tl').hidden && document.getElementById('clipVideo').duration > 1, null, 'the timeline, on a recording with no length in it');
       await wait(page, () => [...document.querySelectorAll('#tlMarks .mk')].length && [...document.querySelectorAll('#tlMarks .mk')].every((b) => b.querySelector('svg path, svg ellipse')), null, 'each highlight with its icon');
@@ -231,18 +234,18 @@ const game = (over = {}, me = {}) => ({
       await page.click('#vidBox button:text-is("Change folder")');
       await wait(page, () => document.querySelector('.whereAt').textContent === 'Clips are saved in D:\\Clips, games in its Games folder.', null, 'another folder');
       await page.evaluate(() => { lpcClient.gameVideo = ((f) => async (what, ...x) => (what === 'read' ? null : f.call(lpcClient, what, ...x)))(lpcClient.gameVideo); }); // an app before 1.18
-      await page.click('#vidList li button:text-is("▶ Highlights")');
+      await page.click('#clipGrid .vcard button:text-is("▶ Highlights")');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Update the app to watch highlights here.'), null, 'older apps: the video player');
       assert.match(await text(page, '#vidNote'), /^Each one is kept for 7 days, then it goes to the Recycle Bin\. Save one to keep it\.$/);
-      await shot(page, 'game-videos', '#vidBox');
-      await page.click('#vidList li .thumb');
-      await page.click('#vidList li button[title="Show in folder"]');
+      await shot(page, 'game-videos', '#clipGrid');
+      await page.click('#clipGrid .vcard .thumb');
+      await page.click('#clipGrid .vcard button[title="Show in folder"]');
       await page.click('#vidsFolder');
-      await page.click('#vidList li button:text-is("☆ Save")');
-      await wait(page, () => !document.querySelectorAll('#vidList li').length && document.querySelectorAll('#savedVids li').length === 2 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 2, null, 'the game saved');
+      await page.click('#clipGrid .vcard button:text-is("☆ Save")');
+      await wait(page, () => !document.querySelectorAll('#clipGrid .vcard').length && document.querySelectorAll('#savedVids li').length === 2 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 2, null, 'the game saved');
       await page.click(`#savedVids li:has-text("${NAME.slice(0, -5)}") button[title="Bin"]`);
       await wait(page, () => document.querySelectorAll('#savedVids li').length === 1 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 1, null, 'the saved game binned');
-      await wait(page, () => !document.querySelectorAll('#vidList li').length && /^No game videos yet/.test(document.getElementById('vidNote').textContent), null, 'binned');
+      await wait(page, () => !document.querySelectorAll('#clipGrid .vcard').length && /^No game videos yet/.test(document.getElementById('vidNote').textContent), null, 'binned');
       const acts = await page.evaluate(() => lpcClient.calls.filter((x) => /^video (open|show|folder|trash)/.test(x)));
       assert.deepStrictEqual(acts, ['video trash Game 2026-10-10 20-00-00 Zed.webm', `video open ${NAME}`, `video open ${NAME}`, `video show ${NAME}`, 'video folder', `video trash ${NAME}`]);
       assert.strictEqual(await page.evaluate(() => lpcClient.shared), 1, 'one share of the screen for the game');
