@@ -212,6 +212,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .phase { padding: 10px 14px; border-radius: 6px; border-left: 3px solid var(--gold-line); background: var(--panel); font-size: 14px; }
 .phase[data-game="1"] { border-left-color: var(--good); }
 .voiceset { margin-top: 20px; }
+.pagehead + .voiceset { margin-top: 0; }
 .voiceset > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; list-style: none; }
 .voiceset > summary::before { content: ''; width: 7px; height: 7px; border: solid var(--gold); border-width: 0 2px 2px 0; transform: rotate(-45deg); }
 .voiceset[open] > summary { margin-bottom: 16px; }
@@ -519,12 +520,6 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .ctag[data-auto] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .vidlist { margin: 0; padding: 0; list-style: none; }
 .vidlist:empty { display: none; }
-#dlForm { grid-template-columns: minmax(0, 1fr) auto auto; }
-@container app (max-width: 560px) { #dlForm { grid-template-columns: minmax(0, 1fr); } }
-.dllist { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.dllist:empty { display: none; }
-.dllist li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
-.dllist .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; flex: 1 1 200px; }
 .vcard .thumb { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 4px; }
 .vcard .thumb .shot { cursor: inherit; }
 .vcard .vlen { position: absolute; right: 8px; bottom: 8px; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 700 13px/1.2 var(--body); }
@@ -2285,52 +2280,8 @@ dialog.wizard { transform: scale(var(--from)); }
 
     <section class="view" data-view="clips" aria-label="Clips" hidden>
       <header class="pagehead"><div><h1 class="title">Clips</h1><p class="sub">Your saved plays and recordings: watch, cut, rename and share them.</p></div></header>
-      <div class="clipsgrid">
-      <section id="clipStage" class="panel clipstage" aria-label="The clip you picked" hidden></section>
-      <div class="stack">
-      <section class="panel" aria-labelledby="h-clips">
-        <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button><span id="clipCount" class="hint"></span></h2>
-        <div id="clipFind" class="clipfind" hidden><input id="clipSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search clips and champions" aria-label="Search clips"><div class="pills" role="group" aria-label="Show"><button type="button" data-cf="all" aria-pressed="true">All</button><button type="button" data-cf="today" aria-pressed="false">Today</button><button type="button" data-cf="week" aria-pressed="false">This week</button></div></div>
-        <p id="clipNote" class="hint"></p>
-        <div id="clipGrid" class="cgames"></div>
-        <ul id="clipList" class="cliplist" hidden></ul>
-        <div id="clipStore" class="clipstore" hidden><span class="hint">Clip storage</span><b id="clipStoreText"></b><div class="wrbar store" aria-hidden="true"><span id="clipStoreBar"></span></div></div>
-        <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
-      </section>
-      <section id="savedBox" class="panel lcu-only" aria-labelledby="h-saved" hidden>
-        <h2 id="h-saved" class="ph">Saved</h2>
-        <p id="savedNote" class="hint"></p>
-        <div id="savedGrid" class="clips"></div>
-        <ul id="savedVids" class="clips vidlist"></ul>
-      </section>
-      </div>
-      </div>
-      <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
-        <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
-        <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Clip settings, with its highlights</label>
-        <label class="check"><input id="optGameHigh" type="checkbox"> Keep only the highlights: when a game ends, its video is cut down to them (a game without any is kept whole)</label>
-        <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
-        <p id="vidNote" class="hint" role="status"></p>
-        <ul id="vidList" class="clips vidlist"></ul>
-        <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button><button class="btn small where" type="button" data-where="pick" hidden>Change folder</button></div>
-      </section>
-      <section id="dlBox" class="panel" aria-labelledby="h-dl" hidden>
-        <h2 id="h-dl" class="ph">Download from a link <button class="tip" type="button" popovertarget="t-dl" aria-label="About downloads">?</button></h2>
-        <form id="dlForm" class="chatform">
-          <input id="dlUrl" type="url" required autocomplete="off" spellcheck="false" placeholder="Paste a link: YouTube, TikTok, Instagram, X, Reddit…" aria-label="Link to download">
-          <select id="dlKind" aria-label="What to keep"><option value="video">Video</option><option value="audio">Sound only (MP3)</option></select>
-          <button class="btn" type="submit">Download</button>
-        </form>
-        <ul id="dlList" class="dllist"></ul>
-        <div class="toolbar"><button id="dlFolder" class="btn small" type="button">Open the downloads folder</button></div>
-      </section>
-      <section id="cvBox" class="panel" aria-labelledby="h-cv" hidden>
-        <h2 id="h-cv" class="ph">Convert a file <button class="tip" type="button" popovertarget="t-cv" aria-label="About converting">?</button></h2>
-        <div class="toolbar"><button id="cvPick" class="btn" type="button">Pick files to convert</button></div>
-        <ul id="cvList" class="dllist"></ul>
-      </section>
       <details id="clipSet" class="voiceset">
-        <summary><span class="ph">Clip settings</span><span class="hint">Recording, the clip key, clips by voice and by themselves</span></summary>
+        <summary><span class="ph">Clip settings</span><span class="hint">Recording, whole matches, the clip key, clips by voice and by themselves</span></summary>
         <div class="settings">
           <section class="panel">
             <h2 class="ph">Recording <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
@@ -2343,6 +2294,12 @@ dialog.wizard { transform: scale(var(--from)); }
             <p id="clipQNote" class="hint"></p>
             <p class="hint where" hidden><span class="whereAt"></span> <button class="btn small" type="button" data-where="pick">Change folder</button> <button class="btn small" type="button" data-where="reset">Back to Videos\Premade</button></p>
             <label class="field">Keep the clips folder under <select id="optClipCap"><option value="0">Any size (never bin clips)</option><option value="5">5 GB</option><option value="10">10 GB</option><option value="20">20 GB</option><option value="50">50 GB</option></select></label>
+          </section>
+          <section class="panel lcu-only client-only">
+            <h2 class="ph">Whole matches <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
+            <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Recording, with its highlights</label>
+            <label class="check"><input id="optGameHigh" type="checkbox"> Keep only the highlights: when a game ends, its video is cut down to them (a game without any is kept whole)</label>
+            <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
           </section>
           <section class="panel">
             <h2 class="ph">Saving a clip <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
@@ -2365,6 +2322,32 @@ dialog.wizard { transform: scale(var(--from)); }
           </section>
         </div>
       </details>
+      <div class="clipsgrid">
+      <section id="clipStage" class="panel clipstage" aria-label="The clip you picked" hidden></section>
+      <div class="stack">
+      <section class="panel" aria-labelledby="h-clips">
+        <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button><span id="clipCount" class="hint"></span></h2>
+        <div id="clipFind" class="clipfind" hidden><input id="clipSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search clips and champions" aria-label="Search clips"><div class="pills" role="group" aria-label="Show"><button type="button" data-cf="all" aria-pressed="true">All</button><button type="button" data-cf="today" aria-pressed="false">Today</button><button type="button" data-cf="week" aria-pressed="false">This week</button></div></div>
+        <p id="clipNote" class="hint"></p>
+        <div id="clipGrid" class="cgames"></div>
+        <ul id="clipList" class="cliplist" hidden></ul>
+        <div id="clipStore" class="clipstore" hidden><span class="hint">Clip storage</span><b id="clipStoreText"></b><div class="wrbar store" aria-hidden="true"><span id="clipStoreBar"></span></div></div>
+        <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
+      </section>
+      <section id="savedBox" class="panel lcu-only" aria-labelledby="h-saved" hidden>
+        <h2 id="h-saved" class="ph">Saved</h2>
+        <p id="savedNote" class="hint"></p>
+        <div id="savedGrid" class="clips"></div>
+        <ul id="savedVids" class="clips vidlist"></ul>
+      </section>
+      </div>
+      </div>
+      <section id="vidBox" class="panel lcu-only" aria-labelledby="h-vids" hidden>
+        <h2 id="h-vids" class="ph">Whole matches and highlights <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
+        <p id="vidNote" class="hint" role="status"></p>
+        <ul id="vidList" class="clips vidlist"></ul>
+        <div class="toolbar"><button id="vidsFolder" class="btn small" type="button">Open the folder</button><button class="btn small where" type="button" data-where="pick" hidden>Change folder</button></div>
+      </section>
     </section>
 
     <section class="view" data-view="overlay" aria-label="Overlay" hidden>
@@ -2897,11 +2880,9 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, and Balanced by both. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
-<div id="t-cv" class="tipbox" popover>Pick videos, songs or pictures and the format to make: a video to MP4 (plays everywhere), an MP4 under 10 MB for Discord, WebM, a GIF or just its sound (MP3, M4A, WAV); a song to MP3, M4A, WAV, FLAC or Opus; a picture to PNG, JPG, WebP or BMP. The new file goes next to the old one, which stays as it is, and never over another file. It all happens on this computer with ffmpeg, the same one the downloader uses (fetched the first time, about 150 MB). Documents, ebooks and archives can’t be converted yet.</div>
-<div id="t-dl" class="tipbox" popover>Paste a link to a video on almost any site (YouTube, TikTok without its watermark, Instagram, X, Reddit, Facebook, Twitch, SoundCloud and about 1,700 more) and the app saves it in Downloads\Premade, up to 1080p, or just its sound as an MP3. The first download fetches the downloader (yt-dlp and ffmpeg, about 150 MB); after that it keeps itself up to date. Private posts, stories and videos behind a login or DRM (Netflix, Spotify) can’t be downloaded. Only download what you’re allowed to keep.</div>
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
-<div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Whole matches and highlights), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
+<div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Clip settings, Whole matches), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
@@ -10806,7 +10787,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const games = vidsList.filter((v) => !isRec(v.name)), recs = vidsList.filter((v) => isRec(v.name)), rest = games.filter((v) => !vidSaved.has(v.name));
     $('recList').replaceChildren(...recs.map(vidRow));
     $('recsNote').textContent = recs.length ? 'Kept until you bin one.' : 'Nothing recorded yet: press Record above.';
-    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? 'Tick Record every match and each game you play is kept here, with its highlights.'
+    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? 'Tick Record every match in Clip settings, at the top of this page, and each game you play is kept here, with its highlights.'
       : !rest.length ? 'No game videos yet: your next game is kept here.' : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin. Save one to keep it.`;
     $('vidList').replaceChildren(...rest.map(vidRow));
     $('savedVids').replaceChildren(...games.filter((v) => vidSaved.has(v.name)).map(vidRow));
@@ -10918,66 +10899,6 @@ dialog.wizard { transform: scale(var(--from)); }
     showWhere(p);
     loadClips();
     loadVids();
-  });
-  // ---- downloads (app 1.31): a link's video or sound, saved by the app in Downloads\\Premade, newest first on the list
-  const dlRows = new Map(); // link -> its row's { li, sub, acts }
-  $('dlBox').hidden = !(client && client.download);
-  function dlRow(url) {
-    const li = document.createElement('li'), sub = Object.assign(document.createElement('span'), { className: 'sub' }), acts = Object.assign(document.createElement('span'), { className: 'cacts' });
-    li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: url }), sub, acts);
-    $('dlList').prepend(li);
-    const r = { li, sub, acts };
-    dlRows.set(url, r);
-    return r;
-  }
-  const dlBtn = (text, fn) => { const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text }); b.addEventListener('click', fn); return b; };
-  if (client && client.download) client.on('download', ({ url, pct }) => { const r = dlRows.get(url); if (r) r.sub.textContent = pct < 0 ? 'Getting ready…' : `Downloading ${Math.round(pct)}%`; });
-  $('dlForm').addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    const url = $('dlUrl').value.trim();
-    if (dlRows.has(url) && !dlRows.get(url).done) return;
-    if (dlRows.has(url)) dlRows.get(url).li.remove();
-    const r = dlRow(url);
-    r.sub.textContent = 'Starting…';
-    r.acts.replaceChildren(dlBtn('Stop', () => client.downloadStop(url)));
-    $('dlUrl').value = '';
-    const res = await client.download(url, $('dlKind').value);
-    r.done = true;
-    r.acts.replaceChildren();
-    if (res && res.file) {
-      r.li.querySelector('.cname').textContent = res.file.split(/[\\/]/).pop();
-      r.sub.textContent = 'Saved';
-      r.acts.append(dlBtn('Show in folder', () => client.downloadShow(res.file)));
-    } else r.sub.textContent = (res && res.error) || 'Couldn’t download that.';
-  });
-  $('dlFolder').addEventListener('click', () => client && client.downloadsFolder && client.downloadsFolder());
-  // ---- convert a file (app 1.35): files picked in the app's own window, each converted by the app next to itself
-  const cvRows = new Map(); // the app's id for a picked file -> its row's sub
-  $('cvBox').hidden = !(client && client.convert);
-  if (client && client.convert) client.on('convert', ({ id, pct }) => { const sub = cvRows.get(id); if (sub) sub.textContent = `Converting ${Math.round(pct)}%`; });
-  $('cvPick').addEventListener('click', async () => {
-    const files = await client.convertPick();
-    if (!Array.isArray(files)) return alert(files.error);
-    for (const f of files) {
-      const li = document.createElement('li'), sub = Object.assign(document.createElement('span'), { className: 'sub', textContent: f.error || '' }), acts = Object.assign(document.createElement('span'), { className: 'cacts' });
-      li.append(Object.assign(document.createElement('span'), { className: 'cname', textContent: f.name }), sub, acts);
-      $('cvList').prepend(li);
-      if (f.error) continue;
-      cvRows.set(f.id, sub);
-      const pick = Object.assign(document.createElement('select'), { ariaLabel: 'Convert to' });
-      for (const t of f.targets) pick.append(new Option(t.label, t.id));
-      const go = dlBtn('Convert', async () => {
-        sub.textContent = 'Starting…';
-        acts.replaceChildren(dlBtn('Stop', () => client.convertStop(f.id)));
-        const res = await client.convert(f.id, pick.value);
-        acts.replaceChildren(pick, go);
-        if (res && res.file) {
-          sub.textContent = 'Saved as ' + res.file.split(/[\\/]/).pop();
-          acts.append(dlBtn('Show in folder', () => client.convertShow(res.file)));
-        } else sub.textContent = (res && res.error) || 'Couldn’t convert that.';
-      });
-      acts.append(pick, go);
-    }
   });
   // the head is the recording's first chunks up to its first Cluster: on a busy PC Chrome can hand the WebM header over
   // in pieces (even its first byte alone), and every clip needs all of it
@@ -11374,7 +11295,7 @@ dialog.wizard { transform: scale(var(--from)); }
       head.append(who);
       const btn = (text, fn) => { const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: text }); b.addEventListener('click', () => fn(b)); head.append(b); };
       const vid = r.g && r.g.v && vidsList.find((v) => v.name === r.g.v && !v.rec);
-      if (vid) { const marks = vidMarks[vid.name] || []; btn(marks.length ? '▶ Highlights' : '▶ Watch the match', () => playGame(vid.name, marks.length ? marks : undefined)); }
+      if (vid) { const marks = vidMarks[vid.name] || []; if (marks.length) btn('▶ Highlights', () => playGame(vid.name, marks)); btn('▶ Watch the match', () => playGame(vid.name)); }
       if (r.g && r.clips.length > 1 && client.clipReel) btn('🎬 Make a reel of this game', async (b) => {
         b.disabled = true;
         b.textContent = 'Making the reel…';
@@ -18064,6 +17985,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [159, 'November 17: a tidier Clips page', [
+      'Clip settings is now at the top of the Clips page, so you don’t scroll past all your clips to change one. Record every match, Keep only the highlights and how long match videos stay are in it too, under Whole matches.',
+      'Download from a link and Convert a file are gone from the Clips page.',
+      'Each game’s row has Watch the match beside Highlights, to play its whole video from the start.',
+      'Only seeing highlights? Keep only the highlights (on unless you untick it) cuts each game’s video down to them when it ends. Untick it in Clip settings, Whole matches, to keep whole games, highlights marked in them.',
+    ]],
     [158, 'November 17: Discord filter on or off', [
       'The Discord filter on your screen share’s sound now has its own box: in your room, under Screen share, Discord filter. It’s on, as before: friends don’t hear themselves or your Discord calls. Turn it off and your share sends all of your PC’s sound.',
     ]],
@@ -19054,7 +18981,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, a solo kill or first blood, for your team’s steals, Aces, Baron and Elder Dragon, your pentakills and the win. Moments close together make one clip, named after the biggest.', 'On unless you turn them off: Clip settings, Saving a clip has a box for each.', '#optClipMulti, #optClipSolo, #optClipFirst, #optClipTake, #optClipWin', 'app'],
-      ['Your clips', 'Each game is a row: your champion, win or loss, your K/D/A and that game’s clips, with its match video’s button when Record every match made one. Play, cut, rename, save or bin a clip, Copy it to paste into Discord or WhatsApp with Ctrl+V, or drag it straight into Discord. Make a reel of this game joins a game’s clips into one video. Save puts a clip or a match video in Saved, and it’s never moved to the Recycle Bin.',
+      ['Your clips', 'Each game is a row: your champion, win or loss, your K/D/A and that game’s clips, with Highlights and Watch the match when Record every match made its video. Play, cut, rename, save or bin a clip, Copy it to paste into Discord or WhatsApp with Ctrl+V, or drag it straight into Discord. Make a reel of this game joins a game’s clips into one video. Save puts a clip or a match video in Saved, and it’s never moved to the Recycle Bin.',
         'The Clips page: search the rows or show only today’s or this week’s. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, #optClipCap', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
         'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
@@ -19077,11 +19004,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin. Keep only the highlights (on by default) cuts each game down to its highlights when it ends, so a game takes a fraction of the several GB it took whole. A video Premade was still finishing when it closed is finished at the next start, and half-made files a day old go to the Recycle Bin.',
-        'Off until you tick it: the Clips page, Whole matches and highlights, Record every match. Untick Keep only the highlights to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
-      ['Download from a link', 'Paste a link from YouTube, TikTok (without the watermark), Instagram, X, Reddit, Facebook, Twitch and about 1,700 more sites, and the app saves the video up to 1080p, or just its sound as an MP3, in Downloads\\Premade.',
-        'The Clips page, Download from a link. The first one fetches the downloader, about 150 MB, and checks it against the SHA-256 its makers publish.', '#h-dl', 'app'],
-      ['Convert a file', 'Turn a video into an MP4, an MP4 under 10 MB for Discord, WebM, a GIF or just its sound; a song into MP3, M4A, WAV, FLAC or Opus; a picture into PNG, JPG, WebP or BMP. The new file goes next to the old one, made on this computer.',
-        'The Clips page, Convert a file. It uses the downloader’s ffmpeg, fetched the first time.', '#h-cv', 'app'],
+        'Off until you tick it: Clip settings, at the top of the Clips page, Whole matches, Record every match. Untick Keep only the highlights to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
