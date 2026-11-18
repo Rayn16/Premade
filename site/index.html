@@ -1171,13 +1171,65 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .clipstage .clip.big .play { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .clipstage .clip.big .cname { font: 700 22px/1.2 var(--display); color: var(--gold-hi); }
 #h-clips #clipCount { margin-left: auto; font: 500 12px/1 var(--mono); letter-spacing: 0; }
-.clipfind { display: grid; gap: 10px; }
-.clipfind input { font: 14px/1.2 var(--body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); }
+.clipfind { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.clipfind input { flex: 1 1 220px; max-width: 420px; font: 14px/1.2 var(--body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); }
 #clipGrid .clips { grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
-.clipstore { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; padding-top: 10px; border-top: 1px solid var(--line); }
-.clipstore b { font: 500 13px/1 var(--mono); }
-.wrbar.store { grid-column: 1 / -1; background: var(--raised); }
+.clipstore { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+.clipstore b { font: 500 13px/1 var(--mono); white-space: nowrap; }
+.wrbar.store { width: 120px; background: var(--raised); }
 .wrbar.store span { background: var(--accent); }
+
+/* Clips (What's new 160, Open Design's rich rows + the champion's splash): the key switches in one strip, a label a
+   day, each game a row over its splash art in the skin you played, open = the full match big beside its clips */
+.clipstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin-bottom: 16px; }
+.clipstrip > .check { margin: 0; }
+.clipstrip > .keyrow { display: flex; align-items: center; gap: 8px; }
+.clipstrip > #clipSet { margin-left: auto; }
+.clipstrip > #clipSet > summary { list-style: none; cursor: pointer; }
+.clipstrip > #clipSet > summary::-webkit-details-marker { display: none; }
+.clipstrip > #clipSet[open] { flex-basis: 100%; display: grid; justify-items: end; gap: 14px; }
+.clipstrip > #clipSet[open] > .settings { justify-self: stretch; }
+.cglegend { display: flex; gap: 14px; justify-content: flex-end; margin: 0; }
+.cglegend span::before, .cgtl i, .mchip::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f0b429; margin-right: 6px; }
+.cglegend .d::before, .cgtl i.d, .mchip.d::before { background: var(--bad); border-radius: 1px; }
+.cglegend .o::before, .cgtl i.o, .mchip.o::before { background: var(--accent); border-radius: 1px; transform: rotate(45deg); }
+.cgday { margin: 6px 0 -4px; font: 600 14px/1.2 var(--body); color: var(--fg); }
+.cgday b { margin-left: 6px; color: var(--muted); }
+.cgame { position: relative; overflow: hidden; padding: 0; border-left: 4px solid var(--line); }
+.cgame[data-r="win"] { border-left-color: var(--good); }
+.cgame[data-r="loss"] { border-left-color: var(--bad); }
+.cgplain { background: var(--panel) repeating-linear-gradient(0deg, transparent 0 23px, color-mix(in srgb, var(--line) 45%, transparent) 23px 24px), repeating-linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--line) 45%, transparent) 23px 24px); }
+.cgame > .cghead { position: relative; isolation: isolate; padding: 14px 16px; min-height: 64px; }
+.cgame > .cghead::before { order: 9; }
+.cgart { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; transition: transform .4s ease; pointer-events: none; }
+.cgame > .cghead:has(.cgart)::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, color-mix(in srgb, var(--panel) 62%, transparent) 0, color-mix(in srgb, var(--panel) 30%, transparent) 40%, color-mix(in srgb, var(--panel) 88%, transparent) 70%, var(--panel) 100%); }
+.cgame > .cghead:hover .cgart { transform: scale(1.04); }
+.cgame[open] > .cghead { border-bottom: 1px solid var(--line); }
+.cgame .cgchamp { width: 52px; height: 52px; border-radius: 6px; }
+.cgame .cgwho b { font: 700 22px/1.2 var(--display); text-shadow: 0 1px 3px rgb(0 0 0 / .6); }
+.cgame .cgwho .sub { font-family: var(--mono); text-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+.cgwin, .cgloss { font: 600 12px/1 var(--body); padding: 3px 6px; border-radius: 4px; border: 1px solid currentColor; vertical-align: middle; }
+.cgpics { display: flex; gap: 6px; }
+.cgpics img { width: 88px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); background: #000; }
+.cgfull { font: 600 13px/1 var(--mono); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--accent); color: var(--fg); background: color-mix(in srgb, var(--panel) 70%, transparent); white-space: nowrap; }
+.cgtl { position: relative; order: 10; flex-basis: 100%; height: 10px; margin: 2px 0; background: linear-gradient(var(--line), var(--line)) 0 50% / 100% 2px no-repeat; }
+.cgtl i { position: absolute; top: 1px; margin: 0 0 0 -4px; }
+.cgame > .cgbody { margin: 0; padding: 14px 16px 16px; }
+.cgame > .cgbody:has(> .cgside) { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
+#clipGrid .cgbody > .vidlist { grid-template-columns: minmax(0, 1fr); }
+.cgside { display: grid; gap: 10px; }
+#clipGrid .cgside > .clips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container app (max-width: 900px) { .cgame > .cgbody:has(> .cgside) { grid-template-columns: minmax(0, 1fr); } .cgpics img:nth-child(n + 3) { display: none; } }
+@container app (max-width: 600px) { .cgpics { display: none; } #clipGrid .cgside > .clips { grid-template-columns: minmax(0, 1fr); } }
+.vcard .vfull { position: absolute; left: 8px; top: 8px; z-index: 1; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 600 12px/1.2 var(--body); }
+.vchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mchip { display: inline-flex; align-items: center; font: 500 12px/1 var(--mono); padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--fg); cursor: pointer; }
+.mchip:hover { border-color: var(--gold-line); }
+.clip .cacts .cmore { position: relative; margin-left: auto; }
+.cmore > summary { list-style: none; }
+.cmore > summary::-webkit-details-marker { display: none; }
+.cmenu { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: 3; display: grid; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); box-shadow: 0 6px 18px rgb(0 0 0 / .35); }
+.clip .shot { cursor: pointer; }
 
 /* Profile (Open Design): the lookup and its buttons in a bar of their own above the player */
 .profind .proside { margin-left: 0; display: flex; flex-wrap: wrap; align-items: start; gap: 10px; justify-content: space-between; }
@@ -2283,8 +2335,12 @@ dialog.wizard { transform: scale(var(--from)); }
 
     <section class="view" data-view="clips" aria-label="Clips" hidden>
       <header class="pagehead"><div><h1 class="title">Clips</h1><p class="sub">Your saved plays and recordings: watch, cut, rename and share them.</p></div></header>
-      <details id="clipSet" class="voiceset">
-        <summary><span class="ph">Clip settings</span><span class="hint">Recording, whole matches, the clip key, clips by voice and by themselves</span></summary>
+      <div class="clipstrip" aria-label="Clip settings">
+        <label class="check lcu-only client-only"><input id="optGameVideo" type="checkbox"> Record every match</label>
+        <label class="check lcu-only client-only"><input id="optGameHigh" type="checkbox"> Keep only the highlights <span class="hint">off keeps the full match</span></label>
+        <span class="keyrow"><span class="hint">Clip key</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button></span>
+      <details id="clipSet">
+        <summary class="btn small">All settings</summary>
         <div class="settings">
           <section class="panel">
             <h2 class="ph">Recording <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button></h2>
@@ -2300,13 +2356,11 @@ dialog.wizard { transform: scale(var(--from)); }
           </section>
           <section class="panel lcu-only client-only">
             <h2 class="ph">Whole matches <button class="tip" type="button" popovertarget="t-vids" aria-label="About whole matches and highlights">?</button></h2>
-            <label class="check"><input id="optGameVideo" type="checkbox"> Record every match by itself, at the quality in Recording, with its highlights</label>
-            <label class="check"><input id="optGameHigh" type="checkbox"> Keep only the highlights: when a game ends, its video is cut down to them (a game without any is kept whole)</label>
+            <p class="hint">Record every match keeps each game by itself, at the quality in Recording, with its highlights. Keep only the highlights cuts its video down to them when the game ends (a game without any is kept whole).</p>
             <label class="field">Keep match videos for <select id="optGameDays"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
           </section>
           <section class="panel">
             <h2 class="ph">Saving a clip <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
-            <div class="keyrow"><span>Clip key</span><kbd id="kClip"></kbd><button class="btn small" type="button" data-key="clip">Change</button><span></span></div>
             <p id="clipKeyNote" class="hint"></p>
             <p class="hint">Save a clip by itself for:</p>
             <label class="check"><input id="optClipMulti" type="checkbox"> My double kills or better</label>
@@ -2325,23 +2379,18 @@ dialog.wizard { transform: scale(var(--from)); }
           </section>
         </div>
       </details>
+      </div>
       <div class="clipsgrid">
       <section id="clipStage" class="panel clipstage" aria-label="The clip you picked" hidden></section>
       <div class="stack">
       <section class="panel" aria-labelledby="h-clips">
         <h2 id="h-clips" class="ph">Your clips <button class="tip" type="button" popovertarget="t-clips" aria-label="About clips">?</button><span id="clipCount" class="hint"></span></h2>
-        <div id="clipFind" class="clipfind" hidden><input id="clipSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search clips and champions" aria-label="Search clips"><div class="pills" role="group" aria-label="Show"><button type="button" data-cf="all" aria-pressed="true">All</button><button type="button" data-cf="today" aria-pressed="false">Today</button><button type="button" data-cf="week" aria-pressed="false">This week</button></div></div>
+        <div id="clipFind" class="clipfind" hidden><input id="clipSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search clips and champions" aria-label="Search clips"><div class="pills" role="group" aria-label="Show"><button type="button" data-cf="all" aria-pressed="true">All</button><button type="button" data-cf="today" aria-pressed="false">Today</button><button type="button" data-cf="week" aria-pressed="false">This week</button><button type="button" data-cf="saved" aria-pressed="false">Saved</button></div><div id="clipStore" class="clipstore" hidden><span class="hint">Storage</span><div class="wrbar store" aria-hidden="true"><span id="clipStoreBar"></span></div><b id="clipStoreText"></b></div></div>
+        <p id="clipLegend" class="cglegend hint" hidden><span class="k">Your kills</span><span class="d">Deaths</span><span class="o">Objectives</span></p>
         <p id="clipNote" class="hint"></p>
         <div id="clipGrid" class="cgames"></div>
         <ul id="clipList" class="cliplist" hidden></ul>
-        <div id="clipStore" class="clipstore" hidden><span class="hint">Clip storage</span><b id="clipStoreText"></b><div class="wrbar store" aria-hidden="true"><span id="clipStoreBar"></span></div></div>
         <div class="toolbar"><button id="clipsFolder" class="btn small" type="button">Open the clips folder</button></div>
-      </section>
-      <section id="savedBox" class="panel lcu-only" aria-labelledby="h-saved" hidden>
-        <h2 id="h-saved" class="ph">Saved</h2>
-        <p id="savedNote" class="hint"></p>
-        <div id="savedGrid" class="clips"></div>
-        <ul id="savedVids" class="clips vidlist"></ul>
       </section>
       </div>
       </div>
@@ -2885,7 +2934,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
-<div id="t-vids" class="tipbox" popover>With Record every match on (Clips page, Clip settings, Whole matches), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
+<div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
@@ -2896,7 +2945,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
 <div id="t-watch" class="tipbox" popover>Follow friends by their Riot ID to see their rank and LP go up and down, with a popup when it changes. Under them, their latest games, rank-ups and pentakills, with a popup for a rank-up or a pentakill. The app looks each one up about every 10 minutes while League is open, through League's own client. Only on this computer.</div>
 <div id="t-tftcode" class="tipbox" popover>A team code is League’s own way to pass a TFT comp around. Copy team code, then in League open the Team Planner (the TFT tab, beside Play, or top right in a game) and press Paste. Codes from friends, streamers and sites open here too. A code holds up to 10 champions, not their items, and only works in the set it was made for. The champions and their numbers come from League’s game data, through CommunityDragon.</div>
-<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Clips are .mp4, which phones, WhatsApp and Discord play; the first one is .webm while the app fetches FFmpeg to make them. Each game is a row with its clips. Here you can play, cut, rename and save your clips, copy one to paste into a chat, or drag one straight into Discord. Saved clips go in Saved, at the top of the page, and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
+<div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Clips are .mp4, which phones, WhatsApp and Discord play; the first one is .webm while the app fetches FFmpeg to make them. Each game is a row with its clips. Here you can play, cut, rename and save your clips, copy one to paste into a chat, or drag one straight into Discord. Saved clips stay in their game (press Saved to see only them) and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
@@ -7935,6 +7984,7 @@ dialog.wizard { transform: scale(var(--from)); }
   let myPlat = '';       // your League server (PLATS), from your match history
   let rc = null;         // the ready check, while there is one
   let cs = null, csAt = 0, pickable = null, bannable = null; // the champ select session, and who you may pick or ban
+  let lastSkin = 0; // the skin you last had in champ select (champion number x 1000 + skin), for the game's row on the Clips page
   let riotSum = null;    // our server's /riot/summary: each champion's high elo games and wins in each role, this patch (c) and the last (old), and Emerald and Diamond's (ed)
   let tierMemo = {}, tierRole = '', tierElo = null; // the tier list's counts (tiers) for each kind of games, the role picked for it ('': yours) and the games (null: for your rank)
   let gfs = null;        // League's gameflow session in champ select and in a game: the queue, the map and the teams
@@ -8060,6 +8110,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     cs = next;
     csAt = performance.now();
+    if (myCell() && myCell().selectedSkinId > 0) lastSkin = myCell().selectedSkinId;
     if (Number.isInteger(cs.localPlayerCellId)) checked('select', !!myCell());
     for (const p of cs.myTeam) if (p.puuid && p.nameVisibilityType !== 'HIDDEN') scoutOf(p.puuid);
     await autoHover();
@@ -10793,12 +10844,10 @@ dialog.wizard { transform: scale(var(--from)); }
     $('recList').replaceChildren(...recs.map(vidRow));
     $('recsNote').textContent = recs.length ? 'Kept until you bin one.' : 'Nothing recorded yet: press Record above.';
     const where = client.clips ? 'in its row under Your clips' : 'here'; // rows by game (app 1.7+) hold the videos
-    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? `Tick Record every match in Clip settings, at the top of this page, and each game you play is kept ${where}, with its highlights.`
+    $('vidNote').textContent = !opts.gameVideo && !vidsList.length ? `Tick Record every match at the top of this page, and each game you play is kept ${where}, with its highlights.`
       : !rest.length ? `No game videos yet: your next game is kept ${where}.` : `Each one is kept for ${opts.gameDays} day${opts.gameDays > 1 ? 's' : ''}, then it goes to the Recycle Bin. Save one to keep it.`;
-    $('vidList').replaceChildren(...(client.clips ? [] : rest.map(vidRow)));
-    $('savedVids').replaceChildren(...games.filter((v) => vidSaved.has(v.name)).map(vidRow));
+    $('vidList').replaceChildren(...(client.clips ? [] : games.map(vidRow)));
     if (client.clips) renderClips(); // its row
-    else renderSaved();
     renderReview();
     nextPic();
   }
@@ -10821,6 +10870,16 @@ dialog.wizard { transform: scale(var(--from)); }
     if (aionRunTl[v.name] && !v.rec) li.querySelector('.sub').after(runStrip(v.name, aionRunTl[v.name], runStats()));
     li.querySelector('.sub').textContent = [whenText(v.at), `${Math.round(v.size / 1e6)} MB`, v.rec ? 'recording now' : marks.length ? `${marks.length} highlight${marks.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
     if (v.rec) return li;
+    if (!isRec(v.name)) { // a League game's (What's new 160): Full match on its picture, and a chip a highlight that plays it
+      li.querySelector('.thumb').prepend(Object.assign(document.createElement('span'), { className: 'vfull', textContent: 'Full match' }));
+      const chips = Object.assign(document.createElement('div'), { className: 'vchips' });
+      for (const m of marks) {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: `mchip ${dotKind(m.text)}`, textContent: `${m.text} ${mmss(m.s)}` });
+        b.addEventListener('click', () => playGame(v.name, [m]));
+        chips.append(b);
+      }
+      if (marks.length) acts.after(chips);
+    }
     const btn = (text, cls, fn, aria) => { const b = Object.assign(document.createElement('button'), { className: `btn small ${cls}`, type: 'button', textContent: text }); if (aria) b.setAttribute('aria-label', aria); b.addEventListener('click', fn); acts.append(b); return b; };
     const thumb = li.querySelector('.thumb'), watch = Object.assign(document.createElement('button'), { type: 'button', className: 'thumb' });
     watch.setAttribute('aria-label', `Watch ${label}`);
@@ -10860,12 +10919,6 @@ dialog.wizard { transform: scale(var(--from)); }
     el.load();
     picBusy = false;
     renderVids();
-  }
-  // the Saved section, first on the Clips page: the clips and match videos you saved, which are never binned
-  function renderSaved() {
-    $('savedBox').hidden = !client;
-    const n = $('savedGrid').childElementCount + $('savedVids').childElementCount;
-    $('savedNote').textContent = n ? 'Never moved to the Recycle Bin. Press ★ Saved to put one back with the others.' : 'Press ☆ Save on a clip or a match video and it’s kept here, never moved to the Recycle Bin.';
   }
   // a match's highlights in the clips player: each from 10 s before to 5 s after (ones that overlap become one), one
   // after another, and Save the cut keeps the one on screen as a clip. Apps before 1.18 can't hand the page a game's
@@ -10944,7 +10997,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const EXT = /\.(webm|mp4)$/i, MULTI_TAG = ['', '', 'double kill', 'triple kill', 'quadra kill', 'pentakill'];
   // what the page knows about each clip and its game (Rayan, 2026-11-16: the Clips page by game), kept on this computer:
   // clipMeta[file name] = { g: game id, w: why, n: kills in a multikill, s: 1 once you played it };
-  // clipGames[game id] = { c: champion, k, d, a, r: result, q: 'Ranked' | 'ARAM'..., at, v: the match's video }.
+  // clipGames[game id] = { c: champion, k, d, a, r: result, q: 'Ranked' | 'ARAM'..., at, v: the match's video, s: the skin you played }.
   // Both are pruned to the clips still in the folder each time the gallery loads.
   let clipMeta = load('lpc-clip-meta', {}), clipGames = load('lpc-clip-games', {});
   const saveMeta = () => { store.set('lpc-clip-meta', JSON.stringify(clipMeta)); store.set('lpc-clip-games', JSON.stringify(clipGames)); };
@@ -10952,7 +11005,8 @@ dialog.wizard { transform: scale(var(--from)); }
   function keepGame(r) { // this game's line for its row, as it stands now
     if (!curGame || !league) return 0;
     const p = meIn() || {}, was = clipGames[curGame.id] || {};
-    const g = { c: p.champ || (league.me && league.me.champ) || was.c || '', k: p.k | 0, d: p.d | 0, a: p.a | 0, r: league.result || curGame.result || was.r || '', q: curGame.ranked ? 'Ranked' : curGame.custom ? 'Custom' : { ARAM: 'ARAM', PRACTICETOOL: 'Practice Tool' }[curGame.mode] || '', at: was.at || Date.now(), v: (r && r.game && r.game.name) || was.v || '' };
+    const c = p.champ || (league.me && league.me.champ) || was.c || '', ch = champOf(c), skin = ch && Math.floor(lastSkin / 1000) === +ch.key ? lastSkin % 1000 : 0;
+    const g = { c, s: was.s || skin, k: p.k | 0, d: p.d | 0, a: p.a | 0, r: league.result || curGame.result || was.r || '', q: curGame.ranked ? 'Ranked' : curGame.custom ? 'Custom' : { ARAM: 'ARAM', PRACTICETOOL: 'Practice Tool' }[curGame.mode] || '', at: was.at || Date.now(), v: (r && r.game && r.game.name) || was.v || '' };
     if (JSON.stringify(g) !== JSON.stringify(was)) { clipGames[curGame.id] = g; saveMeta(); }
     return curGame.id;
   }
@@ -11252,15 +11306,14 @@ dialog.wizard { transform: scale(var(--from)); }
     const g = hasGallery(), lol = gallery.filter((c) => !isAny(c.name)), n = g ? lol.length : clipNames.length;
     $('clipGrid').hidden = !g;
     $('clipList').hidden = g;
-    if (g) $('clipGrid').replaceChildren(...clipRows(gallery.filter((c) => !favs.has(c.name) && (!isAny(c.name) || clipMeta[c.name]))));
+    if (g) $('clipGrid').replaceChildren(...clipRows(gallery.filter((c) => !isAny(c.name) || clipMeta[c.name])));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
-    $('savedGrid').replaceChildren(...(g ? lol.filter((c) => favs.has(c.name)).map(clipCard) : []));
     $('anyGrid').replaceChildren(...(g ? gallery.filter((c) => isAny(c.name)).map(clipCard) : [])); // Clip anywhere's, on the Recording page
     $('anyNote').textContent = !client ? 'Clip anywhere needs the Premade app.' : !opts.clipsAll ? '' : `Press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''} in any app or game.${opts.clipVoice ? '' : ' Turn on Clips by voice in Clip settings, on the Clips page, to say it.'} Clips from outside League are listed here.`;
-    renderSaved();
     // a search and date filter over the cards, and how full the folder is (the big picked clip of the Open Design layout
     // went with the rows by game: the player opens over the page instead)
-    $('clipFind').hidden = !g || !lol.length;
+    $('clipFind').hidden = !g || !$('clipGrid').childElementCount;
+    $('clipLegend').hidden = !$('clipGrid').querySelector('.cgtl');
     $('clipCount').textContent = g && lol.length ? `${lol.length} clip${lol.length > 1 ? 's' : ''}` : '';
     filterClips();
     const used = gallery.reduce((t, c) => t + (c.size || 0), 0) / 1e9;
@@ -11272,16 +11325,21 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   let clipFilter = 'all';
   function filterClips() {
-    const q = $('clipSearch').value.trim().toLowerCase(), since = clipFilter === 'today' ? new Date().setHours(0, 0, 0, 0) : clipFilter === 'week' ? Date.now() - 7 * 864e5 : 0;
+    const q = $('clipSearch').value.trim().toLowerCase(), since = clipFilter === 'today' ? new Date().setHours(0, 0, 0, 0) : clipFilter === 'week' ? Date.now() - 7 * 864e5 : 0, saved = clipFilter === 'saved';
+    let day = null, shown = 0;
+    const endDay = () => { if (day) { day.hidden = !shown; day.querySelector('b').textContent = shown; } };
     for (const row of $('clipGrid').children) {
+      if (row.classList.contains('cgday')) { endDay(); day = row; shown = 0; continue; }
       const head = row.querySelector('.cghead').textContent.toLowerCase();
       for (const el of row.querySelectorAll('.clip')) {
         const c = gallery.find((x) => x.name === el.dataset.name) || vidsList.find((v) => v.name === el.dataset.vid);
-        el.hidden = !!c && ((q && !(head + ' ' + el.textContent.toLowerCase()).includes(q)) || c.at < since);
+        el.hidden = !!c && ((q && !(head + ' ' + el.textContent.toLowerCase()).includes(q)) || c.at < since || (saved && !el.hasAttribute('data-fav')));
       }
       row.hidden = !row.querySelector('.clip:not([hidden])');
-      if (q && !row.hidden) row.open = true;
+      if ((q || saved) && !row.hidden) row.open = true;
+      if (!row.hidden) shown++;
     }
+    endDay();
   }
   // The Clips page by game (Rayan, 2026-11-16): each game is a row with your champion, the result, your K/D/A, newest
   // game first; click it and it opens on its match video's card, when Record every match made one, and its clips
@@ -11295,44 +11353,86 @@ dialog.wizard { transform: scale(var(--from)); }
       const m = clipMeta[c.name], g = m && m.g && clipGames[m.g];
       row(g ? `g${m.g}` : `${isAny(c.name) ? 'any' : 'old'}${new Date(c.at).toDateString()}`, { g, any: isAny(c.name), at: g ? g.at : c.at }).clips.push(c);
     }
-    for (const v of vidsList) if (!isRec(v.name) && !vidSaved.has(v.name)) {
+    for (const v of vidsList) if (!isRec(v.name)) {
       const id = Object.keys(clipGames).find((k) => clipGames[k].v === v.name);
       row(id ? `g${id}` : v.name, { g: id && clipGames[id], at: id ? clipGames[id].at : v.at }).vid = v;
     }
     for (const k of openRows) if (!rows.has(k)) openRows.delete(k);
-    return [...rows.values()].sort((a, b) => b.at - a.at).map((r) => {
-      const el = document.createElement('details'), head = Object.assign(document.createElement('summary'), { className: 'cghead' }), who = Object.assign(document.createElement('span'), { className: 'cgwho' });
-      const body = Object.assign(document.createElement('div'), { className: 'cgbody' });
-      el.className = 'cgame';
-      el.open = openRows.has(r.key);
-      el.addEventListener('toggle', () => (el.open ? openRows.add(r.key) : openRows.delete(r.key)));
-      const vk = !r.g && r.vid && vidKda[r.vid.name], c = r.g ? champOf(r.g.c) : r.vid && vidChamp(r.vid.name), when = whenText(r.at);
-      const n = r.clips.length ? `${r.clips.length} clip${r.clips.length > 1 ? 's' : ''}` : '', full = r.vid && (r.vid.rec ? 'recording now' : 'full game');
-      if (c) head.append(Object.assign(document.createElement('img'), { src: champPic(c.id), alt: '', className: 'cgchamp' }));
-      const title = document.createElement('b');
-      title.textContent = r.g || r.vid ? (c && c.name) || 'League game' : r.any ? 'Screen clips' : 'Clips';
-      if (r.g && r.g.r) title.append(' ', Object.assign(document.createElement('span'), { className: r.g.r === 'Win' ? 'cgwin' : 'cgloss', textContent: r.g.r === 'Win' ? 'Win' : 'Loss' }));
-      who.append(title, Object.assign(document.createElement('span'), { className: 'sub', textContent: (r.g ? [`${r.g.k} / ${r.g.d} / ${r.g.a}`, r.g.q, when, n, full] : r.vid ? [vk && `${vk.k} / ${vk.d} / ${vk.a}`, when, n, full] : [r.any ? 'Clip anywhere, outside League' : '', when, n]).filter(Boolean).join(' · ') }));
-      head.append(who);
-      const box = (tag, className, ...kids) => { const e = Object.assign(document.createElement(tag), { className }); e.append(...kids); body.append(e); };
-      if (r.vid) box('ul', 'clips vidlist', vidRow(r.vid));
-      if (r.clips.length) box('div', 'clips', ...r.clips.map(clipCard));
-      if (r.g && r.clips.length > 1 && client.clipReel) {
-        const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: '🎬 Make a reel of this game' });
-        box('div', 'toolbar', b);
-        b.addEventListener('click', async () => {
-          b.disabled = true;
-          b.textContent = 'Making the reel…';
-          const d = new Date(r.g.at), first = r.clips[r.clips.length - 1].name;
-          const name = await client.clipReel(r.clips.filter((x) => (clipMeta[x.name] || {}).w !== 'reel').map((x) => x.name).reverse(), `${(c && c.name.replace(/[\\/:*?"<>|.]/g, '')) || 'League'} reel ${two(d.getHours())}-${two(d.getMinutes())}`).catch(() => '');
-          if (name) { clipMeta[name] = { g: clipMeta[first].g, w: 'reel' }; saveMeta(); keepKda(name, first); }
-          notify(name ? `Reel saved: ${name}` : 'Couldn’t make the reel. It needs FFmpeg, which Premade fetches with your first clip: try again in a minute.', true);
-          loadClips();
-        });
+    const out = [], today = new Date().setHours(0, 0, 0, 0);
+    let lastDay = '';
+    for (const r of [...rows.values()].sort((a, b) => b.at - a.at)) {
+      // a label a day (What's new 160): Today, Yesterday, the weekday, then the date
+      const d = new Date(r.at), ago = Math.round((today - new Date(r.at).setHours(0, 0, 0, 0)) / 864e5);
+      if (d.toDateString() !== lastDay) {
+        lastDay = d.toDateString();
+        const h = Object.assign(document.createElement('h3'), { className: 'cgday', textContent: ago <= 0 ? 'Today ' : ago === 1 ? 'Yesterday ' : ago < 7 ? `${d.toLocaleDateString([], { weekday: 'long' })} ` : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ` });
+        h.append(document.createElement('b'));
+        out.push(h);
       }
-      el.append(head, body);
-      return el;
-    });
+      out.push(clipRow(r));
+    }
+    return out;
+  }
+  // a game's row (What's new 160, Rayan's pick of 18 Nov: Open Design's rich rows with the champion's splash art, in the
+  // skin you played, behind each): champion, Win or Loss, K/D/A, queue, time, length and clips, up to 4 clip pictures,
+  // the full match's length and its highlights on a thin timeline. Open: the full match big beside its clips.
+  function clipRow(r) {
+    const el = document.createElement('details'), head = Object.assign(document.createElement('summary'), { className: 'cghead' }), who = Object.assign(document.createElement('span'), { className: 'cgwho' });
+    const body = Object.assign(document.createElement('div'), { className: 'cgbody' });
+    el.className = r.g || r.vid ? 'cgame' : 'cgame cgplain';
+    if (r.g && r.g.r) el.dataset.r = r.g.r === 'Win' ? 'win' : 'loss';
+    el.open = openRows.has(r.key);
+    el.addEventListener('toggle', () => (el.open ? openRows.add(r.key) : openRows.delete(r.key)));
+    const vk = !r.g && r.vid && vidKda[r.vid.name], c = r.g ? champOf(r.g.c) : r.vid && vidChamp(r.vid.name), when = new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const pic = r.vid && vidPics[r.vid.name], len = pic && pic[1], marks = (r.vid && vidMarks[r.vid.name]) || [];
+    const n = r.clips.length ? `${r.clips.length} clip${r.clips.length > 1 ? 's' : ''}` : '';
+    if (c && (r.g || r.vid)) { // the splash, faded toward the right; a chroma or a skin League's art doesn't have falls back to the base one
+      const art = Object.assign(document.createElement('img'), { className: 'cgart', alt: '', loading: 'lazy', decoding: 'async', src: `${DD}/cdn/img/champion/splash/${c.id}_${(r.g && r.g.s) | 0}.jpg` });
+      art.addEventListener('error', () => { if (!art.src.endsWith('_0.jpg')) art.src = `${DD}/cdn/img/champion/splash/${c.id}_0.jpg`; else art.remove(); });
+      head.append(art);
+    }
+    if (c) head.append(Object.assign(document.createElement('img'), { src: champPic(c.id), alt: '', className: 'cgchamp' }));
+    const title = document.createElement('b');
+    title.textContent = r.g || r.vid ? (c && c.name) || 'League game' : r.any ? 'Screen clips' : 'Clips';
+    if (r.g && r.g.r) title.append(' ', Object.assign(document.createElement('span'), { className: r.g.r === 'Win' ? 'cgwin' : 'cgloss', textContent: r.g.r === 'Win' ? 'Win' : 'Loss' }));
+    who.append(title, Object.assign(document.createElement('span'), { className: 'sub', textContent: (r.g ? [`${r.g.k} / ${r.g.d} / ${r.g.a}`, r.g.q, when, len && mmss(len), n] : r.vid ? [vk && `${vk.k} / ${vk.d} / ${vk.a}`, when, len && mmss(len), n] : [r.any ? 'Clip anywhere, outside League' : '', when, n]).filter(Boolean).join(' · ') }));
+    head.append(who);
+    if (r.clips.length) {
+      const pics = Object.assign(document.createElement('span'), { className: 'cgpics' });
+      for (const x of r.clips.slice(0, 4)) pics.append(Object.assign(document.createElement('img'), { src: x.pic || 'icon-192.png', alt: '' }));
+      head.append(pics);
+    }
+    if (r.vid) head.append(Object.assign(document.createElement('span'), { className: 'cgfull', textContent: r.vid.rec ? '● Recording' : len ? `Full match ${mmss(len)}` : 'Full match' }));
+    if (len && marks.length) { // the highlights along the game: your kills, deaths, objectives
+      const tl = Object.assign(document.createElement('span'), { className: 'cgtl' });
+      tl.setAttribute('aria-hidden', 'true');
+      for (const m of marks) {
+        const dot = Object.assign(document.createElement('i'), { className: dotKind(m.text), title: `${mmss(m.s)} ${m.text}` });
+        dot.style.left = `${Math.min(100, (100 * m.s) / len)}%`;
+        tl.append(dot);
+      }
+      head.append(tl);
+    }
+    const side = r.vid && r.clips.length ? Object.assign(document.createElement('div'), { className: 'cgside' }) : body;
+    const box = (to, tag, className, ...kids) => { const e = Object.assign(document.createElement(tag), { className }); e.append(...kids); to.append(e); };
+    if (r.vid) box(body, 'ul', 'clips vidlist', vidRow(r.vid));
+    if (side !== body) body.append(side);
+    if (r.clips.length) box(side, 'div', 'clips', ...r.clips.map(clipCard));
+    if (r.g && r.clips.length > 1 && client.clipReel) {
+      const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: '🎬 Make a reel of this game' });
+      box(side, 'div', 'toolbar', b);
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        b.textContent = 'Making the reel…';
+        const d = new Date(r.g.at), first = r.clips[r.clips.length - 1].name;
+        const name = await client.clipReel(r.clips.filter((x) => (clipMeta[x.name] || {}).w !== 'reel').map((x) => x.name).reverse(), `${(c && c.name.replace(/[\\/:*?"<>|.]/g, '')) || 'League'} reel ${two(d.getHours())}-${two(d.getMinutes())}`).catch(() => '');
+        if (name) { clipMeta[name] = { g: clipMeta[first].g, w: 'reel' }; saveMeta(); keepKda(name, first); }
+        notify(name ? `Reel saved: ${name}` : 'Couldn’t make the reel. It needs FFmpeg, which Premade fetches with your first clip: try again in a minute.', true);
+        loadClips();
+      });
+    }
+    el.append(head, body);
+    return el;
   }
   $('clipSearch').addEventListener('input', filterClips);
   for (const b of document.querySelectorAll('[data-cf]')) b.addEventListener('click', () => { clipFilter = b.dataset.cf; for (const x of document.querySelectorAll('[data-cf]')) x.setAttribute('aria-pressed', String(x === b)); filterClips(); });
@@ -11341,11 +11441,11 @@ dialog.wizard { transform: scale(var(--from)); }
     el.className = 'clip';
     el.dataset.name = c.name;
     el.toggleAttribute('data-fav', fav);
-    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small star" type="button"></button><button class="btn small play" type="button">Play or cut</button><button class="btn small copy" type="button" hidden>Copy</button><button class="btn small send" type="button" hidden>Send to room</button><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div>';
+    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small copy" type="button" hidden>Copy</button><button class="btn small star" type="button"></button><button class="btn small send" type="button" hidden>Send to room</button><details class="cmore"><summary class="btn small" aria-label="More">⋯</summary><div class="cmenu"><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div></details></div>';
     const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(EXT, ''), meta = clipMeta[c.name], copy = el.querySelector('.copy');
     img.src = c.pic || 'icon-192.png';
     if (!c.pic) img.style.objectFit = 'contain';
-    img.title = 'Drag into Discord or a folder, or click to play';
+    img.title = 'Click to play or cut, or drag into Discord or a folder';
     img.addEventListener('dragstart', (e) => { e.preventDefault(); client.clipDrag(c.name); });
     img.addEventListener('click', () => playClip(c.name));
     el.querySelector('.cname').textContent = label;
@@ -11365,13 +11465,12 @@ dialog.wizard { transform: scale(var(--from)); }
     star.textContent = fav ? '★ Saved' : '☆ Save';
     star.setAttribute('aria-label', `${fav ? 'Stop saving' : 'Save'} ${label}`);
     star.addEventListener('click', () => { if (!favs.delete(c.name)) favs.add(c.name); saveFavs(); renderClips(); });
-    el.querySelector('.play').addEventListener('click', () => playClip(c.name));
     el.querySelector('.send').addEventListener('click', async () => {
       const b = await client.clipRead(c.name).catch(() => null);
       if (!b) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
       if (await sendFile(new File([b], c.name, { type: /\.mp4$/i.test(c.name) ? 'video/mp4' : 'video/webm' }))) notify(`Sent “${label}” to your room`, true);
     });
-    el.querySelector('.ren').addEventListener('click', () => renameClip(c.name, el));
+    el.querySelector('.ren').addEventListener('click', () => { el.querySelector('.cmore').open = false; renameClip(c.name, el); });
     el.querySelector('.bin').addEventListener('click', async () => {
       if (!confirm(`Move “${label}” to the Recycle Bin?`)) return;
       if (await client.clipTrash(c.name)) { favs.delete(c.name); saveFavs(); } else notify('Couldn’t move that clip to the Recycle Bin.', true);
@@ -11476,6 +11575,7 @@ dialog.wizard { transform: scale(var(--from)); }
     tower: '<path d="M7 21V9H5V4h3v2h2V4h4v2h2V4h3v5h-2v12z"/>',
     inhib: '<path d="M12 2l6 8-6 12-6-12z"/><path d="M6 10h12"/>',
   };
+  const dotKind = (t) => ({ death: 'd', kill: 'k', multi: 'k', assist: 'k', ace: 'k' })[markKind(t)[0]] || 'o'; // a highlight's colour: your kills, deaths, objectives
   const markKind = (t) => {
     const multi = MULTI.indexOf(t);
     return multi > 1 ? ['multi', multi] : /^You died/.test(t) ? ['death'] : /assist/.test(t) ? ['assist'] : /Ace|aced/.test(t) ? ['ace'] : /Baron/.test(t) ? ['baron']
@@ -18008,6 +18108,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [160, 'November 18: a new look for Clips', [
+      'Each game on the Clips page is now a row over your champion’s splash art, in the skin you played: win or loss, your K/D/A, the queue, the time, how long the match was, your clips’ pictures and the full match’s highlights along a thin line. Games are under Today, Yesterday and the day you played them.',
+      'Open a game and its full match sits big beside its clips, with a chip for each highlight that plays it.',
+      'Record every match, Keep only the highlights and your clip key are in one strip at the top; All settings opens the rest.',
+      'Click a clip’s picture to play or cut it. Copy and Save are on the card; Rename and Bin are under ⋯. Saved clips stay in their game: press Saved, beside This week, to see only them.',
+    ]],
     [159, 'November 17: a tidier Clips page', [
       'Clip settings is now at the top of the Clips page, so you don’t scroll past all your clips to change one. Record every match, Keep only the highlights and how long match videos stay are in it too, under Whole matches.',
       'Download from a link and Convert a file are gone from the Clips page.',
@@ -19000,14 +19106,14 @@ dialog.wizard { transform: scale(var(--from)); }
     ]],
     ['League: Clips', 'Your best moments as videos, saved with a key, your voice or by themselves.', [
       ['The clip key', 'Saves the last part of the game as a video (30 seconds unless you pick 15 seconds to 2 minutes), with what you heard and your mic, in Videos\\Premade. Clips are named after your champion and the moment (“Yasuo triple kill 21-04”) and saved as .mp4, which phones, WhatsApp and Discord play.',
-        'Ctrl+Shift+K in a game. Change the key, the length and the quality in Clip settings.', '#kClip', 'app'],
+        'Ctrl+Shift+K in a game. Change the key in the strip at the top of the Clips page; the length and the quality are in All settings.', '#kClip', 'app'],
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, a solo kill or first blood, for your team’s steals, Aces, Baron and Elder Dragon, your pentakills and the win. Moments close together make one clip, named after the biggest.', 'On unless you turn them off: Clip settings, Saving a clip has a box for each.', '#optClipMulti, #optClipSolo, #optClipFirst, #optClipTake, #optClipWin', 'app'],
-      ['Your clips', 'Each game is a row: your champion, win or loss and your K/D/A. Click it to open its full match (Watch the match, Highlights) when Record every match made one, and its clips. Play, cut, rename, save or bin a clip, Copy it to paste into Discord or WhatsApp with Ctrl+V, or drag it straight into Discord. Make a reel of this game joins a game’s clips into one video. Save puts a clip or a match video in Saved, and it’s never moved to the Recycle Bin.',
-        'The Clips page: search the rows or show only today’s or this week’s. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, #optClipCap', 'app'],
+      ['Your clips', 'Each game is a row over your champion’s splash art, in the skin you played in champ select, under Today, Yesterday or its day: win or loss, your K/D/A, the queue, the time, the match’s length, up to 4 of its clips’ pictures and the full match’s highlights along a thin line (your kills, deaths, objectives). Click it to open its full match big (Watch the match, Highlights, a chip for each highlight) beside its clips. Click a clip’s picture to play or cut it, Copy it to paste into Discord or WhatsApp with Ctrl+V, Save it, or drag it straight into Discord; Rename and Bin are under ⋯. Make a reel of this game joins a game’s clips into one video. A saved clip or match video stays in its game and is never moved to the Recycle Bin.',
+        'The Clips page: search the rows or show only today’s, this week’s or the Saved ones. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, [data-cf="saved"], #optClipCap', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
-        'Play or cut on a clip, or Watch on a match video. Drag the handles, then Save the cut.', '#h-clips', 'app'],
+        'Click a clip’s picture, or Watch the match on a game. Drag the handles, then Save the cut.', '#h-clips', 'app'],
       ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
@@ -19027,7 +19133,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Clip settings, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin. Keep only the highlights (on by default) cuts each game down to its highlights when it ends, so a game takes a fraction of the several GB it took whole. A video Premade was still finishing when it closed is finished at the next start, and half-made files a day old go to the Recycle Bin.',
-        'Off until you tick it: Clip settings, at the top of the Clips page, Whole matches, Record every match. Untick Keep only the highlights to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
+        'Off until you tick it: Record every match, in the strip at the top of the Clips page. Untick Keep only the highlights beside it to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
@@ -19232,6 +19338,8 @@ dialog.wizard { transform: scale(var(--from)); }
     chessReplay: (g) => { const S = chReplay({ id: 'x', w: 'A', b: 'B', mode: 'normal', clock: 0, seed: 1, at: 0, ...g }, '', Infinity); return S && { over: S.over, board: S.board.join(), turn: S.turn, castle: S.castle, phase: S.phase, card: S.card, frozen: S.frozen, shields: S.shields, players: S.players, out: S.out, left: S.left, back: S.back, say: S.say, deck: S.deck.slice() }; },
     chess: () => chS && { ...chS, rnd: undefined, reps: undefined, deck: chS.deck.slice(-3), acts: chG.acts.length },
     lcDraw: () => lcDraw(),
+    clipsDraw: () => renderClips(),
+    vidLen: (n, len) => { vidPics[n] = ['', len]; renderVids(); }, // a match video's length, where the test app has no player to read it
     wt: () => wt && { ...wt, now: wtNow(), joined: wtJoined, player: !!wtP, loaded: wtLoaded, corner: $('wtBox').classList.contains('corner'), listening: !!wtAC },
     wtPick: (v, list) => wtPick(v, list || ''), // as the app's YouTube window sends a pick ('yt-pick')
     lcRules: LC,

@@ -1549,20 +1549,32 @@ const leagueData = (over = {}) => ({
     const gameRow = await pc.evaluate(() => ({ rows: document.querySelectorAll('#clipGrid .cgame').length, head: document.querySelector('#clipGrid .cghead').textContent, tags: [...document.querySelectorAll('#clipGrid .ctag')].map((e) => e.textContent + (e.hasAttribute('data-auto') ? '*' : '')).join() }));
     assert(gameRow.rows === 1 && /^Ahri3 \/ 1 \/ 2 · Ranked · .* · 4 clips$/.test(gameRow.head) && gameRow.tags === 'Solo kill*,Double kill*,Key,Key', `the game's row: ${JSON.stringify(gameRow)}`);
     assert(await pc.$$eval('#clipGrid .shot', (imgs) => imgs.every((i) => i.src.startsWith('data:image/jpeg;base64,') && i.naturalWidth === 320)), 'a picture of the screen with each clip');
+    // What's new 160: the row over the champion's splash in the skin picked in champ select (Dynasty Ahri's Ruby chroma, 103020),
+    // a chroma's missing art falling back to the base splash; up to 4 clip pictures; a label for the day
+    const look = await pc.evaluate(() => ({ art: document.querySelector('#clipGrid .cgart').getAttribute('src'), pics: document.querySelectorAll('#clipGrid .cgpics img').length, day: document.querySelector('#clipGrid .cgday').textContent, s: JSON.parse(localStorage.getItem('lpc-clip-games'))[5550001].s }));
+    assert(look.art.endsWith('/cdn/img/champion/splash/Ahri_20.jpg') && look.s === 20 && look.pics === 4 && look.day === 'Today 1', `the row's look: ${JSON.stringify(look)}`);
+    await pc.$eval('#clipGrid .cgart', (i) => i.dispatchEvent(new Event('error')));
+    assert.match(await pc.getAttribute('#clipGrid .cgart', 'src'), /\/splash\/Ahri_0\.jpg$/, 'no art for that skin: the base splash');
+    // the strip: Record every match, Keep only the highlights and the clip key at the top, All settings for the rest
+    assert(await pc.evaluate(() => ['optGameVideo', 'optGameHigh', 'kClip'].every((id) => document.getElementById(id).closest('.clipstrip') && !document.getElementById(id).closest('#clipSet'))), 'the key switches in the strip');
     await pc.click('#clipGrid .cghead'); // the game's row, clicked open
-    const card = (n) => `:is(#clipGrid, #savedGrid) .clip:has(.cname:text-is("${n}"))`;
+    const card = (n) => `#clipGrid .clip:has(.cname:text-is("${n}"))`, menu = async (n, b) => { await pc.click(`${card(n)} .cmore > summary`); await pc.click(`${card(n)} .${b}`); };
     await wait(pc, () => document.querySelector('#clipGrid .clip .kda img'), null, 'the champion on each card');
     assert.strictEqual(await text(pc, `${card('Clip 3')} .kda`), 'Ahri 3/1/2', 'your champion and K/D/A on the card');
     await pc.click(`${card('Clip 1')} .star`);
     assert(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-clip-favs')).includes('Clip 1.webm')) && (await text(pc, `${card('Clip 1')} .star`)) === '★ Saved', 'saved');
-    await wait(pc, () => [...document.querySelectorAll('#savedGrid .cname')].map((e) => e.textContent).join() === 'Clip 1' && [...document.querySelectorAll('#clipGrid .cname')].map((e) => e.textContent).join() === 'Clip 4,Clip 3,Clip 2', null, 'Clip 1 in Saved');
-    await pc.click(`${card('Clip 2')} .ren`);
+    await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip[data-fav] .cname')].map((e) => e.textContent).join() === 'Clip 1' && [...document.querySelectorAll('#clipGrid .cname')].map((e) => e.textContent).join() === 'Clip 4,Clip 3,Clip 2,Clip 1', null, 'Clip 1 saved, still in its game');
+    await pc.click('[data-cf="saved"]');
+    assert.strictEqual(await pc.$$eval('#clipGrid .clip:not([hidden]) .cname', (l) => l.map((e) => e.textContent).join()), 'Clip 1', 'Saved: only the saved clip');
+    await pc.click('[data-cf="all"]');
+    assert.strictEqual(await pc.$$eval('#clipGrid .clip:not([hidden])', (l) => l.length), 4, 'All: every clip again');
+    await menu('Clip 2', 'ren');
     await pc.fill(`#clipGrid form input`, 'Baron steal');
     await pc.press(`#clipGrid form input`, 'Enter');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .cname')].some((e) => e.textContent === 'Baron steal'), null, 'the clip renamed');
     await pc.dispatchEvent(`${card('Clip 3')} .shot`, 'dragstart');
     assert(await pc.evaluate(() => lpcClient.calls.includes('drag Clip 3.webm')), 'dragged out (to Discord)');
-    await pc.click(`${card('Clip 1')} .play`);
+    await pc.click(`${card('Clip 1')} .shot`); // the picture plays it
     await wait(pc, () => document.getElementById('clipDlg').open && document.getElementById('clipVideo').readyState >= 1 && +document.getElementById('trimTo').max > 8, null, 'the clip playing, with the trimmer');
     // the player's timeline: timestamps from 0:00, pictures along the strip, and the white handles are the cut
     await wait(pc, () => !document.getElementById('tl').hidden && document.querySelector('#tlRuler .tk[data-t]').dataset.t === '0:00' && document.querySelectorAll('#tlRuler .tk[data-t]').length >= 4, null, 'the timestamps under the clip');
@@ -1619,7 +1631,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .cname')].some((e) => e.textContent === 'Clip 1 cut'), null, 'the cut in the gallery');
     assert.strictEqual(await text(pc, `${card('Clip 1 cut')} .kda`), 'Ahri 3/1/2', 'the cut and the edit keep the champion and K/D/A');
     pc.once('dialog', (d) => d.accept());
-    await pc.click(`${card('Clip 3')} .bin`);
+    await menu('Clip 3', 'bin');
     await wait(pc, () => ![...document.querySelectorAll('#clipGrid .cname')].some((e) => e.textContent === 'Clip 3'), null, 'Clip 3 binned');
     // Copy puts the file on the clipboard; Make a reel joins the game's clips, oldest first, into one more in its row;
     // a binned clip's notes go with it
@@ -1629,15 +1641,32 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .cname')].some((e) => /^Ahri reel \d\d-\d\d$/.test(e.textContent)) && [...document.querySelectorAll('#clipGrid .ctag')].some((e) => e.textContent === 'Reel'), null, 'the reel in the game’s row');
     if (process.env.SHOTS) await pc.locator('#clipGrid').screenshot({ path: path.join(process.env.SHOTS, 'clips-by-game.png') });
     const reel = await pc.evaluate(() => ({ call: lpcClient.calls.find((c) => typeof c === 'string' && c.startsWith('reel ')), meta: Object.keys(JSON.parse(localStorage.getItem('lpc-clip-meta'))) }));
-    assert(/^reel Baron steal\.webm,/.test(reel.call) && reel.call.includes('Clip 4.webm') && !reel.meta.includes('Clip 3.webm'), `the reel's clips in order, and Clip 3's notes gone with it: ${JSON.stringify(reel)}`);
+    assert(/^reel Clip 1\.webm,Baron steal\.webm,/.test(reel.call) && reel.call.includes('Clip 4.webm') && !reel.meta.includes('Clip 3.webm'), `the reel's clips in order (the saved one too, in its game since What's new 160), and Clip 3's notes gone with it: ${JSON.stringify(reel)}`);
     await pc.click('#clipsFolder');
     assert(await pc.evaluate(() => lpcClient.calls.includes('clips-folder')));
+    { // memory: the rows (splash, pictures, menus, the opened row) drawn 300 times keep no nodes or listeners
+    const cdp = await pc.context().newCDPSession(pc);
+    await cdp.send('Performance.enable');
+    const metrics = async () => {
+      await cdp.send('HeapProfiler.collectGarbage');
+      const { metrics: m } = await cdp.send('Performance.getMetrics'), g = (n) => m.find((x) => x.name === n).value;
+      return [g('Nodes'), g('JSEventListeners')];
+    };
+    await pc.evaluate(() => { for (let i = 0; i < 100; i++) lpc.clipsDraw(); });
+    const before = await metrics();
+    await pc.evaluate(() => { for (let i = 0; i < 300; i++) lpc.clipsDraw(); });
+    const after = await metrics();
+    assert(after[0] - before[0] < 200 && after[1] - before[1] < 20, `the clips rows leak nothing: ${before} then ${after}`);
+    await cdp.detach();
+    console.log(`clips rows, 300 redraws: nodes and listeners ${before} then ${after}`);
+    }
     await shot(pc, 'clips');
     console.log(`clip gallery: pictures, kept, renamed, dragged out, a ${cutLen.toFixed(1)} s cut from the trimmer, binned`);
     // Clip settings, under the gallery; clips by voice: Record my phrase writes down what the mic says, and then saying it
     // saves a clip. (Vosk, in a worker, slow on a busy container.)
-    await pc.click('#clipSet > summary');
     assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
+    await pc.click('#clipSet > summary'); // All settings
+    assert(await pc.isVisible('#optClipLen') && await pc.isVisible('#optClipVoice'), 'All settings opens the rest');
     await pc.click('#phraseRec');
     await wait(pc, () => document.getElementById('voiceNote').textContent === 'Your phrase is “that was sick”. Press Test to try it.', null, 'your phrase recorded', 90000);
     assert.strictEqual(await pc.inputValue('#optClipPhrase'), 'that was sick');
