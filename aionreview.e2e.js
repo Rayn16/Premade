@@ -1,7 +1,6 @@
 // Test of the Aion 2 run review on the Recording page (What's new 133), in headless Chromium with a stand-in for the
 // desktop app: runs kept in lpc-aion-runs (one with Live fight's deaths, one older one with only respawns) show as a
-// strip under their recording (fights, casts, deaths, time against your best, the cast up at a death), Aion 2 boss
-// practice ranks the bosses, and Side by side plays two tries at the same boss together from the pull.
+// strip under their recording (fights, casts, deaths, time against your best, the cast up at a death).
 // Needs playwright and ffmpeg: NODE_PATH=$(npm root -g) node aionreview.e2e.js
 const fs = require('fs');
 const os = require('os');
@@ -68,34 +67,7 @@ function fakeApp(port) {
     await page.click('#recList li:first-child .rd');
     await page.waitForFunction(() => document.getElementById('clipDlg').open && Math.abs(document.querySelector('#clipDlg video').currentTime - 100) < 1.5, null, { timeout: 10000 });
     await page.evaluate(() => document.getElementById('clipDlg').close());
-    // 45: practice
-    await page.waitForSelector('#aionReviewBox:not([hidden])');
-    const rows = await page.$$eval('#aionPractice tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));
-    assert.deepStrictEqual(rows, [['Nuakum', '2', '1', '3', '1:05', '1:05', 'Blue Light of Destruction (2)', '▶ 2'], ['Duanka', '1', '1', '0', '0:35', '0:35', '–', '–']], 'per boss: tries, kills, your deaths (not Sam’s), best, usual, costliest cast, your deaths on video (Live fight’s, not coming back in)');
-    // the death reel: from 10 s before your first death to Nuakum, then the next
-    await page.click('#aionPractice tr:first-child button');
-    await page.waitForFunction(() => document.getElementById('clipDlg').open && Math.abs(document.querySelector('#clipDlg video').currentTime - 100) < 1.5, null, { timeout: 10000 });
-    await page.waitForFunction(() => +document.getElementById('trimFrom').value === 120, null, { timeout: 25000 }); // the second (138 s) is past this 2-minute stand-in's end
-    await page.evaluate(() => document.getElementById('clipDlg').close());
-    assert.strictEqual(await page.textContent('#aionNext'), 'Practise next: Nuakum. 2 of your 3 deaths there came during Blue Light of Destruction.');
-    // 37: side by side, from the pull
-    assert.deepStrictEqual(await page.$$eval('#vsBoss option', (l) => l.map((o) => o.value)), ['Nuakum'], 'only a boss with two tries still on the PC');
-    assert.match(await page.$eval('#vsA', (s) => s.selectedOptions[0].textContent), /kill 1:05$/, 'the best kill on the left');
-    assert.match(await page.$eval('#vsB', (s) => s.selectedOptions[0].textContent), /no kill$/, 'the other try on the right');
-    await page.click('#vsPlay');
-    await page.waitForFunction(() => { const a = document.getElementById('vsVidA'), b = document.getElementById('vsVidB'); return !a.paused && a.currentTime > 21 && b.currentTime > 71; }, null, { timeout: 10000 });
-    const gap = () => page.evaluate(() => document.getElementById('vsVidB').currentTime - document.getElementById('vsVidA').currentTime);
-    assert(Math.abs((await gap()) - 50) < 0.6, `synced at the pull (20 s and 70 s): ${await gap()}`);
-    await page.evaluate(() => { const a = document.getElementById('vsVidA'); a.currentTime = 5; });
-    await page.waitForFunction(() => Math.abs(document.getElementById('vsVidB').currentTime - document.getElementById('vsVidA').currentTime - 50) < 0.6, null, { timeout: 5000 });
-    await page.evaluate(() => document.getElementById('vsVidA').pause());
-    await page.waitForFunction(() => document.getElementById('vsVidB').paused, null, { timeout: 3000 });
-    await page.evaluate(() => { const a = document.getElementById('vsVidA'); a.currentTime = 72; a.play(); }); // the right one reaches its end (120 s) and stops
-    await page.waitForFunction(() => document.getElementById('vsVidB').ended, null, { timeout: 8000 });
-    await page.evaluate(() => { document.getElementById('vsVidA').currentTime = 10; });
-    await page.waitForFunction(() => !document.getElementById('vsVidB').paused && Math.abs(document.getElementById('vsVidB').currentTime - document.getElementById('vsVidA').currentTime - 50) < 0.6, null, { timeout: 5000 }); // and plays again from A's second
-    await page.click('#vsClose');
-    assert(await page.evaluate(() => !document.getElementById('vsVidA').getAttribute('src') && !document.getElementById('vsVidB').getAttribute('src') && document.getElementById('vsVids').hidden), 'Close lets go of both videos');
+    assert(await page.evaluate(() => !document.getElementById('aionReviewBox') && !document.getElementById('vsBox')), 'boss practice and side by side are gone');
     assert.deepStrictEqual(errors, [], 'no page errors');
     console.log('aionreview: ok');
   } finally { await browser.close(); server.close(); fs.rmSync(path.dirname(CLIP), { recursive: true, force: true }); }

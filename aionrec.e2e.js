@@ -3,7 +3,7 @@
 // mark on its video, a boss fight (the gauge under its health bar with the boss's name above it) is kept when the video
 // is cut, up to its "Defeated" banner, named after the boss, with its cast read, while a menu with a gauge and an elite
 // with no kill are not, the run's timeline goes beside its video, and a town map stops it; a boss bar on a field map
-// records too, and a recording with no boss in it is binned; the Recording page lists each dungeon's runs and the last 7 days.
+// records too, and a recording with no boss in it is binned.
 // The frames are drawn at Rayan's 2560x1440 with his UI's places; Tesseract reads them (app 1.42).
 // Needs playwright: NODE_PATH=$(npm root -g) node aionrec.e2e.js
 const fs = require('fs');
@@ -38,7 +38,6 @@ function fakeApp() {
   localStorage.setItem('lpc-setup', '1');
   localStorage.setItem('lpc-name', 'Rayan');
   localStorage.setItem('lpc-news', '9999');
-  localStorage.setItem('lpc-opts', JSON.stringify({ aionGuide: false })); // the dungeon named from the quest tracker, not the guide's files (aionguide.e2e.js has those)
   setInterval(() => { // Aion 2's top middle and cast bar as window.scene says
     const g = cv.getContext('2d'), s = window.scene || '';
     g.fillStyle = `hsl(${Date.now() % 360},30%,20%)`; g.fillRect(0, 0, 2560, 1440);
@@ -102,12 +101,6 @@ function fakeApp() {
     await page.waitForFunction(() => calls.filter((c) => c === 'start').length === 2, null, { timeout: 40000 });
     await page.evaluate(() => { window.scene = ''; log += `[${new Date().toISOString().replace('Z', '+0000')}] [0] Flow.Teleport.LoadComplete.Map(1110)\n`; });
     await page.waitForFunction(() => calls.includes('trash'), null, { timeout: 15000 });
-    await page.evaluate(() => document.querySelector('.nav[data-view="record"]').click());
-    await page.waitForSelector('#aionRunsBox:not([hidden]) #aionRuns tr');
-    const rows = await page.$$eval('#aionRuns tr', (l) => l.map((tr) => [...tr.cells].map((c) => c.textContent)));
-    assert.deepStrictEqual(rows[0], ['Vakron Sky Island', '2', '10:00', '12:00', '0.5'], 'runs, best, usual, map reloads; named from the guide’s files');
-    assert.deepStrictEqual(rows.map((r) => r[0]), ['Vakron Sky Island', 'Ferocious Horn Den'], 'quick story dungeons aren’t dungeon runs; a run names its dungeon from the quest tracker');
-    assert.match(await page.textContent('#aionWeek'), /^Last 7 days: 3 dungeon runs, [\d.]+ hours/, 'the week');
     console.log('aionrec: ok');
   } finally { await browser.close(); server.close(); }
 })().catch((e) => { console.error(e); process.exit(1); });

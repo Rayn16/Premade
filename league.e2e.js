@@ -902,7 +902,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Aion 2', 'Aion 2 overlay', 'RE4 co-op', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Aion 2', 'RE4 co-op', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
     // RE4 co-op: the helper's checks drawn as rows, and Play's answer
     await pc.click('.nav[data-view="re4"]');
     await wait(pc, () => document.getElementById('re4Role').textContent === 'Host · Tailscale 100.101.102.103' && !document.getElementById('re4SignIn').hidden && document.querySelectorAll('#re4Conn .re4row .dot[data-h="good"]').length === 1
@@ -938,15 +938,6 @@ const leagueData = (over = {}) => ({
       && document.querySelector('#re4InGame .dot').dataset.h === 'good', null, 'RE4 Play as Ada');
     await pc.evaluate(() => { lpcClient.inRe4 = false; });
     console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, and Play as Ada with the connected line');
-    // Aion 2 on the overlay: out of a League game, the overlay key shows the card the Aion 2 page last wrote, and hides it
-    await pc.evaluate(() => { localStorage.setItem('lpc-aion', '1'); localStorage.setItem('lpc-aion-card', JSON.stringify({ at: Date.now(), lines: ['Melted Danar in 4 min', 'Daily reset in 2 h 10 min'] })); });
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => lpcClient.lastOverlay && lpcClient.lastOverlay.visible && String(lpcClient.lastOverlay.aion) === 'Melted Danar in 4 min,Daily reset in 2 h 10 min' && lpc.toasts().includes('Aion 2 is on the overlay. Alt+V again hides it.'), null, 'the Aion 2 card on the overlay');
-    await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => !lpcClient.lastOverlay.aion && lpc.toasts().includes('Aion 2 is off the overlay.'), null, 'and off it');
-    await pc.evaluate(() => localStorage.removeItem('lpc-aion'));
-    console.log('Aion 2 on the overlay by its key, out of a League game');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
@@ -1441,9 +1432,9 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpcClient.lastOverlay.opacity === 0.6 && document.getElementById('opacityOut').textContent === '60%', null, 'a see-through overlay');
     assert.strictEqual(await text(pc, '#kOverlay'), 'Alt+V');
     // keys another app took (NVIDIA's Alt+Z) reach the page only from the app, as 'combo:'
-    await pc.$eval('#kAionOv + button', (b) => b.click());
+    await pc.$eval('#kOverlay + button', (b) => b.click());
     await pc.evaluate(() => lpcClient.emit('key', 'combo:Alt+Z'));
-    await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+Z' && document.getElementById('kAionOv').textContent === 'Alt+Z', null, 'a key another app took, picked through the app');
+    await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+Z', null, 'a key another app took, picked through the app');
     await pc.$eval('#kOverlay + button', (b) => b.click());
     await pc.evaluate(() => lpcClient.emit('key', 'combo:Alt+V'));
     await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+V', null, 'Alt+V back');
