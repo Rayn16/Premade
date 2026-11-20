@@ -1728,10 +1728,16 @@ const leagueData = (over = {}) => ({
     { // memory: the rows (splash, pictures, menus, the opened row) drawn 300 times keep no nodes or listeners
     const cdp = await pc.context().newCDPSession(pc);
     await cdp.send('Performance.enable');
+    // listeners counted on the page and window, not Chrome's JSEventListeners: that one also counts something outside
+    // the page that comes and goes by 72 every few seconds, on the old version too (it failed this check by timing)
+    const listeners = async (expression) => {
+      const { result } = await cdp.send('Runtime.evaluate', { expression });
+      return (await cdp.send('DOMDebugger.getEventListeners', { objectId: result.objectId, depth: -1, pierce: true })).listeners.length;
+    };
     const metrics = async () => {
       await cdp.send('HeapProfiler.collectGarbage');
-      const { metrics: m } = await cdp.send('Performance.getMetrics'), g = (n) => m.find((x) => x.name === n).value;
-      return [g('Nodes'), g('JSEventListeners')];
+      const { metrics: m } = await cdp.send('Performance.getMetrics');
+      return [m.find((x) => x.name === 'Nodes').value, await listeners('document') + await listeners('window')];
     };
     await pc.evaluate(() => { for (let i = 0; i < 100; i++) lpc.clipsDraw(); });
     const before = await metrics();
