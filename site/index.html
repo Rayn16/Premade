@@ -1151,6 +1151,60 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .csthemlist li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .csthemlist li .tag { margin-left: auto; color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
 .csthemlist img:not([src]) { visibility: hidden; }
+/* Champ select look (What's new 162): each player a card over their champion's splash in the skin picked, tabs for
+   your pick in the middle, the draft verdict in words, and each enemy's abilities on a click */
+.cshead #dodgeBtn { margin-left: 4px; }
+.csverdict { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
+.csverdict b { color: var(--fg); }
+.csverdict .vword { font-weight: 700; color: var(--fg); }
+.csverdict[data-v="ahead"] .vword { color: var(--good); }
+.csverdict[data-v="behind"] .vword { color: var(--bad); }
+.csus .scout tr { position: relative; overflow: hidden; min-height: 64px; }
+.csus .scout tr > td { position: relative; z-index: 1; }
+.csart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 75% 22%; opacity: 0.45; pointer-events: none; }
+.csus .scout tr::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, var(--panel) 30%, color-mix(in srgb, var(--panel) 40%, transparent)); pointer-events: none; }
+.csus .scout tr[data-me] { border-color: var(--gold); }
+.csmid #csTabs { margin-bottom: 4px; }
+.cstab { display: grid; gap: 12px; min-width: 0; }
+.cstab[hidden] { display: none; }
+.csthemlist li { padding: 0; border: 0; background: none; }
+.csthemlist .csfoe { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.csthemlist .csfoe:disabled { cursor: default; }
+.csthemlist .csfoe > :not(.csart) { position: relative; z-index: 1; }
+.csthemlist .csfoe[aria-pressed="true"] { border-color: var(--gold); }
+.csthemlist .csfoe .tag { margin-left: auto; }
+.cssheet { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.cssheet > ul.plain { display: grid; gap: 8px; }
+.cssheet li.ab { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 10px; align-items: start; }
+.cssheet li.ab img { width: 36px; height: 36px; border-radius: 4px; }
+.cssheet li.ab .abtop { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
+.cssheet li.ab .abtop small { color: var(--muted); font: 500 12px/1.3 var(--mono); }
+.cssheet li.ab p { grid-column: 2; margin: 0; color: var(--muted); font-size: 13px; }
+.cssheet .watch { grid-column: 2; justify-self: start; padding: 1px 8px; border: 1px solid var(--bad); border-radius: 999px; color: var(--bad); font-size: 12px; font-weight: 600; }
+.cssheettips { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.cseditor { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.cseditor > div { display: grid; gap: 8px; align-content: start; }
+.cseditor h4 { margin: 0; font-size: 13px; color: var(--muted); }
+.runerow { display: flex; flex-wrap: wrap; gap: 6px; }
+.runerow button { width: 40px; height: 40px; padding: 3px; border: 1px solid var(--line); border-radius: 50%; background: var(--panel); cursor: pointer; opacity: 0.5; }
+.runerow button img { width: 100%; height: 100%; display: block; }
+.runerow button[aria-pressed="true"] { opacity: 1; border-color: var(--gold); }
+.runerow.key button { width: 48px; height: 48px; }
+.runerow.chips button { width: auto; height: auto; padding: 6px 10px; border-radius: 6px; opacity: 1; color: var(--muted); font: 500 12.5px/1.2 var(--body); }
+.runerow.chips button[aria-pressed="true"] { color: var(--fg); }
+.csslots { display: flex; flex-wrap: wrap; gap: 8px; }
+.csslot, .csspells button, .csskins button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); font: inherit; cursor: pointer; }
+.csslot[aria-pressed="true"], .csspells button[aria-pressed="true"], .csskins button[aria-pressed="true"] { border-color: var(--gold); }
+.csslot img, .csspells img { width: 32px; height: 32px; border-radius: 4px; }
+.csspells { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr)); gap: 6px; }
+.csskins { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 120px), 1fr)); gap: 8px; }
+.csskins button { position: relative; flex-direction: column; align-items: stretch; padding: 0 0 6px; overflow: hidden; text-align: center; font-size: 12.5px; }
+.csskins button img { width: 100%; aspect-ratio: 308 / 380; object-fit: cover; object-position: top; display: block; }
+.csskins button .fav { position: absolute; top: 4px; right: 6px; color: var(--gold); font-size: 16px; }
+.cschromas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cschromas button { width: 32px; height: 32px; border: 2px solid var(--line); border-radius: 50%; background: var(--raised); cursor: pointer; }
+.cschromas button.base { width: auto; border-radius: 6px; padding: 0 10px; color: var(--fg); font: inherit; }
+.cschromas button[aria-pressed="true"] { border-color: var(--gold); }
 .csbar { position: sticky; bottom: 0; z-index: 2; margin: 0 -16px -16px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); justify-content: flex-end; }
 
 /* Clips (Open Design): the picked clip big beside the list, with a search, a date filter and the folder's fill */
@@ -1917,16 +1971,19 @@ dialog.wizard { transform: scale(var(--from)); }
       </section>
       <section id="csBox" class="panel" aria-labelledby="h-cs" hidden>
         <h2 id="h-cs" class="ph">Champ select <button class="tip" type="button" popovertarget="t-cs" aria-label="About champ select">?</button></h2>
-        <div class="cshead"><p id="csTurn" class="phase" data-game="1" role="status"></p><output id="csClock" class="csclock"></output></div>
+        <div class="cshead"><p id="csTurn" class="phase" data-game="1" role="status"></p><output id="csClock" class="csclock"></output><button id="dodgeBtn" class="btn small" type="button" title="Leave champ select without closing League. League counts it as a dodge: you lose LP and wait before you can queue again.">Dodge</button></div>
+        <p id="csVerdict" class="csverdict" role="status" hidden></p>
         <p id="fsLine" class="phase" hidden></p>
         <div class="cscols">
         <div class="cscol csus"><h3 class="ph">Your team</h3>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Your team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th><th>Trade</th></tr></thead><tbody id="csRows"></tbody></table></div>
         </div>
-        <div class="cscol csmid"><h3 class="ph">Your pick</h3>
+        <div class="cscol csmid">
+        <div id="csTabs" class="tabs" role="tablist" aria-label="Champ select tools"><button class="tab" type="button" role="tab" data-cs="picks">Picks</button><button class="tab" type="button" role="tab" data-cs="runes">Runes</button><button class="tab" type="button" role="tab" data-cs="spells">Spells</button><button class="tab" type="button" role="tab" data-cs="skins">Skins</button><button class="tab" type="button" role="tab" data-cs="build">Build</button><button class="tab" type="button" role="tab" data-cs="tips">Tips</button></div>
+        <div class="cstab" data-cs="picks" role="tabpanel">
         <h3 id="benchHead" class="ph" hidden>Bench picks for you</h3>
         <div id="bench" class="picks" hidden></div>
-        <div class="toolbar"><button id="rerollBtn" class="btn small" type="button" hidden>Reroll</button><button id="dodgeBtn" class="btn small" type="button" title="Leave champ select without closing League. League counts it as a dodge: you lose LP and wait before you can queue again.">Dodge</button></div>
+        <div class="toolbar"><button id="rerollBtn" class="btn small" type="button" hidden>Reroll</button></div>
         <div id="draft" class="draft" hidden>
           <div class="dside"><span class="ph">Your team</span><b id="dUsScore" class="dsc"></b></div>
           <div id="dUs" class="dslots"></div>
@@ -1946,18 +2003,47 @@ dialog.wizard { transform: scale(var(--from)); }
         <h3 id="picksHead" class="ph">Best picks for you</h3>
         <div id="picks" class="picks"></div>
         <div id="mixBox" class="mic" hidden><div class="mixbar" aria-hidden="true"><span id="mixAd"></span><span id="mixAp"></span></div><p id="mixNote" class="hint"></p></div>
+        </div>
+        <div class="cstab" data-cs="runes" role="tabpanel" hidden>
         <p id="runesNote" class="hint" role="status"></p>
         <div class="toolbar"><button id="runesOther" class="btn small" type="button" hidden></button><button id="runesVs" class="btn small" type="button" hidden></button></div>
+        <div id="csRunes" class="csrunes">
+          <div class="pick"><label>League page <select id="csPage"></select></label></div>
+          <div id="csRecs" class="toolbar"></div>
+          <div id="csEditor" class="cseditor"></div>
+          <div class="pick"><label>The page’s name <input id="csPageName" type="text" maxlength="25" autocomplete="off" spellcheck="false"></label><button id="csPageSave" class="btn small primary" type="button">Save</button><button id="csPageNew" class="btn small" type="button">Save as a new page</button></div>
+          <p id="csRunesNote" class="hint" role="status"></p>
+        </div>
+        </div>
+        <div class="cstab" data-cs="spells" role="tabpanel" hidden>
+        <div class="csslots"><button id="csSlotD" class="csslot" type="button"></button><button id="csSlotF" class="csslot" type="button"></button></div>
+        <p class="hint">Pick D or F, then the spell for it. A spell that’s on the other key swaps over, like in League.</p>
+        <div id="csSpellGrid" class="csspells"></div>
+        <p id="csSpellsNote" class="hint" role="status"></p>
+        </div>
+        <div class="cstab" data-cs="skins" role="tabpanel" hidden>
+        <p id="csSkinsNote" class="hint" role="status"></p>
+        <div id="csSkinGrid" class="csskins"></div>
+        <div id="csChromas" class="cschromas"></div>
+        <div class="toolbar"><button id="csSkinRandom" class="btn small" type="button">Random skin</button><button id="csSkinFav" class="btn small" type="button" aria-pressed="false">Make it my favorite</button></div>
+        <p id="csFavNote" class="hint"></p>
+        </div>
+        <div class="cstab" data-cs="build" role="tabpanel" hidden>
         <p id="buildNote" class="hint" role="status"></p>
         <div id="csBuild" class="buildbox" hidden><h3 class="ph"></h3><p class="hint bwhy"></p><ol class="blist"></ol><form class="pick badd"><label>Add an item <input list="itemList" autocomplete="off" spellcheck="false" placeholder="Item name"></label><button class="btn small" type="submit">Add</button><button class="btn small breset" type="button" hidden>Back to Premade’s build</button></form></div>
         <p id="skillNote" class="hint"></p>
+        </div>
+        <div class="cstab" data-cs="tips" role="tabpanel" hidden>
         <p id="topNote" class="hint"></p>
         <div id="csTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div id="csNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
         </div>
+        </div>
         <div class="cscol csthem"><h3 class="ph">Enemy team</h3>
+        <p class="hint">Click one to see their abilities.</p>
         <ul id="csThem" class="plain csthemlist"></ul>
         <p id="csTheirs" class="hint"></p>
+        <section id="csSheet" class="cssheet" aria-labelledby="h-sheet" hidden><h3 id="h-sheet" class="ph"></h3><ul class="plain"></ul><h3 class="ph">Riot’s tips against them</h3><ul class="cssheettips"></ul></section>
         </div>
         </div>
         <form id="champForm" class="pick csbar">
@@ -7979,6 +8065,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const next = await lcuGet('/lol-champ-select/v1/session');
     if (!next || !Array.isArray(next.myTeam)) return;
     if (!cs || cs.gameId !== next.gameId || !pickable) {
+      if (!cs || cs.gameId !== next.gameId) csReset(); // a new champ select: no hand picks yet
       [pickable, bannable, gfs] = await Promise.all([lcuGet('/lol-champ-select/v1/pickable-champion-ids'), lcuGet('/lol-champ-select/v1/bannable-champion-ids'), lcuGet('/lol-gameflow/v1/session')]);
       loadMine();
     }
@@ -8356,9 +8443,12 @@ dialog.wizard { transform: scale(var(--from)); }
   function renderAdv() {
     const t = tiers(), show = mapNow() === 11 && !cs.benchEnabled && !!t && !!t.n;
     $('draft').hidden = $('dPool').hidden = !show;
+    advWord = '';
     if (!show) return;
     if (!ddVersion) ddSoon();
-    const d = advNow(), role = advRole || myPos() || usualRole(), pool = advPool(role, d), a = myAction();
+    const d = advNow(), mean = (l) => { const k = l.filter((p) => p.c > 0 && p.role); return k.length ? k.reduce((n, p) => n + p.m + p.v, 0) / k.length : 0; }, full = (l) => l.filter((p) => p.c > 0).length >= 5, gap = mean(d.us) - mean(d.them);
+    if (full(d.us) && full(d.them)) advWord = gap >= 1.5 ? 'ahead' : gap <= -1.5 ? 'behind' : 'even'; // ponytail: 1.5 win rate points a champion, the draft colours' middle step; tune with real drafts
+    const role = advRole || myPos() || usualRole(), pool = advPool(role, d), a = myAction();
     const key = JSON.stringify([role, advOpts.mode, advQ, ddVersion, a && a.championId, [d.us, d.them].map((l) => l.map((p) => [p.c, p.role, p.hover, p.me, p.why])), pool.map((x) => [x.id, x.s.toFixed(1), x.off, x.fav, x.why])]);
     if ($('draft').dataset.key === key) return;
     $('draft').dataset.key = key;
@@ -8455,6 +8545,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!opts.runes || runesFor === key) return;
     runesFor = key;
     runesSoon();
+    if (hand.runes && hand.spells) { runesNote = 'Runes and spells: your own picks, so Premade left them as they are.'; return renderGame(); }
     const name = champName(champ), map = mapNow(), top = map === 11 ? await topMine(champ, pos) : null, pop = topOk(top) && top.runes && top.runes.n >= 5 ? top.runes : null, vr = pop && vsRunes(top, foe);
     let best = null;
     for (const p of [...new Set([pos || (map === 11 ? await lcuGet(`/lol-perks/v1/recommended-pages-position/champion/${champ}`) : ''), 'NONE'])].filter((p) => /^[A-Z]+$/.test(p || ''))) {
@@ -8470,25 +8561,26 @@ dialog.wizard { transform: scale(var(--from)); }
       : useOwn ? { name: `LPC ${name}`.slice(0, 25), primaryStyleId: own.perks[0], subStyleId: own.perks[1], selectedPerkIds: [...own.perks.slice(2), ...(shards.length === 3 ? shards : [5008, 5008, 5011])], current: true }
       : pop ? { name: `LPC ${name}`.slice(0, 25), primaryStyleId: pop.perks[0], subStyleId: pop.perks[1], selectedPerkIds: pop.perks.slice(2), current: true }
       : { name: `LPC ${name}`.slice(0, 25), primaryStyleId: best.primaryPerkStyleId, subStyleId: best.secondaryPerkStyleId, selectedPerkIds: best.perks.map((x) => x.id), current: true };
-    const pages = await lcuGet('/lol-perks/v1/pages'), old = Array.isArray(pages) && pages.find((x) => x && String(x.name).startsWith('LPC ') && x.isEditable);
-    const r = old ? await lcuAsk('PUT', `/lol-perks/v1/pages/${old.id}`, { ...old, ...page }) : await lcuAsk('POST', '/lol-perks/v1/pages', page);
+    const pages = hand.runes ? null : await lcuGet('/lol-perks/v1/pages'), old = Array.isArray(pages) && pages.find((x) => x && String(x.name).startsWith('LPC ') && x.isEditable);
+    const r = hand.runes ? { status: 200 } : old ? await lcuAsk('PUT', `/lol-perks/v1/pages/${old.id}`, { ...old, ...page }) : await lcuAsk('POST', '/lol-perks/v1/pages', page); // a page you set by hand stays
     if (okStatus(r) && old) await lcuAsk('PUT', '/lol-perks/v1/currentpage', old.id);
     const sp = ((vr && vr.spells) || (topOk(top) && top.spells) || (best && Array.isArray(best.summonerSpellIds) ? best.summonerSpellIds : [])).filter(Number.isInteger), me = myCell();
     let spells = '';
-    if (sp.length === 2) {
+    if (sp.length === 2 && !hand.spells) { // spells you picked by hand stay
       const onF = opts.flash === 'F' || (opts.flash === 'keep' && !(me && me.spell1Id === 4)), other = sp.find((x) => x !== 4);
       const [d, f] = sp.includes(4) && other ? (onF ? [other, 4] : [4, other]) : sp;
       if (okStatus(await lcuAsk('PATCH', '/lol-champ-select/v1/session/my-selection', { spell1Id: d, spell2Id: f }))) spells = ` Spells: ${SPELLS[d] || 'a spell'} on D, ${SPELLS[f] || 'a spell'} on F.`;
     }
-    runesNote = !okStatus(r) ? `Couldn’t add a rune page: League may be out of room for pages. Delete one in League and this app makes its own next time.${spells}`
+    runesNote = hand.runes ? `Runes: your own page, so Premade left it as it is.${spells || (hand.spells ? ' Spells: your own pick.' : '')}`
+      : !okStatus(r) ? `Couldn’t add a rune page: League may be out of room for pages. Delete one in League and this app makes its own next time.${spells}`
       : vr ? `Runes: the page ${eloIn(top.elo)} players take on ${name} against ${champName(foe)} (${runeName(vr.perks[2]) ? runeName(vr.perks[2]) + ' in ' : 'in '}${vr.k} of ${vr.n} games, ${vr.w} won).${spells}`
       : useOwn ? `Runes: your own page for ${name} from ${own.n} of your games${runeName(own.perks[2]) ? ` (${runeName(own.perks[2])})` : ''}.${spells}`
       : pop ? `Runes: the most popular page for ${name}${POS[top.role] ? ', ' + POS[top.role].toLowerCase() : ''}, in ${eloIn(top.elo)} (${runeName(pop.perks[2]) ? runeName(pop.perks[2]) + ': ' : ''}${pct(pop.w / pop.n)} won in ${pop.n} games).${spells}`
       : `Runes: Riot’s page for ${name}${POS[pos] ? ', ' + POS[pos].toLowerCase() : ''}${best.keystone && best.keystone.name ? ` (${best.keystone.name})` : ''}.${spells}`;
     renderGame();
   }
-  $('runesOther').addEventListener('click', () => { const me = myCell(); if (me && me.championId && runesAlt) { runesPick = runesAlt; setRunes(me.championId, myPos()); } });
-  $('runesVs').addEventListener('click', () => { const me = myCell(); if (me && me.championId) { runesPick = 'vs'; setRunes(me.championId, myPos()); } });
+  $('runesOther').addEventListener('click', () => { const me = myCell(); if (me && me.championId && runesAlt) { runesPick = runesAlt; hand.runes = false; setRunes(me.championId, myPos()); } });
+  $('runesVs').addEventListener('click', () => { const me = myCell(); if (me && me.championId) { runesPick = 'vs'; hand.runes = false; setRunes(me.championId, myPos()); } });
   $('champForm').addEventListener('submit', (e) => { e.preventDefault(); const c = champByName($('anyChamp').value); if (c) hover(+c.key); else say('Pick a champion from the list.'); });
   $('pickLock').addEventListener('click', () => { const v = $('anyChamp').value.trim(), c = v && champByName(v); lockIn(c ? +c.key : 0); });
   async function reroll() {
@@ -9162,6 +9254,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('fsLine').hidden = !fs.on;
     $('fsLine').textContent = !fs.on ? '' : `Fearless series, game ${fsGames().length + 1}: ${used.length ? `nobody picks ${used.map(champName).join(', ')}.` : 'no champions used up yet.'}${fsC && used.includes(fsC.id) ? ` ${fsC.name} was played earlier in the series: pick another.` : ''}`;
     renderAdv();
+    renderVerdict();
     const bench = cs.benchEnabled ? benchIdeas() : [];
     $('benchHead').hidden = $('bench').hidden = !bench.length;
     $('bench').replaceChildren(...bench.map((x) => {
@@ -9176,28 +9269,32 @@ dialog.wizard { transform: scale(var(--from)); }
     $('dodgeBtn').classList.toggle('bad', dodgeArmed());
     $('rerollBtn').textContent = `Reroll (${cs.rerollsRemaining} left)`;
     const team = cs.myTeam.map((p) => ({ puuid: hidden(p) ? '' : p.puuid, hidden: hidden(p) && p.cellId !== cs.localPlayerCellId, name: p.gameName ? `${p.gameName}#${p.tagLine}` : '', champ: p.championId, hover: p.championPickIntent,
-      pos: String(p.assignedPosition || '').toUpperCase(), ally: true, me: p.cellId === cs.localPlayerCellId, team: 'ORDER', cell: p.cellId }));
+      pos: String(p.assignedPosition || '').toUpperCase(), ally: true, me: p.cellId === cs.localPlayerCellId, team: 'ORDER', cell: p.cellId, skin: p.selectedSkinId | 0 }));
     premade = findPremades(team);
     $('csRows').replaceChildren(...team.map((p) => {
-      const tr = scoutRow(p), td = document.createElement('td');
+      const tr = scoutRow(p), td = document.createElement('td'), art = artFor(p.cell, splashOf(p.champ || p.hover, p.champ ? p.skin : 0));
       if (!p.me) td.append(tradeButtons(p.cell));
       tr.append(td);
+      if (art) tr.prepend(art);
       return tr;
     }));
     const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => champName(x.championId)), foe = laneFoe(myPos());
-    const them = (cs.theirTeam || []).map((p) => [p.championId | 0, p.championId && p.championId === foe]), themKey = JSON.stringify([ddVersion, them]);
+    const them = (cs.theirTeam || []).map((p) => [p.championId | 0, p.championId && p.championId === foe]), themKey = JSON.stringify([ddVersion, them, foeAt]);
     if ($('csThem').dataset.key !== themKey) {
       $('csThem').dataset.key = themKey;
-      $('csThem').replaceChildren(...them.map(([c, lane]) => {
-        const li = document.createElement('li'), img = new Image();
+      $('csThem').replaceChildren(...them.map(([c, lane], i) => { // each a button that opens their abilities (csSheet)
+        const li = document.createElement('li'), img = new Image(), b = mkBtn('csfoe', [], () => { foeAt = foeAt === i ? -1 : i; renderGame(); }, foeAt === i && !!c), art = artFor(`foe${i}`, splashOf(c, 0));
         img.alt = '';
         img.className = 'pic0';
         if (c) img.src = champImg(c);
-        li.append(img, Object.assign(document.createElement('b'), { textContent: c ? champName(c) : 'Still choosing' }));
-        if (lane) li.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Your lane' }));
+        b.disabled = !c;
+        b.append(...(art ? [art] : []), img, Object.assign(document.createElement('b'), { textContent: c ? champName(c) : 'Still choosing' }));
+        if (lane) b.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Your lane' }));
+        li.append(b);
         return li;
       }));
     }
+    csSheet(them);
     $('csTheirs').textContent = [theirs.length ? `Their picks: ${theirs.map((c) => champName(c) + (c === foe ? ' (likely in your lane)' : '')).join(', ')}.` : '', bans.length ? `Banned: ${bans.join(', ')}.` : ''].filter(Boolean).join(' ');
     const ban = a && a.type === 'ban', ideas = ban ? banIdeas() : [];
     $('picksHead').hidden = $('picks').hidden = !a || ban;
@@ -9229,6 +9326,10 @@ dialog.wizard { transform: scale(var(--from)); }
     renderTips($('csTips'), mineC && (foe || duo) && POS[myPos()] ? tipsFor(mineC, foe, myPos(), duo) : null);
     renderNotes($('csNotes'), mineC, theirs);
     renderBuild($('csBuild'), mineC, myPos());
+    csExtras(); // your pages and skins, every 3 s while this page shows champ select
+    csTabsShow(!!locked && !cs.benchEnabled); // ARAM's bench is your pick: Picks stays first
+    csRunes(me && me.championId);
+    if (me) { csSpells(me); csSkins(me); }
   }
   // a champion button: click to hover it, and on your turn click it again to lock it in (or ban it); or click does what's given
   function champBtn(id, sub, a, click) {
@@ -9549,7 +9650,7 @@ dialog.wizard { transform: scale(var(--from)); }
         if (ph === 'ReadyCheck') ringPhone();
         if (/^(GameStart|InProgress|Reconnect)$/.test(ph) && !preViewEl.hidden && opts.gameView) view('game'); // from champ select to the game
         if (ph === 'ChampSelect') {
-          cs = null; pickable = null; runesFor = ''; runesNote = ''; scouting.clear(); scoutData.clear(); tradeSeen.clear();
+          cs = null; pickable = null; runesFor = ''; runesNote = ''; csReset(); scouting.clear(); scoutData.clear(); tradeSeen.clear();
           autoDone.clear(); avoidSaid.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
@@ -9694,6 +9795,11 @@ dialog.wizard { transform: scale(var(--from)); }
     csx.pages = (Array.isArray(pages) ? pages : []).filter((p) => p && Number.isInteger(p.id))
       .map((p) => ({ id: p.id, name: String(p.name || ''), edit: !!p.isEditable, cur: !!p.current, p: [p.primaryStyleId | 0, p.subStyleId | 0, ...(Array.isArray(p.selectedPerkIds) ? p.selectedPerkIds : [])] }));
     csx.skins = (Array.isArray(skins) ? skins : []).filter(own).map((s) => ({ id: s.id, name: String(s.name || ''), ch: (s.childSkins || s.chromas || []).filter(own).map((c) => [c.id, String(c.shortName || c.name || ''), String((c.colors || [])[0] || '')]) }));
+    const fav = favSkins[me.championId]; // your favorite skin for this champion, once you lock it in, unless you picked one by hand
+    if (me.championId && csx.favFor !== me.championId && csx.skins.length) {
+      csx.favFor = me.championId;
+      if (fav && !hand.skin && (me.selectedSkinId | 0) !== fav && csx.skins.some((x) => x.id === fav || x.ch.some(([id]) => id === fav))) { await mySelection({ selectedSkinId: fav }, 'skin'); hand.skin = false; }
+    }
     if (csx.recFor !== key) {
       csx.recFor = key;
       csx.recs = [];
@@ -9709,18 +9815,22 @@ dialog.wizard { transform: scale(var(--from)); }
   // what the phone changes in champ select: your spells or skin, the rune page you use, or a page it edited (over that
   // page when it's yours to edit, else as a new one), with how it went for the phone
   let remoteNote = null;
-  const remoteSay = (text) => { remoteNote = { text, at: Date.now() }; };
+  const remoteSay = (text, what = 'runes') => { remoteNote = { text, at: Date.now(), what }; }; // what: the PC's tab it's for
   async function mySelection(body, what) {
-    if (!okStatus(await lcuAsk('PATCH', '/lol-champ-select/v1/session/my-selection', body))) remoteSay(`League didn’t take that ${what}.`);
+    if (body.spell1Id) hand.spells = true; // a hand pick, which the automatic spells and favorite skin leave alone
+    if (body.selectedSkinId) hand.skin = true;
+    if (!okStatus(await lcuAsk('PATCH', '/lol-champ-select/v1/session/my-selection', body))) remoteSay(`League didn’t take that ${what}.`, what);
     await champTick();
     renderGame();
   }
   async function usePage(id) {
+    hand.runes = true;
     if (!okStatus(await lcuAsk('PUT', '/lol-perks/v1/currentpage', id))) remoteSay('League didn’t switch to that rune page.');
     csx.at = -Infinity;
     await csExtras();
   }
   async function savePage(id, name, p) {
+    hand.runes = true;
     const pages = await lcuGet('/lol-perks/v1/pages'), old = Array.isArray(pages) && pages.find((x) => x && x.id === id && x.isEditable);
     const page = { name: name.trim().slice(0, 25) || 'Premade', primaryStyleId: p[0], subStyleId: p[1], selectedPerkIds: p.slice(2), current: true };
     const r = old ? await lcuAsk('PUT', `/lol-perks/v1/pages/${old.id}`, { ...old, ...page }) : await lcuAsk('POST', '/lol-perks/v1/pages', page);
@@ -9728,6 +9838,215 @@ dialog.wizard { transform: scale(var(--from)); }
     remoteSay(okStatus(r) ? `Saved “${page.name}”, and it’s your rune page now.` : old ? 'League didn’t take that page. Check every rune is picked.' : 'League has no room for another rune page: change one of yours instead.');
     csx.at = -Infinity;
     await csExtras();
+  }
+  // ---- champ select in Premade's own window (What's new 162): tabs for your pick, a rune editor, spells and skins,
+  // ported from the phone remote (remote.html). A rune page, spells or skin picked by hand, here or on the phone, is
+  // never replaced by Premade's own at lock in (setRunes, the favorite skin). Pages and skins come from csExtras, every
+  // 3 s while this page is on screen in champ select (renderChamps) or a phone is connected.
+  const hand = { runes: false, spells: false, skin: false };
+  let csTab = '', spellSlot = 0, csEd = null, foeAt = -1;
+  const csArt = new Map(); // each card's splash picture by seat, the same one kept while the skin stays
+  const favSkins = load('lpc-favskins', {}); // your favorite skin by champion number
+  function csReset() { Object.assign(hand, { runes: false, spells: false, skin: false }); csTab = ''; spellSlot = 0; csEd = null; foeAt = -1; csArt.clear(); csx.favFor = 0; }
+  const noteNow = (what) => (remoteNote && remoteNote.what === what && Date.now() - remoteNote.at < 8000 ? remoteNote.text : '');
+  // a champion's splash in a skin (a chroma shows its skin's), falling back to the base skin
+  function splashOf(champ, skin) {
+    const c = champOf(champ);
+    if (!c) return '';
+    const base = csx.skins.find((x) => x.ch.some(([id]) => id === skin)), n = Math.floor(skin / 1000) === +c.key ? (base ? base.id : skin) % 1000 : 0;
+    return `${DD}/cdn/img/champion/splash/${c.id}_${n}.jpg`;
+  }
+  function artFor(key, src) {
+    if (!src) return null;
+    let i = csArt.get(key);
+    if (!i) {
+      i = Object.assign(new Image(), { className: 'csart', alt: '', decoding: 'async' });
+      i.addEventListener('error', () => { if (/_0\.jpg$/.test(i.src)) i.hidden = true; else i.src = i.src.replace(/_\d+\.jpg$/, '_0.jpg'); });
+      csArt.set(key, i);
+    }
+    if (i.dataset.want !== src) { i.dataset.want = src; i.hidden = false; i.src = src; }
+    return i;
+  }
+  const mkBtn = (cls, kids, click, pressed) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: cls });
+    b.append(...kids);
+    if (pressed != null) b.setAttribute('aria-pressed', String(!!pressed));
+    b.addEventListener('click', click);
+    return b;
+  };
+  $('csTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-cs]'); if (b) { csTab = b.dataset.cs; renderGame(); } });
+  function csTabsShow(locked) { // the tab you clicked, else Picks until you lock in and Runes after
+    const t = csTab || (locked ? 'runes' : 'picks');
+    for (const b of $('csTabs').children) b.setAttribute('aria-selected', String(b.dataset.cs === t));
+    for (const d of $('csBox').querySelectorAll('.cstab')) d.hidden = d.dataset.cs !== t;
+  }
+  // Runes: the page League uses (or another), high elo's and Riot's pages to start from, and the page as League's
+  // editor has it, saved over that page when it's yours to change, or as a new one. csEd is the page as changed here
+  const SHARDS = [[[5008, 'Adaptive force'], [5005, 'Attack speed'], [5007, 'Ability haste']], [[5008, 'Adaptive force'], [5010, 'Move speed'], [5001, 'Health scaling']], [[5011, 'Health'], [5013, 'Tenacity'], [5001, 'Health scaling']]];
+  const rowOf = (id) => (runeIdx[id] ? runeIdx[id].row : -1);
+  function runesOk(p) {
+    const pri = runeTrees.find((t) => t.id === p[0]), sec = runeTrees.find((t) => t.id === p[1]);
+    return !!pri && !!sec && pri !== sec && pri.slots.every((row, i) => row.runes.some((r) => r.id === p[2 + i]))
+      && [p[6], p[7]].every((k) => runeIdx[k] && runeIdx[k].tree === sec.id && runeIdx[k].row > 0) && rowOf(p[6]) !== rowOf(p[7]) && p.slice(8).every((k) => k > 0);
+  }
+  function csEdit(change) { change(csEd.p); csEd.dirty = true; renderGame(); }
+  function csRunes(champ) {
+    runesSoon();
+    const pages = csx.pages, cur = pages.find((x) => x.cur) || pages[0];
+    $('csRunes').hidden = !cur || !runeTrees.length;
+    if ($('csRunes').hidden) return;
+    const base = JSON.stringify(cur), pk = JSON.stringify(pages.map((x) => [x.id, x.name, x === cur]));
+    if ($('csPage').dataset.key !== pk) { $('csPage').dataset.key = pk; $('csPage').replaceChildren(...pages.map((x) => new Option(x.name || 'A rune page', x.id, false, x === cur))); }
+    if (!csEd || (csEd.base !== base && !csEd.dirty)) { csEd = { id: cur.id, edit: cur.edit, base, dirty: false, p: [...cur.p, ...Array(11).fill(0)].slice(0, 11) }; $('csPageName').value = cur.name; }
+    const top = champ && mapNow() === 11 ? topMineNow(champ, myPos(), renderGame) : null;
+    const recs = [...(topOk(top) && top.runes && top.runes.n >= 5 ? [{ name: `High elo ${champName(champ)}`, p: top.runes.perks }] : []), ...(champ ? csx.recs : [])], rk = JSON.stringify(recs);
+    if ($('csRecs').dataset.key !== rk) {
+      $('csRecs').dataset.key = rk;
+      $('csRecs').replaceChildren(...(recs.length ? [Object.assign(document.createElement('span'), { className: 'hint', textContent: 'Start from' })] : []),
+        ...recs.map((r) => mkBtn('btn small', [r.name], () => csEdit((p) => p.splice(0, 11, ...r.p)))));
+    }
+    const ek = JSON.stringify([csEd.p, runeTrees.length]);
+    if ($('csEditor').dataset.key !== ek) {
+      $('csEditor').dataset.key = ek;
+      const p = csEd.p, pri = runeTrees.find((t) => t.id === p[0]), sec = runeTrees.find((t) => t.id === p[1]);
+      const rune = (r, on, has) => { const b = mkBtn('', [Object.assign(new Image(), { alt: '', src: `${DD}/cdn/img/${r.icon}` })], () => csEdit((q) => on(q, r.id)), has(r.id)); b.title = r.name; b.setAttribute('aria-label', r.name); return b; };
+      const row = (list, on, has, cls = 'runerow') => { const d = document.createElement('div'); d.className = cls; d.append(...list.map((r) => rune(r, on, has))); return d; };
+      const col = (head, ...kids) => { const d = document.createElement('div'); d.append(Object.assign(document.createElement('h4'), { textContent: head }), ...kids); return d; };
+      $('csEditor').replaceChildren(
+        col(`Primary${pri ? ': ' + pri.name : ''}`, row(runeTrees, primaryTree, (id) => id === p[0]), ...(pri ? pri.slots.map((r, i) => row(r.runes, (q, id) => { q[2 + i] = id; }, (id) => id === p[2 + i], i ? 'runerow' : 'runerow key')) : [])),
+        col(`Secondary${sec ? ': ' + sec.name : ''}`, row(runeTrees.filter((t) => t.id !== p[0]), (q, id) => { if (q[1] !== id) { q[1] = id; q.fill(0, 6, 8); } }, (id) => id === p[1]),
+          ...(sec ? sec.slots.slice(1).map((r) => row(r.runes, secondaryRune, (id) => id === p[6] || id === p[7])) : []),
+          Object.assign(document.createElement('h4'), { textContent: 'Stat shards' }),
+          ...SHARDS.map((r, i) => { const d = document.createElement('div'); d.className = 'runerow chips'; d.append(...r.map(([id, label]) => mkBtn('', [label], () => csEdit((q) => { q[8 + i] = id; }), p[8 + i] === id))); return d; })));
+    }
+    $('csPageSave').disabled = !csEd.edit || !runesOk(csEd.p);
+    $('csPageNew').disabled = !runesOk(csEd.p);
+    $('csRunesNote').textContent = noteNow('runes') || (hand.runes ? 'Your own page. Premade won’t swap it for its runes when you lock in.' : '');
+  }
+  function primaryTree(q, id) {
+    if (q[0] === id) return;
+    if (q[1] === id) { q[1] = 0; q.fill(0, 6, 8); } // it was the secondary tree
+    q[0] = id;
+    q.fill(0, 2, 6);
+  }
+  function secondaryRune(q, id) { // two from different rows: a third row drops the one picked first
+    const two = [...[q[6], q[7]].filter((k) => k && rowOf(k) !== rowOf(id)), id].slice(-2);
+    [q[6], q[7]] = [two[0], two[1] || 0];
+  }
+  function csSave(asNew) {
+    const p = [...csEd.p];
+    if (rowOf(p[6]) > rowOf(p[7])) [p[6], p[7]] = [p[7], p[6]]; // in row order
+    csEd.dirty = false; // League's pages, with this one, take over again
+    savePage(asNew ? 0 : csEd.id, $('csPageName').value, p);
+  }
+  $('csPage').addEventListener('change', (e) => { csEd = null; usePage(+e.target.value); });
+  $('csPageSave').addEventListener('click', () => csSave(false));
+  $('csPageNew').addEventListener('click', () => csSave(true));
+  // Spells: the one clicked goes on the key picked (D or F); if it's on the other one already, they swap, as in League
+  const SPELL_KEY = { 1: 'SummonerBoost', 3: 'SummonerExhaust', 4: 'SummonerFlash', 6: 'SummonerHaste', 7: 'SummonerHeal', 11: 'SummonerSmite', 12: 'SummonerTeleport', 13: 'SummonerMana', 14: 'SummonerDot', 21: 'SummonerBarrier', 32: 'SummonerSnowball' };
+  const spellPic = (id) => (SPELL_KEY[id] && ddVersion ? `${DD}/cdn/${ddVersion}/img/spell/${SPELL_KEY[id]}.png` : '');
+  const csMode = () => (gfs && gfs.gameData && gfs.gameData.queue && gfs.gameData.queue.gameMode) || '';
+  function csSpells(me) {
+    const cur = [me.spell1Id | 0, me.spell2Id | 0], ids = (/ARAM/.test(csMode()) ? [21, 1, 3, 4, 6, 7, 13, 14, 32] : [21, 1, 3, 4, 6, 7, 11, 12, 14]).sort((a, b) => SPELLS[a].localeCompare(SPELLS[b]));
+    const key = JSON.stringify([cur, spellSlot, ids, ddVersion]);
+    $('csSpellsNote').textContent = noteNow('spell') || (hand.spells ? 'Your own pick. Premade won’t change your spells when you lock in.' : '');
+    if ($('csSpellGrid').dataset.key === key) return;
+    $('csSpellGrid').dataset.key = key;
+    const pic = (id) => (spellPic(id) ? [Object.assign(new Image(), { alt: '', src: spellPic(id) })] : []);
+    ['csSlotD', 'csSlotF'].forEach((id, i) => { $(id).replaceChildren(...pic(cur[i]), Object.assign(document.createElement('b'), { textContent: 'DF'[i] }), SPELLS[cur[i]] || 'None'); $(id).setAttribute('aria-pressed', String(spellSlot === i)); });
+    $('csSpellGrid').replaceChildren(...ids.map((k) => mkBtn('', [...pic(k), SPELLS[k]], () => pickSpell(k), cur[spellSlot] === k)));
+  }
+  ['csSlotD', 'csSlotF'].forEach((id, i) => $(id).addEventListener('click', () => { spellSlot = i; renderGame(); }));
+  function pickSpell(k) {
+    const me = myCell();
+    if (!me) return;
+    const was = [me.spell1Id | 0, me.spell2Id | 0], next = [...was];
+    next[spellSlot] = k;
+    if (was[1 - spellSlot] === k) next[1 - spellSlot] = was[spellSlot];
+    mySelection({ spell1Id: next[0], spell2Id: next[1] }, 'spell');
+  }
+  // Skins: the skins and chromas you own for your champion, Random skin, and a favorite per champion that goes on by
+  // itself the next time you lock that champion in (csExtras)
+  function csSkins(me) {
+    const c = champOf(me.championId), skin = me.selectedSkinId | 0, old = !!client && !!client.version && newer('1.14.0', client.version), fav = c ? favSkins[c.key] | 0 : 0;
+    const key = JSON.stringify([csx.skins, skin, c && c.id, fav, old, ddVersion]);
+    if ($('csSkinGrid').dataset.key === key) return;
+    $('csSkinGrid').dataset.key = key;
+    const sel = csx.skins.find((x) => x.id === skin || x.ch.some(([id]) => id === skin)), favName = (csx.skins.find((x) => x.id === fav) || {}).name || ((csx.skins.flatMap((x) => x.ch).find(([id]) => id === fav) || [])[1]);
+    $('csSkinsNote').textContent = noteNow('skin') || (!c ? 'Lock in a champion to pick its skin.' : old ? 'Update the app (1.14) to pick your skin here.' : !csx.skins.length ? 'Looking up your skins…' : '');
+    $('csSkinGrid').replaceChildren(...(c ? csx.skins : []).map((x) => {
+      const b = mkBtn('', [Object.assign(new Image(), { alt: '', loading: 'lazy', src: `${DD}/cdn/img/champion/loading/${c.id}_${x.id % 1000}.jpg` }), x.name], () => mySelection({ selectedSkinId: x.id }, 'skin'), x === sel);
+      if (fav === x.id || x.ch.some(([id]) => id === fav)) b.append(Object.assign(document.createElement('span'), { className: 'fav', textContent: '★', title: 'Your favorite' }));
+      return b;
+    }));
+    $('csChromas').replaceChildren(...(!sel ? [] : sel.ch.length ? [Object.assign(document.createElement('span'), { className: 'hint', textContent: 'Chromas' }), mkBtn('base', ['Base'], () => mySelection({ selectedSkinId: sel.id }, 'skin'), skin === sel.id),
+      ...sel.ch.map(([id, n, color]) => { const b = mkBtn('', [], () => mySelection({ selectedSkinId: id }, 'skin'), id === skin); b.setAttribute('aria-label', n || 'A chroma'); b.title = n; if (/^#[0-9a-f]{3,8}$/i.test(color)) b.style.background = color; return b; })]
+      : [Object.assign(document.createElement('span'), { className: 'hint', textContent: 'Chromas: you own none for this skin.' })]));
+    $('csSkinRandom').hidden = csx.skins.length < 2;
+    $('csSkinFav').hidden = !sel;
+    $('csSkinFav').setAttribute('aria-pressed', String(!!fav && fav === skin));
+    $('csSkinFav').textContent = fav && fav === skin ? '★ My favorite' : '☆ Make it my favorite';
+    $('csFavNote').textContent = !c ? '' : fav && favName ? `${favName} goes on by itself the next time you lock in ${c.name}.` : `Make a skin your favorite and Premade picks it the next time you lock in ${c.name}.`;
+  }
+  $('csSkinRandom').addEventListener('click', () => {
+    const me = myCell() || {}, list = csx.skins.filter((x) => x.id !== (me.selectedSkinId | 0) && !x.ch.some(([id]) => id === me.selectedSkinId));
+    if (list.length) mySelection({ selectedSkinId: list[Math.floor(Math.random() * list.length)].id }, 'skin');
+  });
+  $('csSkinFav').addEventListener('click', () => {
+    const me = myCell() || {}, c = champOf(me.championId);
+    if (!c || !me.selectedSkinId) return;
+    if (favSkins[c.key] === me.selectedSkinId) delete favSkins[c.key];
+    else favSkins[c.key] = me.selectedSkinId;
+    store.set('lpc-favskins', JSON.stringify(favSkins));
+    renderGame();
+  });
+  // The enemy you click: their passive and Q, W, E and R, each with its icon, cooldown at each rank and Riot's first line
+  // for it, the ultimate marked Watch this, then Riot's tips for playing against them
+  function csSheet(them) {
+    const c = champOf((them[foeAt] || [])[0]), t = c ? riotTips(c) : null, key = JSON.stringify([c && c.id, !!t]);
+    if ($('csSheet').dataset.key === key) return;
+    $('csSheet').dataset.key = key;
+    $('csSheet').hidden = !c;
+    if (!c) return;
+    $('h-sheet').textContent = t ? `${c.name}: abilities` : `${c.name}: loading…`;
+    const [list, tips] = $('csSheet').querySelectorAll('ul');
+    list.replaceChildren(...(t ? t.sheet : []).map((a) => {
+      const li = document.createElement('li'), top = document.createElement('div');
+      li.className = 'ab';
+      top.className = 'abtop';
+      top.append(Object.assign(document.createElement('b'), { textContent: a.key }), a.name, ...(a.cd ? [Object.assign(document.createElement('small'), { textContent: a.cd })] : []));
+      li.append(a.icon ? Object.assign(new Image(), { alt: '', src: a.icon }) : document.createElement('span'), top);
+      if (a.note) li.append(Object.assign(document.createElement('p'), { textContent: a.note }));
+      if (a.key === 'R') li.append(Object.assign(document.createElement('span'), { className: 'watch', textContent: 'Watch this' }));
+      return li;
+    }));
+    tips.replaceChildren(...(t ? t.enemy : []).map((x) => Object.assign(document.createElement('li'), { textContent: x })));
+    tips.hidden = tips.previousElementSibling.hidden = !(t && t.enemy.length);
+  }
+  // The draft verdict, once both teams have locked in: you're ahead, even or behind by the draft's scores (renderAdv,
+  // high elo win rates and matchups), in words only, and what each team lacks: a frontline, magic damage, crowd control
+  // or engage. ponytail: "lacks" is a heuristic from Data Dragon's tags and ratings plus two short hand lists (CC, ENGAGE);
+  // a champion missing from them counts as having none, so add champions there as they come up
+  const ENGAGE = new Set(['Alistar', 'Amumu', 'Diana', 'Galio', 'Gragas', 'Hecarim', 'JarvanIV', 'Kennen', 'Leona', 'Lissandra', 'Malphite', 'Maokai', 'MonkeyKing', 'Nautilus', 'Nocturne', 'Ornn', 'Rakan', 'Rammus', 'Rell', 'Sejuani', 'Sion', 'Skarner', 'Thresh', 'Vi', 'Zac', 'Rumble', 'Orianna', 'Poppy', 'KSante', 'Volibear']);
+  const CC = new Set([...ENGAGE, 'Ahri', 'Anivia', 'Annie', 'Ashe', 'Bard', 'Blitzcrank', 'Braum', 'Cassiopeia', 'Chogath', 'Fiddlesticks', 'Janna', 'Jax', 'Karma', 'Lulu', 'Lux', 'Milio', 'Morgana', 'Nami', 'Neeko', 'Nunu', 'Pyke', 'Renata', 'Seraphine', 'Sett', 'Swain', 'Syndra', 'TahmKench', 'Taric', 'Trundle', 'Varus', 'Veigar', 'Velkoz', 'Warwick', 'Xerath', 'Yuumi', 'Zilean', 'Zyra', 'Darius', 'Garen', 'Mordekaiser', 'Pantheon', 'Renekton', 'Shen', 'Singed', 'Urgot', 'Viego', 'Elise', 'Lillia', 'Jayce', 'Caitlyn', 'Jinx']);
+  function lacksOf(ids) {
+    const cs_ = ids.map(champOf).filter(Boolean), has = (f) => cs_.some(f), tag = (c, t) => (c.tags || []).includes(t);
+    return [!has((c) => tag(c, 'Tank') || (tag(c, 'Fighter') && ((c.info && c.info.defense) | 0) >= 6)) && 'a frontline', !has((c) => !!c.info && c.info.magic > c.info.attack) && 'magic damage',
+      !has((c) => CC.has(c.id)) && 'crowd control', !has((c) => ENGAGE.has(c.id)) && 'engage'].filter(Boolean);
+  }
+  const andList = (l) => (l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`);
+  let advWord = ''; // ahead, even or behind, from renderAdv once both teams are in
+  function renderVerdict() {
+    const us = (cs.myTeam || []).map((p) => p.championId | 0).filter((c) => c > 0), them = (cs.theirTeam || []).map((p) => (p && p.championId) | 0).filter((c) => c > 0);
+    const done = us.length >= (cs.myTeam || []).length && them.length >= Math.max(1, (cs.theirTeam || []).length), el = $('csVerdict');
+    el.hidden = !done;
+    if (!done) return;
+    const a = lacksOf(us), b = lacksOf(them), key = JSON.stringify([advWord, a, b]);
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    el.dataset.v = advWord;
+    const part = (head, l) => { const s = document.createElement('span'); s.append(head, ...(l.length ? [' lacks ', Object.assign(document.createElement('b'), { textContent: andList(l) })] : [' has a frontline, magic damage, crowd control and engage'])); return s; };
+    el.replaceChildren(...(advWord ? [Object.assign(document.createElement('span'), { className: 'vword', textContent: `Draft: ${{ ahead: 'you’re ahead', even: 'even', behind: 'you’re behind' }[advWord]}` })] : []), part('Your team', a), part('Their team', b));
   }
   function pushRemote() {
     if (!remoteConns.size) return;
@@ -11608,7 +11927,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const myGames = () => Object.values(deep).filter((g) => g.ps && g.ps[g.me] && (!me0 || g.ps[g.me].u === me0.puuid)); // the account League has now
 
   // ---- Data Dragon's items and runes, for builds, item sets, the item timeline and rune names
-  let ddItems = null, ddItemsAt = -Infinity, runeNames = null, runeNamesAt = -Infinity;
+  let ddItems = null, ddItemsAt = -Infinity, runeNames = null, runeNamesAt = -Infinity, runeTrees = [], runeIdx = {}; // runeTrees, runeIdx: Data Dragon's rune trees and each rune's tree and row, for champ select's rune editor
   // and for what to buy next: st (its armor, magic resist, attack damage and ability power), pen (armor or magic
   // penetration: 'ar' or 'mr') and gw (it gives Grievous Wounds)
   function itemsSoon() { // id -> { name, gold, done (a finished item), boots, use (a consumable or trinket), trinket, rift (in the Rift's shop), from (its parts), ah, uh, sh (ability, ultimate and summoner spell haste), st, pen, gw }
@@ -11634,6 +11953,8 @@ dialog.wizard { transform: scale(var(--from)); }
     fetch(`${DD}/cdn/${ddVersion}/data/en_US/runesReforged.json`).then((r) => r.json()).then((trees) => {
       const out = {};
       for (const t of trees) { out[t.id] = t.name; for (const s of t.slots || []) for (const r of s.runes || []) out[r.id] = r.name; }
+      for (const t of trees) (t.slots || []).forEach((row, i) => { for (const r of row.runes || []) runeIdx[r.id] = { tree: t.id, row: i }; });
+      runeTrees = trees.filter((t) => t && Array.isArray(t.slots));
       runeNames = out;
     }).catch(() => {});
   }
@@ -13523,13 +13844,22 @@ dialog.wizard { transform: scale(var(--from)); }
   // the matchup goes, gold and CS at 10 minutes, the runes, spells and early items players take in it, and what their
   // champion takes against yours; 5 games or more), your own games against it, the two champions' range and damage,
   // Riot's own tips for both (Data Dragon's allytips and enemytips) and your matchup note. Nothing from other sites.
-  const riotTipsOf = new Map(); // a champion's Data Dragon id -> { ally, enemy, r (its ultimate's cooldown at each rank) }: Riot's tips, null while they load
+  // sheet: its passive and Q, W, E and R for champ select's cheat sheet (csSheet), each with its icon, cooldown at each
+  // rank and the first sentence of Riot's own text for it
+  const riotTipsOf = new Map(); // a champion's Data Dragon id -> { ally, enemy, r (its ultimate's cooldown at each rank), sheet }: Riot's tips, null while they load
+  const firstLine = (t) => String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s/)[0];
   function riotTips(c) {
     if (!riotTipsOf.has(c.id) && ddVersion) {
       riotTipsOf.set(c.id, null);
-      fetch(`${DD}/cdn/${ddVersion}/data/en_US/champion/${c.id}.json`).then((r) => r.json())
-        .then((j) => { const d = j.data[c.id], r = ((d.spells || [])[3] || {}).cooldown; return { ally: (d.allytips || []).map(String), enemy: (d.enemytips || []).map(String), r: Array.isArray(r) ? r.filter((v) => v > 0) : [] }; })
-        .catch(() => ({ ally: [], enemy: [], r: [] })).then((t) => { riotTipsOf.set(c.id, t); renderGame(); });
+      const v = ddVersion;
+      fetch(`${DD}/cdn/${v}/data/en_US/champion/${c.id}.json`).then((r) => r.json())
+        .then((j) => {
+          const d = j.data[c.id], r = ((d.spells || [])[3] || {}).cooldown;
+          const sheet = [['Passive', d.passive, 'passive'], ...(d.spells || []).slice(0, 4).map((x, i) => ['QWER'[i], x, 'spell'])].filter(([, x]) => x && typeof x === 'object')
+            .map(([key, x, dir]) => ({ key, name: String(x.name || ''), icon: x.image && x.image.full ? `${DD}/cdn/${v}/img/${dir}/${x.image.full}` : '', cd: key === 'Passive' ? '' : x.cooldownBurn ? `${String(x.cooldownBurn).replace(/\//g, ', ')} s` : '', note: firstLine(x.description) }));
+          return { ally: (d.allytips || []).map(String), enemy: (d.enemytips || []).map(String), r: Array.isArray(r) ? r.filter((v) => v > 0) : [], sheet };
+        })
+        .catch(() => ({ ally: [], enemy: [], r: [], sheet: [] })).then((t) => { riotTipsOf.set(c.id, t); renderGame(); });
     }
     return riotTipsOf.get(c.id) || null;
   }
@@ -17614,6 +17944,16 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [163, 'November 20: the draft in words, and each enemy’s abilities', [
+      'Once both teams have locked in, the top of champ select says whether you’re ahead, even or behind on the draft, and what each team lacks: a frontline, magic damage, crowd control or engage. No percentages.',
+      'Click an enemy’s card to see their passive and Q, W, E and R, with each cooldown and a short line from Riot, their ultimate marked Watch this, and Riot’s tips for playing against them.',
+    ]],
+    [162, 'November 20: a new champ select', [
+      'Champ select on Pregame is new: each player is a card over their champion’s art in the skin they picked, with Picks, Runes, Spells, Skins, Build and Tips in the middle.',
+      'Change your rune page right here: pick one of yours, start from high elo’s or Riot’s page, change any rune, then Save or Save as a new page.',
+      'Spells: pick D or F, then a spell. Skins: click a skin or a chroma, or Random skin. Make it my favorite puts that skin on by itself the next time you lock in that champion.',
+      'A rune page or spells you pick yourself, here or on your phone, stay when you lock in: Premade’s own runes and spells don’t replace them.',
+    ]],
     [161, 'November 19: fewer Aion 2 extras', [
       'Gone, as you asked: the Aion 2 overlay page and everything Premade put over Aion 2 (the Aion 2 card, the dungeon guide and its callouts, the progression panels and the run card), raid roles in your room, and the Aion 2 dungeons and Aion 2 boss practice tables on the Recording page.',
       'Kept: each Aion 2 dungeon run is still recorded with its boss fights, with the strip under each run, and Live fight, the DPS pop-up and the DPS in your voice room work as before.',
@@ -18548,6 +18888,10 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
         'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, What it shows.', '#csTips', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
+      ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
+        'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
+      ['Draft verdict', 'Once both teams have locked in: you’re ahead, even or behind on the draft, in words, and what each team lacks: a frontline, magic damage, crowd control or engage.', 'At the top of champ select, on Pregame.', '#csVerdict', 'app'],
+      ['Enemy abilities', 'Click an enemy in champ select for their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
       ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, at the top of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
         'Avoid beside a player in champ select, on Game or in a game report, or type their Riot ID in Pregame settings.', '#avoidForm', 'app'],

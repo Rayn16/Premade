@@ -323,6 +323,7 @@ function fakeLcu(method, p, body) {
   if (p === '/lol-perks/v1/recommended-champion-positions') return ok(Object.fromEntries(Object.entries(POSITIONS).map(([k, v]) => [k, { recommendedPositions: v }])));
   if ((m = /^\/lol-perks\/v1\/recommended-pages\/champion\/(\d+)\/position\/([A-Z]+)\/map\/11$/.exec(p))) return ok((POSITIONS[m[1]] || []).includes(m[2]) ? [RUNES] : []);
   if (p === '/lol-perks/v1/pages' && method === 'GET') return ok(lcu.pages);
+  if (p === '/lol-perks/v1/pages' && lcu.full) return { status: 400, data: { message: 'Max pages reached' } };
   if (p === '/lol-perks/v1/pages') { const page = { ...body, id: 49 + lcu.pages.length, isEditable: true }; for (const x of lcu.pages) x.current = false; lcu.pages.push(page); return ok(page); } // 50, then 51
   if ((m = /^\/lol-perks\/v1\/pages\/(\d+)$/.exec(p))) { Object.assign(lcu.pages.find((x) => x.id === +m[1]), body); return { status: 201, data: null }; }
   if (p === '/lol-perks/v1/currentpage') { for (const x of lcu.pages) x.current = x.id === body; return { status: 204, data: null }; }
@@ -1286,6 +1287,8 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !document.getElementById('csTips').hidden && /Riot’s tip for Ahri/.test(document.getElementById('csTips').textContent), null, 'the tips for your lane');
     assert.strictEqual(await pc.textContent('#csTips h3'), 'Tips: Ahri against Zed');
     assert.deepStrictEqual(await tipsIn(pc, '#csTips'), TIPS_AHRI_ZED);
+    assert.strictEqual(await pc.textContent('#csTabs [aria-selected="true"]'), 'Runes', 'the Runes tab once you lock in');
+    await pc.click('#csTabs [data-cs="tips"]');
     await pc.click('#csNotes summary');
     await pc.fill('#csNotes input', 'Zed');
     await pc.fill('#csNotes textarea', 'Respect his level 6. Ward the side bushes.');
@@ -1350,6 +1353,93 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH', fromPhone).slice(-2).map((c) => c[2]), [{ selectedSkinId: 103001 }, { selectedSkinId: 103020 }]);
     assert.deepStrictEqual(await skins(), ['Ahri', 'Dynasty Ahri (on)']);
     await shot(phone, 'phone-skins');
+    // ---- What's new 162, the same on the PC: each card over its champion's splash in the skin picked (a chroma shows its
+    // skin's), your runes changed and saved, then a new page League has no room for; spells D and F swapped; a skin, Random
+    // skin and a favorite; and the enemy you click, with their abilities and Riot's tips against them
+    await wait(pc, () => /splash\/Ahri_1\.jpg$/.test((document.querySelector('#csRows tr[data-me] .csart') || {}).src), null, 'your card in Dynasty Ahri (its Ruby chroma)');
+    assert.match(await pc.getAttribute('#csRows tr:first-child .csart', 'src'), /splash\/Garen_0\.jpg$/, 'a teammate hovering Garen: Garen’s card');
+    await pc.click('#csTabs [data-cs="runes"]');
+    await wait(pc, () => document.getElementById('csPage').selectedOptions[0].textContent === 'My page' && document.querySelectorAll('#csRecs button').length === 2, null, 'your rune page on the PC');
+    assert.deepStrictEqual(await texts(pc, '#csRecs button'), ['High elo Ahri', 'Riot’s Electrocute']);
+    assert(await pc.isDisabled('#csPageSave'), 'an empty page can’t be saved');
+    const csPressed = () => pc.$$eval('#csEditor [aria-pressed="true"]', (l) => l.map((b) => b.textContent || b.getAttribute('aria-label')));
+    await pc.click('#csRecs button:has-text("Riot’s Electrocute")');
+    assert.deepStrictEqual(await csPressed(), ['Domination', 'Electrocute', 'Cheap Shot', 'Eyeball Collection', 'Treasure Hunter', 'Sorcery', 'Manaflow Band', 'Transcendence', 'Adaptive force', 'Adaptive force']);
+    await pc.locator('#csEditor .chips').nth(2).locator('button', { hasText: 'Health scaling' }).click();
+    await pc.click('#csEditor button[aria-label="Dark Harvest"]');
+    await pc.fill('#csPageName', 'PC page');
+    const fromPc = lcu.calls.length;
+    await pc.click('#csPageSave');
+    await wait(pc, () => document.getElementById('csRunesNote').textContent === 'Saved “PC page”, and it’s your rune page now.', null, 'the page saved from the PC');
+    assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages\/1$/, 'PUT', fromPc).map((c) => [c[2].name, c[2].selectedPerkIds]), [['PC page', [8128, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5001]]]);
+    lcu.full = true;
+    await pc.click('#csPageNew');
+    await wait(pc, () => document.getElementById('csRunesNote').textContent === 'League has no room for another rune page: change one of yours instead.', null, 'no room for a page');
+    lcu.full = false;
+    assert.strictEqual(lcu.pages.find((x) => x.current).name, 'PC page', 'and nothing else changed');
+    await shot(pc, 'cs-runes');
+    await pc.click('#csTabs [data-cs="spells"]');
+    await wait(pc, () => document.getElementById('csSlotD').textContent === 'DTeleport' && document.getElementById('csSlotF').textContent === 'FFlash', null, 'your spells on the PC');
+    assert.deepStrictEqual(await pc.$$eval('#csSpellGrid button', (l) => l.map((b) => b.textContent)), ['Barrier', 'Cleanse', 'Exhaust', 'Flash', 'Ghost', 'Heal', 'Ignite', 'Smite', 'Teleport']);
+    await pc.click('#csSlotF');
+    await pc.click('#csSpellGrid button:has-text("Ignite")');
+    await wait(pc, () => document.getElementById('csSlotF').textContent === 'FIgnite', null, 'Ignite on F');
+    await pc.click('#csSlotD');
+    await pc.click('#csSpellGrid button:has-text("Ignite")');
+    await wait(pc, () => document.getElementById('csSlotD').textContent === 'DIgnite' && document.getElementById('csSlotF').textContent === 'FTeleport', null, 'Ignite on D swaps Teleport over');
+    assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH', fromPc).map((c) => c[2]), [{ spell1Id: 12, spell2Id: 14 }, { spell1Id: 14, spell2Id: 12 }]);
+    assert.strictEqual(await text(pc, '#csSpellsNote'), 'Your own pick. Premade won’t change your spells when you lock in.');
+    { // memory: champ select redrawn 300 times (each click redraws it: tabs, the spell keys) keeps no nodes or listeners
+      const cdp = await pc.context().newCDPSession(pc);
+      await cdp.send('Performance.enable');
+      const metrics = async () => {
+        await cdp.send('HeapProfiler.collectGarbage');
+        const { metrics: m } = await cdp.send('Performance.getMetrics'), g = (n) => m.find((x) => x.name === n).value;
+        return [g('Nodes'), g('JSEventListeners')];
+      };
+      const redraw = (n) => pc.evaluate((n) => { const q = (s) => document.querySelector(s); for (let i = 0; i < n; i++) { q(`#csTabs [data-cs="${['runes', 'skins', 'spells'][i % 3]}"]`).click(); q(i % 2 ? '#csSlotD' : '#csSlotF').click(); } }, n);
+      await redraw(60);
+      const before = await metrics();
+      await redraw(300);
+      const after = await metrics();
+      assert(after[0] - before[0] < 200 && after[1] - before[1] < 20, `champ select leaks nothing: ${before} then ${after}`);
+      await cdp.detach();
+      console.log(`champ select, 300 redraws: nodes and listeners ${before} then ${after}`);
+      await pc.click('#csSlotD');
+    }
+    await pc.click('#csTabs [data-cs="skins"]');
+    const csSkinsNow = () => pc.$$eval('#csSkinGrid button', (l) => l.map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? ' (on)' : '')));
+    await wait(pc, () => document.querySelectorAll('#csSkinGrid button').length === 2, null, 'your skins on the PC');
+    assert.deepStrictEqual(await csSkinsNow(), ['Ahri', 'Dynasty Ahri (on)']);
+    assert.deepStrictEqual(await pc.$$eval('#csChromas button', (l) => l.map((b) => b.getAttribute('aria-label') || b.textContent)), ['Base', 'Ruby']);
+    await pc.click('#csSkinGrid button:has-text("Ahri") >> nth=0');
+    await wait(pc, () => /splash\/Ahri_0\.jpg$/.test(document.querySelector('#csRows tr[data-me] .csart').src), null, 'your card follows the skin');
+    await pc.click('#csSkinRandom');
+    await wait(pc, () => document.querySelector('#csSkinGrid [aria-pressed="true"]').textContent === 'Dynasty Ahri', null, 'Random skin: the other one you own');
+    await pc.click('#csSkinFav');
+    await wait(pc, () => document.getElementById('csFavNote').textContent === 'Dynasty Ahri goes on by itself the next time you lock in Ahri.', null, 'a favorite skin');
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-favskins'))), { 103: 103001 });
+    await shot(pc, 'cs-skins');
+    await pc.click('#csChromas button[aria-label="Ruby"]');
+    await wait(pc, () => document.querySelector('#csChromas [aria-pressed="true"]').getAttribute('aria-label') === 'Ruby', null, 'the Ruby chroma again, from the PC');
+    await pc.click('#csThem li:nth-child(3) button');
+    await wait(pc, () => document.getElementById('h-sheet').textContent === 'Zed: abilities', null, 'Zed’s abilities');
+    assert.deepStrictEqual(await pc.$$eval('#csSheet li.ab', (l) => l.map((li) => [li.querySelector('.abtop').textContent, !!li.querySelector('.watch')])), [['PassivePassive', false], ['QQ7 s', false], ['WW7 s', false], ['EE7 s', false], ['RR7 s', true]]);
+    assert.deepStrictEqual(await texts(pc, '#csSheet .cssheettips li'), TIPS.Zed[1]);
+    assert(await pc.locator('#csThem li:nth-child(1) button').isDisabled(), 'no sheet for an enemy still choosing');
+    await shot(pc, 'cs-sheet');
+    await pc.click('#csThem li:nth-child(3) button');
+    await wait(pc, () => document.getElementById('csSheet').hidden, null, 'closed again');
+    // the draft verdict once both teams are in, in words: theirs lacks magic damage
+    const wasCs = JSON.stringify([lcu.cs.myTeam, lcu.cs.theirTeam]);
+    assert(await pc.locator('#csVerdict').isHidden(), 'no verdict while they pick');
+    [86, 64, 103, 222, 412].forEach((c, i) => { lcu.cs.myTeam[i].championId = c; });
+    [122, 254, 238, 51, 64].forEach((c, i) => { lcu.cs.theirTeam[i].championId = c; });
+    await wait(pc, () => !document.getElementById('csVerdict').hidden, null, 'the draft verdict');
+    assert.match(await text(pc, '#csVerdict'), /^Draft: (you’re ahead|even|you’re behind)\s*Your team has a frontline, magic damage, crowd control and engage\s*Their team lacks magic damage$/);
+    assert(!/%/.test(await text(pc, '#csVerdict')), 'no percentage');
+    await shot(pc, 'cs-verdict');
+    [lcu.cs.myTeam, lcu.cs.theirTeam] = JSON.parse(wasCs);
     // Dodge from the phone: only on a second tap
     await phone.click('#dodge');
     assert.strictEqual(await text(phone, '#dodge'), 'Tap again to dodge');
@@ -1929,6 +2019,26 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT').pop()[2].selectedPerkIds, [8229, 8226, 8210, 8237, 8139, 8135, 5008, 5008, 5002]);
     assert.strictEqual(await text(pc, '#runesOther'), 'Use Riot’s recommended runes instead');
     console.log('second champ select: the app’s rune page reused for Lux, Flash on F, then your own usual page');
+    // ---- a third: your rune page and spells picked by hand before you lock in stay, and your favorite skin goes on
+    const cs3 = lcu.calls.length;
+    champSelect(779);
+    Object.assign(flatActions().find((x) => x.id === 3), { completed: true, isInProgress: false });
+    flatActions().find((x) => x.id === 8).isInProgress = true;
+    await wait(pc, () => /Your turn to pick/.test(document.getElementById('csTurn').textContent), null, 'the third champ select');
+    await pc.click('#csTabs [data-cs="spells"]');
+    await pc.click('#csSlotF');
+    await pc.click('#csSpellGrid button:has-text("Heal")');
+    await pc.click('#csTabs [data-cs="runes"]');
+    await wait(pc, () => document.getElementById('csPage').options.length > 1, null, 'the pages');
+    await pc.selectOption('#csPage', { label: 'LPC Lux' });
+    await until(() => callsTo(/currentpage$/, 'PUT', cs3).length === 1, 'your page picked by hand');
+    await pc.fill('#anyChamp', 'Ahri');
+    await pc.click('#pickLock');
+    await wait(pc, () => document.getElementById('runesNote').textContent === 'Runes and spells: your own picks, so Premade left them as they are.', null, 'the hand picks kept', 20000);
+    await until(() => callsTo(/my-selection$/, 'PATCH', cs3).some((c) => c[2].selectedSkinId === 103001), 'your favorite skin on lock in');
+    assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH', cs3).map((c) => c[2]), [{ spell1Id: 4, spell2Id: 7 }, { selectedSkinId: 103001 }], 'no automatic spells');
+    assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages/, 'PUT', cs3).length + callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', cs3).length, 0, 'no automatic rune page');
+    console.log('third champ select: a page and spells picked by hand before lock in stay, and the favorite skin goes on');
     // auto hover: your first pick that's free and fits your role, and your first free ban, once each
     await preSettings();
     await pc.fill('#optHoverPicks', 'Zed, Ahri, Ahrii');
