@@ -1621,7 +1621,7 @@ ipcMain.handle('keys', (e, k) => {
     mute: reg(k.mute, () => win.webContents.send('key', 'mute')),
     clip: reg(k.clip, () => win.webContents.send('key', 'clip')),
     rec: reg(k.rec, () => win.webContents.send('key', 'rec')), // app 1.28.6: Record your screen
-    overlay: false, // below
+    overlay: false, board: false, // below
     show: reg(k.show, () => {
       if (win.isMinimized() || !win.isFocused()) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } else win.minimize();
     }),
@@ -1630,14 +1630,18 @@ ipcMain.handle('keys', (e, k) => {
   const code = typeof k.ptt === 'string' && vk(k.ptt), ally = ['F2', 'F3', 'F4', 'F5'].map(vk);
   // the overlay key on Windows is read like push to talk, not as a hotkey: Windows fires a hotkey only with exactly its
   // modifiers down, so Alt+V did nothing while Shift or Ctrl was also held (attack move, levelling up an ability) or
-  // when another app had taken it. Its keys down, others allowed, counts once per press.
-  const hot = typeof k.overlay === 'string' && /^((Ctrl|Alt|Shift)\+)*([A-Z]|\d|F\d{1,2}|PageUp|PageDown|Home|End|Insert|Delete)$/.test(k.overlay) ? k.overlay.split('+') : [];
-  const hotKey = hot.length ? vk(hot[hot.length - 1].replace(/^([A-Z])$/, 'Key$1').replace(/^(\d)$/, 'Digit$1')) : 0;
-  const hotMods = hot.slice(0, -1).map((m) => ({ Ctrl: 0x11, Alt: 0x12, Shift: 0x10 })[m]);
+  // when another app had taken it. Its keys down, others allowed, counts once per press. App 1.49: so is the key for
+  // everyone's rank (board, Alt+X).
+  const hotOf = (name) => {
+    const s = k[name], hot = typeof s === 'string' && /^((Ctrl|Alt|Shift)\+)*([A-Z]|\d|F\d{1,2}|PageUp|PageDown|Home|End|Insert|Delete)$/.test(s) ? s.split('+') : [];
+    const key = hot.length ? vk(hot[hot.length - 1].replace(/^([A-Z])$/, 'Key$1').replace(/^(\d)$/, 'Digit$1')) : 0;
+    return { name, codes: key ? [key, ...hot.slice(0, -1).map((m) => ({ Ctrl: 0x11, Alt: 0x12, Shift: 0x10 })[m])] : [], down: false };
+  };
+  const hots = [hotOf('overlay'), hotOf('board')].filter((h) => h.codes.length);
   if (process.platform === 'win32') {
     try {
       keyState = keyState || require('koffi').load('user32.dll').func('short __stdcall GetAsyncKeyState(int vKey)');
-      let down = false, onAlly = false, hotDown = false;
+      let down = false, onAlly = false;
       const held = new Set();
       pttTimer = setInterval(() => {
         if (win.isDestroyed()) return; // closed, the app is quitting
@@ -1645,9 +1649,11 @@ ipcMain.handle('keys', (e, k) => {
         if (now !== down) { down = now; win.webContents.send('key', now ? 'ptt-down' : 'ptt-up'); }
         const look = ally.some((c) => (keyState(c) & 0x8000) !== 0);
         if (look !== onAlly) { onAlly = look; win.webContents.send('key', look ? 'ally-down' : 'ally-up'); }
-        const hotNow = !!hotKey && [hotKey, ...hotMods].every((c) => (keyState(c) & 0x8000) !== 0);
-        if (hotNow && !hotDown) win.webContents.send('key', 'overlay');
-        hotDown = hotNow;
+        for (const h of hots) {
+          const hotNow = h.codes.every((c) => (keyState(c) & 0x8000) !== 0);
+          if (hotNow && !h.down) win.webContents.send('key', h.name);
+          h.down = hotNow;
+        }
         if (comboOn && practiceTool) for (const [name, c] of Object.entries(COMBO)) {
           if (!(keyState(c) & 0x8000)) { held.delete(name); continue; }
           if (!held.has(name) && !(keyState(0x11) & 0x8000)) win.webContents.send('press', { k: name, t: Math.round(performance.now()) }); // 0x11: Ctrl
@@ -1655,7 +1661,7 @@ ipcMain.handle('keys', (e, k) => {
         }
       }, 15);
       ok.ptt = !!code;
-      ok.overlay = !!hotKey;
+      for (const h of hots) ok[h.name] = true;
       // app 1.45.1: while a Change button waits for keys ({ capture: true }), the keys pressed are read here too and sent
       // as 'combo:Alt+Z': keys another app took as its hotkey (NVIDIA's Alt+Z, Alt+R, Alt+F1...) never reach the page
       if (k.capture) {
@@ -1676,7 +1682,7 @@ ipcMain.handle('keys', (e, k) => {
       }
     } catch (err) { console.error('push to talk:', err); }
   }
-  if (!ok.overlay) ok.overlay = reg(k.overlay, () => win.webContents.send('key', 'overlay')); // elsewhere, or without user32
+  for (const n of ['overlay', 'board']) if (!ok[n]) ok[n] = reg(k[n], () => win.webContents.send('key', n)); // elsewhere, or without user32
   return ok;
 });
 
