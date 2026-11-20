@@ -364,7 +364,7 @@ function fakeApp(version) {
   window.lpcClient = {
     calls: [], version,
     screens: async () => [{ id: '1', main: true, thumb: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
-    useScreen() {}, keys: async (k) => ({ mute: !!k.mute, show: !!k.show, clip: !!k.clip, overlay: !!k.overlay, ptt: !!k.ptt }), windowMode: async () => 'borderless', compact() {}, update() {},
+    useScreen() {}, keys: async (k) => ({ mute: !!k.mute, show: !!k.show, clip: !!k.clip, overlay: !!k.overlay, board: !!k.board, ptt: !!k.ptt }), windowMode: async () => 'borderless', compact() {}, update() {},
     overlay(s) { this.lastOverlay = s; },
     re4: async (what, arg) => (what === 'status' && await new Promise((r) => setTimeout(r, 500)), { role: 'host', tunnelIp: '100.101.102.103', tailscale: what === 'setup' ? 'Running' : 'NeedsLogin', mod: what === 'ours' ? 'ours' : 'theirs', modVersion: what === 'ours' ? '0.6.14-retarget' : '', build: '22377325', running: false, why: null, setup: what !== 'setup', firewallOn: false,
       friends: [{ name: 'cutiecatty' }], peers: [{ ip: '100.90.1.2', name: 'cutiecatty', online: true, ms: 38, mod: 'theirs', modVersion: '', build: '22377325', running: true }],
@@ -1498,6 +1498,11 @@ const leagueData = (over = {}) => ({
     await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => !!lpcClient.lastOverlay.board && lpc.toasts().includes('Overlay back on.'), null, 'and back');
+    await pc.evaluate(() => lpcClient.emit('key', 'board'));
+    await wait(pc, () => !(lpcClient.lastOverlay.board || {}).us && lpc.toasts().includes('Everyone’s rank hidden. Alt+X brings it back.'), null, 'Premade’s loading screen hidden by its own key (Alt+X)');
+    await pc.waitForTimeout(650);
+    await pc.evaluate(() => lpcClient.emit('key', 'board'));
+    await wait(pc, () => !!lpcClient.lastOverlay.board && lpcClient.lastOverlay.board.load, null, 'and back');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
     // the new tags' rules (What's new 168), and the overlay's key tags in their order, 2 or 1 of them
     const tagsBy = (st, champ, p = {}) => pc.evaluate(([a, b, c]) => lpc.tags(a, b, c).map(([, t]) => t), [st, champ, p]);
@@ -1548,7 +1553,7 @@ const leagueData = (over = {}) => ({
     await pc.check('#optOverlayCs');
     await pc.$eval('#optOpacity', (el) => { el.value = 0.6; el.dispatchEvent(new Event('input')); });
     await wait(pc, () => lpcClient.lastOverlay.opacity === 0.6 && document.getElementById('opacityOut').textContent === '60%', null, 'a see-through overlay');
-    assert.strictEqual(await text(pc, '#kOverlay'), 'Alt+V');
+    assert.deepStrictEqual([await text(pc, '#kOverlay'), await text(pc, '#kBoard')], ['Alt+V', 'Alt+X']);
     // keys another app took (NVIDIA's Alt+Z) reach the page only from the app, as 'combo:'
     await pc.$eval('#kOverlay + button', (b) => b.click());
     await pc.evaluate(() => lpcClient.emit('key', 'combo:Alt+Z'));
@@ -1564,10 +1569,12 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#kOverlay + button'), 'Hold Ctrl, Alt or Shift too…');
     await pc.keyboard.press('Alt+V');
     await wait(pc, () => document.getElementById('kOverlay').textContent === 'Alt+V', null, 'Alt+V back again');
-    // its key: everyone's rank (no tips in a game), then hidden, then back
-    await pc.evaluate(() => { lpcClient.emit('key', 'overlay'); lpcClient.emit('key', 'overlay'); }); // held: Windows repeats it
-    await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Alt+V again hides the overlay.'); }, null, 'everyone’s rank on the overlay by its key');
+    // everyone's rank on its own key, Alt+X (no tips in a game); Alt+V hides the whole overlay, then brings it back without the ranks
+    await pc.evaluate(() => { lpcClient.emit('key', 'board'); lpcClient.emit('key', 'board'); }); // held: Windows repeats it
+    await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Alt+X again hides it.'); }, null, 'everyone’s rank on the overlay by its key');
     await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
+    await pc.evaluate(() => lpcClient.emit('key', 'board'));
+    await wait(pc, () => lpcClient.lastOverlay.visible && !lpcClient.lastOverlay.board && lpc.toasts().slice(-1)[0] === 'Everyone’s rank hidden. Alt+X brings it back.', null, 'and hidden by it, the rest still on');
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().slice(-1)[0] === 'Overlay hidden. Alt+V brings it back.', null, 'the overlay hidden by its key');
     await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
@@ -1797,9 +1804,7 @@ const leagueData = (over = {}) => ({
     // ---- after the game: LP, the report, and Stats
     await league(leagueData({ t: 1700, result: 'Win' }));
     await pc.waitForTimeout(700);
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay')); // everyone's rank, then hidden for the rest of this game only: the card below still comes
-    await pc.waitForTimeout(650);
-    await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
+    await pc.evaluate(() => lpcClient.emit('key', 'overlay')); // hidden for the rest of this game only: the card below still comes
     await wait(pc, () => lpcClient.lastOverlay.visible === false, null, 'the overlay hidden at the end of the game');
     lcu.phase = 'EndOfGame';
     lcu.lpNote = { gameId: GAME, queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', division: 'II', leaguePoints: 63, leaguePointsDelta: 18 };

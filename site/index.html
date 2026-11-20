@@ -2575,7 +2575,7 @@ dialog.wizard { transform: scale(var(--from)); }
               <button id="moveBtn" class="btn small" type="button">Move it on my screen</button>
             </div>
           </details>
-          <p class="hint ovsits">League in Borderless mode. Alt+V in a game shows everyone’s rank, and hides the overlay.</p>
+          <p class="hint ovsits">League in Borderless mode. Alt+X in a game shows or hides everyone’s rank, and Alt+V the whole overlay.</p>
         </section>
         <section class="ovcard" aria-labelledby="h-ovvoice">
           <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><div><h2 id="h-ovvoice">Voice</h2><p>Over League, and over other full-screen games</p></div><span class="ovn"></span></div>
@@ -2649,7 +2649,8 @@ dialog.wizard { transform: scale(var(--from)); }
         <section class="panel client-only">
           <h2 class="ph">Keyboard shortcuts <button class="tip" type="button" popovertarget="t-keys" aria-label="About shortcuts">?</button></h2>
           <div class="keyrow client-only"><span>Show or hide this window</span><kbd id="kShow"></kbd><button class="btn small" type="button" data-key="show">Change</button><span></span></div>
-          <div class="keyrow client-only"><span>Everyone’s rank in a game, or hide the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
+          <div class="keyrow client-only"><span>Show or hide the overlay</span><kbd id="kOverlay"></kbd><button class="btn small" type="button" data-key="overlay">Change</button><span></span></div>
+          <div class="keyrow client-only"><span>Everyone’s rank in a game</span><kbd id="kBoard"></kbd><button class="btn small" type="button" data-key="board">Change</button><span></span></div>
           <p id="keysNote" class="hint"></p>
         </section>
         <section class="panel client-only">
@@ -3161,7 +3162,7 @@ dialog.wizard { transform: scale(var(--from)); }
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
   // the clips folder's limit is on for everyone once (20 GB, Rayan 2026-11-16): after that, Any size stays what you picked
   if (!store.get('lpc-cap20')) { if (!opts.clipCap) opts.clipCap = 20; store.set('lpc-cap20', '1'); }
-  const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', ptt: '', ...load('lpc-keys', {}) };
+  const keys = { mute: 'Ctrl+Shift+M', show: 'Ctrl+Shift+L', clip: 'Ctrl+Shift+K', rec: 'Ctrl+Shift+R', overlay: 'Alt+V', board: 'Alt+X', ptt: '', ...load('lpc-keys', {}) };
   if (keys.overlay === 'Ctrl+Shift+O') keys.overlay = 'Alt+V'; // the old default, kept by anyone who changed another key
   const saveOpts = () => store.set('lpc-opts', JSON.stringify(opts));
   // Screen audio used to default off. Apply the new default once to existing installs; afterward a user's choice sticks.
@@ -6470,8 +6471,8 @@ dialog.wizard { transform: scale(var(--from)); }
   // mic, who can hear you and the effects on your voice; room chat; the objective timers and gold; your CS a minute;
   // recent popups; in the theme's colours (theme) unless that's Light, as it sits over the game. Move it (edit) shows it
   // with a frame to drag anywhere; the client says where it was left (overlay-moved). The overlay shortcut hides all of
-  // it until it's pressed again (overlayHide); in a game it first shows everyone's rank (boardKey).
-  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false;
+  // it until it's pressed again (overlayHide); everyone's rank has a key of its own (boardKey on, boardOff off, app 1.49).
+  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false, boardOff = false;
   const chats = []; // the last few chat messages, for the overlay
   // Who's talking in other games (What's new 122): in a room outside League, while the window in front fills its screen
   // (app 1.38: frontApp, checked each second only while it's needed) or, as set, whenever Premade isn't in front. It
@@ -6529,19 +6530,29 @@ dialog.wizard { transform: scale(var(--from)); }
     const j = JSON.stringify(s);
     if (j !== overlayWas) { overlayWas = j; client.overlay(s); }
   }
-  let ovKeyAt = -Infinity;
+  // a held key repeats (Windows sends the shortcut again ~0.5 s in, then fast), which flipped the overlay twice and
+  // looked like nothing happened: presses within 0.6 s of the last one count as the same press
+  const keyAt = {}, repeated = (k) => { const t = performance.now(), again = t - (keyAt[k] ?? -Infinity) < 600; keyAt[k] = t; return again; };
   function toggleOverlay() {
-    // a held key repeats (Windows sends the shortcut again ~0.5 s in, then fast), which flipped the overlay twice and
-    // looked like nothing happened: presses within 0.6 s of the last one count as the same press
-    const t = performance.now(), again = t - ovKeyAt < 600;
-    ovKeyAt = t;
-    if (again) return;
-    if (!overlayHide && !boardNow() && boardCan()) { boardKey = true; notify(`Everyone’s rank is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides the overlay.` : ''}`, true); }
+    if (repeated('overlay')) return;
+    // without a working key for everyone's rank (an app before 1.49, or that key off) this one still shows it first
+    if (!keysOk.board && !overlayHide && !boardNow() && boardCan()) { boardKey = true; boardOff = false; notify(`Everyone’s rank is on the overlay.${keys.overlay ? ` ${keys.overlay} again hides the overlay.` : ''}`, true); }
     else {
       overlayHide = !overlayHide;
       boardKey = false;
       notify(overlayHide ? `Overlay hidden.${keys.overlay ? ` ${keys.overlay} brings it back.` : ''}` : 'Overlay back on.', true);
     }
+    pushOverlay();
+  }
+  // everyone's rank on its own key (Alt+X, Rayan 2026-11-20): on or off in a game and over the loading screen; showing
+  // it brings back an overlay hidden by the overlay key. Nothing outside a game, as the key is read in every app.
+  function toggleBoard() {
+    if (repeated('board') || !boardCan()) return;
+    const on = !!boardNow();
+    boardKey = !on && !(loadingNow() && opts.overlayBoard); // the loading screen shows it by itself: brought back there, it doesn't stay on in the game
+    boardOff = on;
+    overlayHide = false;
+    notify(on ? `Everyone’s rank hidden.${keys.board ? ` ${keys.board} brings it back.` : ''}` : `Everyone’s rank is on the overlay.${keys.board ? ` ${keys.board} again hides it.` : ''}`, true);
     pushOverlay();
   }
   // Everyone's rank on the overlay (app 1.10), like Porofessor: over League's loading screen (the Overlay page) and
@@ -6558,7 +6569,7 @@ dialog.wizard { transform: scale(var(--from)); }
     return me && POS[me.pos] ? { me, foe: laneFoe(me.pos, them), duo: DUO[me.pos] ? laneFoe(DUO[me.pos], them) : 0 } : null;
   }
   function boardNow() {
-    if (overlayEdit || overlayHide || !(boardKey || PHASES[lcu] === 'loading')) return null; // first: nothing below is set up yet while the page starts
+    if (overlayEdit || overlayHide || boardOff || !(boardKey || PHASES[lcu] === 'loading')) return null; // first: nothing below is set up yet while the page starts
     const loading = loadingNow() && opts.overlayBoard;
     if (!(loading || boardKey) || !boardCan()) return null;
     const rows = boardRows(), lane = myLane(rows), order = Object.keys(POS), byPos = (a, b) => order.indexOf(a.pos) - order.indexOf(b.pos); // top to support, League's order
@@ -9976,7 +9987,7 @@ dialog.wizard { transform: scale(var(--from)); }
           autoDone.clear(); avoidSaid.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
-        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = overlayHide = false; } // hidden for that game, not the next one's loading screen
+        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = boardOff = overlayHide = false; } // hidden for that game, not the next one's loading screen
       }
       if (ph === 'ReadyCheck') await readyTick();
       if (ph === 'ChampSelect') await champTick();
@@ -17912,13 +17923,14 @@ dialog.wizard { transform: scale(var(--from)); }
     $('kClip').textContent = keys.clip || 'Off';
     $('kRec').textContent = keys.rec || 'Off';
     $('kOverlay').textContent = keys.overlay || 'Off';
+    $('kBoard').textContent = keys.board || 'Off';
     $('kPtt').textContent = keys.ptt ? keyName(keys.ptt) : 'Off (open mic)';
     for (const b of document.querySelectorAll('.keyrow [data-key]')) { // only these buttons: other boxes keep what they drew in data-key
       b.textContent = capture === b.dataset.key ? (capture === 'ptt' ? 'Press a key or mouse button…' : lone ? 'Hold Ctrl, Alt or Shift too…' : 'Press the keys…') : b.dataset.key === 'ptt' ? 'Set key' : 'Change';
     }
     $('pttOff').hidden = !keys.ptt;
     const busy = (ks) => ks.filter((k) => keys[k] && !keysOk[k]).map((k) => keys[k]), taken = (b) => `Another app already uses ${b.join(' and ')}, so pick something else.`;
-    $('keysNote').textContent = busy(['show', 'overlay']).length ? taken(busy(['show', 'overlay'])) : '';
+    $('keysNote').textContent = busy(['show', 'overlay', 'board']).length ? taken(busy(['show', 'overlay', 'board'])) : '';
     $('clipKeyNote').textContent = busy(['clip']).length ? taken(busy(['clip'])) : '';
     renderRec();
     $('talkNote').textContent = !client ? 'In a browser these work while this page is in front.'
@@ -17957,6 +17969,7 @@ dialog.wizard { transform: scale(var(--from)); }
     else if (keys.clip && !keysOk.clip && client && comboOf(e) === keys.clip) { e.preventDefault(); saveClip('key'); }
     else if (keys.rec && !keysOk.rec && client && comboOf(e) === keys.rec) { e.preventDefault(); toggleScreenRec(); }
     else if (keys.overlay && !keysOk.overlay && client && comboOf(e) === keys.overlay) { e.preventDefault(); toggleOverlay(); }
+    else if (keys.board && !keysOk.board && client && comboOf(e) === keys.board) { e.preventDefault(); toggleBoard(); }
     else if (keys.ptt && !keysOk.ptt && e.code === keys.ptt && !typing(e)) pushTalk(true);
   });
   addEventListener('keyup', (e) => { if (keys.ptt && !keysOk.ptt && e.code === keys.ptt) pushTalk(false); });
@@ -18293,6 +18306,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [173, 'November 20: Alt+X for everyone’s rank', [
+      'Everyone’s rank has a key of its own: Alt+X in a game shows it or hides it, and on the loading screen it hides Premade’s loading screen or brings it back. Alt+V now only hides or brings back the whole overlay.',
+      'Change either in Settings, Keyboard shortcuts. Alt+X needs desktop app 1.49, which updates itself; until then Alt+V still shows everyone’s rank first.',
+    ]],
     [171, 'November 20: a simpler Overlay page', [
       'The Overlay page goes in game order: Voice, Loading screen, In game, Callouts, While you’re dead, After the game, and TFT and ARAM: Mayhem, each a card that says how many of its switches are on. Each switch has a short name and one grey line.',
       'Light, Full and Learning are cards at the top, over your most played champion’s splash, and “Your own mix” shows when your switches match none of them.',
@@ -19185,7 +19202,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Open the phone remote while League and Premade are open on your PC.', '#remoteBox, #optRemote', 'app'],
     ]],
     ['Settings', 'The rest of the app: shortcuts, your screen, the look and the app itself.', [
-      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), and everyone’s rank or hide the overlay (Alt+V). They work while League is in front.',
+      ['Keyboard shortcuts', 'Mute (Ctrl+Shift+M), show or hide Premade (Ctrl+Shift+L), save a clip (Ctrl+Shift+K), show or hide the overlay (Alt+V) and everyone’s rank in a game (Alt+X, app 1.49). They work while League is in front.',
         'Settings, Keyboard shortcuts: press Change, then the new keys, with Ctrl, Alt or Shift. Keys another app uses as its shortcut work too (app 1.45.1), and so do PageUp, PageDown and Insert (app 1.46.0).', '#kShow', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
@@ -19270,7 +19287,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Runes, spells and builds', 'When you lock in: a rune page (the most popular, Riot’s, or your own usual one), your summoner spells with Flash on your key, and the most popular build and yours in League’s shop. Another button puts on the page those players take against your laner. Below Master they come from Emerald and Diamond games once your champion has enough of them, and the tier list and champion pages can switch between those and Challenger and Grandmaster games.',
         'On unless you turn it off: Pregame settings, Runes and items, which also picks the games.', '#optRunes', 'app'],
       ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, Autofill, a possible smurf) in champ select, and everyone’s from the loading screen on. Names Riot hides in Solo/Duo champ select stay hidden.',
-        'On unless you turn it off: Settings, League, and the Overlay page, Loading screen. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optScout', 'app'],
+        'On unless you turn it off: Settings, League, and the Overlay page, Loading screen. In a game, Alt+X shows or hides everyone’s rank.', '#optScout', 'app'],
       ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
         'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, While you’re dead.', '#csTips', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
@@ -19372,9 +19389,9 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Where it sits, Edit layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
-      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with spells, rank, record and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+V shows it smaller in a game. Looks: Cards, Rows or Your lane first.',
+      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with spells, rank, record and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen. Looks: Cards, Rows or Your lane first.',
         'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it.', '#optBoardLook', 'app'],
-      ['Three stats a player', 'Last 20, Main role and Season on each player’s card, each with more on hover: their last 20 games one by one, their games in each role, and this season’s record, peak, champions and mastery.', 'Hover a stat on the loading screen, or with Alt+V in a game.', '#optOverlayBoard', 'app'],
+      ['Three stats a player', 'Last 20, Main role and Season on each player’s card, each with more on hover: their last 20 games one by one, their games in each role, and this season’s record, peak, champions and mastery.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
         'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: the Overlay page, While you’re dead, What to buy.', '#csBuild', 'app'],
@@ -19532,7 +19549,7 @@ dialog.wizard { transform: scale(var(--from)); }
   $('key').hidden = !hashKey;
   if (client) {
     client.on('league', onLeague);
-    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'rec') toggleScreenRec(); else if (k === 'overlay') toggleOverlay(); else if (k === 'ptt-down' || k === 'ptt-up') { if (k === 'ptt-down') pttSeen = performance.now(); pushTalk(k === 'ptt-down'); } else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
+    client.on('key', (k) => { if (k === 'mute') toggleMute(); else if (k === 'clip') saveClip('key'); else if (k === 'rec') toggleScreenRec(); else if (k === 'overlay') toggleOverlay(); else if (k === 'board') toggleBoard(); else if (k === 'ptt-down' || k === 'ptt-up') { if (k === 'ptt-down') pttSeen = performance.now(); pushTalk(k === 'ptt-down'); } else if (k === 'ally-down' || k === 'ally-up') allyCam = k === 'ally-down'; });
     client.useScreen(store.get('lpc-screen') || '');
     if (client.record) client.record(opts.record);
     // an app link (lolprox://join/<room>[.<password>], from "Open this room in the desktop app") brings you into that room
