@@ -215,10 +215,10 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await duo.click('#leaveBtn');
     await ray.click('.nav[data-view="friends"]'); await duo.click('.nav[data-view="friends"]'); // Friends, its own page
     const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
-    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | 🟢 Online · In League | Invite Control'; }, 'Rayan’s friends online');
+    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | Online · In League | Invite Control'; }, 'Rayan’s friends online');
     assert.strictEqual(await text(ray, '#frOffBtn'), 'Show offline friends (1)');
     await ray.click('#frOffBtn');
-    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | 🟢 Online · In League | Invite Control', 'Sleepy#EUW | No Premade yet | '], 'and offline ones');
+    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Online · In League | Invite Control', 'Sleepy#EUW | No Premade yet | '], 'and offline ones');
     if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
     assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => x.riot).sort(), ['Duo#EUW', 'Sleepy#EUW'], 'League friends kept for when League is closed');
     await ray.click('#leagueNav'); await ray.click('.nav[data-view="profile"]'); // Profile's friends, each opening their profile
@@ -228,7 +228,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await ray.click('.nav[data-view="friends"]');
     await ray.fill('#frId', 'Kev # NA1');
     await ray.click('#frAdd button');
-    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | 🟢 Online · In League | Invite Control', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
+    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Online · In League | Invite Control', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
     await ray.click('#frRows tr:nth-child(2) button');
     assert.strictEqual((await frRows(ray)).length, 2, 'Kev removed');
     await ray.click('#frRows tr:first-child button');

@@ -90,14 +90,14 @@ a { color: var(--link); }
 .rail { grid-area: rail; display: flex; flex-direction: column; gap: 2px; width: 212px; padding: 0 10px; background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 10px; flex: none; min-height: 64px; margin: 0 -10px 6px; padding: 0 18px; border-bottom: 1px solid var(--line); font: 700 17px/1 var(--display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-hi); }
 .brand img { display: none; }
-.rail .group { margin: 12px 8px 4px; font: 600 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.rail .group { display: none; margin: 12px 8px 4px; font: 600 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .nav { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--muted); font: 500 13.5px/1.2 var(--body); text-align: left; cursor: pointer; }
 .nav svg { width: 16px; height: 16px; flex: none; }
 @media (hover: hover) { .nav:hover { color: var(--fg); background: var(--raised); } }
 .nav:active { background: var(--raised); }
 .nav[aria-current="page"] { color: var(--fg); background: color-mix(in srgb, var(--fg) 9%, var(--raised)); }
 /* League: one button at the foot of the rail, as before; its pages are tabs along the top of main */
-.rail .league { margin: auto 0 10px; padding: 11px 12px; gap: 12px; border-radius: 10px; background: var(--soft); font: 600 12.5px/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; }
+.rail .league { margin: auto 0 10px; padding: 11px 12px; gap: 12px; border-radius: 10px; background: var(--soft); font: 600 13.5px/1 var(--body); }
 .rail .league svg { width: 20px; height: 20px; }
 .me-box { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin: 0 -10px; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--panel); }
 .me-box .pic { width: 32px; height: 32px; font-size: 13px; border-width: 1px; }
@@ -156,7 +156,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .ph { display: flex; align-items: center; gap: 8px; font: 600 15px/1.25 var(--display); color: var(--gold-hi); }
 .panel > .ph:first-child { min-height: 24px; font-size: 16px; }
 .panel > .ph:first-child + .hint { margin-top: -8px; font-size: 13.5px; }
-.eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--link); }
+.eyebrow { display: flex; align-items: center; gap: 8px; font: 600 12.5px/1 var(--body); color: var(--muted); }
 .hint { color: var(--muted); font-size: 14px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .checkout { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.5 var(--mono); color: var(--fg); background: var(--soft); border: 0; border-radius: var(--r-sm); padding: 10px; max-height: calc(50vh / var(--zoom, 1)); overflow: auto; user-select: text; }
@@ -167,7 +167,7 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: rou
 .re4row small { grid-column: 2; color: var(--muted); }
 .re4row .dot[data-h="idle"] { background: transparent; border: 1.5px solid var(--muted); }
 .re4grow { flex: 1; }
-.re4play { font: 700 17px/1 var(--display); letter-spacing: 0.12em; padding: 14px 34px; text-transform: uppercase; }
+.re4play { font: 600 16px/1 var(--body); padding: 14px 34px; }
 .re4steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: re4; }
 .re4steps li { counter-increment: re4; padding: 7px 12px; border-radius: 999px; background: var(--soft); }
 .re4steps li::before { content: counter(re4); font: 500 11px/1 var(--mono); color: var(--gold); margin-right: 8px; }
@@ -236,13 +236,30 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 #map { aspect-ratio: 1; display: block; border-radius: var(--r); border: 1px solid var(--gold-line); background: #02070c; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 6%, transparent); }
 .cardbox { display: grid; gap: 10px; }
 .players { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.player { display: grid; grid-template-columns: 48px minmax(8em, 1fr) auto; grid-template-areas: "pic main mute" "vol vol vol"; gap: 10px 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.player { display: grid; grid-template-columns: 44px minmax(8em, 1fr) auto; grid-template-areas: "pic main mute" "vol vol vol"; gap: 10px 12px; align-items: center; padding: 12px 14px; border: 0; border-left: 3px solid transparent; border-radius: var(--r); background: var(--soft); }
 .player[data-team="ally"] { border-left-color: #4aa8ff; }
 .player[data-team="enemy"] { border-left-color: #ff5c5c; }
-.pic { grid-area: pic; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--raised); border: 2px solid var(--gold-line); font: 700 18px/1 var(--display); color: var(--gold); transition: box-shadow 0.15s, border-color 0.15s; }
+.pic { grid-area: pic; width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--raised); border: 2px solid transparent; font: 600 17px/1 var(--body); color: var(--fg); transition: border-color var(--t-press); }
 .pic img { width: 100%; height: 100%; object-fit: cover; }
-.player[data-talking] .pic { border-color: var(--talk); box-shadow: 0 0 0 3px color-mix(in srgb, var(--talk) 35%, transparent); }
-.player[data-dead] .pic { filter: grayscale(1) brightness(0.7); }
+.player[data-talking] .pic { border-color: var(--good); } /* a face: a green ring on whoever talks, live with the voice */
+.player[data-dead] .pic { filter: grayscale(1); opacity: 0.5; }
+.pname { font-size: 15px; }
+/* faces in lists (What's new 175): a 32px initial circle, its dot green when online (Friends); the letter is drawn by CSS */
+.frwho { display: inline-flex; align-items: center; gap: 10px; }
+.ava { position: relative; flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--raised); color: var(--fg); font: 600 13px/1 var(--body); }
+.ava::before { content: attr(data-i); }
+.ava[data-on]::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--panel); background: var(--muted); }
+.ava[data-on="good"]::after { background: var(--good); }
+/* an open room: its code, a slot a player, in game or waiting, and Join */
+.oroom { gap: 12px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--soft); }
+.oroom .code { font-size: 15px; letter-spacing: 0.1em; min-width: 5.5em; }
+.oroom .hint { flex: 1; font-size: 13px; }
+.oroom .btn { margin-left: auto; }
+.oroom .dot { width: 8px; height: 8px; }
+.oroom .dot.on { background: var(--good); }
+.seats { display: inline-flex; gap: 3px; }
+.seats i { width: 6px; height: 14px; border-radius: 2px; background: var(--soft-2); }
+.seats i.on { background: var(--fg); }
 .pmain { grid-area: main; display: grid; gap: 2px; min-width: 0; }
 .pname { display: flex; align-items: center; gap: 8px; font-weight: 600; overflow-wrap: anywhere; }
 .crown { display: inline-flex; color: var(--best); }
@@ -278,7 +295,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .ready { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ready th, .ready td { padding: 10px 12px; border-bottom: 1px solid var(--hair); text-align: left; white-space: nowrap; }
 .ready tbody tr:last-child > td { border-bottom: 0; }
-.ready th { font: 600 11px/1.2 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.ready th { font: 600 12.5px/1.2 var(--body); color: var(--muted); }
 .ready .dot { margin-right: 6px; }
 .tablewrap { overflow-x: auto; }
 
@@ -375,12 +392,14 @@ fieldset.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax
 .sw::after { content: ""; position: absolute; right: 7px; bottom: 7px; width: 30%; height: 10px; border-radius: 3px; background: var(--accent); }
 
 /* status bar along the bottom, and the compact strip */
-.statusbar { grid-area: bar; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); font-size: 12.5px; }
-.sb { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--fg); font: 500 13px/1.2 var(--body); white-space: nowrap; }
+.statusbar { grid-area: bar; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); font-size: 12.5px; }
+.sb { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--fg); font: 500 12.5px/1.2 var(--body); white-space: nowrap; }
 button.sb { cursor: pointer; }
 button.sb:hover { background: var(--raised); border-color: var(--line); }
 .sb svg { width: 16px; height: 16px; }
-.sb b { font: 500 13px/1 var(--mono); letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
+.sb b { font: 500 13px/1 var(--mono); letter-spacing: 0.1em; color: var(--fg); text-transform: uppercase; }
+#sbRoom, #sbTrack .muted { color: var(--muted); }
+#sbRoom b { margin-left: 2px; }
 .sb .muted { color: var(--muted); }
 .grow { flex: 1; }
 :root:not(.phone) body:not(.compact) #muteBtn { display: none; } /* the rail's foot has it */
@@ -494,8 +513,8 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 #mixAd { background: #e8833a; }
 #mixAp { background: #4aa8ff; }
 .timers { display: flex; flex-wrap: wrap; gap: 8px; }
-.timers > span { display: grid; gap: 4px; padding: 10px 14px; border-radius: 10px; background: var(--soft); font: 500 15px/1.2 var(--mono); }
-.timers b { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+.timers > span { display: grid; gap: 4px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--soft); font: 600 20px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.timers b { font: 500 12.5px/1.2 var(--body); color: var(--muted); }
 .remote { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 #qr { width: 232px; height: 232px; flex: none; border-radius: 6px; background: #fff; }
 #remoteLink { font-size: 13px; overflow-wrap: anywhere; }
@@ -890,14 +909,15 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.pills button { font: 500 12.5px/1 var(--mono); padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--muted); cursor: pointer; }
+.pills button { font: 600 13px/1 var(--body); padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--muted); cursor: pointer; }
 .pills button:hover { color: var(--fg); border-color: var(--gold-line); }
-.pills button[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--raised)); }
+.pills button[aria-pressed="true"] { color: var(--bg); border-color: var(--fg); background: var(--fg); }
 .pills button:disabled { cursor: default; opacity: 0.7; }
 .pills.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px; }
 .pills.cards button { display: grid; gap: 6px; justify-items: start; text-align: left; padding: 14px 16px; border-radius: var(--r); font: 700 14px/1.2 var(--display); color: var(--fg); }
 .pills.cards button small { font: 400 12.5px/1.4 var(--body); color: var(--muted); }
-.pills.cards button[aria-pressed="true"] { color: var(--gold); }
+.pills.cards button[aria-pressed="true"] { color: var(--bg); }
+.pills.cards button[aria-pressed="true"] small { color: color-mix(in srgb, var(--bg) 70%, var(--fg)); }
 .modefield { flex: 1 1 100%; }
 .setrows { display: grid; min-width: 0; }
 .setrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; font-size: 14px; }
@@ -1403,9 +1423,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 :root[data-motion="off"] :is(*, *::before, *::after, ::backdrop) { animation: none !important; transition: none !important; }
 :root { --press: calc(1 - 0.04 * var(--m)); --from: calc(1 - 0.05 * var(--m)); --rise: calc(12px * var(--m)); }
 /* press: buttons shrink a little; rows (.nav) change colour instead */
-:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip) { transition: transform var(--t-press) var(--ease-out), background-color var(--t-press), border-color var(--t-press), color var(--t-press); }
-:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip):active:not(:disabled) { transform: scale(var(--press)); }
+:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip, .tab, .chseg button) { transition: transform var(--t-press) var(--ease-out), background-color var(--t-press), border-color var(--t-press), color var(--t-press); }
+:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip, .tab, .chseg button):active:not(:disabled) { transform: scale(var(--press)); }
 .nav { transition: background-color var(--t-press), color var(--t-press); }
+/* rows wider than a button change their background instead of shrinking */
+:is(.ready tbody tr, .games details) { transition: background-color var(--t-press); }
+@media (hover: hover) { .ready tbody tr:hover, .games details:hover { background: var(--soft-2); } }
 #optMotion { max-width: 300px; }
 /* popovers and dialogs come in from 95% and fade, and leave a little faster; Esc closes the top one (the browser's own) */
 [popover], dialog.wizard, dialog.wizard::backdrop { opacity: 0; transition: opacity calc(var(--t) * 0.8) var(--ease-out), transform calc(var(--t) * 0.8) var(--ease-out), overlay calc(var(--t) * 0.8) allow-discrete, display calc(var(--t) * 0.8) allow-discrete; }
@@ -2995,7 +3018,7 @@ dialog.wizard { transform: scale(var(--from)); }
       <span>End</span><input id="trimTo" type="range" min="0" max="1" step="0.5" value="1" aria-label="Where the cut ends">
     </div>
     <div class="pacts">
-      <button id="clipEdit" class="btn small" type="button" aria-expanded="false" aria-controls="edit">🎬 Open in Editor</button><button id="clipAudio" class="btn small" type="button" popovertarget="pAudio">🔊 Audio</button>
+      <button id="clipEdit" class="btn small" type="button" aria-expanded="false" aria-controls="edit">Open in Editor</button><button id="clipAudio" class="btn small" type="button" popovertarget="pAudio">Audio</button>
       <div id="pAudio" popover><label class="field">Volume <input id="pVol" type="range" min="0" max="1" step="0.05" value="1"></label></div>
       <output>Cut <span id="trimFromOut"></span> to <span id="trimToOut"></span></output>
     </div>
@@ -5137,9 +5160,13 @@ dialog.wizard { transform: scale(var(--from)); }
       const row = document.createElement('div'); row.className = 'toolbar';
       const people = Number.isInteger(count) ? `${Math.max(1, Math.min(10, count))}/10 players` : 'Open room';
       const phase = playing ? 'In game' : 'Waiting in lobby';
-      row.append(Object.assign(document.createElement('span'), { className: 'code', textContent: code.toUpperCase() }),
+      const meter = Object.assign(document.createElement('span'), { className: 'seats', title: people }); // a slot a player, filled for each one in it
+      if (Number.isInteger(count)) for (let i = 0; i < 10; i++) meter.append(Object.assign(document.createElement('i'), { className: i < count ? 'on' : '' }));
+      row.className = 'toolbar oroom';
+      row.append(Object.assign(document.createElement('span'), { className: 'code', textContent: code.toUpperCase() }), meter,
+        Object.assign(document.createElement('span'), { className: 'dot' + (playing ? ' on' : '') }),
         Object.assign(document.createElement('span'), { className: 'hint', textContent: `${hidden ? `Shared with you by ${String(n || 'a friend')} · ` : ''}${people} · ${phase}` }),
-        Object.assign(document.createElement('button'), { className: 'btn primary small', type: 'button', textContent: 'Join', onclick: () => joinRoom(code, false, hidden ? String(key || '') : '') }));
+        Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: 'Join', onclick: () => joinRoom(code, false, hidden ? String(key || '') : '') }));
       return row;
     }));
   }
@@ -11648,7 +11675,7 @@ dialog.wizard { transform: scale(var(--from)); }
       });
     }
     if (r.g && r.clips.length > 1 && client.clipReel) {
-      const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: '🎬 Make a reel of this game' });
+      const b = Object.assign(document.createElement('button'), { className: 'btn small', type: 'button', textContent: 'Make a reel of this game' });
       box(side, 'div', 'toolbar', b);
       b.addEventListener('click', async () => {
         b.disabled = true;
@@ -11900,7 +11927,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function showEdit(on) {
     $('edit').hidden = $('edView').hidden = !on;
     $('clipEdit').setAttribute('aria-expanded', String(on));
-    $('clipEdit').textContent = on ? '🎬 Close the editor' : '🎬 Open in Editor';
+    $('clipEdit').textContent = on ? 'Close the editor' : 'Open in Editor';
     vid.playbackRate = on ? ed().speed : 1;
     if (on && !edLoop) edTick();
     if (on) $('trimNote').textContent = 'Drag the white handles to cut it, pick a speed, a shape and a caption, then Save the cut. It’s saved as you see it.';
@@ -17857,10 +17884,12 @@ dialog.wizard { transform: scale(var(--from)); }
     $('frRows').dataset.key = k;
     $('frRows').replaceChildren(...rows.map((x) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td><b></b></td><td class="hint"></td><td></td>';
+      tr.innerHTML = '<td><span class="frwho"><span class="ava"></span><b></b></span></td><td class="hint"></td><td></td>';
       tr.querySelector('b').textContent = x.riot;
-      tr.children[1].textContent = [x.has === 2 ? '🟢 Online' : x.has ? `⚪ Offline, last online ${x.ago < 3600 ? Math.max(2, Math.round(x.ago / 60)) + ' min' : x.ago < 86400 ? Math.round(x.ago / 3600) + ' h' : Math.round(x.ago / 86400) + ' days'} ago` : 'No Premade yet', x.st].filter(Boolean).join(' · ');
-      if (x.has) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small' + (x.has === 2 ? ' primary' : ''), textContent: peer ? 'Invite' : 'Make a room and invite', onclick: () => frInvite(x.riot) }));
+      tr.querySelector('.ava').dataset.i = (x.riot[0] || '?').toUpperCase(); // drawn by CSS, so the row's text stays the Riot ID
+      if (x.has) tr.querySelector('.ava').dataset.on = x.has === 2 ? 'good' : 'off';
+      tr.children[1].textContent = [x.has === 2 ? 'Online' : x.has ? `Offline, last online ${x.ago < 3600 ? Math.max(2, Math.round(x.ago / 60)) + ' min' : x.ago < 86400 ? Math.round(x.ago / 3600) + ' h' : Math.round(x.ago / 86400) + ' days'} ago` : 'No Premade yet', x.st].filter(Boolean).join(' · ');
+      if (x.has) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: peer ? 'Invite' : 'Make a room and invite', onclick: () => frInvite(x.riot) }));
       if (x.has === 2 && !PHONE) tr.children[2].append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control', title: 'Ask to control their PC (Remote help)', onclick: () => helpFriend(x.riot) }));
       if (x.mine) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Remove', onclick: () => { frMine = frMine.filter((n) => acctOf(n) !== acctOf(x.riot)); store.set('lpc-friends', JSON.stringify(frMine)); renderFriends(); } }));
       return tr;
@@ -18858,7 +18887,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ]],
     [57, 'October 22: friends with League closed, and who’s online', [
       'Friends on the Voice page now keeps your League friends, so they’re there to invite even when League is closed.',
-      'Each friend with Premade says 🟢 Online when their Premade is open, or ⚪ Offline with when it was last open.',
+      'Each friend with Premade says Online, with a green dot on their face, when their Premade is open, or Offline with when it was last open.',
     ]],
     [56, 'October 22: ARAM: Mayhem pick rates from arammayhem.com', [
       'The bars on ARAM: Mayhem’s augment cards now show each augment’s pick rate on your champion, from arammayhem.com’s data, so every card has a number from your first game instead of “few games”. A champion they have no numbers for shows the rate on all champions.',

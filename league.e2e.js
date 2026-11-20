@@ -1742,7 +1742,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !document.fullscreenElement && !document.getElementById('player').hasAttribute('data-full'), null, 'out of full screen');
     // the editor, in Premade: 2× speed, phone-shaped, a caption, saved as a new clip
     await pc.click('#clipEdit');
-    assert(await pc.locator('#edit').isVisible() && (await text(pc, '#clipEdit')) === '🎬 Close the editor', 'the editor opens in Premade');
+    assert(await pc.locator('#edit').isVisible() && (await text(pc, '#clipEdit')) === 'Close the editor', 'the editor opens in Premade');
     await pc.selectOption('#edSpeed', '2');
     await pc.selectOption('#edCrop', '0.5625');
     await pc.fill('#edText', 'Outplayed');
