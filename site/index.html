@@ -6603,35 +6603,35 @@ dialog.wizard { transform: scale(var(--from)); }
       };
     };
     const lb = lobbyNow(rows), mineT = (rows.find((p) => p.ally) || {}).team; // each half's heading: its average rank, and which is favored
-    return { look: ['rows', 'lane'].includes(opts.boardLook) ? opts.boardLook : 'cards', load: !!loading, side: mineT === 'CHAOS' ? 'red' : 'blue', title: curGame ? QUEUES[curGame.queue] || '' : '',
+    return { look: ['rows', 'lane'].includes(opts.boardLook) ? opts.boardLook : 'cards', load: !!loading, dd: ddVersion ? `${DD}/cdn/${ddVersion}` : '', side: mineT === 'CHAOS' ? 'red' : 'blue', title: curGame ? QUEUES[curGame.queue] || '' : '',
       us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
       heads: lb ? [`Your team · ${lb.us}${lb.fav > 0 ? ' · favored' : ''}`, `Their team · ${lb.them}${lb.fav < 0 ? ' · favored' : ''}`] : null,
       tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null };
   }
-  // The three stats on each card (What's new 167), each with the lines its hover shows: the last 20 games (l20), the role
-  // most played in them (role; off when this game's isn't it) and this season's ranked record (sea: Solo/Duo, else Flex).
-  // null: hidden history (l20, role) or unranked (sea). League gives no per-champion record for a whole season, and
-  // Premade reads only other players' last 20 games, so the season's champions come from those and their mastery.
-  const agoOf = (at) => { const d = Math.floor((Date.now() - at) / 864e5); return d < 1 ? 'today' : d < 2 ? 'yesterday' : `${d} days ago`; };
+  // The three stats on each card (What's new 167, as pictures in 174), as data the overlay draws its rings and boxes
+  // from: the last 20 games (l20: each game's champion by Data Dragon id, result, queue, K/D/A, 6 item slots with 0 for
+  // empty, how long ago), the roles in them (role: [position, games, wins], most played first; off when this game's
+  // isn't the main one) and this season (sea: rank now, peak and last season as [name, emblem, color], champions in the
+  // last 20 as [id, games, wins], top mastery as [id, level, points]). null: hidden history (l20, role), or no ranked
+  // games and no history (sea). League gives no per-champion record for a whole season, and Premade reads only other
+  // players' last 20 games, so the season's champions come from those.
+  const agoOf = (at) => { const h = Math.max(0, (Date.now() - at) / 36e5); return h < 24 ? `${Math.max(1, Math.round(h))}h` : h < 168 ? `${Math.round(h / 24)}d` : `${Math.round(h / 168)}w`; };
   function cardStats(s, p) {
-    const g = s.games, out = { l20: null, role: null, sea: null }, n = (k, w) => `${k} game${k === 1 ? '' : 's'}, ${w} won`;
+    const g = s.games, out = { l20: null, role: null, sea: null }, id = (c) => (champOf(c) || {}).id || '';
     if (g && g.length) {
       const w = g.filter((x) => x.win).length, by = {};
-      out.l20 = { w, l: g.length - w, lines: g.map((x) => `${champName(x.champ)} · ${x.win ? 'Win' : 'Loss'} · ${x.k}/${x.d}/${x.a} (${kda(x.k, x.d, x.a)} KDA) · ${x.cs} CS (${(x.cs / Math.max(1, x.len / 60)).toFixed(1)} a minute) · ${agoOf(x.at)}`) };
+      out.l20 = { w, l: g.length - w, games: g.map((x) => ({ c: id(x.champ), win: x.win, q: QUEUES[x.queue] || '', k: x.k, d: x.d, a: x.a, it: [...x.items, 0, 0, 0, 0, 0, 0].slice(0, 6), ago: agoOf(x.at) })) };
       for (const x of g) if (POS[x.lane]) { const r = (by[x.lane] ||= [0, 0]); r[0]++; r[1] += x.win; }
       const ro = Object.entries(by).sort((a, b) => b[1][0] - a[1][0]), main = ro.length ? ro[0][0] : '', off = !!main && !!POS[p.pos] && main !== p.pos;
-      if (main) out.role = { pos: main, name: POS[main], off, lines: [...ro.map(([r, [k, w]]) => `${POS[r]}: ${n(k, w)}`), ...(off ? [`Autofill: ${POS[p.pos].toLowerCase()} this game, usually ${POS[main].toLowerCase()}`] : [])] };
+      if (main) out.role = { pos: main, name: POS[main], off, now: POS[p.pos] ? p.pos : '', list: ro.map(([r, [k, w]]) => [r, k, w]) };
     }
-    const q = [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((x) => x && TIERS.includes(x.tier) && (x.wins | 0) + (x.losses | 0) > 0);
-    if (q) {
-      const peak = rankFrom(q.highestTier, q.highestDivision), end = rankFrom(q.previousSeasonEndTier, q.previousSeasonEndDivision), by = new Map();
-      for (const x of g || []) { const b = by.get(x.champ) || [0, 0]; b[0]++; b[1] += x.win; by.set(x.champ, b); }
-      out.sea = { w: q.wins | 0, l: q.losses | 0, lines: [`${QN[q === s.ranked.RANKED_SOLO_5x5 ? 'RANKED_SOLO_5x5' : 'RANKED_FLEX_SR']}: ${q.wins | 0}W ${q.losses | 0}L, ${pct(q.wins / (q.wins + q.losses))} won`,
-        ...(peak ? [`Peak this season: ${rkName(peak)}`] : []), ...(end ? [`Last season: ${rkName(end)}`] : []),
-        ...[...by].sort((a, b) => b[1][0] - a[1][0]).slice(0, 5).map(([c, [k, w]]) => `${champName(c)}: ${n(k, w)} of the last 20`),
-        ...s.mastery.slice().sort((a, b) => b.championPoints - a.championPoints).slice(0, 4).map((m) => `${champName(m.championId)}: mastery ${m.championLevel}, ${Math.round(m.championPoints / 1000)}k`),
-        'League gives no record per champion for the whole season.'] };
-    }
+    const q = [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((x) => x && TIERS.includes(x.tier) && (x.wins | 0) + (x.losses | 0) > 0), by = new Map();
+    for (const x of g || []) { const b = by.get(x.champ) || [0, 0]; b[0]++; b[1] += x.win; by.set(x.champ, b); }
+    const rk = (r) => (r ? [rkName(r), emblems[r.tier] || '', TIER_C[TIERS.indexOf(r.tier)]] : null);
+    if (q || (g && g.length)) out.sea = { w: q ? q.wins | 0 : 0, l: q ? q.losses | 0 : 0, now: rk(q), lp: q ? q.leaguePoints | 0 : 0,
+      peak: q ? rk(rankFrom(q.highestTier, q.highestDivision)) : null, end: q ? rk(rankFrom(q.previousSeasonEndTier, q.previousSeasonEndDivision)) : null,
+      champs: [...by].sort((a, b) => b[1][0] - a[1][0]).slice(0, 5).map(([c, [k, w]]) => [id(c), k, w]).filter((x) => x[0]),
+      mastery: s.mastery.slice().sort((a, b) => b.championPoints - a.championPoints).slice(0, 4).map((m) => [id(m.championId), m.championLevel | 0, m.championPoints | 0]).filter((x) => x[0]) };
     return out;
   }
   function moveOverlay(on) {
@@ -18353,6 +18353,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [174, 'November 20: player stats as pictures', [
+      'Each player on the loading screen has three rings: Last 20 and Season with the win % inside, green or red, and their main role’s icon in the middle, red when they play another role this game.',
+      'Hover Last 20: a green or red block a game, then the newest 10 as rows with the champion, Victory or Defeat, queue, K/D/A and items. Hover the role or Season: blue bars for games played and green or red bars for win rate, their rank, peak and last season, and top mastery. Alt+X in a game shows them too.',
+    ]],
     [173, 'November 20: Alt+X for everyone’s rank', [
       'Everyone’s rank has a key of its own: Alt+X in a game shows it or hides it, and on the loading screen it hides Premade’s loading screen or brings it back. Alt+V now only hides or brings back the whole overlay.',
       'Change either in Settings, Keyboard shortcuts. Alt+X needs desktop app 1.49, which updates itself; until then Alt+V still shows everyone’s rank first.',
@@ -19443,7 +19447,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
       ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with spells, rank, record and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen. Looks: Cards, Rows or Your lane first.',
         'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it.', '#optBoardLook', 'app'],
-      ['Three stats a player', 'Last 20, Main role and Season on each player’s card, each with more on hover: their last 20 games one by one, their games in each role, and this season’s record, peak, champions and mastery.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
+      ['Three stats a player', 'Three rings on each player’s card, like Porofessor: Last 20 and Season with the win % inside, and the main role’s icon. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; Played and Winrate bars a role and a champion; rank emblems and mastery.', 'Hover a ring on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
         'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: the Overlay page, While you’re dead, What to buy.', '#csBuild', 'app'],

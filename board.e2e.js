@@ -18,12 +18,14 @@ const srv = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 }).listen(8093);
 
-const lines = (n, f) => Array.from({ length: n }, (_, i) => f(i));
+// stats as index.html's cardStats sends them (What's new 174): 14W 6L (70%, green), season 45W 55L (45%, red)
+const G20 = Array.from({ length: 20 }, (_, i) => ({ c: i % 3 ? 'Zed' : 'Ahri', win: i % 10 < 7, q: 'Ranked Solo/Duo', k: 8, d: 2, a: 5, it: [3006, 3031, 0, 0, 0, 0], ago: `${i + 2}d` }));
+const STATS = { l20: { w: 14, l: 6, games: G20 }, role: { pos: 'MIDDLE', name: 'Middle', off: false, now: 'MIDDLE', list: [['MIDDLE', 16, 9], ['TOP', 4, 1]] },
+  sea: { w: 45, l: 55, now: ['Gold II', '', '#d9ad55'], lp: 45, peak: ['Gold I', '', '#d9ad55'], end: ['Silver I', '', '#a9b9c4'], champs: [['Zed', 13, 9], ['Ahri', 7, 5]], mastery: [['Zed', 7, 412000], ['Ahri', 5, 61000]] } };
 const P = (name, ally, extra = {}) => ({ name, sub: 'Zed · Middle', pic: '', art: '', spells: [], me: false, ally, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: '', rec: 'Zed: 9 of the last 20, 67% won',
-  stats: { l20: { w: 12, l: 8, lines: lines(20, (i) => `Zed · Win · 8/2/5 (6.5 KDA) · 180 CS (7.2 a minute) · ${i + 2} days ago`) }, role: { pos: 'MIDDLE', name: 'Middle', off: false, lines: ['Middle: 16 games, 9 won'] }, sea: { w: 77, l: 63, lines: ['Solo/Duo: 77W 63L, 55% won'] } },
-  tags: [['good', 'Millionaire: Zed'], ['', 'One-trick: Zed']], ...extra });
-const board = (over) => ({ look: 'cards', load: true, side: 'red', title: 'Ranked Solo/Duo', heads: ['Your team · Gold II', 'Their team · Gold III'], tips: { title: 'Ahri against Zed', lines: ['Respect level 6'] },
-  us: ['A', 'B', 'Me', 'D', 'E'].map((n) => P(n, true, n === 'Me' ? { me: true } : {})), them: ['F', 'G', 'Lane', 'I', 'J'].map((n) => P(n, false, n === 'Lane' ? { lane: true } : n === 'J' ? { stats: { l20: null, role: null, sea: null }, rank: 'Unranked', tags: [] } : {})), ...over });
+  stats: STATS, tags: [['good', 'Millionaire: Zed'], ['', 'One-trick: Ahri']], ...extra });
+const board = (over) => ({ look: 'cards', load: true, dd: 'https://ddragon.leagueoflegends.com/cdn/14.1.1', side: 'red', title: 'Ranked Solo/Duo', heads: ['Your team · Gold II', 'Their team · Gold III'], tips: { title: 'Ahri against Zed', lines: ['Respect level 6'] },
+  us: ['A', 'B', 'Me', 'D', 'E'].map((n) => P(n, true, n === 'Me' ? { me: true } : {})), them: ['F', 'G', 'Lane', 'I', 'J'].map((n) => P(n, false, n === 'Lane' ? { lane: true } : n === 'J' ? { stats: { l20: null, role: null, sea: null }, rank: 'Unranked', tags: [] } : n === 'I' ? { stats: { ...STATS, role: { ...STATS.role, off: true, now: 'TOP' }, sea: { ...STATS.sea, w: 0, l: 0, now: null, peak: null, end: null } } } : {})), ...over });
 const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1, opacity: 1, game, prog: true });
 
 (async () => {
@@ -31,6 +33,9 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
   try {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
     await page.addInitScript(() => { window.lpcClient = { on: (n, f) => { if (n === 'overlay') window.fire = f; }, overlayProg: (m) => (window.prog = m), overlayMouse: (on) => (window.mouse = on) }; });
+    // Data Dragon's pictures: a colored square with the name's first letter (no network in tests)
+    await page.route(/ddragon\.leagueoflegends\.com/, (r) => { const n = decodeURIComponent(r.request().url().replace(/^.*\//, '').replace(/\.png$/, '')), h = [...n].reduce((t, c) => t + c.charCodeAt(0) * 37, 0) % 360;
+      r.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="hsl(${h} 45% 40%)"/><text x="5" y="7.2" font-size="6" text-anchor="middle" fill="#fff" font-family="sans-serif">${n[0]}</text></svg>` }); });
     await page.goto('http://127.0.0.1:8093/overlay.html');
     const fire = (s) => page.evaluate((x) => window.fire(x), s);
     const heads = () => page.$$eval('.rb .team', (l) => l.map((e) => e.textContent));
@@ -47,24 +52,68 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     assert.deepStrictEqual(await page.$$eval('.pc', (l) => l.map((c) => c.querySelectorAll('.chip').length)), [2, 2, 2, 2, 0, 2, 2, 2, 2, 2]);
     assert.deepStrictEqual(await page.$$eval('.chipx', (l) => l.map((e) => e.textContent)), ['Your lane', 'You']);
     assert.deepStrictEqual(await page.$$eval('.foes .pc:nth-child(5) .vl', (l) => l.map((e) => e.textContent)), ['Hidden', 'Hidden', 'Unranked']);
+    // the rings: 70% green, 45% red, the role's icon; off-role red; unranked empty
+    const rings = (sel) => page.$$eval(`${sel} .st`, (l) => l.map((c) => [c.querySelector('text') ? c.querySelector('text').textContent : '', getComputedStyle(c.querySelectorAll('circle')[1] || c.querySelector('path') || c).stroke, c.querySelector('.vl').textContent]));
+    const [g, r] = await page.evaluate(() => ['--good', '--bad'].map((v) => { const e = document.createElement('i'); e.style.color = `var(${v})`; document.querySelector('.rb').append(e); const c = getComputedStyle(e).color; e.remove(); return c; }));
+    const [fg] = await page.evaluate(() => { const e = document.createElement('i'); e.style.color = 'var(--fg)'; document.querySelector('.rb').append(e); const c = getComputedStyle(e).color; e.remove(); return [c]; });
+    assert.deepStrictEqual(await rings('.pc.me'), [['70%', g, '14W 6L'], ['', fg, 'Middle'], ['45%', r, '45W 55L']]);
+    assert.deepStrictEqual(await rings('.foes .pc:nth-child(4)'), [['70%', g, '14W 6L'], ['', r, 'Middle'], ['', 'none', 'Unranked']], 'off-role red, unranked empty');
+    assert.strictEqual(await page.locator('.foes .pc:nth-child(5) .st circle').count(), 3, 'hidden: three empty rings');
+    // nothing opens on a hidden player's rings
+    await page.hover('.foes .pc:nth-child(5) .st:nth-child(1)');
+    assert.strictEqual(await page.locator('.pop').count(), 0, 'no box when hidden');
     await fire(state(board({ load: false }), 'Dragon 1:00'));
     assert.deepStrictEqual(await page.$$eval('.pc', (l) => l.map((c) => c.querySelectorAll('.chip').length)), [1, 1, 1, 1, 1, 1, 1, 1, 1, 0]);
     const box = await page.evaluate(() => { const r = document.querySelector('.rb').getBoundingClientRect(); return [r.top, r.bottom, r.left, r.right]; });
     assert(box[0] > 50 && box[1] < 760 && box[2] > 300 && box[3] < 1620, `in a game, smaller in the middle: ${box}`);
     await shot(page, 'board-in-game');
-    // each stat's box on hover, and kept open while the rest of the overlay updates
+    const hov = async (sel) => { await page.mouse.move(1, 1); await page.hover(sel); }; // away first: an open box covers the rings under it
+    // each ring's box on hover (What's new 174), kept open while the rest of the overlay updates
     const pop = '.pc.me .st:nth-child(1) .pop';
-    assert(!(await page.isVisible(pop)), 'closed');
-    await page.hover('.pc.me .st:nth-child(1)');
+    await hov('.pc.me .st:nth-child(1)');
     assert(await page.isVisible(pop), 'open on hover');
-    assert.strictEqual(await page.$$eval(`${pop} > div`, (l) => l.length), 20, 'a line a game');
+    assert.deepStrictEqual(await page.$$eval(`${pop} .blk i`, (l) => [l.length, l.filter((e) => e.className === 'w').length]), [20, 14], 'a block a game, green wins');
+    assert.strictEqual(await page.locator(`${pop} .gr`).count(), 10, 'the newest 10 as rows');
+    const row = await page.$eval(`${pop} .gr`, (e) => ({ pic: e.querySelector('img').src.replace(/^.*\//, ''), loaded: e.querySelector('img').complete && e.querySelector('img').naturalWidth > 0, word: e.querySelector('.res b').textContent, color: getComputedStyle(e.querySelector('.res b')).color,
+      q: e.querySelector('.res span').textContent, kda: e.querySelector('.kda b').textContent, ago: e.querySelector('.kda > span').textContent, items: e.querySelectorAll('.its > *').length, pics: e.querySelectorAll('.its img').length, d: getComputedStyle(e.querySelector('.kda .l')).color }));
+    assert.deepStrictEqual({ ...row, color: row.color === g, d: row.d !== fg }, { pic: 'Ahri.png', loaded: true, word: 'Victory', color: true, q: 'Ranked Solo/Duo', kda: '8 / 2 / 5', ago: '2d ago', items: 6, pics: 2, d: true });
+    assert.strictEqual(await page.$eval(`${pop} .gr:nth-child(8) .res b`, (e) => e.textContent), 'Defeat');
     const before = await page.evaluateHandle(() => document.querySelector('.rb'));
     await fire(state(board({ load: false }), 'Dragon 0:59'));
     assert(await page.evaluate((b) => b === document.querySelector('.rb') && b.isConnected, before), 'the board isn’t drawn again');
     assert(await page.isVisible(pop), 'still open');
-    await page.hover('.pc.me .st:nth-child(2)');
-    assert(!(await page.isVisible(pop)) && await page.isVisible('.pc.me .st:nth-child(2) .pop'), 'the next stat’s box');
-    await shot(page, 'board-hover');
+    await shot(page, 'hover-last20-in-game');
+    // role: the played bar against the most played, the win rate's color, This game
+    await hov('.pc.me .st:nth-child(2)');
+    const role = '.pc.me .st:nth-child(2) .pop';
+    assert(!(await page.isVisible(pop)) && await page.isVisible(role), 'the next ring’s box');
+    assert.deepStrictEqual(await page.$$eval(`${role} .br:not(.hd)`, (l) => l.map((e) => [...e.querySelectorAll('.bar > span')].map((x) => x.textContent).concat(e.querySelector('.now') ? e.querySelector('.now').className : ''))), [['16', '56%', 'now'], ['4', '25%', '']]);
+    assert.deepStrictEqual(await page.$$eval(`${role} .bar > i > i`, (l) => l.map((e) => e.style.width)), ['100%', '56%', '25%', '25%']);
+    await hov('.foes .pc:nth-child(4) .st:nth-child(2)');
+    assert.strictEqual(await page.getAttribute('.foes .pc:nth-child(4) .st:nth-child(2) .now', 'class'), 'now off', 'This game red when off-role');
+    // season: rank now, peak, last season, champions, mastery; unranked still opens with the champions
+    await hov('.pc.me .st:nth-child(3)');
+    const sea = '.pc.me .st:nth-child(3) .pop';
+    assert.deepStrictEqual(await page.$eval(sea, (e) => [e.querySelector('.rn b').textContent, e.querySelector('.rn span').textContent, [...e.querySelectorAll('.sm b')].map((x) => x.textContent), e.querySelectorAll('.sec:not(.ms) .br:not(.hd)').length, [...e.querySelectorAll('.mrw > span')].map((x) => x.textContent)]),
+      ['Gold II', '45 LP', ['Gold I', 'Silver I'], 2, ['7412k', '561k']]);
+    await hov('.foes .pc:nth-child(4) .st:nth-child(3)');
+    assert.deepStrictEqual(await page.$eval('.foes .pc:nth-child(4) .st:nth-child(3) .pop', (e) => [e.querySelector('.rn b').textContent, e.querySelectorAll('.sm').length, e.querySelectorAll('.sec').length]), ['Unranked', 0, 2]);
+    // every box inside the screen, on both sides, on the loading screen and in game; in game at the loading screen's size
+    const inside = async (sideName, load) => {
+      await fire(state(board({ side: sideName, load }), load ? '' : 'Dragon 1:00'));
+      for (const c of await page.$$('.st:has(svg circle:nth-of-type(2)), .st:has(path)')) {
+        await page.mouse.move(1, 1); await c.hover();
+        const r = await c.evaluate((e) => { const b = e.querySelector('.pop'); if (!b) return null; const q = b.getBoundingClientRect(); return [q.left, q.top, q.right, q.bottom, parseFloat(getComputedStyle(b).fontSize)]; });
+        if (r) assert(r[0] >= 0 && r[1] >= 0 && r[2] <= 1920 && r[3] <= 1080, `${sideName} ${load ? 'loading' : 'in game'}: a box off the screen ${r}`);
+        if (r && !load) assert(Math.abs(r[4] * 0.62 - 10.8) < 0.3, `in game the box is at the loading screen's size: ${r[4]}`);
+      }
+    };
+    for (const sd of ['red', 'blue']) for (const ld of [true, false]) await inside(sd, ld);
+    await fire(state(board({ side: 'red' })));
+    for (const [n, name] of [[1, 'hover-last20'], [2, 'hover-role'], [3, 'hover-season']]) { await hov(`.pc.me .st:nth-child(${n})`); await page.waitForTimeout(50); await shot(page, name); }
+    await fire(state(board({ side: 'blue' })));
+    await hov('.foes .pc:nth-child(4) .st:nth-child(1)');
+    await shot(page, 'hover-last20-blue-top');
     // rows and your lane first
     await fire(state(board({ look: 'rows' })));
     assert.strictEqual(await page.locator('.rb.rows .pc').count(), 10);
@@ -80,6 +129,12 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     await page.evaluate(([a, b]) => { window.st = (i) => ({ ...(i % 2 ? a : b), game: `Dragon 0:${String(i % 60).padStart(2, '0')}` }); }, [state(board({ look: 'rows' })), state(board({ look: 'lane' }))]);
     const n1 = await nodes(), n2 = await nodes();
     assert(n2 <= n1 + 5, `nodes level over 300 redraws: ${n1} then ${n2}`);
+    // 100 boxes opened over 100 new boards: nodes and listeners stay level
+    const opens = async () => { for (let i = 0; i < 50; i++) { await fire({ ...state(board({ look: 'cards' })), game: `Dragon 1:${String(i).padStart(2, '0')}`, board: board({ title: 'Game ' + i }) }); await page.mouse.move(1, 1); await page.hover(`.pc.me .st:nth-child(${1 + (i % 3)})`); }
+      return page.evaluate(() => document.getElementsByTagName('*').length); };
+    const h1 = await opens(), h2 = await opens();
+    assert(h2 <= h1 + 5, `nodes level over 100 boxes opened: ${h1} then ${h2}`);
+    console.log(`board, 100 boxes opened: nodes ${h1} then ${h2}`);
     console.log(`board, 300 redraws: nodes ${n1} then ${n2}`);
     // a board off: nothing left over
     await fire({ visible: true, board: null, pos: 'tl', scale: 1, opacity: 1, game: 'Dragon 0:58' });
@@ -94,7 +149,7 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     assert.strictEqual(await page.evaluate(() => window.mouse), false, 'and given back');
     await fire({ visible: true, pos: 'tl', scale: 1, opacity: 1, after: { title: 'Victory', win: true, lines: [] } });
     assert.strictEqual(await page.locator('.after button').count(), 0, 'no button without a report');
-    console.log('Board tests passed: red and blue side, the loading screen and in game, 2 tags then 1, hover boxes kept through updates, rows and your lane first');
+    console.log('Board tests passed: red and blue side, the loading screen and in game, 2 tags then 1, ring boxes as pictures inside the screen, kept through updates, rows and your lane first');
   } finally {
     await browser.close();
     srv.close();

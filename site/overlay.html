@@ -59,18 +59,73 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .rb .rk { display: flex; align-items: center; gap: 0.6em; font-size: 1.45em; font-weight: 600; }
 .rb .rk img { width: 1.7em; height: 1.7em; object-fit: contain; }
 .rb .ch { font-size: 1.3em; }
-.st3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55em; }
-.st { position: relative; display: flex; align-items: center; gap: 0.45em; min-width: 0; padding: 0.35em 0.45em; border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent); border-radius: 0.75em; background: color-mix(in srgb, var(--bg) 60%, transparent); }
-.st.off { border-color: color-mix(in srgb, var(--bad) 70%, transparent); }
-.st.off .lb { color: color-mix(in srgb, var(--bad) 55%, var(--fg)); }
-.st svg { flex: none; width: 2.8em; height: 2.8em; }
-.st > span { display: grid; min-width: 0; line-height: 1.2; }
-.lb { font-size: 1em; color: var(--muted); }
-.vl { font-size: 1.1em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pop { display: none; position: absolute; z-index: 5; left: 0; bottom: calc(100% + 0.6em); width: 40em; max-height: 60vh; overflow: hidden; padding: 0.8em 1.1em; border: 1px solid var(--gold-line); border-radius: 0.8em; background: var(--panel); font-size: 1.2em; font-weight: 500; text-shadow: none; }
-.st:nth-child(3) .pop { left: auto; right: 0; }
-.st:hover .pop { display: grid; gap: 0.3em; }
-.pop b { font-size: 1.1em; color: var(--gold); }
+/* the three rings (What's new 174, like Porofessor's): Last 20 and Season with the win % inside, green from 55%, red at
+   45% or less, W and L under; the main role's icon in the middle, red when they play another role this game. Each
+   ring's box (.pop) opens on hover: below on the top half of the screen, above on the bottom half (.dn), lined up to
+   the right where it would go off the screen (.rt). Sizes in em (1vh), as the mockup drew them. */
+.rb { --line: color-mix(in srgb, var(--fg) 13%, var(--bg)); --line2: color-mix(in srgb, var(--fg) 22%, var(--bg)); --goodL: color-mix(in srgb, var(--good) 60%, var(--fg)); --badL: color-mix(in srgb, var(--bad) 55%, var(--fg)); --blue: #4ea3e0; }
+.st3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5em; margin-top: 0.35em; }
+.st { position: relative; display: grid; justify-items: center; gap: 0.15em; }
+.st > svg { display: block; width: 5.2em; height: 5.2em; }
+.vl { font-size: 1.1em; font-weight: 700; white-space: nowrap; }
+.w { color: var(--goodL); } .l { color: var(--badL); } .mu { color: var(--muted); } .vl.off { color: var(--badL); }
+.pop { display: none; position: absolute; z-index: 5; left: -1em; bottom: calc(100% + 0.6em); width: max-content; box-sizing: border-box; padding: 1em 1.1em; border: 1px solid var(--line2); border-radius: 0.9em; background: color-mix(in srgb, var(--panel) 97%, transparent); box-shadow: 0 1.2em 3em rgb(0 0 0 / 0.6); text-shadow: none; color: var(--fg); font-size: 1em; font-weight: 500; justify-items: stretch; }
+.rb:not(.load) .pop { font-size: 1.613em; } /* in a game the board is at 0.62, the boxes at the loading screen's size */
+.pop.dn { bottom: auto; top: calc(100% + 0.6em); }
+.pop.rt { left: auto; right: -1em; }
+.st:hover .pop { display: grid; gap: 0.7em; }
+.st:hover .pop.role { gap: 0.35em; }
+.st:hover .pop.sea { gap: 0.8em; }
+.pop i { display: block; font-style: normal; }
+.pop img { display: block; }
+.blk { display: flex; gap: 0.22em; }
+.blk i { width: 1.15em; height: 1.5em; border-radius: 0.2em; background: var(--bad); }
+.blk i.w { background: var(--good); }
+.grs { display: grid; gap: 0.3em; }
+.gr { display: grid; grid-template-columns: 0.32em 3.4em 9.4em 5.6em 5.2em; align-items: center; column-gap: 0.7em; height: 4em; padding-right: 0.7em; border-radius: 0.5em; background: rgb(255 255 255 / 0.035); --c: var(--bad); }
+.gr.win { --c: var(--good); }
+.gr > i { align-self: stretch; border-radius: 0.5em 0 0 0.5em; background: var(--c); }
+.gr > img { width: 3.4em; height: 3.4em; border-radius: 0.45em; }
+.res, .kda { display: grid; min-width: 0; line-height: 1.2; }
+.res b { font-size: 1.35em; color: var(--c); }
+.res span { font-size: 1.05em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kda b { font-size: 1.25em; font-weight: 700; white-space: nowrap; }
+.kda .sl { color: color-mix(in srgb, var(--fg) 35%, var(--bg)); }
+.kda > span { font-size: 1em; color: color-mix(in srgb, var(--muted) 85%, var(--bg)); }
+.its { display: grid; grid-template-columns: repeat(3, 1.6em); gap: 0.2em; }
+.its > * { width: 1.6em; height: 1.6em; box-sizing: border-box; border-radius: 0.25em; }
+.its > i { background: var(--raised); border: 1px solid var(--line); }
+.br { display: grid; grid-template-columns: 2.8em 8em 6.5em 5.6em; column-gap: 0.9em; align-items: center; min-height: 3.5em; }
+.br.hd { min-height: 0; font-size: 1.05em; color: var(--muted); }
+.sea .br { min-height: 3.3em; }
+.br > svg { display: block; width: 2.8em; height: 2.8em; }
+.br > img { width: 2.8em; height: 2.8em; border-radius: 0.4em; }
+.bar { display: grid; gap: 0.25em; }
+.bar > i { height: 1.1em; border-radius: 0.2em; background: var(--line); overflow: hidden; }
+.bar > i > i { height: 100%; }
+.bar > span { font-size: 1.15em; font-weight: 600; }
+.now { justify-self: start; padding: 0.15em 0.6em; border-radius: 999px; border: 1px solid var(--line2); color: var(--fg); font-size: 0.95em; font-weight: 600; white-space: nowrap; }
+.now.off { border-color: var(--bad); color: var(--badL); }
+.ranks { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 1em; align-items: center; }
+.ranks > .emb { width: 4.4em; height: 4.4em; object-fit: contain; }
+.rn { display: grid; line-height: 1.25; }
+.rn b { font-size: 1.35em; white-space: nowrap; }
+.rn span { font-size: 1.05em; color: var(--muted); }
+.rn .vl { font-size: 1.1em; color: var(--fg); }
+.sm { display: grid; justify-items: center; gap: 0.2em; }
+.sm > span { font-size: 0.95em; color: var(--muted); }
+.sm .emb { width: 2.6em; height: 2.6em; object-fit: contain; }
+.sm b { font-size: 1em; font-weight: 600; white-space: nowrap; }
+.sec { display: grid; gap: 0.35em; }
+.sec.ms { gap: 0.45em; }
+.sec > span { font-size: 1em; color: var(--muted); }
+.mrw { display: flex; gap: 1.2em; }
+.mrw > span { position: relative; display: grid; justify-items: center; gap: 0.3em; }
+.mrw img { width: 3.2em; height: 3.2em; border-radius: 0.45em; }
+.mrw b { position: absolute; top: 2.15em; right: -0.5em; width: 1.6em; height: 1.6em; box-sizing: border-box; border-radius: 50%; background: var(--bg); border: 1px solid var(--fg); display: grid; place-items: center; font-size: 0.9em; font-weight: 700; }
+.mrw > span > span { font-size: 1em; color: var(--muted); }
+.hr { height: 1px; background: var(--line); }
+.rows .st > svg, .lane .st > svg { width: 3.6em; height: 3.6em; } /* B and D: the same rings, smaller */
 .rb .chips { display: flex; flex-wrap: wrap; gap: 0.4em; }
 .rb .chip { padding: 0.1em 0.8em; border: 1px solid #6b6a66; border-radius: 999px; font-size: 1.2em; white-space: nowrap; }
 .rb .chip.good { border-color: var(--good); color: color-mix(in srgb, var(--good) 60%, var(--fg)); }
@@ -217,25 +272,97 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     for (const [tag, at, text] of kids) { const k = document.createElementNS(NS, tag); for (const [n, v] of Object.entries(at)) k.setAttribute(n, v); if (text) k.textContent = text; s.append(k); }
     return s;
   }
-  function ring(x) { // won and lost as a ring: green at 55% or more, red at 45% or less
-    const n = x ? x.w + x.l : 0, pc = n ? Math.round((100 * x.w) / n) : 0, c = !n ? 'none' : pc >= 55 ? 'var(--good)' : pc <= 45 ? 'var(--bad)' : 'var(--fg)';
-    return svg('0 0 36 36', [['circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: 'color-mix(in srgb, var(--fg) 15%, transparent)', 'stroke-width': 4 }],
-      ['circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: c, 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': `${(pc * 0.9425).toFixed(1)} 94.25`, transform: 'rotate(-90 18 18)' }],
-      ['text', { x: 18, y: 22, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 700, fill: 'currentColor', stroke: 'none' }, n ? pc + '%' : '']]);
+  // The three rings and their boxes (What's new 174). A box is built on the first hover of its ring, by a listener on
+  // that ring alone (gone with the board), and placed once then: below or above by the half of the screen the ring is
+  // in, to the right when it would go off the screen. CSS :hover shows it after that, so nothing runs as the mouse moves.
+  let dd = ''; // Data Dragon's folder for this patch (index.html), for champion and item pictures
+  const tx = (cls, text) => { const e = document.createElement('span'); e.className = cls; if (text !== undefined) e.textContent = String(text); return e; };
+  const ie = (cls) => { const e = document.createElement('i'); if (cls) e.className = cls; return e; };
+  const ddPic = (kind, id, cls) => (dd && id ? Object.assign(new Image(), { src: `${dd}/img/${kind}/${encodeURIComponent(String(id))}.png`, alt: '', className: cls || '' }) : ie(cls));
+  const pcOf = (w, n) => (n > 0 ? Math.round((100 * w) / n) : 0);
+  const rate = (p, light) => (p >= 55 ? (light ? 'var(--goodL)' : 'var(--good)') : p <= 45 ? (light ? 'var(--badL)' : 'var(--bad)') : 'var(--fg)');
+  function ring(pc, label, role, off) { // pc null: empty (hidden or unranked); role: the main role's icon instead of the %
+    const L = 97.39, kids = [['circle', { cx: 18, cy: 18, r: 15.5, style: `fill: color-mix(in srgb, var(--bg) 60%, transparent); stroke: ${role && off ? 'var(--bad)' : 'var(--line)'}; stroke-width: 3` }]];
+    if (role) kids.push(['path', { d: ROLE_D[role] || '', transform: 'translate(9.5 9.5) scale(0.85)', style: `fill: none; stroke: ${off ? 'var(--bad)' : 'var(--fg)'}; stroke-width: 2.2` }]);
+    else if (pc !== null) kids.push(['circle', { cx: 18, cy: 18, r: 15.5, 'stroke-dasharray': `${((pc / 100) * L).toFixed(1)} ${L}`, transform: 'rotate(-90 18 18)', style: `fill: none; stroke: ${rate(pc)}; stroke-width: 3` }],
+      ['text', { x: 18, y: 19.6, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 700, style: 'fill: var(--fg); stroke: none' }, pc + '%'],
+      ['text', { x: 18, y: 26.4, 'text-anchor': 'middle', 'font-size': 5.6, 'font-weight': 600, style: 'fill: var(--muted); stroke: none' }, label]);
+    return svg('0 0 36 36', kids);
   }
-  function stat(cls, pic, label, value, head, lines) {
-    const c = el('st' + cls), t = document.createElement('span');
-    t.append(el('lb', label), el('vl', value));
-    c.append(pic, t);
-    if (Array.isArray(lines) && lines.length) { const box = el('pop'), b = document.createElement('b'); b.textContent = head; box.append(b, ...lines.slice(0, 20).map((x) => el('', String(x)))); c.append(box); }
+  const roleIcon = (pos, off) => svg('0 0 20 20', [['rect', { x: 1.5, y: 1.5, width: 17, height: 17, rx: 3, style: 'fill: none; stroke: var(--line2); stroke-width: 1' }],
+    ['path', { d: ROLE_D[pos] || '', style: `fill: none; stroke: ${off ? 'var(--bad)' : 'var(--fg)'}; stroke-width: 2` }]]);
+  const wlOf = (w, l) => { const v = tx('vl'); v.append(tx('w', `${w | 0}W`), ' ', tx('l', `${l | 0}L`)); return v; };
+  function bars(n, max, w) { // Played (blue, against the most played) and Winrate (by the ring's colors)
+    const p = pcOf(w, n), bar = (fill, color, text, tc) => { const b = tx('bar'), t = ie(), f = ie(); f.style.cssText = `width: ${fill}%; background: ${color}`; t.append(f); const v = tx('', text); if (tc) v.style.color = tc; b.append(t, v); return b; };
+    return [bar(Math.max(4, pcOf(n, max)), 'var(--blue)', n | 0), bar(Math.max(2, p), rate(p), p + '%', rate(p, true))];
+  }
+  const heads = () => { const h = el('br hd'); h.append(tx(''), tx('', 'Played'), tx('', 'Winrate'), tx('')); return h; };
+  function l20Box(x) { // a block a game, then the newest 10 as rows
+    const g = (Array.isArray(x.games) ? x.games : []).slice(0, 20), box = el('pop l20'), blk = el('blk'), rows = el('grs');
+    blk.append(...g.map((y) => ie(y && y.win ? 'w' : '')));
+    for (const y of g.slice(0, 10)) {
+      const r = el('gr' + (y.win ? ' win' : '')), res = tx('res'), kda = tx('kda'), b = document.createElement('b'), its = tx('its'), res1 = document.createElement('b');
+      res1.textContent = y.win ? 'Victory' : 'Defeat';
+      res.append(res1, tx('', y.q || ''));
+      b.append(tx('w', y.k | 0), tx('sl', ' / '), tx('l', y.d | 0), tx('sl', ' / '), tx('w', y.a | 0));
+      kda.append(b, tx('', `${y.ago || ''} ago`));
+      its.append(...(Array.isArray(y.it) ? y.it : []).slice(0, 6).map((i) => (+i ? ddPic('item', +i) : ie())));
+      r.append(ie(), ddPic('champion', y.c), res, kda, its);
+      rows.append(r);
+    }
+    box.append(blk, rows);
+    return box;
+  }
+  function roleBox(x) { // games and win rate a role; This game on the role they play now, red when it isn't their main one
+    const list = (Array.isArray(x.list) ? x.list : []).filter((r) => Array.isArray(r) && ROLE_D[r[0]]), box = el('pop role'), max = list.length ? list[0][1] | 0 : 1;
+    box.append(heads());
+    for (const [pos, n, w] of list) {
+      const here = pos === x.now, off = here && pos !== x.pos, r = el('br');
+      r.append(roleIcon(pos, off), ...bars(n, max, w), here ? tx('now' + (off ? ' off' : ''), 'This game') : tx(''));
+      box.append(r);
+    }
+    return box;
+  }
+  function seaBox(x) { // rank now, peak and last season; champions in the last 20; most mastery
+    const box = el('pop sea'), ranks = el('ranks'), rn = tx('rn'), nm = document.createElement('b'), rk = (r) => (Array.isArray(r) ? r : null);
+    const emb = (r, cls) => (r && /^https:\/\//.test(r[1] || '') ? Object.assign(new Image(), { src: String(r[1]), alt: '', className: cls }) : ie(cls));
+    const tint = (e, r) => { if (r && /^#[0-9a-f]{6}$/i.test(r[2] || '')) e.style.color = r[2]; return e; };
+    const now = rk(x.now);
+    nm.textContent = now ? String(now[0]) : 'Unranked';
+    rn.append(tint(nm, now), ...(now ? [tx('', `${x.lp | 0} LP`), wlOf(x.w, x.l)] : []));
+    const small = (label, r) => { const s = tx('sm'), b = document.createElement('b'); b.textContent = String(r[0]); s.append(tx('', label), emb(r, 'emb'), tint(b, r)); return s; };
+    ranks.append(emb(now, 'emb'), rn, ...(rk(x.peak) ? [small('Peak', x.peak)] : [tx('')]), ...(rk(x.end) ? [small('Last season', x.end)] : [tx('')]));
+    const parts = [ranks], champs = (Array.isArray(x.champs) ? x.champs : []).slice(0, 5), ms = (Array.isArray(x.mastery) ? x.mastery : []).slice(0, 4);
+    if (champs.length) {
+      const sec = el('sec'), max = champs[0][1] | 0;
+      sec.append(tx('', 'Champions in the last 20'), heads(), ...champs.map(([c, n, w]) => { const r = el('br'); r.append(ddPic('champion', c), ...bars(n, max, w), tx('')); return r; }));
+      parts.push(el('hr'), sec);
+    }
+    if (ms.length) {
+      const sec = el('sec ms'), row = el('mrw');
+      row.append(...ms.map(([c, lv, pts]) => { const s = tx(''), b = document.createElement('b'); b.textContent = lv | 0; s.append(ddPic('champion', c), b, tx('', `${Math.round((pts | 0) / 1000)}k`)); return s; }));
+      sec.append(tx('', 'Mastery'), row);
+      parts.push(el('hr'), sec);
+    }
+    box.append(...parts);
+    return box;
+  }
+  function cell(pic, under, make) { // a ring, what's under it, and its box from make() on the first hover
+    const c = el('st');
+    c.append(pic, under);
+    if (make) c.addEventListener('mouseenter', () => {
+      const box = make(), r = c.getBoundingClientRect();
+      if (r.top + r.bottom < innerHeight) box.classList.add('dn'); // the top half: open below
+      c.append(box);
+      if (box.getBoundingClientRect().right > innerWidth - 4) box.classList.add('rt');
+    }, { once: true });
     return c;
   }
-  function stats(x) { // { l20, role, sea }: each null when hidden or unranked
-    const row = el('st3'), { l20, role, sea } = x, wl = (v) => `${v.w | 0}W ${v.l | 0}L`;
-    const icon = svg('0 0 20 20', [['rect', { x: 1.5, y: 1.5, width: 17, height: 17, rx: 3, fill: 'none', stroke: 'currentColor', 'stroke-opacity': 0.35 }], ['path', { d: (role && ROLE_D[role.pos]) || '', fill: 'none', stroke: role && role.off ? 'var(--bad)' : 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }]]);
-    row.append(stat('', ring(l20), 'Last 20', l20 ? wl(l20) : 'Hidden', l20 && `Last 20 games · ${wl(l20)}`, l20 && l20.lines),
-      stat(role && role.off ? ' off' : '', icon, 'Main role', role ? String(role.name) : 'Hidden', role && `Main role: ${role.name}`, role && role.lines),
-      stat('', ring(sea), 'Season', sea ? wl(sea) : 'Unranked', sea && `This season · ${wl(sea)}`, sea && sea.lines));
+  function rings(x) { // { l20, role, sea }: each null when hidden or unranked
+    const row = el('st3'), { l20, role, sea } = x, n = (v) => (v.w | 0) + (v.l | 0);
+    row.append(l20 ? cell(ring(pcOf(l20.w, n(l20)), 'last 20'), wlOf(l20.w, l20.l), () => l20Box(l20)) : cell(ring(null), tx('vl mu', 'Hidden')),
+      role ? cell(ring(null, '', role.pos, role.off), tx('vl' + (role.off ? ' off' : ''), role.name), () => roleBox(role)) : cell(ring(null), tx('vl mu', 'Hidden')),
+      sea ? cell(n(sea) ? ring(pcOf(sea.w, n(sea)), 'season') : ring(null), n(sea) ? wlOf(sea.w, sea.l) : tx('vl mu', 'Unranked'), () => seaBox(sea)) : cell(ring(null), tx('vl mu', 'Unranked')));
     return row;
   }
   function card(p, n) { // n: how many tags
@@ -256,7 +383,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     rk.append(r);
     const chips = el('chips');
     for (const [k, t] of (Array.isArray(p.tags) ? p.tags : []).slice(0, n)) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
-    info.append(who, rk, ...(p.rec ? [el('ch', String(p.rec))] : []), ...(p.stats && typeof p.stats === 'object' ? [stats(p.stats)] : []), chips);
+    info.append(who, rk, ...(p.rec ? [el('ch', String(p.rec))] : []), ...(p.stats && typeof p.stats === 'object' ? [rings(p.stats)] : []), chips);
     c.append(sp, info);
     return c;
   }
@@ -277,6 +404,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     const k = JSON.stringify(b);
     if (k === boardKey && boardEl) return boardEl;
     const look = b.look === 'rows' || b.look === 'lane' ? b.look : 'cards', red = b.side === 'red', n = b.load ? 2 : 1;
+    dd = /^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/[\w.]+$/.test(b.dd || '') ? b.dd : '';
     const us = Array.isArray(b.us) ? b.us : [], them = Array.isArray(b.them) ? b.them : [], heads = Array.isArray(b.heads) ? b.heads.map(String) : ['Your team', 'Their team'];
     const tips = b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length ? tipband(b.tips) : null;
     const box = el(`rb ${look}${b.load ? ' load' : ''}`), head = el('rhead'), side = document.createElement('b');

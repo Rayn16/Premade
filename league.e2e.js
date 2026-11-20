@@ -1482,11 +1482,14 @@ const leagueData = (over = {}) => ({
     const me = board.us.find((p) => p.me), sniper = board.them.find((p) => p.name === 'Sniper');
     assert.deepStrictEqual([me.art.replace(/^.*\//, ''), me.spells.map((x) => x.replace(/^.*\//, '')), sniper.art.replace(/^.*\//, ''), sniper.spells], [`Ahri_7.jpg`, ['SummonerFlash.png', 'SummonerDot.png'], 'Caitlyn_0.jpg', []]);
     const st = board.them[2].stats;
-    assert.deepStrictEqual([st.l20.w + st.l20.l, st.l20.lines.length, st.sea.w, st.sea.l], [20, 20, 30, 25]);
+    assert.deepStrictEqual([st.l20.w + st.l20.l, st.l20.games.length, st.sea.w, st.sea.l], [20, 20, 30, 25]);
     const roled = board.us.concat(board.them).map((p) => p.stats.role).filter(Boolean);
-    assert(roled.length && roled.every((x) => POS_N.includes(x.name) && /^\w+: \d+ games?, \d+ won$/.test(x.lines[0])), JSON.stringify(roled[0]));
-    assert.match(st.l20.lines[0], /^\w[\w' .]* · (Win|Loss) · \d+\/\d+\/\d+ \(\d+\.\d KDA\) · \d+ CS \(\d+\.\d a minute\) · (today|yesterday|\d+ days ago)$/);
-    assert(st.sea.lines.includes('League gives no record per champion for the whole season.') && /^Solo\/Duo: 30W 25L, 55% won$/.test(st.sea.lines[0]), st.sea.lines.join(' | '));
+    assert(roled.length && roled.every((x) => POS_N.includes(x.name) && x.list[0][0] === x.pos && x.list.every(([r, n, w]) => r && n >= w && w >= 0)), JSON.stringify(roled[0]));
+    // What's new 174: the data the overlay draws pictures from: champion ids, 6 item slots, queue, how long ago
+    const g0 = st.l20.games[0];
+    assert(/^\w+$/.test(g0.c) && g0.it.length === 6 && typeof g0.win === 'boolean' && /^\d+[hdw]$/.test(g0.ago) && g0.q && [g0.k, g0.d, g0.a].every(Number.isInteger), JSON.stringify(g0));
+    assert(/^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/[\d.]+$/.test(board.dd), board.dd);
+    assert(st.sea.now && /^Gold/.test(st.sea.now[0]) && /TFT_Regalia_Gold\.png$/.test(st.sea.now[1]) && st.sea.now[2] === '#d9ad55' && st.sea.champs.length <= 5 && st.sea.mastery.length <= 4, JSON.stringify(st.sea));
     assert(board.us.concat(board.them).every((p) => p.tags.length <= 2), 'two tags at most');
     assert.deepStrictEqual([board.us.map((p) => p.me), board.them.map((p) => p.lane)], [[false, false, true, false, false], [false, false, true, false, false]], 'you, and who’s in your lane');
     assert.deepStrictEqual([...board.us, ...board.them].map((p) => p.tags.map(([, t]) => t).filter((t) => /Premade|smurf|Autofill/.test(t)).join()),
