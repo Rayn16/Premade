@@ -159,10 +159,10 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     const friend = await player(browser, 'Friend', { foeTimers: true });
     await join(friend, ROOM);
     await wait(rayan, () => lpc.peers().length === 1 && lpc.peers()[0].name === 'Friend', null, 'Friend in the room');
-    // the Timers and coach settings on the Overlay page, off until turned on
+    // the timers and coach settings on the Overlay page (In game and Callouts), off until turned on
     await friend.click('#leagueNav'); await friend.click('.nav[data-view="overlay"]');
     assert.deepStrictEqual(await friend.evaluate(() => ['optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'].map((id) => document.getElementById(id).checked)), [true, false, false, false, false]);
-    assert.match(await friend.textContent('#h-ovcoach'), /Timers and coach/);
+    assert.match(await friend.textContent('#h-ovcalls'), /Callouts/);
 
     // ---- a normal game, both in it, on the same team
     for (const p of [rayan, friend]) await feed(p, game(600, SR()));

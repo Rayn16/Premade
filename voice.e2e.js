@@ -1322,7 +1322,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.$eval('#optScale', (el) => { el.value = 1.5; el.dispatchEvent(new Event('input')); });
     await dee.evaluate(() => lpcClient.emit('overlay-moved', { done: true }));
     ov = await lastOverlay();
-    assert(ov.scale === 1.5 && !ov.edit && (await dee.textContent('#moveBtn')) === 'Move it', `bigger, and done from the overlay's own button: ${JSON.stringify(ov)}`);
+    assert(ov.scale === 1.5 && !ov.edit && (await dee.textContent('#moveBtn')) === 'Move it on my screen', `bigger, and done from the overlay's own button: ${JSON.stringify(ov)}`);
     console.log('hurt voice; the overlay moved and resized');
 
     // Chaos (Legends, Immersive and Gibberish) from League's game data: Dee's own voice changes for everyone

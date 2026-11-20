@@ -813,9 +813,63 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .ovhandle[data-covers] { border: 2px solid var(--bad); background: color-mix(in srgb, var(--bad) 22%, transparent); }
 .ovhandle[data-covers] span { opacity: 1; background: var(--bad); }
 #ovHudNote:empty { display: none; }
-.ovpresets { margin-bottom: 12px; }
-.boardlook { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 8px; padding: 0 0 0 26px; border: 0; }
-.boardlook legend { padding: 0; color: var(--muted); }
+/* the Overlay page (What's new 171): a top card with your champion's splash and the presets, then cards in game order
+   in CSS columns (two on a wide window, one on a narrow one, no breakpoint). Edit layout (details#ovEdit) hides the
+   cards and gives the picture the whole width; the parts' boxes take the mouse only then. */
+.ovtop { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.ovtop > img { position: absolute; top: 0; right: 0; width: 72%; height: 100%; object-fit: cover; object-position: 62% 28%; }
+.ovtop::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--panel) 28%, color-mix(in srgb, var(--panel) 86%, transparent) 52%, color-mix(in srgb, var(--panel) 30%, transparent)); }
+.ovtopin { position: relative; z-index: 1; display: grid; gap: 20px; padding: 28px 28px 26px; }
+.ovtop .title { font-size: 30px; }
+.ovtop .sub { margin-top: 4px; max-width: 520px; color: var(--fg); opacity: 0.85; }
+.ovpresets { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+.ovpresets > button { flex: 1 1 190px; max-width: 250px; display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 12px 14px; border: 1px solid var(--gold-line); border-radius: 10px; background: color-mix(in srgb, var(--bg) 74%, transparent); color: var(--fg); text-align: left; font: inherit; cursor: pointer; }
+.ovpresets > button b { font-size: 15px; font-weight: 600; }
+.ovpresets > button small { font: 500 12px/1.6 var(--mono); color: var(--muted); }
+.ovpresets > button span { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.ovpresets > button[aria-pressed="true"] { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+.ovpresets > button[aria-pressed="true"] :is(small, span) { color: color-mix(in srgb, var(--bg) 75%, var(--fg)); }
+.ovmix { align-self: center; padding: 6px 12px; border: 1px dashed var(--gold-line); border-radius: 999px; background: color-mix(in srgb, var(--bg) 60%, transparent); font-size: 13px; }
+.ovcols { column-width: 440px; column-gap: 16px; }
+.ovcard { break-inside: avoid; display: grid; gap: 0; margin: 0 0 16px; padding: 18px 20px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.ovhead { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; }
+.ovhead > div { flex: 1; min-width: 0; }
+.ovhead h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 600; }
+.ovhead p, .ovn { font-size: 13px; color: var(--muted); }
+.ovn { flex: none; font: 500 12px/1 var(--mono); }
+.ovic { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); color: var(--muted); }
+.ovcard[data-on] .ovic { color: var(--accent); }
+.ovic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ovcard .check { align-items: flex-start; gap: 14px; padding: 11px 4px; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.ovcard .check > input[type="checkbox"] { margin-top: 2px; }
+.ovcard .check > span { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.ovcard .check > span > span:first-child { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 500; }
+.ovcard .check > span > span + span { font-size: 13px; color: var(--muted); }
+.ovin { padding-left: 46px; }
+.ovin .check { padding-left: 0; }
+.ovmore { padding: 0 4px 14px 50px; }
+.ovmore.field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ovpart { padding: 14px 4px 6px; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ovlooks { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0 4px 16px 50px; border: 0; }
+.ovlooks legend { padding: 0 0 8px; font-size: 13px; color: var(--muted); }
+.ovlooks label { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 8px; border: 1px solid var(--gold-line); border-radius: 10px; background: var(--raised); font-size: 13px; font-weight: 500; cursor: pointer; }
+.ovlooks input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.ovlooks svg { flex: none; width: 64px; height: 36px; border-radius: 5px; background: var(--bg); fill: var(--muted); }
+.ovlooks label:has(:checked) { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+.ovlooks label:has(:checked) svg { fill: var(--accent); }
+.ovlooks label:has(:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
+.ovwhere { gap: 12px; padding-bottom: 20px; }
+.ovwhere .ovhead { padding-bottom: 0; }
+#ovEdit { display: grid; gap: 14px; }
+#ovEdit .toolbar { align-items: end; }
+#ovEdit > summary { justify-self: start; list-style: none; padding: 13px 20px; }
+#ovEdit > summary::-webkit-details-marker { display: none; }
+#ovEdit:not([open]) > summary span + span, #ovEdit[open] > summary span:first-child { display: none; }
+#ovEdit[open] > summary { order: 9; background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.ovpage:has(#ovEdit[open]) .ovcols { columns: auto; }
+.ovpage:has(#ovEdit[open]) :is(.ovcard:not(.ovwhere), .ovsits) { display: none; }
+.ovpage:not(:has(#ovEdit[open])) .ovhandle { pointer-events: none; }
+.ovpage:not(:has(#ovEdit[open])) .ovhandle:not([data-covers]) { opacity: 0; }
 
 /* Open Design layouts: shared pieces */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -2491,75 +2545,101 @@ dialog.wizard { transform: scale(var(--from)); }
       </section>
     </section>
 
-    <section class="view" data-view="overlay" aria-label="Overlay" hidden>
-      <header class="pagehead"><div><h1 class="title">Overlay</h1><p class="sub">What Premade draws on top of your game, and where it sits.</p></div></header>
+    <section class="view ovpage" data-view="overlay" aria-label="Overlay" hidden>
+      <header class="ovtop">
+        <img id="ovArt" alt="" hidden>
+        <div class="ovtopin">
+          <div><h1 class="title">Overlay</h1><p class="sub">What Premade shows over your game. Pick a start, then change anything below.</p></div>
+          <div id="ovPresets" class="ovpresets" role="group" aria-label="Overlay presets"><button type="button" data-preset="light" aria-pressed="false"><b>Light</b><small></small><span>Voice, timers and popups</span></button><button type="button" data-preset="full" aria-pressed="false"><b>Full</b><small></small><span>Everything for climbing</span></button><button type="button" data-preset="learning" aria-pressed="false"><b>Learning</b><small></small><span>Tips and a coach for new players</span></button><span id="ovMix" class="ovmix" hidden>Your own mix</span></div>
+        </div>
+      </header>
       <p id="ovNote" class="phase" role="status" hidden></p>
-      <div id="ovPresets" class="toolbar ovpresets" role="group" aria-label="Overlay presets"><span class="hint">Start from</span><button class="btn small" type="button" data-preset="light" aria-pressed="false" title="Who’s talking, my mic, popups, timers and gold">Light</button><button class="btn small" type="button" data-preset="full" aria-pressed="false" title="Light, plus chat, CS, my lane, ranks, the card after each game, what to buy, win chance, every callout, enemy timers, power spikes and the jungle clock">Full</button><button class="btn small" type="button" data-preset="learning" aria-pressed="false" title="Light, plus ranks, lane tips while dead, what to buy, the card after each game, the minimap reminder, gank warnings, power spikes and the coach">Learning</button></div>
-      <div class="prodash">
-        <section class="panel" aria-labelledby="h-ovlayout">
-          <h2 id="h-ovlayout" class="ph">Layout <button class="tip" type="button" popovertarget="t-overlay" aria-label="About the overlay">?</button></h2>
-          <p class="hint">Your screen in a game, with League’s score, abilities and minimap sketched in. Drag a part anywhere to give it a place of its own, or drag the rest to move them together. Pick one to size it.</p>
+      <div class="ovcols">
+        <section class="ovcard ovwhere" aria-labelledby="h-ovwhere">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM6.5 7.5h4v3h-4zM14 16.5h3.5"/></svg></span><div><h2 id="h-ovwhere">Where it sits <button class="tip" type="button" popovertarget="t-overlay" aria-label="About the overlay">?</button></h2><p>Your screen in a game, with what’s on. Red means it covers League’s HUD.</p></div></div>
           <div id="ovStage" class="ovstage">
             <div class="ovsk ovscore">Score</div><div class="ovsk ovhud">Abilities</div><div class="ovsk ovmap">Minimap</div>
             <iframe id="ovFrame" title="The overlay as it shows in a game" tabindex="-1" aria-hidden="true"></iframe>
             <div id="ovHandles" role="group" aria-label="The overlay’s parts: drag one, or pick it and use the arrow keys"></div>
           </div>
           <p id="ovHudNote" class="hint" role="status"></p>
-          <div class="range"><span>Size</span><span id="ovWhat">The rest</span><input id="optScale" type="range" min="0.7" max="2" step="0.1" aria-label="Size of what’s picked"><output id="scaleOut"></output></div>
-          <div class="range"><span>See-through</span><span></span><input id="optOpacity" type="range" min="0.3" max="1" step="0.05" aria-label="How solid the overlay is"><output id="opacityOut"></output></div>
-          <label class="field">Where the rest goes <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
-          <div class="toolbar">
-            <button id="ovBack" class="btn small" type="button" disabled>Put it back</button>
-            <button id="ovReset" class="btn small" type="button">Put everything back</button>
-            <button id="moveBtn" class="btn small" type="button">Move it</button>
-          </div>
+          <details id="ovEdit">
+            <summary class="btn primary"><span>Edit layout</span><span>Done</span></summary>
+            <p class="hint">Drag a part anywhere, or drag the rest to move them together. Pick one to size it.</p>
+            <div class="range"><span>Size</span><span id="ovWhat">The rest</span><input id="optScale" type="range" min="0.7" max="2" step="0.1" aria-label="Size of what’s picked"><output id="scaleOut"></output></div>
+            <div class="range"><span>See-through</span><span></span><input id="optOpacity" type="range" min="0.3" max="1" step="0.05" aria-label="How solid the overlay is"><output id="opacityOut"></output></div>
+            <div class="toolbar">
+              <label class="field">Put the rest <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
+              <button id="ovBack" class="btn small" type="button" disabled>Put it back</button>
+              <button id="ovReset" class="btn small" type="button">Put everything back</button>
+              <button id="moveBtn" class="btn small" type="button">Move it on my screen</button>
+            </div>
+          </details>
+          <p class="hint ovsits">League in Borderless mode. Alt+V in a game shows everyone’s rank, and hides the overlay.</p>
         </section>
-        <div class="stack">
-          <section class="panel" aria-labelledby="h-ovshow">
-            <h2 id="h-ovshow" class="ph">What it shows</h2>
-            <label class="check"><input id="optOverlay" type="checkbox"> Who's talking</label>
-            <label class="check"><input id="optOverlayMe" type="checkbox"> My mic and who hears me</label>
-            <label class="check"><input id="optOverlayChat" type="checkbox"> Room chat</label>
-            <label class="field client-only">Who's talking and room chat in other games <select id="optOverlayAny"><option value="full">Over full-screen games</option><option value="always">Whenever Premade isn’t in front</option><option value="off">Off</option></select></label>
-            <p class="hint client-only">Outside League it shows only while someone talks or a chat message comes, then fades. Games in Borderless or Windowed mode.</p>
-            <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"> Objective timers and gold</label>
-            <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"> CS counter</label>
-            <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"> My lane: CS and gold against my opponent</label>
-            <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"> Everyone’s rank and my matchup tips on the loading screen</label>
-            <fieldset id="optBoardLook" class="boardlook lcu-only"><legend>How everyone’s rank looks</legend><label class="check"><input type="radio" name="boardLook" value="cards"> Cards (usual)</label><label class="check"><input type="radio" name="boardLook" value="rows"> Rows</label><label class="check"><input type="radio" name="boardLook" value="lane"> Your lane first</label></fieldset>
-            <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"> A card after each game: LP, score and clips</label>
-            <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"> TFT item recipes in TFT games</label>
-            <label class="check lcu-only"><input id="optTftAugs" type="checkbox"> Each augment’s tier on TFT’s augment cards (reads my screen)</label>
-            <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"> <span>Show each augment’s rating for my champion on ARAM: Mayhem cards (reads my screen; data from <a href="https://deeparam.com/tier-list" target="_blank" rel="noopener">DeepARAM</a>)</span></label>
-            <label class="field lcu-only">Mayhem card rating <select id="optMayhemRating"><option value="rate">Strength bar, tier and pick rate</option><option value="tier">Tier only</option></select></label>
-            <label class="check lcu-only"><input id="optDeadTips" type="checkbox"> Tips for my lane while I’m dead</label>
-            <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"> What to buy next, while I’m dead or in my base (in ARAM: Mayhem, DeepARAM’s build while I’m dead)</label>
-            <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"> My team’s chance to win</label>
-            <label class="check lcu-only"><input id="optWatchMates" type="checkbox"> A teammate’s screen while I’m dead, if they let me</label>
-            <label class="check"><input id="optOverlayToasts" type="checkbox"> Popups</label>
-          </section>
-          <section class="panel" aria-labelledby="h-ovcalls">
-            <h2 id="h-ovcalls" class="ph">Callouts <button class="tip" type="button" popovertarget="t-calls" aria-label="About callouts">?</button></h2>
-            <p class="hint">From your minimap as your screen shows it, so never more than you can see. Summoner’s Rift only, and off until you turn them on.</p>
-            <label class="check"><input id="optMapNudge" type="checkbox"> Remind me to check the minimap <button class="tip" type="button" popovertarget="t-nudge" aria-label="About the minimap reminder">?</button></label>
-            <label class="check"><input id="optJgCall" type="checkbox"> Call out their jungler <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></label>
-            <label class="check"><input id="optGankCall" type="checkbox"> Warn me when their jungler heads my way</label>
-            <label class="check"><input id="optMissCall" type="checkbox"> Call out missing laners</label>
-            <label class="check"><input id="optInvadeCall" type="checkbox"> Call out enemies in my jungle</label>
-            <label class="check"><input id="optMissList" type="checkbox"> List who’s off my minimap</label>
-            <label class="check"><input id="optSpeakCalls" type="checkbox"> Read callouts out loud</label>
-            <div class="toolbar"><label class="field">Voice <select id="optCallVoice"><option value="">My computer’s usual voice</option><option value="girl">A girl’s voice</option></select></label><button id="callVoiceTry" type="button">Try it</button></div>
-          </section>
-          <section class="panel" aria-labelledby="h-ovcoach">
-            <h2 id="h-ovcoach" class="ph">Timers and coach <button class="tip" type="button" popovertarget="t-coach" aria-label="About timers and coach">?</button></h2>
-            <p class="hint">For every game, from League’s game data, your voice and your phone. Off until you turn them on.</p>
-            <label class="check"><input id="optFoeTimers" type="checkbox"> Enemy timers: I say “Premade, mid flash” or tap them on my phone</label>
-            <label class="check"><input id="optSpikeCall" type="checkbox"> Call out their power spikes</label>
-            <label class="check"><input id="optCoach" type="checkbox"> Coach me during games</label>
-            <label class="check"><input id="optCoachNew" type="checkbox"> I’m new: the coach says why</label>
-            <label class="check"><input id="optJgClock" type="checkbox"> Jungle clock: where their jungler likely is after their first clear</label>
-          </section>
-        </div>
+        <section class="ovcard" aria-labelledby="h-ovvoice">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><div><h2 id="h-ovvoice">Voice</h2><p>Over League, and over other full-screen games</p></div><span class="ovn"></span></div>
+          <label class="check"><input id="optOverlay" type="checkbox"><span><span>Who’s talking</span><span>Friends’ names light up as they speak</span></span></label>
+          <label class="check"><input id="optOverlayMe" type="checkbox"><span><span>My mic</span><span>Muted or live, and who can hear you</span></span></label>
+          <label class="check"><input id="optOverlayChat" type="checkbox"><span><span>Room chat</span><span>New messages, then they fade</span></span></label>
+          <label class="field ovmore client-only" data-when="optOverlay optOverlayChat">In other games, in Borderless or Windowed mode <select id="optOverlayAny"><option value="full">Full-screen games</option><option value="always">Whenever Premade is behind</option><option value="off">Off</option></select></label>
+        </section>
+        <section class="ovcard" aria-labelledby="h-ovload">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5h5a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5zM14.5 5h5a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 1-1.5 1.5h-5a1.5 1.5 0 0 1-1.5-1.5v-11A1.5 1.5 0 0 1 14.5 5z"/></svg></span><div><h2 id="h-ovload">Loading screen</h2><p>Covers League’s loading screen until the game starts</p></div><span class="ovn"></span></div>
+          <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"><span><span>Everyone’s rank</span><span>All ten players with ranks and tags, and your matchup tips</span></span></label>
+          <fieldset id="optBoardLook" class="ovlooks lcu-only" data-when="optOverlayBoard"><legend>Look</legend>
+            <label><input type="radio" name="boardLook" value="cards"><svg viewBox="0 0 64 36" aria-hidden="true"><path d="M4 3h9v13H4zM16 3h9v13h-9zM28 3h9v13h-9zM40 3h9v13h-9zM52 3h9v13h-9zM4 20h9v13H4zM16 20h9v13h-9zM28 20h9v13h-9zM40 20h9v13h-9zM52 20h9v13h-9z"/></svg>Cards</label>
+            <label><input type="radio" name="boardLook" value="rows"><svg viewBox="0 0 64 36" aria-hidden="true"><path d="M4 2h56v2.4H4zM4 6h56v2.4H4zM4 10h56v2.4H4zM4 14h56v2.4H4zM4 18h56v2.4H4zM4 23h56v2.4H4zM4 27h56v2.4H4zM4 31h56v2.4H4z"/></svg>Rows</label>
+            <label><input type="radio" name="boardLook" value="lane"><svg viewBox="0 0 64 36" aria-hidden="true"><path d="M6 2h8v6H6zM18 2h8v6h-8zM38 2h8v6h-8zM50 2h8v6h-8zM18 11h12v14H18zM34 11h12v14H34zM6 28h8v6H6zM18 28h8v6h-8zM38 28h8v6h-8zM50 28h8v6h-8z"/></svg>Your lane first</label>
+          </fieldset>
+        </section>
+        <section class="ovcard" aria-labelledby="h-ovgame">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg></span><div><h2 id="h-ovgame">In game <button class="tip" type="button" popovertarget="t-coach" aria-label="About enemy timers, power spikes and the coach">?</button></h2><p>Top left, out of League’s way</p></div><span class="ovn"></span></div>
+          <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"><span><span>Timers and gold</span><span>Dragon, Baron, kills and the gold lead</span></span></label>
+          <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"><span><span>Win chance</span><span>Your team’s chance to win, as the game goes</span></span></label>
+          <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"><span><span>CS counter</span><span>CS a minute against your usual</span></span></label>
+          <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"><span><span>My lane</span><span>CS and gold against your lane opponent</span></span></label>
+          <label class="check"><input id="optFoeTimers" type="checkbox"><span><span>Enemy timers</span><span>Say “Premade, mid flash” or tap your phone</span></span></label>
+          <label class="check"><input id="optOverlayToasts" type="checkbox"><span><span>Popups</span><span>Invites, trades and other alerts</span></span></label>
+        </section>
+        <section class="ovcard" aria-labelledby="h-ovcalls">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h3l8-5v14l-8-5H4zM7 14l1.5 5h2.5L10 15M18 9.5a3 3 0 0 1 0 5"/></svg></span><div><h2 id="h-ovcalls">Callouts <button class="tip" type="button" popovertarget="t-calls" aria-label="About callouts">?</button></h2><p>One line at the top of your screen</p></div><span class="ovn"></span></div>
+          <p class="ovpart">From your minimap · Summoner’s Rift</p>
+          <label class="check"><input id="optMapNudge" type="checkbox"><span><span>Minimap reminder <button class="tip" type="button" popovertarget="t-nudge" aria-label="About the minimap reminder">?</button></span><span>“Check your minimap” every so often</span></span></label>
+          <label class="check"><input id="ovMapCalls" type="checkbox"><span><span>Minimap callouts <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></span><span>Their jungler, ganks, missing laners, invaders and who’s off</span></span></label>
+          <div id="ovMapList" class="ovin" data-when="ovMapCalls">
+            <label class="check"><input id="optJgCall" type="checkbox"><span><span>Their jungler</span><span>Where their jungler shows up</span></span></label>
+            <label class="check"><input id="optGankCall" type="checkbox"><span><span>Gank warning</span><span>When their jungler heads your way</span></span></label>
+            <label class="check"><input id="optMissCall" type="checkbox"><span><span>Missing laners</span><span>When a laner leaves your minimap</span></span></label>
+            <label class="check"><input id="optInvadeCall" type="checkbox"><span><span>Invaders</span><span>Enemies in your jungle</span></span></label>
+            <label class="check"><input id="optMissList" type="checkbox"><span><span>Who’s off my minimap</span><span>A list by your minimap, with how long</span></span></label>
+          </div>
+          <p class="ovpart">From the game</p>
+          <label class="check"><input id="optSpikeCall" type="checkbox"><span><span>Power spikes</span><span>Level 6, 11 and 16, and finished items</span></span></label>
+          <label class="check"><input id="optCoach" type="checkbox"><span><span>Coach</span><span>A tip now and then: gold, objectives, levels</span></span></label>
+          <label class="check ovin" data-when="optCoach"><input id="optCoachNew" type="checkbox"><span><span>I’m new: say why</span><span>The coach adds why, and what to do</span></span></label>
+          <label class="check"><input id="optJgClock" type="checkbox"><span><span>Jungle clock</span><span>Where their jungler likely is after the first clear</span></span></label>
+          <p class="ovpart">Sound</p>
+          <label class="check"><input id="optSpeakCalls" type="checkbox"><span><span>Read them out loud</span><span>Hear each callout as it shows</span></span></label>
+          <div class="toolbar ovmore" data-when="optSpeakCalls"><label class="field">Voice <select id="optCallVoice"><option value="">My computer’s usual voice</option><option value="girl">A girl’s voice</option></select></label><button id="callVoiceTry" class="btn small" type="button">Try it</button></div>
+        </section>
+        <section class="ovcard" aria-labelledby="h-ovdead">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4"/></svg></span><div><h2 id="h-ovdead">While you’re dead</h2><p>Gone when you respawn</p></div><span class="ovn"></span></div>
+          <label class="check lcu-only"><input id="optDeadTips" type="checkbox"><span><span>Lane tips</span><span>Your notes and high elo’s tips for this matchup</span></span></label>
+          <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"><span><span>What to buy</span><span>Your next item, also in your base. In Mayhem, DeepARAM’s build</span></span></label>
+          <label class="check lcu-only"><input id="optWatchMates" type="checkbox"><span><span>A teammate’s screen</span><span>If they let you watch</span></span></label>
+        </section>
+        <section class="ovcard" aria-labelledby="h-ovafter">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 21h8M9 17h6"/></svg></span><div><h2 id="h-ovafter">After the game</h2><p>Over League’s end screen</p></div><span class="ovn"></span></div>
+          <label class="check lcu-only"><input id="optOverlayAfter" type="checkbox"><span><span>After-game card</span><span>LP, score, clips and the scoreboard</span></span></label>
+        </section>
+        <section class="ovcard" aria-labelledby="h-ovtft">
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/></svg></span><div><h2 id="h-ovtft">TFT and ARAM: Mayhem</h2><p>Read off the cards on your screen, stays on your PC</p></div><span class="ovn"></span></div>
+          <label class="check lcu-only"><input id="optOverlayTft" type="checkbox"><span><span>TFT item recipes</span><span>What each pair of components makes</span></span></label>
+          <label class="check lcu-only"><input id="optTftAugs" type="checkbox"><span><span>TFT augment tiers</span><span>Each augment’s tier on its card</span></span></label>
+          <label class="check lcu-only"><input id="optMayhemAugs" type="checkbox"><span><span>Mayhem augment ratings</span><span>Your champion’s rating from <a href="https://deeparam.com/tier-list" target="_blank" rel="noopener">DeepARAM</a></span></span></label>
+          <label class="field ovmore lcu-only" data-when="optMayhemAugs">Show <select id="optMayhemRating"><option value="rate">Bar, tier and pick rate</option><option value="tier">Tier only</option></select></label>
+        </section>
       </div>
     </section>
 
@@ -2960,11 +3040,11 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-keys" class="tipbox" popover>Shortcuts need Ctrl, Alt or Shift with a letter, number or F key, so they don't clash with League. The Windows client catches them while League is in front; a browser only while this page is.</div>
 <div id="t-ptt" class="tipbox" popover>With a push-to-talk key, others only hear you while you hold it. Mouse side buttons work too. In the Windows client it works while League is in front; in a browser only while this page is.</div>
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
-<div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Layout, drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it lets you drag the rest on the League screen itself. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keyboard shortcuts) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
+<div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Where it sits, press Edit layout, then drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it on my screen lets you drag the rest on the League screen itself. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keyboard shortcuts) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
 <div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
-<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read callouts out loud is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
-<div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read callouts out loud uses your computer’s own voice.</div>
-<div id="t-coach" class="tipbox" popover><b>Enemy timers</b>: during a game, say “Premade, mid flash”, “Premade, top ultimate” (top, jungle, mid, bot or support) or “Premade, their red” (or blue), or tap them on your phone remote, and the countdown shows with the objective timers on the overlay, the Game page and your phone, for everyone in your voice room in that game who has them on. Flash takes 5 minutes and an ultimate its cooldown at their level, less the haste in their items; a buff is back 5 minutes after it’s taken. Tap a running one on your phone to take it off. Premade listens for these phrases on your computer, as it does for clips by voice. <b>Power spikes</b>: “Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”. <b>Coach</b>: a tip now and then at the top of the screen: when you have the gold for the next item of your build (app 1.15), an objective in 60 seconds, 3 or more of them dead (app 1.15), or 2 levels down on your lane opponent. <b>I’m new</b> adds why, and what to do. <b>Jungle clock</b>: at 2:45, where their jungler likely is when their first clear ends, from their own last games and where your minimap first showed them. These show at the top of the screen (app 1.10), and Read callouts out loud reads them too.</div>
+<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read them out loud (Callouts, Sound) is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
+<div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read them out loud, under Sound, uses your computer’s own voice.</div>
+<div id="t-coach" class="tipbox" popover><b>Enemy timers</b>: during a game, say “Premade, mid flash”, “Premade, top ultimate” (top, jungle, mid, bot or support) or “Premade, their red” (or blue), or tap them on your phone remote, and the countdown shows with the objective timers on the overlay, the Game page and your phone, for everyone in your voice room in that game who has them on. Flash takes 5 minutes and an ultimate its cooldown at their level, less the haste in their items; a buff is back 5 minutes after it’s taken. Tap a running one on your phone to take it off. Premade listens for these phrases on your computer, as it does for clips by voice. <b>Power spikes</b>: “Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”. <b>Coach</b>: a tip now and then at the top of the screen: when you have the gold for the next item of your build (app 1.15), an objective in 60 seconds, 3 or more of them dead (app 1.15), or 2 levels down on your lane opponent. <b>I’m new</b> adds why, and what to do. <b>Jungle clock</b>: at 2:45, where their jungler likely is when their first clear ends, from their own last games and where your minimap first showed them. Enemy timers are in In game, the rest in Callouts, From the game. These show at the top of the screen (app 1.10), and Read them out loud reads them too.</div>
 <div id="t-customs" class="tipbox" popover><b>Inhouse ladder</b>: every custom game you play to the end with the desktop app counts, for everyone in it: a rating that goes up when you win and down when you lose, more against a stronger team. Everyone in the room shares the games they have, so the ladder is the same for all of you, and Balance teams uses it once two of the room are on it. <b>Fearless series</b> (Room games, the host starts it): in the custom games after it starts, nobody picks a champion already played in it; champ select shows the ones used up.</div>
 <div id="t-compact" class="tipbox" popover>While a game is on, this window shrinks to a strip with your mic and who's talking, and grows back when the game ends.</div>
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself, or out of a room someone else is in.</div>
@@ -6532,7 +6612,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function moveOverlay(on) {
     overlayEdit = on;
-    $('moveBtn').textContent = on ? 'Done' : 'Move it';
+    $('moveBtn').textContent = on ? 'Done' : 'Move it on my screen';
     $('moveBtn').classList.toggle('primary', on);
     pushOverlay();
   }
@@ -7372,7 +7452,7 @@ dialog.wizard { transform: scale(var(--from)); }
     });
     call.on('close', () => { if (seen.get(p) === v && v.call === call) { v.call = null; v.vid.srcObject = null; } });
   }
-  // ---- the Overlay page's Layout: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
+  // ---- the Overlay page's Where it sits: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
   // part that's on looks like in a game (ovSample). A box over each part: drag it, or pick it and use the arrow keys
   // (Shift: further), to give that part a place of its own (opts.overlayParts, ovPlace); the rest's box moves the rest
   // (overlayBox). Size sizes the one picked when it has a place of its own, else the rest. The line at the top, who's
@@ -7448,16 +7528,20 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     $('ovHudNote').textContent = [lines.join(' '), lcuOn() && hud ? '' : 'Couldn’t read League’s HUD settings, so the score, abilities and minimap are where League puts them at first.'].filter(Boolean).join(' ');
   }
-  // Light, Full and Learning: each ticks its set of boxes in What it shows, Callouts and Timers and coach (through each
+  // Light, Full and Learning: each ticks its set of boxes in the Overlay page's cards (through each
   // box's own change, so everything follows), and stays pressed while the boxes match it. TFT, Mayhem, a teammate's
-  // screen and Read callouts out loud stay as they are.
+  // screen and Read them out loud stay as they are.
   const PRESET_BOXES = ['optOverlay', 'optOverlayMe', 'optOverlayChat', 'optOverlayGame', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optDeadTips', 'optOverlayBuy', 'optOverlayWin', 'optOverlayToasts',
     'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'];
   const LIGHT = ['optOverlay', 'optOverlayMe', 'optOverlayToasts', 'optOverlayGame'];
   const PRESETS = { light: LIGHT, full: [...LIGHT, 'optOverlayChat', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optOverlayBuy', 'optOverlayWin', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optJgClock'],
     learning: [...LIGHT, 'optOverlayBoard', 'optDeadTips', 'optOverlayBuy', 'optOverlayAfter', 'optMapNudge', 'optGankCall', 'optSpikeCall', 'optCoach', 'optCoachNew'] };
   const presetOn = (k) => PRESET_BOXES.every((id) => $(id).disabled || $(id).checked === PRESETS[k].includes(id));
-  function presetShow() { for (const b of $('ovPresets').querySelectorAll('[data-preset]')) b.setAttribute('aria-pressed', String(presetOn(b.dataset.preset))); }
+  function presetShow() {
+    for (const b of $('ovPresets').querySelectorAll('[data-preset]')) b.setAttribute('aria-pressed', String(presetOn(b.dataset.preset)));
+    $('ovMix').hidden = Object.keys(PRESETS).some(presetOn);
+  }
+  for (const b of $('ovPresets').querySelectorAll('[data-preset]')) b.querySelector('small').textContent = `${PRESETS[b.dataset.preset].length} on`;
   $('ovPresets').addEventListener('click', (e) => {
     const b = e.target.closest('[data-preset]');
     if (!b) return;
@@ -7467,7 +7551,25 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     presetShow();
   });
-  ovView.addEventListener('change', presetShow);
+  // What's new 171: each extra choice (data-when) shows only while one of its switches is on, the Minimap callouts
+  // switch is on while any of its five is (it saves nothing of its own, and ticks or unticks all five through their own
+  // change), and each card says how many of its switches are on
+  const OV_MAP = ['optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList'];
+  function ovSync() {
+    const map = OV_MAP.map($);
+    Object.assign($('ovMapCalls'), { checked: map.some((x) => x.checked), disabled: map.every((x) => x.disabled) });
+    for (const e of ovView.querySelectorAll('[data-when]')) e.hidden = !e.dataset.when.split(' ').some((id) => $(id).checked);
+    for (const c of ovView.querySelectorAll('.ovcard:has(.ovn)')) {
+      const l = [...c.querySelectorAll('input[type="checkbox"]')].filter((x) => !x.closest('[hidden]') && !(x.id === 'ovMapCalls' && x.checked)), n = l.filter((x) => x.checked).length;
+      c.querySelector('.ovn').textContent = `${n} of ${l.length} on`;
+      c.toggleAttribute('data-on', n > 0);
+    }
+  }
+  $('ovMapCalls').addEventListener('change', (e) => {
+    const on = e.target.checked;
+    for (const x of OV_MAP.map($)) if (!x.disabled && x.checked !== on) { x.checked = on; x.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+  ovView.addEventListener('change', () => { presetShow(); ovSync(); });
   function ovPicked(k) {
     ovPick = k;
     for (const b of $('ovHandles').children) b.setAttribute('aria-pressed', String(b.dataset.part === k));
@@ -7527,6 +7629,10 @@ dialog.wizard { transform: scale(var(--from)); }
     $('ovNote').hidden = boardOk();
     $('ovNote').textContent = 'Your app shows the overlay in one box. Update it to place each part and use the callouts.';
     if (!ovFrame.getAttribute('src')) ovFrame.src = 'overlay.html';
+    const c = champOf(topChamps(1)[0]); // your most played champion's splash behind the title
+    if (c) $('ovArt').src = `${DD}/cdn/img/champion/splash/${c.id}_0.jpg`;
+    $('ovArt').hidden = !c;
+    ovSync();
     ovDraw();
   }
   const showScale = () => { // the picked part's size when it has a place of its own, else the rest's
@@ -8809,7 +8915,7 @@ dialog.wizard { transform: scale(var(--from)); }
     return [...out, ...foeTimers()];
   }
   const clock = (s) => (s <= 0 ? 'up' : mmss(Math.ceil(s)));
-  // ---- enemy timers (the Overlay page, Timers and coach): “Premade, mid flash”, “Premade, top ultimate” or “Premade,
+  // ---- enemy timers (the Overlay page, In game): “Premade, mid flash”, “Premade, top ultimate” or “Premade,
   // their red” said in a game (heard as clips by voice are), or a tap on the phone remote, counts down their Flash,
   // their ultimate or their red or blue buff with the objective timers (the overlay, the Game page and the phone), for
   // everyone in the room in this game who has them on. By role, as the speech model knows no champion names: League's
@@ -8858,7 +8964,7 @@ dialog.wizard { transform: scale(var(--from)); }
     itemsSoon();
     for (const p of league.players || []) if (p.team !== mine.team && champOf(p.champ)) riotTips(champOf(p.champ));
   }
-  // ---- power spikes (the Overlay page, Timers and coach): the other team reaching level 6, 11 or 16 (their ultimate's
+  // ---- power spikes (the Overlay page, Callouts): the other team reaching level 6, 11 or 16 (their ultimate's
   // ranks) or finishing an item, from League's scoreboard (what Tab shows), on the line at the top: “Zed is level 6”,
   // “Jinx finished Infinity Edge”. What they had when Premade first saw them isn't news.
   let spk = { room: '', seen: new Map() }; // their name -> { lvl, items: their finished items }
@@ -8889,7 +8995,7 @@ dialog.wizard { transform: scale(var(--from)); }
       for (const e of ev.filter((x) => x.e === what && x.team)) { const left = e.t + s - t; if (left > 0 && left <= 30) say(`${what}${e.t}`, `${e.team === mine.team ? 'Your' : 'Their'} ${name} ends in 0:30`); }
     }
   }
-  // ---- the coach (the Overlay page, Timers and coach): a tip now and then on the line at the top, from League's game
+  // ---- the coach (the Overlay page, Callouts): a tip now and then on the line at the top, from League's game
   // data, each once a game: the gold for the next item of your build (app 1.14: your gold), an objective in 60 s, 3 or
   // more of them dead with 15 s or more to wait (app 1.14: who's dead, for how long), and 2 levels or more behind your
   // lane opponent (once for each size of gap). I'm new adds why, and what to do.
@@ -8924,7 +9030,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const m = meIn(), o = m && laneFoeIn(m), gap = o ? o.lvl - m.lvl : 0;
     if (gap >= 2) tip('lvl' + gap, `You’re ${WORDS[gap] || gap} levels down: play safe`, `${champName(o.champ)} wins fights until you catch up, so farm near your tower`);
   }
-  // ---- the jungle clock (the Overlay page, Timers and coach): where their jungler likely is when their first clear
+  // ---- the jungle clock (the Overlay page, Callouts): where their jungler likely is when their first clear
   // ends, on the line at the top at 2:45: “Lee Sin likely topside around 3:15”. From their own last jungle games (5 with
   // Riot's timeline, which has everyone's spot once a minute): the side they were on at 3:00; and with the side your
   // minimap first showed them on this game (the callouts' tracker), whether they usually end on the side they started.
@@ -18187,6 +18293,13 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [171, 'November 20: a simpler Overlay page', [
+      'The Overlay page goes in game order: Voice, Loading screen, In game, Callouts, While you’re dead, After the game, and TFT and ARAM: Mayhem, each a card that says how many of its switches are on. Each switch has a short name and one grey line.',
+      'Light, Full and Learning are cards at the top, over your most played champion’s splash, and “Your own mix” shows when your switches match none of them.',
+      'Extra choices show only while their switch is on, like the rank look under Everyone’s rank or the voice under Read them out loud.',
+      'One Minimap callouts switch turns on their jungler, ganks, missing laners, invaders and who’s off your minimap together, and each still has its own switch under it.',
+      'Where it sits is a small picture of your screen. Edit layout makes it big, with size, see-through and where the rest goes.',
+    ]],
     [170, 'November 20: pro players and top 10s', [
       'A pro player’s account gets a Pro player tag with their team and name, on the loading screen and the Game page.',
       'Top 10: a player among the 10 with the most high elo games on the champion they play gets “Top 10 Zed in high elo”. Both come once our server is updated.',
@@ -19157,9 +19270,9 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Runes, spells and builds', 'When you lock in: a rune page (the most popular, Riot’s, or your own usual one), your summoner spells with Flash on your key, and the most popular build and yours in League’s shop. Another button puts on the page those players take against your laner. Below Master they come from Emerald and Diamond games once your champion has enough of them, and the tier list and champion pages can switch between those and Challenger and Grandmaster games.',
         'On unless you turn it off: Pregame settings, Runes and items, which also picks the games.', '#optRunes', 'app'],
       ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, Autofill, a possible smurf) in champ select, and everyone’s from the loading screen on. Names Riot hides in Solo/Duo champ select stay hidden.',
-        'On unless you turn it off: Settings, League, and the Overlay page, What it shows. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optScout', 'app'],
+        'On unless you turn it off: Settings, League, and the Overlay page, Loading screen. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optScout', 'app'],
       ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
-        'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, What it shows.', '#csTips', 'app'],
+        'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, While you’re dead.', '#csTips', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
       ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
         'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
@@ -19249,40 +19362,42 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you tick it: Record every match, in the strip at the top of the Clips page. Untick Keep only the highlights beside it to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
+      ['Overlay page by moment', 'The Overlay page in game order: Voice, Loading screen, In game, Callouts, While you’re dead, After the game, TFT and ARAM: Mayhem, each card with how many of its switches are on, and extra choices only while their switch is on. One Minimap callouts switch turns on all five minimap callouts. Where it sits shows a small picture, and Edit layout opens the big one.',
+        'Overlay in the League menu. Edit layout is under the picture in Where it sits.', '#ovMapCalls, #ovEdit', 'app'],
       ['Light, Full and Learning', 'One click sets what the overlay shows: Light for the basics, Full for almost everything, Learning for new players’ tips and reminders. The one that matches your boxes stays pressed.', 'At the top of the Overlay page.', '#ovPresets', 'app'],
-      ['HUD check', 'The layout picture puts League’s score, abilities and minimap where your HUD settings have them, and marks in red any part that covers one, with a line saying what it covers.', 'The Overlay page, Layout.', '#ovStage', 'app'],
-      ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
-      ['Who’s talking in any game', 'In your room outside League, who’s talking and new room chat show over any full-screen game, only while someone talks or writes, then fade away. Or have it whenever Premade isn’t the window in front.', 'The Overlay page, What it shows: Who’s talking and room chat in other games. Games in Borderless or Windowed mode.', '#optOverlayAny', 'app'],
-      ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
+      ['HUD check', 'The layout picture puts League’s score, abilities and minimap where your HUD settings have them, and marks in red any part that covers one, with a line saying what it covers.', 'The Overlay page, Where it sits.', '#ovStage', 'app'],
+      ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, Voice and In game: turn on what you want.', '#optOverlay', 'app'],
+      ['Who’s talking in any game', 'In your room outside League, who’s talking and new room chat show over any full-screen game, only while someone talks or writes, then fade away. Or have it whenever Premade isn’t the window in front.', 'The Overlay page, Voice: In other games, under Who’s talking and Room chat. Games in Borderless or Windowed mode.', '#optOverlayAny', 'app'],
+      ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, In game, My lane.', '#optOverlayLane', 'app'],
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
-        'The Overlay page, Layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
-      ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayAfter', 'app'],
+        'The Overlay page, Where it sits, Edit layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
+      ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
       ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with spells, rank, record and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+V shows it smaller in a game. Looks: Cards, Rows or Your lane first.',
-        'On unless you turn it off: the Overlay page, What it shows, with How everyone’s rank looks under it.', '#optBoardLook', 'app'],
+        'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it.', '#optBoardLook', 'app'],
       ['Three stats a player', 'Last 20, Main role and Season on each player’s card, each with more on hover: their last 20 games one by one, their games in each role, and this season’s record, peak, champions and mastery.', 'Hover a stat on the loading screen, or with Alt+V in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
-        'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: the Overlay page, What it shows.', '#csBuild', 'app'],
+        'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: the Overlay page, While you’re dead, What to buy.', '#csBuild', 'app'],
       ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',
-        'On unless you turn it off: the Overlay page, What it shows. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
+        'On unless you turn it off: the Overlay page, In game, Win chance. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
-        'On unless you turn it off: the Overlay page, What it shows. Each friend turns on Voice settings, In a game, Let teammates in my room watch my screen.', '#optWatchMates', 'app'],
-      ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'The Overlay page, Layout: drag the rest, or Move it and drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
+        'On unless you turn it off: the Overlay page, While you’re dead. Each friend turns on Voice settings, In a game, Let teammates in my room watch my screen.', '#optWatchMates', 'app'],
+      ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'The Overlay page, Where it sits, Edit layout: drag the rest, or Move it on my screen and drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
       ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
-        'Off until you turn it on: the Overlay page, Callouts, Remind me to check the minimap.', '#optMapNudge', 'app'],
+        'Off until you turn it on: the Overlay page, Callouts, Minimap reminder.', '#optMapNudge', 'app'],
       ['Callouts', 'Short lines at the top of the screen, read from your own minimap: “Jungler on topside” when their jungler shows up after 10 seconds out of sight, “Lee Sin heading your way” when your minimap shows them walking straight at you, “Zed missing from mid” when a laner has been out of sight for 10 seconds, and “Lee Sin in your jungle” for an invade. They can be read out loud too, in the voice you pick.',
-        'Off until you turn them on: the Overlay page, Callouts, one tick each. Read callouts out loud and Voice are there too; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
+        'Off until you turn them on: the Overlay page, Callouts: Minimap callouts turns on all of them, or tick each under it. Read them out loud and Voice are under Sound; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
       ['Who’s off your minimap', 'A list by your minimap of everyone on their team you can’t see, how long since you saw them and where they were heading, like “Lee Sin 0:40 toward bot”, and about when a dead one is back.',
-        'Off until you turn it on: the Overlay page, Callouts. Drag it anywhere in Layout.', '#optMissList', 'app'],
+        'Off until you turn it on: the Overlay page, Callouts, under Minimap callouts. Drag it anywhere in Edit layout.', '#optMissList', 'app'],
       ['Enemy timers', 'Say “Premade, mid flash”, “Premade, top ultimate” or “Premade, their red” in a game, or tap them on your phone remote: the countdown shows with the objective timers for everyone in your room who has them on, from their level and items.',
-        'Off until you turn it on: the Overlay page, Timers and coach.', '#optFoeTimers', 'app'],
-      ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
-      ['Dragon soul and Baron', '“You’re on soul point” or “They’re on soul point” once a team has 3 dragons, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
+        'Off until you turn it on: the Overlay page, In game.', '#optFoeTimers', 'app'],
+      ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
+      ['Dragon soul and Baron', '“You’re on soul point” or “They’re on soul point” once a team has 3 dragons, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
       ['Coach', 'A tip now and then at the top of the screen, like “Back now: you can buy Infinity Edge”, “Dragon in 60 seconds: push your wave”, “3 of them are dead: take Baron” or “You’re two levels down: play safe”. I’m new adds why.',
-        'Off until you turn it on: the Overlay page, Timers and coach. The shop and dead tips need app 1.15.', '#optCoach', 'app'],
+        'Off until you turn it on: the Overlay page, Callouts, From the game. The shop and dead tips need app 1.15.', '#optCoach', 'app'],
       ['Jungle clock', 'At 2:45, where their jungler likely is when their first clear ends, like “Lee Sin likely topside around 3:15”, from their own last games and where your minimap first showed them.',
-        'Off until you turn it on: the Overlay page, Timers and coach.', '#optJgClock', 'app'],
+        'Off until you turn it on: the Overlay page, Callouts, From the game.', '#optJgClock', 'app'],
     ]],
   ];
   // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and

@@ -351,6 +351,7 @@ const game = (over = {}) => ({
       const [c, page] = await context(browser, {});
       await page.evaluate((d) => lpcClient.emit('league', d), game());
       await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
+      await page.click('#ovEdit > summary'); // Edit layout: the big picture, and the boxes take the mouse
       const handles = () => page.$$eval('#ovHandles .ovhandle', (l) => l.map((b) => b.dataset.part));
       await wait(page, () => document.querySelectorAll('#ovHandles .ovhandle').length === 11, null, 'a box over each part');
       assert.deepStrictEqual(await handles(), ['', 'game', 'cs', 'me', 'talk', 'chat', 'toasts', 'buy', 'after', 'tips', 'screen']);
@@ -378,11 +379,16 @@ const game = (over = {}) => ({
       await drag(rest, rest.x + rest.width / 2 + 200, rest.y + rest.height - 4 + 100);
       o = await saved();
       assert(o.overlayPos === 'custom' && Math.abs(o.overlayBox.x - (rest.x - stage.x + 200) / stage.w) < 0.01 && Math.abs(o.overlayBox.y - (rest.y - stage.y + 100) / stage.h) < 0.01 && (await page.inputValue('#optPos')) === 'custom', `the rest moved: ${JSON.stringify(o.overlayBox)}`);
-      await page.check('#optMissList');
-      await page.check('#optMissCall');
+      await page.click('#ovEdit > summary'); // Done: the cards are back
+      await page.check('#ovMapCalls');
+      await page.uncheck('#optJgCall'); await page.uncheck('#optGankCall'); await page.uncheck('#optInvadeCall');
+      await page.click('#ovEdit > summary');
       await wait(page, () => [...document.querySelectorAll('#ovHandles .ovhandle')].map((b) => b.dataset.part).join() === ',game,cs,me,talk,toasts,buy,chat,missing,after,tips,screen,call', null, 'the callouts and who’s off the minimap on the Layout');
       if (process.env.SHOTS) await page.waitForTimeout(500); // the line at the top fades in
+      await shot(page, 'overlay-editor', '.view[data-view="overlay"]');
+      await page.click('#ovEdit > summary');
       await shot(page, 'overlay-page', '.view[data-view="overlay"]');
+      await page.click('#ovEdit > summary');
       await page.click('#ovHandles .ovhandle[data-part="chat"]');
       await page.click('#ovBack');
       assert(!(await saved()).overlayParts.chat, 'chat put back');
@@ -402,7 +408,7 @@ const game = (over = {}) => ({
       await page.reload();
       await page.evaluate((d) => lpcClient.emit('league', d), game());
       await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
-      const pressed = () => page.$$eval('#ovPresets [aria-pressed="true"]', (l) => l.map((b) => b.textContent));
+      const pressed = () => page.$$eval('#ovPresets [aria-pressed="true"]', (l) => l.map((b) => b.querySelector('b').textContent));
       const on = (...ids) => page.evaluate((ids) => ids.map((id) => document.getElementById(id).checked), ids);
       const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')));
       await page.click('#ovPresets [data-preset="learning"]');
@@ -417,6 +423,38 @@ const game = (over = {}) => ({
       await page.click('#ovPresets [data-preset="full"]');
       assert.deepStrictEqual(await pressed(), ['Full']);
       assert.deepStrictEqual(await on('optOverlayChat', 'optOverlayCs', 'optMissList', 'optFoeTimers', 'optJgClock', 'optCoach', 'optDeadTips', 'optMapNudge'), [true, true, true, true, true, false, false, false]);
+      // What's new 171: the extra choices show only while their switch is on, and one Minimap callouts switch
+      // follows its five (Full turned them on)
+      const shown = (q) => page.evaluate((q) => document.querySelector(q).checkVisibility(), q);
+      assert(await page.isChecked('#ovMapCalls') && await shown('#ovMapList'), 'Full: Minimap callouts on, its five showing');
+      assert(await page.isHidden('#ovMix'), 'Full matches: no Your own mix');
+      await page.uncheck('#optOverlayBoard');
+      assert(!(await shown('#optBoardLook')) && await page.isVisible('#ovMix'), 'Everyone’s rank off: its look hides, and it’s your own mix');
+      await page.check('#optOverlayBoard');
+      assert(await shown('#optBoardLook'), 'on again: the look shows');
+      assert(!(await shown('#optCallVoice')) && !(await shown('#optCoachNew')), 'Read them out loud and Coach off: their extras hidden');
+      await page.check('#optSpeakCalls');
+      assert(await shown('#optCallVoice'), 'Read them out loud on: the voice shows');
+      await page.uncheck('#optSpeakCalls');
+      const MAP5 = ['optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList'];
+      await page.uncheck('#optGankCall');
+      assert(await page.isChecked('#ovMapCalls') && (await saved()).gankCall === false, 'one of the five off: the switch stays on');
+      await page.uncheck('#ovMapCalls');
+      assert.deepStrictEqual(await on(...MAP5), [false, false, false, false, false]);
+      assert(!(await shown('#ovMapList')), 'Minimap callouts off: all five off, the list hidden');
+      let o = await saved();
+      assert(!o.jgCall && !o.missCall && !o.invadeCall && !o.missList && !('ovMapCalls' in o) && !('mapCalls' in o), `all five saved off, nothing new saved: ${JSON.stringify(o)}`);
+      await page.check('#ovMapCalls');
+      assert.deepStrictEqual(await on(...MAP5), [true, true, true, true, true]);
+      o = await saved();
+      assert(o.jgCall && o.gankCall && o.missCall && o.invadeCall && o.missList, 'all five saved on');
+      assert.match(await page.textContent('.ovcard:has(#h-ovcalls) .ovn'), /^\d+ of \d+ on$/);
+      await page.click('#ovPresets [data-preset="light"]');
+      assert(!(await page.isChecked('#ovMapCalls')) && !(await shown('#ovMapList')), 'Light: Minimap callouts off');
+      await page.click('#ovPresets [data-preset="full"]');
+      assert(await page.isChecked('#ovMapCalls'), 'Full: Minimap callouts on');
+      console.log('Overlay page: extra choices follow their switches; Minimap callouts ticks and unticks its five, saving nothing of its own');
+      await page.click('#ovEdit > summary'); // Edit layout, for the HUD check's drag
       await wait(page, () => document.querySelector('#ovStage .ovmap').style.left === '0.4%', null, 'League’s HUD read: the minimap on the left');
       assert.deepStrictEqual(await page.evaluate(() => ['.ovscore', '.ovhud', '.ovmap'].map((q) => { const st = document.querySelector('#ovStage ' + q).style; return [st.width, st.height]; })), [['33.6%', '5.6%'], ['', '18.2%'], ['', '39%']]);
       const box = (k) => page.locator(`#ovHandles .ovhandle[data-part="${k}"]`).boundingBox();
