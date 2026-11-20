@@ -75,6 +75,12 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     assert.deepStrictEqual(await page.$$eval('.mid .pc .chipx', (l) => l.map((e) => e.textContent)), ['You', 'Your lane']);
     assert(await page.evaluate(() => document.querySelector('.rb').scrollHeight <= innerHeight + 1), 'fits the screen');
     await shot(page, 'board-lane');
+    // 300 redraws, the clock ticking and the look changing: the page's nodes stay level (no leak)
+    const nodes = () => page.evaluate(async () => { for (let i = 0; i < 150; i++) { window.fire(window.st(i)); await new Promise((r) => setTimeout(r)); } return document.getElementsByTagName('*').length; });
+    await page.evaluate(([a, b]) => { window.st = (i) => ({ ...(i % 2 ? a : b), game: `Dragon 0:${String(i % 60).padStart(2, '0')}` }); }, [state(board({ look: 'rows' })), state(board({ look: 'lane' }))]);
+    const n1 = await nodes(), n2 = await nodes();
+    assert(n2 <= n1 + 5, `nodes level over 300 redraws: ${n1} then ${n2}`);
+    console.log(`board, 300 redraws: nodes ${n1} then ${n2}`);
     // a board off: nothing left over
     await fire({ visible: true, board: null, pos: 'tl', scale: 1, opacity: 1, game: 'Dragon 0:58' });
     assert.strictEqual(await page.locator('.rb').count(), 0);
