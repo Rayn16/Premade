@@ -86,7 +86,7 @@ function fakeApp() {
   const on = {};
   window.lpcClient = {
     version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {},
-    overlay(s) { this.lastOverlay = s; if (s.call) (window.calls = window.calls || []).push(s.call); },
+    overlay(s) { this.lastOverlay = s; if (s.call) { (window.calls = window.calls || []).push(s.call); (window.callPics = window.callPics || {})[s.call] = s.callPics; } },
     on(name, fn) { (on[name] = on[name] || []).push(fn); },
     emit(name, v) { for (const fn of on[name] || []) fn(v); },
     lcu: (m, p, b) => window.fakeLcu(m, p, b === undefined ? null : b),
@@ -220,7 +220,9 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await feed(rayan, game(640, SR({ Zedd: { lvl: 6, items: [[3158, 1], [3031, 1]] } })));
     await saw(rayan, 'Zed finished Infinity Edge');
     assert(!(await rayan.evaluate(() => window.calls)).some((c) => /Garen is level 11|Black Cleaver|Ionian/.test(c)), 'nothing from what they had when first seen');
-    console.log('power spikes: “Zed is level 6”, “Zed finished Infinity Edge”');
+    const pics = await rayan.evaluate(() => [callPics['Zed is level 6'], callPics['Zed finished Infinity Edge']]);
+    assert.deepStrictEqual(pics.map((l) => l.map((x) => x.replace(/^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/[\d.]+\/img\//, ''))), [['champion/Zed.png', '6'], ['champion/Zed.png', 'item/3031.png']], 'on screen as pictures: Zed and the level, Zed and the item');
+    console.log('power spikes: “Zed is level 6”, “Zed finished Infinity Edge”, shown as Zed’s picture with the 6, and with Infinity Edge’s');
 
     // ---- the coach: your gold for the next item of your build (your own games: Doran's Ring, then Rabadon's Deathcap)
     await rayan.evaluate(() => Object.assign(lpc.deep(), { 9901: { at: Date.now(), me: 0, ps: [{ c: 103, l: 'MIDDLE', u: 'me-Rayan' }], tl: { buys: [[20, 1056], [700, 3089]] } } }));
@@ -245,6 +247,21 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await feed(rayan, game(720, SR({ Rayan: { lvl: 7 }, Zedd: { lvl: 10 } })));
     await saw(rayan, 'You’re three levels down: play safe. Zed wins fights until you catch up, so farm near your tower');
     console.log('the coach: the gold for your next item, Dragon in 60 seconds, 3 of them dead, levels down, and I’m new');
+
+    // ---- dragons and Baron, as callouts (What's new 164): they take a third dragon, then your Baron has 30 s left
+    const drag = (t) => ({ e: 'dragon', team: 'CHAOS', t, type: 'Fire' });
+    await feed(rayan, game(800, SR(), { events: [drag(300), drag(600)] }));
+    await rayan.waitForTimeout(1500);
+    assert(!(await rayan.evaluate(() => window.calls)).some((c) => /soul point/.test(c)), 'not on two dragons');
+    await feed(rayan, game(810, SR(), { events: [drag(300), drag(600), drag(805)] }));
+    await saw(rayan, 'They’re on soul point');
+    const baron = { e: 'baron', team: 'ORDER', t: 820, alive: true };
+    await feed(rayan, game(900, SR(), { events: [drag(300), drag(600), drag(805), baron] }));
+    await rayan.waitForTimeout(1500);
+    assert(!(await rayan.evaluate(() => window.calls)).some((c) => /Baron ends/.test(c)), 'not with 100 s of Baron left');
+    await feed(rayan, game(972, SR(), { events: [drag(300), drag(600), drag(805), baron] }));
+    await saw(rayan, 'Your Baron ends in 0:30');
+    console.log('dragons and Baron: “They’re on soul point” at their third dragon, “Your Baron ends in 0:30”');
 
     // ---- the jungle clock: their jungler's last 5 games all end on their blue buff's side at 3:00, which is the bottom
     // side for the red team (theirs here), called at 2:45 in a new game; with where your minimap first showed them, the

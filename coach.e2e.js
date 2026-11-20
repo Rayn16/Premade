@@ -393,6 +393,44 @@ const game = (over = {}) => ({
       console.log('Overlay page: a part dragged, nudged and sized, the rest dragged, then put back; the overlay in a game gets the places');
     }
 
+    // ---- What's new 165: Light, Full and Learning at the top of the Overlay page, each pressed while the boxes match it;
+    // and the HUD check: the score, abilities and minimap as League's HUD settings have them (bigger HUD, a bigger
+    // minimap on the left here), and a part dragged over the minimap in red with a line saying so
+    {
+      const [c, page] = await context(browser, {});
+      await c.addInitScript(() => { lpcClient.lcu = async (m, p) => (p === '/lol-game-settings/v1/game-settings' ? { status: 200, data: { General: {}, HUD: { GlobalScale: 1, MinimapScale: 1.5, FlipMiniMap: true } } } : { status: 404, data: null }); }); // League's client, for its HUD settings
+      await page.reload();
+      await page.evaluate((d) => lpcClient.emit('league', d), game());
+      await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
+      const pressed = () => page.$$eval('#ovPresets [aria-pressed="true"]', (l) => l.map((b) => b.textContent));
+      const on = (...ids) => page.evaluate((ids) => ids.map((id) => document.getElementById(id).checked), ids);
+      const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')));
+      await page.click('#ovPresets [data-preset="learning"]');
+      assert.deepStrictEqual(await pressed(), ['Learning']);
+      assert.deepStrictEqual(await on('optOverlay', 'optCoach', 'optCoachNew', 'optMapNudge', 'optSpikeCall', 'optOverlayChat', 'optJgClock'), [true, true, true, true, true, false, false]);
+      assert((await saved()).coach === true && !!(await saved()).mapNudge, 'saved like a box ticked by hand');
+      await page.click('#ovPresets [data-preset="light"]');
+      assert.deepStrictEqual(await pressed(), ['Light']);
+      assert.deepStrictEqual(await on('optOverlay', 'optOverlayMe', 'optOverlayToasts', 'optOverlayGame', 'optCoach', 'optMapNudge', 'optOverlayBoard'), [true, true, true, true, false, false, false]);
+      await page.check('#optOverlayCs');
+      assert.deepStrictEqual(await pressed(), [], 'a box changed by hand: none pressed');
+      await page.click('#ovPresets [data-preset="full"]');
+      assert.deepStrictEqual(await pressed(), ['Full']);
+      assert.deepStrictEqual(await on('optOverlayChat', 'optOverlayCs', 'optMissList', 'optFoeTimers', 'optJgClock', 'optCoach', 'optDeadTips', 'optMapNudge'), [true, true, true, true, true, false, false, false]);
+      await wait(page, () => document.querySelector('#ovStage .ovmap').style.left === '0.4%', null, 'League’s HUD read: the minimap on the left');
+      assert.deepStrictEqual(await page.evaluate(() => ['.ovscore', '.ovhud', '.ovmap'].map((q) => { const st = document.querySelector('#ovStage ' + q).style; return [st.width, st.height]; })), [['33.6%', '5.6%'], ['', '18.2%'], ['', '39%']]);
+      const box = (k) => page.locator(`#ovHandles .ovhandle[data-part="${k}"]`).boundingBox();
+      const stage = await page.evaluate(() => { const e = document.getElementById('ovStage'), r = e.getBoundingClientRect(); return { x: r.left + e.clientLeft, y: r.top + e.clientTop, w: e.clientWidth, h: e.clientHeight }; });
+      const chat = await box('chat');
+      assert(!(await page.getAttribute('#ovHandles .ovhandle[data-part="chat"]', 'data-covers')), 'chat clear of League’s HUD at first');
+      await page.mouse.move(chat.x + chat.width / 2, chat.y + chat.height - 4); await page.mouse.down(); await page.mouse.move(stage.x + 40 + chat.width / 2, stage.y + stage.h - 20, { steps: 8 }); await page.mouse.up();
+      await wait(page, () => document.querySelector('#ovHandles .ovhandle[data-part="chat"]').hasAttribute('data-covers') && /Room chat covers the minimap\./.test(document.getElementById('ovHudNote').textContent), null, 'Room chat over the minimap, in red');
+      assert(!/Couldn’t read/.test(await page.textContent('#ovHudNote')));
+      await shot(page, 'overlay-hud-check', '.view[data-view="overlay"]');
+      await c.close();
+      console.log('Overlay page: Light, Full and Learning tick their boxes and stay pressed until one changes; the HUD check reads League’s HUD (bigger, minimap left) and turns Room chat red over the minimap');
+    }
+
     // ---- after the game: their jungler's first 14 minutes on the report
     {
       const [c, page] = await context(browser, {});

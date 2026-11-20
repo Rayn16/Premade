@@ -794,6 +794,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .ovhandle:hover, .ovhandle[aria-pressed="true"] { border-style: solid; border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
 .ovhandle span { position: absolute; top: 0; left: 0; padding: 2px 6px; border-radius: 3px 0 4px 0; background: var(--gold); color: var(--bg); font: 600 11px/1.2 var(--body); white-space: nowrap; opacity: 0; pointer-events: none; }
 .ovhandle:is(:hover, :focus-visible, [aria-pressed="true"]) span { opacity: 1; }
+.ovhandle[data-covers] { border: 2px solid var(--bad); background: color-mix(in srgb, var(--bad) 22%, transparent); }
+.ovhandle[data-covers] span { opacity: 1; background: var(--bad); }
+#ovHudNote:empty { display: none; }
+.ovpresets { margin-bottom: 12px; }
 
 /* Open Design layouts: shared pieces */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -2472,6 +2476,7 @@ dialog.wizard { transform: scale(var(--from)); }
     <section class="view" data-view="overlay" aria-label="Overlay" hidden>
       <header class="pagehead"><div><h1 class="title">Overlay</h1><p class="sub">What Premade draws on top of your game, and where it sits.</p></div></header>
       <p id="ovNote" class="phase" role="status" hidden></p>
+      <div id="ovPresets" class="toolbar ovpresets" role="group" aria-label="Overlay presets"><span class="hint">Start from</span><button class="btn small" type="button" data-preset="light" aria-pressed="false" title="Who’s talking, my mic, popups, timers and gold">Light</button><button class="btn small" type="button" data-preset="full" aria-pressed="false" title="Light, plus chat, CS, my lane, ranks, the card after each game, what to buy, win chance, every callout, enemy timers, power spikes and the jungle clock">Full</button><button class="btn small" type="button" data-preset="learning" aria-pressed="false" title="Light, plus ranks, lane tips while dead, what to buy, the card after each game, the minimap reminder, gank warnings, power spikes and the coach">Learning</button></div>
       <div class="prodash">
         <section class="panel" aria-labelledby="h-ovlayout">
           <h2 id="h-ovlayout" class="ph">Layout <button class="tip" type="button" popovertarget="t-overlay" aria-label="About the overlay">?</button></h2>
@@ -2481,6 +2486,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <iframe id="ovFrame" title="The overlay as it shows in a game" tabindex="-1" aria-hidden="true"></iframe>
             <div id="ovHandles" role="group" aria-label="The overlay’s parts: drag one, or pick it and use the arrow keys"></div>
           </div>
+          <p id="ovHudNote" class="hint" role="status"></p>
           <div class="range"><span>Size</span><span id="ovWhat">The rest</span><input id="optScale" type="range" min="0.7" max="2" step="0.1" aria-label="Size of what’s picked"><output id="scaleOut"></output></div>
           <div class="range"><span>See-through</span><span></span><input id="optOpacity" type="range" min="0.3" max="1" step="0.05" aria-label="How solid the overlay is"><output id="opacityOut"></output></div>
           <label class="field">Where the rest goes <select id="optPos"><option value="tl">Top left</option><option value="ml">Middle left</option><option value="mr">Middle right</option><option value="custom">Where I dragged it</option></select></label>
@@ -6404,7 +6410,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     let s = !visible && !full ? { visible: false } : {
-      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', theme: look.dark ? look : null,
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, theme: look.dark ? look : null,
       parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
@@ -6532,9 +6538,11 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   // the line's callouts waiting their turn (calls) and the one showing (callCur), this game (callRoom)
   let calls = [], callCur = null, callRoom = '';
-  function sayCall(text, pri, who) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
+  // pics: pictures the overlay shows instead of the words (a power spike's champion and item, or champion and level);
+  // the words are still what's said out loud
+  function sayCall(text, pri, who, pics) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
     if (who && calls.some((c) => c.who === who && c.pri >= pri)) return;
-    calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, at: performance.now() });
+    calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, pics: pics && pics.every(Boolean) ? pics : null, at: performance.now() });
   }
   function seeFoes(s) { // each minimap frame
     if (!foesOn()) return void (s.foes = null);
@@ -6627,7 +6635,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!callCur || now - callCur.from > 3000) { // each for 3 s, the most urgent first; one that waited 8 s is dropped, 4 s for where someone is now
       calls = calls.filter((c) => now - c.at < (c.pri >= 2 ? 4000 : 8000)).sort((a, b) => b.pri - a.pri || a.at - b.at);
       const next = calls.shift();
-      callCur = next ? { text: next.text, from: now } : null;
+      callCur = next ? { text: next.text, pics: next.pics, from: now } : null;
       if (next && opts.speakCalls && !overlayHide && !overlayEdit) speak(next.text);
     }
     return callCur ? callCur.text : n ? 'Check your minimap' : '';
@@ -7361,7 +7369,53 @@ dialog.wizard { transform: scale(var(--from)); }
     const again = [...$('ovHandles').children].find((b) => b.dataset.part === had);
     if (again) again.focus();
     ovPicked(ovPick);
+    ovHud();
   }
+  // The HUD check (What's new 165): the sketch's score, abilities and minimap sized and placed as League's HUD settings
+  // have them (HUD scale, minimap size, minimap side; read from League's client while this page shows, every 30 s at
+  // most), and each overlay part over one of them in red, with a line saying what it covers
+  let hud = null, hudAt = -Infinity;
+  function ovHud() {
+    presetShow();
+    if (lcuOn() && performance.now() - hudAt > 30000) {
+      hudAt = performance.now();
+      lcuGet(GS).then((r) => { const h = r && r.HUD; hud = h && typeof h === 'object' && ['GlobalScale', 'MinimapScale', 'FlipMiniMap'].some((k) => k in h) ? h : null; ovDraw(); });
+    }
+    // ponytail: League's HUD scale (GlobalScale 0 to 1) and minimap size (MinimapScale, 1 as League starts) taken as
+    // straight size factors around League's usual HUD; check a real screenshot at each end if the boxes look off
+    const k = hud && Number.isFinite(+hud.GlobalScale) ? 0.6 + 0.8 * Math.min(1, Math.max(0, +hud.GlobalScale)) : 1, m = hud && Number.isFinite(+hud.MinimapScale) ? Math.min(2, Math.max(0.3, +hud.MinimapScale)) : 1;
+    const [score, abil, map] = ['.ovscore', '.ovhud', '.ovmap'].map((q) => ovStage.querySelector(q));
+    Object.assign(score.style, { width: `${24 * k}%`, height: `${4 * k}%` });
+    Object.assign(abil.style, { left: `${50 - 17 * k}%`, right: `${50 - 17 * k}%`, height: `${13 * k}%` });
+    Object.assign(map.style, { height: `${26 * m}%`, left: hud && hud.FlipMiniMap ? '0.4%' : '', right: hud && hud.FlipMiniMap ? 'auto' : '' });
+    const sk = [[score, 'the score'], [abil, 'your abilities'], [map, 'the minimap']].map(([e, n]) => [e.getBoundingClientRect(), n]), lines = [];
+    for (const b of $('ovHandles').children) {
+      const r = b.getBoundingClientRect(), hit = sk.filter(([s]) => Math.min(r.right, s.right) - Math.max(r.left, s.left) > 2 && Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top) > 2).map(([, n]) => n);
+      b.toggleAttribute('data-covers', hit.length > 0);
+      if (hit.length) lines.push(`${OV_NAMES[b.dataset.part] || b.dataset.part} covers ${andList(hit)}.`);
+    }
+    $('ovHudNote').textContent = [lines.join(' '), lcuOn() && hud ? '' : 'Couldn’t read League’s HUD settings, so the score, abilities and minimap are where League puts them at first.'].filter(Boolean).join(' ');
+  }
+  // Light, Full and Learning: each ticks its set of boxes in What it shows, Callouts and Timers and coach (through each
+  // box's own change, so everything follows), and stays pressed while the boxes match it. TFT, Mayhem, a teammate's
+  // screen and Read callouts out loud stay as they are.
+  const PRESET_BOXES = ['optOverlay', 'optOverlayMe', 'optOverlayChat', 'optOverlayGame', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optDeadTips', 'optOverlayBuy', 'optOverlayWin', 'optOverlayToasts',
+    'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'];
+  const LIGHT = ['optOverlay', 'optOverlayMe', 'optOverlayToasts', 'optOverlayGame'];
+  const PRESETS = { light: LIGHT, full: [...LIGHT, 'optOverlayChat', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optOverlayBuy', 'optOverlayWin', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optJgClock'],
+    learning: [...LIGHT, 'optOverlayBoard', 'optDeadTips', 'optOverlayBuy', 'optOverlayAfter', 'optMapNudge', 'optGankCall', 'optSpikeCall', 'optCoach', 'optCoachNew'] };
+  const presetOn = (k) => PRESET_BOXES.every((id) => $(id).disabled || $(id).checked === PRESETS[k].includes(id));
+  function presetShow() { for (const b of $('ovPresets').querySelectorAll('[data-preset]')) b.setAttribute('aria-pressed', String(presetOn(b.dataset.preset))); }
+  $('ovPresets').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-preset]');
+    if (!b) return;
+    for (const id of PRESET_BOXES) {
+      const x = $(id), want = PRESETS[b.dataset.preset].includes(id);
+      if (!x.disabled && x.checked !== want) { x.checked = want; x.dispatchEvent(new Event('change', { bubbles: true })); }
+    }
+    presetShow();
+  });
+  ovView.addEventListener('change', presetShow);
   function ovPicked(k) {
     ovPick = k;
     for (const b of $('ovHandles').children) b.setAttribute('aria-pressed', String(b.dataset.part === k));
@@ -8722,8 +8776,21 @@ dialog.wizard { transform: scale(var(--from)); }
       const was = spk.seen.get(p.name), done = (p.items || []).map(([i]) => i).filter((i) => ddItems[i] && ddItems[i].done), lvl = was && [16, 11, 6].find((l) => was.lvl < l && p.lvl >= l);
       spk.seen.set(p.name, { lvl: p.lvl, items: done });
       if (!was) continue;
-      if (lvl) sayCall(`${champName(p.champ)} is level ${lvl}`, 1);
-      for (const i of done) if (!was.items.includes(i)) sayCall(`${champName(p.champ)} finished ${ddItems[i].name}`, 1);
+      if (lvl) sayCall(`${champName(p.champ)} is level ${lvl}`, 1, undefined, [champImg(p.champ), String(lvl)]);
+      for (const i of done) if (!was.items.includes(i)) sayCall(`${champName(p.champ)} finished ${ddItems[i].name}`, 1, undefined, [champImg(p.champ), itemPic(i)]);
+    }
+  }
+  // Dragons and Baron on the line at the top, with callouts on: soul point (a team on 3 dragons, while neither has its
+  // soul) and a team's Baron or Elder buff ending in 30 s (180 s and 150 s after the take), once each a game
+  let objSaid = { room: '', set: new Set() };
+  function objTick() {
+    if (!callsOn() || !mine.team || !Array.isArray(league.events)) return;
+    if (objSaid.room !== league.room) objSaid = { room: league.room, set: new Set() };
+    const ev = league.events, t = gameNow(), say = (k, text) => { if (!objSaid.set.has(k)) { objSaid.set.add(k); sayCall(text, 1); } };
+    const drakes = (ours) => ev.filter((e) => e.e === 'dragon' && (e.team === mine.team) === ours).length;
+    if (drakes(true) < 4 && drakes(false) < 4) for (const ours of [true, false]) if (drakes(ours) === 3) say(`soul${ours}`, ours ? 'You’re on soul point' : 'They’re on soul point');
+    for (const [what, s, name] of [['baron', 180, 'Baron'], ['elder', 150, 'Elder']]) {
+      for (const e of ev.filter((x) => x.e === what && x.team)) { const left = e.t + s - t; if (left > 0 && left <= 30) say(`${what}${e.t}`, `${e.team === mine.team ? 'Your' : 'Their'} ${name} ends in 0:30`); }
     }
   }
   // ---- the coach (the Overlay page, Timers and coach): a tip now and then on the line at the top, from League's game
@@ -17944,6 +18011,14 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [165, 'November 20: Light, Full and Learning, and the HUD check', [
+      'Three buttons at the top of the Overlay page set what it shows in one click: Light (who’s talking, your mic, popups, timers and gold), Full (almost everything) and Learning (tips and reminders for new players). Change any box after.',
+      'The layout picture now has League’s score, abilities and minimap where your own HUD settings put them, and a part that covers one turns red and says what it covers.',
+    ]],
+    [164, 'November 20: power spikes as pictures, dragon soul and Baron', [
+      'Power spikes on the line at the top are now pictures: their champion and the item they finished, or their champion and the level they reached. Read out loud, they’re still words.',
+      'With callouts on: “You’re on soul point” or “They’re on soul point” when a team has 3 dragons, and “Their Baron ends in 0:30” (or Elder) before a buff runs out.',
+    ]],
     [163, 'November 20: the draft in words, and each enemy’s abilities', [
       'Once both teams have locked in, the top of champ select says whether you’re ahead, even or behind on the draft, and what each team lacks: a frontline, magic damage, crowd control or engage. No percentages.',
       'Click an enemy’s card to see their passive and Q, W, E and R, with each cooldown and a short line from Riot, their ultimate marked Watch this, and Riot’s tips for playing against them.',
@@ -18974,6 +19049,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you tick it: Record every match, in the strip at the top of the Clips page. Untick Keep only the highlights beside it to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
     ]],
     ['League: Overlay', 'A see-through layer on top of League, in the desktop app, with a page of its own. League must be in Borderless (League’s Settings, Video, Window Mode) for it to show.', [
+      ['Light, Full and Learning', 'One click sets what the overlay shows: Light for the basics, Full for almost everything, Learning for new players’ tips and reminders. The one that matches your boxes stays pressed.', 'At the top of the Overlay page.', '#ovPresets', 'app'],
+      ['HUD check', 'The layout picture puts League’s score, abilities and minimap where your HUD settings have them, and marks in red any part that covers one, with a line saying what it covers.', 'The Overlay page, Layout.', '#ovStage', 'app'],
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'The Overlay page, What it shows: tick what you want on it.', '#optOverlay', 'app'],
       ['Who’s talking in any game', 'In your room outside League, who’s talking and new room chat show over any full-screen game, only while someone talks or writes, then fade away. Or have it whenever Premade isn’t the window in front.', 'The Overlay page, What it shows: Who’s talking and room chat in other games. Games in Borderless or Windowed mode.', '#optOverlayAny', 'app'],
       ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: the Overlay page, What it shows.', '#optOverlayLane', 'app'],
@@ -18996,7 +19073,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: the Overlay page, Callouts. Drag it anywhere in Layout.', '#optMissList', 'app'],
       ['Enemy timers', 'Say “Premade, mid flash”, “Premade, top ultimate” or “Premade, their red” in a game, or tap them on your phone remote: the countdown shows with the objective timers for everyone in your room who has them on, from their level and items.',
         'Off until you turn it on: the Overlay page, Timers and coach.', '#optFoeTimers', 'app'],
-      ['Power spikes', '“Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”, from League’s scoreboard.', 'Off until you turn it on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
+      ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
+      ['Dragon soul and Baron', '“You’re on soul point” or “They’re on soul point” once a team has 3 dragons, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: the Overlay page, Timers and coach.', '#optSpikeCall', 'app'],
       ['Coach', 'A tip now and then at the top of the screen, like “Back now: you can buy Infinity Edge”, “Dragon in 60 seconds: push your wave”, “3 of them are dead: take Baron” or “You’re two levels down: play safe”. I’m new adds why.',
         'Off until you turn it on: the Overlay page, Timers and coach. The shop and dead tips need app 1.15.', '#optCoach', 'app'],
       ['Jungle clock', 'At 2:45, where their jungler likely is when their first clear ends, like “Lee Sin likely topside around 3:15”, from their own last games and where your minimap first showed them.',
@@ -19160,7 +19238,7 @@ dialog.wizard { transform: scale(var(--from)); }
   ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); crumbTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); crumbTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); objTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
