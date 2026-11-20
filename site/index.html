@@ -1414,6 +1414,86 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .rectime { font: 600 28px/1 var(--mono); color: var(--fg); }
 #recBox[data-on] .rectime { color: var(--bad); }
 
+/* League numbers as pictures (What's new 176, the overlay's 174 look): each League page leads with one splash that fades
+   into the panel on the left (the only gradient), win rates as rings with the number beside them, a block a game, bars
+   for games played, and Porofessor-style game rows under the result edge. Nothing fills or counts up on load. */
+.heroart { position: absolute; top: 0; right: 0; width: 68%; height: 100%; object-fit: cover; object-position: 50% 18%; opacity: 0.5; pointer-events: none; -webkit-mask-image: linear-gradient(to right, transparent, #000 45%); mask-image: linear-gradient(to right, transparent, #000 45%); }
+.heroart[hidden] { display: none; }
+.ring { display: inline-block; flex: none; width: 40px; height: 40px; }
+.ring svg { display: block; width: 100%; height: 100%; }
+.ring circle { fill: none; stroke-width: 3; }
+.ring circle:first-child { stroke: var(--soft-2); }
+.blk { display: flex; flex-wrap: wrap; gap: 3px; }
+.blk i { width: 14px; height: 20px; border-radius: 3px; background: var(--bad); }
+.blk i.w { background: var(--good); }
+.hbar { display: inline-block; vertical-align: middle; width: 64px; height: 8px; margin-right: 10px; border-radius: 4px; background: var(--soft-2); overflow: hidden; }
+.hbar > i { display: block; height: 100%; }
+/* Profile: the hero */
+.prohead { position: relative; overflow: hidden; }
+.prohead > :not(.heroart) { position: relative; }
+.proicon { width: 72px; height: 72px; border: 0; }
+.lvl { bottom: -8px; border-color: var(--line); color: var(--fg); }
+.proname { font: 600 32px/1.15 var(--body); letter-spacing: 0; color: var(--fg); }
+.prohead .rank { background: color-mix(in srgb, var(--panel) 86%, transparent); grid-template-columns: 48px minmax(0, 1fr) auto; }
+.prohead .rank img { max-width: 48px; }
+.rank > .ring { grid-column: 3; grid-row: 1 / span 3; align-self: start; }
+.rank .ph { font-size: 13px; color: var(--muted); }
+/* Profile: last 20 as figures, the record as a ring */
+.timers > span.wr { grid-template-columns: 40px auto; column-gap: 12px; align-items: center; }
+.timers > span.wr > .ring { grid-column: 1; grid-row: 1 / span 2; }
+#proWl { margin-top: -4px; }
+/* game rows like Porofessor's: the champion, the result over the queue and when, K/D/A, CS, then tags and items */
+.games summary.gsum { display: grid; grid-template-columns: 40px minmax(8em, 1.1fr) minmax(7em, 1fr) minmax(5em, 0.7fr) auto; grid-template-areas: "pic res kda cs items" "pic res kda cs tags"; gap: 2px 16px; padding: 10px 14px; }
+.games summary.gsum > .pic0 { grid-area: pic; width: 40px; height: 40px; border: 0; border-radius: var(--r-sm); align-self: center; }
+.gr1, .gk, .gcs { display: grid; gap: 2px; min-width: 0; align-self: center; line-height: 1.25; }
+.gr1 { grid-area: res; } .gk { grid-area: kda; } .gcs { grid-area: cs; }
+.gr1 .gres { font-size: 15px; }
+.gr1 small, .gk small, .gcs small { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gk b { font: 600 15px/1.25 var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gk .d { color: var(--bad); }
+.gcs b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.games summary.gsum .gitems { grid-area: items; justify-self: end; }
+.games summary.gsum .tags { grid-area: tags; justify-self: end; }
+@container app (max-width: 700px) { .games summary.gsum { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "pic res kda" "pic items items" "pic tags tags"; } .gcs { display: none; } .games summary.gsum .gitems, .games summary.gsum .tags { justify-self: start; } }
+/* Stats: the splash fills the hero, the win rate as a ring, five numbers in one row */
+.shero { position: relative; overflow: hidden; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr); min-height: 168px; }
+.shero > :not(.sheroart) { position: relative; }
+.sheroart { position: absolute; inset: 0 0 0 auto; width: 70%; aspect-ratio: auto; border: 0; border-radius: 0; background: none; opacity: 0.5; pointer-events: none; -webkit-mask-image: linear-gradient(to right, transparent, #000 45%); mask-image: linear-gradient(to right, transparent, #000 45%); }
+.sheroart img { object-position: 50% 18%; }
+.sherowho .title { font: 600 30px/1.15 var(--body); color: var(--fg); }
+.sherorank, .sherowr { border-left: 0; padding-left: 0; }
+.sherorank .lpnum { font: 600 15px/1 var(--body); color: var(--fg); }
+.spark polyline { stroke: var(--fg); }
+.sherowr { grid-template-columns: 56px auto; column-gap: 12px; align-items: center; }
+.sherowr > .hint { grid-column: 1 / -1; }
+#heroRing { grid-row: 2 / span 2; }
+#heroRing .ring { width: 56px; height: 56px; }
+.sherowr .lpnum { font: 600 22px/1 var(--body); font-variant-numeric: tabular-nums; }
+.sherowr .wrbar { display: none; }
+.sherowr small { grid-column: 2; font: 500 13px/1 var(--body); }
+@container app (max-width: 900px) { .shero { grid-template-columns: minmax(0, 1fr); } .sheroart { width: 100%; } }
+.tilepanel { padding: 18px 20px; background: var(--panel); border: 1px solid var(--line); }
+.tiles { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px 24px; }
+.tile { gap: 6px; padding: 0; border: 0; background: none; }
+.tile > span { font-size: 12.5px; }
+.tile > b { font: 600 24px/1 var(--body); font-variant-numeric: tabular-nums; }
+.tile > small { font: 500 12.5px/1.2 var(--body); }
+.best td:nth-child(2) .hbar { width: 48px; }
+/* Game, after a game: the champion you played behind Victory or Defeat */
+#postHead:has(> b) { display: grid; gap: 6px; overflow: hidden; min-height: 112px; align-content: center; padding: 20px 24px; }
+#postHead:has(> b)::before { display: none; }
+#postHead > :not(.heroart) { position: relative; }
+#postHead > b { font: 600 32px/1.1 var(--body); }
+#postHead[data-r="Win"] > b { color: var(--good); }
+#postHead[data-r="Lose"] > b { color: var(--bad); }
+#postHead > span { color: var(--muted); }
+#postHead .sep { display: none; }
+#postHead .lp[data-d="up"] { color: var(--good); }
+#postHead .lp[data-d="down"] { color: var(--bad); }
+.takeaways { list-style: none; padding-left: 0; }
+.takeaways li { position: relative; padding-left: 16px; }
+.takeaways li::before { content: ""; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+
 /* Motion (Settings > Look > Animations, 2026-11-12): calm, and only transform and opacity, so it costs no layout while
    a game runs. data-motion on <html>: on; reduced (Windows' Show animations off, or picked): what moves becomes a short
    fade, through --m; off (Pause animations while a game runs): everything instant. Things appearing ease out; what
@@ -1565,6 +1645,7 @@ dialog.wizard { transform: scale(var(--from)); }
         </div>
       </section>
       <header class="panel prohead">
+        <img id="proArt" class="heroart" alt="" hidden>
         <div class="proicon"><img id="proIcon" alt="" hidden><span id="proLvl" class="lvl"></span></div>
         <div class="proid">
           <h1 class="proname"><span id="proName"></span><small id="proTag"></small></h1>
@@ -1608,7 +1689,7 @@ dialog.wizard { transform: scale(var(--from)); }
           </div>
           <h2 id="h-proform" class="ph">Recent games</h2>
           <div id="proForm" class="timers"></div>
-          <div id="proWl" class="mixbar" aria-hidden="true"><span class="w"></span><span class="l"></span></div>
+          <div id="proWl" class="blk" aria-hidden="true"></div>
           <div id="proChamps" class="picks"></div>
           <ol id="proGames" class="games"></ol>
           <div id="proMoreBar" class="toolbar" hidden><button id="proMore" class="btn small" type="button">Show more games</button><span id="proMoreNote" class="hint" role="status"></span></div>
@@ -1685,7 +1766,7 @@ dialog.wizard { transform: scale(var(--from)); }
               </section>
               <section id="roomWatch" class="panel" aria-labelledby="h-watch" hidden>
                 <h2 id="h-watch" class="ph">Watch together</h2>
-                <div id="wtJoinBox" class="wtjoin"><p id="wtJoinText"></p><button id="wtJoin" class="btn primary" type="button">Join</button></div>
+                <div id="wtJoinBox" class="wtjoin"><p id="wtJoinText"></p><button id="wtJoin" class="btn" type="button">Join</button></div>
                 <div id="wtSlot" hidden></div>
                 <div><b id="wtTitle"></b><p id="wtWho" class="hint" role="status"></p><p id="wtNote" class="hint" role="status"></p></div>
                 <div class="toolbar"><button id="wtFind" class="btn small" type="button">Find a video</button><button id="wtLeave" class="btn small" type="button">Stop watching</button><button id="wtEnd" class="btn small" type="button">End for everyone</button><a class="hint" href="https://www.youtube.com/t/terms" target="_blank" rel="noopener">YouTube Terms of Service</a></div>
@@ -1713,7 +1794,7 @@ dialog.wizard { transform: scale(var(--from)); }
                     <label class="field">Play with <select id="chWho"></select></label>
                     <div class="field">Mode <div id="chMode" class="chseg" role="group" aria-label="Mode"><button type="button" data-mode="normal" aria-pressed="true">Normal</button><button type="button" data-mode="cards" aria-pressed="false">Card Chess</button></div></div>
                     <label class="field">Clock <select id="chClock"><option value="0">No clock</option><option value="3">3 min each</option><option value="5">5 min each</option><option value="10">10 min each</option></select></label>
-                    <button id="chPlay" class="btn primary" type="button">Play</button>
+                    <button id="chPlay" class="btn" type="button">Play</button>
                   </div>
                   <details class="chrules">
                     <summary>How Card Chess works</summary>
@@ -1729,7 +1810,7 @@ dialog.wizard { transform: scale(var(--from)); }
                     <div class="chboardbox">
                       <div id="chBoard" class="chboard" role="group" aria-label="Chess board"></div>
                       <div id="chPromo" class="chover" hidden><span>Turn the pawn into</span><div id="chPromoBtns" class="chpromo"></div></div>
-                      <div id="chResult" class="chover" hidden><b id="chResTitle"></b><span id="chResWhy"></span><div class="toolbar"><button id="chRematch" class="btn primary" type="button">Rematch</button><button id="chClose" class="btn" type="button">Close</button></div></div>
+                      <div id="chResult" class="chover" hidden><b id="chResTitle"></b><span id="chResWhy"></span><div class="toolbar"><button id="chRematch" class="btn" type="button">Rematch</button><button id="chClose" class="btn" type="button">Close</button></div></div>
                     </div>
                     <div class="chbot"><div id="chBotTaken" class="chtaken" aria-label="Pieces you took"></div><div id="chBotSeat" class="chseat"><span class="chswatch"></span><span class="chnm"></span><span class="chclock"></span></div></div>
                     <div class="chmid">
@@ -1754,7 +1835,7 @@ dialog.wizard { transform: scale(var(--from)); }
                   <div id="lcIdle" class="chgrid">
                     <p class="hint">Play Last Card with your room: 2 to 10 players, 30 seconds a turn. Anyone you leave out watches.</p>
                     <div class="field">Who plays<div id="lcWho" class="lcpick"></div></div>
-                    <div class="toolbar"><button id="lcPlay" class="btn primary" type="button">Play</button></div>
+                    <div class="toolbar"><button id="lcPlay" class="btn" type="button">Play</button></div>
                     <details class="chrules">
                       <summary>How Last Card works</summary>
                       <ul id="lcRules" class="chrulelist"></ul>
@@ -1791,7 +1872,7 @@ dialog.wizard { transform: scale(var(--from)); }
                     <div id="lcEnd" class="lcend" hidden>
                       <b>Places</b>
                       <ol id="lcPlaces" class="lcplaces"></ol>
-                      <div class="toolbar"><button id="lcRematch" class="btn primary" type="button">Rematch</button><button id="lcClose" class="btn" type="button">Close</button></div>
+                      <div class="toolbar"><button id="lcRematch" class="btn" type="button">Rematch</button><button id="lcClose" class="btn" type="button">Close</button></div>
                     </div>
                   </div>
                 </div>
@@ -1859,7 +1940,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <div id="roomBar" class="roombar pc-only">
               <kbd id="barPtt"></kbd><span id="barPttText" class="hint"></span>
               <span id="barNear" class="hint"></span>
-              <button id="clipNowBtn" class="btn primary client-only" type="button">Clip last 30s</button>
+              <button id="clipNowBtn" class="btn client-only" type="button">Clip last 30s</button>
             </div>
           </div>
         </div>
@@ -1940,7 +2021,7 @@ dialog.wizard { transform: scale(var(--from)); }
           <ul id="sqList" class="plain"></ul>
           <div id="sqCallBox" class="stack" hidden>
             <p id="sqCall" class="phase" data-game="1"></p>
-            <div class="toolbar"><button id="sqJoin" class="btn primary small" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
+            <div class="toolbar"><button id="sqJoin" class="btn small" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
           </div>
           <div class="toolbar"><button id="sqCallBtn" class="btn primary" type="button" hidden>Call the squad</button><button id="sqMake" class="btn" type="button">Make a squad</button><span id="sqJoins" class="toolbar"></span><button id="sqLeave" class="btn small" type="button" hidden>Leave the squad</button></div>
           <div id="sqPings" class="stack" hidden>
@@ -2316,7 +2397,7 @@ dialog.wizard { transform: scale(var(--from)); }
         <div class="sheroart"><img id="heroArt" alt=""></div>
         <div class="sherowho"><h2 id="heroName" class="title"></h2><p id="heroSub" class="hint"></p></div>
         <div class="sherorank"><span id="heroRank" class="who"></span><b id="heroLp" class="lpnum"></b><svg id="heroSpark" class="spark" viewBox="0 0 160 40" aria-hidden="true"></svg></div>
-        <div class="sherowr"><span class="hint">Win rate</span><b id="heroWr" class="lpnum"></b><div class="wrbar" aria-hidden="true"><span id="heroWrBar"></span></div><small id="heroWl"></small></div>
+        <div class="sherowr"><span class="hint">Win rate</span><span id="heroRing"></span><b id="heroWr" class="lpnum"></b><div class="wrbar" aria-hidden="true"><span id="heroWrBar"></span></div><small id="heroWl"></small></div>
       </section>
       <section id="statsTiles" class="panel lcu-only tilepanel" data-tab="you" aria-label="Your numbers"><div id="tiles" class="tiles"></div></section>
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-best">
@@ -3121,7 +3202,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Clips are .mp4, which phones, WhatsApp and Discord play; the first one is .webm while the app fetches FFmpeg to make them. Each game is a row with its clips. Here you can play, cut, rename and save your clips, copy one to paste into a chat, or drag one straight into Discord. Saved clips stay in their game (press Saved to see only them) and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
+<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (a green dot on their face); Show offline friends lists the rest, with when they were last online. Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. With the lobby box ticked, when a friend with Premade joins your League lobby, their Premade joins your voice room by itself (if they aren't in a room they joined themselves). Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -12121,14 +12202,21 @@ dialog.wizard { transform: scale(var(--from)); }
   const MULTI = ['', '', 'Double kill', 'Triple kill', 'Quadra kill', 'Pentakill'];
   function gameLi(x, who, plat) {
     const li = document.createElement('li');
-    li.innerHTML = '<details><summary><img class="pic0" alt=""><span class="gwhen"></span><span class="gwhat"></span><span class="tags"></span><span class="gitems"></span><span class="gres"></span></summary><div class="gbody"></div></details>';
+    // a row like Porofessor's (What's new 176): the result edge, the champion, Victory or Defeat over the queue and when,
+    // the K/D/A with deaths in red, CS and length, tags and items. .gwhat keeps the whole line for screen readers.
+    li.innerHTML = '<details><summary class="gsum"><img class="pic0" alt="" loading="lazy"><span class="gr1"><span class="gres"></span><small><span class="gq"></span> · <span class="gwhen"></span></small></span><span class="gk" aria-hidden="true"><b><span></span> / <span class="d"></span> / <span></span></b><small></small></span><span class="gcs" aria-hidden="true"><b></b><small></small></span><span class="gwhat sr"></span><span class="tags"></span><span class="gitems"></span></summary><div class="gbody"></div></details>';
     li.querySelector('img').src = champImg(x.champ);
     li.querySelector('.gwhen').textContent = whenText(x.at);
+    li.querySelector('.gq').textContent = QUEUES[x.queue] || cap(x.mode);
+    li.querySelectorAll('.gk b span').forEach((s, i) => { s.textContent = [x.k, x.d, x.a][i]; });
+    li.querySelector('.gk small').textContent = `${kda(x.k, x.d, x.a)} KDA`;
+    li.querySelector('.gcs b').textContent = `${x.cs} CS`;
+    li.querySelector('.gcs small').textContent = `${Math.round(x.len / 60)} min`;
     li.querySelector('.gwhat').textContent = [champName(x.champ), `${x.k}/${x.d}/${x.a}`, `${x.cs} CS`, `${Math.round(x.len / 60)} min`, QUEUES[x.queue] || cap(x.mode)].join(' · ');
     li.querySelector('.tags').append(...[MULTI[Math.min(5, Math.max(x.multi | 0, x.penta ? 5 : x.quadra ? 4 : 0))], x.fb && 'First blood'].filter(Boolean).map((t) => tag('good', t)));
-    li.querySelector('.gitems').append(...(x.items || []).map((id) => { const img = Object.assign(new Image(), { src: itemPic(id), alt: '', title: itemName(id) }); img.dataset.id = id; return img; }));
+    li.querySelector('.gitems').append(...(x.items || []).map((id) => { const img = Object.assign(new Image(), { src: itemPic(id), alt: '', title: itemName(id), loading: 'lazy' }); img.dataset.id = id; return img; }));
     li.querySelector('.gres').dataset.r = x.win ? 'Win' : 'Lose';
-    li.querySelector('.gres').textContent = x.win ? 'Win' : 'Loss';
+    li.querySelector('.gres').textContent = x.win ? 'Victory' : 'Defeat';
     li.querySelector('details').addEventListener('toggle', async (e) => {
       const body = li.querySelector('.gbody');
       if (!e.target.open || body.childElementCount) return;
@@ -13175,8 +13263,14 @@ dialog.wizard { transform: scale(var(--from)); }
     $('postHead').classList.remove('land');
     void $('postHead').offsetWidth; // restarts the landing
     $('postHead').classList.add('land');
-    $('postHead').textContent = [p.win ? 'Victory' : 'Defeat', champName(p.champ), `${p.k}/${p.d}/${p.a}`, `${Math.round(r.len / 60)} min`, QUEUES[r.queue] || MODES[r.mode] || cap(r.mode),
-      lp ? `${lp.delta >= 0 ? '+' : ''}${lp.delta} LP` : '', `score ${p.score}${p.badge ? ` (${p.badge})` : ''}`, whenText(r.at)].filter(Boolean).join(' · ');
+    // the hero (What's new 176): the champion you played behind Victory or Defeat, then the game in one line, +LP in its colour
+    const art = Object.assign(new Image(), { className: 'heroart', alt: '' }), id = (champOf(p.champ) || {}).id, res = document.createElement('b'), line = document.createElement('span'), lpe = document.createElement('span');
+    if (id) art.src = `${DD}/cdn/img/champion/splash/${id}_0.jpg`;
+    res.textContent = p.win ? 'Victory' : 'Defeat';
+    line.append(Object.assign(document.createElement('span'), { className: 'sep', textContent: ' · ' }), [champName(p.champ), `${p.k}/${p.d}/${p.a}`, `${Math.round(r.len / 60)} min`, QUEUES[r.queue] || MODES[r.mode] || cap(r.mode)].join(' · '));
+    if (lp) { lpe.className = 'lp'; lpe.dataset.d = lp.delta >= 0 ? 'up' : 'down'; lpe.textContent = `${lp.delta >= 0 ? '+' : ''}${lp.delta} LP`; line.append(' · ', lpe); }
+    line.append(' · ' + [`score ${p.score}${p.badge ? ` (${p.badge})` : ''}`, whenText(r.at)].join(' · '));
+    $('postHead').replaceChildren(...(id ? [art] : []), res, line);
     rep.prepend(rep.querySelector('.rmore')); // how you played first, then everyone's scores
     $('postBody').replaceChildren(rep);
     reportOpen(rep, r);
@@ -13219,6 +13313,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const [W, L] = n ? [w, l] : [gw, g.length - gw], wr = W + L ? Math.round((100 * W) / (W + L)) : null;
     $('heroWr').textContent = wr == null ? '—' : `${wr}%`;
     $('heroWrBar').style.width = `${wr || 0}%`;
+    $('heroRing').replaceChildren(...(wr == null ? [] : [wrRing(wr)])); // the ring is the picture now; the bar stays hidden
     $('heroWl').textContent = W + L ? `${W}W · ${L}L${n ? '' : ' in your last 20'}` : '';
     const avg = (xs, f) => (xs.length ? xs.reduce((t, x) => t + f(x), 0) / xs.length : null), last = g.slice(0, 5), kp = g.filter((x) => typeof x.kp === 'number'), lastKp = kp.slice(0, 5);
     const T = [['Your KDA', (x) => (x.k + x.a) / Math.max(1, x.d), (v) => v.toFixed(2), g, last], ['CS per minute', (x) => x.cs / (x.len / 60), (v) => v.toFixed(1), g, last], ['Vision score', (x) => x.vision, (v) => v.toFixed(1), g, last],
@@ -13241,6 +13336,8 @@ dialog.wizard { transform: scale(var(--from)); }
       tr.querySelector('b').textContent = champName(c.c);
       tr.querySelector('button').addEventListener('click', () => openChamp(c.c));
       [v[0], `${Math.round(100 * v[1])}%`, v[2].toFixed(2), v[3].toFixed(1)].forEach((t, i) => { tr.children[i + 1].textContent = t; tr.children[i + 1].classList.toggle('topv', v[i] === best[i] && rows.some((x) => x[i + 1] !== best[i])); });
+      tr.children[1].prepend(hbar((100 * v[0]) / best[0], '#4ea3e0')); // games as a Played bar, the win rate in its colour (gold when it's your best)
+      if (!tr.children[2].classList.contains('topv')) tr.children[2].style.color = rateC(100 * v[1]);
       return tr;
     }));
   }
@@ -13898,6 +13995,7 @@ dialog.wizard { transform: scale(var(--from)); }
     s.querySelector('h2').textContent = label;
     s.querySelector('.rtier').textContent = q === undefined ? '…' : i < 0 ? 'Unranked' : rkName(q);
     s.querySelector('.hint').textContent = i < 0 ? '' : [`${q.leaguePoints | 0} LP`, n ? `${q.wins | 0}W ${q.losses | 0}L · ${Math.round((100 * q.wins) / n)}%` : '', more].filter(Boolean).join(' · ');
+    if (n) s.append(wrRing((100 * q.wins) / n));
     if (i >= 0 && rkVal(peak) > rkVal(q)) s.append(Object.assign(document.createElement('p'), { className: 'hint peak', textContent: `Peak this season: ${rkName(peak)}` }));
     for (const [cls, k, t] of lines) if (t) { const l = Object.assign(document.createElement('p'), { className: cls, textContent: t }); if (k) l.dataset.k = k; s.append(l); }
     return s;
@@ -13978,12 +14076,16 @@ dialog.wizard { transform: scale(var(--from)); }
     $('h-proform').textContent = n ? `Last ${n} ${label}game${n === 1 ? '' : 's'}` : `Recent ${label}games`;
     $('proRolesBox').hidden = !roles.length; // Summoner's Rift games of this tab: games and wins in each role
     $('proRolesNote').textContent = $('h-proform').textContent;
-    $('proRoles').replaceChildren(...roles.map(([r, [m, v]]) => { const tr = document.createElement('tr'); for (const t of [POS[r], m, `${v}W ${m - v}L · ${pct(v / m)}`]) tr.append(Object.assign(document.createElement('td'), { textContent: t })); return tr; }));
+    $('proRoles').replaceChildren(...roles.map(([r, [m, v]]) => { const tr = document.createElement('tr'); for (const t of [POS[r], m, `${v}W ${m - v}L · ${pct(v / m)}`]) tr.append(Object.assign(document.createElement('td'), { textContent: t })); tr.children[1].prepend(hbar((100 * m) / roles[0][1][0], '#4ea3e0')); tr.children[2].prepend(hbar((100 * v) / m, rateC((100 * v) / m))); return tr; }));
     $('proForm').replaceChildren(...(!n ? [] : tft ? [tile('Average place', (g.reduce((t, x) => t + x.place, 0) / n).toFixed(1)), tile('Top 4', `${w} of ${n} · ${pct(w / n)}`), tile('Firsts', String(g.filter((x) => x.place === 1).length)),
-      main && tile('Main trait', `${tftName(main)}, ${mn} of ${n}`)] : [tile('Record', `${w}W ${n - w}L · ${Math.round((100 * w) / n)}%`), tile('KDA', `${(k / n).toFixed(1)} / ${(d / n).toFixed(1)} / ${(a / n).toFixed(1)} · ${kda(k, d, a)}`),
+      main && tile('Main trait', `${tftName(main)}, ${mn} of ${n}`)] : [Object.assign(tile('Record', `${w}W ${n - w}L · ${Math.round((100 * w) / n)}%`), { className: 'wr' }), tile('KDA', `${(k / n).toFixed(1)} / ${(d / n).toFixed(1)} / ${(a / n).toFixed(1)} · ${kda(k, d, a)}`),
       rift.length && tile('CS a minute', (rift.reduce((t, x) => t + x.cs / (x.len / 60), 0) / rift.length).toFixed(1)), role && tile('Main role', `${POS[role]}, ${rn} of ${n}`)]).filter(Boolean));
     $('proWl').hidden = !n;
-    $('proWl').firstChild.style.width = pct(n ? w / n : 0);
+    $('proWl').replaceChildren(...wlBlocks(g.map((x) => (tft ? x.place <= 4 : x.win)))); // a block a game, newest on the left
+    if (n && !tft) $('proForm').firstChild.append(wrRing((100 * w) / n));
+    const art = !tft && by.size ? splashOf([...by].sort((x, y) => y[1].length - x[1].length)[0][0], 0) : ''; // the hero: your most played champion here
+    if ($('proArt').dataset.src !== art) { $('proArt').dataset.src = art; if (art) $('proArt').src = art; else $('proArt').removeAttribute('src'); }
+    $('proArt').hidden = !art;
     $('proChamps').replaceChildren(...[...by].sort((x, y) => y[1].length - x[1].length).slice(0, 3)
       .map(([c, l]) => champTile(c, `${l.length} game${l.length === 1 ? '' : 's'} · ${Math.round((100 * l.filter((x) => x.win).length) / l.length)}% won · ${kda(...['k', 'd', 'a'].map((s) => l.reduce((t, x) => t + x[s], 0)))} KDA`, pages)));
     renderProChamps(p, tft ? [] : all, label, pages);
@@ -14583,6 +14685,26 @@ dialog.wizard { transform: scale(var(--from)); }
     renderTftItems();
   }
   function tile(label, v) { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = label; s.append(b, v); return s; } // a number with its name over it (.timers)
+  // League numbers as pictures (What's new 176, the 174 look of the overlay): a win-rate ring (green from 55%, red at 45%
+  // or less) with its number beside it, not in it; a block a game, newest first; a bar against the most. No text inside,
+  // so the rows read the same as before, and nothing fills on load.
+  function rateC(p) { return p >= 55 ? 'var(--good)' : p <= 45 ? 'var(--bad)' : 'var(--fg)'; }
+  function wrRing(p) {
+    const s = document.createElement('span');
+    s.className = 'ring';
+    s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = `<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5"/><circle cx="18" cy="18" r="15.5" stroke-dasharray="${((Math.max(0, Math.min(100, p)) / 100) * 97.39).toFixed(1)} 97.39" transform="rotate(-90 18 18)" style="stroke: ${rateC(p)}"/></svg>`;
+    return s;
+  }
+  function wlBlocks(wins) { return wins.map((w) => Object.assign(document.createElement('i'), { className: w ? 'w' : '' })); }
+  function hbar(pc, color) {
+    const b = document.createElement('i'), f = document.createElement('i');
+    b.className = 'hbar';
+    b.setAttribute('aria-hidden', 'true');
+    f.style.cssText = `width: ${Math.max(2, Math.min(100, pc))}%; background: ${color}`;
+    b.append(f);
+    return b;
+  }
   async function renderTftGames() { // your TFT ranks (League's client, or as it last said) and last 20 games, from League's client
     const why = !lcuOn() ? 'Your TFT ranks and games come from League’s client, so they show in Premade’s desktop app while League is running. Team codes work here too.'
       : !client.front ? 'Your TFT games come with the next app update.' : !lcu ? 'Start League to see your TFT games.' : '';
@@ -18394,6 +18516,14 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [176, 'November 21: your League numbers as pictures', [
+      'Profile, Stats and the Game page after a game each lead with your champion’s splash. Win rates are rings, your last 20 are green and red blocks, games played are bars.',
+      'Game rows read like Porofessor’s: Victory or Defeat over the queue, your K/D/A with deaths in red, CS and items.',
+    ]],
+    [175, 'November 21: a new look on every page', [
+      'Every page has the calmer look of champ select and Clips: no shouting capitals, one red button a screen, and selected tabs and chips in white.',
+      'Rooms and Friends show faces: a green ring on whoever talks, and a green dot on friends who are online. Open rooms show a slot for each player.',
+    ]],
     [174, 'November 20: player stats as pictures', [
       'Each player on the loading screen has three rings: Last 20 and Season with the win % inside, green or red, and their main role’s icon in the middle, red when they play another role this game.',
       'Hover Last 20: a green or red block a game, then the newest 10 as rows with the champion, Victory or Defeat, queue, K/D/A and items. Hover the role or Season: blue bars for games played and green or red bars for win rate, their rank, peak and last season, and top mastery. Alt+X in a game shows them too.',
@@ -19230,7 +19360,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
       ['Your screen shared by itself', 'When you join a room, and in every game, the desktop app shares your screen by itself, from the moment Premade opens: your main screen in a room. In a game the minimap tracker, callouts and the surrender vote pop-up read it without pressing Share when League is on that screen, and friends watching it don’t reconnect. With League mode on, or outside a room, it moves to the screen League is on when that’s another one, and back to your main screen when the game ends. It doesn’t join a room or turn voice on: you’re heard only in a room you or Join my game’s room put you in.',
         'On unless you turn it off: Voice settings, In a game. Stop sharing at the top of your room and that room or game stays unshared.', '#optAutoShare', 'app'],
-      ['Player cards', 'Each friend’s champion, rank, record with you and connection, with Close, Near or Far once you’re in a game. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
+      ['Player cards', 'Each friend’s face with a green ring while they talk, their champion, rank, record with you and connection, with Close, Near or Far once you’re in a game. New voices start at 150%; turn one friend up or down (up to 400%) and Premade remembers your volume and mute choices on this computer. Watch their game, or press Help to see what’s wrong with their setup and copy connection details.',
         'In your room, under In this room.', '#cardBox, #createBtn'],
       ['Your room in a game', 'Once a game starts your room turns into a game screen: each player as a row with how far away they are and their volume, the minimap with your hearing range, who’s in hearing range, your mic’s level, and a bar at the foot with your mic key and Clip last 30s.',
         'Nothing to set up: join a room and start a game. The Current room card keeps the code, how long you’ve been in, the invite link, Lock, Share screen and Leave.', '#roomCards, #curRoom, #createBtn'],
@@ -19255,7 +19385,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
     ['Friends', 'Your friends, who’s online, invites and your squad.', [
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (🟢); Show offline friends lists the rest, with when they were last online (⚪). Invite pops up in their Premade right away to join your voice room, no code needed; in the Windows app its notification has a Join button. They’re under your profile too: click one to see their profile, rank and games.',
+      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (a green dot on their face); Show offline friends lists the rest, with when they were last online. Invite pops up in their Premade right away to join your voice room, no code needed; in the Windows app its notification has a Join button. They’re under your profile too: click one to see their profile, rank and games.',
         'The Friends page. Your League friends show by themselves in the desktop app; add others by Riot ID, or by the Premade code under Add a friend (Copy, and send it to them).', '#groupBox, #frCode'],
       ['Lobby friends join your room', 'When a friend with Premade joins your League lobby, their Premade joins your voice room by itself, and you join theirs when you join their lobby.',
         'On unless you turn it off: the Friends page, under the list.', '#optLobbyRoom', 'app'],
@@ -19350,7 +19480,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Hurt voice', 'Your voice turns shaky and rough while your champion is low on health.', 'On unless you turn it off: Voice settings, In a game.', '#optHurt', 'app'],
     ]],
     ['League: Profile', 'You in League, like a stats site. Premade opens on it.', [
-      ['Your League profile', 'Your icon, Riot ID, level and ranks, where you are in League right now, your recent games with their items, your roles, champions and mastery.',
+      ['Your League profile', 'Your most played champion’s splash behind your icon, Riot ID, level and ranks (each with a win-rate ring), where you are in League right now, your last 20 as green and red blocks, your recent games as rows with K/D/A, CS and items, your roles as bars, champions and mastery.',
         'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
       ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
         'Type Name#TAG in the box beside your name. In a live game, click a name to open that player.', '#proId'],
@@ -19414,11 +19544,11 @@ dialog.wizard { transform: scale(var(--from)); }
         'Start a Practice Tool game from Pregame, buy a jungle pet and clear your camps. Pick how many camps make a clear on Game.', '#jgBox', 'app'],
       ['Scoreboard', 'Both teams as they sat on the map with kills, gold, towers, dragons and Barons, and each player’s level, spells, runes, rank, K/D/A, damage, CS, gold, vision, items and this game’s tags. Watch the match and Your clips go to the game on the Clips page.',
         'Your last game, on Game, once a game ends; every game report; Scoreboard on each game on the Clips page and on the card after a game.', '#postBox', 'app'],
-      ['How you played', 'After a game: you against your usual games, high elo players and your lane opponent, your gold and CS minute by minute, where you got kills and died, and the objectives each team took.',
+      ['How you played', 'After a game: the champion you played behind Victory or Defeat and your +LP, then you against your usual games, high elo players and your lane opponent, your gold and CS minute by minute, where you got kills and died, and the objectives each team took.',
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
     ]],
     ['League: Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
-      ['Your stats at a glance', 'The top of Stats: your most played champion’s splash art, your rank with its LP line, your win rate, five numbers from your last 20 games (KDA, CS a minute, vision, kill participation, game length) each against your last 5, and the champions you’re best on.',
+      ['Your stats at a glance', 'The top of Stats: your most played champion’s splash art, your rank with its LP line, your win rate as a ring, five numbers from your last 20 games (KDA, CS a minute, vision, kill participation, game length) each against your last 5, and the champions you’re best on.',
         'Stats, You. It fills in from League’s client.', '#statsHero, #tiles', 'app'],
       ['LP tracker and rank goal', 'Your LP after each ranked game, today’s wins, losses and LP, a chart of your rank, and how many wins your goal takes at the LP you usually win.',
         'Stats, You, Ranked: pick a Goal. It counts the games you play with the app open.', '#lpGoal', 'app'],
