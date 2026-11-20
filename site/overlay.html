@@ -27,33 +27,71 @@ svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width:
 /* Move it: a frame you can drag anywhere, with a sample of what shows in it */
 body.edit { outline: 2px dashed var(--gold); outline-offset: -2px; background: color-mix(in srgb, var(--bg) 40%, transparent); -webkit-app-region: drag; cursor: move; }
 .edit .toast { border-color: var(--gold); }
-/* Everyone's rank (board): the whole screen, over League's loading screen. Your team on the left in the top half and
-   theirs in the bottom half, the tips for your lane on the right, the middle left to League. Sized by the screen's
-   height, like League's own screens; a half cuts off what doesn't fit rather than run into the other. */
-body.board { font-size: calc(1.25vh * var(--k, 1)); }
-.board #main { display: block; padding: 0; }
-.board .stack { position: absolute; top: 1vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; }
-.side { position: absolute; top: 1.2vh; bottom: 1.2vh; left: 0.6vw; width: calc(36vh * var(--k, 1)); display: flex; flex-direction: column; gap: 1.2vh; }
-.half { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.35em; }
-.team { font-size: 0.8em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
-.card { flex: none; display: flex; align-items: flex-start; gap: 0.5em; padding: 0.35em 0.5em; border: 1px solid var(--gold-line); border-radius: 0.45em; background: color-mix(in srgb, var(--bg) 88%, transparent); font-weight: 500; }
-.card.me { border-color: var(--fg); box-shadow: 0 0 0.5em color-mix(in srgb, var(--gold) 70%, transparent); }
-.card .pic { width: 2.4em; height: 2.4em; margin-top: 0.1em; font-size: 1em; }
-.card > div { flex: 1; min-width: 0; }
-.card .emb { flex: none; width: 2.6em; height: 2.6em; align-self: center; object-fit: contain; } /* Riot's emblem for their rank */
-.who { display: flex; align-items: baseline; gap: 0.4em; white-space: nowrap; }
-.who b { overflow: hidden; text-overflow: ellipsis; }
+/* Everyone's rank (board, What's new 166-168): Premade's own loading screen over all of League's (load), or the same
+   smaller in the middle in a game (Alt+V), clear of the score, abilities and minimap. Your team on top on the red side,
+   at the bottom on the blue side. Sized by the screen's height (1em = 1vh), like League's own screens. Cards (A), rows
+   (B) or your lane first (D). A stat's box (.pop) shows while the mouse is over it (CSS alone). */
+body.board { font-size: calc(1vh * var(--k, 1)); }
+.team { font-size: 0.8em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); } /* the toasts' heads */
 .sub { overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 0.9em; }
-.lane { margin-left: auto; padding: 0 0.4em; border-radius: 0.3em; background: var(--gold); color: var(--bg); font-size: 0.8em; font-weight: 700; text-shadow: none; }
-.rk { font-weight: 600; }
-.ch { color: color-mix(in srgb, var(--gold) 70%, var(--fg)); font-size: 0.92em; }
-.chips { display: flex; flex-wrap: wrap; gap: 0.2em 0.3em; margin-top: 0.2em; }
-.chip { padding: 0 0.45em; border: 1px solid #5b5a56; border-radius: 999px; font-size: 0.85em; white-space: nowrap; }
-.chip.good { border-color: var(--good); color: color-mix(in srgb, var(--good) 60%, var(--fg)); }
-.chip.bad { border-color: var(--bad); color: color-mix(in srgb, var(--bad) 55%, var(--fg)); }
-.tipcol { position: absolute; top: 1.2vh; right: 0.6vw; width: calc(36vh * var(--k, 1)); max-height: 97.6vh; overflow: hidden; }
-.tipcol ul { margin: 0.35em 0 0; padding: 0.5em 0.7em 0.5em 1.7em; border: 1px solid var(--gold-line); border-radius: 0.45em; background: color-mix(in srgb, var(--bg) 88%, transparent); font-weight: 500; }
-.tipcol li { margin: 0.3em 0; }
+.board #main { display: block; padding: 0; }
+.board .stack { position: absolute; z-index: 2; top: 1vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; }
+.rb { position: absolute; left: 50%; top: 9vh; transform: translateX(-50%) scale(0.62); transform-origin: 50% 0; display: flex; flex-direction: column; gap: 1.6em; width: 172em; }
+.rb.load { inset: 0; top: 0; transform: none; width: auto; padding: 6em 6.7em 2em; box-sizing: border-box; background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--raised) 70%, var(--bg)), var(--bg) 72%); gap: 2.2em; }
+.rhead { display: flex; justify-content: space-between; font-size: 1.5em; color: var(--muted); }
+.rhead b { color: var(--fg); }
+.rb:not(.load) { padding: 1.6em; border-radius: 1.6em; background: color-mix(in srgb, var(--bg) 72%, transparent); }
+.rb:not(.load) .rhead span:first-child { display: none; }
+.rb .team { font-size: 1.5em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg); margin-bottom: 0.6em; }
+.rb .foes .team { color: var(--bad); }
+.crow { display: flex; gap: 2.2em; }
+.pc { position: relative; flex: 1; min-width: 0; height: 35em; box-sizing: border-box; border-radius: 1.3em; border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent); background: var(--raised); font-weight: 500; }
+.pc.foe { border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+.pc.me { border: 2px solid var(--fg); box-shadow: 0 0 2em color-mix(in srgb, var(--fg) 45%, transparent); }
+.pc > .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 10%; border-radius: inherit; }
+.pc .chipx { position: absolute; top: 0.9em; left: 0.9em; padding: 0.25em 0.9em; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 1.2em; font-weight: 700; text-shadow: none; }
+.pc .sp { position: absolute; top: 0.9em; right: 0.9em; display: flex; gap: 0.45em; }
+.sp img { width: 2.8em; height: 2.8em; border-radius: 0.5em; border: 1px solid #0009; }
+.pc .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 2.8em 1.3em 1.3em; border-radius: 0 0 1.3em 1.3em; background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 94%, transparent) 26%); display: grid; gap: 0.45em; }
+.rb .who { display: flex; align-items: baseline; gap: 0.7em; white-space: nowrap; min-width: 0; }
+.rb .who b { font-size: 1.75em; overflow: hidden; text-overflow: ellipsis; }
+.rb .sub { overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 1.3em; }
+.rb .rk { display: flex; align-items: center; gap: 0.6em; font-size: 1.45em; font-weight: 600; }
+.rb .rk img { width: 1.7em; height: 1.7em; object-fit: contain; }
+.rb .ch { font-size: 1.3em; }
+.st3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55em; }
+.st { position: relative; display: flex; align-items: center; gap: 0.45em; min-width: 0; padding: 0.35em 0.45em; border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent); border-radius: 0.75em; background: color-mix(in srgb, var(--bg) 60%, transparent); }
+.st.off { border-color: color-mix(in srgb, var(--bad) 70%, transparent); }
+.st.off .lb { color: color-mix(in srgb, var(--bad) 55%, var(--fg)); }
+.st svg { flex: none; width: 2.8em; height: 2.8em; }
+.st > span { display: grid; min-width: 0; line-height: 1.2; }
+.lb { font-size: 1em; color: var(--muted); }
+.vl { font-size: 1.1em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pop { display: none; position: absolute; z-index: 5; left: 0; bottom: calc(100% + 0.6em); width: 40em; max-height: 60vh; overflow: hidden; padding: 0.8em 1.1em; border: 1px solid var(--gold-line); border-radius: 0.8em; background: var(--panel); font-size: 1.2em; font-weight: 500; text-shadow: none; }
+.st:nth-child(3) .pop { left: auto; right: 0; }
+.st:hover .pop { display: grid; gap: 0.3em; }
+.pop b { font-size: 1.1em; color: var(--gold); }
+.rb .chips { display: flex; flex-wrap: wrap; gap: 0.4em; }
+.rb .chip { padding: 0.1em 0.8em; border: 1px solid #6b6a66; border-radius: 999px; font-size: 1.2em; white-space: nowrap; }
+.rb .chip.good { border-color: var(--good); color: color-mix(in srgb, var(--good) 60%, var(--fg)); }
+.rb .chip.bad { border-color: var(--bad); color: color-mix(in srgb, var(--bad) 55%, var(--fg)); }
+.tipband { display: flex; align-items: center; gap: 2.6em; padding: 0.9em 1.9em; border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); border-radius: 1.1em; background: color-mix(in srgb, var(--panel) 88%, transparent); font-size: 1.4em; }
+.tipband b { flex: none; text-transform: uppercase; letter-spacing: 0.06em; }
+.tipband span { flex: 1; }
+/* B, rows: a row per player */
+.rows .pc { flex: none; height: auto; display: grid; grid-template-columns: 6em 6.5em 20em 19em minmax(0, 1fr) 44em 26em; align-items: center; gap: 1.2em; padding: 0.6em 1em; background: color-mix(in srgb, var(--panel) 92%, transparent); }
+.rows .crow { flex-direction: column; gap: 0.6em; }
+.rows .pc > .art { position: static; width: 6em; height: 6em; border-radius: 0.7em; object-position: 50% 15%; }
+.rows .pc .chipx { top: -0.5em; left: -0.5em; font-size: 1em; }
+.rows .pc .sp { position: static; grid-column: 2; }
+.rows .pc .info { display: contents; }
+.rows .who { grid-column: 3; } .rows .rk { grid-column: 4; } .rows .ch { grid-column: 5; } .rows .st3 { grid-column: 6; } .rows .chips { grid-column: 7; }
+/* D, your lane first: you and your lane opponent big in the middle with the tips, the others small above and below */
+.lane .small .pc { height: 18em; }
+.lane .small .ch { display: none; }
+.lane .mid { display: flex; gap: 2.2em; align-items: stretch; }
+.lane .mid .pc { flex: none; width: 40em; height: 38em; }
+.lane .mid .tipband { flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1em; }
 /* The whole screen (full): the rest sits where the small window would be (place), and a part with a place of its own
    (part: the Overlay page's layout) where it was put, growing away from the screen's nearest edges */
 .full #main { position: absolute; width: 300px; height: 360px; overflow: hidden; transform-origin: 0 0; }
@@ -95,6 +133,7 @@ body.board { font-size: calc(1.25vh * var(--k, 1)); }
 .after .team { font-size: 13px; }
 .after.win { border-color: var(--good); }
 .after.loss { border-color: var(--bad); }
+.after button { justify-self: start; margin: 4px 0 0; }
 /* The line at the top (the minimap reminder, the jungler callout): in the middle, fading in and out (on); first in the
    rest over everyone's rank */
 .nudge { padding: 6px 16px 6px 12px; border-color: var(--gold); font-size: 15px; }
@@ -165,39 +204,97 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     p.append(face, n);
     return p;
   }
-  // a player on the board: champion picture, name, champion and role, rank (in its tier's color), their record on
-  // the champion, tags (good ones green, bad ones red) and Riot's emblem for their rank
-  function card(p) {
-    const c = el('card' + (p.ally ? '' : ' enemy') + (p.me ? ' me' : '')), face = document.createElement('span'), text = el(''), who = el('who'), n = document.createElement('b');
-    face.className = 'pic';
-    if (p.pic) { const img = new Image(); img.alt = ''; img.src = p.pic; face.append(img); }
-    n.textContent = String(p.name || '');
-    who.append(n);
-    if (p.sub) who.append(Object.assign(document.createElement('span'), { className: 'sub', textContent: String(p.sub) }));
-    if (p.lane) who.append(Object.assign(document.createElement('span'), { className: 'lane', textContent: 'Your lane' }));
-    const rk = el('rk', String(p.rank || ''));
-    if (/^#[0-9a-f]{6}$/i.test(p.tc || '')) rk.style.color = p.tc;
-    const chips = el('chips');
-    for (const [k, t] of Array.isArray(p.tags) ? p.tags : []) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
-    text.append(who, rk, ...(p.rec ? [el('ch', String(p.rec))] : []), chips);
-    c.append(face, text);
-    if (p.emb) c.append(Object.assign(new Image(), { src: String(p.emb), alt: '', className: 'emb' }));
+  // ---- Everyone's rank (board): see the CSS above. A card: champion art in their skin (the base art when League
+  // has no picture of it), You or Your lane, their spells, name, champion and role, rank with Riot's emblem, record on
+  // the champion, the three stats and up to 2 tags (1 in a game). It's drawn again only when the board changes, so a
+  // stat's box stays open while the rest of the overlay updates.
+  const NS = 'http://www.w3.org/2000/svg';
+  const ROLE_D = { TOP: 'M5 15V5h10', JUNGLE: 'M5 15l3-7 3 5 4-8', MIDDLE: 'M5 15 15 5', BOTTOM: 'M5 15h10V5', UTILITY: 'M10 15.5c-4-2.6-5.5-5.2-4.4-7.4 1-2 3.4-1.8 4.4.1 1-1.9 3.4-2.1 4.4-.1 1.1 2.2-.4 4.8-4.4 7.4z' };
+  function svg(box, kids) {
+    const s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', box);
+    s.setAttribute('aria-hidden', 'true');
+    for (const [tag, at, text] of kids) { const k = document.createElementNS(NS, tag); for (const [n, v] of Object.entries(at)) k.setAttribute(n, v); if (text) k.textContent = text; s.append(k); }
+    return s;
+  }
+  function ring(x) { // won and lost as a ring: green at 55% or more, red at 45% or less
+    const n = x ? x.w + x.l : 0, pc = n ? Math.round((100 * x.w) / n) : 0, c = !n ? 'none' : pc >= 55 ? 'var(--good)' : pc <= 45 ? 'var(--bad)' : 'var(--fg)';
+    return svg('0 0 36 36', [['circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: 'color-mix(in srgb, var(--fg) 15%, transparent)', 'stroke-width': 4 }],
+      ['circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: c, 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': `${(pc * 0.9425).toFixed(1)} 94.25`, transform: 'rotate(-90 18 18)' }],
+      ['text', { x: 18, y: 22, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 700, fill: 'currentColor', stroke: 'none' }, n ? pc + '%' : '']]);
+  }
+  function stat(cls, pic, label, value, head, lines) {
+    const c = el('st' + cls), t = document.createElement('span');
+    t.append(el('lb', label), el('vl', value));
+    c.append(pic, t);
+    if (Array.isArray(lines) && lines.length) { const box = el('pop'), b = document.createElement('b'); b.textContent = head; box.append(b, ...lines.slice(0, 20).map((x) => el('', String(x)))); c.append(box); }
     return c;
   }
-  function board(b, out) {
-    const half = (head, list) => { const h = el('half'); h.append(el('team', head), ...(Array.isArray(list) ? list : []).map(card)); return h; };
-    const side = el('side'), parts = [side];
-    const heads = Array.isArray(b.heads) ? b.heads : ['Your team', 'Their team']; // with each team's average rank, and which is favored
-    side.append(half(String(heads[0]), b.us), half(String(heads[1]), b.them));
-    if (b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length) {
-      const col = el('tipcol'), ul = document.createElement('ul');
-      ul.append(...b.tips.lines.map((t) => Object.assign(document.createElement('li'), { textContent: String(t) })));
-      col.append(el('team', `Tips: ${b.tips.title}`), ul);
-      parts.push(col);
+  function stats(x) { // { l20, role, sea }: each null when hidden or unranked
+    const row = el('st3'), { l20, role, sea } = x, wl = (v) => `${v.w | 0}W ${v.l | 0}L`;
+    const icon = svg('0 0 20 20', [['rect', { x: 1.5, y: 1.5, width: 17, height: 17, rx: 3, fill: 'none', stroke: 'currentColor', 'stroke-opacity': 0.35 }], ['path', { d: (role && ROLE_D[role.pos]) || '', fill: 'none', stroke: role && role.off ? 'var(--bad)' : 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }]]);
+    row.append(stat('', ring(l20), 'Last 20', l20 ? wl(l20) : 'Hidden', l20 && `Last 20 games · ${wl(l20)}`, l20 && l20.lines),
+      stat(role && role.off ? ' off' : '', icon, 'Main role', role ? String(role.name) : 'Hidden', role && `Main role: ${role.name}`, role && role.lines),
+      stat('', ring(sea), 'Season', sea ? wl(sea) : 'Unranked', sea && `This season · ${wl(sea)}`, sea && sea.lines));
+    return row;
+  }
+  function card(p, n) { // n: how many tags
+    const c = el('pc' + (p.ally ? '' : ' foe') + (p.me ? ' me' : '')), info = el('info'), who = el('who'), b = document.createElement('b'), sp = el('sp');
+    if (p.art || p.pic) {
+      const art = Object.assign(new Image(), { className: 'art', alt: '', src: String(p.art || p.pic) });
+      art.onerror = () => { if (/_[1-9]\d*\.jpg$/.test(art.src)) art.src = art.src.replace(/_\d+\.jpg$/, '_0.jpg'); else if (p.pic && art.src !== p.pic) art.src = String(p.pic); };
+      c.append(art);
     }
-    const stack = el('stack');
-    stack.append(...out);
-    return [stack, ...parts];
+    if (p.me || p.lane) c.append(el('chipx', p.me ? 'You' : 'Your lane'));
+    for (const x of Array.isArray(p.spells) ? p.spells.slice(0, 2) : []) sp.append(Object.assign(new Image(), { src: String(x), alt: '' }));
+    b.textContent = String(p.name || '');
+    who.append(b, el('sub', String(p.sub || '')));
+    const rk = el('rk');
+    if (p.emb) rk.append(Object.assign(new Image(), { src: String(p.emb), alt: '' }));
+    const r = el('', String(p.rank || ''));
+    if (/^#[0-9a-f]{6}$/i.test(p.tc || '')) r.style.color = p.tc;
+    rk.append(r);
+    const chips = el('chips');
+    for (const [k, t] of (Array.isArray(p.tags) ? p.tags : []).slice(0, n)) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
+    info.append(who, rk, ...(p.rec ? [el('ch', String(p.rec))] : []), ...(p.stats && typeof p.stats === 'object' ? [stats(p.stats)] : []), chips);
+    c.append(sp, info);
+    return c;
+  }
+  function team(head, list, ally, n) {
+    const t = el(ally ? 'tm' : 'tm foes'), row = el('crow');
+    row.append(...list.map((p) => card(p, n)));
+    t.append(el('team', head), row);
+    return t;
+  }
+  function tipband(t) {
+    const band = el('tipband'), b = document.createElement('b');
+    b.textContent = `Tips: ${t.title}`;
+    band.append(b, ...t.lines.slice(0, 3).map((x) => el('', String(x))));
+    return band;
+  }
+  let boardKey = '', boardEl = null;
+  function board(b) {
+    const k = JSON.stringify(b);
+    if (k === boardKey && boardEl) return boardEl;
+    const look = b.look === 'rows' || b.look === 'lane' ? b.look : 'cards', red = b.side === 'red', n = b.load ? 2 : 1;
+    const us = Array.isArray(b.us) ? b.us : [], them = Array.isArray(b.them) ? b.them : [], heads = Array.isArray(b.heads) ? b.heads.map(String) : ['Your team', 'Their team'];
+    const tips = b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length ? tipband(b.tips) : null;
+    const box = el(`rb ${look}${b.load ? ' load' : ''}`), head = el('rhead'), side = document.createElement('b');
+    side.textContent = red ? 'Red side: your team is on top' : 'Blue side: your team is at the bottom';
+    head.append(el('', String(b.title || '')), side);
+    box.append(head);
+    if (look === 'lane') { // you and your lane opponent(s) in the middle, the rest above and below
+      const big = (p) => p.me || p.lane, mid = el('mid');
+      mid.append(...[...us, ...them].filter(big).map((p) => card(p, n)), ...(tips ? [tips] : []));
+      const top = red ? [heads[0], us.filter((p) => !big(p)), true] : [heads[1], them.filter((p) => !big(p)), false], bot = red ? [heads[1], them.filter((p) => !big(p)), false] : [heads[0], us.filter((p) => !big(p)), true];
+      const small = (t) => { const x = team(t[0], t[1], t[2], 1); x.classList.add('small'); return x; };
+      box.append(small(top), mid, small(bot));
+    } else {
+      const a = team(heads[0], us, true, n), z = team(heads[1], them, false, n);
+      box.append(...(red ? [a] : [z]), ...(tips ? [tips] : []), ...(red ? [z] : [a]));
+    }
+    boardKey = k;
+    return (boardEl = box);
   }
   // where the small window would be (client/main.js): 16 px in from the left or right, at the top or in the middle, or
   // where it was dragged (box: fractions of the screen), on the screen
@@ -251,19 +348,30 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     box.append(el('team', `${c.name}’s screen`), c.img ? camImg : el('ph'));
     return box;
   }
-  function after(a) { // { title, win, lines }
+  function after(a) { // { title, win, lines, board: a Scoreboard button (What's new 169) }
     const c = el('toast after' + (a.win === true ? ' win' : a.win === false ? ' loss' : ''));
     c.append(el('team', String(a.title || '')), ...(Array.isArray(a.lines) ? a.lines : []).map((t) => el('', String(t))));
+    if (a.board && api.overlayProg) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Scoreboard' });
+      b.dataset.take = '';
+      b.onclick = () => api.overlayProg({ id: 'after', go: 'scoreboard' });
+      c.append(b);
+    }
     return c;
   }
+  // The mouse goes through to the game, but the page hears it move (prog): over a button it takes the mouse so the
+  // button can be clicked, and gives it back once the mouse leaves or the button is gone. One listener, set once.
+  let taking = false;
+  const take = (on) => { if (on !== taking) { taking = on; if (api.overlayMouse) api.overlayMouse(on); } };
+  addEventListener('mousemove', (e) => take(!!(e.target.closest && e.target.closest('[data-take]'))));
   const THEME = ['bg', 'panel', 'raised', 'fg', 'muted', 'gold', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'good', 'bad'];
   let lastOverlayState = null;
   const renderOverlay = (s) => {
-    if (!s.visible) { call.classList.remove('on'); parts.replaceChildren(); mayhemLayer.replaceChildren(); main.replaceChildren(); return; }
+    if (!s.visible) { call.classList.remove('on'); parts.replaceChildren(); mayhemLayer.replaceChildren(); main.replaceChildren(); take(false); return; }
     const t = s.theme || {}; // a colour for each, or League's (an empty value takes the page's own back)
     for (const k of THEME) document.documentElement.style.setProperty('--' + k, typeof t[k] === 'string' && CSS.supports('color', t[k]) ? t[k] : '');
     const full = s.board === true, players = !!s.board && !full;
-    const k = Math.min(players ? 1.2 : 2, Math.max(0.7, +s.scale || 1), innerWidth / 300, innerHeight / 360);
+    const k = Math.min(players ? 1 : 2, Math.max(0.7, +s.scale || 1), innerWidth / 300, innerHeight / 360);
     const spots = s.parts && typeof s.parts === 'object' ? s.parts : {};
     document.body.dataset.pos = s.pos === 'mr' || s.pos === 'ml' ? s.pos : 'tl';
     document.body.classList.toggle('board', players);
@@ -369,7 +477,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }) : [];
     parts.replaceChildren(...own, ...cards);
     mayhemLayer.replaceChildren(...mayCards);
-    main.replaceChildren(...(players ? board(s.board, out) : out));
+    if (players) { const stack = el('stack'); stack.append(...out); main.replaceChildren(stack, board(s.board)); } else main.replaceChildren(...out);
+    if (taking && !document.querySelector('[data-take]')) take(false);
   };
   api.on('overlay', (s) => { lastOverlayState = s; renderOverlay(s); });
   addEventListener('resize', () => { if (lastOverlayState && lastOverlayState.visible) renderOverlay(lastOverlayState); });

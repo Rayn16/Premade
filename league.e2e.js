@@ -259,7 +259,8 @@ function fakeLcu(method, p, body) {
   let m;
   if (p === '/lol-gameflow/v1/session') return ok({ map: { id: 11 }, gameData: { gameId: lcu.cs && lcu.phase === 'ChampSelect' ? lcu.cs.gameId : GAME, queue: { id: 420, isRanked: true, mapId: 11 },
     teamOne: TEAM1.map(([puuid, gameName, championId, selectedPosition]) => ({ puuid, gameName, tagLine: 'EUW', championId, selectedPosition })),
-    teamTwo: TEAM2.map(([puuid, gameName, championId, selectedPosition]) => ({ puuid, gameName, tagLine: 'EUW', championId, selectedPosition })) } });
+    teamTwo: TEAM2.map(([puuid, gameName, championId, selectedPosition]) => ({ puuid, gameName, tagLine: 'EUW', championId, selectedPosition })),
+    playerChampionSelections: [...TEAM1, ...TEAM2].filter(([, n]) => n !== 'Sniper').map(([puuid, , championId]) => ({ puuid, championId, selectedSkinIndex: puuid === ME ? 7 : 0, spell1Id: 4, spell2Id: puuid === ME ? 14 : 12 })) } }); // Sniper: not listed
   if (p === '/lol-matchmaking/v1/ready-check') return lcu.rc ? ok(lcu.rc) : { status: 404, data: null };
   if ((m = /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/.exec(p))) { if (lcu.rc) lcu.rc.playerResponse = m[1] === 'accept' ? 'Accepted' : 'Declined'; return { status: 204, data: null }; }
   if (p === '/lol-champ-select/v1/session') return lcu.cs && lcu.phase === 'ChampSelect' ? ok(lcu.cs) : { status: 404, data: null };
@@ -467,7 +468,7 @@ async function context(browser, { version = '', phone = false } = {}) {
   }
   const page = await ctx.newPage();
   const who = phone ? 'phone' : version || 'web';
-  page.on('pageerror', (e) => console.log(`[${who}] page error:`, e.message));
+  page.on('pageerror', (e) => console.log(`[${who}] page error:`, e.message, process.env.STACK ? e.stack : ''));
   page.on('console', (m) => ((m.type() === 'error' && !m.text().startsWith('Failed to load resource')) || (m.type() === 'warning' && /^clips?:/.test(m.text()))) && console.log(`[${who}]`, m.text()));
   return [ctx, page];
 }
@@ -488,6 +489,7 @@ const TIPS_AHRI_ZED = ['High elo: Ahri won 12 of 30 games against Zed, −200 go
   'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
   'Against Zed, high elo Ahri players take Electrocute (10 of 10 games) and Flash + Ignite (10 of 10 games).',
   'Against Ahri, high elo Zed players take Flash + Ignite (10 of 10 games).', 'Riot’s tip for Ahri: Use Charm to set up your combos.'];
+const POS_N = ['Top', 'Jungle', 'Middle', 'Bottom', 'Support'];
 const tipsIn = (page, sel) => page.$$eval(`${sel} li`, (l) => l.map((e) => e.textContent));
 const leagueData = (over = {}) => ({
   inGame: true, phase: 'InProgress', mode: 'CLASSIC', t: 600, room: 'g0123456789a', result: '',
@@ -846,10 +848,10 @@ const leagueData = (over = {}) => ({
     // Riot's extra numbers for all ten, from Riot's copy of the game, and how each game ranks among high elo games on
     // that champion in that role (only Ahri's are counted with their length here: you're at 75 of 100)
     await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report .extra tbody tr').length === 10, null, 'Riot’s extra numbers in the report');
-    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report .extra tr', (trs) => [0, 1, 8].map((i) => [...trs[i].children].map((c) => c.textContent).join(' | '))), [
-      'More from Riot | Skillshots hit | Skillshots dodged | Allies saved | Turret plates | Time dead | Vision vs laner', 'Rayan | 60 | 20 | 2 | 3 | 1:00 | +0 (20 vs 20)', 'Shadow | 40 | 25 | 0 | 1 | 2:30 | +0 (20 vs 20)']);
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report .extra tr', (trs) => trs.filter((tr, i) => !i || /^(Rayan|Shadow)$/.test(tr.firstChild.textContent)).map((tr) => [...tr.children].map((c) => c.textContent).join(' | '))), [
+      'More from Riot | Skillshots hit | Skillshots dodged | Allies saved | Turret plates | Time dead | Vision vs laner', 'Shadow | 40 | 25 | 0 | 1 | 2:30 | +0 (20 vs 20)', 'Rayan | 60 | 20 | 2 | 3 | 1:00 | +0 (20 vs 20)'], 'red side on top');
     await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report th[title^="How this game ranks"]').length === 2, null, 'the High elo column');
-    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report > .tablewrap:not(.extra) tbody td:last-child', (l) => l.map((e) => e.textContent)), ['75', ...Array(9).fill('—')]);
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report > .tablewrap:not(.extra) tbody td:last-child', (l) => l.map((e) => e.textContent)), [...Array(5).fill('—'), '75', ...Array(4).fill('—')], 'red side on top');
     assert(await pc.locator('#profileBtn').isVisible() && await pc.locator('#proBack').isHidden() && await pc.locator('#proNote').isHidden(), 'Share, and nothing about it being old');
     const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-profile')));
     assert(kept.n === 'Rayan#EUW' && kept.plat === 'euw1' && kept.games.length === 20 && kept.icon === 4568 && kept.rk.RANKED_SOLO_5x5.tier === 'GOLD', 'kept for when League is closed');
@@ -1147,7 +1149,7 @@ const leagueData = (over = {}) => ({
     const rows = await texts(pc, '#csRows tr');
     assert.strictEqual(rows.length, 5);
     assert.match(rows[0], /Friend#EUW .*Top.*hovering Garen.*Gold II · 45 LP.*Flex: Silver I · 10 LP.*Last 20: 6W 14L.*Garen: 8 games, 75% won.*6 wins in a row.*Comfort pick.*Seen before: 20 with you \(13W 7L\)/);
-    assert.match(rows[4], /Hooks#EUW .*Off-role: rarely plays support \(0 of 20\)/);
+    assert.match(rows[4], /Hooks#EUW .*Autofill: usually \w+ \(support in 0 of 20\)/);
     assert.deepStrictEqual(await embs(pc, '#csRows .emb'), Array(3).fill('TFT_Regalia_Gold.png'), 'an emblem by each rank');
     assert.doesNotMatch(rows.join(), /Premade|smurf/);
     assert.match(rows[1], /Name hidden by Riot/);
@@ -1457,14 +1459,26 @@ const leagueData = (over = {}) => ({
     await league({ inGame: false, phase: 'InProgress' });
     await wait(pc, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && [...b.us, ...b.them].every((p) => /LP|Unranked/.test(p.rank)) && !!b.tips && b.tips.lines.length === 9; }, null, 'everyone’s rank on the loading screen');
     const board = await pc.evaluate(() => lpcClient.lastOverlay.board);
-    const cardOf = (p) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
+    const cardOf = ({ art, spells, stats, ...p }) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
     assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
-      rec: 'Zed: not in the last 20', tags: [['bad', 'First time on this champion'], ['', 'One-trick: Ahri'], ['', 'Seen before']] });
+      rec: 'Zed: not in the last 20', tags: [['bad', 'First time on Zed'], ['', 'One-trick: Ahri']] });
     assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
-      rec: 'Garen: 8 of the last 20, 75% won · mastery 3', tags: [['good', '6 wins in a row'], ['good', 'Comfort pick'], ['', 'Seen before']] });
+      rec: 'Garen: 8 of the last 20, 75% won · mastery 3', tags: [['good', '6 wins in a row']] });
+    // What's new 166-168: your side (blue: your team at the bottom), the look, everyone's skin and spells, the three
+    // stats with their boxes' lines, and only the key tags, 2 at most on the loading screen
+    assert.deepStrictEqual([board.side, board.look, board.load, board.title], ['blue', 'cards', true, 'Ranked Solo/Duo']);
+    const me = board.us.find((p) => p.me), sniper = board.them.find((p) => p.name === 'Sniper');
+    assert.deepStrictEqual([me.art.replace(/^.*\//, ''), me.spells.map((x) => x.replace(/^.*\//, '')), sniper.art.replace(/^.*\//, ''), sniper.spells], [`Ahri_7.jpg`, ['SummonerFlash.png', 'SummonerDot.png'], 'Caitlyn_0.jpg', []]);
+    const st = board.them[2].stats;
+    assert.deepStrictEqual([st.l20.w + st.l20.l, st.l20.lines.length, st.sea.w, st.sea.l], [20, 20, 30, 25]);
+    const roled = board.us.concat(board.them).map((p) => p.stats.role).filter(Boolean);
+    assert(roled.length && roled.every((x) => POS_N.includes(x.name) && /^\w+: \d+ games?, \d+ won$/.test(x.lines[0])), JSON.stringify(roled[0]));
+    assert.match(st.l20.lines[0], /^\w[\w' .]* · (Win|Loss) · \d+\/\d+\/\d+ \(\d+\.\d KDA\) · \d+ CS \(\d+\.\d a minute\) · (today|yesterday|\d+ days ago)$/);
+    assert(st.sea.lines.includes('League gives no record per champion for the whole season.') && /^Solo\/Duo: 30W 25L, 55% won$/.test(st.sea.lines[0]), st.sea.lines.join(' | '));
+    assert(board.us.concat(board.them).every((p) => p.tags.length <= 2), 'two tags at most');
     assert.deepStrictEqual([board.us.map((p) => p.me), board.them.map((p) => p.lane)], [[false, false, true, false, false], [false, false, true, false, false]], 'you, and who’s in your lane');
-    assert.deepStrictEqual([...board.us, ...board.them].map((p) => p.tags.map(([, t]) => t).filter((t) => /Premade|smurf|Off-role/.test(t)).join()),
-      ['', 'Premade with Shooter', '', 'Premade with Jungler', 'Off-role', '', '', '', 'Maybe a smurf', '']);
+    assert.deepStrictEqual([...board.us, ...board.them].map((p) => p.tags.map(([, t]) => t).filter((t) => /Premade|smurf|Autofill/.test(t)).join()),
+      ['', 'Premade with Shooter', '', 'Premade with Jungler', 'Autofill: usually middle', '', '', '', 'Maybe a smurf', '']);
     assert.deepStrictEqual([board.us.map((p) => p.name), board.them.map((p) => p.name)], [['Friend', 'Jungler', 'Rayan', 'Shooter', 'Hooks'], ['Axe', 'Puncher', 'Shadow', 'Sniper', 'Singer']]);
     assert.deepStrictEqual(board.tips, { title: 'Ahri against Zed', lines: ['Your note: Respect his level 6. Ward the side bushes.', ...TIPS_AHRI_ZED] });
     await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('gameTips').hidden, null, 'the tips on the Game page');
@@ -1472,6 +1486,10 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
     await shot(pc, 'loading-screen');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
+    await pc.check('#optBoardLook input[value="lane"]');
+    await wait(pc, () => lpcClient.lastOverlay.board && lpcClient.lastOverlay.board.look === 'lane' && JSON.parse(localStorage.getItem('lpc-opts')).boardLook === 'lane', null, 'Your lane first, picked on the Overlay page');
+    await pc.check('#optBoardLook input[value="cards"]');
+    await wait(pc, () => lpcClient.lastOverlay.board.look === 'cards' && lpcClient.lastOverlay.prog === true, null, 'back to cards; the mouse reaches the overlay for the stats’ boxes');
     await pc.uncheck('#optOverlayBoard');
     await wait(pc, () => !lpcClient.lastOverlay.board, null, 'no ranks on the loading screen when Settings says so');
     await pc.check('#optOverlayBoard');
@@ -1481,7 +1499,17 @@ const leagueData = (over = {}) => ({
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => !!lpcClient.lastOverlay.board && lpc.toasts().includes('Overlay back on.'), null, 'and back');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    // the new tags' rules (What's new 168), and the overlay's key tags in their order, 2 or 1 of them
+    const tagsBy = (st, champ, p = {}) => pc.evaluate(([a, b, c]) => lpc.tags(a, b, c).map(([, t]) => t), [st, champ, p]);
+    const top10 = Array.from({ length: 10 }, () => ({ champ: 86, lane: 'TOP', win: false, at: Date.now(), k: 1, d: 1, a: 1, cs: 100, len: 1800 }));
+    const gold = (lp, end) => ({ RANKED_SOLO_5x5: { tier: 'GOLD', division: 'I', leaguePoints: lp, wins: 10, losses: 10, previousSeasonEndTier: end } });
+    assert.deepStrictEqual(await tagsBy({ ranked: gold(92, 'DIAMOND'), games: top10, mastery: [{ championId: 103, championLevel: 7, championPoints: 1.2e6, lastPlayTime: Date.now() - 100 * 864e5 }] }, 103, { pos: 'MIDDLE' }),
+      ['10 losses in a row', 'One-trick: Garen', 'Millionaire: Ahri', 'Autofill: usually top (middle in 0 of 10)', 'Almost promoted: 92 LP', 'Diamond last season', 'Rusty on Ahri', 'Patch pick: S tier']);
+    assert.deepStrictEqual(await tagsBy({ ranked: gold(60, 'GOLD'), games: top10, mastery: [{ championId: 103, championPoints: 500, lastPlayTime: Date.now() }] }, 103, { pos: 'TOP' }), ['10 losses in a row', 'First time on Ahri', 'One-trick: Garen'], 'not almost, same tier last season, not rusty');
+    assert.deepStrictEqual(await pc.evaluate(() => [2, 1].map((n) => lpc.keyTags([['', 'Seen before: 2 against you'], ['bad', '3 losses in a row'], ['', 'One-trick: Zed'], ['good', 'Comfort pick'], ['bad', 'Autofill: usually top (mid in 1 of 12)'], ['', 'Maybe a smurf: level 30, 80% won']], n))),
+      [[['bad', 'Autofill: usually top'], ['', 'One-trick: Zed']], [['bad', 'Autofill: usually top']]], 'the key tags in order, 2 on the loading screen and 1 in a game');
     console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane, also on the Game page; off on the Overlay page, hidden by the key');
+    console.log('loading screen (What’s new 166-168): your side, the look picked on the Overlay page, skins and spells, the three stats and their boxes, the key tags only, and the new tags’ rules');
 
     // ---- in game: everyone scouted, timers, gold, the overlay and the phone
     await league(leagueData());
@@ -1492,12 +1520,12 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(live.map(([t]) => t), [...Array(5).fill('ally'), ...Array(5).fill('enemy')]);
     assert(live[0][1] && /Rayan#EUW/.test(live[0][2]), 'you are marked');
     const row = (n) => live.find(([, , t]) => t.startsWith(`${n}#`))[2];
-    assert.match(row('Shadow'), /First time on this champion/);
+    assert.match(row('Shadow'), /First time on Zed/);
     assert.match(row('Jungler'), /One-trick: Lee Sin.*Premade with Shooter \(3 recent games\)/);
     assert.match(row('Shooter'), /Premade with Jungler \(3 recent games\)/);
     assert.match(row('Shadow'), /Seen before: 20 against you \(you won 13\)/);
     assert.match(row('Sniper'), /Maybe a smurf: level 30, 80% won/);
-    assert.match(row('Hooks'), /Off-role: rarely plays support/);
+    assert.match(row('Hooks'), /Autofill: usually \w+ \(support in 0 of 20\)/);
     assert.strictEqual(live.filter(([, , t]) => /Premade|smurf/.test(t)).length, 3, 'nobody else premade or a smurf');
     assert.strictEqual(await pc.evaluate(() => document.querySelector('#liveNotes .notelist').textContent), 'Ahri against Zed: Respect his level 6. Ward the side bushes.');
     const timers = await text(pc, '#timers');
@@ -1809,6 +1837,16 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await post('.duo ol li'), ['8:10: Zed with Vi, in the river', '12:40: Zed with Vi, in the river']);
     assert.strictEqual(await text(pc, '#postBox .duo .stack .hint'), 'Objectives: your team took 2 dragons, 1 Baron, 3 towers; theirs 1 Rift Herald, 1 tower.');
     assert(await pc.evaluate(() => document.querySelector('#postBody .report').firstElementChild.matches('.rmore')), 'how you played first, then everyone’s scores');
+    // the scoreboard (What's new 169): the result, red side on top as on the map, you and your lane opponent marked
+    assert.strictEqual(await text(pc, '#postBox .sbres'), 'Victory');
+    const sb = await pc.$$eval('#postBox table.sb', (ts) => ts.map((t) => [t.caption.textContent.split(' · ')[0], t.tBodies[0].rows.length, t.querySelector('th').textContent]));
+    assert.deepStrictEqual(sb.map((x) => x[0]), ['Red side', 'Blue side'], 'red side first');
+    assert(sb.every((x) => x[1] === 5) && sb.some((x) => x[2] === 'Won') && sb.some((x) => x[2] === 'Lost'), `both teams of 5: ${JSON.stringify(sb)}`);
+    assert.match(await text(pc, '#postBox table.sb tr[data-me] td:first-child .who'), /You/);
+    assert(await pc.$$eval('#postBox table.sb tr[data-me] .sbit img', (l) => l.length) > 0, 'your items');
+    await pc.click('.nav[data-view="stats"]');
+    await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'after', go: 'scoreboard' } }));
+    await wait(pc, () => document.querySelector('.nav[data-view="game"]').getAttribute('aria-current') === 'page', null, 'Scoreboard on the end-screen card opens the Game page');
     await shot(pc, 'post-game');
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
     await wait(pc, () => /Gold II · 63 LP/.test(document.getElementById('rankNow').textContent), null, 'the rank');
