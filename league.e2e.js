@@ -1145,15 +1145,25 @@ const leagueData = (over = {}) => ({
     lcu.rc = null;
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
-    await wait(pc, () => !document.getElementById('csBox').hidden && /Friend#EUW\s+Top/.test(document.querySelector('#csRows tr').innerText) && [...document.querySelectorAll('#csRows tr')].filter((tr) => /Gold II · 45 LP · 55% of 55/.test(tr.textContent)).length === 3 && /hovering Garen/.test(document.getElementById('csRows').textContent), null, 'champ select with ranks');
-    const rows = await texts(pc, '#csRows tr');
-    assert.strictEqual(rows.length, 5);
-    assert.match(rows[0], /Friend#EUW .*Top.*hovering Garen.*Gold II · 45 LP.*Flex: Silver I · 10 LP.*Last 20: 6W 14L.*Garen: 8 games, 75% won.*6 wins in a row.*Comfort pick.*Seen before: 20 with you \(13W 7L\)/);
-    assert.match(rows[4], /Hooks#EUW .*Autofill: usually \w+ \(support in 0 of 20\)/);
-    assert.deepStrictEqual(await embs(pc, '#csRows .emb'), Array(3).fill('TFT_Regalia_Gold.png'), 'an emblem by each rank');
-    assert.doesNotMatch(rows.join(), /Premade|smurf/);
-    assert.match(rows[1], /Name hidden by Riot/);
-    assert.match(rows[3], /Name hidden by Riot/);
+    // What's new 172: each a short card (champion and role, rank and last 20, spells, one tag); a click opens the rest
+    await wait(pc, () => !document.getElementById('csBox').hidden && document.querySelectorAll('#csRows .cscard').length === 5 && [...document.querySelectorAll('#csRows .csline')].filter((l) => /^Gold II · \d+W \d+L$/.test(l.textContent)).length === 3 && /hovering/.test(document.getElementById('csRows').textContent), null, 'champ select with ranks');
+    const faces = await texts(pc, '#csRows .csface');
+    assert.strictEqual(faces.length, 5);
+    assert.match(faces[0], /^6 wins in a row Garen Top · hovering Gold II · 6W 14L$/, 'one tag, the most important');
+    assert.match(faces[4], /^Autofill: usually \w+ Thresh Support · hovering Gold II · \d+W \d+L$/);
+    assert.doesNotMatch(faces.join(), /Premade|smurf|Comfort pick|Seen before/);
+    assert.match(faces[1], /Name hidden by Riot/);
+    assert.match(faces[3], /Name hidden by Riot/);
+    assert.match(faces[2], /^You /);
+    assert.deepStrictEqual(await pc.$$eval('#csRows .csface', (l) => l.map((b) => b.title)), ['Friend#EUW', '', 'Rayan#EUW', '', 'Hooks#EUW'], 'their Riot ID on a hover');
+    assert.deepStrictEqual(await pc.$$eval('#csRows .cscard[data-me] .csspell', (l) => l.map((i) => i.alt)), ['Flash', 'Ignite'], 'your spells on your card');
+    assert.strictEqual(await pc.locator('#csRows .csspell').count(), 10, 'everyone’s spells');
+    await wait(pc, () => /Hooks#EUW .*Autofill: usually \w+ \(support in 0 of 20\).*Swap positions/.test(document.querySelector('#csRows .cscard:nth-child(5) .csmore').innerText.replace(/\s+/g, ' ')), null, 'Hooks asks for a swap: their card opens by itself');
+    await pc.click('#csRows .cscard:nth-child(1) .csface');
+    await wait(pc, () => document.querySelectorAll('#csRows .csmore').length === 1 && !!document.querySelector('#csRows .cscard:nth-child(1) .csmore'), null, 'Friend’s card open, Hooks’s closed');
+    const friendMore = (await texts(pc, '#csRows .csmore'))[0];
+    assert.match(friendMore, /Friend#EUW .*Top.*hovering Garen.*Gold II · 45 LP.*Flex: Silver I · 10 LP.*Last 20: 6W 14L.*Garen: 8 games, 75% won.*6 wins in a row.*Comfort pick.*Seen before: 20 with you \(13W 7L\)/);
+    assert.deepStrictEqual(await embs(pc, '#csRows .emb'), ['TFT_Regalia_Gold.png'], 'the emblem by their rank');
     assert(!lcu.calls.some(([, p]) => /hidden1/.test(p)), 'nobody whose name Riot hides is looked up');
     assert.match(await text(pc, '#csTurn'), /Your turn to ban: \d+ s left/);
     await wait(pc, () => lpc.toasts().includes('Your turn to ban!'), null, 'the turn alarm');
@@ -1180,7 +1190,7 @@ const leagueData = (over = {}) => ({
     await wait(phone, () => [...document.querySelectorAll('#grid button')].map((b) => b.textContent).join() === 'Ahri,Lux,Zed', null, 'middles on the phone');
     await phone.selectOption('#role', '');
     // trades: ask Friend for their champion here, take Hooks's position swap on the phone
-    await pc.click('#csRows tr:first-child button:has-text("Ask to swap champions")');
+    await pc.click('#csRows .cscard:first-child button:has-text("Ask to swap champions")');
     await until(() => callsTo(/champion-swaps\/5\/request$/, 'POST').length === 1, 'the champion trade asked');
     await wait(pc, () => /Cancel the champions swap/.test(document.getElementById('csRows').textContent), null, 'the trade sent');
     await wait(phone, () => [...document.querySelectorAll('#trades button')].some((b) => b.textContent === 'Swap positions'), null, 'the trade on the phone');
@@ -1247,7 +1257,8 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-favs'))), [103]);
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])', { button: 'right' });
     await wait(pc, () => !document.querySelector('#dGrid [data-fav]'), null, 'no favorite');
-    assert.match(await text(pc, '#csTheirs'), /Their picks: Zed \(likely in your lane\)\. Banned: a champion, Darius\./);
+    assert.deepStrictEqual(await texts(pc, '#csBans span'), ['a champion', 'Darius'], 'bans as grey pictures in the Picks tab');
+    assert.match((await texts(pc, '#csThem .csfoe'))[2], /^Zed Middle Shown below$/, 'their Zed, likely in your lane, with the abilities open');
     assert.match(await text(pc, '#mixNote'), /^Your team so far: 1 physical, 2 magic damage\. Theirs: 1 physical, 0 magic\.$/); // Garen, Thresh and your Lux hovered
     assert.strictEqual(await tierTab(), 'Middle', 'the tier list on your role');
     await pc.evaluate(() => { document.querySelector('main').scrollTop = 0; });
@@ -1358,8 +1369,9 @@ const leagueData = (over = {}) => ({
     // ---- What's new 162, the same on the PC: each card over its champion's splash in the skin picked (a chroma shows its
     // skin's), your runes changed and saved, then a new page League has no room for; spells D and F swapped; a skin, Random
     // skin and a favorite; and the enemy you click, with their abilities and Riot's tips against them
-    await wait(pc, () => /splash\/Ahri_1\.jpg$/.test((document.querySelector('#csRows tr[data-me] .csart') || {}).src), null, 'your card in Dynasty Ahri (its Ruby chroma)');
-    assert.match(await pc.getAttribute('#csRows tr:first-child .csart', 'src'), /splash\/Garen_0\.jpg$/, 'a teammate hovering Garen: Garen’s card');
+    await wait(pc, () => /splash\/Ahri_1\.jpg$/.test((document.querySelector('#csRows .cscard[data-me] .csart') || {}).src), null, 'your card in Dynasty Ahri (its Ruby chroma)');
+    assert.match(await pc.getAttribute('#csRows .cscard:first-child .csart', 'src'), /splash\/Garen_0\.jpg$/, 'a teammate hovering Garen: Garen’s card');
+    await wait(pc, () => document.querySelector('#csRows .cscard[data-me] .csline').textContent === 'Dynasty Ahri · Ruby', null, 'your skin and chroma on your card');
     await pc.click('#csTabs [data-cs="runes"]');
     await wait(pc, () => document.getElementById('csPage').selectedOptions[0].textContent === 'My page' && document.querySelectorAll('#csRecs button').length === 2, null, 'your rune page on the PC');
     assert.deepStrictEqual(await texts(pc, '#csRecs button'), ['High elo Ahri', 'Riot’s Electrocute']);
@@ -1367,7 +1379,7 @@ const leagueData = (over = {}) => ({
     const csPressed = () => pc.$$eval('#csEditor [aria-pressed="true"]', (l) => l.map((b) => b.textContent || b.getAttribute('aria-label')));
     await pc.click('#csRecs button:has-text("Riot’s Electrocute")');
     assert.deepStrictEqual(await csPressed(), ['Domination', 'Electrocute', 'Cheap Shot', 'Eyeball Collection', 'Treasure Hunter', 'Sorcery', 'Manaflow Band', 'Transcendence', 'Adaptive force', 'Adaptive force']);
-    await pc.locator('#csEditor .chips').nth(2).locator('button', { hasText: 'Health scaling' }).click();
+    await pc.locator('#csEditor .shards').nth(2).locator('button', { hasText: 'Health scaling' }).click();
     await pc.click('#csEditor button[aria-label="Dark Harvest"]');
     await pc.fill('#csPageName', 'PC page');
     const fromPc = lcu.calls.length;
@@ -1379,6 +1391,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('csRunesNote').textContent === 'League has no room for another rune page: change one of yours instead.', null, 'no room for a page');
     lcu.full = false;
     assert.strictEqual(lcu.pages.find((x) => x.current).name, 'PC page', 'and nothing else changed');
+    await wait(pc, () => (document.querySelector('#csRows .cscard[data-me] .cskey') || {}).alt === 'Dark Harvest', null, 'your keystone on your card');
     await shot(pc, 'cs-runes');
     await pc.click('#csTabs [data-cs="spells"]');
     await wait(pc, () => document.getElementById('csSlotD').textContent === 'DTeleport' && document.getElementById('csSlotF').textContent === 'FFlash', null, 'your spells on the PC');
@@ -1415,7 +1428,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await csSkinsNow(), ['Ahri', 'Dynasty Ahri (on)']);
     assert.deepStrictEqual(await pc.$$eval('#csChromas button', (l) => l.map((b) => b.getAttribute('aria-label') || b.textContent)), ['Base', 'Ruby']);
     await pc.click('#csSkinGrid button:has-text("Ahri") >> nth=0');
-    await wait(pc, () => /splash\/Ahri_0\.jpg$/.test(document.querySelector('#csRows tr[data-me] .csart').src), null, 'your card follows the skin');
+    await wait(pc, () => /splash\/Ahri_0\.jpg$/.test(document.querySelector('#csRows .cscard[data-me] .csart').src), null, 'your card follows the skin');
     await pc.click('#csSkinRandom');
     await wait(pc, () => document.querySelector('#csSkinGrid [aria-pressed="true"]').textContent === 'Dynasty Ahri', null, 'Random skin: the other one you own');
     await pc.click('#csSkinFav');
@@ -1424,14 +1437,13 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'cs-skins');
     await pc.click('#csChromas button[aria-label="Ruby"]');
     await wait(pc, () => document.querySelector('#csChromas [aria-pressed="true"]').getAttribute('aria-label') === 'Ruby', null, 'the Ruby chroma again, from the PC');
-    await pc.click('#csThem li:nth-child(3) button');
-    await wait(pc, () => document.getElementById('h-sheet').textContent === 'Zed: abilities', null, 'Zed’s abilities');
+    await wait(pc, () => document.getElementById('h-sheet').textContent === 'Zed: abilities', null, 'Zed’s abilities, open from the start: your lane');
     assert.deepStrictEqual(await pc.$$eval('#csSheet li.ab', (l) => l.map((li) => [li.querySelector('.abtop').textContent, !!li.querySelector('.watch')])), [['PassivePassive', false], ['QQ7 s', false], ['WW7 s', false], ['EE7 s', false], ['RR7 s', true]]);
     assert.deepStrictEqual(await texts(pc, '#csSheet .cssheettips li'), TIPS.Zed[1]);
     assert(await pc.locator('#csThem li:nth-child(1) button').isDisabled(), 'no sheet for an enemy still choosing');
     await shot(pc, 'cs-sheet');
     await pc.click('#csThem li:nth-child(3) button');
-    await wait(pc, () => document.getElementById('csSheet').hidden, null, 'closed again');
+    await wait(pc, () => document.getElementById('csSheet').hidden, null, 'closed with a click');
     // the draft verdict once both teams are in, in words: theirs lacks magic damage
     const wasCs = JSON.stringify([lcu.cs.myTeam, lcu.cs.theirTeam]);
     assert(await pc.locator('#csVerdict').isHidden(), 'no verdict while they pick');
@@ -1449,7 +1461,7 @@ const leagueData = (over = {}) => ({
     await phone.click('#dodge');
     await until(() => callsTo(/session\/quit$/, 'POST').length === 1, 'a dodge from the phone');
     assert.strictEqual(await text(phone, '#dodge'), 'Dodge');
-    console.log(`champ select: ranks, recent games and tags (${rows[0].match(/6 wins in a row|Comfort pick/g).join(', ')}), hidden names never looked up, a ban, picks for middle, hover from the phone, lock in, high elo's runes, spells, build, skill order and matchup; on the phone both teams, bans, the clock, the champions by name or role, runes saved over a page and as a new one, spells, a skin with its chroma and a dodge`);
+    console.log(`champ select: ranks, recent games and tags (one on the card, ${friendMore.match(/6 wins in a row|Comfort pick/g).join(', ')} when opened), hidden names never looked up, a ban, picks for middle, hover from the phone, lock in, high elo's runes, spells, build, skill order and matchup; on the phone both teams, bans, the clock, the champions by name or role, runes saved over a page and as a new one, spells, a skin with its chroma and a dodge`);
 
     // ---- the loading screen: everyone's rank on the overlay, your team first, each team top to support, with their
     // record on their champion and tags; and the tips for your lane, there and on the Game page. Settings turns it off;

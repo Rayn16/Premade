@@ -128,7 +128,12 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
 });
 const text = (page, sel) => page.locator(sel).textContent();
 const league = (page, phase) => page.evaluate((ph) => lpcClient.emit('league', { inGame: false, phase: ph }), phase);
-const row = (page, name) => page.locator('#csRows tr', { hasText: name });
+// a teammate's card in champ select (What's new 172), found by their Riot ID, and what it opens on a click
+const card = (page, name) => page.locator(`#csRows .cscard:has(.csface[title="${name}"])`);
+async function opened(page, c) {
+  if ((await c.locator('.csface').getAttribute('aria-expanded')) !== 'true') await c.locator('.csface').click();
+  return c.locator('.csmore');
+}
 const calls = (re) => L.calls.filter((c) => re.test(c));
 
 (async () => {
@@ -156,14 +161,14 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     champSelect();
     L.phase = 'ChampSelect';
     await league(page, 'ChampSelect');
-    await wait(page, () => !document.getElementById('csBox').hidden && document.querySelectorAll('#csRows tr').length === 5, null, 'champ select');
+    await wait(page, () => !document.getElementById('csBox').hidden && document.querySelectorAll('#csRows .cscard').length === 5, null, 'champ select');
     await wait(page, () => lpc.toasts().includes('Toxic is on your avoid list, on your team. Dodge is on Pregame.'), null, 'the popup for Toxic');
-    assert.match(await row(page, 'Toxic#EUW').textContent(), /On your avoid list/);
-    assert.strictEqual(await row(page, 'Toxic#EUW').locator('button.avoid').textContent(), 'Avoided');
-    assert.strictEqual(await row(page, 'Name hidden by Riot').locator('button.avoid').count(), 0, 'nothing to avoid for a name Riot hides');
-    assert.strictEqual(await row(page, 'Rayan#EUW').locator('button.avoid').count(), 0, 'not you');
-    await row(page, 'Friend#EUW').locator('button.avoid').click();
-    await wait(page, () => /On your avoid list/.test([...document.querySelectorAll('#csRows tr')].find((tr) => /Friend#EUW/.test(tr.textContent)).textContent), null, 'Friend flagged');
+    await wait(page, () => (document.querySelector('#csRows .csface[title="Toxic#EUW"] .cschip') || {}).textContent === 'On your avoid list', null, 'Toxic’s one tag');
+    assert.strictEqual(await (await opened(page, card(page, 'Toxic#EUW'))).locator('button.avoid').textContent(), 'Avoided');
+    assert.strictEqual(await (await opened(page, page.locator('#csRows .cscard', { hasText: 'Name hidden by Riot' }))).locator('button.avoid').count(), 0, 'nothing to avoid for a name Riot hides');
+    assert.strictEqual(await (await opened(page, card(page, 'Rayan#EUW'))).locator('button.avoid').count(), 0, 'not you');
+    await (await opened(page, card(page, 'Friend#EUW'))).locator('button.avoid').click();
+    await wait(page, () => (document.querySelector('#csRows .csface[title="Friend#EUW"] .cschip') || {}).textContent === 'On your avoid list', null, 'Friend flagged');
     assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-avoid')).map((e) => [e.n, e.u])), [['Toxic#EUW', ''], ['Bully#EUW', ''], ['Friend#EUW', 'ally1']]);
     await page.waitForTimeout(1500);
     assert(!(await page.evaluate(() => lpc.toasts().some((t) => /^Friend is on/.test(t)))), 'no popup for someone you just added');
@@ -181,7 +186,7 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     await page.click('#avoidForm button');
     await wait(page, () => document.querySelectorAll('#avoidList li').length === 3, null, 'Grumpy added');
     assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-avoid')).map((e) => [e.n, e.u])), [['Toxic#EUW', ''], ['Bully#EUW', ''], ['grumpy#euw', 'grumpy1']], 'with League’s id for them');
-    assert.strictEqual(await row(page, 'Friend#EUW').locator('button.avoid').textContent(), 'Avoid');
+    assert.strictEqual(await (await opened(page, card(page, 'Friend#EUW'))).locator('button.avoid').textContent(), 'Avoid');
     // lock in for you: not with 20 s left, then with 2.5 s left, once
     assert.strictEqual(calls(/actions\/8\/complete/).length, 0, 'plenty of time left');
     L.cs.timer.adjustedTimeLeftInPhase = 2500;

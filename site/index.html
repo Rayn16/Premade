@@ -1216,40 +1216,50 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .csclock:empty { display: none; }
 .cscols { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 1.6fr) minmax(190px, 0.8fr); gap: 14px; align-items: start; }
 @container app (max-width: 1100px) { .cscols { grid-template-columns: minmax(0, 1fr); } }
-.cscol { display: grid; gap: 12px; min-width: 0; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
-.cscol > h3.ph:first-child { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
-.csus .scout thead { display: none; }
-.csus .scout, .csus .scout tbody { display: block; }
-.csus .scout tr { display: grid; gap: 4px; padding: 8px 10px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
-.csus .scout td { display: block; padding: 0; border: 0; white-space: normal; }
-.csus .scout td:empty { display: none; }
-.csthemlist { display: grid; gap: 8px; }
-.csthemlist li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
-.csthemlist li .tag { margin-left: auto; color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
-.csthemlist img:not([src]) { visibility: hidden; }
+.cscol { display: grid; gap: 10px; min-width: 0; align-content: start; }
+.csmid { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
+.csus > h3.ph, .csthem > h3.ph { margin: 0; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.csus > .hint, .csthem > .hint { margin: 0; font-size: 12px; }
+.csteam, .csthemlist { display: grid; gap: 10px; }
 /* Champ select look (What's new 162): each player a card over their champion's splash in the skin picked, tabs for
    your pick in the middle, the draft verdict in words, and each enemy's abilities on a click */
 .cshead #dodgeBtn { margin-left: 4px; }
-.csverdict { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
+.csverdict { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
 .csverdict b { color: var(--fg); }
-.csverdict .vword { font-weight: 700; color: var(--fg); }
-.csverdict[data-v="ahead"] .vword { color: var(--good); }
-.csverdict[data-v="behind"] .vword { color: var(--bad); }
-.csus .scout tr { position: relative; overflow: hidden; min-height: 64px; }
-.csus .scout tr > td { position: relative; z-index: 1; }
-.csart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 75% 22%; opacity: 0.45; pointer-events: none; }
-.csus .scout tr::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, var(--panel) 30%, color-mix(in srgb, var(--panel) 40%, transparent)); pointer-events: none; }
-.csus .scout tr[data-me] { border-color: var(--gold); }
-.csmid #csTabs { margin-bottom: 4px; }
+.csverdict .vword { padding: 6px 14px; border-radius: 999px; background: var(--line); font-weight: 700; color: var(--fg); }
+.csverdict[data-v="ahead"] .vword { background: var(--good); color: #06140d; }
+.csverdict[data-v="behind"] .vword { background: var(--bad); color: #1a0606; }
+/* What's new 172, as the mockup: each player a card with their champion's splash in full color and a dark strip at its
+   foot (champion and role, one line, spells), one tag in the corner; a teammate's opens under it on a click */
+.csface, .csthemlist .csfoe { position: relative; display: block; width: 100%; height: 104px; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.cscard[data-me] .csface { height: 156px; }
+.csthemlist .csfoe { height: 84px; }
+.csthemlist .csfoe:disabled { cursor: default; }
+.cscard[data-me] .csface, .csface[aria-expanded="true"], .csthemlist .csfoe[aria-pressed="true"] { border: 2px solid var(--fg); }
+.csart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; pointer-events: none; }
+.cschip { position: absolute; top: 8px; left: 8px; z-index: 1; background: color-mix(in srgb, var(--bg) 86%, transparent); }
+.cschip[data-k="me"] { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.csbar2 { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 7px 10px; background: color-mix(in srgb, var(--bg) 86%, transparent); }
+.cswho { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.csbar2 b { font-size: 15px; font-weight: 600; }
+.csbar2 small { font-size: 12px; color: var(--muted); }
+.csline { flex-basis: 100%; min-width: 0; overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.cshint { margin-left: auto; font-size: 12px; }
+.cskey { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); }
+.csspell { width: 24px; height: 24px; border-radius: 5px; }
+.csmore { display: block; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.csmore tbody, .csmore tr { display: grid; gap: 6px; }
+.csmore td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; }
+.csmore td:empty { display: none; }
+.csbans { display: flex; flex-wrap: wrap; gap: 14px; }
+.csbans span { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.csbans img { width: 40px; height: 40px; border-radius: 8px; filter: grayscale(1); opacity: 0.6; }
+#csTabs { gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+#csTabs .tab { min-height: 44px; margin: 0; padding: 0 12px; border: 0; border-radius: 8px; color: var(--muted); }
+#csTabs .tab[aria-selected="true"] { background: var(--fg); color: var(--bg); }
 .cstab { display: grid; gap: 12px; min-width: 0; }
 .cstab[hidden] { display: none; }
-.csthemlist li { padding: 0; border: 0; background: none; }
-.csthemlist .csfoe { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
-.csthemlist .csfoe:disabled { cursor: default; }
-.csthemlist .csfoe > :not(.csart) { position: relative; z-index: 1; }
-.csthemlist .csfoe[aria-pressed="true"] { border-color: var(--gold); }
-.csthemlist .csfoe .tag { margin-left: auto; }
-.cssheet { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.cssheet { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
 .cssheet > ul.plain { display: grid; gap: 8px; }
 .cssheet li.ab { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 10px; align-items: start; }
 .cssheet li.ab img { width: 36px; height: 36px; border-radius: 4px; }
@@ -1266,8 +1276,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .runerow button img { width: 100%; height: 100%; display: block; }
 .runerow button[aria-pressed="true"] { opacity: 1; border-color: var(--gold); }
 .runerow.key button { width: 48px; height: 48px; }
-.runerow.chips button { width: auto; height: auto; padding: 6px 10px; border-radius: 6px; opacity: 1; color: var(--muted); font: 500 12.5px/1.2 var(--body); }
-.runerow.chips button[aria-pressed="true"] { color: var(--fg); }
+/* stat shards: not .chips, the compact window's room row (its grid-area put them all in one spot) */
+.runerow.shards button { width: auto; height: auto; padding: 6px 10px; border-radius: 6px; opacity: 1; color: var(--muted); font: 500 12.5px/1.2 var(--body); }
+.runerow.shards button[aria-pressed="true"] { color: var(--fg); }
 .csslots { display: flex; flex-wrap: wrap; gap: 8px; }
 .csslot, .csspells button, .csskins button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); font: inherit; cursor: pointer; }
 .csslot[aria-pressed="true"], .csspells button[aria-pressed="true"], .csskins button[aria-pressed="true"] { border-color: var(--gold); }
@@ -1275,7 +1286,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .csspells { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr)); gap: 6px; }
 .csskins { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 120px), 1fr)); gap: 8px; }
 .csskins button { position: relative; flex-direction: column; align-items: stretch; padding: 0 0 6px; overflow: hidden; text-align: center; font-size: 12.5px; }
-.csskins button img { width: 100%; aspect-ratio: 308 / 380; object-fit: cover; object-position: top; display: block; }
+.csskins button img { width: 100%; aspect-ratio: 308 / 560; object-fit: cover; object-position: top; display: block; }
 .csskins button .fav { position: absolute; top: 4px; right: 6px; color: var(--gold); font-size: 16px; }
 .cschromas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cschromas button { width: 32px; height: 32px; border: 2px solid var(--line); border-radius: 50%; background: var(--raised); cursor: pointer; }
@@ -2052,7 +2063,8 @@ dialog.wizard { transform: scale(var(--from)); }
         <p id="fsLine" class="phase" hidden></p>
         <div class="cscols">
         <div class="cscol csus"><h3 class="ph">Your team</h3>
-        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Your team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th><th>Trade</th></tr></thead><tbody id="csRows"></tbody></table></div>
+        <p class="hint">Click one for everything about them.</p>
+        <ul id="csRows" class="plain csteam"></ul>
         </div>
         <div class="cscol csmid">
         <div id="csTabs" class="tabs" role="tablist" aria-label="Champ select tools"><button class="tab" type="button" role="tab" data-cs="picks">Picks</button><button class="tab" type="button" role="tab" data-cs="runes">Runes</button><button class="tab" type="button" role="tab" data-cs="spells">Spells</button><button class="tab" type="button" role="tab" data-cs="skins">Skins</button><button class="tab" type="button" role="tab" data-cs="build">Build</button><button class="tab" type="button" role="tab" data-cs="tips">Tips</button></div>
@@ -2078,6 +2090,8 @@ dialog.wizard { transform: scale(var(--from)); }
         <div id="bans" class="picks" hidden></div>
         <h3 id="picksHead" class="ph">Best picks for you</h3>
         <div id="picks" class="picks"></div>
+        <h3 id="csBansHead" class="ph" hidden>Banned</h3>
+        <div id="csBans" class="csbans" hidden></div>
         <div id="mixBox" class="mic" hidden><div class="mixbar" aria-hidden="true"><span id="mixAd"></span><span id="mixAp"></span></div><p id="mixNote" class="hint"></p></div>
         </div>
         <div class="cstab" data-cs="runes" role="tabpanel" hidden>
@@ -2118,7 +2132,6 @@ dialog.wizard { transform: scale(var(--from)); }
         <div class="cscol csthem"><h3 class="ph">Enemy team</h3>
         <p class="hint">Click one to see their abilities.</p>
         <ul id="csThem" class="plain csthemlist"></ul>
-        <p id="csTheirs" class="hint"></p>
         <section id="csSheet" class="cssheet" aria-labelledby="h-sheet" hidden><h3 id="h-sheet" class="ph"></h3><ul class="plain"></ul><h3 class="ph">Riot’s tips against them</h3><ul class="cssheettips"></ul></section>
         </div>
         </div>
@@ -8338,6 +8351,7 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const p of cs.myTeam) for (const t of tradesWith(p.cellId)) {
       if (t.state !== 'RECEIVED' || tradeSeen.has(t.path + t.id)) continue;
       tradeSeen.add(t.path + t.id);
+      allyAt = p.cellId; // their card opens on Pregame with Swap and No thanks
       notify(`${hidden(p) ? (p.championId ? 'Your ' + champName(p.championId) : 'A teammate') : p.gameName || 'A teammate'} wants to swap ${t.what} with you. Answer on the Pregame page${remoteConns.size ? ' or your phone' : ''}.`, true);
     }
     const me = myCell();
@@ -9593,31 +9607,64 @@ dialog.wizard { transform: scale(var(--from)); }
     const team = cs.myTeam.map((p) => ({ puuid: hidden(p) ? '' : p.puuid, hidden: hidden(p) && p.cellId !== cs.localPlayerCellId, name: p.gameName ? `${p.gameName}#${p.tagLine}` : '', champ: p.championId, hover: p.championPickIntent,
       pos: String(p.assignedPosition || '').toUpperCase(), ally: true, me: p.cellId === cs.localPlayerCellId, team: 'ORDER', cell: p.cellId, skin: p.selectedSkinId | 0 }));
     premade = findPremades(team);
+    // each teammate a card as in the mockup (What's new 172): champion and role, one line (rank and last 20, or your
+    // skin), spells and your keystone, one tag; a click opens everything else under it (their Game page row, swaps)
+    const kp = ((csx.pages.find((x) => x.cur) || {}).p || [])[2], ks = runeTrees.flatMap((t) => (t.slots[0] && t.slots[0].runes) || []).find((r) => r.id === kp);
     $('csRows').replaceChildren(...team.map((p) => {
-      const tr = scoutRow(p), td = document.createElement('td'), art = artFor(p.cell, splashOf(p.champ || p.hover, p.champ ? p.skin : 0));
-      if (!p.me) td.append(tradeButtons(p.cell));
-      tr.append(td);
-      if (art) tr.prepend(art);
-      return tr;
+      const k = p.champ || p.hover, c = champOf(k), s = !p.hidden && p.puuid ? scoutData.get(p.puuid) : null, g = s && s.games, seat = cs.myTeam.find((x) => x.cellId === p.cell) || {};
+      const rk = s && [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((q) => q && TIERS.includes(q.tier)), w = g ? g.filter((x) => x.win).length : 0;
+      const sk = p.me && csx.skins.find((x) => x.id === p.skin || x.ch.some(([id]) => id === p.skin)), chroma = sk && (sk.ch.find(([id]) => id === p.skin) || [])[1];
+      const line = sk ? sk.name + (chroma ? ` · ${chroma}` : '') : p.hidden ? 'Name hidden by Riot' : !s ? (p.puuid && opts.scout ? 'Looking up…' : '')
+        : [rk ? rkName(rk) : 'Unranked', g && g.length ? `${w}W ${g.length - w}L` : ''].filter(Boolean).join(' · ');
+      const chip = p.me ? ['me', 'You'] : keyTags([...(avoidOf(p) ? [['bad', 'On your avoid list']] : []), ...(g ? tagsOf(s, k, p) : [])], 1)[0];
+      const pic = (src, name, cls) => Object.assign(new Image(), { src, alt: name || '', title: name || '', className: cls });
+      const bar = document.createElement('span'), who = document.createElement('span'), open = allyAt === p.cell, li = document.createElement('li');
+      bar.className = 'csbar2';
+      who.className = 'cswho';
+      who.append(Object.assign(document.createElement('b'), { textContent: c ? c.name : 'Still choosing' }), Object.assign(document.createElement('small'), { textContent: [POS[p.pos] || '', !p.champ && p.hover ? 'hovering' : ''].filter(Boolean).join(' · ') }),
+        Object.assign(document.createElement('span'), { className: 'csline', textContent: line }));
+      bar.append(who, ...(p.me && ks ? [pic(`${DD}/cdn/img/${ks.icon}`, ks.name, 'cskey')] : []), ...[seat.spell1Id, seat.spell2Id].filter((x) => spellPic(x)).map((x) => pic(spellPic(x), SPELLS[x], 'csspell')));
+      const art = artFor(p.cell, splashOf(k, p.champ ? p.skin : 0)), face = mkBtn('csface', [...(art ? [art] : []), ...(chip ? [Object.assign(tag(chip[0], chip[1]), { className: 'tag cschip' })] : []), bar], () => { allyAt = open ? -1 : p.cell; renderGame(); });
+      face.setAttribute('aria-expanded', String(open));
+      face.title = p.name; // their Riot ID on a hover, when Riot shows it
+      li.className = 'cscard';
+      li.toggleAttribute('data-me', !!p.me);
+      li.append(face);
+      if (open) { // everything else: their Riot ID, both ranks, last 20, every tag, Avoid, and the swaps League offers
+        const t = document.createElement('table'), tr = scoutRow(p), td = document.createElement('td');
+        t.className = 'ready scout csmore';
+        if (!p.me) td.append(tradeButtons(p.cell));
+        tr.append(td);
+        t.createTBody().append(tr);
+        li.append(t);
+      }
+      return li;
     }));
-    const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => champName(x.championId)), foe = laneFoe(myPos());
-    const them = (cs.theirTeam || []).map((p) => [p.championId | 0, p.championId && p.championId === foe]), themKey = JSON.stringify([ddVersion, them, foeAt]);
+    const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => x.championId), foe = laneFoe(myPos());
+    const them = (cs.theirTeam || []).map((p) => [p.championId | 0, p.championId && p.championId === foe]), at = foeAt === null ? them.findIndex(([, lane]) => lane) : foeAt;
+    const roleOf = new Map(); // their roles as League gives them, else as the high elo games guess (laneFoe)
+    for (const r of Object.keys(POS)) { const c = laneFoe(r); if (c && !roleOf.has(c)) roleOf.set(c, r); }
+    const themKey = JSON.stringify([ddVersion, them, at, [...roleOf]]);
     if ($('csThem').dataset.key !== themKey) {
       $('csThem').dataset.key = themKey;
-      $('csThem').replaceChildren(...them.map(([c, lane], i) => { // each a button that opens their abilities (csSheet)
-        const li = document.createElement('li'), img = new Image(), b = mkBtn('csfoe', [], () => { foeAt = foeAt === i ? -1 : i; renderGame(); }, foeAt === i && !!c), art = artFor(`foe${i}`, splashOf(c, 0));
-        img.alt = '';
-        img.className = 'pic0';
-        if (c) img.src = champImg(c);
+      $('csThem').replaceChildren(...them.map(([c, lane], i) => { // each a card that opens their abilities (csSheet)
+        const li = document.createElement('li'), bar = document.createElement('span'), b = mkBtn('csfoe', [], () => { foeAt = at === i ? -1 : i; renderGame(); }, at === i && !!c), art = artFor(`foe${i}`, splashOf(c, 0));
         b.disabled = !c;
-        b.append(...(art ? [art] : []), img, Object.assign(document.createElement('b'), { textContent: c ? champName(c) : 'Still choosing' }));
-        if (lane) b.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Your lane' }));
+        bar.className = 'csbar2';
+        bar.append(Object.assign(document.createElement('b'), { textContent: c ? champName(c) : 'Still choosing' }), Object.assign(document.createElement('small'), { textContent: POS[roleOf.get(c)] || '' }),
+          Object.assign(document.createElement('span'), { className: 'cshint', textContent: at === i && c ? 'Shown below' : lane ? 'Your lane' : '' }));
+        b.append(...(art ? [art] : []), bar);
         li.append(b);
         return li;
       }));
     }
-    csSheet(them);
-    $('csTheirs').textContent = [theirs.length ? `Their picks: ${theirs.map((c) => champName(c) + (c === foe ? ' (likely in your lane)' : '')).join(', ')}.` : '', bans.length ? `Banned: ${bans.join(', ')}.` : ''].filter(Boolean).join(' ');
+    $('csBansHead').hidden = $('csBans').hidden = !bans.length;
+    const bk = JSON.stringify([ddVersion, bans]);
+    if ($('csBans').dataset.key !== bk) {
+      $('csBans').dataset.key = bk;
+      $('csBans').replaceChildren(...bans.map((c) => { const d = document.createElement('span'); d.append(Object.assign(new Image(), { src: champImg(c), alt: '' }), champName(c)); return d; }));
+    }
+    csSheet(them, at);
     const ban = a && a.type === 'ban', ideas = ban ? banIdeas() : [];
     $('picksHead').hidden = $('picks').hidden = !a || ban;
     $('bansHead').hidden = $('bans').hidden = !ideas.length;
@@ -10166,10 +10213,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // never replaced by Premade's own at lock in (setRunes, the favorite skin). Pages and skins come from csExtras, every
   // 3 s while this page is on screen in champ select (renderChamps) or a phone is connected.
   const hand = { runes: false, spells: false, skin: false };
-  let csTab = '', spellSlot = 0, csEd = null, foeAt = -1;
+  let csTab = '', spellSlot = 0, csEd = null, foeAt = null, allyAt = -1; // foeAt null: your lane opponent's abilities show
   const csArt = new Map(); // each card's splash picture by seat, the same one kept while the skin stays
   const favSkins = load('lpc-favskins', {}); // your favorite skin by champion number
-  function csReset() { Object.assign(hand, { runes: false, spells: false, skin: false }); csTab = ''; spellSlot = 0; csEd = null; foeAt = -1; csArt.clear(); csx.favFor = 0; }
+  function csReset() { Object.assign(hand, { runes: false, spells: false, skin: false }); csTab = ''; spellSlot = 0; csEd = null; foeAt = null; allyAt = -1; csArt.clear(); csx.favFor = 0; }
   const noteNow = (what) => (remoteNote && remoteNote.what === what && Date.now() - remoteNote.at < 8000 ? remoteNote.text : '');
   // a champion's splash in a skin (a chroma shows its skin's), falling back to the base skin
   function splashOf(champ, skin) {
@@ -10239,7 +10286,7 @@ dialog.wizard { transform: scale(var(--from)); }
         col(`Secondary${sec ? ': ' + sec.name : ''}`, row(runeTrees.filter((t) => t.id !== p[0]), (q, id) => { if (q[1] !== id) { q[1] = id; q.fill(0, 6, 8); } }, (id) => id === p[1]),
           ...(sec ? sec.slots.slice(1).map((r) => row(r.runes, secondaryRune, (id) => id === p[6] || id === p[7])) : []),
           Object.assign(document.createElement('h4'), { textContent: 'Stat shards' }),
-          ...SHARDS.map((r, i) => { const d = document.createElement('div'); d.className = 'runerow chips'; d.append(...r.map(([id, label]) => mkBtn('', [label], () => csEdit((q) => { q[8 + i] = id; }), p[8 + i] === id))); return d; })));
+          ...SHARDS.map((r, i) => { const d = document.createElement('div'); d.className = 'runerow shards'; d.append(...r.map(([id, label]) => mkBtn('', [label], () => csEdit((q) => { q[8 + i] = id; }), p[8 + i] === id))); return d; })));
     }
     $('csPageSave').disabled = !csEd.edit || !runesOk(csEd.p);
     $('csPageNew').disabled = !runesOk(csEd.p);
@@ -10324,8 +10371,8 @@ dialog.wizard { transform: scale(var(--from)); }
   });
   // The enemy you click: their passive and Q, W, E and R, each with its icon, cooldown at each rank and Riot's first line
   // for it, the ultimate marked Watch this, then Riot's tips for playing against them
-  function csSheet(them) {
-    const c = champOf((them[foeAt] || [])[0]), t = c ? riotTips(c) : null, key = JSON.stringify([c && c.id, !!t]);
+  function csSheet(them, at) {
+    const c = champOf((them[at] || [])[0]), t = c ? riotTips(c) : null, key = JSON.stringify([c && c.id, !!t]);
     if ($('csSheet').dataset.key === key) return;
     $('csSheet').dataset.key = key;
     $('csSheet').hidden = !c;
@@ -18293,6 +18340,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [172, 'November 20: champ select as it was drawn', [
+      'Each player in champ select is a short card with their champion’s splash in full color: champion and role, their rank and last 20 games (your skin on yours), their spells, and only their one most important tag.',
+      'Click a teammate’s card for everything else: their Riot ID, both ranks, every tag, Avoid and the swaps. A teammate who asks you for a swap has their card open by itself.',
+      'Enemy cards show their role too, and your lane opponent’s abilities are open from the start. Bans are grey pictures in the Picks tab, the draft verdict is a colored pill, and the tabs are buttons.',
+    ]],
     [171, 'November 20: a simpler Overlay page', [
       'The Overlay page goes in game order: Voice, Loading screen, In game, Callouts, While you’re dead, After the game, and TFT and ARAM: Mayhem, each a card that says how many of its switches are on. Each switch has a short name and one grey line.',
       'Light, Full and Learning are cards at the top, over your most played champion’s splash, and “Your own mix” shows when your switches match none of them.',
@@ -19273,11 +19325,11 @@ dialog.wizard { transform: scale(var(--from)); }
         'On unless you turn it off: Settings, League, and the Overlay page, Loading screen. In a game, Alt+V shows everyone’s rank again; press it again to hide the overlay.', '#optScout', 'app'],
       ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
         'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, While you’re dead.', '#csTips', 'app'],
-      ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: on your team’s table on Pregame, or on your phone.', '#csRows', 'app'],
-      ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
+      ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: click a teammate’s card on Pregame (one asking you opens by itself), or on your phone.', '#csRows', 'app'],
+      ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked, with their rank, last 20 games, spells and their one most important tag. Click a teammate’s card for the rest: Riot ID, every tag, Avoid and swaps. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
         'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
       ['Draft verdict', 'Once both teams have locked in: you’re ahead, even or behind on the draft, in words, and what each team lacks: a frontline, magic damage, crowd control or engage.', 'At the top of champ select, on Pregame.', '#csVerdict', 'app'],
-      ['Enemy abilities', 'Click an enemy in champ select for their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
+      ['Enemy abilities', 'Your lane opponent’s show by themselves in champ select; click another enemy for theirs: their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
       ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, at the top of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
         'Avoid beside a player in champ select, on Game or in a game report, or type their Riot ID in Pregame settings.', '#avoidForm', 'app'],
