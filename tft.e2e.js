@@ -21,6 +21,7 @@ const http = require('http');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -232,7 +233,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
   try {
     // ---- the website: build a comp, copy its code, open a pasted one, save comps, the shop odds
     const [actx, ana] = await context(browser, { name: 'Ana' });
-    await ana.click('#leagueNav'); await ana.click('.nav[data-view="tft"]');
+    await openPage(ana, 'tft');
     await wait(ana, () => document.querySelectorAll('#tftPool .tftunit').length === 7, null, 'Set 18’s Team Planner champions');
     assert.deepStrictEqual(await texts(ana, '#tftPool .tftunit span'), ['Ornn', 'Rakan', 'Xayah', 'Hecarim', 'Ahri', 'Ashe', 'Lux (Solar)'], 'by cost, then name; no row without a number');
     assert.deepStrictEqual(await ana.$$eval('#tftPool .tftunit', (l) => l.map((b) => b.dataset.cost).join('')), '1113455');
@@ -277,7 +278,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await ana.locator('#tftMine li').getByRole('button', { name: 'Open' }).click();
     assert.deepStrictEqual(await texts(ana, '#tftBoard .tftunit span'), ['Xayah', 'Rakan', 'Lux (Solar)'], 'the saved comp back');
     await ana.reload();
-    await ana.click('#leagueNav'); await ana.click('.nav[data-view="tft"]');
+    await openPage(ana, 'tft');
     await wait(ana, () => document.querySelectorAll('#tftBoard .tftunit').length === 3 && document.querySelectorAll('#tftMine li').length === 1, null, 'the comp and My comps after a restart');
     await ana.locator('#tftMine li').getByRole('button', { name: 'Delete' }).click();
     assert.strictEqual(await ana.locator('#tftMine li').count(), 0);
@@ -291,7 +292,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     // ---- the roll calculator, the item recipes, and My comps closest to the board first
     const [cctx, cam] = await context(browser, { name: 'Cam' });
     cdragonLoads = 0;
-    await cam.click('#leagueNav'); await cam.click('.nav[data-view="tft"]');
+    await openPage(cam, 'tft');
     await wait(cam, () => !document.getElementById('tftRollBox').hidden && !document.getElementById('tftItemsBox').hidden, null, 'the roll calculator and the item recipes');
     assert.deepStrictEqual(await texts(cam, '#tftRollUnit option'), ['Ornn (1)', 'Rakan (1)', 'Xayah (1)', 'Hecarim (3)', 'Ahri (4)', 'Ashe (5)', 'Lux (Solar) (5)'], 'by cost, then name');
     assert.deepStrictEqual([await cam.inputValue('#tftRollUnit'), await cam.inputValue('#tftRollLvl')], ['TFT18_Ornn', '8'], 'the first champion and level 8 to start');
@@ -327,7 +328,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
       ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-item/DA_InfinityEdge.png', 'https://raw.communitydragon.org/latest/game/assets/maps/tft/icons/items/hexcore/da_deathblade.tft_set13.png'], 'Data Dragon’s picture, else CommunityDragon’s');
     assert.strictEqual(await cam.locator('#tftWant li').count(), 0, 'no games on the website, so no gold rings');
     await cam.reload();
-    await cam.click('#leagueNav'); await cam.click('.nav[data-view="tft"]');
+    await openPage(cam, 'tft');
     await wait(cam, () => document.querySelectorAll('#tftRec img').length === 16, null, 'the recipes after a restart');
     assert.strictEqual(cdragonLoads, 1, 'kept for the patch');
     // My comps: with champions on the board, the comps sharing most of them first, with who's still needed
@@ -352,7 +353,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     const [pctx, pc] = await context(browser, { app: true });
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
     await wait(pc, () => lpc.lcu().me0, null, 'you in League');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="tft"]');
+    await openPage(pc, 'tft');
     await wait(pc, () => document.querySelectorAll('#tftGames > li').length === 4 && document.querySelectorAll('#tftGames .gbody button').length === 3, null, 'your TFT games with their team codes');
     assert(await pc.locator('#tftNote').isHidden(), 'no note with League open');
     assert.match(await text(pc, '#tftRanks'), /TFT[\s\S]*Gold II[\s\S]*Double Up[\s\S]*Unranked[\s\S]*Hyper Roll[\s\S]*Blue[\s\S]*3200 rating/);
@@ -374,7 +375,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await pc.locator('#tftItemsBox').scrollIntoViewIfNeeded();
     await shot(pc, 'tft-recipes');
     // the recipes over a TFT game, when the Overlay page says so: the Layout's sample, then a game from League's client
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
+    await openPage(pc, 'overlay');
     await pc.check('#optOverlayTft');
     await wait(pc, () => [...document.querySelectorAll('#ovHandles .ovhandle')].some((b) => b.textContent === 'TFT items'), null, 'TFT items on the Layout');
     assert.strictEqual(await pc.frameLocator('#ovFrame').locator('.rec img.want').count(), 3, 'drawn by overlay.html');
@@ -494,7 +495,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.buy), { name: 'Luden’s Echo', pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/item/6655.png', why: 'DeepARAM’s Mayhem build' });
     // Game: your picks, the best augments as icons with tiers, the top pairs with why (yours marked), both builds (yours
     // marked) and Ahri's Mayhem changes, in place of the one line and the item list
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    await openPage(pc, 'game');
     await wait(pc, () => !document.getElementById('mayBox').hidden && document.querySelector('#mayBox .maybld.sel'), null, 'the Mayhem part on Game');
     assert.deepStrictEqual(await pc.evaluate(() => { const q = (s, f) => [...document.querySelectorAll('#mayBox ' + s)].map(f), t = (e) => e.textContent; return [
       q('.mayslot', (e) => `${e.querySelector(':scope > b').textContent} ${e.querySelector('small').textContent}`),
@@ -605,12 +606,12 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await wait(pc, () => !lpc.mayState() && window.workersEnded >= 1, null, 'the reader and its Tesseract worker ended with the game');
     assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');
     // Stats, Games: a Mayhem game shows the augments you took, in order (League's match history), with the name and when on hover
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]'); await pc.click('.view[data-view="stats"] .tab[data-tab="games"]');
+    await openPage(pc, 'stats'); await pc.click('.view[data-view="stats"] .tab[data-tab="games"]');
     await wait(pc, () => document.querySelectorAll('#matches .gaugs .maug').length === 5, null, 'your Mayhem game’s augments in your history');
     assert.deepStrictEqual(await pc.$$eval('#matches .gaugs .maug', (l) => l.map((e) => e.title)), ['Symphony of War, at the start', 'Escape Plan, at 7', 'Blunt Force, at 11', 'ADAPt, at 15', 'Witchful Thinking, at 21']);
     await shot(pc, 'mayhem-board4-history');
     // the same boards on Profile's TFT tab
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await pc.click('#proQueues .tab[data-q="tft"]');
     await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');

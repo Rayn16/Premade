@@ -13,6 +13,7 @@ const http = require('http');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PORT = 8086, PEER = 9006;
@@ -180,7 +181,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
     // ---- while you're dead: your lane's tips, and what to buy next against their team
     {
       const [c, page] = await context(browser, 'Rayan', { lcu: true, notes: { '103|238': 'stay out of the shadow’s range at level 6' } });
-      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
+      await openPage(page, 'game');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
       await wait(page, () => !!lpc.lcu().me0, null, 'you, from League’s client');
       await wait(page, () => lpc.winChance() != null, null, 'the items, for the gold');
@@ -279,7 +280,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       const ps = [];
       for (const [name, colour] of [['Ana', '#c22'], ['Ben', '#2c2'], ['Cat', '#22c']]) {
         const [c, page] = await context(browser, name, { colour });
-        await page.click('.nav[data-view="voice"]'); // the app opens on Profile
+        await openPage(page, 'voice'); // the app opens on Profile
         await page.fill('#code', 'SCREENS');
         await page.click('#joinBtn');
         await wait(page, () => lpc.slot() >= 0, null, `${name} in the room`);
@@ -450,7 +451,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
         await page.evaluate((n) => { localStorage.setItem('lpc-friends', JSON.stringify([n === 'Ana' ? 'Ben#EUW' : 'Ana#EUW'])); lpcClient.version = '1.28.0'; }, name);
         await page.reload();
         await page.evaluate(() => { lpcClient.version = '1.28.0'; });
-        await page.click('.nav[data-view="help"]');
+        await openPage(page, 'help');
         ps.push([c, page]);
       }
       const [ana, ben, cat] = ps.map(([, p]) => p);
@@ -535,7 +536,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ana, () => !lpc.help() && lpc.toasts().includes('Ben is no longer controlling your PC.'), null, 'and on Ana’s, her code gone');
       assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), stopped + 1, 'Ana’s app stopped it');
       // Control in Friends, on the Voice page: Ana's page takes Ben's code by itself (she has Ben in her Friends)
-      await ben.click('.nav[data-view="voice"]');
+      await openPage(ben, 'voice');
       await wait(ben, () => [...document.querySelectorAll('#frRows button')].some((b) => b.textContent === 'Control'), null, 'Control next to Ana in Ben’s Friends', 40000);
       await ben.evaluate(() => [...document.querySelectorAll('#frRows button')].find((b) => b.textContent === 'Control').click());
       await ana.evaluate(() => lpc.groupNow()); // our server's inbox tells her page at once; this stand-in server has none, and her next 60 s round could come after the asking ran out

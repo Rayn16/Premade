@@ -10,6 +10,7 @@ const http = require('http');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -168,7 +169,7 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     await pc.goto(URL_);
     await wait(pc, () => window.lpc, null, 'the page');
     await league({ inGame: false, phase: 'None' });
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan' && lpc.lcu().hist === 28, null, 'your profile');
 
     // ---- the patch day popup: Ahri, the only one of your champions patch 1.1 changed; then Patch changes in Stats
@@ -229,7 +230,7 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     console.log('match history filters: champion, role, result, friend, today and search');
 
     // ---- Profile: League's warnings and the goal on your rank cards, and last week's recap
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await wait(pc, () => document.querySelectorAll('#proRanks .rank .warn').length === 3, null, 'the warnings');
     assert.deepStrictEqual(await pc.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.warn, .goal')].map((x) => `${x.className}${x.dataset.k ? ' ' + x.dataset.k : ''}: ${x.textContent}`))),
       [['warn bad: Decays in 2 days without a ranked game', 'warn bad: 10 LP: one loss can drop you to Diamond III', 'goal: Goal Diamond I: 90 LP, about 5 wins'], ['warn: Placements: 3 of 5 games left']]);
@@ -240,8 +241,8 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     assert.deepStrictEqual(await pc.$$eval('#weekTiles > span', (l) => l.map((s) => `${s.firstChild.textContent}: ${s.lastChild.textContent}`)),
       ['Games: 6: 5W 1L', 'Solo/Duo LP: +24 in 3 games', 'Best champion: Ahri: 3W 1L', 'Most improved: CS a minute: 7.0, from 5.0']);
     await pc.click('#weekOk');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'stats');
+    await openPage(pc, 'profile');
     assert(!(await pc.isVisible('#weekBox')), 'closed until next week');
     console.log('rank cards: decay in 2 days, one loss from Diamond III, placements, the goal; last week: 6 games, +24 LP, Ahri, CS up');
 
@@ -273,7 +274,7 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     console.log('compare with me: Duo side by side, 7W 3L together; Duo’s champions, 20 games then 30');
 
     // ---- the rank watch feed: Duo's latest 3 games the first time; then a new game with a pentakill, and a rank-up
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
+    await openPage(pc, 'stats');
     await pc.click('.tab[data-tab="players"]');
     await pc.fill('#watchId', 'Duo#EUW');
     await pc.press('#watchId', 'Enter');
@@ -294,7 +295,7 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     // ---- a second account: League signs in to Smurf; Rayan's profile, LP and goal stay apart and come back in Account
     assert.deepStrictEqual(await pc.evaluate(() => lpc.lpLog().map((e) => e.a)), Array(7).fill('rayan#euw'), 'the LP kept before accounts is Rayan’s');
     assert(await pc.evaluate(() => document.getElementById('lpAcctBox').hidden), 'one account: no Account box');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     L.acct = 'B';
     await league(null); // League closed, and started again on the other account
     await league({ inGame: false, phase: 'None' });
@@ -302,7 +303,7 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     assert.deepStrictEqual(await pc.evaluate(() => Object.keys(lpc.accounts()).sort()), ['rayan#euw', 'smurf#euw']);
     assert.deepStrictEqual(await pc.$$eval('#proAcct option', (l) => l.map((o) => o.textContent)), ['Rayan#EUW', 'Smurf#EUW']);
     assert(await pc.isVisible('#proAcct') && (await pc.inputValue('#proAcct')) === 'smurf#euw', 'Account on Profile');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
+    await openPage(pc, 'stats');
     await pc.click('.tab[data-tab="you"]');
     await wait(pc, () => /Silver I · 50 LP/.test(document.getElementById('rankNow').textContent), null, 'Smurf’s rank in Stats');
     assert(await pc.isVisible('#lpAcctBox') && (await pc.inputValue('#lpAcct')) === 'smurf#euw');
@@ -313,7 +314,7 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     await wait(pc, () => document.querySelectorAll('#lpList li').length === 6 && /Diamond II · 10 LP/.test(document.getElementById('rankNow').textContent), null, 'Rayan’s LP and rank');
     await shot(pc, 'ranked-accounts');
     assert.strictEqual(await pc.inputValue('#lpGoal'), 'DIAMOND I');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan', null, 'Rayan’s profile');
     assert.match(await text(pc, '#proNote'), /^As of .+\. Sign in to it in League to update it\.$/);
     assert.match(await text(pc, '#proRanks'), /Diamond II[\s\S]*Decays in 2 days without a ranked game/);

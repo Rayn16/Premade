@@ -151,6 +151,7 @@ export default {
       return env.ROOMS.get(env.ROOMS.idFromName(id.slice(0, id.lastIndexOf('-')))).fetch(req);
     }
     if (url.pathname === '/inbox' && req.headers.get('Upgrade') === 'websocket') return stats(env).fetch(req); // invites the moment they're sent
+    if (url.pathname === '/game' && req.headers.get('Upgrade') === 'websocket') return gameChannel(req, url, env);
     if (url.pathname === '/turn') return Response.json(STUN, { headers: CORS }); // the relays go only to players in a room (relays)
     if (url.pathname === '/stats') return Response.json({ days: await stats(env).days() }, { headers: CORS });
     if (url.pathname === '/mayhem/augments' && req.method === 'GET') {
@@ -297,6 +298,22 @@ export class Directory extends DurableObject {
 const KEY = /^[0-9a-f]{64}$/;
 const slotOf = (ws) => +ws.deserializeAttachment().id.split('-').pop();
 
+// A game channel (What's new 183): enemy spell timers and callouts between Premade players on the same team in the
+// same League game, room or not. /game?plat=<platform>&u=<puuid>&g=<gameId>&team=<100|200> joins only when Riot's live
+// game (spectator-v5, the lookup Profile's live game uses, under its limits) shows that puuid in that game on that
+// team; each game and team is a room of its own (a Room object named game:<plat>:<g>:<team>), which passes each small
+// {t:'timer'} or {t:'call'} on to the others in it. Nothing is kept.
+// ponytail: a puuid isn't secret, so someone who knows a player's Riot ID could listen to that team's timers; fine
+// among friends, a sign-in through League's client if strangers ever use it
+async function gameChannel(req, url, env) {
+  const q = url.searchParams, plat = q.get('plat') || '', u = q.get('u') || '', g = q.get('g') || '', team = q.get('team') || '';
+  if (!(plat in REGION) || !RegExp(`^${PUUID}$`).test(u) || !/^\d{1,15}$/.test(g) || !/^(100|200)$/.test(team)) return new Response('Not a game', { status: 400 });
+  const r = await riot(env).fetch(new Request(`https://riot/riot/api/${plat}/lol/spectator/v5/active-games/by-summoner/${u}`, { headers: { 'cf-connecting-ip': req.headers.get('cf-connecting-ip') || '' } }));
+  const live = r.ok ? await r.json().catch(() => null) : null, me = live && Array.isArray(live.participants) && live.participants.find((x) => x && x.puuid === u);
+  if (!me || String(live.gameId) !== g || String(me.teamId) !== team) return new Response('Not in that game', { status: 403 });
+  return env.ROOMS.get(env.ROOMS.idFromName(`game:${plat}:${g}:${team}`)).fetch(new Request(`https://game/game?u=${u}`, req));
+}
+
 export class Room extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -311,6 +328,13 @@ export class Room extends DurableObject {
     if (url.pathname.startsWith('/push/')) return push(req, this.ctx.storage, this.env);
     if (url.pathname.startsWith('/squad/')) return squad(req, this.ctx.storage, this.env, this);
     if (url.pathname === '/esports') return Response.json({ ev: await this.esports() }, { headers: CORS });
+    if (url.pathname === '/game') { // a game channel's socket (gameChannel), the same player's older one closed
+      const [client, server] = Object.values(new WebSocketPair()), u = url.searchParams.get('u');
+      for (const ws of this.ctx.getWebSockets('game:' + u)) ws.close(1000, 'Reconnected');
+      this.ctx.acceptWebSocket(server, ['game:' + u]);
+      server.serializeAttachment({ game: u });
+      return new Response(null, { status: 101, webSocket: client });
+    }
     const ice = await relays(this.env); // first, so nothing else happens to this player's socket while it waits
     const [client, server] = Object.values(new WebSocketPair());
     const old = this.open(id), [any] = this.open(), lock = (any && any.deserializeAttachment().lock) || '';
@@ -333,6 +357,11 @@ export class Room extends DurableObject {
     let m;
     try { m = JSON.parse(data); } catch { return; }
     const a = ws.deserializeAttachment();
+    if (a.game) { // a game channel: a timer or a callout, on to the rest of the team
+      if (String(data).length > 600 || !m || !['timer', 'call'].includes(m.t)) return;
+      for (const w of this.open()) if (w !== ws && w.deserializeAttachment().game) try { w.send(String(data)); } catch {}
+      return;
+    }
     if (m && m.type === 'LOCK') return this.lock(ws, a, m.payload || {});
     if (m && m.type === 'TURN') return relays(this.env).then((r) => ws.send(JSON.stringify({ type: 'TURN', payload: r }))).catch(() => {}); // the page's refresh
     if (!m || !a.in || !RELAYED.has(m.type) || typeof m.dst !== 'string') return;
@@ -365,9 +394,9 @@ export class Room extends DurableObject {
   }
   webSocketClose(ws, code) {
     try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
-    this.roster(ws);
+    if (!ws.deserializeAttachment().game) this.roster(ws);
   }
-  webSocketError(ws) { this.roster(ws); }
+  webSocketError(ws) { if (!ws.deserializeAttachment().game) this.roster(ws); }
   tell(msg) { return tellPhones(this.ctx.storage, msg); } // a squad's call or ping, on this remote code's phones (squad.js)
   esports() { return events(this, this.env); } // the esports object's matches, for the pick'em (squad.js)
 }
