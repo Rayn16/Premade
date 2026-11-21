@@ -160,9 +160,9 @@ export default {
       try { // fetch's cf options keep DeepARAM's page an hour in Cloudflare's cache; the Cache API does nothing on workers.dev
         const upstream = await fetch(source, { cf: { cacheEverything: true, cacheTtl: 3600 } });
         if (!upstream.ok) return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
-        const { patch, rows, pairs, items } = deepAram(await upstream.text());
+        const { patch, rows, pairs, why, items, builds, changes } = deepAram(await upstream.text());
         if (!patch || !rows.length) return Response.json({ error: 'DeepARAM data could not be read' }, { status: 502, headers: CORS });
-        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows, pairs, items }, { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
+        return Response.json({ source: 'https://deeparam.com/tier-list', champion, patch, rows, pairs, why, items, builds, changes }, { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
       } catch {
         return Response.json({ error: 'DeepARAM is unavailable' }, { status: 502, headers: CORS });
       }

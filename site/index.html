@@ -1692,6 +1692,13 @@ dialog.wizard { transform: scale(var(--from)); }
 @keyframes land { 0% { opacity: 0; transform: translateY(var(--rise)) scale(var(--from)); } 60% { opacity: 1; } 100% { transform: none; } }
 @keyframes ring { 0% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(calc(1 + 0.6 * var(--m))); } }
 @keyframes topple { 0% { transform: none; } 20% { transform: rotate(calc(-6deg * var(--m))); } 100% { transform: rotate(calc(90deg * var(--m))); opacity: 0.55; } }
+/* the callout log on the Game page (What's new 183) */
+.calllog { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.calllog li { display: grid; grid-template-columns: 48px 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.calllog li time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.calllog li img { width: 96px; height: 96px; border-radius: 4px; }
+.calllog li[data-wrong] span { color: var(--muted); text-decoration: line-through; }
+@container app (max-width: 520px) { .calllog li { grid-template-columns: 40px 64px minmax(0, 1fr); } .calllog li img { width: 64px; height: 64px; } .calllog li button { grid-column: 3; justify-self: start; } }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -2532,6 +2539,11 @@ dialog.wizard { transform: scale(var(--from)); }
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
+      <section id="callLogBox" class="panel" aria-labelledby="h-calllog" hidden>
+        <h2 id="h-calllog" class="ph">Callouts last game</h2>
+        <p class="hint">Each callout with your minimap when it showed. Wrong marks one that called something that wasn’t there.</p>
+        <ol id="callLogList" class="calllog"></ol>
+      </section>
       <section id="drillBox" class="panel" aria-labelledby="h-drill" hidden>
         <h2 id="h-drill" class="ph">CS drill <button class="tip" type="button" popovertarget="t-drill" aria-label="About the CS drill">?</button></h2>
         <p id="drillNow" class="phase" role="status"></p>
@@ -2903,29 +2915,38 @@ dialog.wizard { transform: scale(var(--from)); }
           <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"><span><span>Win chance</span><span>Your team’s chance to win, as the game goes</span></span></label>
           <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"><span><span>CS counter</span><span>CS a minute against your usual</span></span></label>
           <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"><span><span>My lane</span><span>CS and gold against your lane opponent</span></span></label>
-          <label class="check"><input id="optFoeTimers" type="checkbox"><span><span>Enemy timers</span><span>Say “Premade, mid flash” or tap your phone</span></span></label>
+          <label class="check"><input id="optFoeTimers" type="checkbox"><span><span>Enemy spell strip</span><span>Click their spells and ultimates above your minimap, or say “Premade, mid flash”. Every Premade teammate gets the timer</span></span></label>
           <label class="check"><input id="optOverlayToasts" type="checkbox"><span><span>Popups</span><span>Invites, trades and other alerts</span></span></label>
         </section>
         <section class="ovcard" aria-labelledby="h-ovcalls">
-          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h3l8-5v14l-8-5H4zM7 14l1.5 5h2.5L10 15M18 9.5a3 3 0 0 1 0 5"/></svg></span><div><h2 id="h-ovcalls">Callouts <button class="tip" type="button" popovertarget="t-calls" aria-label="About callouts">?</button></h2><p>One line at the top of your screen</p></div><span class="ovn"></span></div>
+          <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h3l8-5v14l-8-5H4zM7 14l1.5 5h2.5L10 15M18 9.5a3 3 0 0 1 0 5"/></svg></span><div><h2 id="h-ovcalls">Callouts <button class="tip" type="button" popovertarget="t-calls" aria-label="About callouts">?</button></h2><p>Up to 3 at the top of your screen</p></div><span class="ovn"></span></div>
           <p class="ovpart">From your minimap · Summoner’s Rift</p>
           <label class="check"><input id="optMapNudge" type="checkbox"><span><span>Minimap reminder <button class="tip" type="button" popovertarget="t-nudge" aria-label="About the minimap reminder">?</button></span><span>“Check your minimap” every so often</span></span></label>
-          <label class="check"><input id="ovMapCalls" type="checkbox"><span><span>Minimap callouts <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></span><span>Their jungler, ganks, missing laners, invaders and who’s off</span></span></label>
+          <label class="check"><input id="ovMapCalls" type="checkbox"><span><span>Minimap callouts <button class="tip" type="button" popovertarget="t-jgcall" aria-label="About the jungler callout">?</button></span><span>Their jungler, ganks, heading to a lane, missing laners and invaders</span></span></label>
           <div id="ovMapList" class="ovin" data-when="ovMapCalls">
-            <label class="check"><input id="optJgCall" type="checkbox"><span><span>Their jungler</span><span>Where their jungler shows up</span></span></label>
-            <label class="check"><input id="optGankCall" type="checkbox"><span><span>Gank warning</span><span>When their jungler heads your way</span></span></label>
-            <label class="check"><input id="optMissCall" type="checkbox"><span><span>Missing laners</span><span>When a laner leaves your minimap</span></span></label>
-            <label class="check"><input id="optInvadeCall" type="checkbox"><span><span>Invaders</span><span>Enemies in your jungle</span></span></label>
-            <label class="check"><input id="optMissList" type="checkbox"><span><span>Who’s off my minimap</span><span>A list by your minimap, with how long</span></span></label>
+            <label class="check"><input id="optJgCall" type="checkbox"><span><span>Their jungler</span><span>Where their jungler shows up, by spot: “at your red”</span></span></label>
+            <label class="check"><input id="optGankCall" type="checkbox"><span><span>Ganks</span><span>Anyone but your lane opponents heading your way, and “2 coming”</span></span></label>
+            <label class="check"><input id="optLaneCall" type="checkbox"><span><span>Heading to a lane</span><span>Their jungler walking toward a teammate’s lane</span></span></label>
+            <label class="check"><input id="optMissCall" type="checkbox"><span><span>Missing laners</span><span>Not when they went back to buy, and “back mid” when they return</span></span></label>
+            <label class="check"><input id="optInvadeCall" type="checkbox"><span><span>Invaders</span><span>Enemies in your jungle, with the spot</span></span></label>
           </div>
+          <label class="check"><input id="optMissList" type="checkbox"><span><span>Faded faces on your minimap</span><span>Where you last saw each enemy, with the seconds since</span></span></label>
           <p class="ovpart">From the game · Summoner’s Rift</p>
           <label class="check"><input id="optSpikeCall" type="checkbox"><span><span>Power spikes</span><span>Level 6, 11 and 16, and finished items</span></span></label>
+          <label class="check"><input id="optObjCall" type="checkbox"><span><span>Objective windows</span><span>Their jungler dead with Dragon, Voidgrubs, Herald or Baron up</span></span></label>
+          <label class="check"><input id="optGrubCall" type="checkbox"><span><span>Voidgrubs and Herald</span><span>30 s before they spawn</span></span></label>
           <label class="check"><input id="optCoach" type="checkbox"><span><span>Coach</span><span>A tip now and then: gold, objectives, levels</span></span></label>
           <label class="check ovin" data-when="optCoach"><input id="optCoachNew" type="checkbox"><span><span>I’m new: say why</span><span>The coach adds why, and what to do</span></span></label>
-          <label class="check"><input id="optJgClock" type="checkbox"><span><span>Jungle clock</span><span>Where their jungler likely is after the first clear</span></span></label>
+          <label class="check"><input id="optJgClock" type="checkbox"><span><span>Jungle clock</span><span>Where their jungler likely is after the first clear, timed for 2026</span></span></label>
+          <p class="ovpart">From your team</p>
+          <label class="check"><input id="optTeamCall" type="checkbox"><span><span>Teammates’ callouts</span><span>Say “Premade, mid missing” or tap your phone: every Premade teammate in your game sees it, and you see theirs</span></span></label>
           <p class="ovpart">Sound</p>
-          <label class="check"><input id="optSpeakCalls" type="checkbox"><span><span>Read them out loud</span><span>Hear each callout as it shows</span></span></label>
+          <label class="check"><input id="optCallSounds" type="checkbox"><span><span>Sounds</span><span>A sharp one for ganks and invades, a soft one for the rest, through your Premade output</span></span></label>
+          <div class="toolbar ovmore" data-when="optCallSounds"><label class="field">Sound volume <input id="optCallVol" type="range" min="0" max="100" step="5"></label><button id="callSoundTry" class="btn small" type="button">Try both</button></div>
+          <label class="check"><input id="optSpeakCalls" type="checkbox"><span><span>Read them out loud</span><span>Hear each callout after its sound</span></span></label>
           <div class="toolbar ovmore" data-when="optSpeakCalls"><label class="field">Voice <select id="optCallVoice"><option value="">My computer’s usual voice</option><option value="girl">A girl’s voice</option></select></label><button id="callVoiceTry" class="btn small" type="button">Try it</button></div>
+          <p class="ovpart">After the game</p>
+          <label class="check"><input id="optCallLog" type="checkbox"><span><span>Callout log</span><span>Every callout on the Game page, with your minimap then and a Wrong button</span></span></label>
         </section>
         <section class="ovcard" aria-labelledby="h-ovdead">
           <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4"/></svg></span><div><h2 id="h-ovdead">While you’re dead</h2><p>Gone when you respawn</p></div><span class="ovn"></span></div>
@@ -3455,7 +3476,7 @@ dialog.wizard { transform: scale(var(--from)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true,
     overlayLane: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
-    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false,
+    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false, callLog: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false,
@@ -4120,7 +4141,7 @@ dialog.wizard { transform: scale(var(--from)); }
       return keyChanged();
     }
     if (m.t === 'removed' && p.slot === hostSlot()) { leaveRoom(); return say('The host removed you from the room.'); }
-    if (m.t === 'timer' && typeof m.k === 'string' && TIMER_K.test(m.k) && Number.isFinite(m.end)) { if (league && m.g === league.room && teamOf(p) !== 'enemy') addTimer(m.g, m.k, Math.min(7200, m.end)); return; }
+    if ((m.t === 'timer' || m.t === 'call') && league && m.g === league.room && teamOf(p) !== 'enemy') return void fromTeam(m, nameOf(p));
     if (m.t === 'cg') return void takeCustoms(m.g);
     if (m.t === 'pos' && Number.isFinite(m.x) && Number.isFinite(m.y)) p.pos = { x: clamp(m.x), y: clamp(m.y), t: performance.now() };
     if (m.t === 'me') {
@@ -5473,23 +5494,23 @@ dialog.wizard { transform: scale(var(--from)); }
   // Little sounds only you hear: two quick notes, rising for unmute and joins, falling for mute and leaves; four
   // rising ones before voice swap reshuffles; a ring when it's your turn in champ select; three for an objective
   // coming up. The alarms ring even outside a room (a context of their own, on the same speakers as the voices).
-  const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659], call: [659, 784, 988, 784, 988], ping: [988, 1319] };
+  const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659], call: [659, 784, 988, 784, 988], ping: [988, 1319], sharp: [1175, 1568], soft: [523] }; // sharp and soft: callouts (What's new 182)
   const played = []; // for the test hooks
   let bell = null;
   function bellCtx() {
     if (!bell) { bell = new AudioContext(); if (outId && bell.setSinkId) bell.setSinkId(outId).catch(() => {}); }
     bell.resume().catch(() => {});
   }
-  function chime(name) {
+  function chime(name, vol = 1) { // vol: 0-1, the callout sounds' own volume
     if (played.push(name) > 20) played.shift();
-    if (!ac && (name === 'turn' || name === 'spawn' || name === 'call') && window.AudioContext) bellCtx();
+    if (!ac && ['turn', 'spawn', 'call', 'sharp', 'soft'].includes(name) && window.AudioContext) bellCtx();
     const c = ac || bell;
     if (!c) return;
     SOUNDS[name].forEach((f, i) => {
       const o = c.createOscillator(), g = c.createGain(), at = c.currentTime + i * 0.09;
       o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(0.15, at + 0.01);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.15 * vol), at + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
       o.connect(g).connect(c.destination);
       o.start(at);
@@ -6614,6 +6635,7 @@ dialog.wizard { transform: scale(var(--from)); }
     s.stop = CameraBox.watch(new MediaStream([s.track]), 200, (src, w, h) => {
       if (share !== s || s.mode !== 'league') return;
       if (!s.sq || s.frames++ % 25 === 0) s.sq = CameraBox.locateMinimap(cctx, src, w, h); // again every 5 s, in case Minimap Scale changed
+      s.fw = w; s.fh = h; // the frame, for where the faded faces go on the screen
       if (!s.sq && ++s.miss % 10 === 0) { s.hint = shareHint(s); render(); }
       if (s.sq) s.miss = 0;
       if (s.sq) {
@@ -6808,19 +6830,19 @@ dialog.wizard { transform: scale(var(--from)); }
     const anyHas = any && !overlayEdit && (talkers.length > 0 || lines.length > 0); // friends talking or writing, not your own voice
     const visible = (any && !overlayEdit ? anyHas : talk || meOn || overlayOn) || !!game || !!cs || !!aug || !!lane || !!tft || !!buy || !!board || practice.length > 0;
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
-    const missing = overlayEdit || overlayHide ? null : missRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
+    const ghosts = overlayEdit || overlayHide ? null : ghostRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
     const cards = overlayEdit || overlayHide ? null : tftAugCards();
     const mayCards = overlayEdit || overlayHide ? null : mayhemAugCards();
     const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
     // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
     // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
     // TFT ratings and Mayhem's independent full-screen card layer, and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!missing || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
+    const full = !overlayEdit && boardOk() && (call !== null || !!ghosts || (!overlayHide && !!stripRows()) || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     let s = !visible && !full ? { visible: false } : {
-      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, theme: look.dark ? look : null,
+      visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, calls: call && callCur && callCur.text === call ? callUp.map((c) => ({ text: c.text, pics: c.pics })) : null, theme: look.dark ? look : null,
       prog: !!(board && typeof board === 'object') || !!(after && after.board), // the mouse reaches the overlay for the stats' boxes and the Scoreboard button (app 1.46)
-      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, missing, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, ghosts, strip: overlayHide ? null : stripRows(), after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(any && { any: true }),
@@ -6967,7 +6989,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // a row seen), from (in sight since), seen, at, trail (the last 2 s), zone, where, lane (the lane they were last in),
   // called (missing, said), d (deaths), dead (when they're back) }.
   const SR = /^(CLASSIC|SWIFTPLAY)$/;
-  const foesOn = () => (opts.jgCall || opts.gankCall || opts.missCall || opts.invadeCall || opts.missList || opts.jgClock) && !!league && !!mine.team && SR.test(league.mode) && boardOk();
+  const foesOn = () => (opts.jgCall || opts.gankCall || opts.laneCall || opts.missCall || opts.invadeCall || opts.missList || opts.jgClock) && !!league && !!mine.team && SR.test(league.mode) && boardOk();
   function theirJungler() { // by League's positions, else by the jungle pet they carry
     // ponytail: jungle pets are items 1101 to 1103 (since 2024); if Riot renumbers them, only games with positions find them
     const pet = (league.players || []).find((p) => p.team !== mine.team && (p.items || []).some(([i]) => i >= 1101 && i <= 1103));
@@ -6979,6 +7001,28 @@ dialog.wizard { transform: scale(var(--from)); }
     const o = Terrain.onMinimap, z = placeOf({ x: ((p.x - o.x) / o.w) * MAP, y: (1 - (p.y - o.y) / o.h) * MAP }, mine.team === 'CHAOS' ? 200 : 100);
     return ZONES[z] || z;
   }
+  // Named spots (What's new 181): camps, pits and scuttles in Riot's game units (the blue base bottom left); a callout
+  // names the nearest within 900 units, else the area: top, mid or bot lane, top or bot river, a jungle or a base.
+  // Camps on your half are "your", on theirs "their", never blue side or red side.
+  const SPOTS = [['blue', 3821, 8101, 100], ['gromp', 2110, 8450, 100], ['wolves', 3780, 6443, 100], ['raptors', 6990, 5394, 100], ['red', 7765, 4020, 100], ['krugs', 8380, 2750, 100],
+    ['blue', 11032, 6990, 200], ['gromp', 12703, 6443, 200], ['wolves', 11008, 8387, 200], ['raptors', 7852, 9471, 200], ['red', 7101, 10900, 200], ['krugs', 6317, 12146, 200],
+    ['Dragon', 9866, 4414], ['Baron', 5007, 10471], ['bot scuttle', 10500, 5170], ['top scuttle', 4400, 9600]];
+  const AREAS = { 'the top lane': 'top lane', 'the middle lane': 'mid lane', 'the bottom lane': 'bot lane' };
+  function mapSpot(p) { // a spot on your minimap: { name: 'your red' or 'top river', at: true for a named spot }
+    const o = Terrain.onMinimap, x = ((p.x - o.x) / o.w) * MAP, y = (1 - (p.y - o.y) / o.h) * MAP, team = mine.team === 'CHAOS' ? 200 : 100;
+    let best = null, bd = 900;
+    for (const [n, sx, sy, side] of SPOTS) { const d = Math.hypot(x - sx, y - sy); if (d < bd) { bd = d; best = side ? `${side === team ? 'your' : 'their'} ${n}` : n; } }
+    if (best) return { name: best, at: true };
+    const z = placeOf({ x, y }, team);
+    return { name: z === 'the river' ? (y > x ? 'top river' : 'bot river') : AREAS[z] || z, at: false };
+  }
+  const spotSay = (sp) => `${sp.at ? 'at' : 'in'} ${sp.name}`; // "at your red", "in top river"
+  const fountain = (team) => { const o = Terrain.onMinimap, [x, y] = team === 'CHAOS' ? [14340, 14390] : [530, 480]; return { x: (x / MAP) * o.w + o.x, y: (1 - y / MAP) * o.h + o.y }; }; // on your minimap
+  const LANE_POS = { top: ['TOP'], mid: ['MIDDLE'], bot: ['BOTTOM', 'UTILITY'] };
+  // a callout's pictures (What's new 181), drawn by overlay.html: f: their face (a red ring), a: your team's (a light
+  // ring), d: a dead one (grey), s: a sign (pin, arrow, missing, eye, clock, flame, bug, drop; s!: in a red ring, theirs),
+  // w: 1 to 3 words
+  const foeFace = (id) => 'f:' + champImg(id), myFace = () => (league && league.me && champOf(league.me.champ) ? 'a:' + champImg(league.me.champ) : '');
   // how long a champion stays dead, in seconds: League's time for their level, longer each minute from 15:00 to half
   // again at 55:00 (wiki.leagueoflegends.com/en-us/Death)
   // ponytail: an estimate; the exact time needs the app to pass on each player's respawnTimer
@@ -6987,66 +7031,98 @@ dialog.wizard { transform: scale(var(--from)); }
     const m = t / 60, more = m < 15 ? 0 : m < 30 ? (m - 15) * 0.0085 : m < 45 ? 0.1275 + (m - 30) * 0.006 : Math.min(0.5, 0.2175 + (m - 45) * 0.029);
     return DEATH[Math.min(18, Math.max(1, lvl | 0)) - 1] * (1 + more);
   }
-  // the line's callouts waiting their turn (calls) and the one showing (callCur), this game (callRoom)
-  let calls = [], callCur = null, callRoom = '';
+  // the line's callouts waiting their turn (calls) and the ones showing (callUp, newest first, up to 3: What's new 181),
+  // this game (callRoom); callCur is the newest of them
+  let calls = [], callCur = null, callUp = [], callRoom = '';
   // pics: pictures the overlay shows instead of the words (a power spike's champion and item, or champion and level);
   // the words are still what's said out loud
-  function sayCall(text, pri, who, pics) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
+  // sharp: its sound (What's new 182) is the sharp one, for ganks, 2 coming and invades
+  function sayCall(text, pri, who, pics, sharp) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
     if (who && calls.some((c) => c.who === who && c.pri >= pri)) return;
-    calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, pics: pics && pics.every(Boolean) ? pics : null, at: performance.now() });
+    calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, pics: pics && pics.every(Boolean) ? pics : null, sharp: !!sharp, at: performance.now() });
   }
   function seeFoes(s) { // each minimap frame
     if (!foesOn()) return void (s.foes = null);
-    const now = performance.now(), F = s.foes && s.foes.room === league.room ? s.foes : (s.foes = { room: league.room, list: [], inv: -Infinity, gank: -Infinity, jg1: '' });
+    const now = performance.now(), F = s.foes && s.foes.room === league.room ? s.foes : (s.foes = { room: league.room, list: [], inv: -Infinity, head: -Infinity, jg1: '' });
     for (const p of league.players || []) { // the other team, and who died since the last frame
       const c = p.team !== mine.team && champOf(p.champ);
       if (!c) continue;
       let f = F.list.find((x) => x.name === p.name);
       if (!f) {
-        F.list.push((f = { name: p.name, id: c.id, look: null, run: 0, from: 0, seen: -Infinity, at: null, trail: [], zone: '', where: '', lane: '', called: false, d: p.d, dead: 0 }));
+        F.list.push((f = { name: p.name, id: c.id, look: null, run: 0, from: 0, seen: -Infinity, at: null, trail: [], zone: '', where: '', lane: '', called: false, missed: '', gankAt: -Infinity, shop: 0, items: null, d: p.d, dead: 0 }));
         picPixels(c.id).then((px) => { f.look = CameraBox.picLook(px, 128); }).catch(() => {});
       }
       if (p.d > f.d) Object.assign(f, { d: p.d, dead: now + (p.dead && p.respawn > 0 ? p.respawn : deadFor(p.lvl, gameNow())) * 1000, lane: '', called: false }); // League's own timer when the app passes it
       if (f.dead && (now >= f.dead || p.dead === false)) Object.assign(f, { dead: 0, seen: now, zone: 'their base', where: 'in their base' }); // back in their fountain, not where they died
+      // a new item on League's scoreboard while out of sight: they went back to buy (What's new 182), so no missing call,
+      // and their faded face moves to their fountain
+      const its = (p.items || []).map(([i]) => i);
+      if (f.items && !f.dead && f.seen > 0 && now - f.seen > 2000 && its.some((i) => !f.items.includes(i))) Object.assign(f, { called: true, shop: now, at: fountain(p.team) });
+      f.items = its;
     }
-    const n = s.sq.s, pairs = [], got = new Map(), used = new Set();
-    for (const i of CameraBox.findIcons(s.px, n, true)) {
+    const n = s.sq.s, pairs = [], got = new Map(), used = new Set(), icons = CameraBox.findIcons(s.px, n, true);
+    for (const i of icons) {
       const look = CameraBox.iconLook(s.px, n, i.x, i.y);
       for (const f of F.list) if (f.look) { const d = CameraBox.lookDiff(look, f.look); if (d < CameraBox.PICK_LOOK) pairs.push([d, f, i]); }
     }
     for (const [, f, i] of pairs.sort((a, b) => a[0] - b[0])) if (!got.has(f) && !used.has(i)) { got.set(f, i); used.add(i); }
+    for (const i of icons) if (!used.has(i)) for (const f of F.list) if (f.at && Math.hypot(i.x / n - f.at.x, i.y / n - f.at.y) < 1.5 * CameraBox.RING) f.ghostOff = true; // an icon under their faded face: gone, so the next frame reads it clean
     const jg = (F.jg = theirJungler() || F.jg || ''), you = fresh(me) && !mine.dead ? me : null; // kept for the game: a sold jungle pet doesn't make them a laner
+    // ganks from anyone but your lane opponents (What's new 182): their jungler, and by League's positions anyone not in
+    // your lane (bot and support count as one lane); without positions only their jungler
+    const meP = meIn(), myPos = meP ? posIn(meP) : '', DUO = /^(BOTTOM|UTILITY)$/, coming = [];
+    const ganker = (f) => { if (f.id === jg) return true; const q = (league.players || []).find((x) => x.name === f.name), pos = q ? posIn(q) : ''; return !!myPos && !!pos && pos !== myPos && !(DUO.test(myPos) && DUO.test(pos)); };
     for (const f of F.list) {
       const i = got.get(f);
       if (!i) { f.run = 0; continue; }
       if (++f.run < 2) continue; // twice in a row, so a passing likeness doesn't count
       const at = { x: i.x / n, y: i.y / n }, gap = now - f.seen;
-      if (gap > 1000) Object.assign(f, { from: now, trail: [], called: false });
+      const back = gap > 1000 && f.missed; // called missing, now back on your minimap
+      if (gap > 1000) Object.assign(f, { from: now, trail: [], called: false, shop: 0 });
       f.trail = [...f.trail.filter((p) => now - p.t < 2000), { ...at, t: now }];
       const o = f.trail[0], dx = at.x - o.x, dy = at.y - o.y, far = Math.hypot(dx, dy);
       f.zone = zoneOf(at);
       f.where = far > 0.02 ? `toward ${zoneOf({ x: at.x + (dx / far) * 0.1, y: at.y + (dy / far) * 0.1 })}` : `in ${f.zone}`; // heading 1,500 units on
       if (['top', 'mid', 'bot'].includes(f.zone)) f.lane = f.zone; else if (/base/.test(f.zone)) f.lane = '';
-      Object.assign(f, { at, seen: now, dead: 0 });
+      Object.assign(f, { at, seen: now, dead: 0, ghostOff: false });
+      if (back) { if (opts.missCall && f.zone === back) sayCall(`${champName(f.id)} back ${back}`, 1, f.name, [foeFace(f.id), 's:eye', 'w:back ' + back]); f.missed = ''; }
+      if (opts.gankCall && you && ganker(f) && now - f.gankAt > 20000 && now - o.t >= 600 && zoneOf(you) !== 'your base') {
+        // only their own steps count (you walking toward them isn't a gank), and mostly straight at you, not past you
+        const is = Math.hypot(at.x - you.x, at.y - you.y), closer = is && (dx * (you.x - at.x) + dy * (you.y - at.y)) / is;
+        if (is < 0.25 && closer > 0.015 && closer > 0.7 * far) coming.push(f); // 220+ units toward you, within 3,700
+      }
       if (f.id !== jg) continue;
       const d = at.x + at.y - 1; // the mid lane runs corner to corner, the blue base bottom left
       if (!F.jg1 && gameNow() < 150) F.jg1 = d < 0 ? 'top' : 'bot';
-      if (opts.jgCall && gap > 10000 && !/base/.test(f.zone)) sayCall(Math.abs(d) < 0.06 ? 'Jungler in mid' : d < 0 ? 'Jungler on topside' : 'Jungler on botside', 2, f.name);
-      if (opts.gankCall && you && now - F.gank > 20000 && now - o.t >= 600 && zoneOf(you) !== 'your base') {
-        // only their own steps count (you walking toward them isn't a gank), and mostly straight at you, not past you
-        const is = Math.hypot(at.x - you.x, at.y - you.y), closer = is && (dx * (you.x - at.x) + dy * (you.y - at.y)) / is;
-        if (is < 0.25 && closer > 0.015 && closer > 0.7 * far) { F.gank = now; sayCall(`${champName(f.id)} heading your way`, 4, f.name); } // 220+ units toward you, within 3,700
+      if (opts.jgCall && gap > 10000 && !/base/.test(f.zone)) { const sp = mapSpot(at); sayCall(`${champName(f.id)} ${spotSay(sp)}`, 2, f.name, [foeFace(f.id), 's:pin', 'w:' + sp.name]); }
+      // their jungler walking toward a lane where a teammate's blue icon is, not yours (that's a gank), once every 20 s
+      if (opts.laneCall && far > 0.02 && now - F.head > 20000) {
+        const lane = zoneOf({ x: at.x + (dx / far) * 0.1, y: at.y + (dy / far) * 0.1 });
+        if (['top', 'mid', 'bot'].includes(lane) && lane !== f.zone && !(you && zoneOf(you) === lane)
+          && CameraBox.findIcons(s.px, n, false).some((i) => zoneOf({ x: i.x / n, y: i.y / n }) === lane)) {
+          F.head = now;
+          const mate = liveList().find((q) => q.ally && LANE_POS[lane].includes(q.pos));
+          sayCall(`${champName(f.id)} heading ${lane}`, 2, f.name, [foeFace(f.id), 's:arrow', mate && champOf(mate.champ) ? 'a:' + champImg(mate.champ) : '', 'w:heading ' + lane].filter(Boolean));
+        }
       }
+    }
+    for (const f of coming) { // two within 2 s: "2 coming"
+      const two = F.list.find((x) => x !== f && now - x.gankAt < 2000);
+      f.gankAt = now;
+      if (two) sayCall(`${champName(two.id)} and ${champName(f.id)} heading your way`, 4, '', [foeFace(two.id), foeFace(f.id), 's:arrow', myFace(), 'w:2 coming'].filter(Boolean), true);
+      else sayCall(`${champName(f.id)} heading your way`, 4, f.name, [foeFace(f.id), 's:arrow', myFace(), 'w:your way'].filter(Boolean), true);
     }
     const inv = F.list.filter((f) => !f.dead && now - f.seen < 1000 && f.zone === 'your jungle');
     if (opts.invadeCall && inv.length) {
-      if (now - F.inv > 20000) sayCall(inv.length > 1 ? `${inv.length} enemies in your jungle` : `${champName(inv[0].id)} in your jungle`, 3, inv.length > 1 ? '' : inv[0].name);
+      const sp = mapSpot(inv[0].at), names = inv.length > 2 ? `${inv.length} enemies` : inv.map((f) => champName(f.id)).join(' and ');
+      if (now - F.inv > 20000) sayCall(`${names} ${spotSay(sp)}`, 3, inv.length > 1 ? '' : inv[0].name, [...inv.slice(0, 3).map((f) => foeFace(f.id)), 's:pin', 'w:' + sp.name], true);
       F.inv = now;
     }
     if (opts.missCall) for (const f of F.list) {
       if (f.id === jg || !f.lane || f.called || f.dead || now - f.seen < 10000 || f.seen - f.from < 3000) continue;
       f.called = true;
-      sayCall(`${champName(f.id)} missing from ${f.lane}`, 1, f.name);
+      f.missed = f.lane;
+      sayCall(`${champName(f.id)} missing from ${f.lane}`, 1, f.name, [foeFace(f.id), 's:missing', 'w:missing ' + f.lane]);
     }
   }
   // a callout read out loud in one of the computer's own voices (Settings: opts.callVoice, '' for its usual one, 'girl'
@@ -7059,12 +7135,12 @@ dialog.wizard { transform: scale(var(--from)); }
     if (k === 'girl') return all.find((v) => GIRL.test(v.name) && /en.US/i.test(v.lang)) || all.find((v) => GIRL.test(v.name)) || null;
     return (k && all.find((v) => v.voiceURI === k)) || null;
   }
-  function speak(text) {
+  function speak(text, queue) { // queue: after what's being said (callouts up together), else it cuts it off
     if (!window.speechSynthesis) return;
     const voice = callVoice(), u = Object.assign(new SpeechSynthesisUtterance(text), { lang: voice ? voice.lang : 'en-US', rate: 1.1 });
     if (voice) u.voice = voice;
     else if (opts.callVoice === 'girl') u.pitch = 1.6; // no woman's voice on this PC: the usual one, higher
-    if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); // the newest call cuts the last one off
+    if (!queue && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); // a try cuts the last one off
     speechSynthesis.speak(u);
   }
   function voiceList() { // the voices to pick from, once the computer has listed them
@@ -7077,26 +7153,46 @@ dialog.wizard { transform: scale(var(--from)); }
   if (window.speechSynthesis) { voiceList(); speechSynthesis.addEventListener('voiceschanged', voiceList); }
   $('optCallVoice').addEventListener('change', (e) => { opts.callVoice = e.target.value; saveOpts(); speak('Jungler on topside'); });
   $('callVoiceTry').addEventListener('click', () => speak('Zed missing from mid'));
+  setTimeout(() => renderCallLog()); // the last game's, kept on this PC
+  $('optCallVol').value = opts.callVol;
+  $('optCallVol').addEventListener('change', (e) => { opts.callVol = +e.target.value; saveOpts(); chime('soft', opts.callVol / 100); });
+  $('callSoundTry').addEventListener('click', () => { chime('sharp', opts.callVol / 100); setTimeout(() => chime('soft', opts.callVol / 100), 500); });
   // the callouts that aren't from your minimap: power spikes, the coach and the jungle clock, on Summoner's Rift only (not
   // in ARAM: Mayhem, ARAM, URF or Arena, Rayan 2026-11-21)
   const callsOn = () => !!league && SR.test(league.mode) && boardOk() && (opts.spikeCall || opts.coach || opts.jgClock);
+  // objective windows and Voidgrubs and Herald (What's new 182), on Summoner's Rift only too
+  const objOn = () => !!league && boardOk() && SR.test(league.mode) && !!(opts.objCall || opts.grubCall);
   function callNow() { // the line at the top of the screen: null with no reminder or callouts this game, else what it says now, or ''
     const n = nudgeNow(), now = performance.now();
-    if (!league || (n === null && !(share && share.foes) && !callsOn())) return null;
-    if (callRoom !== league.room) { callRoom = league.room; calls = []; callCur = null; }
-    if (!callCur || now - callCur.from > 3000) { // each for 3 s, the most urgent first; one that waited 8 s is dropped, 4 s for where someone is now
-      calls = calls.filter((c) => now - c.at < (c.pri >= 2 ? 4000 : 8000)).sort((a, b) => b.pri - a.pri || a.at - b.at);
+    if (!league || (n === null && !(share && share.foes) && !callsOn() && !objOn())) return null;
+    if (callRoom !== league.room) { callRoom = league.room; calls = []; callCur = null; callUp = []; }
+    // each for 3 s, up to 3 at once, newest on top, the most urgent first; one that waited 8 s is dropped, 4 s for where
+    // someone is now (only while 3 are up)
+    callUp = callUp.filter((c) => now - c.from <= 3000);
+    calls = calls.filter((c) => now - c.at < (c.pri >= 2 ? 4000 : 8000)).sort((a, b) => b.pri - a.pri || a.at - b.at);
+    while (callUp.length < 3 && calls.length) {
       const next = calls.shift();
-      callCur = next ? { text: next.text, pics: next.pics, from: now } : null;
-      if (next && opts.speakCalls && !overlayHide && !overlayEdit) speak(next.text);
+      callUp.unshift({ text: next.text, pics: next.pics, from: now });
+      logCall(next.text);
+      if (overlayHide || overlayEdit) continue;
+      const sound = opts.callSounds && !!next.pics; // a short sound, then the words (callouts with pictures: not the reminder or the coach's tips)
+      if (sound) chime(next.sharp ? 'sharp' : 'soft', opts.callVol / 100);
+      if (opts.speakCalls) { if (sound) setTimeout(() => speak(next.text, true), 250); else speak(next.text, true); }
     }
+    callCur = callUp[0] || null;
     return callCur ? callCur.text : n ? 'Check your minimap' : '';
   }
-  function missRows() { // the other team off your minimap, for the overlay: [name, picture, how long, where], or null without the list
-    const F = share && share.foes, now = performance.now();
-    if (!opts.missList || !F) return null;
-    return F.list.filter((f) => now - f.seen > 2000).map((f) => [champName(f.id), champImg(f.id),
-      f.dead ? 'dead' : f.seen > 0 ? mmss((now - f.seen) / 1000) : '', f.dead ? `back in ${mmss(Math.max(0, f.dead - now) / 1000)}` : f.seen > 0 ? f.where : 'not seen yet']);
+  // Faded faces (What's new 181): each enemy you lost sight of stays on League's minimap where you last saw them, with
+  // the seconds since, till seen again, dead, or 45 s on. The overlay is in your shared screen, so the reader sees them
+  // too: they're grey, a third see-through with a grey ring, never red (an enemy back on that spot still shows a red
+  // ring through one), and one goes as soon as an icon the reader can't match shows under it (ghostOff, seeFoes).
+  // For the overlay: [{ pic, x, y (its centre, 0-1 of the screen), d (across, 0-1 of the screen's height), s (seconds) }]
+  function ghostRows() {
+    const F = share && share.foes, sq = share && share.sq, now = performance.now();
+    if (!opts.missList || !F || !sq || !share.fh) return null;
+    const out = F.list.filter((f) => f.at && !f.dead && !f.ghostOff && now - f.seen > 2000 && now - (f.shop || f.seen) <= 45000).map((f) => ({ pic: champImg(f.id),
+      x: (sq.x + f.at.x * sq.s) / share.fw, y: (sq.y + f.at.y * sq.s) / share.fh, d: (2 * CameraBox.RING * sq.s) / share.fh, s: f.shop ? 'shop' : Math.floor((now - f.seen) / 1000) })); // shop: gone back to buy
+    return out.length ? out : null;
   }
   // the minimap read for the callouts: the app shares the screen Settings picks by itself in a Summoner's Rift game (in
   // any game in a room when you let teammates watch your screen), and stops once the game ends if it started it; it
@@ -7775,12 +7871,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- the Overlay page's Where it sits: overlay.html in a frame the size of your screen, shrunk to fit, showing what each
   // part that's on looks like in a game (ovSample). A box over each part: drag it, or pick it and use the arrow keys
   // (Shift: further), to give that part a place of its own (opts.overlayParts, ovPlace); the rest's box moves the rest
-  // (overlayBox). Size sizes the one picked when it has a place of its own, else the rest. The line at the top, who's
-  // off your minimap and the card after a game have places of their own from the start (OV_SPOTS). Parts with places
+  // (overlayBox). Size sizes the one picked when it has a place of its own, else the rest. The line at the top and the
+  // card after a game have places of their own from the start (OV_SPOTS). Parts with places
   // of their own need the whole screen, so app 1.10.
-  const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, missing: { x: 0.99, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' },
-    buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' } }; // under League's score, under the rest, over who's off your minimap
-  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', practice: 'Practice Tool', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', missing: 'Off my minimap', after: 'After the game',
+  const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, strip: { x: 0.995, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' },
+    buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' } }; // under League's score, under the rest
+  const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', practice: 'Practice Tool', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', strip: 'Enemy spell strip', after: 'After the game',
     buy: 'What to buy', tips: 'Tips while dead', screen: 'Teammate’s screen' };
   const ovSpots = () => ({ ...OV_SPOTS, ...opts.overlayParts });
   const ovFrame = $('ovFrame'), ovStage = $('ovStage'), ovView = document.querySelector('.view[data-view="overlay"]');
@@ -7792,8 +7888,8 @@ dialog.wizard { transform: scale(var(--from)); }
       game: [opts.overlayGame ? `Dragon 1:23 · Baron 12:00${opts.foeTimers ? ' · Zed Flash 4:12' : ''} · Kills 5–3 · Gold +1.2k` : '', opts.overlayWin ? 'Win chance 62%' : ''].filter(Boolean).join(' · '), cs: opts.overlayCs ? 'CS 64 · 7.1 a minute (usual 6.4)' : '', lane: opts.overlayLane ? 'vs Zed: CS +6 · gold +0.3k' : '',
       practice: [opts.combo && 'E · Q +0.21 · click +0.12 · R +0.30 = 0.63 s, best 0.58', jgRuns.length && 'Camp 3 at 2:16 · 2 s faster than your best'].filter(Boolean), // Practice Tool's, for those who use them
       talking: !!opts.overlayMe, hear: opts.overlayMe ? ['Sam', 'Kai'] : null, talkers: opts.overlay ? [{ name: 'Sam', pic: '', team: 'ally' }] : [],
-      chat: opts.overlayChat ? [{ name: 'Kai', text: 'dragon in a minute?' }] : [], toasts: opts.overlayToasts ? ['Popups show here'] : [],
-      missing: opts.missList ? [['Zed', champImg('Zed'), '0:40', 'toward bot'], ['Lee Sin', champImg('LeeSin'), '0:12', 'in their jungle']] : null,
+      chat: opts.overlayChat ? [{ name: 'Kai', text: 'dragon in a minute?' }] : [],
+      strip: opts.foeTimers ? ['Zed', 'Caitlyn'].map((c) => ({ name: c, pic: champImg(c), spells: [{ k: 'flash:' + c, icon: spellPic(4), name: 'Flash', left: c === 'Caitlyn' ? 254 : 0, by: '' }] })) : null, toasts: opts.overlayToasts ? ['Popups show here'] : [],
       after: opts.overlayAfter ? { title: 'Victory · Ahri', win: true, lines: ['+21 LP: Gold II · 45 LP', 'Score 82 · MVP', '2 clips saved'] } : null,
       tft: opts.overlayTft ? tftSheet() : null,
       buy: opts.overlayBuy ? { name: 'Zhonya’s Hourglass', pic: itemPic(3157), why: 'armor against Zed and Talon' } : null,
@@ -7852,9 +7948,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // box's own change, so everything follows), and stays pressed while the boxes match it. TFT, Mayhem, a teammate's
   // screen and Read them out loud stay as they are.
   const PRESET_BOXES = ['optOverlay', 'optOverlayMe', 'optOverlayChat', 'optOverlayGame', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optDeadTips', 'optOverlayBuy', 'optOverlayWin', 'optOverlayToasts',
-    'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'];
+    'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall'];
   const LIGHT = ['optOverlay', 'optOverlayMe', 'optOverlayToasts', 'optOverlayGame'];
-  const PRESETS = { light: LIGHT, full: [...LIGHT, 'optOverlayChat', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optOverlayBuy', 'optOverlayWin', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optJgClock'],
+  const PRESETS = { light: LIGHT, full: [...LIGHT, 'optOverlayChat', 'optOverlayCs', 'optOverlayLane', 'optOverlayBoard', 'optOverlayAfter', 'optOverlayBuy', 'optOverlayWin', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optFoeTimers', 'optSpikeCall', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall'],
     learning: [...LIGHT, 'optOverlayBoard', 'optDeadTips', 'optOverlayBuy', 'optOverlayAfter', 'optMapNudge', 'optGankCall', 'optSpikeCall', 'optCoach', 'optCoachNew'] };
   const presetOn = (k) => PRESET_BOXES.every((id) => $(id).disabled || $(id).checked === PRESETS[k].includes(id));
   function presetShow() {
@@ -7874,7 +7970,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // What's new 171: each extra choice (data-when) shows only while one of its switches is on, the Minimap callouts
   // switch is on while any of its five is (it saves nothing of its own, and ticks or unticks all five through their own
   // change), and each card says how many of its switches are on
-  const OV_MAP = ['optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList'];
+  const OV_MAP = ['optJgCall', 'optGankCall', 'optLaneCall', 'optMissCall', 'optInvadeCall'];
   function ovSync() {
     const map = OV_MAP.map($);
     Object.assign($('ovMapCalls'), { checked: map.some((x) => x.checked), disabled: map.every((x) => x.disabled) });
@@ -7984,6 +8080,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (m && m.done) return moveOverlay(false);
     if (m && m.prog) { // the Scoreboard button on the card over League's end screen: Premade in front, on the Game page
       if (m.prog.go === 'scoreboard') { if (client.front) client.front(); view('game', true); }
+      if (m.prog.id === 'strip' && TIMER_K.test(m.prog.go)) startTimer(m.prog.go, true); // a click on the enemy strip (What's new 183)
       return;
     }
     if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -9292,6 +9389,8 @@ dialog.wizard { transform: scale(var(--from)); }
     const t = gameNow(), ev = league.events, last = (what) => ev.filter((e) => e.e === what).pop(), drakes = ev.filter((e) => e.e === 'dragon');
     const soul = drakes.find((e) => drakes.filter((x) => x.team === e.team && x.t <= e.t).length === 4), elder = last('elder'), baron = last('baron');
     const out = [elder || soul ? ['Elder', (elder || soul).t + 360 - t] : ['Dragon', (drakes.length ? drakes[drakes.length - 1].t + 300 : 300) - t], ['Baron', (baron ? baron.t + 360 : 1200) - t]];
+    // the 2026 Rift (What's new 182): Voidgrubs once at 8:00 (gone at 14:45) and the Herald once at 15:00 (gone at 19:45)
+    if (SR.test(league.mode)) for (const [n, e, at, gone] of [['Voidgrubs', 'grubs', 480, 885], ['Herald', 'herald', 900, 1185]]) if (t < gone && !last(e)) out.splice(out.length - 1, 0, [n, at - t]);
     const lane = (n) => ({ L: 'top', C: 'mid', R: 'bot' })[(/_T\d_([LCR])/.exec(n) || [])[1]] || '';
     for (const e of ev.filter((x) => x.e === 'inhib')) {
       const left = e.t + 300 - t, side = !mine.team ? (e.of === 'ORDER' ? 'Blue' : 'Red') : e.of === mine.team ? 'Your' : 'Their';
@@ -9307,24 +9406,30 @@ dialog.wizard { transform: scale(var(--from)); }
   // positions, or the jungle pet. Flash takes 5 minutes and an ultimate Data Dragon's cooldown for its rank at their
   // level, less the haste in their items (Ionian Boots: Summoner Spell Haste); a buff is back 5 minutes after it's taken.
   // A tap on a running one takes it off. In the room: {t:'timer', g (the game's room), k, end (League's clock, s; 0: off)}.
-  // ponytail: League's game data doesn't show the other team's runes, so Cosmic Insight or Ultimate Hunter make a timer run long
-  let foeT = { room: '', list: [] }; // list: { k: 'flash:Zed', 'r:Zed', 'red' or 'blue' (theirs), end }
+  // What's new 183: every summoner spell (sp<id>:<champion>, Data Dragon's cooldown) and their runes from Riot's live
+  // game (gameSpec): Cosmic Insight, Ultimate Hunter (its stacks guessed from their takedowns) and Transcendence; a click
+  // on the overlay's enemy strip starts or stops one; each reaches Premade teammates in the game outside your room too,
+  // through our server's game channel ({ t, g, k, end, by: who started it })
+  // ponytail: Unsealed Spellbook's swaps aren't seen (League's game data doesn't show spells), so the strip keeps the spells they started with
+  let foeT = { room: '', list: [] }; // list: { k: 'flash:Zed', 'sp14:Zed', 'r:Zed', 'red' or 'blue' (theirs), end, by }
   const SAY_ROLE = { top: 'TOP', jungle: 'JUNGLE', mid: 'MIDDLE', bot: 'BOTTOM', support: 'UTILITY' };
-  const timerSays = () => (opts.foeTimers ? [...Object.keys(SAY_ROLE).flatMap((r) => [`premade ${r} flash`, `premade ${r} ultimate`]), 'premade their red', 'premade their blue'] : []);
-  const TIMER_K = /^(red|blue|(flash|r):[A-Za-z0-9]{1,30})$/;
-  const timerName = (k) => { const [w, id] = k.split(':'); return id ? `${champName(id)} ${w === 'r' ? 'ultimate' : 'Flash'}` : `Their ${k}`; };
+  const timerSays = () => [...(opts.foeTimers ? [...Object.keys(SAY_ROLE).flatMap((r) => [`premade ${r} flash`, `premade ${r} ultimate`]), 'premade their red', 'premade their blue'] : []), ...(opts.teamCall ? CALL_LANES.map((l) => `premade ${l} missing`) : [])];
+  const TIMER_K = /^(red|blue|(flash|r|sp\d{1,3}):[A-Za-z0-9]{1,30})$/;
+  const timerName = (k) => { const [w, id] = k.split(':'); return id ? `${champName(id)} ${w === 'r' ? 'ultimate' : w === 'flash' ? 'Flash' : SPELLS[+w.slice(2)] || 'spell'}` : `Their ${k}`; };
   const foeTimers = () => (opts.foeTimers && league && foeT.room === league.room ? foeT.list.map((x) => [timerName(x.k), x.end - gameNow(), x.k]).filter(([, s]) => s > -10) : []); // “up” for 10 s
   function cooldown(k) { // in seconds, or 0 when it can't be timed (not on the other team, or their ultimate's cooldown not loaded yet)
     const [w, id] = k.split(':'), c = champOf(id), p = c && (league.players || []).find((q) => q.team !== mine.team && q.champ === c.id), tips = c && riotTips(c);
     if (!id) return 300;
     if (!p || !ddItems || (w === 'r' && !(tips && tips.r.length))) return 0;
-    const haste = (f) => (p.items || []).reduce((n, [i]) => n + ((ddItems[i] || {})[f] || 0), 0);
+    const haste = (f) => (p.items || []).reduce((n, [i]) => n + ((ddItems[i] || {})[f] || 0), 0), rn = runesOf(c);
+    if (w !== 'r') { const base = w === 'flash' ? 300 : spellCd(+w.slice(2)); return base ? (base * 100) / (100 + haste('sh') + (rn.has(8347) ? 18 : 0)) : 0; } // Cosmic Insight: 18 summoner spell haste
+    const rh = (rn.has(8106) ? 6 + 5 * Math.min(5, p.k + p.a) : 0) + (rn.has(8210) ? (p.lvl >= 8 ? 10 : p.lvl >= 5 ? 5 : 0) : 0); // Ultimate Hunter, Transcendence
     // ponytail: an ultimate's ranks at 6, 11 and 16; the few champions whose ultimate ranks otherwise get those ranks' cooldowns
-    return w === 'flash' ? 30000 / (100 + haste('sh')) : (tips.r[Math.min(tips.r.length, p.lvl >= 16 ? 3 : p.lvl >= 11 ? 2 : 1) - 1] * 100) / (100 + haste('ah') + haste('uh'));
+    return (tips.r[Math.min(tips.r.length, p.lvl >= 16 ? 3 : p.lvl >= 11 ? 2 : 1) - 1] * 100) / (100 + haste('ah') + haste('uh') + rh);
   }
-  function addTimer(g, k, end) {
+  function addTimer(g, k, end, by = '') {
     if (foeT.room !== g) foeT = { room: g, list: [] };
-    foeT.list = [...foeT.list.filter((x) => x.k !== k), ...(end > 0 ? [{ k, end }] : [])];
+    foeT.list = [...foeT.list.filter((x) => x.k !== k), ...(end > 0 ? [{ k, end, by }] : [])];
     pushOverlay();
     pushRemote();
   }
@@ -9335,19 +9440,133 @@ dialog.wizard { transform: scale(var(--from)); }
     const end = off ? 0 : Math.round(gameNow() + cd);
     addTimer(league.room, k, end);
     send({ t: 'timer', g: league.room, k, end });
+    gameSend({ t: 'timer', g: league.room, k, end, by: myName });
     notify(off ? `${timerName(k)} timer off.` : `${timerName(k)}: ${clock(cd)}`, true);
   }
-  function heardTimer(p) { // “premade mid flash”
+  function heardTimer(p) { // “premade mid flash”, or “premade mid missing” (sendCall)
     const [, role, what] = p.split(' '), pos = SAY_ROLE[role];
+    if (what === 'missing') return sendCall(role);
     if (!pos) return startTimer(what);
     const id = pos === 'JUNGLE' ? theirJungler() : (champOf((liveList().find((x) => !x.ally && x.pos === pos) || {}).champ) || {}).id;
     if (!id) return notify(`Premade doesn’t know who’s ${role} on their team. Tap them on your phone remote instead.`, true);
     startTimer(`${what === 'flash' ? 'flash' : 'r'}:${id}`);
   }
   function timerTick() { // their items' haste and ultimates' cooldowns, ready before anyone asks
+    gameTick();
     if (!opts.foeTimers || !league) return;
     itemsSoon();
+    spellsSoon();
     for (const p of league.players || []) if (p.team !== mine.team && champOf(p.champ)) riotTips(champOf(p.champ));
+  }
+  // Riot's live game (What's new 183), for everyone's summoner spells and runes and the game channel: asked once a game
+  // through our server's lookup (spectator-v5), again a minute later while Riot doesn't show it yet
+  let gameSpec = { room: '', at: -Infinity, g: '', team: 0, plat: '', foes: new Map() }; // foes: champion key -> { spells, perks }
+  function specTick() {
+    if (!league || !SR.test(league.mode) || !me0 || !myPlat || !(opts.foeTimers || opts.teamCall)) return;
+    if (gameSpec.room !== league.room) gameSpec = { room: league.room, at: -Infinity, g: '', team: 0, plat: myPlat, foes: new Map() };
+    if (gameSpec.g || performance.now() - gameSpec.at < 60000) return;
+    const s = gameSpec, u = me0.puuid;
+    s.at = performance.now();
+    riotGet(myPlat, `/lol/spectator/v5/active-games/by-summoner/${u}`).then((g) => {
+      const ps = g && Array.isArray(g.participants) ? g.participants.filter(Boolean) : [], me = ps.find((x) => x.puuid === u);
+      if (!me || gameSpec !== s) return;
+      Object.assign(s, { g: String(g.gameId), team: me.teamId | 0 });
+      for (const x of ps) if ((x.teamId | 0) !== s.team) s.foes.set(x.championId | 0, { spells: [x.spell1Id | 0, x.spell2Id | 0], perks: new Set(((x.perks || {}).perkIds || []).map(Number)) });
+      pushOverlay();
+    }).catch(() => {});
+  }
+  const runesOf = (c) => ((c && gameSpec.room === (league && league.room) && gameSpec.foes.get(+c.key)) || { perks: new Set() }).perks;
+  // summoner spells' cooldowns from Data Dragon (summoner.json), by their key
+  let ddSpells = null, ddSpellsAt = -Infinity;
+  function spellsSoon() {
+    if (ddSpells || !ddVersion || performance.now() - ddSpellsAt < 60000) return;
+    ddSpellsAt = performance.now();
+    fetch(`${DD}/cdn/${ddVersion}/data/en_US/summoner.json`).then((r) => r.json()).then((j) => { ddSpells = Object.fromEntries(Object.values(j.data || {}).map((x) => [+x.key, +(x.cooldown || [])[0] || 0])); }).catch(() => {});
+  }
+  const spellCd = (n) => (ddSpells && ddSpells[n]) || 0;
+  // The enemy strip on the overlay (What's new 183): each of the other team's face, two summoner spells (Flash and the
+  // rest from Riot's live game, Flash alone until then) and ultimate, with the time left on each one running and who
+  // started it. [{ name, pic, spells: [{ k, icon, name, left (s), by }] }]
+  function stripRows() {
+    if (!opts.foeTimers || !league || !SR.test(league.mode) || !mine.team || !boardOk()) return null;
+    const run = new Map(foeT.room === league.room ? foeT.list.map((x) => [x.k, x]) : []), t = gameNow();
+    const rows = (league.players || []).filter((p) => p.team !== mine.team && champOf(p.champ)).slice(0, 5).map((p) => {
+      const c = champOf(p.champ), sp = gameSpec.room === league.room && gameSpec.foes.get(+c.key), tips = riotTips(c), r = tips && tips.sheet.find((x) => x.key === 'R');
+      const one = (k, icon, name) => { const x = run.get(k), left = x ? Math.max(0, Math.ceil(x.end - t)) : 0; return { k, icon, name, left, by: left && x.by ? String(x.by).slice(0, 1).toUpperCase() : '' }; };
+      return { name: c.name, pic: champImg(c.id), spells: [...(sp ? sp.spells : [4]).filter((id) => spellPic(id)).map((id) => one(id === 4 ? `flash:${c.id}` : `sp${id}:${c.id}`, spellPic(id), SPELLS[id] || 'Spell')),
+        ...(r && r.icon ? [one(`r:${c.id}`, r.icon, r.name)] : [])] };
+    });
+    return rows.length ? rows : null;
+  }
+  // The game channel (What's new 183): a socket to our server for this game and team, which lets in only players Riot's
+  // live game shows there, so enemy timers and callouts reach Premade teammates outside your room. Messages that come
+  // both ways (a friend also in your room) are told apart by their id or end.
+  let gameWs = null, gameWsAt = -Infinity, gameWsKey = '';
+  const gameSeen = new Set();
+  function gameTick() {
+    const want = !!league && !!gameSpec.g && gameSpec.room === league.room && !!me0 && (opts.foeTimers || opts.teamCall), key = want ? `${gameSpec.plat}:${gameSpec.g}:${gameSpec.team}` : '';
+    specTick();
+    if (gameWs && gameWsKey !== key) { try { gameWs.close(); } catch {} gameWs = null; }
+    if (!want || gameWs || performance.now() - gameWsAt < 15000) return;
+    gameWsAt = performance.now();
+    gameWsKey = key;
+    const ws = (gameWs = new WebSocket(`${serverUrl.replace(/^http/, 'ws')}/game?plat=${gameSpec.plat}&u=${encodeURIComponent(me0.puuid)}&g=${gameSpec.g}&team=${gameSpec.team}`));
+    const beat = setInterval(() => { if (ws.readyState === 1) ws.send('{"type":"HEARTBEAT"}'); }, 30000);
+    ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } if (m && league && m.g === league.room) fromTeam(m, typeof m.by === 'string' ? m.by.slice(0, 20) : ''); };
+    ws.onclose = () => { clearInterval(beat); if (gameWs === ws) gameWs = null; };
+  }
+  function gameSend(m) { if (gameWs && gameWs.readyState === 1) gameWs.send(JSON.stringify(m)); }
+  function fromTeam(m, by) { // a timer or a callout from a teammate, in the room or through the game channel
+    if (m.t === 'timer' && typeof m.k === 'string' && TIMER_K.test(m.k) && Number.isFinite(m.end)) return addTimer(league.room, m.k, Math.min(7200, m.end), by);
+    if (m.t === 'call' && opts.teamCall && typeof m.id === 'string' && CALL_LANES.includes(m.lane) && !gameSeen.has(m.id)) { gameSeen.add(m.id); heardCall(m.lane, by); }
+  }
+  // Teammates' callouts (What's new 183): “Premade, mid missing” said in a game or tapped on the phone remote shows and is
+  // read out on every Premade teammate's overlay in the game: “Kai: Zed missing from mid”. {t:'call', g, lane, id, by}
+  const CALL_LANES = ['top', 'jungle', 'mid', 'bot'], CALL_POS = { top: ['TOP'], jungle: ['JUNGLE'], mid: ['MIDDLE'], bot: ['BOTTOM', 'UTILITY'] };
+  function sendCall(lane) {
+    if (!league || !opts.teamCall || !CALL_LANES.includes(lane)) return notify('Turn on Teammates’ callouts on the Overlay page first.', true);
+    const m = { t: 'call', g: league.room, lane, id: id12(), by: myName };
+    gameSeen.add(m.id);
+    send(m);
+    gameSend(m);
+    notify(`Sent to your team: ${lane} missing`, true);
+  }
+  function heardCall(lane, by) {
+    const who = (by || 'A teammate').slice(0, 20), foe = liveList().find((q) => !q.ally && CALL_POS[lane].includes(q.pos)), c = foe && champOf(foe.champ), where = lane === 'jungle' ? 'their jungle' : lane;
+    sayCall(c ? `${who}: ${c.name} missing from ${where}` : `${who}: ${lane} missing`, 2, undefined, ['p:' + who.slice(0, 1).toUpperCase(), ...(c ? [foeFace(c.id)] : []), 's:missing', `w:missing ${lane}`]);
+  }
+  // The callout log (What's new 183): every callout of the last game on the Game page, with a 96 px picture of your
+  // minimap when it showed and a Wrong button, kept on this PC. { room, list: [{ t, text, img, wrong }] }
+  let callLog = load('lpc-calllog', { room: '', list: [] });
+  function logCall(text) {
+    if (!opts.callLog || !league || !SR.test(league.mode)) return;
+    if (callLog.room !== league.room) callLog = { room: league.room, list: [] };
+    let img = '';
+    if (share && share.px && share.sq) {
+      const n = share.sq.s, a = document.createElement('canvas'), b = document.createElement('canvas');
+      a.width = a.height = n; b.width = b.height = 96;
+      a.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(share.px), n, n), 0, 0);
+      b.getContext('2d').drawImage(a, 0, 0, 96, 96);
+      img = b.toDataURL('image/jpeg', 0.7);
+    }
+    callLog.list.push({ t: Math.round(gameNow()), text, img, wrong: false });
+    if (callLog.list.length > 150) callLog.list.shift();
+    try { store.set('lpc-calllog', JSON.stringify(callLog)); } catch {}
+    renderCallLog();
+  }
+  function renderCallLog() {
+    const box = $('callLogBox'), l = opts.callLog ? callLog.list : [];
+    box.hidden = !l.length;
+    $('callLogList').replaceChildren(...l.map((c, i) => {
+      const li = document.createElement('li'), t = document.createElement('time'), w = document.createElement('button');
+      t.textContent = mmss(c.t);
+      li.append(t, ...(c.img ? [Object.assign(new Image(96, 96), { src: c.img, alt: `Your minimap at ${mmss(c.t)}` })] : []), Object.assign(document.createElement('span'), { textContent: c.text }), w);
+      Object.assign(w, { type: 'button', className: 'btn small', textContent: c.wrong ? 'Marked wrong' : 'Wrong' });
+      w.setAttribute('aria-pressed', String(!!c.wrong));
+      w.addEventListener('click', () => { c.wrong = !c.wrong; try { store.set('lpc-calllog', JSON.stringify(callLog)); } catch {} renderCallLog(); });
+      li.toggleAttribute('data-wrong', !!c.wrong);
+      return li;
+    }));
   }
   // ---- power spikes (the Overlay page, Callouts): the other team reaching level 6, 11 or 16 (their ultimate's
   // ranks) or finishing an item, from League's scoreboard (what Tab shows), on the line at the top: “Zed is level 6”,
@@ -9375,10 +9594,32 @@ dialog.wizard { transform: scale(var(--from)); }
     if (objSaid.room !== league.room) objSaid = { room: league.room, set: new Set() };
     const ev = league.events, t = gameNow(), say = (k, text) => { if (!objSaid.set.has(k)) { objSaid.set.add(k); sayCall(text, 1); } };
     const drakes = (ours) => ev.filter((e) => e.e === 'dragon' && (e.team === mine.team) === ours).length;
-    if (drakes(true) < 4 && drakes(false) < 4) for (const ours of [true, false]) if (drakes(ours) === 3) say(`soul${ours}`, ours ? 'You’re on soul point' : 'They’re on soul point');
+    // with the soul's element (What's new 182): the third dragon's, from League's game data; a red ring when it's theirs
+    const SOULS = { Water: 'Ocean', Fire: 'Infernal', Earth: 'Mountain', Air: 'Cloud', Hextech: 'Hextech', Chemtech: 'Chemtech' }, el = SOULS[(ev.filter((e) => e.e === 'dragon')[2] || {}).type] || '';
+    if (drakes(true) < 4 && drakes(false) < 4) for (const ours of [true, false]) if (drakes(ours) === 3 && !objSaid.set.has(`soul${ours}`)) { objSaid.set.add(`soul${ours}`); sayCall(`${ours ? 'You’re' : 'They’re'} on ${el ? el + ' ' : ''}soul point`, 1, undefined, [ours ? 's:drop' : 's!:drop', `w:${el ? el + ' ' : ''}soul point`]); }
     for (const [what, s, name] of [['baron', 180, 'Baron'], ['elder', 150, 'Elder']]) {
       for (const e of ev.filter((x) => x.e === what && x.team)) { const left = e.t + s - t; if (left > 0 && left <= 30) say(`${what}${e.t}`, `${e.team === mine.team ? 'Your' : 'Their'} ${name} ends in 0:30`); }
     }
+  }
+  // Objective windows and Voidgrubs and Herald (What's new 182): their jungler dying with Dragon, Voidgrubs, Herald or
+  // Baron up or coming before they're back: "Vi dead for 40 seconds. Dragon is up." (I'm new adds "Take it."); and
+  // Voidgrubs and the Herald 30 s before they spawn
+  let objw = { room: '', d: -1, said: new Set() };
+  function windowTick() {
+    if (!objOn() || !mine.team || !Array.isArray(league.events)) return;
+    if (objw.room !== league.room) objw = { room: league.room, d: -1, said: new Set() };
+    const c = champOf(theirJungler()), p = c && (league.players || []).find((q) => q.team !== mine.team && q.champ === c.id), t = gameNow(), tm = timers();
+    if (opts.objCall && p) {
+      const died = objw.d >= 0 && p.d > objw.d, wait = p.respawn > 0 ? p.respawn : deadFor(p.lvl, t);
+      objw.d = p.d;
+      const [n, left] = (died && tm.find(([x, l]) => /^(Dragon|Elder|Voidgrubs|Herald|Baron)$/.test(x) && l <= wait)) || [];
+      if (n) {
+        const up = left <= 0, sign = n === 'Voidgrubs' ? 's:bug' : 's:flame';
+        sayCall(`${c.name} dead for ${Math.round(wait)} seconds. ${up ? `${n} ${n === 'Voidgrubs' ? 'are' : 'is'} up.` : `${n} in ${Math.round(left)} seconds.`}${opts.coachNew ? ' Take it.' : ''}`, 2, undefined,
+          ['d:' + champImg(c.id), 's:clock', 'w:' + mmss(Math.round(wait)), sign, `w:${n} ${up ? 'up' : 'in ' + mmss(Math.round(left))}`]);
+      }
+    }
+    if (opts.grubCall) for (const [n, left] of tm) if (/^(Voidgrubs|Herald)$/.test(n) && left <= 30 && left > 24 && !objw.said.has(n)) { objw.said.add(n); sayCall(`${n} in 30 seconds`, 1, undefined, [n === 'Voidgrubs' ? 's:bug' : 's:clock', `w:${n} in 0:30`]); }
   }
   // ---- the coach (the Overlay page, Callouts): a tip now and then on the line at the top, from League's game
   // data, each once a game: the gold for the next item of your build (app 1.14: your gold), an objective in 60 s, 3 or
@@ -9416,7 +9657,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (gap >= 2) tip('lvl' + gap, `You’re ${WORDS[gap] || gap} levels down: play safe`, `${champName(o.champ)} wins fights until you catch up, so farm near your tower`);
   }
   // ---- the jungle clock (the Overlay page, Callouts): where their jungler likely is when their first clear
-  // ends, on the line at the top at 2:45: “Lee Sin likely topside around 3:15”. From their own last jungle games (5 with
+  // ends, on the line at the top at 2:10: “Lee Sin likely topside around 2:40” (2026's camps come about 35 s sooner). From their own last jungle games (5 with
   // Riot's timeline, which has everyone's spot once a minute): the side they were on at 3:00; and with the side your
   // minimap first showed them on this game (the callouts' tracker), whether they usually end on the side they started.
   // Only from 3 games or more, and when 60% of them agree.
@@ -9425,12 +9666,12 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!opts.jgClock || !callsOn() || league.mode !== 'CLASSIC') return;
     if (jgc.room !== league.room) jgc = { room: league.room, asked: false, past: null, said: false };
     const t = gameNow(), c = champOf(theirJungler()), row = c && liveList().find((p) => !p.ally && p.champ === +c.key), s = row && row.puuid && scoutData.get(row.puuid);
-    if (jgc.said || t > 200 || !s || !Array.isArray(s.games)) return;
+    if (jgc.said || t > 165 || !s || !Array.isArray(s.games)) return;
     if (!jgc.asked) { jgc.asked = true; const r = jgc.room; jgPast(s.games).then((v) => { if (jgc.room === r) jgc.past = v; }); }
-    if (t < 165 || !jgc.past) return;
+    if (t < 130 || !jgc.past) return;
     jgc.said = true;
     const side = jgSide(jgc.past, share && share.foes ? share.foes.jg1 : '', row.team === 'ORDER' ? 100 : 200);
-    if (side) sayCall(`${c.name} likely ${side}side around 3:15`, 2);
+    if (side) sayCall(`${c.name} likely ${side}side around 2:40`, 2, undefined, [foeFace(c.id), 's:clock', `w:${side}side 2:40`]);
   }
   async function jgPast(games) {
     const out = [];
@@ -10470,7 +10711,7 @@ dialog.wizard { transform: scale(var(--from)); }
       queue: lcu === 'Lobby' && lobby ? { lead: lead(), custom: custom() } : lcu === 'Matchmaking' && search ? { time: Math.round(search.timeInQueue || 0), est: Math.round(search.estimatedQueueTime || 0) } : null,
       rc: lcu === 'ReadyCheck' && rc && rc.state === 'InProgress' ? { response: rc.playerResponse, left: Math.max(0, 12 - Math.round(rc.timer || 0)) } : null,
       cs: cs && lcu === 'ChampSelect' ? csRemote(a) : null,
-      game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold(), foes: opts.foeTimers ? liveList().filter((p) => !p.ally && p.champ).map((p) => p.champ) : null, ...gameRemote() } : null, // foes: to tap for enemy timers
+      game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold(), foes: opts.foeTimers ? liveList().filter((p) => !p.ally && p.champ).map((p) => p.champ) : null, calls: !!opts.teamCall, ...gameRemote() } : null, // foes: to tap for enemy timers
       chat: peer ? remoteLines() : null, // in a voice room
       lol: chatOk() && lcu ? { inv: lolChat.inv, convs: lolChat.convs.slice(0, 12).map(({ id, name, unread, last }) => ({ id, name, unread, last: last.slice(0, 80) })),
         open: lolChat.open ? { id: lolChat.open, name: chatName(), msgs: lolChat.msgs.slice(-15) } : null } : null, // League chat (app 1.14)
@@ -10806,6 +11047,7 @@ dialog.wizard { transform: scale(var(--from)); }
     else if (m.t === 'queue' && typeof m.on === 'boolean') (m.on ? (lcu === 'Lobby' && lead() ? startQueue() : null) : lcu === 'Matchmaking' ? stopQueue() : null);
     else if (m.t === 'trade' && typeof m.path === 'string' && typeof m.act === 'string') trade(m.path, m.id, m.act);
     else if (m.t === 'chat' && typeof m.text === 'string') sendChat(m.text);
+    else if (m.t === 'call' && typeof m.lane === 'string') sendCall(m.lane);
     else if (m.t === 'timer' && typeof m.what === 'string') startTimer(/^(red|blue)$/.test(m.what) ? m.what : `${m.what}:${(champOf(m.champ) || {}).id}`, true);
     else if (m.t === 'lolopen') chatOpen(m.id);
     else if (m.t === 'lolsay') chatSay(m.text);
@@ -18874,7 +19116,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'],
+    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'], ['optCallLog', 'callLog'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
@@ -18882,7 +19124,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
   $('attenRow').hidden = !client;
-  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optCallLog', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   $('optOverlayAny').value = ['full', 'always', 'off'].includes(opts.overlayAny) ? opts.overlayAny : 'full';
@@ -19098,6 +19340,24 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [183, 'November 21: timers and callouts shared with your team', [
+      'The enemy spell strip: their 5 faces above your minimap with Flash, their other spell and their ultimate. Click one and the countdown starts for you and every Premade teammate in your game, with the letter of who started it.',
+      'Cooldowns count Cosmic Insight, Ultimate Hunter and Transcendence from their runes, as well as their level and items.',
+      'Teammates’ callouts: say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid”.',
+      'After a game, the Game page lists every callout with a small picture of your minimap at that moment, and a Wrong button.',
+    ]],
+    [182, 'November 21: smarter callouts and the 2026 Rift', [
+      'Ganks come from anyone but your lane opponents, with “2 coming” when two head your way, and their jungler walking toward a teammate’s lane is called: “Vi heading top”.',
+      'No missing call when a laner went back to buy (their faded face moves to their base), and “Zed back mid” when a missing laner returns.',
+      'Their jungler dead with an objective up: “Vi dead for 40 seconds. Dragon is up.” Voidgrubs and the Herald join the timers and get a callout 30 seconds before, soul point says its element, and the jungle clock comes about 35 seconds sooner for 2026’s camps.',
+      'A short sound before each callout, sharp for ganks and invades, soft for the rest, with its own volume.',
+    ]],
+    [181, 'November 21: callouts you read at a glance', [
+      'Every callout on Summoner’s Rift is faces and signs with a word or two: Vi’s face, a pin and “your red”. With Read them out loud on you still hear the whole sentence.',
+      'Callouts say exactly where: your red, their raptors, Dragon, Baron, top scuttle, top river, mid lane and the rest, never just topside or botside.',
+      'Up to 3 callouts show at once, newest on top, so one waiting behind another isn’t lost.',
+      'An enemy you lose sight of stays on your minimap as a faded grey face with the seconds since, until you see them again, they die, or 45 seconds pass. It replaces the list of who’s off your minimap.',
+    ]],
     [180, 'November 21: ARAM: Mayhem for patch 26.23', [
       'Mayhem’s augment cards are rated right with 4 cards (Maestro), with a pick at level 21 (Superfans) and with an extra pick while you’re dead (K/DA). When a reroll comes back a higher rarity, Best pick goes by the win rate points each card adds.',
       'The 4 new augments say New in 26.23 until DeepARAM has numbers for them.',
@@ -20239,17 +20499,27 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
         'Off until you turn it on: the Overlay page, Callouts, Minimap reminder.', '#optMapNudge', 'app'],
-      ['Callouts', 'Short lines at the top of the screen, read from your own minimap: “Jungler on topside” when their jungler shows up after 10 seconds out of sight, “Lee Sin heading your way” when your minimap shows them walking straight at you, “Zed missing from mid” when a laner has been out of sight for 10 seconds, and “Lee Sin in your jungle” for an invade. They can be read out loud too, in the voice you pick.',
+      ['Callouts', 'Faces and signs with 1 to 3 words at the top of the screen, read from your own minimap, up to 3 at once with the newest on top: “Vi at your red” when their jungler shows up after 10 seconds out of sight, named by the nearest camp, pit or scuttle (your red, their raptors, Dragon, Baron), else the area (top river, mid lane); “Lee Sin heading your way” when your minimap shows them walking straight at you; “Zed missing from mid” when a laner has been out of sight for 10 seconds; and “Vi and Zed at your blue” for an invade. They can be read out loud too, in the voice you pick.',
         'Off until you turn them on: the Overlay page, Callouts: Minimap callouts turns on all of them, or tick each under it. Read them out loud and Voice are under Sound; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
-      ['Who’s off your minimap', 'A list by your minimap of everyone on their team you can’t see, how long since you saw them and where they were heading, like “Lee Sin 0:40 toward bot”, and about when a dead one is back.',
-        'Off until you turn it on: the Overlay page, Callouts, under Minimap callouts. Drag it anywhere in Edit layout.', '#optMissList', 'app'],
-      ['Enemy timers', 'Say “Premade, mid flash”, “Premade, top ultimate” or “Premade, their red” in a game, or tap them on your phone remote: the countdown shows with the objective timers for everyone in your room who has them on, from their level and items.',
-        'Off until you turn it on: the Overlay page, In game.', '#optFoeTimers', 'app'],
+      ['Faded faces', 'Each enemy you lose sight of stays on League’s minimap as a faded grey face where you last saw them, with the seconds since, until you see them again, they die, or 45 seconds pass.',
+        'Off until you turn it on: the Overlay page, Callouts, under Minimap callouts.', '#optMissList', 'app'],
+      ['Enemy spell strip', 'Their 5 faces above your minimap with Flash, their other spell and their ultimate: click one, say “Premade, mid flash”, or tap it on your phone, and the countdown starts for you and every Premade teammate in your game, with the letter of who started it. Cooldowns count Cosmic Insight, Ultimate Hunter, Transcendence, their level and their items.',
+        'Off until you turn it on: the Overlay page, In game. Teammates in your game share it without being in your room.', '#optFoeTimers', 'app'],
+      ['Teammates’ callouts', 'Say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid” with your letter, and you see theirs.',
+        'Off until you turn it on: the Overlay page, Callouts, From your team.', '#optTeamCall', 'app'],
+      ['Callout log', 'After a game, the Game page lists every callout with the time, its faces and signs, a small picture of your minimap at that moment, and a Wrong button to mark the ones that missed.',
+        'On unless you turn it off: the Overlay page, Callouts, After the game.', '#optCallLog', 'app'],
       ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
-      ['Dragon soul and Baron', '“You’re on soul point” or “They’re on soul point” once a team has 3 dragons, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
+      ['Dragon soul and Baron', '“You’re on Ocean soul point” or “They’re on Infernal soul point” once a team has 3 dragons, with the soul’s element, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
+      ['Ganks and heading to a lane', '“Vi heading your way” with a sharp sound when anyone but your lane opponents walks straight at you, “Vi and Zed heading your way” when two do within 2 seconds, and “Vi heading top” when their jungler walks toward a lane a teammate is in. No missing call when a laner bought an item out of sight (their faded face moves to their base), and “Zed back mid” when a missing laner returns.',
+        'Off until you turn them on: the Overlay page, Callouts, under Minimap callouts.', '#optGankCall, #optLaneCall, #optMissCall', 'app'],
+      ['Objective windows', '“Vi dead for 40 seconds. Dragon is up.” when their jungler dies with Dragon, Voidgrubs, Herald or Baron up or coming before they’re back; I’m new adds “Take it”. Voidgrubs (8:00) and the Herald (15:00) join the timers, and “Voidgrubs in 30 seconds” comes before each.',
+        'Off until you turn them on: the Overlay page, Callouts, From the game.', '#optObjCall, #optGrubCall', 'app'],
+      ['Callout sounds', 'A short sound before each callout: a sharp one for ganks, 2 coming and invades, a soft one for the rest, through your Premade output at their own volume, then the words when Read them out loud is on.',
+        'Off until you turn it on: the Overlay page, Callouts, Sound.', '#optCallSounds, #optCallVol', 'app'],
       ['Coach', 'A tip now and then at the top of the screen, like “Back now: you can buy Infinity Edge”, “Dragon in 60 seconds: push your wave”, “3 of them are dead: take Baron” or “You’re two levels down: play safe”. I’m new adds why.',
         'Off until you turn it on: the Overlay page, Callouts, From the game. The shop and dead tips need app 1.15.', '#optCoach', 'app'],
-      ['Jungle clock', 'At 2:45, where their jungler likely is when their first clear ends, like “Lee Sin likely topside around 3:15”, from their own last games and where your minimap first showed them.',
+      ['Jungle clock', 'At 2:10, where their jungler likely is when their first clear ends, like “Lee Sin likely topside around 2:40”, from their own last games and where your minimap first showed them; timed for 2026’s earlier camps.',
         'Off until you turn it on: the Overlay page, Callouts, From the game.', '#optJgClock', 'app'],
     ]],
   ];
@@ -20411,7 +20681,7 @@ dialog.wizard { transform: scale(var(--from)); }
   ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); crumbTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); objTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); crumbTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); objTick(); windowTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });

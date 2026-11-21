@@ -216,15 +216,42 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
    rest over everyone's rank */
 .nudge { padding: 6px 16px 6px 12px; border-color: var(--gold); font-size: 15px; }
 .nudge svg { width: 18px; height: 18px; stroke-linejoin: round; }
-#call { position: absolute; top: 2.5vh; left: 50%; transform: translateX(-50%) scale(var(--k, 1)); transform-origin: 50% 0; opacity: 0; transition: opacity 0.4s; }
+/* up to 3 callouts at once, newest on top (What's new 181); a plain show and hide, as the overlay never animates */
+#call { position: absolute; top: 2.5vh; left: 50%; transform: translateX(-50%) scale(var(--k, 1)); transform-origin: 50% 0; opacity: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 #call.on { opacity: 1; }
-body:not(.full) #call { display: none; }
+body:not(.full) #call, body:not(.full) #ghosts { display: none; }
 /* a power spike as pictures (What's new 164): their champion and the item, or their champion and the level */
 .cpics { display: flex; align-items: center; gap: 8px; }
 .pill:not(.pics) .cpics, .pill.pics > svg, .pill.pics > span:last-child { display: none; }
 .pill.pics { padding: 5px 7px; }
 .cpics img { width: 36px; height: 36px; border-radius: 7px; }
 .cpics img:first-child { border-radius: 50%; border: 2px solid var(--gold); box-sizing: border-box; }
+/* every callout as faces and signs with 1 to 3 words (What's new 181): their face in a red ring, your team's in a light
+   one, a dead one grey, a sign (in a red ring: theirs), a teammate's letter in teal */
+.cpics img.face { border-radius: 50%; border: 2px solid #ff5c5c; box-sizing: border-box; object-fit: cover; }
+.cpics img.face.a { border-color: #f0e6d2; }
+.cpics img.face.d { filter: grayscale(1); }
+.cpics .sign { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; display: grid; place-items: center; }
+.cpics .sign.foe { border: 2px solid #ff5c5c; }
+.cpics .sign svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cpics .cw { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cpics .mate { width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; border: 2px solid #0ac8b9; background: #0a1428; display: grid; place-items: center; font: 700 15px/1 Georgia, serif; }
+.pill.pics.words { padding: 5px 16px 5px 5px; }
+/* the enemy strip (What's new 183): each enemy's face in a red ring, two summoner spells and the ultimate; a click
+   starts its timer for your team, again stops it; time left over the icon, a teal letter for a teammate's */
+.strip { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--gold-line); border-radius: 6px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+.strip .srow { display: flex; align-items: center; gap: 4px; }
+.strip .sface { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; border: 2px solid #ff5c5c; object-fit: cover; }
+.strip button { position: relative; width: 30px; height: 30px; margin: 0; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: #000; cursor: pointer; }
+.strip button img { display: block; width: 100%; height: 100%; }
+.strip button .left { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(0 0 0 / 0.6); color: #fff; font: 700 11px/1 'Segoe UI', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.strip button .by { position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 1px solid #0ac8b9; background: #0a1428; color: #f0e6d2; display: grid; place-items: center; font: 700 8px/1 Georgia, serif; }
+/* faded faces on League's minimap (What's new 181): grey, a third see-through, a grey ring, never red, and the seconds
+   since in grey (not white, which the minimap reader takes for the camera box) */
+#ghosts { position: fixed; inset: 0; pointer-events: none; }
+.ghost { position: absolute; transform: translate(-50%, -50%); }
+.ghost img { display: block; width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%; border: 2px solid #9aa0a6; object-fit: cover; filter: grayscale(1); opacity: 0.33; }
+.ghost span { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); color: #c4c4c4; font: 700 10px/1 'Segoe UI', system-ui, sans-serif; white-space: nowrap; }
 .cpics .lvl { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: #010a13; display: grid; place-items: center; font-size: 19px; font-weight: 700; }
 /* while you're dead: the tips for your lane (tips) and a teammate's screen (cam); and the next item to buy (buy) */
 .tips { font-size: 13px; }
@@ -241,7 +268,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
 <div id="main"></div>
 <div id="parts"></div>
 <div id="mayhem" aria-hidden="true"></div>
-<div id="call" class="pill nudge" data-part="call" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span class="cpics"></span><span></span></div>
+<div id="ghosts" aria-hidden="true"></div>
+<div id="call" data-part="call" role="status"></div>
 <script>
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what the Overlay page picks: the objective timers, kills and gold
@@ -273,7 +301,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // [{ n: name, i: icon, r: rarity, t: tier }]]], mine: your picks like best's, due: rings for picks to come }).
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
-  const main = document.getElementById('main'), parts = document.getElementById('parts'), mayhemLayer = document.getElementById('mayhem'), call = document.getElementById('call');
+  const main = document.getElementById('main'), parts = document.getElementById('parts'), mayhemLayer = document.getElementById('mayhem'), call = document.getElementById('call'), ghostLayer = document.getElementById('ghosts');
   const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
   function mayBox(a) { // ARAM: Mayhem: Best for <champion>, then your picks
     const box = el('toast maybox'), row = el('mrow'), mau = (x, sm) => {
@@ -580,9 +608,60 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   const take = (on) => { if (on !== taking) { taking = on; if (api.overlayMouse) api.overlayMouse(on); } };
   addEventListener('mousemove', (e) => take(dragging || !!(e.target.closest && e.target.closest('[data-take]')))); // kept while the board is dragged
   const THEME = ['bg', 'panel', 'raised', 'fg', 'muted', 'gold', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'good', 'bad'];
+  // one callout: its pictures (pics, What's new 181) and words, else the words; the sentence for screen readers
+  const SIGNS = { pin: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 8a2 2 0 1 1 0 4a2 2 0 1 1 0-4', arrow: 'M4 12h15M13 6l6 6-6 6',
+    missing: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01', eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6',
+    clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2', flame: 'M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-4 2-5 0 2 1 3 2 3 0-3-1-5 1-8z',
+    bug: 'M8 9a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0zM12 9v8M4 11h4M16 11h4M4 15h4M16 15h4M9 4l1.5 2M15 4l-1.5 2', drop: 'M12 3c3 4 6 6 6 10a6 6 0 0 1-12 0c0-4 3-6 6-10zM12 13v4' };
+  function callPart(x) {
+    let m;
+    if (/^\d+$/.test(x)) return el('lvl', x);
+    if (/^https:\/\//.test(x)) return Object.assign(new Image(), { src: x, alt: '' });
+    if ((m = /^([fad]):(https:\/\/.+)$/.exec(x))) return Object.assign(new Image(), { src: m[2], alt: '', className: 'face ' + m[1] });
+    if ((m = /^p:(.{1,2})$/.exec(x))) return el('mate', m[1]);
+    if ((m = /^s(!?):(\w+)$/.exec(x)) && SIGNS[m[2]]) { const e = el('sign' + (m[1] ? ' foe' : '')); e.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${SIGNS[m[2]]}"/></svg>`; return e; }
+    if ((m = /^w:(.{1,32})$/.exec(x))) return el('cw', m[1]);
+    return el('lvl', '');
+  }
+  function callPill(c) {
+    const p = el('pill nudge'), P = Array.isArray(c.pics) && c.pics.length && c.pics.every((x) => typeof x === 'string') ? c.pics : null, text = String(c.text || '');
+    p.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>';
+    const pics = el('cpics');
+    if (P) { pics.append(...P.map(callPart)); p.classList.add('pics'); if (/^w:/.test(P[P.length - 1])) p.classList.add('words'); }
+    p.append(pics, Object.assign(document.createElement('span'), { textContent: text }));
+    p.setAttribute('aria-label', text);
+    return p;
+  }
+  const sp = (className, textContent) => Object.assign(document.createElement('span'), { className, textContent });
+  const mss = (n) => (n >= 60 ? `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}` : String(n));
+  function strip(rows) { // [{ name, pic, spells: [{ k, icon, name, left, by }] }]
+    const box = el('strip');
+    for (const r of rows.slice(0, 5)) {
+      if (!r || !Array.isArray(r.spells)) continue;
+      const row = el('srow');
+      row.append(Object.assign(new Image(), { src: /^https:\/\//.test(r.pic) ? r.pic : '', alt: String(r.name || ''), className: 'sface' }));
+      for (const x of r.spells.slice(0, 3)) {
+        if (!x || typeof x.k !== 'string' || !/^https:\/\//.test(x.icon)) continue;
+        const b = Object.assign(document.createElement('button'), { type: 'button' }), left = Math.max(0, +x.left | 0);
+        b.dataset.take = '';
+        b.setAttribute('aria-label', `${r.name}’s ${x.name}${left ? `, ${mss(left)} left` : ', ready'}`);
+        b.append(Object.assign(new Image(), { src: x.icon, alt: '' }), ...(left ? [sp('left', mss(left))] : []), ...(left && x.by ? [sp('by', String(x.by).slice(0, 1))] : []));
+        b.onclick = () => api.overlayProg && api.overlayProg({ id: 'strip', go: x.k });
+        row.append(b);
+      }
+      box.append(row);
+    }
+    return box;
+  }
+  function ghost(g) { // a faded face where you last saw them, with the seconds since
+    const e = el('ghost'), d = Math.min(0.1, Math.max(0.005, g.d));
+    e.style.cssText = `left: ${g.x * 100}vw; top: ${g.y * 100}vh; width: ${d * 100}vh; height: ${d * 100}vh`;
+    e.append(Object.assign(new Image(), { src: g.pic, alt: '' }), Object.assign(document.createElement('span'), { textContent: g.s === 'shop' ? 'shop' : Number.isFinite(g.s) ? `${Math.max(0, g.s | 0)} s` : '' }));
+    return e;
+  }
   let lastOverlayState = null;
   const renderOverlay = (s) => {
-    if (!s.visible) { call.classList.remove('on'); parts.replaceChildren(); mayhemLayer.replaceChildren(); main.replaceChildren(); take(false); return; }
+    if (!s.visible) { call.classList.remove('on'); ghostLayer.replaceChildren(); parts.replaceChildren(); mayhemLayer.replaceChildren(); main.replaceChildren(); take(false); return; }
     const t = s.theme || {}; // a colour for each, or League's (an empty value takes the page's own back)
     for (const k of THEME) document.documentElement.style.setProperty('--' + k, typeof t[k] === 'string' && CSS.supports('color', t[k]) ? t[k] : '');
     const full = s.board === true, players = !!s.board && !full;
@@ -598,19 +677,14 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     document.body.classList.toggle('fade', !!s.fade);
     main.style.cssText = full ? place(s, k) : '';
     call.style.cssText = full && ok(spots.call) ? spot(spots.call, k) : '';
-    if (s.call) { // kept while it fades out; pictures instead of the words when it has them (callPics), the words for screen readers
-      call.lastChild.textContent = s.call;
-      call.setAttribute('aria-label', s.call);
-      const P = Array.isArray(s.callPics) && s.callPics.every((x) => typeof x === 'string') ? s.callPics : null, pk = JSON.stringify(P);
-      if (call.dataset.pics !== pk) {
-        call.dataset.pics = pk;
-        call.querySelector('.cpics').replaceChildren(...(P || []).map((x) => (/^\d+$/.test(x) ? el('lvl', x) : /^https:\/\//.test(x) ? Object.assign(new Image(), { src: x, alt: '' }) : el('lvl', ''))));
-        call.classList.toggle('pics', !!P);
-      }
+    if (s.call) { // kept once it's gone (hidden); up to 3 (calls), newest on top, else the one (call, callPics)
+      const list = Array.isArray(s.calls) && s.calls.length ? s.calls.slice(0, 3) : [{ text: s.call, pics: s.callPics }], key = JSON.stringify(list);
+      if (call.dataset.list !== key) { call.dataset.list = key; call.replaceChildren(...list.map(callPill)); }
     }
     call.classList.toggle('on', full && !!s.call);
+    ghostLayer.replaceChildren(...(full && Array.isArray(s.ghosts) ? s.ghosts.filter((g) => g && /^https:\/\//.test(g.pic) && [g.x, g.y, g.d].every(Number.isFinite)).map(ghost) : []));
     const out = [], groups = {}, add = (g, e) => { (groups[g] = groups[g] || []).push(e); };
-    if (s.call && !full) { const n = call.cloneNode(true); n.removeAttribute('id'); n.style.cssText = ''; out.push(n); }
+    if (s.call && !full) for (const n of call.children) out.push(n.cloneNode(true));
     if (s.edit) {
       const hint = el('toast', 'Drag this where you want it');
       const done = document.createElement('button');
@@ -650,6 +724,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     for (const t of s.toasts || []) add('toasts', el('toast', String(t)));
     if (Array.isArray(s.missing) && s.missing.length) add('missing', missing(s.missing));
+    if (Array.isArray(s.strip) && s.strip.length) add('strip', strip(s.strip));
     if (s.after && typeof s.after === 'object') add('after', after(s.after));
     if (s.vote && typeof s.vote === 'object') add('vote', after(s.vote));
     if (s.tips && Array.isArray(s.tips.lines)) add('tips', tips(s.tips));

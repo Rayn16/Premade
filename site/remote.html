@@ -210,6 +210,7 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     <div id="gameLines" class="lines"></div>
     <p id="buy" class="buy" hidden></p>
     <div id="foes" class="foes" hidden></div>
+    <div id="teamCalls" class="foes" hidden></div>
     <div id="roster" class="tab" hidden><h3>Your team</h3><ol id="gTeam" class="side roster" aria-label="Your team"></ol><h3>Their team</h3><ol id="gThem" class="side roster" aria-label="Their team"></ol></div>
   </section>
   <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
@@ -395,6 +396,7 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
       const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : []), ...(g.win != null ? [['Win chance', `${g.win}%`]] : [])];
       $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
       renderFoes(g.foes);
+      renderCalls(!!g.calls);
       $('gameLines').replaceChildren(...(g.lines || []).map((t) => el('p', '', t)));
       $('buy').hidden = !g.buy;
       if (g.buy) $('buy').replaceChildren(...(/^https:/.test(g.buy.pic) ? [img(g.buy.pic, '')] : []), el('span', '', el('b', '', 'Buy next: '), g.buy.name, el('br'), g.buy.why));
@@ -427,6 +429,17 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     const row = (who, ...bs) => { const r = document.createElement('div'), s = document.createElement('span'); r.className = 'trade'; s.textContent = who; r.append(s, ...bs); return r; };
     $('foes').replaceChildren(...list.map((k) => row(name(k), btn('Flash', { what: 'flash', champ: k }), btn('Ultimate', { what: 'r', champ: k }))),
       ...(list.length ? [row('Their jungle', btn('Red buff', { what: 'red' }), btn('Blue buff', { what: 'blue' }))] : []));
+  }
+  // callouts for your Premade teammates in the game (What's new 183, with Teammates' callouts on the PC): a tap on a lane
+  // says its laner is missing, like “Premade, mid missing”
+  function renderCalls(on) {
+    $('teamCalls').hidden = !on;
+    if (!on || $('teamCalls').childElementCount) return;
+    const r = document.createElement('div'), s = document.createElement('span');
+    r.className = 'trade';
+    s.textContent = 'Missing';
+    r.append(s, ...['top', 'jungle', 'mid', 'bot'].map((lane) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = lane[0].toUpperCase() + lane.slice(1); b.addEventListener('click', () => send({ t: 'call', lane })); return b; }));
+    $('teamCalls').replaceChildren(r);
   }
   function renderMe(m) {
     const k = JSON.stringify(m) + (ddv ? '+' : '');

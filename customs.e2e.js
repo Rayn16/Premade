@@ -260,17 +260,17 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await rayan.waitForTimeout(1500);
     assert(!(await rayan.evaluate(() => window.calls)).some((c) => /soul point/.test(c)), 'not on two dragons');
     await feed(rayan, game(810, SR(), { events: [drag(300), drag(600), drag(805)] }));
-    await saw(rayan, 'They’re on soul point');
+    await saw(rayan, 'They’re on Infernal soul point');
     const baron = { e: 'baron', team: 'ORDER', t: 820, alive: true };
     await feed(rayan, game(900, SR(), { events: [drag(300), drag(600), drag(805), baron] }));
     await rayan.waitForTimeout(1500);
     assert(!(await rayan.evaluate(() => window.calls)).some((c) => /Baron ends/.test(c)), 'not with 100 s of Baron left');
     await feed(rayan, game(972, SR(), { events: [drag(300), drag(600), drag(805), baron] }));
     await saw(rayan, 'Your Baron ends in 0:30');
-    console.log('dragons and Baron: “They’re on soul point” at their third dragon, “Your Baron ends in 0:30”');
+    console.log('dragons and Baron: “They’re on Infernal soul point” at their third dragon, “Your Baron ends in 0:30”');
 
     // ---- the jungle clock: their jungler's last 5 games all end on their blue buff's side at 3:00, which is the bottom
-    // side for the red team (theirs here), called at 2:45 in a new game; with where your minimap first showed them, the
+    // side for the red team (theirs here), called at 2:10 in a new game (2026's camps come 35 s sooner); with where your minimap first showed them, the
     // side they usually cross to
     assert.strictEqual(await rayan.evaluate(() => lpc.jgSide([[true, false], [true, false], [false, true], [true, true]], 'top', 200)), 'bot', 'crosses over: seen top, ends bottom');
     assert.strictEqual(await rayan.evaluate(() => lpc.jgSide([[true, false], [true, false], [false, true], [true, true]], 'bot', 200)), 'top');
@@ -279,14 +279,14 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     LCU.game = { id: 7002, custom: false };
     await feed(rayan, { ...game(100, SR()), room: 'g00000000002', phase: 'None' }); // the last game's over: League's client says so first
     await rayan.waitForTimeout(1500);
-    await feed(rayan, { ...game(150, SR()), room: 'g00000000002' });
+    await feed(rayan, { ...game(110, SR()), room: 'g00000000002' });
     await wait(rayan, () => lpc.lcu().curGame && lpc.lcu().curGame.id === 7002 && lpc.lcu().scouted.includes('jg1'), null, 'the new game, their jungler looked up');
     await rayan.waitForTimeout(1500);
-    assert(!(await rayan.evaluate(() => window.calls)).some((c) => /likely/.test(c)), 'not before 2:45');
-    await feed(rayan, { ...game(166, SR()), room: 'g00000000002' });
-    await saw(rayan, 'Lee Sin likely botside around 3:15');
+    assert(!(await rayan.evaluate(() => window.calls)).some((c) => /likely/.test(c)), 'not before 2:10');
+    await feed(rayan, { ...game(131, SR()), room: 'g00000000002' });
+    await saw(rayan, 'Lee Sin likely botside around 2:40');
     assert(LCU.calls.some(([, p]) => p === '/lol-match-history/v1/game-timelines/8101'), 'from Riot’s timelines of their games');
-    console.log('the jungle clock: “Lee Sin likely botside around 3:15” from their last games, and the side picked with their start');
+    console.log('the jungle clock: “Lee Sin likely botside around 2:40” from their last games, and the side picked with their start');
 
     // ---- customs: a custom game played to the end with a bot in it is kept, without the bot, and shared with the room
     await over(rayan);

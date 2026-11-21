@@ -1633,10 +1633,10 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(live.filter(([, , t]) => /Premade|smurf/.test(t)).length, 3, 'nobody else premade or a smurf');
     assert.strictEqual(await pc.evaluate(() => document.querySelector('#liveNotes .notelist').textContent), 'Ahri against Zed: Respect his level 6. Ward the side bushes.');
     const timers = await text(pc, '#timers');
-    assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[0-4]\d BARON (10:00|9:[1-5]\d) THEIR MID INHIBITOR (4:[01]\d|3:[3-5]\d) KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i); // counting down since the game data came: up to 50 s on a busy container
-    await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k · Win chance 9\d%$/.test(lpcClient.lastOverlay.game), null, 'the overlay line, ending with the chance to win');
+    assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[0-4]\d VOIDGRUBS UP HERALD [45]:\d\d BARON (10:00|9:[1-5]\d) THEIR MID INHIBITOR (4:[01]\d|3:[3-5]\d) KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i); // counting down since the game data came: up to 50 s on a busy container
+    await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Voidgrubs up · Herald \d+:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k · Win chance 9\d%$/.test(lpcClient.lastOverlay.game), null, 'the overlay line, ending with the chance to win');
     assert(await pc.evaluate(() => !lpcClient.lastOverlay.board && document.getElementById('gameTips').hidden), 'no ranks on the overlay and no tips once the game is on');
-    await wait(phone, () => /Dragon1:\d\dBaron.*Gold\+15\.5k/.test(document.getElementById('timers').textContent), null, 'the timers on the phone');
+    await wait(phone, () => /Dragon1:\d\dVoidgrubs(up|0:00)Herald\d+:\d\dBaron.*Gold\+15\.5k/.test(document.getElementById('timers').textContent), null, 'the timers on the phone');
     // your lane and CS a minute: on the Game page and the overlay, against your usual on Ahri
     await wait(pc, () => /^Your lane against Zed: level 11 vs 10 · CS 100 vs 90 · kills 3 vs 2\. CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(document.getElementById('laneStats').textContent) && !document.getElementById('laneStats').hidden, null, 'lane stats');
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
