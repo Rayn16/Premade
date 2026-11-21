@@ -128,10 +128,10 @@ assert.strictEqual(summary(swapped).room, s.room, 'everyone in the game gets the
 assert.notStrictEqual(summary({ ...GAME, allPlayers: [GAME.allPlayers[0]] }).room, s.room, 'another game, another room');
 assert.strictEqual(summary({ ...GAME, events: { Events: [{ EventName: 'GameEnd', Result: 'Win' }] } }).result, 'Win');
 // everyone's scoreboard, for the Game page and the gold difference
-const G2 = { ...GAME, allPlayers: [{ ...GAME.allPlayers[0], level: 9, position: 'MIDDLE', scores: { kills: 3, deaths: 1, assists: 4, creepScore: 120 }, items: [{ itemID: 3031, count: 1 }, { itemID: 2003, count: 2 }] }, GAME.allPlayers[1]] };
+const G2 = { ...GAME, allPlayers: [{ ...GAME.allPlayers[0], level: 9, position: 'MIDDLE', scores: { kills: 3, deaths: 1, assists: 4, creepScore: 120 }, items: [{ itemID: 3031, count: 1 }, { itemID: 2003, count: 2 }], summonerSpells: { summonerSpellOne: { rawDisplayName: 'GeneratedTip_SummonerFlash_DisplayName' }, summonerSpellTwo: { rawDisplayName: 'GeneratedTip_SummonerTeleport_DisplayName' } } }, GAME.allPlayers[1]] };
 assert.deepStrictEqual(summary(G2).players, [
-  { name: 'Rayan#EUW', team: 'ORDER', champ: 'MonkeyKing', champName: 'Wukong', pos: 'MIDDLE', lvl: 9, k: 3, d: 1, a: 4, cs: 120, items: [[3031, 1], [2003, 2]], dead: true, respawn: 12 },
-  { name: 'Friend#EUW', team: 'CHAOS', champ: 'Annie', champName: 'Annie', pos: '', lvl: 0, k: 0, d: 0, a: 0, cs: 0, items: [], dead: false, respawn: 0 }]);
+  { name: 'Rayan#EUW', team: 'ORDER', champ: 'MonkeyKing', champName: 'Wukong', pos: 'MIDDLE', lvl: 9, k: 3, d: 1, a: 4, cs: 120, items: [[3031, 1], [2003, 2]], dead: true, respawn: 12, spells: ['SummonerFlash', 'SummonerTeleport'] },
+  { name: 'Friend#EUW', team: 'CHAOS', champ: 'Annie', champName: 'Annie', pos: '', lvl: 0, k: 0, d: 0, a: 0, cs: 0, items: [], dead: false, respawn: 0, spells: ['', ''] }]);
 // towers and inhibitors with whose they were, Herald and Voidgrubs, for the objective timers
 const OBJ = { ...GAME, events: { Events: [ev(1, 'TurretKilled', 300, { TurretKilled: 'Turret_T2_L_03_A', KillerName: 'Rayan' }), ev(2, 'InhibKilled', 900, { InhibKilled: 'Barracks_T1_C1', KillerName: 'Friend' }),
   ev(3, 'InhibRespawned', 1200, { InhibRespawned: 'Barracks_T1_C1' }), ev(4, 'HordeKill', 400, { KillerName: 'Friend' }), ev(5, 'HeraldKill', 800, { KillerName: 'Rayan' })] } };
