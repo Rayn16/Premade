@@ -990,6 +990,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ben.isHidden('#rolesSet'), 'no League lobby to set it in, in a browser');
     console.log(`room games: teams ${JSON.stringify(tms[0])}, roles ${JSON.stringify(rls[0].map)}`);
     // the mock draft: blue and red are the balanced teams; whoever's turn it is chooses, the host's clock does the rest
+    // and our server's high elo games, four champions or more in each role, for the pick helper (What's new 190)
+    const hsum = { p: '15.20', c: Object.fromEntries(Object.values(CHAMPS).filter((c) => c.key !== '900').map((c) => [c.key, { [Object.keys(POS)[c.key % 5]]: [30, 13 + (c.key % 5)] }])), old: null, today: 1, total: 100, at: 0 };
+    for (const p of trio) await p.context().route('**/riot/summary*', (r) => r.fulfill({ json: hsum, headers: { 'access-control-allow-origin': '*' } }));
     await ana.click('#draftBtn');
     for (const p of trio) await waitFor(p, () => lpc.dv() && document.querySelectorAll('#draftGrid button').length === 22, null, 'the draft with every champion');
     const dv0 = await ana.evaluate(() => lpc.dv()), blue = bySlot[dv0.blue[0]], red = bySlot[dv0.red[0]];
@@ -1002,6 +1005,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual(await red.$$eval('#draftGrid button:not([hidden])', (l) => l.map((b) => b.dataset.c)), ['Ahri'], 'finding a champion');
     await red.click('#draftGrid button[data-c="Ahri"]');
     for (const p of trio) await waitFor(p, () => lpc.dv().step === 2, null, 'Ahri banned');
+    // (checked after the timed first bans, since the helper waits for our server's numbers)
+    // each player on a side sees the top 3 for their side in their role from Role roulette, and a score on each square
+    for (const p of trio) {
+      const s = await p.evaluate(() => lpc.slot()), side = dv0.blue.includes(s) ? 'blue' : 'red';
+      await waitFor(p, () => !document.getElementById('mdHelp').hidden && document.querySelectorAll('#mdRows .bigrow').length === 3, null, 'the pick helper in the mock draft', 70000);
+      assert.strictEqual(await p.textContent('#mdHead'), `Top 3 for ${side} side, ${POS[rls[0].map[s]]}`);
+      assert(await p.$$eval('#draftGrid .champbtn .dsc', (l) => l.length) >= 4, 'scores on the squares');
+      assert.doesNotMatch(await p.textContent('#mdRows'), /%/);
+    }
+    await shot(blue, 'pick-helper-mock-draft');
     for (let i = 0; i < 18; i++) await ana.evaluate(() => lpc.draftNow());
     for (const p of trio) await waitFor(p, () => document.getElementById('draftHead').textContent === 'Draft done.' && document.getElementById('draftPicker').hidden, null, 'the draft done on every page');
     const acts = (await ben.evaluate(() => lpc.dv())).acts, picks = acts.filter((_, i) => !(i < 6 || (i >= 12 && i < 16)));
