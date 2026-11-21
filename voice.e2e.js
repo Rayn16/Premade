@@ -23,6 +23,7 @@ const zlib = require('zlib');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -143,8 +144,8 @@ function fakeSpeakers() {
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
 // Data Dragon's champions: Test Champ and 21 more for the room games' draft, each with a story (blurb)
 const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
-const toProx = async (p) => { await p.click('#leagueNav'); await p.click('.nav[data-view="prox"]'); }; // League, Proximity voice: the map, modes, room games, tracking
-const toRooms = (p) => p.click('.nav[data-view="voice"]');
+const toProx = async (p) => { await openPage(p, 'prox'); }; // League, Proximity voice: the map, modes, room games, tracking
+const toRooms = (p) => openPage(p, 'voice');
 // the room chat is off the page since What's new 152, but the overlay, the phone remote and Send to my room still use it
 const say = (p, t) => p.evaluate((t) => { document.getElementById('chatText').value = t; document.getElementById('chatForm').requestSubmit(); }, t);
 const CHAMPS = { Testchamp: { id: 'Testchamp', key: '900', name: 'Test Champ', title: 'the Tester', tags: ['Mage'], stats: { attackrange: 550 }, blurb: story('Test Champ') } };
@@ -303,11 +304,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(kept.fan < 0.1 && kept.voice > 0.7, 'noise removal takes out the noise and keeps the voice');
 
     // the first page is Rooms; League's pages are under League. Its profile, in a browser with no League and no Riot data, says where it comes from
-    assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isHidden('#leagueTabs'), 'Rooms first');
+    assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isVisible('#premadeList') && await ana.isHidden('#leagueList'), 'Rooms first');
     assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League'], 'the menu in a browser: hangout pages, then League');
     await ana.click('#leagueNav');
     assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
-    await ana.click('.nav[data-view="profile"]');
+    await openPage(ana, 'profile');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
     // Settings > App links Premade's Terms of Use and Privacy Policy (Riot wants both for a production key)
@@ -333,7 +334,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual(await ana.$eval('#players .player .pvol input', (el) => [el.min, el.max, el.value]), ['0', '400', '150'], 'new room voices start at 150%, with a 400% volume ceiling');
     const finder = await player(browser, 'Finder', [1280, 720]);
     await finder.goto(URL_);
-    await finder.click('.nav[data-view="voice"]');
+    await openPage(finder, 'voice');
     await waitFor(finder, () => document.getElementById('openRooms').textContent.includes('2/10 players'), null, 'public open-room size');
     assert(/Waiting in lobby/.test(await finder.textContent('#openRooms')) && await finder.isVisible('#openRooms button'), 'other players can find and join an open room without a code');
     await finder.context().close();
@@ -624,7 +625,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ben.keyboard.press('Control+Shift+M');
     assert(await ben.evaluate(() => lpc.micOn()), 'and unmutes');
     assert.deepStrictEqual((await ben.evaluate(() => lpc.played())).slice(-2), ['mute', 'unmute'], 'a beep down for mute, up for unmute');
-    await ben.click('.nav[data-view="voice"]');
+    await openPage(ben, 'voice');
     await ben.click('#voiceSet > summary'); // Voice settings, under the room
     assert.strictEqual(await ben.textContent('#talkNote'), 'In a browser these work while this page is in front.');
     await ben.click('[data-key="mute"]');
@@ -689,9 +690,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // talk time: the fake mics beep, so everyone talks; Ana sees the others' totals and the stats list
     await ana.waitForFunction(() => lpc.talk().peers.length === 2 && lpc.talk().peers.every((s) => s > 0) && lpc.talk().me > 0, null, { timeout: 15000 });
-    await ana.click('#leagueNav'); await ana.click('.nav[data-view="stats"]');
+    await openPage(ana, 'stats');
     assert.strictEqual(await ana.$$eval('#talk li', (l) => l.length), 3, 'talk time for all three');
-    await ana.click('.nav[data-view="voice"]');
+    await openPage(ana, 'voice');
     assert((await ana.textContent('#phase')).startsWith('In game'), 'Ana is in game: proximity on');
     assert((await cat.textContent('#phase')).startsWith('Lobby'), 'Cat has no minimap: lobby');
     console.log(`talk time on Ana's page: ${JSON.stringify(await ana.evaluate(() => lpc.talk()))}`);
@@ -1032,7 +1033,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.click('#compactBtn');
     assert(await ana.isVisible('main'), 'full view again');
     await ana.context().route('**/riot/summary*', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
-    await ana.click('.nav[data-view="settings"]');
+    await openPage(ana, 'settings');
     await ana.waitForSelector('#serverBox', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverToday'), 'Today: 3 players in 2 rooms. Busiest day of the last two weeks: 7 players.');
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
@@ -1087,7 +1088,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.deepStrictEqual(opAsked, ['league-proxchat.league-proxchat-server.workers.dev'], 'the kept key only ever to our server');
     // this copy's counts: the last day before today goes with the hello; today's keep counting, and are kept when the page goes
     assert.deepStrictEqual(op.context().hellos[0].day, { d: '2026-11-01', h: { start: 2, err: 1 }, u: { 'Screen share': 1 } }, 'the last day used, with the hello');
-    await op.click('.nav[data-view="settings"]');
+    await openPage(op, 'settings');
     await op.evaluate(() => document.querySelector('#whoBox summary').click()); // Our server stays hidden with no server to ask
     await op.reload();
     const usage = await op.evaluate(() => JSON.parse(localStorage.getItem('lpc-usage')));
@@ -1131,16 +1132,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.check('input[name="theme"][value="light"]');
     assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light');
     await shot(ana, 'ana-settings-light');
-    await ana.click('.nav[data-view="voice"]');
+    await openPage(ana, 'voice');
     await ana.click('#voiceSet > summary');
     await ana.click('.tip[popovertarget="t-gate"]');
     assert(await ana.evaluate(() => document.getElementById('t-gate').matches(':popover-open')), 'help tip opens');
     await ana.keyboard.press('Escape');
     await shot(ana, 'ana-voice-light');
     await ana.click('#voiceSet > summary');
-    await ana.click('.nav[data-view="settings"]');
+    await openPage(ana, 'settings');
     await ana.check('input[name="theme"][value="red"]');
-    await ana.click('.nav[data-view="voice"]');
+    await openPage(ana, 'voice');
     console.log('compact view, themes and help tips');
 
     // game history: the game Ana has been in since her minimap was tracked
@@ -1154,7 +1155,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(aw.length === want.length && aw.every(([t, n], i) => t === want[i] && near(t === 'Chatterbox' ? most : least).includes(n)), `room awards: ${JSON.stringify(aw)}, talk ${JSON.stringify(ppl)}`);
     assert(await ana.$eval('#awardsBox', (el) => !el.hidden) && (await ana.$$eval('#awardsList li', (l) => l.length)) === aw.length, 'the awards on the Room page');
     assert((await ana.evaluate(() => lpc.toasts())).some((t) => t.startsWith('Room awards: ')), 'and a popup');
-    await ana.click('#leagueNav'); await ana.click('.nav[data-view="stats"]');
+    await openPage(ana, 'stats');
     await ana.click('#games summary');
     assert(await ana.isVisible('#games img'), 'game history lists it with its talk map');
     assert.strictEqual(await ana.$$eval('#games > li:first-child .awards li', (l) => l.length), aw.length, 'with its awards');
@@ -1177,7 +1178,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ivy.context().addInitScript(fakeVoice, 1.2);
     await ivy.context().addInitScript(() => Object.defineProperty(MediaStreamTrack.prototype, 'label', { get: () => 'Headset (WH-1000XM4 Hands-Free AG Audio)' }));
     await ivy.goto(URL_);
-    await ivy.click('.nav[data-view="voice"]');
+    await openPage(ivy, 'voice');
     await ivy.click('#voiceSet > summary'); // the mic stays open while its meter is in sight
     await ivy.click('#micTest');
     await waitFor(ivy, () => lpc.checks().bt && lpc.checks().btNote && lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')), null, 'Ivy’s Bluetooth mic spotted');
@@ -1188,7 +1189,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ivy, () => /^Noise gate set to 2%/.test(lpc.checks().coach), null, 'the gate set from a quiet room');
     assert.strictEqual(await ivy.inputValue('#gate'), '0.02');
     await ivy.reload();
-    await ivy.click('.nav[data-view="voice"]');
+    await openPage(ivy, 'voice');
     await ivy.click('#voiceSet > summary');
     await ivy.click('#micTest');
     await waitFor(ivy, () => lpc.checks().btNote, null, 'the note by Ivy’s mic again');
@@ -1206,7 +1207,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
       navigator.mediaDevices.enumerateDevices = async () => (await list()).map((d) => (d.kind === 'audioinput' && d.deviceId === 'default' ? { kind: d.kind, deviceId: d.deviceId, groupId: d.groupId, label: 'Default - Headset (WH-1000XM4)' } : d));
     });
     await bo.goto(URL_);
-    await bo.click('.nav[data-view="voice"]');
+    await openPage(bo, 'voice');
     await bo.click('#voiceSet > summary');
     await bo.click('#micTest');
     await waitFor(bo, () => lpc.raw() && lpc.toasts().some((t) => /^Premade now uses Fake Audio Input 1 as your mic: your Bluetooth headset’s own mic/.test(t)), null, 'Bo’s other mic used');
@@ -1252,7 +1253,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.goto(URL_);
     await eve.goto(URL_ + '&discord=123456789012345678');
     await dee.evaluate(() => setBox(0.4, 0.6));
-    await dee.click('.nav[data-view="voice"]');
+    await openPage(dee, 'voice');
     await dee.evaluate(() => document.getElementById('shareBtn').click());
     // League status before the game: where Eve is in League's client
     await eve.evaluate(() => lpc.league({ inGame: false, phase: 'ChampSelect' }));
@@ -1430,7 +1431,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hal.goto(URL_);
     const navH = () => hal.$eval('.nav', (n) => n.getBoundingClientRect().height);
     const fills = () => hal.evaluate(() => document.querySelector('.app').getBoundingClientRect().height === innerHeight && document.documentElement.scrollHeight === innerHeight);
-    await hal.click('.nav[data-view="settings"]');
+    await openPage(hal, 'settings');
     const h100 = await navH();
     await hal.fill('#optZoom', '1.5');
     assert.strictEqual(await hal.textContent('#zoomOut'), '150%');
@@ -1438,9 +1439,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hal.reload();
     await hal.waitForFunction(() => window.lpc);
     assert(Math.abs(await navH() / h100 - 1.5) < 0.05 && await fills() && await hal.inputValue('#optZoom') === '1.5', 'still 150% after a restart');
-    await hal.click('.nav[data-view="settings"]');
+    await openPage(hal, 'settings');
     await hal.fill('#optZoom', '2');
-    assert(await hal.isHidden('.nav span') && await fills(), 'the rail down to its icons at 200%');
+    assert(await hal.evaluate(() => document.querySelector('.rail').offsetWidth === 60 && getComputedStyle(document.querySelector('.nav span')).clipPath !== 'none') && await fills(), 'the rail down to its icons at 200%');
     await hal.fill('#optZoom', '1');
     assert(await hal.isVisible('.nav span') && await navH() === h100, 'back to 100%');
     await hal.context().close();

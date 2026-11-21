@@ -18,6 +18,7 @@ const vm = require('vm');
 const zlib = require('zlib');
 const assert = require('assert');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PORT = 8083, URL_ = `http://127.0.0.1:${PORT}/index.html?debug`;
@@ -331,7 +332,7 @@ const game = (over = {}) => ({
         Object.assign(speechSynthesis, { getVoices: () => voices, speak: (u) => spoken.push([u.text, u.voice ? u.voice.name : '', u.pitch || 1]), cancel: () => {} });
         speechSynthesis.dispatchEvent(new Event('voiceschanged'));
       });
-      await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
+      await openPage(page, 'overlay');
       assert.deepStrictEqual(await page.$$eval('#optCallVoice option', (l) => l.map((o) => o.textContent)), ['My computer’s usual voice', 'A girl’s voice', 'David', 'Zira (woman)']);
       assert.strictEqual(await page.inputValue('#optCallVoice'), 'girl');
       await page.click('#callVoiceTry');
@@ -350,7 +351,7 @@ const game = (over = {}) => ({
     {
       const [c, page] = await context(browser, {});
       await page.evaluate((d) => lpcClient.emit('league', d), game());
-      await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
+      await openPage(page, 'overlay');
       await page.click('#ovEdit > summary'); // Edit layout: the big picture, and the boxes take the mouse
       const handles = () => page.$$eval('#ovHandles .ovhandle', (l) => l.map((b) => b.dataset.part));
       await wait(page, () => document.querySelectorAll('#ovHandles .ovhandle').length === 11, null, 'a box over each part');
@@ -407,7 +408,7 @@ const game = (over = {}) => ({
       await c.addInitScript(() => { lpcClient.lcu = async (m, p) => (p === '/lol-game-settings/v1/game-settings' ? { status: 200, data: { General: {}, HUD: { GlobalScale: 1, MinimapScale: 1.5, FlipMiniMap: true } } } : { status: 404, data: null }); }); // League's client, for its HUD settings
       await page.reload();
       await page.evaluate((d) => lpcClient.emit('league', d), game());
-      await page.click('#leagueNav'); await page.click('.nav[data-view="overlay"]');
+      await openPage(page, 'overlay');
       const pressed = () => page.$$eval('#ovPresets [aria-pressed="true"]', (l) => l.map((b) => b.querySelector('b').textContent));
       const on = (...ids) => page.evaluate((ids) => ids.map((id) => document.getElementById(id).checked), ids);
       const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')));
