@@ -241,6 +241,8 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await shot(ana, 'wizard-1');
     await ana.fill('#wName', 'Ana');
     assert.strictEqual(await ana.textContent('#setup .step:not([hidden]) .eyebrow'), 'Step 1 of 3', 'no screen check until she says she plays League');
+    assert(await ana.evaluate(() => document.getElementById('wNext').disabled), 'Next waits for how she’ll use Premade (What’s new 184)');
+    await ana.click('#wUse [data-use="rooms"]');
     await ana.check('#wPlays input[value="league"]');
     assert.strictEqual(await ana.textContent('#setup .step:not([hidden]) .eyebrow'), 'Step 1 of 4', 'League players check their screen');
     await ana.click('#wNext');
@@ -305,7 +307,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // the first page is Rooms; League's pages are under League. Its profile, in a browser with no League and no Riot data, says where it comes from
     assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isVisible('#premadeList') && await ana.isHidden('#leagueList'), 'Rooms first');
-    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'League'], 'the menu in a browser: hangout pages, then League');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Settings', 'League'], 'the menu in a browser: hangout pages, then League (no Aion 2: Ana ticked only League, What’s new 184)');
     await ana.click('#leagueNav');
     assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
     await openPage(ana, 'profile');

@@ -62,6 +62,7 @@ const shown = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].fi
     // Bo's first visit: setup goes name, mic, done, with no screen to check
     await bo.goto(URL_);
     assert(await bo.evaluate(() => document.documentElement.classList.contains('phone')), 'a page that cannot share a screen is a phone');
+    await bo.click('#wUse [data-use="rooms"]');
     await bo.click('#wNext'); await bo.click('#wNext');
     assert.strictEqual(await bo.textContent('#setup .step:not([hidden]) .eyebrow'), 'Step 3 of 3', 'setup skips the screen check on a phone');
     await bo.click('#wBack');
