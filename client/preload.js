@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   videoFolder: (what) => ipcRenderer.invoke('video-folder', String(what)),
   gameVideo: (what, name, data) => ipcRenderer.invoke('game-video', String(what), name, data),
   combo: (on) => ipcRenderer.send('combo', !!on),
+  mayCards: (on) => ipcRenderer.send('may-cards', !!on), // app 1.51: ARAM: Mayhem's cards are up, so where you click is sent (may-click)
   record: (on) => ipcRenderer.send('record', !!on),
   withLeague: (on) => ipcRenderer.invoke('with-league', typeof on === 'boolean' ? on : undefined),
   ducking: () => ipcRenderer.invoke('ducking'),
@@ -71,5 +72,5 @@ contextBridge.exposeInMainWorld('lpcClient', {
   checkup: () => ipcRenderer.invoke('checkup'), // app 1.43: PC check-up
   youtube: () => ipcRenderer.invoke('youtube'), // app 1.47: Watch together's Find a video window
   ytTitle: (v) => ipcRenderer.invoke('yt-title', String(v)),
-  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert', 'yt-pick'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
+  on: (name, fn) => { if (['league', 'key', 'press', 'overlay', 'overlay-moved', 'update', 'join', 'filtered-audio-data', 'notification-action', 'control-end', 'control-state', 'diag', 'aion-live', 'aion-fight', 'aion-meter', 'download', 'convert', 'yt-pick', 'may-click'].includes(name)) ipcRenderer.on(name, (e, v) => fn(v)); },
 });

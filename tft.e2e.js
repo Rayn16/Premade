@@ -109,8 +109,15 @@ const DEEPARAM = { // our server's /mayhem/augments: DeepARAM's rows for a champ
     .map(([name, rarity, pickRate, deepScore, tier, boost]) => ({ name, rarity, pickRate, deepScore, tier, boost })),
   MissFortune: [{ name: 'Symphony of War', rarity: 'silver', pickRate: 0.1, deepScore: 50, tier: 'B' }], // the server before its Nov 2026 update: no boost, pairs or items
 };
-const DEEPARAM_MORE = { Ahri: { pairs: [['Symphony of War', 'Escape Plan'], ['One Hit Wonder', 'Blunt Force'], ['ADAPt', 'Bad Gold']], items: [3020, 6655, 3157] } }; // the best augment pairs (2 shown) and the Mayhem build
-const ITEMS = { 1001: ['Boots', 300, ['Boots']], 3020: ['Sorcerer’s Shoes', 1100, ['Boots'], [1001]], 6655: ['Luden’s Echo', 2750], 3157: ['Zhonya’s Hourglass', 3250] }; // Data Dragon's item.json, the few the Mayhem build has
+// the server of 21 Nov (What's new 180): DeepARAM's Augment synergies with why, both core builds (Ahri's AP build has
+// Escape Plan, id 1301, in its best augments) and Ahri's Mayhem changes
+const DEEPARAM_MORE = { Ahri: { pairs: [['Symphony of War', 'Escape Plan'], ['Mystic Punch', 'One Hit Wonder'], ['ADAPt', 'Bad Gold']], why: ['Both hit harder in fights.', 'More casts, more hits.', ''], items: [3020, 6655, 3157],
+  builds: [{ items: [3020, 6655, 3157], then: [], win: 48.2, pick: 5.1, boost: 1.2, augs: [1301] }, { items: [3006, 3031, 3046], then: [3157], win: 49.5, pick: 1.4, boost: -0.8, augs: [] }],
+  changes: [['Q Orb of Deception', 'Damage', '40/65/90', '50/75/100']] } };
+const ITEMS = { 1001: ['Boots', 300, ['Boots']], 3020: ['Sorcerer’s Shoes', 1100, ['Boots'], [1001]], 6655: ['Luden’s Echo', 2750], 3157: ['Zhonya’s Hourglass', 3250],
+  3006: ['Berserker’s Greaves', 1100, ['Boots'], [1001]], 3031: ['Infinity Edge', 3450], 3046: ['Phantom Dancer', 2650] }; // Data Dragon's item.json, the few the Mayhem builds have
+// a Mayhem game in your match history: the augments you took, in order (playerAugment1-6)
+const MAY_GAME = { gameId: 8100, gameCreation: Date.now() - 3600e3, gameDuration: 1140, queueId: 2400, gameMode: 'KIWI', participants: [{ participantId: 1, teamId: 100, championId: 103, stats: { win: true, kills: 14, deaths: 6, assists: 22, totalMinionsKilled: 88, item0: 6655, playerAugment1: 1079, playerAugment2: 1301, playerAugment3: 1302, playerAugment4: 1205, playerAugment5: 1097, playerAugment6: 0 } }] };
 const AMD = { augments: { rows: [['Symphony of War', 20], ['Mystic Punch', 50], ['Sneakerhead', 9]].map(([en, pickRate]) => ({ name: { en }, pickRate })) },
   combos: { rows: [{ championId: 'Ahri', augmentNames: [{ en: 'Symphony of War' }], types: ['god'] }, { championId: 'Ahri', augmentNames: [{ en: 'Mystic Punch' }], types: ['trap'] }, { championId: 'Ashe', augmentNames: [{ en: 'Mystic Punch' }], types: ['god'] }] } };
 const CHERRY = [[79, 'Symphony of War'], [1079, 'Symphony of War'], [58, 'Mystic Punch'], [1058, 'Mystic Punch'], [1343, 'Sneakerhead'], [1205, 'ADAPt'], [97, 'Witchful Thinking'], [1097, 'Witchful Thinking'], [1301, 'Escape Plan'], [1302, 'Blunt Force']].map(([id, nameTRA]) => ({ id, nameTRA, rarity: 'kPrismatic' }));
@@ -122,6 +129,7 @@ function fakeLcu(method, p) {
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: RANKS });
   if (p === '/lol-match-history/v1/products/tft/me-puuid/matches?begin=0&count=20') return ok({ games: GAMES });
   if (p === '/lol-gameflow/v1/session') return ok({ phase: 'InProgress', gameData: { gameId: 8001, queue: { id: 1100, gameMode: 'TFT', isRanked: true }, teamOne: [], teamTwo: [] }, map: { id: 22, gameMode: 'TFT' } });
+  if (p === '/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=19') return ok({ games: { games: [MAY_GAME] } });
   if (/^\/lol-match-history\/v1\/products\/lol\//.test(p)) return ok({ games: { games: [] } });
   return { status: 404, data: null };
 }
@@ -131,11 +139,12 @@ function fakeApp() { // the desktop app 1.13 (client/preload.js), with League's 
   navigator.mediaDevices.getDisplayMedia = async () => { // the screen Settings picks, shared without asking: what the test draws on screenPic
     const c = Object.assign(document.createElement('canvas'), { width: 1280, height: 720 }), g = c.getContext('2d');
     window.screenPic = window.screenPic || Object.assign(document.createElement('canvas'), { width: 1280, height: 720 });
-    setInterval(() => g.drawImage(window.screenPic, 0, 0), 200);
+    setInterval(() => { if (c.width !== window.screenPic.width) Object.assign(c, { width: window.screenPic.width, height: window.screenPic.height }); g.drawImage(window.screenPic, 0, 0); }, 200); // a 1920x1080 screen too
     window.shares++;
     return c.captureStream(5);
   };
   window.lpcClient = { version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {}, overlay(s) { window.lastOverlay = s; }, front() {},
+    mayCards(on) { window.mayOn = on; }, // app 1.51: Mayhem's cards are up (the test sends may-click as the app would)
     on(name, fn) { (on[name] = on[name] || []).push(fn); }, emit(name, v) { for (const fn of on[name] || []) fn(v); }, lcu: (m, p, b) => window.fakeLcu(m, p, b === undefined ? null : b) };
 }
 
@@ -196,16 +205,20 @@ function drawPick(names) { // a Set 18 augment pick on screenPic, at 1280x720: t
     Object.assign(g, { fillStyle: '#f0e6c8', font: 'bold 20px serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 361);
   });
 }
-function drawMayhem(names) { // an ARAM: Mayhem pick on screenPic: three dark cards with light names and lines of text under them
-  const g = window.screenPic.getContext('2d');
+function drawMayhem(arg) { // an ARAM: Mayhem pick on screenPic: three dark cards (or four, Maestro's) with light names and lines of text under them, on a 1280x720 screen or { n: names, w: 1920 }
+  const [names, W] = Array.isArray(arg) || !arg ? [arg, 1280] : [arg.n, arg.w], k = W / 1280, pic = window.screenPic;
+  if (pic.width !== W) Object.assign(pic, { width: W, height: (W * 9) / 16 });
+  const g = pic.getContext('2d'), four = names && names.length === 4, half = four ? 100 : 150;
+  g.setTransform(k, 0, 0, k, 0, 0);
   g.fillStyle = '#1a2a3a';
   g.fillRect(0, 0, 1280, 720);
-  if (names) [290, 640, 990].forEach((x, i) => {
-    g.fillStyle = '#d8c8f0'; g.fillRect(x - 150, 50, 300, 460); // the light frame
-    g.fillStyle = '#05101a'; g.fillRect(x - 140, 60, 280, 440);
-    Object.assign(g, { fillStyle: '#f4ecd8', font: '22px sans-serif', textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 300);
-    Object.assign(g, { font: '13px sans-serif' }).fillText('Gain the Lethal Tempo rune.', x, 360);
+  if (names) (four ? [280, 520, 760, 1000] : [290, 640, 990]).forEach((x, i) => {
+    g.fillStyle = '#d8c8f0'; g.fillRect(x - half, 50, half * 2, 460); // the light frame
+    g.fillStyle = '#05101a'; g.fillRect(x - half + 10, 60, half * 2 - 20, 440);
+    Object.assign(g, { fillStyle: '#f4ecd8', font: `${four ? 18 : 22}px sans-serif`, textAlign: 'center', textBaseline: 'middle' }).fillText(names[i], x, 300);
+    Object.assign(g, { font: '13px sans-serif' }).fillText(four ? 'Gain Lethal Tempo.' : 'Gain the Lethal Tempo rune.', x, 360);
   });
+  g.setTransform(1, 0, 0, 1, 0, 0);
 }
 const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, arg, { timeout, polling: 100 }).catch(async (err) => {
   throw new Error(`timed out waiting for ${what}: ${err.message.split('\n')[0]}; page ${JSON.stringify(await page.evaluate(() => document.querySelector('main > .view:not([hidden])').innerText.slice(0, 600)).catch(() => ''))}`);
@@ -396,21 +409,25 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     const mayhemAt = (t, dead = false, lvl = 3, champ = 'Ahri', champName = champ, items = []) => pc.evaluate(([t, dead, lvl, champ, champName, items]) => lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'KIWI', t, room: 'g0123456789b', result: '', events: [],
       me: { champ, champName, team: 'ORDER', dead, respawn: 0, hp: 1, speed: 330 }, players: [{ name: 'Rayan#EUW', team: 'ORDER', champ, champName, pos: '', lvl, k: 0, d: 0, a: 0, cs: 0, items }] }), [t, dead, lvl, champ, champName, items]);
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms)), reads = () => pc.evaluate(() => lpc.mayState().reads);
-    const cardsNow = () => pc.evaluate(() => (window.lastOverlay.mayhemCards || []).map((c) => [c.t.split(':')[0], c.p, c.s, c.v, c.k, c.g || '']));
+    const cardsNow = () => pc.evaluate(() => (window.lastOverlay.mayhemCards || []).map((c) => [c.t.split(':')[0], c.p, c.s, c.v, c.k, (c.tags || []).map((t) => t[0]).join(' + ')]));
     const SET_A = ['Symphony of War', 'Mystic Punch', 'Sneakerhead'], SET_B = ['Escape Plan', 'One Hit Wonder', 'Blunt Force'];
-    const BEST = 'Best for Ahri: Prismatic Symphony of War, Witchful Thinking · Gold Escape Plan, One Hit Wonder · Silver Blunt Force, ADAPt';
+    // the overlay's Best for Ahri box: [champion, the top 2 of each rarity with their tier, your picks, rings for picks to come]
+    const boxOf = (a) => (a && typeof a === 'object' ? [a.champ, a.best.map(([r, l]) => `${r}: ${l.map((x) => `${x.n} ${x.t}`).join(', ')}`).join(' · '), (a.mine || []).map((x) => x.n).join(), a.due] : a);
+    const boxNow = () => pc.evaluate(() => window.lastOverlay.aug).then(boxOf);
+    const TOP = 'prismatic: Symphony of War S, Witchful Thinking A · gold: Escape Plan B, One Hit Wonder C · silver: Blunt Force C, ADAPt D';
+    const BEST = JSON.stringify(['Ahri', TOP, '', 4]);
     await pc.evaluate(() => { const t = Worker.prototype.terminate; window.workersEnded = 0; Worker.prototype.terminate = function () { window.workersEnded++; return t.call(this); }; });
     await pc.check('#optMayhemAugs');
     await mayhemAt(20);
     await wait(pc, () => window.shares === 2, null, 'the screen shared in the Mayhem game (30 s after the last share at most)', 45000);
     assert.strictEqual(await pc.evaluate(() => lpc.mayhem()), true, 'League mode KIWI identifies ARAM: Mayhem independently of TFT');
-    await wait(pc, (b) => window.lastOverlay.aug === b, BEST, 'Ahri’s best augments of each rarity on the overlay at the start');
+    await wait(pc, (b) => { const a = window.lastOverlay.aug; return a && JSON.stringify([a.champ, a.best.map(([r, l]) => `${r}: ${l.map((x) => `${x.n} ${x.t}`).join(', ')}`).join(' · '), (a.mine || []).map((x) => x.n).join(), a.due]) === b; }, BEST, 'Ahri’s best augments of each rarity on the overlay at the start, as icons with their tier, and 4 rings for your picks');
     await pc.evaluate(drawMayhem, SET_A);
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the Mayhem cards read', 60000);
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.mayhemCards.map((c, i) => [c.t, Math.abs(c.x * 1280 - [290, 640, 990][i]) <= 5, c.y > 0.58 && c.y < 0.7])),
       [['Symphony of War: S tier (72 DeepScore), 40% pick rate, +3.2 pts win rate on Ahri · DeepARAM patch 26.21', true, true], ['Mystic Punch: C tier (40 DeepScore), 5% pick rate, -1.5 pts win rate on Ahri · DeepARAM patch 26.21', true, true], ['Sneakerhead: no 26.21 champion data', true, true]], 'the rating stays on each augment card without drifting to unrelated screen edges');
-    assert.deepStrictEqual(await cardsNow(), [['Symphony of War', 'S tier', '72 DeepScore · 40% picked · +3.2 pts', 0.72, 'good', ''], ['Mystic Punch', 'C tier', '40 DeepScore · 5% picked · -1.5 pts', 0.4, '', 'Reroll?'], ['Sneakerhead', undefined, undefined, undefined, '', '']],
-      'each card’s tier over a DeepScore bar, pick rate and Boost small; the strongest glows, the weakest (C) says Reroll?');
+    assert.deepStrictEqual(await cardsNow(), [['Symphony of War', 'S tier', '72 DeepScore · 40% picked · +3.2 pts', 0.72, 'good', 'Best pick'], ['Mystic Punch', 'C tier', '40 DeepScore · 5% picked · -1.5 pts', 0.4, '', 'Reroll?'], ['Sneakerhead', undefined, undefined, undefined, '', '']],
+      'each card’s tier over a DeepScore bar, pick rate and Boost small; the strongest is the Best pick, the weakest (C) says Reroll?');
     await shot(pc, 'mayhem-augment-cards');
     // a reroll: only that card is read again, by itself, and its rating shows within a second; the others stay, and the
     // rerolled card never says Reroll? again
@@ -419,17 +436,25 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await wait(pc, () => /^Witchful Thinking: /.test((window.lastOverlay.mayhemCards || [])[1]?.t), null, 'the rerolled card read', 10000);
     const rerollMs = Date.now() - rerolledAt;
     assert(rerollMs < 1000, `the rerolled card read in ${rerollMs} ms`);
-    assert.deepStrictEqual(await cardsNow(), [['Symphony of War', 'S tier', '72 DeepScore · 40% picked · +3.2 pts', 0.72, 'good', ''], ['Witchful Thinking', 'A tier', '60 DeepScore · 20% picked · +1.0 pts', 0.6, '', ''], ['Sneakerhead', undefined, undefined, undefined, '', '']],
+    assert.deepStrictEqual(await cardsNow(), [['Symphony of War', 'S tier', '72 DeepScore · 40% picked · +3.2 pts', 0.72, 'good', 'Best pick'], ['Witchful Thinking', 'A tier', '60 DeepScore · 20% picked · +1.0 pts', 0.6, '', ''], ['Sneakerhead', undefined, undefined, undefined, '', '']],
       'the other cards kept; no hint once the weakest is A');
     await pc.evaluate(drawMayhem, SET_A);
     await wait(pc, () => /^Mystic Punch: /.test((window.lastOverlay.mayhemCards || [])[1]?.t), null, 'rerolled back', 10000);
     assert.deepStrictEqual((await cardsNow())[1], ['Mystic Punch', 'C tier', '40 DeepScore · 5% picked · -1.5 pts', 0.4, '', ''], 'a rerolled card’s hint is gone for good');
     console.log(`Mayhem reroll read in ${rerollMs} ms`);
+    // your pick (app 1.51): while cards are up the app sends where you click; a click under the card (League's reroll
+    // button) isn't a pick, a click on the card is, and it's your pick once the cards go
+    assert.strictEqual(await pc.evaluate(() => window.mayOn), true, 'the app asked for clicks while the cards are up');
+    const click = (x, y) => pc.evaluate(([x, y]) => lpcClient.emit('may-click', { x, y }), [x, y]);
+    await click(0.5, 0.95);
+    assert.strictEqual(await pc.evaluate(() => lpc.mayState().click), undefined, 'a click on League’s reroll button under a card is no pick');
+    await click(0.5, 0.6);
+    assert.strictEqual(await pc.evaluate(() => lpc.mayState().click), 'Mystic Punch', 'a click on card 2');
     // the server before its update (Miss Fortune here): no Boost, pairs or build, and nothing breaks
     await mayhemAt(250, false, 3, '', 'Miss Fortune');
     await wait(pc, () => lpc.mayRate('Symphony of War').t === 'Symphony of War: B tier (50 DeepScore), 10% pick rate on Miss Fortune · DeepARAM patch 26.21', null, 'display names resolve to their champion-specific rates');
     assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').s), '50 DeepScore · 10% picked', 'no Boost from the old server');
-    assert.strictEqual(await pc.evaluate(() => lpc.mayBest(true)), 'Best for Miss Fortune: Silver Symphony of War', 'no pairs from the old server');
+    assert.deepStrictEqual(boxOf(await pc.evaluate(() => lpc.mayBox())), ['Miss Fortune', 'silver: Symphony of War B', '', 4], 'the old server: its best augments, nothing else');
     await mayhemAt(260, false, 3, 'UnresolvedChampion', '');
     assert.strictEqual(await pc.evaluate(() => lpc.mayRate('Symphony of War').t), 'Symphony of War: no 26.21 champion data', 'an unresolved champion never gets another champion’s rate');
     await mayhemAt(265, false, 3, '', '');
@@ -442,6 +467,7 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await mayhemAt(100);
     await pc.evaluate(drawMayhem, null);
     await wait(pc, () => !window.lastOverlay.mayhemCards && lpc.mayState().owed === 0, null, 'the first pick made: none owed', 15000);
+    assert.deepStrictEqual(await pc.evaluate(() => [lpc.mayPicks(), window.mayOn]), [[{ name: 'Mystic Punch', at: 'Start' }], false], 'the card you clicked is your pick once the cards go; no clicks read with no cards up');
     const r0 = await reads();
     await pc.evaluate(drawMayhem, SET_A);
     await sleep(3000);
@@ -458,26 +484,63 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     assert(slow >= 1 && slow <= 3, `alive with picks owed: the middle read every 3 s (${slow} reads in 6.5 s)`);
     // dead: both picks, one after the other, each with its ratings; the best augments and the next item of DeepARAM's
     // Mayhem build on the overlay (your boots in ARAM's own copy, 223020), and on Game the best pairs and the whole build
+    // What to buy follows the build you're on: no items yet, the higher win rate (crit); with Sorcerer's Shoes (ARAM's own
+    // copy, 223020), the AP build
+    await mayhemAt(415, true, 11);
+    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.name === 'Berserker’s Greaves', null, 'no items: the build with the higher win rate');
     await mayhemAt(420, true, 11, 'Ahri', 'Ahri', [[223020, 1]]);
-    await wait(pc, (b) => window.lastOverlay.aug === b, BEST, 'the best augments while dead');
-    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.name === 'Luden’s Echo', null, 'the next item of the Mayhem build while dead');
+    await wait(pc, (b) => { const a = window.lastOverlay.aug; return a && JSON.stringify([a.champ, (a.mine || []).map((x) => x.n).join(), a.due]) === b; }, JSON.stringify(['Ahri', 'Mystic Punch', 3]), 'the best augments while dead, with your pick');
+    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.name === 'Luden’s Echo', null, 'the next item of the build you’re on while dead');
     assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.buy), { name: 'Luden’s Echo', pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/item/6655.png', why: 'DeepARAM’s Mayhem build' });
+    // Game: your picks, the best augments as icons with tiers, the top pairs with why (yours marked), both builds (yours
+    // marked) and Ahri's Mayhem changes, in place of the one line and the item list
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
-    await wait(pc, (b) => document.getElementById('augTips').textContent === b, `${BEST}. Best pairs: Symphony of War + Escape Plan, One Hit Wonder + Blunt Force`, 'the best augments and the 2 best pairs on Game');
-    await wait(pc, () => !document.getElementById('liveBuild').hidden, null, 'the Mayhem build on Game');
-    assert.deepStrictEqual(await pc.evaluate(() => [document.querySelector('#liveBuild h3').textContent, [...document.querySelectorAll('#liveBuild .blist li')].map((l) => l.dataset.k + ':' + l.textContent.split('You have it')[0].split('Next')[0].replace(/[↑↓✕]/g, ''))]),
-      ['DeepARAM’s Mayhem build on Ahri', ['have:Sorcerer’s Shoes', 'next:Luden’s Echo', ':Zhonya’s Hourglass']], 'the whole Mayhem build, what you have and what’s next');
-    await shot(pc, 'mayhem-game-page');
+    await wait(pc, () => !document.getElementById('mayBox').hidden && document.querySelector('#mayBox .maybld.sel'), null, 'the Mayhem part on Game');
+    assert.deepStrictEqual(await pc.evaluate(() => { const q = (s, f) => [...document.querySelectorAll('#mayBox ' + s)].map(f), t = (e) => e.textContent; return [
+      q('.mayslot', (e) => `${e.querySelector(':scope > b').textContent} ${e.querySelector('small').textContent}`),
+      q('.mayone', (e) => `${e.querySelector('.maug').title} ${e.querySelector('.maug b').textContent}`),
+      q('.maypair', (e) => [...e.querySelectorAll('b, i, .tag')].map(t).join(' | ')),
+      q('.maybld', (e) => [e.classList.contains('sel'), [...e.querySelectorAll('.mayit')].map((i) => i.title + (i.classList.contains('have') ? ' (have)' : '')).join(', '), t(e.querySelector('.maywr'))]),
+      q('.maychg span', t), document.getElementById('liveBuild').hidden, document.getElementById('augTips').hidden]; }), [
+      ['Mystic Punch Start', 'Next Level 7', 'Next Level 11', 'Next Level 15'],
+      ['Symphony of War S', 'Witchful Thinking A', 'Escape Plan B', 'One Hit Wonder C', 'Blunt Force C', 'ADAPt D'],
+      ['Symphony of War + Escape Plan | Both hit harder in fights.', 'Mystic Punch + One Hit Wonder | More casts, more hits. | You have Mystic Punch', 'ADAPt + Bad Gold'],
+      [[true, 'Sorcerer’s Shoes (have), Luden’s Echo, Zhonya’s Hourglass', '48.2%5.1% picked · +1.2 pts'], [false, 'Berserker’s Greaves, Infinity Edge, Phantom Dancer, Zhonya’s Hourglass', '49.5%1.4% picked · −0.8 pts']],
+      ['Change', 'Summoner’s Rift', 'Mayhem', 'Q Orb of Deception Damage', '40/65/90', '50/75/100'], true, true], 'Game as mockup board 3');
+    assert(await pc.evaluate(() => /You’re on this one/.test(document.querySelector('#mayBox .maybld.sel').textContent)), 'the build you’re on marked');
+    await shot(pc, 'mayhem-board3-game');
     await pc.evaluate(drawMayhem, SET_A);
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the first owed pick read', 30000);
     await pc.evaluate(drawMayhem, SET_B);
     await wait(pc, (n) => JSON.stringify((window.lastOverlay.mayhemCards || []).map((c) => c.t.split(':')[0])) === n, JSON.stringify(SET_B), 'the second pick read right after the first (One Hit Wonder only on DeepARAM)', 30000);
-    assert.deepStrictEqual(await cardsNow(), [['Escape Plan', 'B tier', '55 DeepScore · 30% picked · +2.0 pts', 0.55, 'good', ''], ['One Hit Wonder', 'C tier', '41 DeepScore · 10% picked · +0.5 pts', 0.41, '', ''], ['Blunt Force', 'C tier', '35 DeepScore · 20% picked · +0.2 pts', 0.35, '', 'Reroll?']]);
+    assert.deepStrictEqual(await cardsNow(), [['Escape Plan', 'B tier', '55 DeepScore · 30% picked · +2.0 pts', 0.55, 'good', 'Best pick + Fits your build'], ['One Hit Wonder', 'C tier', '41 DeepScore · 10% picked · +0.5 pts', 0.41, '', 'Goes with Mystic Punch'], ['Blunt Force', 'C tier', '35 DeepScore · 20% picked · +0.2 pts', 0.35, '', 'Reroll?']],
+      'gold, gold and silver: by Boost; Escape Plan is in the AP build’s best augments, and One Hit Wonder makes a pair with Mystic Punch, your pick');
+    const scenes = [['mayhem-board1-pick', await pc.evaluate(() => ({ s: window.lastOverlay, bg: window.screenPic.toDataURL() }))]]; // drawn again on overlay.html at the end
     assert.strictEqual(await pc.evaluate(() => lpc.mayState().owed), 1, 'one pick left');
     await pc.evaluate(drawMayhem, ['Escape Plan', 'One Hit Wonder', 'Witchful Thinking']);
     await wait(pc, () => /^Witchful Thinking: /.test((window.lastOverlay.mayhemCards || [])[2]?.t), null, 'Blunt Force rerolled', 10000);
-    assert.deepStrictEqual((await cardsNow()).map((c) => c[5]), ['', 'Reroll?', ''], 'the hint moves to the card that’s now the weakest, C and not rerolled');
+    assert.deepStrictEqual((await cardsNow()).map((c) => c[5].includes('Reroll?')), [false, true, false], 'the hint moves to the card that’s now the weakest, C and not rerolled');
     await shot(pc, 'mayhem-reroll-hint');
+    // a reroll that raised a card's rarity (Command Line): gold Escape Plan (+2.0 pts) is the Best pick over prismatic
+    // Witchful Thinking's higher DeepScore, and the silver D says Reroll?
+    await pc.evaluate(drawMayhem, ['Escape Plan', 'Witchful Thinking', 'ADAPt']);
+    await wait(pc, (n) => JSON.stringify((window.lastOverlay.mayhemCards || []).map((c) => c.t.split(':')[0])) === n, JSON.stringify(['Escape Plan', 'Witchful Thinking', 'ADAPt']), 'a set of three rarities', 30000);
+    assert.deepStrictEqual((await cardsNow()).map((c) => [c[0], c[4], c[5]]), [['Escape Plan', 'good', 'Best pick + Fits your build'], ['Witchful Thinking', '', ''], ['ADAPt', '', 'Reroll?']], 'by Boost when the rarities differ');
+    // a new augment of 26.23 (no row on DeepARAM): New in 26.23, no numbers
+    await pc.evaluate(drawMayhem, ['Symphony of War', 'Steadfaster Presence', 'Mystic Punch']);
+    await wait(pc, () => /^Steadfaster Presence: /.test((window.lastOverlay.mayhemCards || [])[1]?.t), null, 'a new augment read', 30000);
+    assert.deepStrictEqual((await cardsNow())[1], ['Steadfaster Presence', 'No numbers yet', 'DeepARAM hasn’t got enough games', undefined, '', 'New in 26.23'], 'New in 26.23, not no data');
+    // Maestro's four cards, on a 1280 and a 1920 wide screen: each rating under its own card
+    for (const w of [1280, 1920]) {
+      const names = ['Symphony of War', 'Mystic Punch', 'Escape Plan', 'Blunt Force'];
+      await pc.evaluate(drawMayhem, { n: names, w });
+      await wait(pc, (n) => JSON.stringify((window.lastOverlay.mayhemCards || []).map((c) => c.t.split(':')[0])) === n, JSON.stringify(names), `four cards at ${w} wide`, 30000);
+      assert.deepStrictEqual(await pc.evaluate((w) => window.lastOverlay.mayhemCards.map((c, i) => Math.abs(c.x * w - [280, 520, 760, 1000][i] * (w / 1280)) <= 5), w), [true, true, true, true], `each rating within 5 px of its card’s name at ${w} wide`);
+      if (w === 1920) scenes.push(['mayhem-board2-maestro', await pc.evaluate(() => ({ s: window.lastOverlay, bg: window.screenPic.toDataURL() }))]);
+    }
+    assert.deepStrictEqual((await cardsNow()).map((c) => c[5]), ['Best pick', 'Reroll?', 'Fits your build', ''], 'four cards, three rarities: by Boost (Symphony of War +3.2 pts)');
+    await pc.evaluate(drawMayhem, SET_A);
+    await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'three cards again, at 1280', 30000);
     // memory: 50 more picks with rerolls in one game keep the page flat
     const cdp = await pc.context().newCDPSession(pc);
     await cdp.send('Performance.enable');
@@ -503,10 +566,11 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     console.log(`Mayhem memory over 50 picks with rerolls (${Math.round((Date.now() - mayT0) / 1000)} s): nodes ${before[0]} -> ${after[0]}, listeners ${before[1]} -> ${after[1]}, heap ${(before[2] / 1e6).toFixed(1)} -> ${(after[2] / 1e6).toFixed(1)} MB`);
     await pc.evaluate(drawMayhem, null);
     await wait(pc, () => !window.lastOverlay.mayhemCards && lpc.mayState().owed === 0, null, 'both picks made', 15000);
-    const r2 = await reads();
+    // dead with no pick owed: the middle read every 10 s, so an extra pick (K/DA) is rated
     await pc.evaluate(drawMayhem, SET_A);
-    await sleep(3000);
-    assert.strictEqual(await reads(), r2, 'dead with no pick owed: no screen reading');
+    await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'an extra pick while dead with none owed, within 10 s', 15000);
+    await pc.evaluate(drawMayhem, null);
+    await wait(pc, () => !window.lastOverlay.mayhemCards && lpc.mayState().owed === 0, null, 'the extra pick made', 15000);
     // level 15 reached alive, a pick waiting over 5 minutes, then a death: the cards come after the respawn and are read
     await pc.evaluate(drawMayhem, null);
     await mayhemAt(430, false, 15);
@@ -520,14 +584,31 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the late pick read after the respawn', 10000);
     await pc.evaluate(drawMayhem, null);
     await wait(pc, () => !window.lastOverlay.mayhemCards && lpc.mayState().owed === 0, null, 'the late pick made', 15000);
+    // level 21 (Superfans): one more pick owed, read like the others
+    await mayhemAt(790, false, 21);
+    await wait(pc, () => lpc.mayState().owed === 1, null, 'the level 21 pick owed');
+    await pc.evaluate(drawMayhem, SET_A);
+    await wait(pc, () => (window.lastOverlay.mayhemCards || []).length === 3, null, 'the level 21 pick read', 10000);
+    await pc.evaluate(drawMayhem, null);
+    await wait(pc, () => !window.lastOverlay.mayhemCards && lpc.mayState().owed === 0, null, 'the level 21 pick made', 15000);
     // Miss Fortune on the server before its update, dead: no Mayhem item, no build on Game
     await mayhemAt(800, true, 15, 'MissFortune', 'Miss Fortune');
-    await wait(pc, () => lpc.mayBest(true) === 'Best for Miss Fortune: Silver Symphony of War' && window.lastOverlay.aug === 'Best for Miss Fortune: Silver Symphony of War', null, 'Miss Fortune’s best augments');
+    await wait(pc, () => window.lastOverlay.aug && window.lastOverlay.aug.champ === 'Miss Fortune', null, 'Miss Fortune’s best augments');
+    assert.deepStrictEqual(await boxNow(), ['Miss Fortune', 'silver: Symphony of War B', 'Mystic Punch', 3], 'the old server: its best augments on the overlay, and your pick of this game');
     assert.strictEqual(await pc.evaluate(() => lpc.buyNext()), null, 'no Mayhem item without the build');
     await wait(pc, () => document.getElementById('liveBuild').hidden, null, 'no build on Game without it');
+    await wait(pc, () => document.getElementById('mayBox').textContent.includes('Best for Miss Fortune'), null, 'Game on Miss Fortune');
+    assert.deepStrictEqual(await pc.evaluate(() => [document.getElementById('mayBox').hidden, document.querySelectorAll('#mayBox .mayone').length, document.querySelectorAll('#mayBox .maypair, #mayBox .maybld, #mayBox .maychg').length]), [false, 1, 0], 'the old server on Game: the best augments only, no pairs, builds or changes');
+    await mayhemAt(810, true, 15, 'Yasuo');
+    await wait(pc, () => document.getElementById('mayBox').hidden && !document.getElementById('augTips').hidden, null, 'DeepARAM down (502): the class tip on Game, no Mayhem part');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await wait(pc, () => !lpc.mayState() && window.workersEnded >= 1, null, 'the reader and its Tesseract worker ended with the game');
     assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');
+    // Stats, Games: a Mayhem game shows the augments you took, in order (League's match history), with the name and when on hover
+    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]'); await pc.click('.view[data-view="stats"] .tab[data-tab="games"]');
+    await wait(pc, () => document.querySelectorAll('#matches .gaugs .maug').length === 5, null, 'your Mayhem game’s augments in your history');
+    assert.deepStrictEqual(await pc.$$eval('#matches .gaugs .maug', (l) => l.map((e) => e.title)), ['Symphony of War, at the start', 'Escape Plan, at 7', 'Blunt Force, at 11', 'ADAPt, at 15', 'Witchful Thinking, at 21']);
+    await shot(pc, 'mayhem-board4-history');
     // the same boards on Profile's TFT tab
     await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
     await pc.click('#proQueues .tab[data-q="tft"]');
@@ -545,15 +626,23 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
       [['Your average: 1.5 in 2 games', 366, 526, true], ['Not in your last 4 games', 913, 526, false]]);
     await shot(ovp, 'tft-augment-cards');
     await ovp.evaluate(() => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, mayhemCards: [
-      { x: 0.23, y: 0.66, v: 0.72, p: 'S tier', s: '72 DeepScore · 40% picked · +3.2 pts', tier: 'S', score: 72, k: 'good' },
-      { x: 0.5, y: 0.66, v: 0.4, p: 'C tier', s: '40 DeepScore · 5% picked · -1.5 pts', tier: 'C', score: 40, g: 'Reroll?', gk: 'bad' },
+      { x: 0.23, y: 0.66, v: 0.72, p: 'S tier', s: '72 DeepScore · 40% picked · +3.2 pts', tier: 'S', score: 72, k: 'good', tags: [['Best pick', 'best'], ['Fits your build', 'fit']] },
+      { x: 0.5, y: 0.66, v: 0.4, p: 'C tier', s: '40 DeepScore · 5% picked · -1.5 pts', tier: 'C', score: 40, tags: [['Goes with Vulnerability', 'pair', ''], ['Reroll?', 'bad']] },
       { x: 0.77, y: 0.66, t: 'Sneakerhead: no 26.21 champion data' },
-    ] }));
+    ], aug: { champ: 'Ashe', best: [['prismatic', [{ n: 'Draw Your Sword', i: '', t: 'S' }, { n: 'Infinite Recursion', i: '', t: 'S' }]], ['gold', [{ n: 'Weapon of Destiny', i: '', t: 'S' }]]], mine: [{ n: 'Vulnerability', i: '', r: 'gold' }], due: 3 } }));
     assert.deepStrictEqual(await ovp.$$eval('.may-rate', (l) => l.map((e) => [e.classList.contains('good'), getComputedStyle(e).backgroundColor, getComputedStyle(e).borderTopWidth, e.textContent.includes('S tier') || e.textContent.includes('Sneakerhead')])),
       [[true, 'rgba(0, 0, 0, 0)', '0px', true], [false, 'rgba(0, 0, 0, 0)', '0px', false], [false, 'rgba(0, 0, 0, 0)', '0px', true]], 'Mayhem ratings have transparent backplates, including an augment without a rate');
-    assert.deepStrictEqual(await ovp.$$eval('.may-rate', (l) => l.map((e) => [(e.querySelector('.augfill') || {}).style?.width || '', (e.querySelector('.augtag') || {}).textContent || '', (getComputedStyle(e.querySelector('.augp') || e).textShadow.match(/rgba?\([^)]*\)/g) || []).some((c) => c !== 'rgb(0, 0, 0)')])),
-      [['72%', '', true], ['40%', 'Reroll?', false], ['', '', false]], 'a DeepScore bar, the strongest glowing, Reroll? on the weakest');
+    assert.deepStrictEqual(await ovp.$$eval('.may-rate', (l) => l.map((e) => [(e.querySelector('.augfill') || {}).style?.width || '', [...e.querySelectorAll('.augtag')].map((t) => `${t.textContent}:${getComputedStyle(t).borderTopColor}`).join(), (getComputedStyle(e.querySelector('.augp') || e).textShadow.match(/rgba?\([^)]*\)/g) || []).some((c) => c !== 'rgb(0, 0, 0)'), getComputedStyle(e.querySelector('.augfill') || e).backgroundImage])),
+      [['72%', 'Best pick:rgb(232, 184, 74),Fits your build:rgb(233, 225, 226)', false, 'none'], ['40%', 'Goes with Vulnerability:rgb(60, 207, 142),Reroll?:rgb(255, 107, 107)', false, 'none'], ['', '', false, 'none']], 'a DeepScore bar, no glow and no gradient, the pills outlined in their colours');
+    assert.deepStrictEqual(await ovp.$$eval('.maybox', (l) => l.map((b) => [b.querySelector('.mhead').textContent, [...b.querySelectorAll('.mrow .mau')].map((m) => `${m.title} ${m.className} ${m.querySelector('b').textContent}`), b.querySelectorAll('.mine .mau').length, b.querySelectorAll('.mine .mau.due').length])),
+      [['Best for Ashe', ['Draw Your Sword mau prismatic S', 'Infinite Recursion mau prismatic S', 'Weapon of Destiny mau gold S'], 4, 3]], 'Best for Ashe as rarity rings with a tier, your pick and 3 to come');
     await shot(ovp, 'mayhem-transparent-cards');
+    for (const [name, { s, bg }] of process.env.SHOTS ? scenes : []) { // the overlay as it was over the screen it read, for the mockup's boards 1 and 2
+      const w = name.includes('maestro') ? 1920 : 1280;
+      await ovp.setViewportSize({ width: w, height: (w * 9) / 16 });
+      await ovp.evaluate(([s, bg]) => { document.documentElement.style.background = `url(${bg}) 0 0 / 100% 100%`; window.fire(s); }, [s, bg]);
+      await shot(ovp, name);
+    }
     await ovp.close();
     console.log('overlay: Mayhem ratings stay anchored under the augment names');
   } finally {

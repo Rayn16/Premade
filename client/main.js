@@ -1612,6 +1612,30 @@ function vk(code) {
 const COMBO = { Q: 0x51, W: 0x57, E: 0x45, R: 0x52, D: 0x44, F: 0x46, 1: 0x31, 2: 0x32, 3: 0x33, 4: 0x34, 5: 0x35, 6: 0x36, 7: 0x37, Click: 2 };
 let keyState = null, pttTimer = null, comboOn = false;
 ipcMain.on('combo', (e, on) => { if (fromSite(e)) comboOn = !!on; });
+// app 1.51 (What's new 180): while ARAM: Mayhem's augment cards are up (the page says so), where the left button goes
+// down on the shared screen, as fractions of it, so the page knows which card you took. Read like push to talk
+// (GetAsyncKeyState reads the button, it doesn't hook or block it); nothing is read while no cards are up.
+let mayTimer = null, mayGen = 0;
+ipcMain.on('may-cards', async (e, on) => {
+  if (!fromSite(e) || process.platform !== 'win32') return;
+  const gen = ++mayGen;
+  clearInterval(mayTimer);
+  mayTimer = null;
+  if (!on) return;
+  const d = await display();
+  if (gen !== mayGen) return;
+  try { keyState = keyState || require('koffi').load('user32.dll').func('short __stdcall GetAsyncKeyState(int vKey)'); } catch (err) { console.error('Mayhem cards:', err); return; }
+  let down = true; // a button already down when the cards came isn't a click on them
+  mayTimer = setInterval(() => {
+    if (win.isDestroyed()) return;
+    const now = (keyState(0x01) & 0x8000) !== 0, b = d.bounds;
+    if (now && !down) {
+      const p = screen.getCursorScreenPoint(), x = (p.x - b.x) / b.width, y = (p.y - b.y) / b.height;
+      if (x >= 0 && x < 1 && y >= 0 && y < 1) win.webContents.send('may-click', { x: +x.toFixed(4), y: +y.toFixed(4) });
+    }
+    down = now;
+  }, 15);
+});
 ipcMain.handle('keys', (e, k) => {
   if (!fromSite(e) || !k) return {};
   globalShortcut.unregisterAll();
