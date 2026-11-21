@@ -1925,11 +1925,11 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => document.querySelector('#postBody .report').firstElementChild.matches('.rmore')), 'how you played first, then everyone’s scores');
     // the scoreboard (What's new 169): the result, red side on top as on the map, you and your lane opponent marked
     assert.strictEqual(await text(pc, '#postBox .sbres'), 'Victory');
-    const sb = await pc.$$eval('#postBox table.sb', (ts) => ts.map((t) => [t.caption.textContent.split(' · ')[0], t.tBodies[0].rows.length, t.querySelector('th').textContent]));
+    const sb = await pc.$$eval('#postBox table.sbt', (ts) => ts.map((t) => [t.caption.textContent.split(' · ')[0], t.tBodies[0].rows.length, t.querySelector('th').textContent]));
     assert.deepStrictEqual(sb.map((x) => x[0]), ['Red side', 'Blue side'], 'red side first');
     assert(sb.every((x) => x[1] === 5) && sb.some((x) => x[2] === 'Won') && sb.some((x) => x[2] === 'Lost'), `both teams of 5: ${JSON.stringify(sb)}`);
-    assert.match(await text(pc, '#postBox table.sb tr[data-me] td:first-child .who'), /You/);
-    assert(await pc.$$eval('#postBox table.sb tr[data-me] .sbit img', (l) => l.length) > 0, 'your items');
+    assert.match(await text(pc, '#postBox table.sbt tr[data-me] td:first-child .who'), /You/);
+    assert(await pc.$$eval('#postBox table.sbt tr[data-me] .sbit img', (l) => l.length) > 0, 'your items');
     await openPage(pc, 'stats');
     await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'after', go: 'scoreboard' } }));
     await wait(pc, () => document.querySelector('.nav[data-view="game"]').getAttribute('aria-current') === 'page', null, 'Scoreboard on the end-screen card opens the Game page');
