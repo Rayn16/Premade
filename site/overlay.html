@@ -53,6 +53,8 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .pc .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 2.8em 1.3em 1.3em; border-radius: 0 0 1.3em 1.3em; display: grid; gap: 0.45em; text-shadow: 0 1px 3px #000, 0 0 0.8em #000; } /* What's new 179: no dark band, a shadow keeps it readable */
 .rb .who { display: flex; align-items: baseline; gap: 0.7em; white-space: nowrap; min-width: 0; }
 .rb .who b { font-size: 1.75em; overflow: hidden; text-overflow: ellipsis; }
+.rb .who .pn { all: unset; font-weight: 700; font-size: 1.75em; overflow: hidden; text-overflow: ellipsis; cursor: pointer; } /* a name with a Riot ID opens their profile in Premade (What's new 195) */
+.rb .who .pn:hover, .rb .who .pn:focus-visible { text-decoration: underline; }
 .rb .sub { overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 1.3em; }
 .rb .rk { display: flex; align-items: center; gap: 0.6em; font-size: 1.45em; font-weight: 600; }
 /* What's new 179: the three rings close together and the rank beside them (tier big, LP and record under it) */
@@ -438,7 +440,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     return row;
   }
   function card(p, n) { // n: how many tags
-    const c = el('pc' + (p.ally ? '' : ' foe') + (p.me ? ' me' : '')), info = el('info'), who = el('who'), b = document.createElement('b');
+    const c = el('pc' + (p.ally ? '' : ' foe') + (p.me ? ' me' : '')), info = el('info'), who = el('who'), link = !!p.id && !!api.overlayProg, b = document.createElement(link ? 'button' : 'b');
     if (p.art || p.pic) {
       const art = Object.assign(new Image(), { className: 'art', alt: '', src: String(p.art || p.pic) });
       art.onerror = () => { if (/_[1-9]\d*\.jpg$/.test(art.src)) art.src = art.src.replace(/_\d+\.jpg$/, '_0.jpg'); else if (p.pic && art.src !== p.pic) art.src = String(p.pic); };
@@ -446,6 +448,11 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     if (p.me || p.lane) c.append(el('chipx', p.me ? 'You' : 'Your lane'));
     b.textContent = String(p.name || '');
+    if (link) { // takes the mouse while over it, like the strip's buttons
+      Object.assign(b, { type: 'button', className: 'pn', title: 'Open their profile in Premade' });
+      b.dataset.take = '';
+      b.onclick = () => api.overlayProg({ id: 'player', go: String(p.id) });
+    }
     who.append(b, el('sub', String(p.sub || '')));
     const rk = el('rk');
     if (p.emb) rk.append(Object.assign(new Image(), { src: String(p.emb), alt: '' }));
