@@ -626,7 +626,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   function ghost(g) { // a faded face where you last saw them, with the seconds since
     const e = el('ghost'), d = Math.min(0.1, Math.max(0.005, g.d));
     e.style.cssText = `left: ${g.x * 100}vw; top: ${g.y * 100}vh; width: ${d * 100}vh; height: ${d * 100}vh`;
-    e.append(Object.assign(new Image(), { src: g.pic, alt: '' }), Object.assign(document.createElement('span'), { textContent: Number.isFinite(g.s) ? `${Math.max(0, g.s | 0)} s` : '' }));
+    e.append(Object.assign(new Image(), { src: g.pic, alt: '' }), Object.assign(document.createElement('span'), { textContent: g.s === 'shop' ? 'shop' : Number.isFinite(g.s) ? `${Math.max(0, g.s | 0)} s` : '' }));
     return e;
   }
   let lastOverlayState = null;
