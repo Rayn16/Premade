@@ -1818,7 +1818,7 @@ const leagueData = (over = {}) => ({
 
     // ---- after the game: LP, the report, and Stats
     await league(leagueData({ t: 1700, result: 'Win' }));
-    await pc.waitForTimeout(700);
+    await wait(pc, () => lpc.lcu().curGame && lpc.lcu().curGame.result === 'Win', null, 'the win read in the game'); // the 1 s tick, not a fixed wait
     await pc.evaluate(() => lpcClient.emit('key', 'overlay')); // hidden for the rest of this game only: the card below still comes
     await wait(pc, () => lpcClient.lastOverlay.visible === false, null, 'the overlay hidden at the end of the game');
     lcu.phase = 'EndOfGame';
@@ -1840,7 +1840,7 @@ const leagueData = (over = {}) => ({
     // how you played, against your usual Ahri games, high elo Ahri players and Zed: what stood out, the table (▲ better
     // and ▼ worse than your usual, else high elo, else Zed), your damage and wards, your gold and CS against Zed, the
     // map with your kill (a green dot) and deaths (red crosses), your deaths and the objectives
-    assert.match(await text(pc, '#postHead'), /^Victory · Ahri · 6\/2\/9 · 28 min · Ranked Solo\/Duo · \+18 LP · score 100 \(MVP\) · /);
+    assert.match(await pc.textContent('#postHead'), /^Victory · Ahri · 6\/2\/9 · 28 min · Ranked Solo\/Duo · \+18 LP · score 100 \(MVP\) · /);
     const post = (sel) => pc.$$eval(`#postBox ${sel}`, (l) => l.map((e) => e.textContent));
     assert.deepStrictEqual(await post('.analysis > .takeaways li'), ['Your best: CS a minute, 12.7 against your usual 5.3.', 'To work on: skillshots dodged, 20 against 25 for Zed.', 'High elo Ahri players won 40% of 30 games against Zed: a hard matchup.',
       'You died twice before 14 minutes, both in the river.', 'Your first item, Luden’s Companion, was done at 12:00: 2:00 later than high elo Ahri players (10:00).']);

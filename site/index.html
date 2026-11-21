@@ -248,6 +248,7 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .frwho { display: inline-flex; align-items: center; gap: 10px; }
 .ava { position: relative; flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--raised); color: var(--fg); font: 600 13px/1 var(--body); }
 .ava::before { content: attr(data-i); }
+.ava.sm { width: 28px; height: 28px; font-size: 12px; }
 .ava[data-on]::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--panel); background: var(--muted); }
 .ava[data-on="good"]::after { background: var(--good); }
 /* an open room: its code, a slot a player, in game or waiting, and Join */
@@ -9945,8 +9946,9 @@ dialog.wizard { transform: scale(var(--from)); }
     $('friendRows').dataset.key = fk;
     $('friendRows').replaceChildren(...list.map(({ f, st, asked }) => {
       const tr = document.createElement('tr'), b = document.createElement('button');
-      tr.innerHTML = '<td><b></b></td><td></td><td></td>';
+      tr.innerHTML = '<td><span class="frwho"><span class="ava sm"></span><b></b></span></td><td></td><td></td>';
       tr.querySelector('b').textContent = f.gameName ? f.gameName + (f.gameTag ? '#' + f.gameTag : '') : 'A friend';
+      tr.querySelector('.ava').dataset.i = tr.querySelector('b').textContent[0].toUpperCase(); // a face: the letter is drawn by CSS
       tr.children[1].textContent = st;
       b.type = 'button';
       b.className = 'btn small';
