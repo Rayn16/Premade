@@ -857,12 +857,26 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await looks(), ['hsl(337.5 44% 5%)', usual, usual], 'the skin’s colors on Profile only');
     assert.strictEqual(await text(pc, '#proBgName'), 'Popstar Ahri');
     assert.strictEqual(await pc.getAttribute('#proBgLeague', 'aria-pressed'), 'false');
-    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-probg'))), { tint: true, picks: { [ME]: 103004 } }, 'kept for this account');
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-probg'))), { tint: true, picks: { [ME]: 103004 }, mine: 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Ahri_4.jpg' }, 'kept for this account');
     await pc.click('#proBgTint');
     assert.strictEqual(await pc.getAttribute('#proBgTint', 'aria-checked'), 'false');
     assert.deepStrictEqual(await looks(), [usual, usual, usual], 'switched off: Premade’s usual colors, the art stays');
     assert.match(await pc.getAttribute('#proArt', 'src'), /\/splash\/Ahri_4\.jpg$/);
     await pc.click('#proBgTint');
+    // What's new 191: All of Profile puts the skin behind the whole page (not the hero), Every page behind all of Premade
+    // with its colors everywhere, kept on Rooms; Top of Profile back as it was
+    const reach = () => pc.evaluate(() => { const h = document.documentElement; return [h.classList.contains('skin-page'), h.classList.contains('skin-app'), h.style.getPropertyValue('--bg'), getComputedStyle(document.querySelector('.proback')).display]; });
+    await pc.click('#proBgReach [data-reach="page"]');
+    assert.deepStrictEqual(await reach(), [true, false, '', 'none'], 'All of Profile');
+    assert.strictEqual((await looks())[0], 'hsl(337.5 44% 5%)');
+    await pc.click('#proBgReach [data-reach="app"]');
+    assert.deepStrictEqual(await reach(), [false, true, 'hsl(337.5 44% 5%)', 'none'], 'Every page');
+    await openPage(pc, 'voice');
+    assert.deepStrictEqual(await looks(), ['hsl(337.5 44% 5%)', 'hsl(337.5 44% 5%)', 'hsl(337.5 44% 5%)'], 'Rooms in the skin’s colors');
+    await openPage(pc, 'profile');
+    await pc.click('#proBgBtn');
+    await pc.click('#proBgReach [data-reach="top"]');
+    assert.deepStrictEqual(await reach(), [false, false, '', 'block'], 'Top of Profile');
     await pc.fill('#proBgFind', 'ga');
     await wait(pc, () => document.querySelector('#proBgChamps button') && document.querySelector('#proBgChamps button').textContent === 'Garen', null, 'a champion found by name');
     await pc.click('#proBgChamps button');

@@ -1551,6 +1551,14 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .proswitch > i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform var(--t-press) var(--ease-out); }
 .proswitch[aria-checked="true"] > i { border-color: #388361; background: #254034; }
 .proswitch[aria-checked="true"] > i::after { transform: translateX(16px); background: var(--good); }
+.proreach { display: grid; gap: 8px; }
+/* What's new 191: the skin behind the whole Profile page, or behind every page (the menu too), fixed while you scroll
+   under a fade into --bg; the hero then shows no art of its own. --skin is set by proTint */
+:root.skin-page main:has(> .view[data-view="profile"]:not([hidden])), :root.skin-app body { background: linear-gradient(color-mix(in srgb, var(--bg) 55%, transparent), color-mix(in srgb, var(--bg) 88%, transparent) 70%), var(--skin) 50% 22% / cover fixed, var(--bg); }
+:root.skin-app :is(.rail, main) { background: none; }
+:root:is(.skin-page, .skin-app) .view[data-view="profile"] { background: none; }
+:root:is(.skin-page, .skin-app) .prohead { background: none; }
+:root:is(.skin-page, .skin-app) .proback { display: none; }
 .progh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 @container app (max-width: 760px) {
   .prohead { min-height: 560px; padding: 16px 16px 24px; }
@@ -1845,7 +1853,8 @@ dialog.wizard { transform: scale(var(--from)); }
           <button id="proBgLeague" class="prolg" type="button" aria-pressed="false" hidden><img alt=""><span><b>Same as League</b><small></small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></button>
           <div class="prochamps"><input id="proBgFind" type="search" autocomplete="off" spellcheck="false" placeholder="Find a champion" aria-label="Find a champion"><span id="proBgChamps"></span></div>
           <div id="proBgSkins" class="proskins"></div>
-          <button id="proBgTint" class="proswitch" type="button" role="switch" aria-checked="true"><i aria-hidden="true"></i><span><b>Color your profile from the skin</b><small>Only this page. Off keeps Premade’s usual colors</small></span></button>
+          <div class="proreach"><b>Your skin covers</b><div id="proBgReach" class="pills" role="group" aria-label="Your skin covers"><button type="button" data-reach="top" aria-pressed="true">Top of Profile</button><button type="button" data-reach="page" aria-pressed="false">All of Profile</button><button type="button" data-reach="app" aria-pressed="false">Every page</button></div></div>
+          <button id="proBgTint" class="proswitch" type="button" role="switch" aria-checked="true"><i aria-hidden="true"></i><span><b>Color from the skin</b><small id="proBgTintNote">Only Profile. Off keeps Premade’s usual colors</small></span></button>
         </div>
       </header>
       <section id="weekBox" class="panel" aria-labelledby="h-week" hidden>
@@ -8621,6 +8630,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     railTip(null);
     if (name === 'profile') renderProfile();
+    else proTint(); // Every page keeps your skin; the others leave it on Profile
     if (name === 'stats') renderStats();
     if (name === 'clips') { loadClips(); loadVids(); } // again: a game's row shows its match video (renderVids draws the rows)
     if (name === 'record') loadVids();
@@ -14314,11 +14324,18 @@ dialog.wizard { transform: scale(var(--from)); }
     img.src = src;
   }
   const TINT = ['--bg', '--panel', '--raised', '--line', '--muted', '--fg'];
-  function proTint() { // on the Profile page only, while Color your profile is on; the text stays light, green, red and the red button as they are
-    const h = proBgSet.tint !== false && tintSrc ? hues.get(tintSrc) : null;
+  // proBgSet.reach (What's new 191): 'top' the hero only (as 177), 'page' the whole Profile page, 'app' every page and
+  // the menu, with the colors on the same reach. Away from Profile, Every page shows your own skin (proBgSet.mine, kept
+  // so it's there when Premade opens on Rooms).
+  function proTint() { // the text stays light, green, red and the red button as they are
+    const reach = proBgSet.reach || 'top', onPro = !profView.hidden && tintSrc, src = onPro ? tintSrc : reach === 'app' ? proBgSet.mine || '' : '';
+    if (src) hueOf(src);
+    const h = proBgSet.tint !== false && src ? hues.get(src) : null, el = reach === 'app' ? document.documentElement : profView;
     const v = Number.isFinite(h) ? [`hsl(${h} 44% 5%)`, `hsl(${h} 37% 8%)`, `hsl(${h} 32% 11.5%)`, `hsl(${h} 25% 20%)`, `hsl(${h} 17.5% 72%)`, '#f4eeee'] : null;
-    TINT.forEach((k, i) => (v ? profView.style.setProperty(k, v[i]) : profView.style.removeProperty(k)));
-    profView.style.colorScheme = v ? 'dark' : '';
+    for (const e of [profView, document.documentElement]) { TINT.forEach((k, i) => (v && e === el ? e.style.setProperty(k, v[i]) : e.style.removeProperty(k))); e.style.colorScheme = v && e === el ? 'dark' : ''; }
+    document.documentElement.classList.toggle('skin-page', reach === 'page' && !!src);
+    document.documentElement.classList.toggle('skin-app', reach === 'app' && !!src);
+    if (src) document.documentElement.style.setProperty('--skin', `url("${src}")`); else document.documentElement.style.removeProperty('--skin');
   }
   function proBgOpen(on) {
     const box = $('proBgBox'), was = !box.hidden;
@@ -14358,6 +14375,8 @@ dialog.wizard { transform: scale(var(--from)); }
       }));
     }
     $('proBgTint').setAttribute('aria-checked', String(proBgSet.tint !== false));
+    for (const b of $('proBgReach').children) b.setAttribute('aria-pressed', String(b.dataset.reach === (proBgSet.reach || 'top')));
+    $('proBgTintNote').textContent = `${proBgSet.reach === 'app' ? 'Every page' : 'Only Profile'}. Off keeps Premade’s usual colors`;
   }
   function proBgPick(id) { // a skin, or 0 for Same as League
     const p = shownMine();
@@ -14375,6 +14394,7 @@ dialog.wizard { transform: scale(var(--from)); }
   $('proBgFind').addEventListener('input', () => renderProfile());
   $('proBgChamps').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { proBgChamp = b.dataset.c; renderProfile(); } });
   $('proBgSkins').addEventListener('click', (e) => { const b = e.target.closest('[data-skin]'); if (b) proBgPick(+b.dataset.skin); });
+  $('proBgReach').addEventListener('click', (e) => { const b = e.target.closest('[data-reach]'); if (b) { proBgSet.reach = b.dataset.reach; saveBg(); proTint(); renderProfile(); } });
   $('proBgTint').addEventListener('click', () => { proBgSet.tint = proBgSet.tint === false; saveBg(); proTint(); renderProfile(); });
   $('proMenu').addEventListener('click', (e) => { if (e.target.closest('.cmenu button')) $('proMenu').open = false; }); // a pick in the ⋯ menu closes it
   const liveRk = new Map(); // puuid -> { at, rk } for the players in a live game on Profile: undefined while asked, null when it failed
@@ -14760,6 +14780,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (mine) {
       const was = proBgMine ? proBgMine.hello : 0;
       proBgMine = sk && { id: sk.id, c: sk.c.id, num: sk.num, src: sk.src, hello: proBgSet.picks[p.u] || p.bg ? sk.id : 0 }; // hello: only a skin you chose
+      if (sk && proBgSet.mine !== sk.src) { proBgSet.mine = sk.src; saveBg(); } // for Every page, also when Premade opens on Rooms
       if ((proBgMine ? proBgMine.hello : 0) !== was) checkIn(); // your hello carries it
       if (sk) { $('proBgName').textContent = sk.name; if ($('proBgThumb').getAttribute('src') !== sk.src) $('proBgThumb').src = sk.src; }
       renderBgBox(p, sk);
@@ -19412,6 +19433,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [191, 'November 21: your skin on every page', [
+      'Background on your profile has Your skin covers: Top of Profile as before, All of Profile, or Every page, with the skin behind the whole of Premade and its colors on every page.',
+    ]],
     [185, 'November 21: no Features page, and updates in the middle', [
       'The Features page is gone from the menu, with its Get set up list. Run setup again is still in Settings, App.',
       'What’s new no longer pops up after an update. It’s still in Settings, App, and behind your version in the status bar.',
@@ -20429,8 +20453,8 @@ dialog.wizard { transform: scale(var(--from)); }
     ['League: Profile', 'You in League, like a stats site, over a big splash of your skin. Premade opens on it if you used it last.', [
       ['Your League profile', 'A skin’s splash across the top behind your icon, Riot ID, level and ranks (each with a win-rate ring), where you are in League right now, your last 20 as green and red blocks, your recent games as rows with K/D/A, CS and items, your roles as bars, champions and mastery.',
         'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
-      ['Your background', 'The background you set in League fills the top of your profile, or any skin you pick in Premade, kept for each account. Your profile takes the skin’s colors, only on this page. Friends who use Premade see the one you show; anyone else shows their top mastery champion.',
-        'Background at the top right of your profile: Same as League, a champion and one of its skins, and Color your profile from the skin. Same as League needs desktop app 1.50.', '#proBgBtn'],
+      ['Your background', 'The background you set in League fills the top of your profile, or any skin you pick in Premade, kept for each account. It can cover the top of your profile, all of Profile, or every page of Premade, with its colors on the same pages. Friends who use Premade see the one you show; anyone else shows their top mastery champion.',
+        'Background at the top right of your profile: Same as League, a champion and one of its skins, Your skin covers, and Color from the skin. Same as League needs desktop app 1.50.', '#proBgBtn'],
       ['Opens where you left off', 'Premade opens on Rooms or on your League profile, whichever of the two you used last. An invite link always opens Rooms.',
         'Nothing to set: go to Rooms or Profile before you close Premade.', '.nav[data-view="profile"]'],
       ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
