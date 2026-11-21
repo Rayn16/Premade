@@ -15,6 +15,7 @@ const http = require('http');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -187,11 +188,11 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 
     // ---- a voice room: the goal board, the closest first, each bar from where they were when they picked their goal;
     // then Best roles from everyone's wins in each role
-    await ray.click('.nav[data-view="voice"]');
+    await openPage(ray, 'voice');
     await ray.click('#createBtn');
     await wait(ray, () => lpc.slot() >= 0, null, 'Rayan’s room');
     const code = await ray.evaluate(() => lpc.room()), CODE = code.toUpperCase();
-    await duo.click('.nav[data-view="voice"]');
+    await openPage(duo, 'voice');
     await duo.fill('#code', code);
     await duo.click('#joinBtn');
     await wait(ray, () => lpc.peers().some((p) => p.name === 'Duo'), null, 'Duo in Rayan’s room', 30000);
@@ -200,7 +201,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(await board(ray), [['Rayan (you): Gold I in Solo/Duo, 110 LP to go', 190, 300], ['Duo: Platinum IV in Solo/Duo, 410 LP to go', 0, 410]]);
     await wait(duo, () => document.querySelectorAll('#goalRows li').length === 2, null, 'the goal board on Duo’s page');
     assert.deepStrictEqual((await board(duo)).map(([t]) => t), ['Rayan: Gold I in Solo/Duo, 110 LP to go', 'Duo (you): Platinum IV in Solo/Duo, 410 LP to go']);
-    await ray.click('#leagueNav'); await ray.click('.nav[data-view="prox"]');
+    await openPage(ray, 'prox');
     await ray.click('#bestBtn');
     await wait(ray, () => !document.getElementById('rolesBox').hidden, null, 'the roles');
     assert.strictEqual(await text(ray, '#rolesMine'), 'Your role: Middle. Best roles: from everyone’s wins in each role lately.');
@@ -213,7 +214,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     // ---- Friends: Rayan's League friends, Duo with Premade open and Sleepy without; Duo invited to Rayan's room and
     // joining from the invite; then Duo joining Rayan's League lobby and so his voice room, by itself
     await duo.click('#leaveBtn');
-    await ray.click('.nav[data-view="friends"]'); await duo.click('.nav[data-view="friends"]'); // Friends, its own page
+    await openPage(ray, 'friends'); await openPage(duo, 'friends'); // Friends, its own page
     const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
     await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | Online · In League | Invite Control'; }, 'Rayan’s friends online');
     assert.strictEqual(await text(ray, '#frOffBtn'), 'Show offline friends (1)');
@@ -221,11 +222,11 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Online · In League | Invite Control', 'Sleepy#EUW | No Premade yet | '], 'and offline ones');
     if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
     assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => x.riot).sort(), ['Duo#EUW', 'Sleepy#EUW'], 'League friends kept for when League is closed');
-    await ray.click('#leagueNav'); await ray.click('.nav[data-view="profile"]'); // Profile's friends, each opening their profile
+    await openPage(ray, 'profile'); // Profile's friends, each opening their profile
     await wait(ray, () => [...document.querySelectorAll('#proFrList button')].map((b) => b.textContent).join() === 'Duo#EUW,Sleepy#EUW', null, 'friends on Profile');
     await ray.click('#proFrList button');
     await wait(ray, () => /Duo#EUW/.test(document.getElementById('proFindNote').textContent) || document.getElementById('proName').textContent === 'Duo', null, 'Duo’s profile looked up');
-    await ray.click('.nav[data-view="friends"]');
+    await openPage(ray, 'friends');
     await ray.fill('#frId', 'Kev # NA1');
     await ray.click('#frAdd button');
     assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Online · In League | Invite Control', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
@@ -240,7 +241,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await wait(duo, (c) => lpc.room() === c && lpc.slot() >= 0, code, 'Duo in Rayan’s room from the invite');
     await duo.evaluate(() => lpc.groupNow()); // Friends redraws on its next round while it's out of sight
     await wait(duo, () => document.getElementById('frInvBox').hidden, null, 'the invite gone once in the room');
-    await duo.click('.nav[data-view="voice"]');
+    await openPage(duo, 'voice');
     await duo.click('#leaveBtn');
     await duo.waitForTimeout(1100); // invites in a later second than Leave join by themselves
     L.lobby = { partyId: 'party-1234', members: [{ puuid: 'rayan-puuid', gameName: 'Rayan', gameTag: 'EUW' }, { puuid: 'duo-puuid', gameName: 'Duo', gameTag: 'EUW' }], invitations: [] };
@@ -254,7 +255,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await until(async () => { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); return duo.evaluate((c) => lpc.room() === c && lpc.slot() >= 0, code); }, 'Duo in Rayan’s room from the lobby');
     await toast(duo, `Joined Rayan’s voice room, ${CODE}, as you’re in their League lobby`, 'why');
     // in the lobby before Rayan has a room: Duo joins as soon as he makes (here, joins again) one
-    await duo.click('.nav[data-view="voice"]'); await ray.click('.nav[data-view="voice"]');
+    await openPage(duo, 'voice'); await openPage(ray, 'voice');
     for (const pg of [duo, ray]) await pg.click('#leaveBtn');
     // Duo's lobby invite to Rayan, made while they were both in the room but first seen by Rayan after Leave (here its
     // time moved to just before Leave, so it's new to his page), doesn't pull him back in
@@ -273,7 +274,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     console.log('Friends: who has Premade, one added and removed, an invite joined, and a friend in the lobby joining the room by itself');
 
     // ---- a squad: Rayan makes one, Duo joins it from the room and turns off pings for rank-ups
-    await ray.click('.nav[data-view="friends"]'); await duo.click('.nav[data-view="friends"]');
+    await openPage(ray, 'friends'); await openPage(duo, 'friends');
     for (const pg of [ray, duo]) await pg.click('#groupBox .tab[data-gt="squad"]');
     assert.match(await text(ray, '#sqNote'), /^A squad is your group of friends/);
     await ray.click('#sqMake');
@@ -292,7 +293,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     console.log('squad: made by Rayan, joined by Duo from the room, with their phones and pings');
 
     // Duo leaves the room; Rayan calls the squad; Duo's Premade rings, Duo answers In 10 and joins from the call
-    await duo.click('.nav[data-view="voice"]');
+    await openPage(duo, 'voice');
     await duo.click('#leaveBtn');
     await wait(duo, () => lpc.slot() < 0, null, 'Duo out of the room');
     await ray.evaluate(() => lpc.groupNow());
@@ -305,7 +306,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await toast(duo, `Rayan wants to play: room ${CODE}. Join from the Friends page, Squad.`, 'the call on Duo’s page');
     assert(await duo.evaluate(() => lpc.played().includes('call')), 'with its ring');
     assert.match(await text(duo, '#sqCall'), new RegExp(`^Rayan wants to play \\([^)]+\\): room ${CODE}\\.$`));
-    await duo.click('.nav[data-view="friends"]');
+    await openPage(duo, 'friends');
     assert(await duo.locator('#sqJoin').isVisible(), 'Join now, Duo being in no room');
     await duo.click('#sqIn10');
     await until(() => S.squads[sqCode].call.ans[duoId] === 'in10', 'Duo’s answer');
@@ -319,7 +320,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 
     // ---- Discord: the link checked, a test post; then a ranked game pings the squad when it starts and when Rayan ranks
     // up after it, and posts the result in Discord
-    await ray.click('.nav[data-view="settings"]');
+    await openPage(ray, 'settings');
     await ray.fill('#optHook', 'https://example.com/hook');
     await ray.locator('#optHook').dispatchEvent('change');
     assert.match(await text(ray, '#hookNote'), /^That isn’t a Discord webhook link/);
@@ -342,7 +343,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 
     // ---- League chat on Pregame: chats with friends, Duo#EUW's opened and answered, a new message and an invite pop up,
     // the invite accepted; your room in your League status
-    await ray.click('#leagueNav'); await ray.click('.nav[data-view="pregame"]');
+    await openPage(ray, 'pregame');
     await wait(ray, () => !!document.querySelector('#lolConvs button'), null, 'League chat');
     assert.deepStrictEqual(await texts(ray, '#lolConvs button'), ['Duo#EUW (1)'], 'not champ select’s chat');
     assert.deepStrictEqual(await texts(ray, '#lolFriend option'), ['Pick a friend', 'Duo#EUW'], 'friends online');
@@ -367,7 +368,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(chat.puts, [`Premade room ${CODE}`]);
     assert.strictEqual(await ray.evaluate(() => localStorage.getItem('lpc-lol-status')), '"ranked grind"', 'the old status kept');
     await shot(ray, 'group-lolchat');
-    await duo.click('#leagueNav'); await duo.click('.nav[data-view="pregame"]');
+    await openPage(duo, 'pregame');
     await wait(duo, () => !document.getElementById('lolChatBox').hidden, null, 'League chat on Duo’s Pregame');
     assert(await duo.locator('#lolChatNote').isVisible() && await duo.locator('#lolChatMain').isHidden(), 'app 1.13 is told to update');
     assert(!L.calls.some(([who, , p]) => who === 'Duo' && /^\/lol-(chat|lobby\/v2\/received)/.test(p) && p !== '/lol-chat/v1/friends'), 'and doesn’t try'); // Friends reads the friends list (app 1.11)
@@ -414,12 +415,12 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     console.log('phone remote: League chat answered from the phone; a call’s notification with In 10 and Not tonight, a ping’s, the call on the remote');
 
     // ---- Rayan leaves the room, and the old League status is back; then the squad
-    await ray.click('.nav[data-view="voice"]');
+    await openPage(ray, 'voice');
     await ray.click('#leaveBtn');
     await until(() => chat.puts.length === 2, 'the old status back');
     assert.strictEqual(chat.puts[1], 'ranked grind');
     assert.strictEqual(await ray.evaluate(() => localStorage.getItem('lpc-lol-status')), 'null');
-    await ray.click('.nav[data-view="friends"]');
+    await openPage(ray, 'friends');
     await ray.click('#groupBox .tab[data-gt="squad"]');
     ray.once('dialog', (d) => d.accept());
     await ray.click('#sqLeave');

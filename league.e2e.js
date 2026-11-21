@@ -37,6 +37,7 @@ const http = require('http');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
 const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -527,13 +528,13 @@ const leagueData = (over = {}) => ({
       const shown = () => page.evaluate(() => document.querySelector('main > .view:not([hidden])').dataset.view);
       await page.goto(URL_);
       assert.strictEqual(await shown(), 'voice', 'Rooms the first time');
-      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
+      await openPage(page, 'profile');
       await page.reload();
       assert.strictEqual(await shown(), 'profile', 'Profile, used last');
-      await page.click('.nav[data-view="voice"]'); await page.click('.nav[data-view="settings"]');
+      await openPage(page, 'voice'); await openPage(page, 'settings');
       await page.reload();
       assert.strictEqual(await shown(), 'voice', 'Rooms, then Settings: Rooms');
-      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
+      await openPage(page, 'profile');
       await page.goto(URL_ + '&invite#abcd');
       assert.strictEqual(await shown(), 'voice', 'an invite link: Rooms');
       await ctx.close();
@@ -547,11 +548,11 @@ const leagueData = (over = {}) => ({
       await ctx.close();
       const [ctx2, old] = await context(browser, { version: '1.5.0' });
       await old.goto(URL_);
-      await old.click('#leagueNav'); await old.click('.nav[data-view="pregame"]');
+      await openPage(old, 'pregame');
       assert.match(await text(old, '#preNote'), /Restart the app to finish its update/);
-      await old.click('#leagueNav'); await old.click('.nav[data-view="game"]');
+      await openPage(old, 'game');
       assert.match(await text(old, '#lcuNote'), /Restart the app to finish its update/);
-      await old.click('#leagueNav'); await old.click('.nav[data-view="stats"]');
+      await openPage(old, 'stats');
       assert(!(await old.locator('#lpQueue').isVisible()) && !(await old.locator('#clipsFolder').isVisible()), 'an old app has no Ranked, Match history or Clips');
       await ctx2.close();
       console.log('Pregame and Game pages: only in the desktop app; an old app is told to restart for its update');
@@ -562,7 +563,7 @@ const leagueData = (over = {}) => ({
       const card = (p, name) => p.locator('.feat').filter({ has: p.locator('h3', { hasText: new RegExp(`^${name}`) }) });
       const [ctx, page] = await context(browser);
       await page.goto(URL_);
-      await page.click('.nav[data-view="features"]');
+      await openPage(page, 'features');
       assert.deepStrictEqual(await texts(page, '#setupList h3'), ['Get the desktop app', 'Your name', 'Your mic', 'A room with your friends', 'Your League screen', 'League in Borderless']);
       assert.deepStrictEqual(await texts(page, '#setupList .sstate'), ['You’re on the website', 'Rayan', 'Not tested yet', 'Not in a room', 'Not shared', 'The desktop app checks it']);
       assert.strictEqual(await text(page, '#setupNote'), '1 of 6 done. Run setup again walks you through your name, mic and screen.');
@@ -583,7 +584,7 @@ const leagueData = (over = {}) => ({
       await actx.exposeFunction('fakeLcu', () => ({ status: 0, data: null })); // League isn't running
       await app.goto(URL_);
       await wait(app, () => window.lpc, null, 'the page');
-      await app.click('.nav[data-view="features"]');
+      await openPage(app, 'features');
       assert.deepStrictEqual(await app.evaluate(() => [...document.querySelectorAll('[data-go]')].flatMap((b) => b.dataset.go.split(',')).filter((s) => !document.querySelector(s))), [], 'every Show me has a spot to go to');
       assert.strictEqual(await app.locator('#featList .feat').count(), await app.locator('#featList [data-go]').count(), 'Show me on every feature in the desktop app');
       assert.strictEqual(await card(app, 'Install as an app').count(), 0, 'website only');
@@ -591,10 +592,10 @@ const leagueData = (over = {}) => ({
       await card(app, 'Champion pool').locator('[data-go]').click();
       assert(await app.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden && document.querySelector('.tab[data-tab="champs"]').getAttribute('aria-selected') === 'true'
         && document.getElementById('h-pool').closest('.panel').classList.contains('flash')), 'Show me: Champion pool, on Stats, Champions');
-      await app.click('.nav[data-view="features"]');
+      await openPage(app, 'features');
       await card(app, 'Auto hover').locator('[data-go]').click();
       assert(await app.evaluate(() => !document.querySelector('.view[data-view="pregame"]').hidden && document.getElementById('preSet').open && document.activeElement.id === 'optHoverPicks'), 'Show me: Auto hover, in Pregame settings');
-      await app.click('.nav[data-view="features"]');
+      await openPage(app, 'features');
       await card(app, 'Tier list').locator('[data-go]').click();
       assert(await app.evaluate(() => !document.querySelector('.view[data-view="pregame"]').hidden && document.querySelector('main').scrollTop === 0), 'Show me: the top of Pregame while the tier list isn’t showing');
       await actx.close();
@@ -676,7 +677,7 @@ const leagueData = (over = {}) => ({
         return p in RIOT ? r.fulfill({ json: RIOT[p], headers: cors }) : r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
       });
       await page.goto(URL_);
-      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
+      await openPage(page, 'profile');
       await wait(page, () => window.lpc && lpc.riotOn() && !document.getElementById('proFindBox').hidden, null, 'the Riot ID form');
       assert.match(await text(page, '#proNote'), /^Type your Riot ID above/);
       assert.strictEqual(await page.getAttribute('#proId', 'placeholder'), 'Your Riot ID: Name#TAG');
@@ -771,7 +772,7 @@ const leagueData = (over = {}) => ({
       assert(await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('lpc-profile')); return p.n === 'Ana B#EUW' && p.plat === 'euw1' && !('live' in p); }), 'Ana kept, without whether she’s in a game');
       const before = riotCalls.length;
       await page.reload();
-      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
+      await openPage(page, 'profile');
       await wait(page, () => window.lpc && document.getElementById('proName').textContent === 'Ana B', null, 'Ana kept');
 
       await until(() => riotCalls.length === before + 10, 'Ana updated from Riot, with Bob’s rank in her game');
@@ -834,7 +835,7 @@ const leagueData = (over = {}) => ({
       return name;
     });
     const league = (d) => pc.evaluate((d) => lpcClient.emit('league', d), d);
-    const preSettings = async () => { await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]'); if (!(await pc.$eval('#preSet', (d) => d.open))) await pc.click('#preSet summary'); }; // Pregame settings, opened
+    const preSettings = async () => { await openPage(pc, 'pregame'); if (!(await pc.$eval('#preSet', (d) => d.open))) await pc.click('#preSet summary'); }; // Pregame settings, opened
     await pc.goto(URL_);
     await wait(pc, () => window.lpc, null, 'the page');
     lcu.phase = 'None';
@@ -849,7 +850,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(deep[9001].tl.lane, [[10, [80, 4000, 5000], [70, 3500, 5200]], [15, [120, 6000, 7500], [105, 5250, 7800]]]);
     console.log('your games in detail: 20 games with their timelines, one game’s lanes guessed right');
     // ---- Profile, under League: you in League like a stats site's profile, from League's client
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await wait(pc, () => !document.querySelector('.view[data-view="profile"]').hidden && document.getElementById('proName').textContent === 'Rayan' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'your profile');
     assert.strictEqual(await text(pc, '#proTag'), '#EUW');
     assert.strictEqual(await text(pc, '#proSub'), 'EUW · Level 300');
@@ -988,9 +989,9 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo, Flex and TFT tabs (Platinum I, 5 games)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Aion 2', 'RE4 co-op', 'Settings', 'Features', 'League', 'Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips'], 'the menu, and League’s tabs on Profile, in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips', 'Premade'], 'League’s pages in the sidebar on Profile, in the app');
     // RE4 co-op: the helper's checks drawn as rows, and Play's answer
-    await pc.click('.nav[data-view="re4"]');
+    await openPage(pc, 're4');
     await wait(pc, () => document.getElementById('re4Role').textContent === 'Host · Tailscale 100.101.102.103' && !document.getElementById('re4SignIn').hidden && document.querySelectorAll('#re4Conn .re4row .dot[data-h="good"]').length === 1
       && document.querySelector('#re4Priv .dot').dataset.h === 'ok' && document.querySelector('#re4Game .dot').dataset.h === 'idle' && document.getElementById('re4Steps').textContent.includes('it hosts by itself'), null, 'RE4 co-op checks');
     await pc.click('#re4Play');
@@ -1000,7 +1001,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('re4SetupBox').hidden && document.getElementById('re4Note').textContent === 'This PC is set up to host.' && document.getElementById('re4SignIn').hidden, null, 'RE4 Set up');
     assert(await pc.evaluate(() => document.querySelector('#re4FriendList .dot').dataset.h === 'good' && document.getElementById('re4FriendList').textContent.includes('cutiecatty: online, 38 ms, in RE4')
       && !document.getElementById('re4Friends').hidden && document.getElementById('re4HostBox').hidden && document.getElementById('re4JoinPart').hidden), 'RE4 Friends: cutiecatty online with her ping');
-    await pc.click('.nav[data-view="re4"]'); // a slow status check is running: the click waits for it instead of being dropped
+    await openPage(pc, 're4'); // a slow status check is running: the click waits for it instead of being dropped
     await wait(pc, () => [...document.getElementById('re4Pick').options].map((o) => o.value).join() === 'Duo,Friend,Gamer,Agent,Sleepy,*' && document.getElementById('re4NameField').hidden, null, 'RE4 invite: pick from your friends');
     await pc.selectOption('#re4Pick', 'Duo');
     await pc.click('#re4Invite'); // no share link yet: nothing goes, the link field gets the focus
@@ -1016,7 +1017,7 @@ const leagueData = (over = {}) => ({
     // Play as: off until RE4 runs, then it sends the pick to their mod and the In the game row says connected
     assert(await pc.evaluate(() => !document.getElementById('re4CharBox').hidden && document.getElementById('re4CharGo').disabled && document.getElementById('re4InGame').textContent.includes('RE4 isn’t running')), 'RE4 Play as waits for the game');
     await pc.evaluate(() => { lpcClient.inRe4 = true; });
-    await pc.click('.nav[data-view="re4"]');
+    await openPage(pc, 're4');
     await wait(pc, () => !document.getElementById('re4CharGo').disabled && document.getElementById('re4InGame').textContent.includes('Not connected yet'), null, 'RE4 in game, not connected');
     await pc.selectOption('#re4Char', 'Ada');
     await pc.click('#re4CharGo');
@@ -1024,9 +1025,9 @@ const leagueData = (over = {}) => ({
       && document.querySelector('#re4InGame .dot').dataset.h === 'good', null, 'RE4 Play as Ada');
     await pc.evaluate(() => { lpcClient.inRe4 = false; });
     console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, and Play as Ada with the connected line');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    await openPage(pc, 'game');
     assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
+    await openPage(pc, 'pregame');
     assert.match(await text(pc, '#preNote'), /Find a match and this page fills in/);
     // Clash: the other team in your next match, with their ranks and best champions
     await wait(pc, () => !document.getElementById('clashBox').hidden && document.querySelectorAll('#clashRows tr').length === 2 && [...document.querySelectorAll('#clashRows tr')].every((tr) => /LP[\s\S]*Garen/.test(tr.textContent)), null, 'Clash scouting');
@@ -1047,7 +1048,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await tierRows(), ['Garen S 57% 30 · 60% picked', 'Lee Sin C 49% 47 · 94% picked', 'Darius D 45% 20 · 40% picked']);
     await shot(pc, 'pregame');
     console.log('tier list: Middle (Vi, Ahri, Lux, Zed), then Top (Garen, Lee Sin, Darius)');
-    await pc.click('.nav[data-view="settings"]');
+    await openPage(pc, 'settings');
     // its boxes stack with no holes: each is at the top or 16px under the one above it in its column
     // (measured once the page's ResizeObserver has given every box its rows for the height it has now, not mid-layout)
     const holes = await pc.$$eval('.view[data-view="settings"] .settings > *', async (l) => {
@@ -1061,12 +1062,12 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(holes, 0, 'Settings boxes with a hole above them');
     await preSettings();
     await pc.check('#optRemote');
-    await pc.click('.nav[data-view="voice"]');
+    await openPage(pc, 'voice');
     await pc.click('#createBtn'); // a room, for the mic: clips mix it in
     await wait(pc, () => lpc.slot() >= 0, null, 'a room');
 
     // ---- the phone remote on Pregame: a QR code and a link, and the phone connects
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
+    await openPage(pc, 'pregame');
     await wait(pc, () => !document.getElementById('remoteBox').hidden && /remote\.html/.test(document.getElementById('remoteLink').href), null, 'the phone remote panel');
     const dark = await pc.evaluate(() => { const d = document.getElementById('qr').getContext('2d').getImageData(0, 0, 232, 232).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 50) n++; return n; });
     assert(dark > 3000, `the QR code is drawn (${dark} dark pixels)`);
@@ -1188,7 +1189,7 @@ const leagueData = (over = {}) => ({
     console.log('queue: a Practice Tool game in one click, a lobby for the game picked here, your roles, a friend invited, Find match here, Stop from the phone, Leave lobby');
 
     // ---- ready checks: accepted here, on the phone, then for you
-    await pc.click('.nav[data-view="voice"]');
+    await openPage(pc, 'voice');
     const readyCheck = async () => { lcu.rc = { state: 'InProgress', playerResponse: 'None', timer: 2 }; lcu.phase = 'ReadyCheck'; await league({ inGame: false, phase: 'ReadyCheck' }); };
     const backToQueue = async () => { lcu.rc = null; lcu.phase = 'Matchmaking'; await league({ inGame: false, phase: 'Matchmaking' }); };
     await readyCheck();
@@ -1583,7 +1584,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.textContent('#gameTips h3'), 'Tips: Ahri against Zed');
     assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
     await shot(pc, 'loading-screen');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
+    await openPage(pc, 'overlay');
     await pc.check('#optBoardLook input[value="lane"]');
     await wait(pc, () => lpcClient.lastOverlay.board && lpcClient.lastOverlay.board.look === 'lane' && JSON.parse(localStorage.getItem('lpc-opts')).boardLook === 'lane', null, 'Your lane first, picked on the Overlay page');
     await pc.check('#optBoardLook input[value="cards"]');
@@ -1601,7 +1602,7 @@ const leagueData = (over = {}) => ({
     await pc.waitForTimeout(650);
     await pc.evaluate(() => lpcClient.emit('key', 'board'));
     await wait(pc, () => !!lpcClient.lastOverlay.board && lpcClient.lastOverlay.board.load, null, 'and back');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    await openPage(pc, 'game');
     // the new tags' rules (What's new 168), and the overlay's key tags in their order, 2 or 1 of them
     const tagsBy = (st, champ, p = {}) => pc.evaluate(([a, b, c]) => lpc.tags(a, b, c).map(([, t]) => t), [st, champ, p]);
     const top10 = Array.from({ length: 10 }, () => ({ champ: 86, lane: 'TOP', win: false, at: Date.now(), k: 1, d: 1, a: 1, cs: 100, len: 1800 }));
@@ -1645,7 +1646,7 @@ const leagueData = (over = {}) => ({
       && document.querySelectorAll('#gTeam li').length === 5 && document.querySelectorAll('#gThem li').length === 5 && /LP/.test(document.getElementById('gThem').textContent), null, 'the game on the phone');
     assert(await phone.evaluate(() => /^You/.test(document.querySelector('#gTeam li[data-me]').textContent)), 'you are marked on the phone');
     // the overlay picker, see-through slider and key
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="overlay"]');
+    await openPage(pc, 'overlay');
     await pc.uncheck('#optOverlayCs');
     await wait(pc, () => lpcClient.lastOverlay.cs === '' && !!lpcClient.lastOverlay.game, null, 'the CS counter off the overlay');
     await pc.check('#optOverlayCs');
@@ -1682,7 +1683,7 @@ const leagueData = (over = {}) => ({
     await league(leagueData({ t: 672 }));
     await wait(pc, () => lpc.toasts().includes('Dragon in 30 seconds') && lpc.played().includes('spawn'), null, 'the Dragon warning');
     // ARAM: Mayhem: what kind of augment suits Ahri, on the overlay at the start and while dead, on the Game page all game
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    await openPage(pc, 'game');
     assert(await pc.evaluate(() => !lpcClient.lastOverlay.aug && document.getElementById('augTips').hidden), 'no augment tips in a ranked game');
     const AHRI_AUG = 'Augments for Ahri: look for ability power, ability haste, magic penetration and mana; skip attack speed and critical strikes.';
     await league(leagueData({ mode: 'KIWI', t: 30 }));
@@ -1695,7 +1696,7 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'in-game');
     await shot(phone, 'phone-in-game');
     console.log(`in game: all ten scouted (one found by Riot ID), timers and gold: ${await pc.evaluate(() => lpcClient.lastOverlay.game)}`);
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await wait(pc, () => /^In game as Ahri · 1\d min$/.test(document.getElementById('proStatus').textContent), null, 'in game on your profile');
 
     // ---- clips: the key saves what was recorded, a multikill saves a clip by itself; both play
@@ -1757,7 +1758,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await pc.evaluate(() => lpcClient.cleanFirst), ['Clip 3.webm', 'Clip 4.webm'], 'the clean-up takes the clips made by themselves, never played, first');
     console.log(`clips: the key (${full.d.toFixed(1)} s), a 4 s cut (${short.d.toFixed(1)} s, plays from 0), a multikill and a solo kill, all WebM with video and sound, named ${named.stems.join(', ')}`);
     // the gallery: each clip with its picture; keep one, rename one, drag one out, play and cut one, bin one
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="clips"]');
+    await openPage(pc, 'clips');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip .cname')].map((e) => e.textContent).join() === 'Clip 4,Clip 3,Clip 2,Clip 1', null, 'the gallery');
     // one row for the game: the champion, the K/D/A and its clips, each tagged with what saved it
     const gameRow = await pc.evaluate(() => ({ rows: document.querySelectorAll('#clipGrid .cgame').length, head: document.querySelector('#clipGrid .cghead').textContent, tags: [...document.querySelectorAll('#clipGrid .ctag')].map((e) => e.textContent + (e.hasAttribute('data-auto') ? '*' : '')).join() }));
@@ -1918,7 +1919,7 @@ const leagueData = (over = {}) => ({
     assert(r.players.every((p) => p.score >= 0 && p.score <= 100) && r.players[0].score === Math.max(...r.players.map((p) => p.score)), 'scores out of 100, yours the best');
     assert(r.gold && r.gold.length >= 1, 'the gold over the game was kept');
     assert.deepStrictEqual(await pc.evaluate(() => lpc.lpLog().map((e) => [e.id, e.delta, e.win])), [[1, -15, false], [GAME, 18, true]]);
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    await openPage(pc, 'game');
     await wait(pc, () => document.querySelector('#postBox .analysis .duo'), null, 'how you played, on the Game page');
     // how you played, against your usual Ahri games, high elo Ahri players and Zed: what stood out, the table (▲ better
     // and ▼ worse than your usual, else high elo, else Zed), your damage and wards, your gold and CS against Zed, the
@@ -1947,11 +1948,11 @@ const leagueData = (over = {}) => ({
     assert(sb.every((x) => x[1] === 5) && sb.some((x) => x[2] === 'Won') && sb.some((x) => x[2] === 'Lost'), `both teams of 5: ${JSON.stringify(sb)}`);
     assert.match(await text(pc, '#postBox table.sb tr[data-me] td:first-child .who'), /You/);
     assert(await pc.$$eval('#postBox table.sb tr[data-me] .sbit img', (l) => l.length) > 0, 'your items');
-    await pc.click('.nav[data-view="stats"]');
+    await openPage(pc, 'stats');
     await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'after', go: 'scoreboard' } }));
     await wait(pc, () => document.querySelector('.nav[data-view="game"]').getAttribute('aria-current') === 'page', null, 'Scoreboard on the end-screen card opens the Game page');
     await shot(pc, 'post-game');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
+    await openPage(pc, 'stats');
     await wait(pc, () => /Gold II · 63 LP/.test(document.getElementById('rankNow').textContent), null, 'the rank');
     assert.deepStrictEqual(await embs(pc, '#rankNow .emb'), ['TFT_Regalia_Gold.png']);
     assert.strictEqual(await text(pc, '#lpToday'), 'Today: 1W 0L, +18 LP.');
@@ -1977,7 +1978,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !document.getElementById('recapSave').hidden && document.getElementById('recapSave').href.startsWith('data:image/png'), null, 'the season recap');
     // your profile with today's LP; and the profile link: your rank, record and top champions on a page anyone can
     // open, all of it in the link
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="profile"]');
+    await openPage(pc, 'profile');
     await wait(pc, () => /\+18 LP/.test(document.getElementById('proRanks').textContent), null, 'today’s LP on your profile');
     assert.deepStrictEqual((await proRanks())[0], 'Solo/Duo|Gold II|63 LP · 31W 25L · 55% · today 1W 0L, +18 LP|Peak this season: Gold I');
     await pc.click('#profileBtn');
@@ -2001,7 +2002,7 @@ const leagueData = (over = {}) => ({
     await vctx.close();
     console.log(`profile link: ${plink.length} characters, opened on a phone`);
     await shot(pc, 'profile');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
+    await openPage(pc, 'stats');
     await shot(pc, 'stats-you');
     // the Champions tab: your champions, nemeses and allies, the collection, patch changes, and a champion's page
     await pc.click('.tab[data-tab="champs"]');
@@ -2107,10 +2108,10 @@ const leagueData = (over = {}) => ({
     await fr.goto(URL_);
     await wait(fr, () => window.lpc, null, 'the friend’s page');
     await fr.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
-    await fr.click('.nav[data-view="voice"]');
+    await openPage(fr, 'voice');
     await fr.fill('#code', room);
     await fr.click('#joinBtn');
-    await pc.click('.nav[data-view="voice"]');
+    await openPage(pc, 'voice');
     await wait(pc, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Platinum IV · 12 LP · With you: 13W 7L'), null, 'the friend’s rank and your record together');
     await wait(fr, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Gold II · 63 LP, +18 today'), null, 'your rank on the friend’s card for you');
     assert(await pc.locator('#players .watch').isHidden(), 'no Watch while the friend isn’t playing');
@@ -2124,7 +2125,7 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(callsTo(/^\/lol-spectator\/v1\/spectate\/launch$/, 'POST')[0][2], { allowObserveMode: 'ALL', dropInSpectateGameId: 'Friend', gameQueueType: '', puuid: 'ally1', spectatorKey: '' });
     // room games with League's ranks: the balanced teams show everyone's Solo/Duo rank, and role roulette's role goes
     // into League's lobby in one click
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="prox"]'); // Balance teams and Role roulette are on Proximity voice
+    await openPage(pc, 'prox'); // Balance teams and Role roulette are on Proximity voice
     await pc.click('#teamsBtn');
     await wait(pc, () => { const t = document.getElementById('teamsBox').textContent; return /Rayan \(you\): Gold II · 63 LP/.test(t) && /Fren: Platinum IV · 12 LP/.test(t) && /about Gold II/.test(t) && /about Platinum IV/.test(t); }, null, 'the teams with ranks');
     await wait(fr, () => /Rayan: Gold II · 63 LP/.test(document.getElementById('teamsBox').textContent), null, 'the teams on the friend’s page');
@@ -2217,7 +2218,7 @@ const leagueData = (over = {}) => ({
     Object.assign(lcu.cs, { actions: [], benchEnabled: true, allowRerolling: true, rerollsRemaining: 1, benchChampions: [{ championId: 37, isPriority: false }, { championId: 103, isPriority: false }] });
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="pregame"]');
+    await openPage(pc, 'pregame');
     const BENCH = [['Ahri You: 8 games, 75% won · Mastery 7', 'false'], ['Garen Yours now · You: 4 games, 25% won · Mastery 4', 'true'], ['Sona You: 3 games, 100% won', 'false']];
     await wait(pc, (b) => !document.getElementById('rerollBtn').hidden && b === JSON.stringify([...document.querySelectorAll('#bench .champ')].map((e) => [e.innerText.replace(/\s+/g, ' '), e.getAttribute('aria-pressed')])), JSON.stringify(BENCH), 'the bench'); // as shown: innerText needs it on screen
     assert.strictEqual(await text(pc, '#rerollBtn'), 'Reroll (1 left)');
@@ -2240,7 +2241,7 @@ const leagueData = (over = {}) => ({
     await league({ inGame: false, phase: 'None' });
     console.log('ARAM: the bench with Ahri first, taken with a click, then a reroll; on the phone too');
     // Clip anywhere: outside a League game the clip key saves a "Screen clip", listed on the Recording page
-    await pc.click('.nav[data-view="record"]');
+    await openPage(pc, 'record');
     await pc.check('#optClipsAll');
     await wait(pc, () => lpc.clips().on && lpc.clips().head, null, 'the screen kept outside League', 30000);
     await pc.evaluate(() => lpcClient.emit('key', 'clip'));
@@ -2250,7 +2251,7 @@ const leagueData = (over = {}) => ({
     await pc.uncheck('#optClipsAll');
     await wait(pc, () => !lpc.clips().on, null, 'Clip anywhere off lets the screen go');
     console.log('clip anywhere: the clip key outside League saved a Screen clip, listed on the Recording page');
-    await pc.click('.nav[data-view="settings"]');
+    await openPage(pc, 'settings');
     await shot(pc, 'settings');
     // the patch check, the performance meter and test recordings
     await wait(pc, () => /^Patch check for League 14\.20: League’s game data ✓, champ select ✓, match history ✓/.test(document.getElementById('patchNote').textContent), null, 'the patch check');
@@ -2278,7 +2279,7 @@ const leagueData = (over = {}) => ({
     lcu.replay[9003] = 'error';
     await pc.evaluate(() => lpc.patchNow());
     await wait(pc, () => /^Patch check for League 16\.21: .*, replays \(not seen yet\)\.$/.test(document.getElementById('patchNote').textContent), null, 'the new patch');
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="stats"]');
+    await openPage(pc, 'stats');
     await pc.click('.tab[data-tab="games"]');
     await pc.click('#matches li:nth-child(3) summary');
     await wait(pc, () => document.querySelector('#matches li:nth-child(3) .replay')?.textContent === 'Download the replay', null, 'a replay to download');
@@ -2287,7 +2288,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#matches li:nth-child(4) summary');
     await wait(pc, () => document.querySelector('#matches li:nth-child(4) .replay')?.textContent === 'No replay here: since patch 26.21, download it in League’s match history', null, 'why there’s no replay');
     assert(await pc.locator('#matches li:nth-child(4) .replay').isDisabled(), 'nothing to click');
-    await pc.click('.nav[data-view="settings"]');
+    await openPage(pc, 'settings');
     assert.match(await text(pc, '#patchNote'), /, replays ✗\.$/);
     console.log('patch 26.21: a replay League won’t download points to League’s match history, also in the patch check');
     // an app link: lolprox://join/<room> brings the app into that room, after asking to leave the one you're in
@@ -2316,7 +2317,7 @@ const leagueData = (over = {}) => ({
     const practice = (room, t, cs) => league(leagueData({ mode: 'PRACTICETOOL', room, t, events: [],
       players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl: 9, k: 0, d: 0, a: 0, cs, items: [] }] }));
     lcu.phase = 'InProgress';
-    await pc.click('#leagueNav'); await pc.click('.nav[data-view="game"]');
+    await openPage(pc, 'game');
     for (const [t, cs] of [[300, 30], [480, 60], [601, 80]]) await practice('gdrill000001', t, cs);
     await wait(pc, () => lpc.toasts().includes('CS drill: 80+ CS at 10:00. You can type your exact CS on the Game page.'), null, 'the first drill');
     for (const [t, cs] of [[300, 40], [450, 60], [602, 90]]) await practice('gdrill000001', t, cs); // the same champion again: the same room code, its clock started again
@@ -2341,7 +2342,7 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'cs-drill');
     console.log('CS drill: 80+ and 90+ saved, none for a game seen after 10:00, a drill counted down against your best, 74 typed in, the chart');
     // backup and restore: everything but the phone remote's code, back in after a reload
-    await pc.click('.nav[data-view="settings"]');
+    await openPage(pc, 'settings');
     const [bk] = await Promise.all([pc.waitForEvent('download'), pc.click('#backupBtn')]);
     const backup = JSON.parse(fs.readFileSync(await bk.path(), 'utf8'));
     assert(backup.app === 'league-proxchat' && backup.data['lpc-name'] === 'Rayan' && backup.data['lpc-lp'] && backup.data['lpc-clip-favs'] && backup.data['lpc-notes'] && backup.data['lpc-watch'] && backup.data['lpc-drills'] && !('lpc-remote' in backup.data) && !('lpc-device' in backup.data), `the backup: ${Object.keys(backup.data)}`);
@@ -2362,7 +2363,7 @@ const leagueData = (over = {}) => ({
     await sp.goto(URL_);
     await wait(sp, () => window.lpc, null, 'the page');
     await sp.evaluate(() => lpcClient.emit('league', { inGame: false, phase: '' }));
-    await sp.click('#leagueNav'); await sp.click('.nav[data-view="profile"]');
+    await openPage(sp, 'profile');
     await wait(sp, () => document.getElementById('proName').textContent === 'Rayan' && document.getElementById('proStatus').textContent === 'League isn’t running', null, 'your saved profile with League closed');
     assert.match(await text(sp, '#proNote'), /^As of .+\. Start League to update it\.$/);
     await wait(sp, () => !document.getElementById('proPast').hidden, null, 'your past ranks kept');
@@ -2393,7 +2394,7 @@ const leagueData = (over = {}) => ({
       await wait(hp, () => window.lpc, null, 'the page');
       await hl({ inGame: false, phase: 'None' });
       await wait(hp, () => lpc.lcu().me0 && lpc.lcu().hist === 20, null, 'your account and match history');
-      await hp.click('#leagueNav'); await hp.click('.nav[data-view="pregame"]');
+      await openPage(hp, 'pregame');
       await wait(hp, () => !document.getElementById('winFix').hidden, null, 'League in Fullscreen, on Pregame');
       // the tier list: arrows for Ahri, rising since last patch, and Zed, falling; how often each was banned; a row
       // opens that champion's page in the role
@@ -2460,16 +2461,16 @@ const leagueData = (over = {}) => ({
       lcu.phase = 'None';
       await hl({ inGame: false, phase: 'None' });
       assert(await hp.isVisible('#winFix'), 'the Fullscreen fix on Pregame');
-      await hp.click('.nav[data-view="voice"]');
+      await openPage(hp, 'voice');
       await hp.click('#createBtn');
       await wait(hp, () => lpc.slot() >= 0, null, 'a room');
-      await hp.click('#leagueNav'); await hp.click('.nav[data-view="prox"]');
+      await openPage(hp, 'prox');
       await hp.click('#readyBtn');
       await wait(hp, () => (document.querySelector('#readyRows tr td:last-child') || {}).textContent === 'Fullscreen: no overlay Switch to Borderless', null, 'Fullscreen in the ready check, with its button');
       await hp.click('#readyRows tr td:last-child button');
       await wait(hp, () => document.querySelector('#readyRows tr td:last-child').textContent === 'Borderless', null, 'Borderless now');
       assert.deepStrictEqual([lcu.general, lcu.saved], [{ WindowMode: 2, Width: 1920, Height: 1080 }, { WindowMode: 2, Width: 1920, Height: 1080 }], 'League’s own settings, saved');
-      await hp.click('#leagueNav'); await hp.click('.nav[data-view="pregame"]');
+      await openPage(hp, 'pregame');
       await wait(hp, () => document.getElementById('winFix').hidden, null, 'no Fullscreen fix any more');
       console.log('Fullscreen fix: Borderless in one click from the ready check, through League’s own settings');
       // in a game the explorer hides, like all advice
@@ -2514,7 +2515,7 @@ const leagueData = (over = {}) => ({
       await wait(ep, () => window.lpc, null, 'the page');
       await el({ inGame: false, phase: 'None' });
       await wait(ep, () => lpc.lcu().me0 && lpc.lcu().hist === 20, null, 'your account and match history');
-      await ep.click('#leagueNav'); await ep.click('.nav[data-view="pregame"]');
+      await openPage(ep, 'pregame');
       // the tier list on Emerald and Diamond's games, for your rank; Challenger and Grandmaster's a click away
       await wait(ep, () => !document.getElementById('tierBox').hidden && !document.getElementById('tierEloBox').hidden && document.querySelectorAll('#tierRows tr').length === 2, null, 'the tier list for your rank');
       assert.strictEqual(await ep.inputValue('#tierElo'), 'ed');
@@ -2562,7 +2563,7 @@ const leagueData = (over = {}) => ({
       assert(await ep.isVisible('#eloBox') || (await ep.click('#preSet summary'), await ep.isVisible('#eloBox')), 'Most popular in, in Pregame settings');
       assert.strictEqual(await ep.inputValue('#optElo'), 'auto');
       // Stats: when to stop, then champions to try for Ahri (you play Zed already)
-      await ep.click('#leagueNav'); await ep.click('.nav[data-view="stats"]');
+      await openPage(ep, 'stats');
       await ep.click('.tab[data-tab="you"]');
       await wait(ep, () => !document.getElementById('stops').hidden, null, 'when to stop');
       assert.deepStrictEqual(await texts(ep, '#stops tbody tr'), ['After a win 7 2W 5L · 29%', 'After a loss 5 1W 4L · 20%', 'After 2 losses in a row 3 2W 1L · 67%', 'After 3 or more in a row 1 1W 0L · 100%',
@@ -2575,7 +2576,7 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await text(ep, '#tryNote'), '');
       await shot(ep, 'stats-champions-to-try');
       // Settings > Our server: Emerald and Diamond's games, the pro players and the ladder players' champions
-      await ep.click('.nav[data-view="settings"]');
+      await openPage(ep, 'settings');
       await wait(ep, () => !document.getElementById('serverMore').hidden, null, 'our server’s counts');
       assert.match(await text(ep, '#serverMore'), /^Emerald and Diamond games counted from Riot: 40 \(EUW 25, NA 15\), 4 games today\. Pro players found from Leaguepedia’s player list: 2, read \w+ \d+\. High elo players asked which champions they play, for Champions to try: 1,234\.$/);
       await ectx.close();
