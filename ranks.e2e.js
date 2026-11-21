@@ -193,7 +193,7 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     L.cs.timer.adjustedTimeLeftInPhase = 2500;
     await wait(page, () => lpc.toasts().includes('Time was almost up, so Premade locked in Ahri for you.'), null, 'locked in for you');
     await page.waitForTimeout(1500);
-    assert.deepStrictEqual(calls(/actions\/8\/complete/), ['POST /lol-champ-select/v1/session/actions/8/complete'], 'once');
+    assert.deepStrictEqual(calls(/actions\/8(\/complete)?$/), ['PATCH /lol-champ-select/v1/session/actions/8', 'POST /lol-champ-select/v1/session/actions/8/complete'], 'once: the one-step lock in, and the older call when League turns it down (this League has no PATCH)');
     // Dodge: twice to be sure
     assert.strictEqual(await text(page, '#dodgeBtn'), 'Dodge');
     await page.click('#dodgeBtn');

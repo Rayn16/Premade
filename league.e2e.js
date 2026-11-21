@@ -285,9 +285,10 @@ function fakeLcu(method, p, body) {
     const a = flatActions().find((x) => x.id === +m[1]);
     a.championId = body.championId;
     if (a.type === 'pick') lcu.cs.myTeam[2].championPickIntent = body.championId;
-    return { status: 204, data: null };
+    if (!body.completed) return { status: 204, data: null };
   }
-  if ((m = /^\/lol-champ-select\/v1\/session\/actions\/(\d+)\/complete$/.exec(p))) {
+  if ((m = /^\/lol-champ-select\/v1\/session\/actions\/(\d+)(\/complete)?$/.exec(p))) { // a lock in: the PATCH with completed (What's new 192), or the older POST
+    if (lcu.noLock) return { status: 500, data: { errorCode: 'RPC_ERROR', httpStatus: 500, message: 'Invalid action' } };
     const a = flatActions().find((x) => x.id === +m[1]);
     Object.assign(a, { completed: true, isInProgress: false });
     if (a.type === 'ban') { flatActions().find((x) => x.id === 8).isInProgress = true; lcu.cs.theirTeam[2].championId = 238; } // their mid locked in Zed meanwhile
@@ -1335,8 +1336,15 @@ const leagueData = (over = {}) => ({
     await pc.fill('#anyChamp', 'Darius');
     await pc.click('#hoverBtn');
     await wait(pc, () => /hovering Darius/.test(document.getElementById('csTurn').textContent), null, 'the ban hovered');
+    // What's new 192: League saying no to a ban or lock in shows its reason as a toast (and on the phone), not nothing
+    lcu.noLock = true;
+    await pc.click('#pickLock');
+    await wait(pc, () => lpc.toasts().includes('League didn’t ban Darius: Invalid action.'), null, 'League’s reason for no ban');
+    await wait(phone, () => document.getElementById('csNote').textContent === 'League didn’t ban Darius: Invalid action.', null, 'the reason on the phone');
+    lcu.noLock = false;
     await pc.click('#bans button:has-text("Darius")');
     await wait(pc, () => /Your turn to pick/.test(document.getElementById('csTurn').textContent), null, 'my pick');
+    assert.deepStrictEqual(callsTo(/^\/lol-champ-select\/v1\/session\/actions\/3$/, 'PATCH').pop()[2], { championId: 122, completed: true }, 'banned in one call: the champion and done together');
     assert.deepStrictEqual(flatActions().find((a) => a.id === 3), { id: 3, actorCellId: 2, type: 'ban', completed: true, isInProgress: false, championId: 122 });
     // the best picks for you, with why: Lux beat Zed (their middle now) in high elo, Ahri's your best, Vi's strong in
     // high elo but new to you. Garen and Sona aren't middle, Zed is taken

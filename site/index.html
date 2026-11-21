@@ -9210,21 +9210,33 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     return box;
   }
+  // What's new 192: champ select's notes as a toast (and on the phone), not at the top of the page, out of sight from
+  // Lock in at the foot; League's own reason when it turns a hover or a lock in down
+  const csSay = (text) => { notify(text, true); remoteSay(text, 'lock'); };
+  const whyNot = (r) => (r.data && typeof r.data.message === 'string' && r.data.message ? `: ${r.data.message}` : r.status ? '' : ': League didn’t answer');
   async function hover(champ) {
     const a = cs && myAction();
-    if (!a || !champOf(champ)) return say(cs ? 'Nothing to pick or ban for you right now.' : '');
-    await lcuAsk('PATCH', `/lol-champ-select/v1/session/actions/${a.id}`, { championId: champ });
+    if (!a || !champOf(champ)) return cs && csSay('Nothing to pick or ban for you right now.');
+    const r = await lcuAsk('PATCH', `/lol-champ-select/v1/session/actions/${a.id}`, { championId: champ });
+    if (!okStatus(r)) csSay(`League didn’t take ${champName(champ)}${whyNot(r)}.`);
     await champTick();
     renderGame();
   }
+  // locks a in with champion c in one call (its champion and done together); if League turns that down, the older
+  // way: hover c, then lock in what's hovered
+  async function lockCall(a, c) {
+    const at = `/lol-champ-select/v1/session/actions/${a.id}`, r = await lcuAsk('PATCH', at, { championId: c, completed: true });
+    if (okStatus(r)) return r;
+    if (a.championId !== c) await lcuAsk('PATCH', at, { championId: c });
+    return lcuAsk('POST', `${at}/complete`);
+  }
   async function lockIn(champ) {
-    if (champ) await hover(champ);
-    const a = cs && myAction();
-    if (!a || !a.isInProgress) return say('It isn’t your turn yet.');
-    if (!a.championId) return say(`Hover a champion to ${a.type} first.`);
-    say('');
-    await lcuAsk('POST', `/lol-champ-select/v1/session/actions/${a.id}/complete`);
-    $('anyChamp').value = '';
+    const a = cs && myAction(), c = champ || (a && a.championId);
+    if (!a || !a.isInProgress) return csSay('It isn’t your turn yet.');
+    if (!champOf(c)) return csSay(`Hover a champion to ${a.type} first.`);
+    const r = await lockCall(a, c);
+    if (okStatus(r)) $('anyChamp').value = '';
+    else csSay(`League didn’t ${a.type === 'ban' ? 'ban' : 'lock in'} ${champName(c)}${whyNot(r)}.`);
     await champTick();
     renderGame();
   }
@@ -9819,7 +9831,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('runesOther').addEventListener('click', () => { const me = myCell(); if (me && me.championId && runesAlt) { runesPick = runesAlt; hand.runes = false; setRunes(me.championId, myPos()); } });
   $('runesVs').addEventListener('click', () => { const me = myCell(); if (me && me.championId) { runesPick = 'vs'; hand.runes = false; setRunes(me.championId, myPos()); } });
-  $('champForm').addEventListener('submit', (e) => { e.preventDefault(); const c = champByName($('anyChamp').value); if (c) hover(+c.key); else say('Pick a champion from the list.'); });
+  $('champForm').addEventListener('submit', (e) => { e.preventDefault(); const c = champByName($('anyChamp').value); if (c) hover(+c.key); else csSay('Pick a champion from the list.'); });
   $('pickLock').addEventListener('click', () => { const v = $('anyChamp').value.trim(), c = v && champByName(v); lockIn(c ? +c.key : 0); });
   async function reroll() {
     if (!okStatus(await lcuAsk('POST', '/lol-champ-select/v1/session/my-selection/reroll'))) notify('League didn’t reroll.', true);
@@ -13963,7 +13975,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const a = myAction(), left = cs.timer ? cs.timer.adjustedTimeLeftInPhase : Infinity;
     if (!opts.autoLock || !a || !a.isInProgress || a.type !== 'pick' || !a.championId || a.id === lockTried || left > 3000) return;
     lockTried = a.id;
-    if (okStatus(await lcuAsk('POST', `/lol-champ-select/v1/session/actions/${a.id}/complete`))) notify(`Time was almost up, so Premade locked in ${champName(a.championId)} for you.`, true);
+    if (okStatus(await lockCall(a, a.championId))) notify(`Time was almost up, so Premade locked in ${champName(a.championId)} for you.`, true);
     else notify('Time is almost up: lock in a champion now!', true);
   }
   function renderHoverNote() {
@@ -20220,6 +20232,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [192, 'November 21: Lock in fixed', [
+      'Lock in in champ select now tells League your champion and locks it in one step, with the older way as a backup: from the bar at the bottom, a second click on a top 3 pick or the grid, your phone, and Lock in before time runs out.',
+      'If League still says no, a note tells you why where you can see it, and the same when it isn’t your turn yet or nothing is hovered.',
+    ]],
     [191, 'November 21: your skin on every page', [
       'Background on your profile has Your skin covers: Top of Profile as before, All of Profile, or Every page, with the skin behind the whole of Premade and its colors on every page.',
     ]],
