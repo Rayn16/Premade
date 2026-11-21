@@ -6865,17 +6865,18 @@ dialog.wizard { transform: scale(var(--from)); }
     const said = callNow(), call = overlayEdit || overlayHide ? null : said; // the line at the top: the whole screen all game (board: true), so the window stays put
     const ghosts = overlayEdit || overlayHide ? null : ghostRows(), after = overlayEdit || overlayHide ? null : afterNow(), tips = overlayEdit || overlayHide ? null : deadTips(), vote = overlayEdit || overlayHide ? null : votePop();
     const cards = overlayEdit || overlayHide ? null : tftAugCards();
+    const strip = overlayHide ? null : stripRows();
     const mayCards = overlayEdit || overlayHide ? null : mayhemAugCards();
     const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
     // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
     // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
     // TFT ratings and Mayhem's independent full-screen card layer, and parts with places of their own
-    const full = !overlayEdit && boardOk() && (call !== null || !!ghosts || (!overlayHide && !!stripRows()) || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
+    const full = !overlayEdit && boardOk() && (call !== null || !!ghosts || !!strip || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     let s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, calls: call && callCur && callCur.text === call ? callUp.map((c) => ({ text: c.text, pics: c.pics })) : null, theme: look.dark ? look : null,
-      prog: !!(board && typeof board === 'object') || !!(after && after.board), // the mouse reaches the overlay for the stats' boxes and the Scoreboard button (app 1.46)
-      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, ghosts, strip: overlayHide ? null : stripRows(), after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
+      prog: !!(board && typeof board === 'object') || !!(after && after.board) || !!strip, // the mouse reaches the overlay for the stats' boxes, the Scoreboard button (app 1.46) and the enemy spell strip (What's new 188)
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, ghosts, strip, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(any && { any: true }),
@@ -9516,6 +9517,9 @@ dialog.wizard { transform: scale(var(--from)); }
     fetch(`${DD}/cdn/${ddVersion}/data/en_US/summoner.json`).then((r) => r.json()).then((j) => { ddSpells = Object.fromEntries(Object.values(j.data || {}).map((x) => [+x.key, +(x.cooldown || [])[0] || 0])); }).catch(() => {});
   }
   const spellCd = (n) => (ddSpells && ddSpells[n]) || 0;
+  // a summoner spell's id from its key as League's live data has it (app 1.52): SummonerSmitePlayerGanker is Smite,
+  // SummonerTeleportUpgrade Teleport
+  const spellId = (k) => +(Object.entries(SPELL_KEY).find(([, v]) => typeof k === 'string' && k.startsWith(v)) || [0])[0];
   // The enemy strip on the overlay (What's new 183): each of the other team's face, two summoner spells (Flash and the
   // rest from Riot's live game, Flash alone until then) and ultimate, with the time left on each one running and who
   // started it. [{ name, pic, spells: [{ k, icon, name, left (s), by }] }]
@@ -9525,7 +9529,8 @@ dialog.wizard { transform: scale(var(--from)); }
     const rows = (league.players || []).filter((p) => p.team !== mine.team && champOf(p.champ)).slice(0, 5).map((p) => {
       const c = champOf(p.champ), sp = gameSpec.room === league.room && gameSpec.foes.get(+c.key), tips = riotTips(c), r = tips && tips.sheet.find((x) => x.key === 'R');
       const one = (k, icon, name) => { const x = run.get(k), left = x ? Math.max(0, Math.ceil(x.end - t)) : 0; return { k, icon, name, left, by: left && x.by ? String(x.by).slice(0, 1).toUpperCase() : '' }; };
-      return { name: c.name, pic: champImg(c.id), spells: [...(sp ? sp.spells : [4]).filter((id) => spellPic(id)).map((id) => one(id === 4 ? `flash:${c.id}` : `sp${id}:${c.id}`, spellPic(id), SPELLS[id] || 'Spell')),
+      const live = Array.isArray(p.spells) && p.spells.map(spellId).filter(Boolean);
+      return { name: c.name, pic: champImg(c.id), spells: [...(live && live.length === 2 ? live : sp ? sp.spells : [4]).filter((id) => spellPic(id)).map((id) => one(id === 4 ? `flash:${c.id}` : `sp${id}:${c.id}`, spellPic(id), SPELLS[id] || 'Spell')),
         ...(r && r.icon ? [one(`r:${c.id}`, r.icon, r.name)] : [])] };
     });
     return rows.length ? rows : null;
@@ -19412,6 +19417,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [188, 'November 21: the spell strip while you play', [
+      'The enemy spell strip takes your click any time in a game: move your mouse onto a spell and click, no Alt+X first. The rest of the overlay still lets your clicks through to League.',
+      'With the app update (1.52), the strip shows each enemy’s second summoner spell from League itself, from the first second of the game and after an Unsealed Spellbook swap.',
+    ]],
     [185, 'November 21: no Features page, and updates in the middle', [
       'The Features page is gone from the menu, with its Get set up list. Run setup again is still in Settings, App.',
       'What’s new no longer pops up after an update. It’s still in Settings, App, and behind your version in the status bar.',
@@ -20585,7 +20594,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn them on: the Overlay page, Callouts: Minimap callouts turns on all of them, or tick each under it. Read them out loud and Voice are under Sound; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
       ['Faded faces', 'Each enemy you lose sight of stays on League’s minimap as a faded grey face where you last saw them, with the seconds since, until you see them again, they die, or 45 seconds pass.',
         'Off until you turn it on: the Overlay page, Callouts, under Minimap callouts.', '#optMissList', 'app'],
-      ['Enemy spell strip', 'Their 5 faces above your minimap with Flash, their other spell and their ultimate: click one, say “Premade, mid flash”, or tap it on your phone, and the countdown starts for you and every Premade teammate in your game, with the letter of who started it. Cooldowns count Cosmic Insight, Ultimate Hunter, Transcendence, their level and their items.',
+      ['Enemy spell strip', 'Their 5 faces above your minimap with Flash, their other spell (from League itself with app 1.52, so a Spellbook swap shows) and their ultimate: click one while you play, without Alt+X, say “Premade, mid flash”, or tap it on your phone, and the countdown starts for you and every Premade teammate in your game, with the letter of who started it. Cooldowns count Cosmic Insight, Ultimate Hunter, Transcendence, their level and their items.',
         'Off until you turn it on: the Overlay page, In game. Teammates in your game share it without being in your room.', '#optFoeTimers', 'app'],
       ['Teammates’ callouts', 'Say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid” with your letter, and you see theirs.',
         'Off until you turn it on: the Overlay page, Callouts, From your team.', '#optTeamCall', 'app'],

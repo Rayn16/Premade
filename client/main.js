@@ -329,7 +329,9 @@ function summary(d) {
       const s = p.scores || {};
       return { name: id(p), team: String(p.team || ''), champ: champ(p), champName: String(p.championName || ''), pos: String(p.position || ''), lvl: +p.level || 0,
         k: +s.kills || 0, d: +s.deaths || 0, a: +s.assists || 0, cs: +s.creepScore || 0, items: (Array.isArray(p.items) ? p.items : []).map((i) => [+i.itemID || 0, +i.count || 1]),
-        dead: !!p.isDead, respawn: Math.round(+p.respawnTimer || 0) };
+        dead: !!p.isDead, respawn: Math.round(+p.respawnTimer || 0),
+        // app 1.52 (What's new 188): their two summoner spells as League has them now (an Unsealed Spellbook swap too), by key
+        spells: ['summonerSpellOne', 'summonerSpellTwo'].map((k) => (/_(Summoner[A-Za-z0-9]{1,40})_DisplayName$/.exec(String(((p.summonerSpells || {})[k] || {}).rawDisplayName || '')) || [, ''])[1]) };
     }),
   };
 }

@@ -447,6 +447,7 @@ const game = (over = {}) => ({
       const zed = (await page.evaluate(() => lpcClient.lastOverlay.strip)).find((r) => r.name === 'Zed');
       assert.deepStrictEqual(zed.spells.map((x) => [x.k, x.name, x.left]), [['flash:Zed', 'Flash', 0], ['sp14:Zed', 'Ignite', 0]], 'Zed’s Flash and Ignite from Riot’s live game');
       assert.strictEqual(asked, 1, 'Riot’s live game asked once');
+      assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.prog), true, 'the strip takes the mouse without Alt+X (What’s new 188)');
       for (let i = 0; i < 100 && !sock; i++) await page.waitForTimeout(200);
       assert(sock && /plat=euw1&u=me-p&g=777&team=100$/.test(url), `the game channel for game 777, team 100: ${url}`);
       // a click on his Flash: 300 s less Cosmic Insight's 18 haste, 254 s, sent with your name
@@ -463,6 +464,11 @@ const game = (over = {}) => ({
       await wait(page, () => (lpcClient.lastOverlay.calls || []).some((x) => x.text === 'Kai: Zed missing from mid'), null, 'Kai: Zed missing from mid');
       assert.deepStrictEqual((await page.evaluate(() => lpcClient.lastOverlay.calls)).find((x) => /^Kai/.test(x.text)).pics, ['p:K', 'f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', 's:missing', 'w:missing mid']);
       sock.send(JSON.stringify({ t: 'call', g: 'g0123456789a', lane: 'mid', id: 'kai1', by: 'Kai' })); // the same one again, as through the room too
+      // app 1.52 (What's new 188): League's own spells win, so an Unsealed Spellbook swap (Ignite to Ghost) shows; an
+      // upgraded Smite's key is Smite
+      await emit({ ...g, players: g.players.map((q) => ({ ...q, spells: q.champ === 'Zed' ? ['SummonerFlash', 'SummonerHaste'] : q.champ === 'LeeSin' ? ['SummonerFlash', 'SummonerSmitePlayerGanker'] : ['', ''] })) });
+      await wait(page, () => lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells[1].name === 'Ghost', null, 'Zed’s Ghost from League’s live data');
+      assert.deepStrictEqual((await page.evaluate(() => lpcClient.lastOverlay.strip)).find((r) => r.name === 'Lee Sin').spells.map((x) => x.k), ['flash:LeeSin', 'sp11:LeeSin'], 'Lee Sin’s Flash and Smite');
       // the callout log on the Game page, with a Wrong button
       await openPage(page, 'game');
       await wait(page, () => !document.getElementById('callLogBox').hidden, null, 'the callout log');
