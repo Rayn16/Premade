@@ -7204,7 +7204,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const c = champOf(p.champ), s = p.puuid ? scoutData.get(p.puuid) : null, rk = s && [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((q) => q && TIERS.includes(q.tier));
       const on = s && s.games ? s.games.filter((x) => x.champ === p.champ) : [], m = s && s.mastery.find((x) => x.championId === p.champ), x = selOf(p);
       return {
-        name: p.name.split('#')[0] || 'A player', sub: [c ? c.name : '', POS[p.pos] || ''].filter(Boolean).join(' · '), pic: champImg(p.champ), me: !!p.me, ally: !!p.ally, lane: !p.ally && !!lane && (lane.foe === p.champ || lane.duo === p.champ),
+        name: p.name.split('#')[0] || 'A player', id: riotIdOk(p.name) ? p.name : '', sub: [c ? c.name : '', POS[p.pos] || ''].filter(Boolean).join(' · '), pic: champImg(p.champ), me: !!p.me, ally: !!p.ally, lane: !p.ally && !!lane && (lane.foe === p.champ || lane.duo === p.champ),
         art: c ? `${DD}/cdn/img/champion/loading/${c.id}_${+x.selectedSkinIndex > 0 ? x.selectedSkinIndex | 0 : 0}.jpg` : '', spells: [x.spell1Id, x.spell2Id].map(spellPic).filter(Boolean),
         rank: !s ? (p.puuid ? 'Looking up…' : '') : rk ? (rk === s.ranked.RANKED_SOLO_5x5 ? '' : 'Flex: ') + rankText(rk) : 'Unranked', tc: rk ? TIER_C[TIERS.indexOf(rk.tier)] : '', emb: rk ? emblems[rk.tier] || '' : '',
         rec: !s || !c ? '' : !s.games ? 'Match history hidden' : `${c.name}: ${on.length ? `${on.length} of the last ${s.games.length}, ${pct(on.filter((x) => x.win).length / on.length)} won` : `not in the last ${s.games.length}`}${m ? ` · mastery ${m.championLevel}` : ''}`,
@@ -8371,6 +8371,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (m && m.prog) { // the Scoreboard button on the card over League's end screen: Premade in front, on the Game page
       if (m.prog.go === 'scoreboard') { if (client.front) client.front(); view('game', true); }
       if (m.prog.id === 'strip' && TIMER_K.test(m.prog.go)) startTimer(m.prog.go, true); // a click on the enemy strip (What's new 183)
+      if (m.prog.id === 'player' && riotIdOk(m.prog.go)) { if (client.front) client.front(); view('profile', true); lookUp(m.prog.go); } // a name on everyone's rank (What's new 195)
       return;
     }
     if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -20182,6 +20183,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [195, 'November 21: open a player’s profile from the overlay', [
+      'Click a player’s name on everyone’s rank, on the loading screen or with Alt+X in a game, and Premade comes to the front with their profile.',
+    ]],
     [194, 'November 21: real win rates for other players', [
       'Everyone showed a 100% win rate this season on the overlay: League’s client gives other players’ ranked wins but not their losses. Their wins and losses now come from Riot, so the Season ring, the rank line, Maybe a smurf and Climbing are right on the overlay, the Game page, champ select and Profile.',
       'Until Riot answers, or without it, their rank shows with no win rate.',
@@ -21382,7 +21386,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Where it sits, Edit layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
-      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with their record, three rings and their rank beside them, and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen; in a game drag it by its top line anywhere and resize it by its corner, and it stays there. Looks: Cards, Rows or Your lane first.',
+      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with their record, three rings and their rank beside them, and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen; in a game drag it by its top line anywhere and resize it by its corner, and it stays there. Click a name to open that player’s profile in Premade. Looks: Cards, Rows or Your lane first.',
         'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it. Double-click its top line in a game to put it back.', '#optBoardLook', 'app'],
       ['Three stats a player', 'Three rings on each player’s card, like Porofessor: Last 20 and Season with the win % inside (Season’s wins and losses from Riot, as League’s client gives other players’ wins only), and the main role’s icon. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; Played and Winrate bars a role and a champion; rank emblems and mastery.', 'Hover a ring on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],

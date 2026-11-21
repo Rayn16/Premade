@@ -22,10 +22,10 @@ const srv = http.createServer((req, res) => {
 const G20 = Array.from({ length: 20 }, (_, i) => ({ c: i % 3 ? 'Zed' : 'Ahri', win: i % 10 < 7, q: 'Ranked Solo/Duo', k: 8, d: 2, a: 5, it: [3006, 3031, 0, 0, 0, 0], ago: `${i + 2}d` }));
 const STATS = { l20: { w: 14, l: 6, games: G20 }, role: { pos: 'MIDDLE', name: 'Middle', off: false, now: 'MIDDLE', list: [['MIDDLE', 16, 9], ['TOP', 4, 1]] },
   sea: { w: 45, l: 55, now: ['Gold II', '', '#d9ad55'], lp: 45, peak: ['Gold I', '', '#d9ad55'], end: ['Silver I', '', '#a9b9c4'], champs: [['Zed', 13, 9], ['Ahri', 7, 5]], mastery: [['Zed', 7, 412000], ['Ahri', 5, 61000]] } };
-const P = (name, ally, extra = {}) => ({ name, sub: 'Zed · Middle', pic: '', art: '', spells: [], me: false, ally, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: '', rec: 'Zed: 9 of the last 20, 67% won',
+const P = (name, ally, extra = {}) => ({ name, id: name + '#EUW', sub: 'Zed · Middle', pic: '', art: '', spells: [], me: false, ally, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: '', rec: 'Zed: 9 of the last 20, 67% won',
   stats: STATS, tags: [['good', 'Millionaire: Zed'], ['', 'One-trick: Ahri']], ...extra });
 const board = (over) => ({ look: 'cards', load: true, dd: 'https://ddragon.leagueoflegends.com/cdn/14.1.1', side: 'red', title: 'Ranked Solo/Duo', heads: ['Your team · Gold II', 'Their team · Gold III'], tips: { title: 'Ahri against Zed', lines: ['Respect level 6'] },
-  us: ['A', 'B', 'Me', 'D', 'E'].map((n) => P(n, true, n === 'Me' ? { me: true } : {})), them: ['F', 'G', 'Lane', 'I', 'J'].map((n) => P(n, false, n === 'Lane' ? { lane: true } : n === 'J' ? { stats: { l20: null, role: null, sea: null }, rank: 'Unranked', tags: [] } : n === 'I' ? { stats: { ...STATS, role: { ...STATS.role, off: true, now: 'TOP' }, sea: { ...STATS.sea, w: 0, l: 0, now: null, peak: null, end: null } } } : {})), ...over });
+  us: ['A', 'B', 'Me', 'D', 'E'].map((n) => P(n, true, n === 'Me' ? { me: true } : {})), them: ['F', 'G', 'Lane', 'I', 'J'].map((n) => P(n, false, n === 'Lane' ? { lane: true } : n === 'J' ? { id: '', stats: { l20: null, role: null, sea: null }, rank: 'Unranked', tags: [] } : n === 'I' ? { stats: { ...STATS, role: { ...STATS.role, off: true, now: 'TOP' }, sea: { ...STATS.sea, w: 0, l: 0, now: null, peak: null, end: null } } } : {})), ...over });
 const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1, opacity: 1, game, prog: true });
 
 (async () => {
@@ -174,6 +174,21 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     assert.strictEqual(await page.evaluate(() => localStorage.getItem('ovBoard')), null);
     await fire(state(board({ title: 'Loading' })));
     assert.strictEqual(await page.isVisible('.rb .rsz'), false, 'the loading screen stays whole');
+    // What's new 195: a name with a Riot ID opens their profile in Premade, taking the mouse while over it; J has none, so it stays text
+    for (const load of [true, false]) {
+      await fire(state(board({ load }), load ? '' : 'Dragon 0:55'));
+      assert.deepStrictEqual(await page.$$eval('.rb .who > :first-child', (l) => l.map((e) => e.tagName)), [...Array(9).fill('BUTTON'), 'B']);
+      const look = await page.$$eval('.rb .who > :first-child', (l) => [l[0], l[9]].map((e) => { const c = getComputedStyle(e); return [c.fontSize, c.fontWeight, c.color, c.backgroundColor, c.borderTopWidth, c.padding]; }));
+      assert.deepStrictEqual(look[0], look[1], 'a name you can click looks like the others');
+      await page.mouse.move(1, 1);
+      await page.hover('.pc.me .pn');
+      assert.strictEqual(await page.evaluate(() => window.mouse), true, 'a name takes the mouse');
+      await page.click('.pc.me .pn');
+      assert.deepStrictEqual(await page.evaluate(() => window.prog), { id: 'player', go: 'Me#EUW' });
+      await page.mouse.move(5, 1075);
+      assert.strictEqual(await page.evaluate(() => window.mouse), false, 'and given back');
+    }
+    await shot(page, 'board-name-link');
     // a board off: nothing left over
     await fire({ visible: true, board: null, pos: 'tl', scale: 1, opacity: 1, game: 'Dragon 0:58' });
     assert.strictEqual(await page.locator('.rb').count(), 0);
@@ -187,7 +202,7 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     assert.strictEqual(await page.evaluate(() => window.mouse), false, 'and given back');
     await fire({ visible: true, pos: 'tl', scale: 1, opacity: 1, after: { title: 'Victory', win: true, lines: [] } });
     assert.strictEqual(await page.locator('.after button').count(), 0, 'no button without a report');
-    console.log('Board tests passed: red and blue side, the loading screen and in game, 2 tags then 1, ring boxes as pictures inside the screen, kept through updates, rows and your lane first');
+    console.log('Board tests passed: red and blue side, the loading screen and in game, 2 tags then 1, ring boxes as pictures inside the screen, kept through updates, rows and your lane first, names that open profiles');
   } finally {
     await browser.close();
     srv.close();

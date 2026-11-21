@@ -1680,9 +1680,9 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => / · 55% of 55$/.test(lpcClient.lastOverlay.board.them[2].rank), null, 'Shadow’s record from Riot');
     const board = await pc.evaluate(() => lpcClient.lastOverlay.board);
     const cardOf = ({ art, spells, stats, ...p }) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
-    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
+    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', id: 'Shadow#EUW', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
       rec: 'Zed: not in the last 20', tags: [['bad', 'First time on Zed'], ['', 'One-trick: Ahri']] });
-    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
+    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', id: 'Friend#EUW', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
       rec: 'Garen: 8 of the last 20, 75% won · mastery 3', tags: [['good', '6 wins in a row']] });
     // What's new 166-168: your side (blue: your team at the bottom), the look, everyone's skin and spells, the three
     // stats with their boxes' lines, and only the key tags, 2 at most on the loading screen
@@ -1708,6 +1708,13 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.textContent('#gameTips h3'), 'Tips: Ahri against Zed');
     assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
     await shot(pc, 'loading-screen');
+    // What's new 195: a name clicked on the overlay opens that player's profile, with Premade in front
+    const fronts = await pc.evaluate(() => lpcClient.calls.filter((c) => c === 'front').length);
+    await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'player', go: 'no tag' } })); // not a Riot ID: nothing
+    await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'player', go: 'Sniper#EUW' } }));
+    await wait(pc, () => document.querySelector('.nav[data-view="profile"]').getAttribute('aria-current') === 'page' && document.getElementById('proName').textContent === 'Sniper', null, 'Sniper’s profile from his name on the overlay');
+    assert.strictEqual(await pc.evaluate(() => lpcClient.calls.filter((c) => c === 'front').length), fronts + 1, 'Premade in front once');
+    await pc.click('#proBack');
     await openPage(pc, 'overlay');
     await pc.check('#optBoardLook input[value="lane"]');
     await wait(pc, () => lpcClient.lastOverlay.board && lpcClient.lastOverlay.board.look === 'lane' && JSON.parse(localStorage.getItem('lpc-opts')).boardLook === 'lane', null, 'Your lane first, picked on the Overlay page');
