@@ -617,6 +617,7 @@ const LOOKUPS = [ // [path, on a region (else a platform), the query parameters 
   [RegExp(`^/lol/spectator/v5/active-games/by-summoner/${PUUID}$`), false, []], // in a game right now (404 when not)
   [RegExp(`^/lol/match/v5/matches/by-puuid/${PUUID}/ids$`), true, ['start', 'count', 'queue', 'type']],
   [/^\/lol\/match\/v5\/matches\/[A-Z0-9]{2,6}_\d{5,15}$/, true, []],
+  [/^\/lol\/match\/v5\/matches\/[A-Z0-9]{2,6}_\d{5,15}\/timeline$/, true, []], // a game's timeline, for its buy times when League's copy has none
   [/^\/lol\/status\/v4\/platform-data$/, false, []], // the maintenance and problems Riot reports on a server
 ];
 // Cloudflare's free plan, each UTC day: Durable Object requests, SQLite rows read and written, and running time

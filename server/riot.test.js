@@ -104,6 +104,7 @@ const riot = http.createServer((req, res) => {
   if (host === 'jp1') return slowDown ? send(429, { status: { message: 'Rate limit exceeded' } }, { 'retry-after': '2' }) : send(200, { summonerLevel: 1 });
   if (host === 'europe' && p === `/lol/match/v5/matches/by-puuid/${P('a')}/ids`) return send(200, ['EUW1_7123456789']);
   if (host === 'europe' && p === '/lol/match/v5/matches/EUW1_7123456789') return send(200, { info: { gameId: 7123456789 } });
+  if (host === 'europe' && p === '/lol/match/v5/matches/EUW1_7123456789/timeline') return send(200, { info: { frames: [] } });
   if (host === 'euw1' && p === '/lol/status/v4/platform-data') return send(200, { id: 'EUW1', maintenances: [{ id: 1, maintenance_status: 'in_progress', titles: [{ locale: 'en_US', content: 'Ranked is off' }] }], incidents: [] });
   send(404, { status: { message: 'Not found' } });
 }).listen(RIOT, '127.0.0.1');
@@ -216,13 +217,16 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   r = await get('/riot/api/europe/lol/match/v5/matches/EUW1_7123456789');
   assert.equal(r.status, 200);
   assert.match(r.headers.get('cache-control'), /max-age=86400/);
+  r = await get('/riot/api/europe/lol/match/v5/matches/EUW1_7123456789/timeline');
+  assert.equal(r.status, 200, "a game's timeline, for its buy times");
+  assert.deepEqual(await r.json(), { info: { frames: [] } });
   r = await get('/riot/api/euw1/lol/status/v4/platform-data');
   assert.equal((await r.json()).maintenances[0].maintenance_status, 'in_progress', "the problems Riot reports on a server");
-  for (const bad of ['/riot/api/europe/lol/match/v5/matches/EUW1_7123456789/timeline', '/riot/api/euw1/riot/account/v1/accounts/by-riot-id/Ana/EUW', '/riot/api/evil/lol/match/v5/matches/EUW1_7123456789',
+  for (const bad of ['/riot/api/europe/lol/match/v5/matches/EUW1_7123456789/timeline/x', '/riot/api/euw1/riot/account/v1/accounts/by-riot-id/Ana/EUW', '/riot/api/evil/lol/match/v5/matches/EUW1_7123456789',
     '/riot/api/europe/riot/account/v1/accounts/by-riot-id/%2e%2e/x', '/riot/api/euw1/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5', `/riot/api/europe/lol/league/v4/entries/by-puuid/${P('a')}`,
     `/riot/api/europe/riot/account/v1/region/by-game/val/by-puuid/${P('a')}`, `/riot/api/euw1/riot/account/v1/region/by-game/lol/by-puuid/${P('a')}`, '/riot/api/europe/lol/status/v4/platform-data'])
     assert.equal((await get(bad)).status, 404, bad);
-  assert.equal(looked().length, 8, 'nothing off the list reached Riot');
+  assert.equal(looked().length, 9, 'nothing off the list reached Riot');
 
   // the ranks lookups get, kept for each season (16.20 is 2026): the highest and the last, for the page's past ranks
   let past = (await (await get(`/riot/past?u=${P('a')}`)).json()).s;
