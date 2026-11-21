@@ -464,7 +464,7 @@ const game = (over = {}) => ({
       assert.deepStrictEqual((await page.evaluate(() => lpcClient.lastOverlay.calls)).find((x) => /^Kai/.test(x.text)).pics, ['p:K', 'f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', 's:missing', 'w:missing mid']);
       sock.send(JSON.stringify({ t: 'call', g: 'g0123456789a', lane: 'mid', id: 'kai1', by: 'Kai' })); // the same one again, as through the room too
       // the callout log on the Game page, with a Wrong button
-      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
+      await openPage(page, 'game');
       await wait(page, () => !document.getElementById('callLogBox').hidden, null, 'the callout log');
       const log = await page.$$eval('#callLogList li', (l) => l.map((li) => li.querySelector('span').textContent));
       assert.deepStrictEqual(log.filter((t) => /^Kai/.test(t)), ['Kai: Zed missing from mid'], `once in the log: ${log}`);
