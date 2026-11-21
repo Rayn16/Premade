@@ -54,11 +54,33 @@ function withIcons(icons) { // [[champion, x, y]] in minimap pixels
   }
   return Buffer.from(out.buffer);
 }
-const SCREENS = { none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), // x + y past the minimap's width: the bottom side
+const SCREENS = { none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), red: withFoe([148, 198]), // x + y past the minimap's width: the bottom side; your red buff
   zedMid: withIcons([['Zed', 172, 109]]), leeJungle: withIcons([['LeeSin', 130, 215]]), // Zed in the middle lane on their side, Lee Sin in your jungle
   g1: withIcons([['LeeSin', 165, 168]]), g2: withIcons([['LeeSin', 150, 168]]), g3: withIcons([['LeeSin', 135, 168]]), // Lee Sin coming toward you (ME)
   p1: withIcons([['LeeSin', 150, 140]]), p2: withIcons([['LeeSin', 150, 155]]), p3: withIcons([['LeeSin', 150, 170]]) }; // Lee Sin walking past you, closer but not at you
 const yasuo = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'fixtures/ddragon-yasuo-128.rgba.gz')));
+
+// ---- a faded face (What's new 181) over the shared minimap, as overlay.html draws it: the picture in grey, a third
+// see-through, a 2 px grey ring, the size of an icon. The reader still finds and matches an enemy back on that spot,
+// and finds no enemy at a lone faded face.
+{
+  const r = ctx.CameraBox.RING * m.s, sub = (buf) => { const o = new Uint8ClampedArray(m.s * m.s * 4); for (let y = 0; y < m.s; y++) o.set(buf.subarray(((m.y + y) * R + m.x) * 4, ((m.y + y) * R + m.x + m.s) * 4), y * m.s * 4); return o; };
+  const ghostOn = (buf, c, cx, cy) => {
+    const out = new Uint8ClampedArray(buf);
+    for (let dy = -Math.ceil(r); dy <= r; dy++) for (let dx = -Math.ceil(r); dx <= r; dx++) {
+      const d = Math.hypot(dx, dy), to = ((m.y + cy + dy) * R + m.x + cx + dx) * 4;
+      if (d > r) continue;
+      const [cr, cg, cb] = d >= r - 2 ? [154, 160, 166] : PICS[c][(dy < 0 ? 0 : 2) + (dx < 0 ? 0 : 1)], grey = d >= r - 2 ? null : 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
+      [grey ?? cr, grey ?? cg, grey ?? cb].forEach((v, k) => { out[to + k] = out[to + k] * (2 / 3) + v / 3; });
+    }
+    return out;
+  };
+  const zed = ctx.CameraBox.picLook(picOf('Zed'), 128), near = (l, x, y) => l.filter((i) => Math.hypot(i.x - x, i.y - y) < r);
+  const back = sub(ghostOn(withIcons([['Zed', 172, 109]]), 'Zed', 172, 109)), found = near(ctx.CameraBox.findIcons(back, m.s, true), 172, 109);
+  assert(found.length === 1 && ctx.CameraBox.lookDiff(ctx.CameraBox.iconLook(back, m.s, found[0].x, found[0].y), zed) < ctx.CameraBox.PICK_LOOK, `Zed back under his faded face is found and matched: ${JSON.stringify(found)}`);
+  assert.strictEqual(near(ctx.CameraBox.findIcons(sub(ghostOn(corner, 'Zed', 172, 109)), m.s, true), 172, 109).length, 0, 'no enemy at a lone faded face');
+  console.log('faded faces: an enemy back under one is still found and matched, a lone one is no enemy');
+}
 
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x'), file = path.join(SITE, u.pathname);
@@ -207,20 +229,28 @@ const game = (over = {}) => ({
       // parts in places of their own (the Overlay page's Layout): chat from its bottom right corner, the line at the top
       // at the bottom middle and bigger, who's off your minimap and the card after a game; your lane with your CS
       const box = (sel) => p.evaluate((sel) => { const e = document.querySelector(sel), r = e && e.getBoundingClientRect(); return r && [r.left, r.top, r.right, r.bottom].map(Math.round); }, sel);
-      const parts = { chat: { x: 0.99, y: 0.95, ax: 'r', ay: 'b' }, call: { x: 0.5, y: 0.9, ax: 'c', ay: 'b', k: 1.5 }, missing: { x: 0.99, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' } };
+      const parts = { chat: { x: 0.99, y: 0.95, ax: 'r', ay: 'b' }, call: { x: 0.5, y: 0.9, ax: 'c', ay: 'b', k: 1.5 }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' } };
       const many = { ...base, board: true, call: 'Zed missing from mid', parts, cs: 'CS 64 · 7.1 a minute', lane: 'vs Zed: CS +6 · gold +0.3k', chat: [{ name: 'Kai', text: 'dragon soon' }],
-        missing: [['Zed', '', '0:40', 'toward bot'], ['Lee Sin', '', '', 'not seen yet']], after: { title: 'Victory · Ahri', win: true, lines: ['+18 LP: Gold II · 63 LP', 'Score 91 · MVP'] } };
+        ghosts: [{ pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', x: 0.9, y: 0.85, d: 0.022, s: 12 }], after: { title: 'Victory · Ahri', win: true, lines: ['+18 LP: Gold II · 63 LP', 'Score 91 · MVP'] } };
       o = await fire(many);
-      const chat = await box('#parts [data-part="chat"]'), line = await box('#call'), list = await box('#parts [data-part="missing"]'), after = await box('#parts [data-part="after"]');
+      const chat = await box('#parts [data-part="chat"]'), line = await box('#call'), face = await box('#ghosts .ghost'), after = await box('#parts [data-part="after"]');
       assert(chat && chat[2] === 1267 && chat[3] === 684, `chat hangs from its bottom right corner: ${chat}`);
       assert(Math.abs((line[0] + line[2]) / 2 - 640) <= 1 && line[3] === 648 && line[3] - line[1] < 60 && o.text === 'Zed missing from mid', `the line at the bottom middle, half again as big: ${line}`);
-      assert(list[2] === 1267 && list[3] === 518 && after[1] === 43 && Math.abs((after[0] + after[2]) / 2 - 640) <= 1, `the list over the minimap, the card at the top: ${list} ${after}`);
+      assert(face && Math.abs((face[0] + face[2]) / 2 - 1152) <= 1 && Math.abs((face[1] + face[3]) / 2 - 612) <= 1 && Math.abs(face[2] - face[0] - 15.84) <= 1 && after[1] === 43 && Math.abs((after[0] + after[2]) / 2 - 640) <= 1, `the faded face on the minimap, the card at the top: ${face} ${after}`);
+      assert.deepStrictEqual(await p.$eval('#ghosts .ghost', (e) => [getComputedStyle(e.firstChild).filter, getComputedStyle(e.firstChild).opacity, getComputedStyle(e.firstChild).borderTopColor, e.lastChild.textContent]), ['grayscale(1)', '0.33', 'rgb(154, 160, 166)', '12 s'], 'grey, a third see-through, a grey ring, the seconds since');
       assert.deepStrictEqual(o.items, ['Dragon 1:23 · Baron 12:00', 'CS 64 · 7.1 a minute', 'vs Zed: CS +6 · gold +0.3k'], 'the rest: the timers, your CS and your lane');
-      assert.deepStrictEqual(await p.$$eval('.miss .name, .miss .mt, .miss .sub', (l) => l.map((e) => e.textContent)), ['Zed', '0:40', 'toward bot', 'Lee Sin', '', 'not seen yet']);
+      // up to 3 callouts at once, newest on top: faces and signs with a word or two, the sentence for screen readers
+      const Z = 'https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', L = 'https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/LeeSin.png';
+      await fire({ ...base, board: true, call: 'Lee Sin at your red', calls: [{ text: 'Lee Sin at your red', pics: ['f:' + L, 's:pin', 'w:your red'] }, { text: 'Zed missing from mid', pics: ['f:' + Z, 's:missing', 'w:missing mid'] }, { text: 'Zed is level 6', pics: [Z, '6'] }] });
+      assert.deepStrictEqual(await p.$$eval('#call > .pill', (l) => l.map((e) => [e.getAttribute('aria-label'), e.className, [...e.querySelector('.cpics').children].map((x) => x.className || x.tagName).join(' ')])),
+        [['Lee Sin at your red', 'pill nudge pics words', 'face f sign cw'], ['Zed missing from mid', 'pill nudge pics words', 'face f sign cw'], ['Zed is level 6', 'pill nudge pics', 'IMG lvl']], 'three, newest on top');
+      assert.strictEqual(await p.$eval('#call .face.f', (e) => getComputedStyle(e).borderTopColor), 'rgb(255, 92, 92)', 'their face in a red ring');
+      if (process.env.SHOTS) { await backdrop(p, 'none'); await shot(p, 'callouts-stack'); }
+      o = await fire(many);
       assert.strictEqual(await p.$eval('.after', (e) => e.className + ': ' + [...e.children].map((x) => x.textContent).join(' | ')), 'toast after win: Victory · Ahri | +18 LP: Gold II · 63 LP | Score 91 · MVP');
       await shot(p, 'overlay-parts');
       o = await fire({ ...many, board: null, edit: true, call: '' });
-      assert(!(await box('[data-part="chat"]')) && !(await box('[data-part="missing"]')) && o.items.includes('vs Zed: CS +6 · gold +0.3k'), 'while you move the rest, only the rest');
+      assert(!(await box('[data-part="chat"]')) && !(await box('#ghosts .ghost')) && o.items.includes('vs Zed: CS +6 · gold +0.3k'), 'while you move the rest, only the rest');
       o = await fire({ visible: false });
       assert(o.opacity === 0 && !o.items.length, 'all gone');
       await c.close();
@@ -255,9 +285,10 @@ const game = (over = {}) => ({
     // ---- the jungler callout: their Yasuo (the jungle pet) in red on the shared minimap
     {
       const [c, page] = await context(browser, { jgCall: true });
-      await page.evaluate(() => { window.screenNow = 'bot'; });
+      await page.evaluate(() => { window.screenNow = 'red'; });
       await page.evaluate((d) => lpcClient.emit('league', d), game()); // the app reads the minimap by itself in the game
-      await wait(page, () => lpcClient.lastOverlay && lpcClient.lastOverlay.call === 'Jungler on botside' && lpcClient.lastOverlay.board === true, null, 'Jungler on botside');
+      await wait(page, () => lpcClient.lastOverlay && lpcClient.lastOverlay.call === 'Yasuo at your red' && lpcClient.lastOverlay.board === true, null, 'Yasuo at your red');
+      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.callPics), ['f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Yasuo.png', 's:pin', 'w:your red'], 'their face, a pin, your red');
       const t0 = Date.now();
       await wait(page, () => lpcClient.lastOverlay.call === '', null, 'gone after 3 s');
       assert(Date.now() - t0 > 2500, `shown for 3 s, not ${Date.now() - t0} ms`);
@@ -271,11 +302,12 @@ const game = (over = {}) => ({
       await page.evaluate(() => { window.screenNow = 'none'; });
       await page.waitForTimeout(10500);
       await page.evaluate(() => { window.screenNow = 'top'; });
-      await wait(page, () => lpcClient.lastOverlay.call === 'Jungler on topside', null, 'Jungler on topside after 10 s out of sight');
+      await wait(page, () => /^Yasuo (at|in) /.test(lpcClient.lastOverlay.call), null, 'Yasuo called again after 10 s out of sight');
+      console.log('jungler callout on the top side:', await page.evaluate(() => lpcClient.lastOverlay.call));
       await page.evaluate(() => { document.getElementById('optJgCall').click(); });
       await wait(page, () => !lpcClient.lastOverlay.board, null, 'the callout off');
       await c.close();
-      console.log('jungler callout: on the bottom side for 3 s, not again while in sight or after 5 s away, on the top side after 10 s away');
+      console.log('jungler callout: at your red for 3 s, not again while in sight or after 5 s away, called again on the top side after 10 s away');
     }
 
     // ---- the other callouts and who's off your minimap, from the made-up champions on Rayan's minimap: Zed in the
@@ -284,26 +316,28 @@ const game = (over = {}) => ({
     {
       const [c, page] = await context(browser, { missCall: true, gankCall: true, invadeCall: true, missList: true, speakCalls: true });
       await page.evaluate(() => { window.spoken = []; speechSynthesis.speak = (u) => spoken.push(u.text); speechSynthesis.cancel = () => {}; });
-      const rows = () => page.evaluate(() => (lpcClient.lastOverlay.missing || []).map(([name, , time, where]) => [name, time, where]));
+      const ghosts = () => page.evaluate(() => lpcClient.lastOverlay.ghosts || []);
       const said = (text, what, timeout = 10000) => wait(page, (t) => lpcClient.lastOverlay.call === t, text, what, timeout);
       await page.evaluate(() => { window.screenNow = 'zedMid'; });
       await page.evaluate((d) => lpcClient.emit('league', d), foesGame());
       await wait(page, () => (lpc.foes() || []).some((f) => f.id === 'Zed' && f.zone === 'mid' && f.where === 'in mid'), null, 'Zed seen in the middle lane');
       const t0 = Date.now();
-      await wait(page, () => (lpcClient.lastOverlay.missing || []).length === 2, null, 'the list without Zed');
-      assert.deepStrictEqual(await rows(), [['Lee Sin', '', 'not seen yet'], ['Garen', '', 'not seen yet']]);
+      await wait(page, () => lpcClient.lastOverlay.board === true, null, 'the whole screen');
       const o = await page.evaluate(() => lpcClient.lastOverlay);
-      assert(o.board === true && o.call === '' && o.parts.missing.ax === 'r' && o.parts.call.ax === 'c', `the whole screen, nothing said yet: ${JSON.stringify(o.parts)}`);
+      assert(o.call === '' && !o.ghosts && o.parts.call.ax === 'c', `nothing said yet, no faded face while Zed is in sight: ${JSON.stringify(o)}`);
       await page.waitForTimeout(4000 - (Date.now() - t0));
       await page.evaluate(() => { window.screenNow = 'none'; });
-      await wait(page, () => (lpcClient.lastOverlay.missing || []).some((r) => r[0] === 'Zed' && r[3] === 'in mid'), null, 'Zed off the minimap');
+      await wait(page, () => (lpcClient.lastOverlay.ghosts || []).some((g) => /Zed\.png$/.test(g.pic)), null, 'Zed’s faded face');
       const gone = Date.now();
       await said('Zed missing from mid', 'Zed missing from mid', 15000);
       assert(Date.now() - gone > 7500, `missing after 10 s out of sight, not ${Date.now() - gone} ms`);
-      assert.match((await rows())[0].join(' '), /^Zed 0:(09|1\d) in mid$/);
+      const [g] = await ghosts(), sq = await page.evaluate(() => lpc.me().minimap); // where League's minimap showed him last: the screen is 2560 x 1436
+      assert(Math.abs(g.x * 2560 - (sq.x + 172)) < 2 && Math.abs(g.y * 1436 - (sq.y + 109)) < 2 && Math.abs(g.d * 1436 - 2 * 0.0432 * sq.s) < 0.5 && g.s >= 9 && g.s <= 12, `his faded face where he was, the seconds since: ${JSON.stringify(g)} ${JSON.stringify(sq)}`);
+      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.callPics), ['f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', 's:missing', 'w:missing mid'], 'his face, a missing sign, missing mid');
       await overlayShot(browser, 'missing-laner', await page.evaluate(() => lpcClient.lastOverlay), 'none');
       await page.evaluate(() => { window.screenNow = 'leeJungle'; });
-      await said('Lee Sin in your jungle', 'Lee Sin in your jungle');
+      await wait(page, () => /^Lee Sin (at|in) your /.test(lpcClient.lastOverlay.call), null, 'Lee Sin in your jungle, by its spot');
+      const invade = await page.evaluate(() => lpcClient.lastOverlay.call);
       await wait(page, () => lpc.me().fresh, null, 'your Yasuo found on the minimap');
       for (const k of ['p1', 'p2', 'p3']) { await page.evaluate((k) => { window.screenNow = k; }, k); await page.waitForTimeout(700); }
       await page.waitForTimeout(3500); // a warning would have shown by now, after the invade's 3 s
@@ -311,13 +345,13 @@ const game = (over = {}) => ({
       for (const k of ['g1', 'g2', 'g3']) { await page.evaluate((k) => { window.screenNow = k; }, k); await page.waitForTimeout(700); }
       await said('Lee Sin heading your way', 'Lee Sin heading your way');
       await page.evaluate((d) => lpcClient.emit('league', d), foesGame(1));
-      await wait(page, () => { const r = (lpcClient.lastOverlay.missing || []).find((x) => x[0] === 'Garen'); return !!r && r[2] === 'dead' && /^back in 0:1[0-2]$/.test(r[3]); }, null, 'Garen dead, back in 12 s at level 3');
-      assert.deepStrictEqual(await page.evaluate(() => spoken), ['Zed missing from mid', 'Lee Sin in your jungle', 'Lee Sin heading your way']);
+      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.callPics), ['f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/LeeSin.png', 's:arrow', 'a:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Yasuo.png', 'w:your way'], 'his face, an arrow, yours, your way');
+      assert.deepStrictEqual(await page.evaluate(() => spoken), ['Zed missing from mid', invade, 'Lee Sin heading your way']);
       await overlayShot(browser, 'missing-list', await page.evaluate(() => lpcClient.lastOverlay), 'g3');
       await page.evaluate(() => lpcClient.emit('league', { inGame: false }));
-      await wait(page, () => !lpc.me().minimap && !lpcClient.lastOverlay.missing, null, 'the screen let go after the game');
+      await wait(page, () => !lpc.me().minimap && !lpcClient.lastOverlay.ghosts, null, 'the screen let go after the game');
       await c.close();
-      console.log('callouts: Zed missing from mid 10 s after leaving the minimap, Lee Sin in your jungle, then heading your way, all read out loud; who’s off the minimap and Garen dead');
+      console.log(`callouts: Zed missing from mid 10 s after leaving the minimap with his faded face where he was, “${invade}”, then heading your way, all as pictures and read out loud`);
     }
 
     // ---- the voice that reads callouts: the computer's English voices by name, a girl's voice (Zira here), one picked
@@ -383,7 +417,7 @@ const game = (over = {}) => ({
       await page.check('#ovMapCalls');
       await page.uncheck('#optJgCall'); await page.uncheck('#optGankCall'); await page.uncheck('#optInvadeCall');
       await page.click('#ovEdit > summary');
-      await wait(page, () => [...document.querySelectorAll('#ovHandles .ovhandle')].map((b) => b.dataset.part).join() === ',game,cs,me,talk,toasts,buy,chat,missing,after,tips,screen,call', null, 'the callouts and who’s off the minimap on the Layout');
+      await wait(page, () => [...document.querySelectorAll('#ovHandles .ovhandle')].map((b) => b.dataset.part).join() === ',game,cs,me,talk,toasts,buy,chat,after,tips,screen,call', null, 'the callouts on the Layout');
       if (process.env.SHOTS) await page.waitForTimeout(500); // the line at the top fades in
       await shot(page, 'overlay-editor', '.view[data-view="overlay"]');
       await page.click('#ovEdit > summary');
