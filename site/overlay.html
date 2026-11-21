@@ -70,7 +70,12 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .vl { font-size: 1.1em; font-weight: 700; white-space: nowrap; }
 .w { color: var(--goodL); } .l { color: var(--badL); } .mu { color: var(--muted); } .vl.off { color: var(--badL); }
 .pop { display: none; position: absolute; z-index: 5; left: -1em; bottom: calc(100% + 0.6em); width: max-content; box-sizing: border-box; padding: 1em 1.1em; border: 1px solid var(--line2); border-radius: 0.9em; background: color-mix(in srgb, var(--panel) 97%, transparent); box-shadow: 0 1.2em 3em rgb(0 0 0 / 0.6); text-shadow: none; color: var(--fg); font-size: 1em; font-weight: 500; justify-items: stretch; }
-.rb:not(.load) .pop { font-size: 1.613em; } /* in a game the board is at 0.62, the boxes at the loading screen's size */
+.rb:not(.load) .pop { font-size: calc(1em / var(--bk, 0.62)); } /* in a game the board is at 0.62 (or its own size), the boxes at the loading screen's size */
+/* What's new 179: in a game, drag the board by its top line anywhere and resize it by its corner; it stays there
+   (ovBoard in this page's storage: left and top as shares of the screen, k its size). A double-click on the line puts it back. */
+.rb:not(.load) .rhead { cursor: move; }
+.rb .rsz { position: absolute; right: 0; bottom: 0; width: 3.2em; height: 3.2em; cursor: nwse-resize; border-radius: 0 0 1.6em 0; background: linear-gradient(135deg, transparent 55%, color-mix(in srgb, var(--fg) 45%, transparent) 55% 63%, transparent 63% 75%, color-mix(in srgb, var(--fg) 45%, transparent) 75% 83%, transparent 83%); }
+.rb.load .rsz { display: none; }
 .pop.dn { bottom: auto; top: calc(100% + 0.6em); }
 .pop.rt { left: auto; right: -1em; }
 .st:hover .pop { display: grid; gap: 0.7em; }
@@ -421,8 +426,49 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       const a = team(heads[0], us, true, n), z = team(heads[1], them, false, n);
       box.append(...(red ? [a] : [z]), ...(tips ? [tips] : []), ...(red ? [z] : [a]));
     }
+    if (!b.load) { // What's new 179: move and resize it
+      const grip = el('rsz');
+      head.dataset.take = grip.dataset.take = '';
+      head.title = 'Drag to move, double-click to put it back';
+      grip.title = 'Drag to resize';
+      head.addEventListener('pointerdown', (e) => drag(e, box, false));
+      grip.addEventListener('pointerdown', (e) => drag(e, box, true));
+      head.addEventListener('dblclick', () => { try { localStorage.removeItem('ovBoard'); } catch {} setBox(box, null); });
+      box.append(grip);
+      setBox(box, savedBox());
+    }
     boardKey = k;
     return (boardEl = box);
+  }
+  const savedBox = () => { try { const v = JSON.parse(localStorage.getItem('ovBoard')); return v && [v.x, v.y, v.k].every(Number.isFinite) ? v : null; } catch { return null; } };
+  function setBox(box, v) { // null: the usual place, in the middle at 0.62
+    box.style.cssText = v ? `left: ${v.x * 100}%; top: ${v.y * 100}%; transform: scale(${v.k}); transform-origin: 0 0` : '';
+    box.style.setProperty('--bk', v ? v.k : 0.62);
+  }
+  let dragging = false;
+  function drag(e, box, resize) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const r = box.getBoundingClientRect(), k0 = r.width / box.offsetWidth, x0 = e.clientX, y0 = e.clientY;
+    let v = { x: r.left / innerWidth, y: r.top / innerHeight, k: k0 };
+    dragging = true;
+    const move = (m) => {
+      const dx = m.clientX - x0, dy = m.clientY - y0;
+      if (resize) v = { x: r.left / innerWidth, y: r.top / innerHeight, k: Math.min(1.2, Math.max(0.3, k0 * (r.width + dx) / r.width)) };
+      else { // the top line stays on the screen
+        const w = r.width, x = Math.min(innerWidth - 80, Math.max(80 - w, r.left + dx)), y = Math.min(innerHeight - 40, Math.max(0, r.top + dy));
+        v = { x: x / innerWidth, y: y / innerHeight, k: k0 };
+      }
+      setBox(box, v);
+    };
+    const up = () => {
+      dragging = false;
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      try { localStorage.setItem('ovBoard', JSON.stringify(v)); } catch {}
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
   }
   // where the small window would be (client/main.js): 16 px in from the left or right, at the top or in the middle, or
   // where it was dragged (box: fractions of the screen), on the screen
@@ -491,7 +537,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // button can be clicked, and gives it back once the mouse leaves or the button is gone. One listener, set once.
   let taking = false;
   const take = (on) => { if (on !== taking) { taking = on; if (api.overlayMouse) api.overlayMouse(on); } };
-  addEventListener('mousemove', (e) => take(!!(e.target.closest && e.target.closest('[data-take]'))));
+  addEventListener('mousemove', (e) => take(dragging || !!(e.target.closest && e.target.closest('[data-take]')))); // kept while the board is dragged
   const THEME = ['bg', 'panel', 'raised', 'fg', 'muted', 'gold', 'gold-line', 'accent', 'accent-fg', 'link', 'talk', 'good', 'bad'];
   let lastOverlayState = null;
   const renderOverlay = (s) => {

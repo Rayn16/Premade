@@ -1273,10 +1273,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .csart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; pointer-events: none; }
 .cschip { position: absolute; top: 8px; left: 8px; z-index: 1; background: color-mix(in srgb, var(--bg) 86%, transparent); }
 .cschip[data-k="me"] { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); font-weight: 600; }
-.csbar2 { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 7px 10px; background: color-mix(in srgb, var(--bg) 86%, transparent); }
+/* What's new 179: no dark band behind the text, a shadow keeps it readable on the splash */
+.csbar2 { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 7px 10px; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .9), 0 0 8px rgb(0 0 0 / .7); }
 .cswho { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
 .csbar2 b { font-size: 15px; font-weight: 600; }
-.csbar2 small { font-size: 12px; color: var(--muted); }
+.csbar2 small { font-size: 12px; color: rgb(255 255 255 / .82); }
 .csline { flex-basis: 100%; min-width: 0; overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
 .cshint { margin-left: auto; font-size: 12px; }
 .cskey { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); }
@@ -18524,6 +18525,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [179, 'November 21: move and resize everyone’s rank', [
+      'In a game, drag everyone’s rank (Alt+X) by its top line anywhere on your screen, and drag its bottom right corner to make it bigger or smaller. It stays where you left it; double-click its top line to put it back.',
+      'Champ select cards show the name and skin straight over the splash, with no dark band behind them.',
+    ]],
     [176, 'November 21: your League numbers as pictures', [
       'Profile, Stats and the Game page after a game each lead with your champion’s splash. Win rates are rings, your last 20 are green and red blocks, games played are bars.',
       'Game rows read like Porofessor’s: Victory or Defeat over the queue, your K/D/A with deaths in red, CS and items.',
@@ -19526,7 +19531,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
         'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: the Overlay page, While you’re dead.', '#csTips', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: click a teammate’s card on Pregame (one asking you opens by itself), or on your phone.', '#csRows', 'app'],
-      ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked, with their rank, last 20 games, spells and their one most important tag. Click a teammate’s card for the rest: Riot ID, every tag, Avoid and swaps. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
+      ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked, with their name straight over the art, their rank, last 20 games, spells and their one most important tag. Click a teammate’s card for the rest: Riot ID, every tag, Avoid and swaps. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
         'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
       ['Draft verdict', 'Once both teams have locked in: you’re ahead, even or behind on the draft, in words, and what each team lacks: a frontline, magic damage, crowd control or engage.', 'At the top of champ select, on Pregame.', '#csVerdict', 'app'],
       ['Enemy abilities', 'Your lane opponent’s show by themselves in champ select; click another enemy for theirs: their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
@@ -19624,8 +19629,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Where it sits, Edit layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
-      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with spells, rank, record and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen. Looks: Cards, Rows or Your lane first.',
-        'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it.', '#optBoardLook', 'app'],
+      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with spells, rank, record and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen; in a game drag it by its top line anywhere and resize it by its corner, and it stays there. Looks: Cards, Rows or Your lane first.',
+        'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it. Double-click its top line in a game to put it back.', '#optBoardLook', 'app'],
       ['Three stats a player', 'Three rings on each player’s card, like Porofessor: Last 20 and Season with the win % inside, and the main role’s icon. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; Played and Winrate bars a role and a champion; rank emblems and mastery.', 'Hover a ring on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',

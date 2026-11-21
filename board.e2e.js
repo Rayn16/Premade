@@ -136,6 +136,39 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
     assert(h2 <= h1 + 5, `nodes level over 100 boxes opened: ${h1} then ${h2}`);
     console.log(`board, 100 boxes opened: nodes ${h1} then ${h2}`);
     console.log(`board, 300 redraws: nodes ${n1} then ${n2}`);
+    // What's new 179: in a game, dragged by its top line and resized by its corner, kept for the next board, put back by a double-click
+    await fire(state(board({ load: false, title: 'Move me' }), 'Dragon 0:57'));
+    const rect = () => page.$eval('.rb', (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; });
+    const [l0, t0, w0] = await rect();
+    await page.mouse.move(1, 1);
+    await page.hover('.rb .rhead');
+    assert.strictEqual(await page.evaluate(() => window.mouse), true, 'the top line takes the mouse');
+    await page.mouse.down();
+    await page.mouse.move(l0 + 200, t0 + 20, { steps: 4 });
+    await page.mouse.move(5, 5, { steps: 4 }); // off the line: still dragging, the mouse still taken
+    assert.strictEqual(await page.evaluate(() => window.mouse), true, 'kept while dragging');
+    await page.mouse.move(l0 - 200, t0 + 300, { steps: 4 });
+    await page.mouse.up();
+    const [l1, t1, w1] = await rect();
+    assert(w1 === w0 && l1 < l0 - 100 && t1 > t0 + 200, `moved: ${[l0, t0]} to ${[l1, t1]}`);
+    const grip = await page.$eval('.rb .rsz', (e) => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+    await page.mouse.move(...grip);
+    await page.mouse.down();
+    await page.mouse.move(grip[0] - w1 / 4, grip[1], { steps: 4 });
+    await page.mouse.up();
+    const [l2, t2, w2] = await rect();
+    assert(l2 === l1 && t2 === t1 && Math.abs(w2 - w1 * 0.75) < 3, `resized from its corner: ${w1} to ${w2}`);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('ovBoard')));
+    assert(Math.abs(saved.k - 0.62 * 0.75) < 0.01, `size kept: ${saved.k}`);
+    assert(Math.abs(await page.$eval('.rb', (e) => parseFloat(getComputedStyle(e).getPropertyValue('--bk'))) - saved.k) < 0.001, 'the boxes keep their size');
+    await shot(page, 'board-moved');
+    await fire(state(board({ load: false, title: 'Next game' }), 'Dragon 0:56'));
+    assert.deepStrictEqual(await rect(), [l2, t2, w2], 'a new board where it was left');
+    await page.dblclick('.rb .rhead');
+    assert.deepStrictEqual(await rect(), [l0, t0, w0], 'put back');
+    assert.strictEqual(await page.evaluate(() => localStorage.getItem('ovBoard')), null);
+    await fire(state(board({ title: 'Loading' })));
+    assert.strictEqual(await page.isVisible('.rb .rsz'), false, 'the loading screen stays whole');
     // a board off: nothing left over
     await fire({ visible: true, board: null, pos: 'tl', scale: 1, opacity: 1, game: 'Dragon 0:58' });
     assert.strictEqual(await page.locator('.rb').count(), 0);
