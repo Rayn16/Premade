@@ -183,12 +183,29 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .may-rate .augp { white-space: nowrap; font: 700 2.1vh/1 Georgia, serif; color: var(--fg); font-variant-numeric: tabular-nums; }
 .may-rate .augs { font-size: 1vh; color: var(--fg); text-align: center; }
 .may-rate .augtrack { width: 100%; height: 0.6vh; border-radius: 999px; background: color-mix(in srgb, var(--fg) 12%, transparent); overflow: hidden; }
-.may-rate .augfill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold-line), var(--gold)); transition: width 0.4s; }
-.may-rate.good .augp { color: var(--gold); text-shadow: 0 0 1.2vh var(--gold), 0 2px 4px #000; }
-.may-rate.good .augfill { background: linear-gradient(90deg, var(--gold), #f3dca0); box-shadow: 0 0 1vh var(--gold); }
-.may-rate .augtag { justify-self: center; padding: 0; border: 0; border-radius: 0; font-size: 1.3vh; font-weight: 700; }
-.may-rate .augtag.good { color: var(--good); }
-.may-rate .augtag.bad { color: var(--bad); }
+.may-rate .augfill { height: 100%; border-radius: inherit; background: var(--fg); transition: width 0.4s; }
+/* What's new 180: no glows or gradients; the best card's tier and bar in gold, and outlined pills under it (a card can carry two) */
+.may-rate.good .augp { color: #e8b84a; }
+.may-rate.good .augfill { background: #e8b84a; }
+.may-rate .augtags { display: grid; justify-items: center; gap: 0.4vh; margin-top: 0.2vh; }
+.may-rate .augtag { --c: #e9e1e2; display: inline-flex; align-items: center; gap: 0.5vh; padding: 0.15vh 0.9vh; border: 1px solid var(--c); border-radius: 999px; background: rgb(21 16 18 / 0.7); color: var(--c); font-size: 1.1vh; font-weight: 600; text-shadow: none; white-space: nowrap; }
+.may-rate .augtag.best { --c: #e8b84a; } .may-rate .augtag.pair { --c: #3ccf8e; padding-left: 0.25vh; } .may-rate .augtag.bad { --c: #ff6b6b; }
+.may-rate .augtag img { width: 1.6vh; height: 1.6vh; border-radius: 50%; }
+.may-rate .augp.none { color: #ab9c9e; }
+/* the Best for <champion> box: 2 of each rarity as rarity rings with a tier badge, and your picks (dashed: to come) */
+.maybox { display: grid; gap: 8px; width: 320px; padding: 10px 12px; }
+.maybox .mhead { font-weight: 600; }
+.maybox .mrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.maybox .mgrp { display: grid; gap: 4px; justify-items: start; font-size: 12px; color: var(--muted); }
+.maybox .mtwo, .maybox .mine { display: flex; align-items: center; gap: 6px; }
+.maybox .mine { padding-top: 8px; border-top: 1px solid var(--gold-line); font-size: 12px; color: var(--muted); }
+.mau { --ring: var(--gold-line); position: relative; flex: none; width: 40px; height: 40px; box-sizing: border-box; border: 2px solid var(--ring); border-radius: 50%; background: var(--raised); display: grid; place-items: center; font: 700 12px/1 system-ui, sans-serif; color: var(--fg); }
+.mau.prismatic { --ring: #c58cff; } .mau.gold { --ring: #e8b84a; } .mau.silver { --ring: #b9c0c8; }
+.mau img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.mau b { position: absolute; right: -4px; bottom: -4px; min-width: 16px; height: 16px; padding: 0 3px; box-sizing: border-box; border-radius: 4px; background: var(--fg); color: var(--bg); font: 700 11px/16px system-ui, sans-serif; text-align: center; }
+.mau b.top { background: #e8b84a; color: #151012; }
+.maybox .mtwo .mau { width: 36px; height: 36px; } /* 3 rarities of 2 fit the overlay's 280 px column */
+.mau.sm { width: 24px; height: 24px; font-size: 9px; } .mau.due { border: 1px dashed var(--muted); background: none; }
 /* the card over League's end screen (after) */
 .after { min-width: 220px; padding: 10px 14px; font-size: 15px; display: grid; gap: 4px; }
 .after .team { font-size: 13px; }
@@ -250,12 +267,33 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   // comes at the end of the objective timers' line, and during a surrender vote also on a card of its own (vote: like
   // after's) beside League's vote box. While you pick an augment in TFT, cards puts on each augment card how you placed
   // with it ({ x, y: the middle of its foot, as shares of the screen; t: the words; k: good or bad }), and in ARAM: Mayhem
-  // mayhemCards each card's tier over a DeepScore bar (p, s: its words, v: the bar 0-1; tierOnly: tier and score only;
-  // k: good on the strongest, which glows; g: Reroll? on the weakest when it's C or D and not rerolled).
+  // mayhemCards each card's tier over a DeepScore bar (p, s: its words, v: the bar 0-1, none for an augment with no
+  // numbers yet; tierOnly: tier and score only; k: good on the strongest, in gold; tags: its pills, [words, kind (best,
+  // fit, pair, new or bad), picture]). aug: a line, or ARAM: Mayhem's Best for <champion> box ({ champ, best: [[rarity,
+  // [{ n: name, i: icon, r: rarity, t: tier }]]], mine: your picks like best's, due: rings for picks to come }).
   const api = window.parent !== window ? window.parent.ovPreview : window.lpcClient;
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const main = document.getElementById('main'), parts = document.getElementById('parts'), mayhemLayer = document.getElementById('mayhem'), call = document.getElementById('call');
   const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
+  function mayBox(a) { // ARAM: Mayhem: Best for <champion>, then your picks
+    const box = el('toast maybox'), row = el('mrow'), mau = (x, sm) => {
+      const e = el('mau ' + (/^(prismatic|gold|silver)$/.test(x && x.r) ? x.r : '') + (sm ? ' sm' : ''));
+      if (!x) { e.classList.add('due'); return e; }
+      e.title = String(x.n || '');
+      if (x.i) e.append(Object.assign(new Image(), { src: String(x.i), alt: '' })); else e.textContent = String(x.n || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2);
+      if (x.t) { const t = document.createElement('b'); t.textContent = String(x.t); if (x.t === 'S') t.className = 'top'; e.append(t); }
+      return e;
+    };
+    for (const [r, l] of Array.isArray(a.best) ? a.best : []) {
+      const g = el('mgrp', String(r).charAt(0).toUpperCase() + String(r).slice(1)), two = el('mtwo');
+      two.append(...(Array.isArray(l) ? l : []).map((x) => mau({ ...x, r })));
+      g.append(two);
+      row.append(g);
+    }
+    box.append(el('mhead', `Best for ${a.champ}`), row);
+    if (Array.isArray(a.mine)) { const m = el('mine', 'Yours'); m.append(...a.mine.map((x) => mau(x, true)), ...Array.from({ length: Math.min(5, +a.due || 0) }, () => mau(null, true))); box.append(m); }
+    return box;
+  }
   function pill(name, pic, team) {
     const p = el('pill' + (team === 'enemy' ? ' enemy' : '')), face = document.createElement('span'), n = document.createElement('span');
     face.className = 'pic';
@@ -583,7 +621,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       if (!(s.talkers || []).length) out.push(pill('A friend talking', '', ''));
     }
     if (s.game) add('game', el('toast game', String(s.game)));
-    if (s.aug) add('game', el('toast', String(s.aug)));
+    if (s.aug && typeof s.aug === 'object') add('game', mayBox(s.aug));
+    else if (s.aug) add('game', el('toast', String(s.aug)));
     if (s.cs) add('cs', el('toast game', String(s.cs)));
     if (s.lane) add('cs', el('toast game', String(s.lane)));
     if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
@@ -639,13 +678,19 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       return b;
     }) : [];
     const mayCards = full && Array.isArray(s.mayhemCards) ? s.mayhemCards.filter(ok).map((c) => {
-      const k = c.k === 'good' || c.k === 'bad' ? ' ' + c.k : '', v = +c.v, tierOnly = c.tierOnly === true, bar = !tierOnly && Number.isFinite(v);
-      const b = el('may-rate' + (bar ? ' bar' : tierOnly ? ' tier-only' : '') + k, bar || tierOnly ? '' : String(c.t || ''));
-      if (bar || tierOnly) {
-        const top = el('augt'), track = el('augtrack'), fill = el('augfill');
-        top.append(el('augp', tierOnly ? `Tier ${c.tier || '?'}` : String(c.p || '')), el('augs', tierOnly ? `${c.score ?? ''} DeepScore` : String(c.s || '')));
+      const k = c.k === 'good' || c.k === 'bad' ? ' ' + c.k : '', v = +c.v, tierOnly = c.tierOnly === true && Number.isFinite(v), bar = !tierOnly && Number.isFinite(v), words = bar || tierOnly || !!c.p;
+      const b = el('may-rate' + (words ? (tierOnly ? ' tier-only' : ' bar') : '') + k, words ? '' : String(c.t || ''));
+      if (words) {
+        const top = el('augt'), track = el('augtrack'), fill = el('augfill'), tags = el('augtags');
+        top.append(el('augp' + (bar || tierOnly ? '' : ' none'), tierOnly ? `Tier ${c.tier || '?'}` : String(c.p || '')), el('augs', tierOnly ? `${c.score ?? ''} DeepScore` : String(c.s || '')));
         if (bar) { fill.style.width = `${Math.min(1, Math.max(0, v)) * 100}%`; track.append(fill); }
-        b.append(...(bar ? [track] : []), top, ...(c.g ? [el('augtag' + (c.gk === 'good' || c.gk === 'bad' ? ' ' + c.gk : ''), String(c.g))] : []));
+        tags.append(...(Array.isArray(c.tags) ? c.tags : []).filter((t) => Array.isArray(t)).map(([w, kind, pic]) => {
+          const t = el('augtag' + (/^(best|fit|pair|new|bad)$/.test(kind) ? ' ' + kind : ''));
+          if (pic) t.append(Object.assign(new Image(), { src: String(pic), alt: '' }));
+          t.append(String(w));
+          return t;
+        }));
+        b.append(...(bar ? [track] : []), top, ...(tags.childElementCount ? [tags] : []));
         b.title = String(c.t || '');
       }
       b.style.left = `${Math.min(1, Math.max(0, +c.x)) * 100}%`;

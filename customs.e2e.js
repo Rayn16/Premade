@@ -213,6 +213,11 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
 
     await friend.evaluate(() => lpc.league(null)); // the rest of this game is Rayan's
 
+    // ---- power spikes, Summoner's Rift only: in ARAM: Mayhem and ARAM, Zed reaching level 6 says nothing (What's new 180)
+    for (const mode of ['KIWI', 'ARAM']) {
+      for (const lvl of [5, 6]) { await feed(rayan, game(600 + lvl, SR({ Zedd: { lvl, items: [[3158, 1], [1036, 1]] } }), { mode })); await rayan.waitForTimeout(1500); }
+      assert(!(await rayan.evaluate(() => window.calls || [])).some((c) => /Zed is level/.test(c)), `no callouts in ${mode}`);
+    }
     // ---- power spikes: Zed reaches level 6 (5 before), then finishes Infinity Edge; what they had first isn't news
     await feed(rayan, game(620, SR({ Zedd: { lvl: 5, items: [[3158, 1], [1036, 1]] } })));
     await rayan.waitForTimeout(1500);

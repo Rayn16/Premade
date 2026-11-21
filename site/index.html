@@ -1565,6 +1565,47 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .games summary.gsum .gitems { grid-area: items; justify-self: end; }
 .games summary.gsum .tags { grid-area: tags; justify-self: end; }
 @container app (max-width: 700px) { .games summary.gsum { grid-template-columns: 40px minmax(0, 1fr) minmax(0, 0.8fr); grid-template-areas: "pic res kda" "pic items items" "pic tags tags"; } .gcs { display: none; } .games summary.gsum .gitems, .games summary.gsum .tags { justify-self: start; } }
+/* ARAM: Mayhem (What's new 180): augments as rarity rings with a tier badge; on Game a soft group in In game; Mayhem rows in your history get theirs between CS and items */
+.maug { --ring: var(--line); position: relative; flex: none; width: 36px; height: 36px; box-sizing: border-box; border: 2px solid var(--ring); border-radius: 50%; background: var(--raised); display: grid; place-items: center; font: 600 11px/1 var(--body); color: var(--fg); }
+.maug.prismatic { --ring: #c58cff; } .maug.gold { --ring: #e8b84a; } .maug.silver { --ring: #b9c0c8; }
+.maug img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.maug b { position: absolute; right: -4px; bottom: -4px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 4px; background: var(--gold); color: var(--bg); font: 600 11px/16px var(--body); text-align: center; }
+.maug b.top { background: #e8b84a; color: #151012; }
+.maug.big { width: 56px; height: 56px; }
+.maug.next { border: 1px dashed var(--muted); background: none; }
+.maybox { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 28px 44px; padding: 16px 20px; border-radius: var(--r); background: color-mix(in srgb, var(--fg) 5%, transparent); }
+.maycol, .maysec { display: grid; gap: 12px; align-content: start; }
+.maycol { gap: 28px; }
+.maysec .ph { margin: 0; font-size: 14px; }
+.maysec .hint { margin: 0; font-size: 12.5px; }
+.maymine { display: flex; flex-wrap: wrap; gap: 16px; }
+.mayslot { width: 112px; display: grid; justify-items: center; gap: 4px; text-align: center; }
+.mayslot b { font-size: 13px; font-weight: 500; line-height: 1.25; } .mayslot b.next { color: var(--muted); }
+.mayslot small { font-size: 12px; color: var(--muted); }
+.maybest { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.maygrp { display: grid; gap: 8px; align-content: start; } .maygrp > span { font-size: 12px; font-weight: 500; color: var(--muted); }
+.maytwo { display: flex; gap: 12px; }
+.mayone { width: 76px; display: grid; justify-items: center; gap: 4px; text-align: center; font-size: 12px; font-weight: 500; line-height: 1.25; }
+.mayone .maug { width: 44px; height: 44px; }
+.maypair { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.maypair:first-child { border-top: 0; padding-top: 0; }
+.mayduo { display: flex; align-items: center; gap: 4px; color: var(--muted); font-weight: 600; }
+.maypair b, .maypair i { display: block; font-size: 13.5px; font-weight: 500; } .maypair i { font-style: normal; font-size: 12.5px; color: var(--muted); }
+.maybuilds { display: grid; gap: 4px; }
+.maybld { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 12px; border-radius: var(--r-sm); }
+.maybld.sel { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.maybld > .tag { grid-column: 1 / -1; justify-self: start; }
+.mayitems { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mayit { width: 32px; height: 32px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; } .mayit.sm { width: 24px; height: 24px; } .mayit.have { border-color: var(--good); }
+.maythen { margin: 0 4px 0 8px; font-size: 12px; color: var(--muted); }
+.maywr div { display: grid; gap: 2px; text-align: right; } .maywr strong { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.maywr small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; } .maywr .plus { color: var(--good); } .maywr .minus { color: var(--bad); }
+.maychg { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; font-size: 13px; }
+.maychg > span { padding: 8px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; } .maychg > span.hd { border-top: 0; padding-top: 0; font-size: 12px; font-weight: 500; color: var(--muted); }
+.games summary.gsum.may { grid-template-columns: 40px minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 0.6fr) auto 146px; grid-template-areas: "pic res kda cs augs items" "pic res kda cs augs tags"; }
+.gaugs { grid-area: augs; display: flex; gap: 4px; align-items: center; } .gaugs .maug { width: 28px; height: 28px; font-size: 9.5px; }
+@container app (max-width: 900px) { .maybox { grid-template-columns: minmax(0, 1fr); } .maybest { grid-template-columns: minmax(0, 1fr); } }
+@container app (max-width: 700px) { .games summary.gsum.may { grid-template-columns: 40px minmax(0, 1fr) minmax(0, 0.8fr); grid-template-areas: "pic res kda" "pic augs augs" "pic items items" "pic tags tags"; } }
 /* Stats: the splash fills the hero, the win rate as a ring, five numbers in one row */
 .shero { position: relative; overflow: hidden; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr); min-height: 168px; }
 .shero > :not(.sheroart) { position: relative; }
@@ -2484,6 +2525,7 @@ dialog.wizard { transform: scale(var(--from)); }
         <div id="timers" class="timers"></div>
         <p id="laneStats" class="phase" role="status" hidden></p>
         <p id="augTips" class="phase" hidden></p>
+        <div id="mayBox" class="maybox" hidden></div>
         <div id="gameTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div id="liveBuild" class="buildbox" hidden><h3 class="ph"></h3><p class="hint bwhy"></p><ol class="blist"></ol><form class="pick badd"><label>Add an item <input list="itemList" autocomplete="off" spellcheck="false" placeholder="Item name"></label><button class="btn small" type="submit">Add</button><button class="btn small breset" type="button" hidden>Back to Premade’s build</button></form></div>
         <p id="liveAvg" class="hint" hidden></p>
@@ -2876,7 +2918,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="check"><input id="optInvadeCall" type="checkbox"><span><span>Invaders</span><span>Enemies in your jungle</span></span></label>
             <label class="check"><input id="optMissList" type="checkbox"><span><span>Who’s off my minimap</span><span>A list by your minimap, with how long</span></span></label>
           </div>
-          <p class="ovpart">From the game</p>
+          <p class="ovpart">From the game · Summoner’s Rift</p>
           <label class="check"><input id="optSpikeCall" type="checkbox"><span><span>Power spikes</span><span>Level 6, 11 and 16, and finished items</span></span></label>
           <label class="check"><input id="optCoach" type="checkbox"><span><span>Coach</span><span>A tip now and then: gold, objectives, levels</span></span></label>
           <label class="check ovin" data-when="optCoach"><input id="optCoachNew" type="checkbox"><span><span>I’m new: say why</span><span>The coach adds why, and what to do</span></span></label>
@@ -7035,8 +7077,9 @@ dialog.wizard { transform: scale(var(--from)); }
   if (window.speechSynthesis) { voiceList(); speechSynthesis.addEventListener('voiceschanged', voiceList); }
   $('optCallVoice').addEventListener('change', (e) => { opts.callVoice = e.target.value; saveOpts(); speak('Jungler on topside'); });
   $('callVoiceTry').addEventListener('click', () => speak('Zed missing from mid'));
-  // the callouts that aren't from your minimap: power spikes, the coach and the jungle clock
-  const callsOn = () => !!league && boardOk() && (opts.spikeCall || opts.coach || opts.jgClock);
+  // the callouts that aren't from your minimap: power spikes, the coach and the jungle clock, on Summoner's Rift only (not
+  // in ARAM: Mayhem, ARAM, URF or Arena, Rayan 2026-11-21)
+  const callsOn = () => !!league && SR.test(league.mode) && boardOk() && (opts.spikeCall || opts.coach || opts.jgClock);
   function callNow() { // the line at the top of the screen: null with no reminder or callouts this game, else what it says now, or ''
     const n = nudgeNow(), now = performance.now();
     if (!league || (n === null && !(share && share.foes) && !callsOn())) return null;
@@ -8527,7 +8570,7 @@ dialog.wizard { transform: scale(var(--from)); }
         spells: [p.spell1Id || s.summoner1Id | 0, p.spell2Id || s.summoner2Id | 0], pinks: num(s.visionWardsBoughtInGame), towers: num(s.turretKills), cc: num(s.timeCCingOthers),
         taken: num(s.totalDamageTaken), spree: num(s.largestKillingSpree), kp: num(c.killParticipation), solo: num(c.soloKills), steals: num(s.objectivesStolen),
         qping: num(s.enemyMissingPings), pings: pk.length ? pk.reduce((t, k) => t + (s[k] | 0), 0) : undefined,
-        items: [0, 1, 2, 3, 4, 5].map((i) => s['item' + i] | 0).filter(Boolean), perks: s.perk0 ? [s.perkPrimaryStyle | 0, s.perkSubStyle | 0, ...[0, 1, 2, 3, 4, 5].map((i) => s['perk' + i] | 0)] : null };
+        items: [0, 1, 2, 3, 4, 5].map((i) => s['item' + i] | 0).filter(Boolean), augs: [1, 2, 3, 4, 5, 6].map((i) => s['playerAugment' + i] | 0).filter(Boolean), perks: s.perk0 ? [s.perkPrimaryStyle | 0, s.perkSubStyle | 0, ...[0, 1, 2, 3, 4, 5].map((i) => s['perk' + i] | 0)] : null };
     }).filter((g) => g.len >= 300).sort((a, b) => b.at - a.at);
   }
   function scoutOf(puuid) {
@@ -9610,8 +9653,8 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('optJgCamps').value = String(opts.jgCamps);
   $('optJgCamps').addEventListener('change', (e) => { opts.jgCamps = +e.target.value; saveOpts(); renderJg(); });
-  // ARAM: Mayhem's augments: your champion's best on DeepARAM (mayBest), else what kind suits it, from its class in Data
-  // Dragon. On the overlay at the start, for a minute after levels 7, 11 and 15 and while you're dead; on the Game page.
+  // ARAM: Mayhem's augments: your champion's best on DeepARAM (mayBox), else what kind suits it, from its class in Data
+  // Dragon. On the overlay at the start, for a minute after levels 7, 11, 15 and 21 and while you're dead; on the Game page.
   const AUG_TIPS = { // a class (AP: one that deals magic damage) -> [look for, skip]
     Marksman: ['attack speed, critical strikes, attack damage and on-hit', 'ability power and tank stats'],
     Mage: ['ability power, ability haste, magic penetration and mana', 'attack speed and critical strikes'],
@@ -9632,8 +9675,8 @@ dialog.wizard { transform: scale(var(--from)); }
   function augNow() {
     const m = mayhem() && meIn();
     if (!m) return '';
-    if (m.lvl !== augLvl) { if (augLvl && [7, 11, 15].includes(m.lvl)) augUntil = performance.now() + 60000; augLvl = m.lvl; } // levelled up to it while watched
-    return gameNow() < 120 || league.me.dead || performance.now() < augUntil ? mayBest() || augTip(m.champ) : '';
+    if (m.lvl !== augLvl) { if (augLvl && [7, 11, 15, 21].includes(m.lvl)) augUntil = performance.now() + 60000; augLvl = m.lvl; } // levelled up to it while watched
+    return gameNow() < 120 || league.me.dead || performance.now() < augUntil ? mayBox() || augTip(m.champ) : '';
   }
   // the gold difference from everyone's items (what Tab shows), kills and towers: your team first
   let itemGold = null; // item id -> its cost, from Data Dragon (itemsSoon)
@@ -9888,7 +9931,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const lane = laneText(), csLine = csText();
       $('laneStats').hidden = !lane && !csLine;
       $('laneStats').textContent = [lane, csLine].filter(Boolean).join('. ');
-      const m = mayhem() && meIn(), tip = m ? mayBest(true) || augTip(m.champ) : '';
+      const m = mayhem() && meIn(), tip = m && !renderMay() ? augTip(m.champ) : '';
       $('augTips').hidden = !tip;
       $('augTips').textContent = tip;
       const rows = liveList(), ln = loadingNow() || (opts.deadTips && !!league && mine.dead) ? myLane(rows) : null; // the tips before the game starts, and while you're dead
@@ -9901,6 +9944,7 @@ dialog.wizard { transform: scale(var(--from)); }
       renderNotes($('liveNotes'), myChampNow(), rows.filter((p) => !p.ally).map((p) => p.champ).filter(Boolean));
       const mi = meIn();
       renderBuild($('liveBuild'), myChampNow(), mi ? posIn(mi) : (livePlayers.find((p) => me0 && p.puuid === me0.puuid) || {}).pos || '');
+      if (!$('mayBox').hidden && mayBuild()) $('liveBuild').hidden = true; // Mayhem's builds are in its own part
       const g = teamGold(), tm = timers();
       $('timers').replaceChildren(...[...tm.map(([n, s]) => [n, clock(s)]), ...(g ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`], ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])] : [])]
         .map(([n, v]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, v); return s; }));
@@ -12413,6 +12457,20 @@ dialog.wizard { transform: scale(var(--from)); }
     li.querySelector('.gwhat').textContent = [champName(x.champ), `${x.k}/${x.d}/${x.a}`, `${x.cs} CS`, `${Math.round(x.len / 60)} min`, QUEUES[x.queue] || cap(x.mode)].join(' · ');
     li.querySelector('.tags').append(...[MULTI[Math.min(5, Math.max(x.multi | 0, x.penta ? 5 : x.quadra ? 4 : 0))], x.fb && 'First blood'].filter(Boolean).map((t) => tag('good', t)));
     li.querySelector('.gitems').append(...(x.items || []).map((id) => { const img = Object.assign(new Image(), { src: itemPic(id), alt: '', title: itemName(id), loading: 'lazy' }); img.dataset.id = id; return img; }));
+    if ((x.queue === 2400 || x.mode === 'KIWI') && x.augs && x.augs.length) { // ARAM: Mayhem: the augments you took, in order, from League's match history
+      mayNamesSoon();
+      const g = document.createElement('span');
+      g.className = 'gaugs';
+      g.append(...x.augs.map((id, i) => {
+        const a = mayAug(id) || { name: `Augment ${id}`, rarity: '', icon: '' }, e = document.createElement('span');
+        e.className = `maug ${a.rarity}`;
+        e.title = `${a.name}, ${['at the start', 'at 7', 'at 11', 'at 15', 'at 21'][i] || 'extra'}`;
+        if (a.icon) e.append(Object.assign(new Image(), { src: a.icon, alt: '', loading: 'lazy' })); else e.textContent = a.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2);
+        return e;
+      }));
+      li.querySelector('.gsum').classList.add('may');
+      li.querySelector('.gcs').after(g);
+    }
     li.querySelector('.gres').dataset.r = x.win ? 'Win' : 'Lose';
     li.querySelector('.gres').textContent = x.win ? 'Victory' : 'Defeat';
     li.querySelector('details').addEventListener('toggle', async (e) => {
@@ -15250,7 +15308,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   async function augStart() {
     augsAt = performance.now();
-    const a = (augs = { cards: [null, null, null], busy: false, may: mayhem(), owed: 1, reads: 0 }); // owed: Mayhem picks still to come (mayOpen)
+    const may = mayhem(), a = (augs = { cards: may ? [] : [null, null, null], busy: false, may, owed: 1, reads: 0 }); // owed: Mayhem picks still to come (mayOpen); a Mayhem pick's cards: 3, or 4 (Maestro)
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: a.may ? 5 : 2 }, audio: false }); } catch (err) {
       console.warn('augment cards:', err);
@@ -15266,6 +15324,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function augStop() {
     const a = augs;
     augs = null;
+    mayClicks(false);
     if (a.stop) a.stop();
     if (a.track) a.track.stop();
     if (augOcr) augOcr.then((w) => w.terminate()).catch(() => {});
@@ -15365,11 +15424,22 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function mayhemAugCards() { // ARAM: Mayhem has its own card overlay data and doesn't share TFT's ratings renderer
     if (!augs || !augs.may) return null;
-    const cards = augs.cards.filter(Boolean).map((c) => ({ x: c.x, y: c.y, rr: !!c.rr, ...mayRate(c.name) }));
+    const cards = augs.cards.map((c) => ({ x: c.x, y: c.y, rr: !!c.rr, name: c.name, rarity: (mayAug(c.name) || {}).rarity, ...mayRate(c.name) }));
     if (!cards.length) return null;
-    // the strongest card (highest DeepScore) glows; the weakest, if it's C or D and its reroll is unused, says Reroll?
-    const rated = cards.filter((c) => c.score != null), best = rated.reduce((b, c) => (!b || c.score > b.score ? c : b), null), weak = rated.reduce((w, c) => (!w || c.score < w.score ? c : w), null);
-    return cards.map((c) => { const { rr, ...o } = c; return { ...o, k: c === best ? 'good' : '', ...(c === weak && c !== best && /^[CD]$/.test(c.tier) && !rr && { g: 'Reroll?', gk: 'bad' }) }; });
+    // the strongest card is the Best pick and the weakest, if it's C or D and its reroll is unused, says Reroll?: by
+    // DeepScore when the cards are one rarity, else by Boost (Command Line's reroll can raise a card's rarity, and
+    // DeepScore ranks within one rarity)
+    const one = new Set(cards.map((c) => c.rarity)).size === 1, by = (c) => (one ? c.score : c.b), rated = cards.filter((c) => by(c) != null);
+    const best = rated.reduce((b, c) => (!b || by(c) > by(b) ? c : b), null), weak = rated.reduce((w, c) => (!w || by(c) < by(w) ? c : w), null);
+    const b = mayBuild(), fits = new Set(((b && b.augs) || []).map((id) => augKey((mayAug(id) || {}).name || '')));
+    const mine = myPicks().map((p) => p.name), pairs = (mayData && mayData.pairs) || [];
+    return cards.map((c) => {
+      const k = augKey(c.name), with_ = mine.find((m) => pairs.some((p) => p.map(augKey).sort().join() === [k, augKey(m)].sort().join())); // one of DeepARAM's pairs with an augment you have
+      const tags = [c === best && ['Best pick', 'best'], fits.has(k) && ['Fits your build', 'fit'], with_ && [`Goes with ${with_}`, 'pair', mayPic(with_).i], c.fresh && [`New in ${MAY_NEW_PATCH}`, 'new'],
+        c === weak && c !== best && /^[CD]$/.test(c.tier) && !c.rr && ['Reroll?', 'bad']].filter(Boolean);
+      const { rr, name, rarity, b: boost, fresh, ...o } = c;
+      return { ...o, k: c === best ? 'good' : '', tags };
+    });
   }
 
   // ---- TFT's numbers on the cards come from Premade players' own games: League's client has every player's augments in
@@ -15418,29 +15488,36 @@ dialog.wizard { transform: scale(var(--from)); }
   // augments, 0.85 alike or better) gets its pick rate and tier on your champion (mayDataSoon) near the foot of its card.
   // Then each name is watched, not read: one that looks different (a reroll, the pick) is read again by itself, in its own
   // third of the screen. Nothing read leaves your PC.
-  let mayNames = null, mayNamesAt = -Infinity; // [[id, name]]
+  let mayNames = null, mayNamesAt = -Infinity; // [[id, name, rarity, icon path]]
   function mayNamesSoon() {
     if (mayNames || performance.now() - mayNamesAt < 60000) return;
     mayNamesAt = performance.now();
     fetch('https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/cherry-augments.json').then((r) => r.json())
-      .then((j) => { mayNames = (Array.isArray(j) ? j : []).filter((x) => x && Number.isInteger(x.id) && x.nameTRA).map((x) => [x.id, String(x.nameTRA)]); }).catch(() => {});
+      .then((j) => {
+        mayNames = (Array.isArray(j) ? j : []).filter((x) => x && Number.isInteger(x.id) && x.nameTRA).map((x) => [x.id, String(x.nameTRA), String(x.rarity || '').replace(/^k/, '').toLowerCase(), String(x.augmentSmallIconPath || '')]);
+        if (document.querySelector('.gaugs')) renderMatches(); // your Mayhem games' augments as pictures
+        pushOverlay();
+      }).catch(() => {});
   }
   const mayCv = document.createElement('canvas'), mayTv = Object.assign(document.createElement('canvas'), { width: 96, height: 12 });
   const mayLook = (src, [x, y, w, h]) => { const g = mayTv.getContext('2d', { willReadFrequently: true }); g.drawImage(src, x, y, w, h, 0, 0, 96, 12); return g.getImageData(0, 0, 96, 12).data; }; // a name's look, small, for augDiff
   function mayFrame(a, src, w, h) {
     if (!mayNames && !mayData) return;
     const every = mayOpen(a);
-    if (!every) { if (a.cards.some(Boolean)) { a.cards = [null, null, null]; pushOverlay(); } return; }
+    if (!every) { if (a.cards.length) { a.cards = []; mayClicks(false); pushOverlay(); } return; }
+    a.vw = w; a.vh = h;
     // The offers occupy the middle band; excluding the rest of the game makes OCR faster and avoids unrelated text.
     const now = performance.now(), sx = w * 0.1, sy = h * 0.25, sw = w * 0.8, sh = h * 0.5, k = 1280 / sw;
     // a card whose name looks as it did when it was read is still there; one whose name changed (a reroll, the pick) is read again
-    const moved = a.cards.map((c) => !!c && augDiff(c.px, mayLook(src, c.box)) > 8);
-    a.cards.forEach((c, i) => { if (c && !moved[i]) c.seenAt = now; });
+    const moved = a.cards.map((c) => augDiff(c.px, mayLook(src, c.box)) > 8);
+    a.cards.forEach((c, i) => { if (!moved[i]) c.seenAt = now; });
     if (a.busy || (a.retryAt && now < a.retryAt)) return;
-    const redo = [0, 1, 2].filter((i) => moved[i] || !a.cards[i]), one = redo.length === 1 && a.cards[redo[0]];
-    if (!redo.length || (!one && now - (a.at || 0) < every)) return; // one changed card at once, the whole middle at most every 0.7 s (or 3 s)
+    const redo = a.cards.map((c, i) => i).filter((i) => moved[i]), one = a.cards.length >= 3 && redo.length === 1 && a.cards[redo[0]];
+    const again = a.cards.length === 3 && a.checkAt && now > a.checkAt; // once, 1.5 s after three were read: a fourth card (Maestro) still flying in
+    if ((a.cards.length && !redo.length && !again) || (!one && now - (a.at || 0) < every)) return; // one changed card at once, the whole middle at most every 0.7 s (or 3 or 10 s)
     a.at = now;
-    // one card: its own third of the middle, around where its name was (a third of the time); else the whole middle
+    a.checkAt = again ? 0 : a.checkAt;
+    // one card: a third of the middle around where its name was; else the whole middle
     const x0 = one ? Math.min(Math.max(one.x * w - sw / 6, sx), sx + (sw * 2) / 3) : sx, xw = one ? sw / 3 : sw;
     mayCv.width = Math.round(xw * k);
     mayCv.height = Math.round(sh * k);
@@ -15455,29 +15532,42 @@ dialog.wizard { transform: scale(var(--from)); }
     (augOcr = augOcr || augLoad('11')).then((ocr) => ocr.recognize(mayCv, {}, { blocks: true })).then((r) => {
       if (augs !== a) return;
       const lines = ((r && r.data && r.data.blocks) || []).flatMap((b) => b.paragraphs || []).flatMap((q) => q.lines || []);
-      const found = [[], [], []];
+      const found = [];
       for (const l of lines) {
         const b = l.bbox, cy = (b.y0 + b.y1) / 2;
         // The augment titles sit near the top of the cards; ignore the lower description rows so they aren't mistaken for titles.
         if (cy < mayCv.height * 0.08 || cy > mayCv.height * 0.4) continue;
         const name = mayMatch(l.text);
         if (!name) continue;
-        const cx = x0 + (b.x0 + b.x1) / 2 / k, slot = one ? redo[0] : Math.min(2, Math.floor((cx - sx) / (sw / 3))), y = b.y1 + 0.42 * mayCv.height;
+        const cx = x0 + (b.x0 + b.x1) / 2 / k, y = b.y1 + 0.42 * mayCv.height;
         const box = [x0 + b.x0 / k, sy + b.y0 / k, (b.x1 - b.x0) / k, (b.y1 - b.y0) / k];
-        found[slot].push({ name, x: +(cx / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now(), box, px: mayLook(still, box) });
+        found.push({ name, x: +(cx / w).toFixed(4), y: +((sy + y / k) / h).toFixed(4), confidence: +l.confidence || 0, seenAt: performance.now(), box, px: mayLook(still, box) });
       }
-      const now = performance.now(), next = [...a.cards];
-      for (const i of redo) {
-        const c = found[i].sort((x, y) => y.confidence - x.confidence)[0], old = a.cards[i];
-        if (c) next[i] = old && augKey(old.name) === augKey(c.name) ? { ...c, y: old.y * 0.7 + c.y * 0.3, rr: old.rr } : c; // a new name shows at once
-        else if (old && now - old.seenAt >= 3500) next[i] = null; // changed and unreadable for 3.5 s: gone, so a moment's miss never drops it
+      // one name per card, the surest of those within 6% of the screen of each other: 3 cards, or 4 with Maestro
+      const read = [];
+      for (const c of found.sort((x, y) => y.confidence - x.confidence)) if (!read.some((q) => Math.abs(q.x - c.x) < 0.06)) read.push(c);
+      const now = performance.now(), same = (c) => a.cards.find((o) => Math.abs(o.x - c.x) < 0.06 && augKey(o.name) === augKey(c.name));
+      let next = [...a.cards], fresh = [];
+      if (!one && read.length >= 3) { // the whole middle with 3 or 4 names: these are the cards now
+        next = read.map((c) => { const o = same(c); return o ? { ...c, y: o.y * 0.7 + c.y * 0.3, rr: o.rr } : c; });
+        fresh = next.filter((c) => !same(c));
+        if (fresh.length === 1 && read.length !== a.cards.length) fresh.push(null); // a card more or fewer: another set
+      } else {
+        a.cards.forEach((old, i) => {
+          const j = one && i !== redo[0] ? -1 : read.findIndex((q) => Math.abs(q.x - old.x) < 0.06), c = j < 0 ? null : read.splice(j, 1)[0];
+          if (c) { next[i] = augKey(old.name) === augKey(c.name) ? { ...c, y: old.y * 0.7 + c.y * 0.3, rr: old.rr } : c; if (next[i] === c) fresh.push(c); } // a new name shows at once
+          else if (moved[i] && now - old.seenAt >= 3500) next[i] = null; // changed and unreadable for 3.5 s: gone, so a moment's miss never drops it
+        });
+        if (!one) next.push(...read); // names not read before
       }
-      const changed = redo.filter((i) => a.cards[i] && next[i] && augKey(a.cards[i].name) !== augKey(next[i].name));
-      if (changed.length > 1) a.owed = Math.max(0, a.owed - 1); // another set of cards in its place: that pick was made (two picks in a row)
-      else if (changed.length === 1 && a.cards.every(Boolean) && next.every(Boolean)) next[changed[0]].rr = true; // one card changed, the other two stayed: its reroll is used
-      a.cards = next;
-      if (next.some(Boolean)) a.seen = true;
-      else if (a.seen) { a.seen = false; a.owed = Math.max(0, a.owed - 1); } // picked and gone
+      if (!a.cards.length) fresh = [];
+      if (fresh.length > 1) { mayPicked(a); a.owed = Math.max(0, a.owed - 1); } // another set of cards in its place: that pick was made (two picks in a row)
+      else if (fresh.length === 1 && a.cards.length >= 3 && next.every(Boolean)) fresh[0].rr = true; // one card changed, the others stayed: its reroll is used
+      if (!a.cards.length && next.length) a.checkAt = now + 1500;
+      a.cards = next.filter(Boolean).sort((x, y) => x.x - y.x);
+      if (a.cards.length) a.seen = true;
+      else if (a.seen) { a.seen = false; mayPicked(a); a.owed = Math.max(0, a.owed - 1); } // picked and gone
+      mayClicks(a.cards.length > 0);
       pushOverlay();
     }).catch((e) => {
       a.retryAt = performance.now() + 5000;
@@ -15487,27 +15577,52 @@ dialog.wizard { transform: scale(var(--from)); }
       console.warn('Mayhem augment cards; retrying:', e);
     }).finally(() => { a.busy = false; if (still !== src) still.close(); });
   }
+  // the card you clicked (app 1.51: while cards are up, client/main.js sends where the left button went down on the
+  // shared screen, as fractions): the one under it, from its name's top to above League's reroll button. It's your pick
+  // once the cards go. ponytail: the card's reach is measured from its name's height (6 above, 15 below), from the
+  // mockup's 1080p cards; measure again on a real screen if picks go missing
+  let mayPicks = { room: '', list: [] }, mayClickOn = false; // your picks this game: [{ name, at }]
+  const PICK_AT = ['Start', 'Level 7', 'Level 11', 'Level 15', 'Level 21'];
+  const myPicks = () => (league && mayPicks.room === league.room ? mayPicks.list : []);
+  function mayPicked(a) {
+    if (!a.click || !league) return;
+    if (mayPicks.room !== league.room) mayPicks = { room: league.room, list: [] };
+    mayPicks.list.push({ name: a.click, at: PICK_AT[mayPicks.list.length] || 'Extra' });
+    a.click = null;
+  }
+  function mayClicks(on) {
+    on = on && !!client && !!client.mayCards;
+    if (on !== mayClickOn) { mayClickOn = on; client.mayCards(on); }
+  }
+  if (client && client.mayCards) client.on('may-click', (p) => {
+    const a = augs;
+    if (!a || !a.may || !a.vw || !p) return;
+    const px = +p.x * a.vw, py = +p.y * a.vh, l = a.cards, gap = l.length > 1 ? ((l.at(-1).x - l[0].x) * a.vw) / (l.length - 1) : 0.27 * a.vw;
+    const c = l.find((c) => Math.abs(px - c.x * a.vw) < gap / 2 && py > c.box[1] - 6 * c.box[3] && py < c.box[1] + 15 * c.box[3]);
+    if (c) a.click = c.name;
+  });
   // how often to read the middle while a pick may be up, in ms (0: not at all). Picks owed (a.owed): 1 at the start, one
-  // more on reaching level 7, 11 and 15, one less once a set of cards was read and has gone (or another set took its
-  // place). The cards come only once the shop opens (dead, or back in the fountain), and owed picks come one after
-  // another, so while one is owed: every 0.7 s in the first 3 minutes, while dead and for 45 s after respawning, else
-  // every 3 s (you may walk back). With none owed and no cards up, nothing is read.
+  // more on reaching level 7, 11, 15 and 21 (Superfans goes past 18), one less once a set of cards was read and has gone
+  // (or another set took its place). The cards come only once the shop opens (dead, or back in the fountain), and owed
+  // picks come one after another, so while one is owed: every 0.7 s in the first 3 minutes, while dead and for 45 s
+  // after respawning, else every 3 s (you may walk back). With none owed: every 10 s while dead (K/DA's extra augment
+  // comes any time), and nothing alive.
   function mayOpen(a) {
     const m = mayhem() && meIn();
     if (!m) return 0;
-    if (a.lvl) a.owed += [7, 11, 15].filter((l) => a.lvl < l && m.lvl >= l).length;
+    if (a.lvl) a.owed += [7, 11, 15, 21].filter((l) => a.lvl < l && m.lvl >= l).length;
     a.lvl = m.lvl;
     const dead = !!league.me.dead;
     if (a.dead && !dead) a.fastTill = performance.now() + 45000;
     a.dead = dead;
-    if (!a.owed && !a.cards.some(Boolean)) return 0;
+    if (!a.owed && !a.cards.length) return dead ? 10000 : 0;
     return gameNow() < 180 || dead || performance.now() < (a.fastTill || 0) ? 700 : 3000;
   }
   function mayMatch(text) { // the augment whose name is closest to a line read, if it's close: CommunityDragon's Arena and Mayhem ones, and DeepARAM's for your champion (a new one it lists first)
     const k = augKey(String(text).trim());
     if (k.length < 4) return null;
     let best = null, top = 0.84;
-    for (const name of [...(mayNames || []).map(([, n]) => n), ...(mayData ? [...mayData.rows.values()].map((r) => r.name) : [])]) { const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1); if (s > top) { top = s; best = name; } }
+    for (const name of [...(mayNames || []).map(([, n]) => n), ...(mayData ? [...mayData.rows.values()].map((r) => r.name) : []), ...Object.keys(MAY_NEW)]) { const n = augKey(name), s = 1 - lev(k, n) / Math.max(k.length, n.length, 1); if (s > top) { top = s; best = name; } }
     return best;
   }
   // DeepARAM's champion pages publish patch-specific augment pick rates and DeepScores. Premade caches the current
@@ -15522,29 +15637,124 @@ dialog.wizard { transform: scale(var(--from)); }
     fetch(`${serverUrl}/mayhem/augments?champ=${encodeURIComponent(c.id)}`).then((r) => { if (!r.ok) throw new Error('DeepARAM data unavailable'); return r.json(); }).then((j) => {
       if (mayDataFor !== c.id) return;
       if (!Array.isArray(j.rows) || !j.patch || j.champion !== c.id) throw new Error('DeepARAM data invalid');
-      const list = (x) => (Array.isArray(x) ? x : []); // pairs (the 2 best augment pairs) and items (Mayhem's build, item ids): from the server of Nov 2026 on
-      mayData = { champion: c.id, patch: j.patch, rows: new Map(j.rows.map((r) => [augKey(r.name), r])), pairs: list(j.pairs).filter((p) => Array.isArray(p) && p.length === 2).map((p) => p.map(String)).slice(0, 2), items: list(j.items).map(Number).filter((id) => id > 0) };
+      // from the server of 13 Nov on: pairs (the best augment pairs) and items (Mayhem's build, item ids); of 21 Nov on (What's
+      // new 180): why (each pair's reason), builds (DeepARAM's core builds: items, then, win and pick rate in %, Boost,
+      // augs: the ids of the augments that fit it) and changes (your champion's Mayhem changes: ability, what, Rift, Mayhem)
+      const list = (x) => (Array.isArray(x) ? x : []), ids = (x) => list(x).map(Number).filter((id) => id > 0), n = (x) => (Number.isFinite(x) ? x : null);
+      mayData = { champion: c.id, patch: j.patch, rows: new Map(j.rows.map((r) => [augKey(r.name), r])), pairs: list(j.pairs).filter((p) => Array.isArray(p) && p.length === 2).map((p) => p.map(String)).slice(0, 5), why: list(j.why).map(String), items: ids(j.items),
+        builds: list(j.builds).filter((b) => b && ids(b.items).length).slice(0, 2).map((b) => ({ items: ids(b.items), then: ids(b.then), win: n(b.win), pick: n(b.pick), boost: n(b.boost), augs: ids(b.augs) })),
+        changes: list(j.changes).filter((r) => Array.isArray(r) && r.length === 4).map((r) => r.map(String)) };
       pushOverlay();
     }).catch(() => {});
   }
   function mayRate(name) { // the augment's tier, DeepScore (its bar), pick rate and Boost (win rate points it adds) on your champion
     const c = mayChamp(), row = mayData && c && mayData.champion === c.id && mayData.rows.get(augKey(name));
+    if (!row && MAY_NEW[name]) return { t: `${name}: new in ${MAY_NEW_PATCH}, no numbers yet on DeepARAM`, p: 'No numbers yet', s: 'DeepARAM hasn’t got enough games', fresh: true, k: '' };
     if (!row) return { t: `${name}: no ${mayData && mayData.patch || 'current patch'} champion data`, k: '' };
     const rate = +row.pickRate || 0, score = +row.deepScore || 0, tier = String(row.tier || ''), boost = Number.isFinite(row.boost) ? `${row.boost >= 0 ? '+' : ''}${row.boost.toFixed(1)} pts` : '';
     const text = `${name}: ${tier} tier (${score} DeepScore), ${pct(rate)} pick rate${boost ? `, ${boost} win rate` : ''} on ${c.name} · DeepARAM patch ${mayData.patch}`;
-    return { t: text, p: `${tier} tier`, s: [`${score} DeepScore`, `${pct(rate)} picked`, boost].filter(Boolean).join(' · '), v: Math.min(1, score / 100), tier, score, tierOnly: opts.mayhemRating === 'tier', k: '' };
+    return { t: text, p: `${tier} tier`, s: [`${score} DeepScore`, `${pct(rate)} picked`, boost].filter(Boolean).join(' · '), v: Math.min(1, score / 100), tier, score, b: Number.isFinite(row.boost) ? row.boost : null, tierOnly: opts.mayhemRating === 'tier', k: '' };
   }
-  function mayItems(k) { // DeepARAM's Mayhem build for a champion, in a Mayhem game, if our server sent one
-    const c = champOf(k);
-    return c && mayhem() && mayData && mayData.champion === c.id && mayData.items.length ? mayData.items : null;
+  // the 4 augments patch 26.23 added (Riot's notes, 17 Nov 2026): read by name and shown as new before DeepARAM has numbers
+  const MAY_NEW = { Fortified: 'silver', 'Mystic Guard': 'silver', 'Slime Time': 'silver', 'Steadfaster Presence': 'gold' }, MAY_NEW_PATCH = '26.23';
+  const CD_GAME = 'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/';
+  function mayAug(x) { // an augment by name or id: { id, name, rarity, icon }, from DeepARAM's rows, CommunityDragon's list (Mayhem's copy, the newer id) and the new ones
+    const k = typeof x === 'number' ? '' : augKey(x), rows = mayData ? [...mayData.rows.values()] : [];
+    const row = k ? mayData && mayData.rows.get(k) : rows.find((r) => r.id === x), name = (row && row.name) || '';
+    const cds = (mayNames || []).filter(([id, n]) => (k || name ? augKey(n) === (k || augKey(name)) : id === x)), cd = cds.find(([id]) => row && id === row.id) || cds.at(-1);
+    const out = name || (cd && cd[1]) || (k ? String(x) : '');
+    return out ? { id: (row && row.id) || (cd && cd[0]) || 0, name: out, rarity: (row && row.rarity) || (cd && cd[2]) || MAY_NEW[out] || '', icon: cd && cd[3] ? CD_GAME + cd[3].replace(/^\/lol-game-data\/assets\//i, '').toLowerCase() : '' } : null;
   }
-  function mayBest(pairs) { // your champion's best augments on DeepARAM: the top 2 of each rarity by DeepScore, and with pairs the 2 best pairs
+  function mayBuild() { // the DeepARAM build you're on: the one your items match most, else (none yet) the one with the higher win rate
+    const m = meIn(), c = mayChamp(), b = c && mayData && mayData.champion === c.id ? mayData.builds : [];
+    if (!m || !b.length) return null;
+    const have = owned(m.items), n = (x) => [...x.items, ...x.then].filter((id) => have.has(id)).length;
+    return b.reduce((p, q) => (n(q) > n(p) || (n(q) === n(p) && (q.win || 0) > (p.win || 0)) ? q : p));
+  }
+  function mayItems(k) { // DeepARAM's Mayhem build for a champion (the one you're on), in a Mayhem game, if our server sent one
+    const c = champOf(k), b = c && mayhem() && mayData && mayData.champion === c.id && mayBuild();
+    return b ? [...b.items, ...b.then] : c && mayhem() && mayData && mayData.champion === c.id && mayData.items.length ? mayData.items : null;
+  }
+  function mayTop() { // your champion's best augments on DeepARAM: the top 2 of each rarity by DeepScore, as [rarity, [rows]]
     mayDataSoon();
     const c = mayChamp();
-    if (!c || !mayData || mayData.champion !== c.id) return '';
-    const rows = [...mayData.rows.values()], top = (r) => rows.filter((x) => x.rarity === r).sort((x, y) => y.deepScore - x.deepScore).slice(0, 2).map((x) => x.name);
-    const l = [['Prismatic', 'prismatic'], ['Gold', 'gold'], ['Silver', 'silver']].map(([n, r]) => [n, top(r)]).filter(([, t]) => t.length).map(([n, t]) => `${n} ${t.join(', ')}`);
-    return l.length ? `Best for ${c.name}: ${l.join(' · ')}${pairs && mayData.pairs.length ? `. Best pairs: ${mayData.pairs.map((p) => p.join(' + ')).join(', ')}` : ''}` : '';
+    if (!c || !mayData || mayData.champion !== c.id) return null;
+    const rows = [...mayData.rows.values()], l = ['prismatic', 'gold', 'silver'].map((r) => [r, rows.filter((x) => x.rarity === r).sort((x, y) => y.deepScore - x.deepScore).slice(0, 2)]).filter(([, t]) => t.length);
+    return l.length ? l : null;
+  }
+  const mayPic = (name) => { const x = mayAug(name); return { n: x ? x.name : String(name), i: x ? x.icon : '', r: x ? x.rarity : '' }; }; // for the overlay: name, icon, rarity
+  function mayBox() { // the overlay's Best for <champion>: 2 of each rarity as icons with their tier, then your picks (app 1.51)
+    const top = mayTop(), c = mayChamp();
+    if (!top) return null;
+    const mine = myPicks().map((p) => mayPic(p.name));
+    return { champ: c.name, best: top.map(([r, l]) => [r, l.map((x) => ({ ...mayPic(x.name), t: x.tier }))]), ...(client && client.mayCards && { mine, due: Math.max(0, 4 - mine.length) }) };
+  }
+
+  // Game in a Mayhem game (What's new 180, mockup board 3): your picks (app 1.51), your champion's best augments as
+  // icons with tiers, DeepARAM's top 5 pairs with why (yours marked), both core builds (the one you're on marked) and
+  // your champion's Mayhem changes. Each part only when our server sent it. true when shown.
+  let mayWas = '';
+  function renderMay() {
+    const box = $('mayBox'), top = mayhem() && meIn() && mayTop(), c = top && mayChamp();
+    box.hidden = !top;
+    if (!top) return false;
+    const d = mayData, mine = myPicks(), b = mayBuild(), have = owned((meIn() || {}).items);
+    const key = JSON.stringify([c.id, d.patch, d.rows.size, mine, b && b.items, !!mayNames, !!ddItems, !!(client && client.mayCards)]);
+    if (key === mayWas) return true;
+    mayWas = key;
+    const E = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const icon = (name, tier, big) => {
+      const x = mayAug(name) || { name, rarity: '', icon: '' }, e = E('span', `maug ${x.rarity}${big ? ' big' : ''}`);
+      e.title = x.name;
+      if (x.icon) e.append(Object.assign(new Image(), { src: x.icon, alt: '', loading: 'lazy' }));
+      else e.append(x.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2));
+      if (tier) e.append(E('b', tier === 'S' ? 'top' : '', tier));
+      return e;
+    };
+    const sec = (title, ...kids) => { const s = E('div', 'maysec'); s.append(E('h3', 'ph', title), ...kids); return s; };
+    const left = E('div', 'maycol'), right = E('div', 'maycol');
+    if (client && client.mayCards) { // your picks, then rings for the picks to come
+      const row = E('div', 'maymine');
+      row.append(...mine.map((p) => { const s = E('div', 'mayslot'); s.append(icon(p.name, (d.rows.get(augKey(p.name)) || {}).tier, true), E('b', '', p.name), E('small', '', p.at)); return s; }),
+        ...PICK_AT.slice(mine.length, 4).map((at) => { const s = E('div', 'mayslot'); s.append(E('span', 'maug big next'), E('b', 'next', 'Next'), E('small', '', at)); return s; }));
+      left.append(sec('Your augments', row, E('p', 'hint', 'From the card you click.')));
+    }
+    const best = E('div', 'maybest');
+    best.append(...top.map(([r, l]) => { const g = E('div', 'maygrp'); g.append(E('span', '', r[0].toUpperCase() + r.slice(1))); const two = E('div', 'maytwo'); two.append(...l.map((x) => { const o = E('div', 'mayone'); o.append(icon(x.name, x.tier), x.name); return o; })); g.append(two); return g; }));
+    left.append(sec(`Best for ${c.name}`, best));
+    if (d.pairs.length) {
+      const l = E('div', 'maypairs'), mk = mine.map((p) => augKey(p.name));
+      l.append(...d.pairs.map((p, i) => {
+        const r = E('div', 'maypair'), duo = E('span', 'mayduo'), t = E('span'), got = p.filter((n) => mk.includes(augKey(n)));
+        duo.append(icon(p[0]), '+', icon(p[1]));
+        t.append(E('b', '', p.join(' + ')), ...(d.why[i] ? [E('i', '', d.why[i])] : []));
+        r.append(duo, t, got.length ? tag('good', got.length === 2 ? 'You have both' : `You have ${got[0]}`) : E('span'));
+        return r;
+      }));
+      left.append(sec('Best pairs', l, E('p', 'hint', `DeepARAM’s top ${d.pairs.length} for ${c.name}. At your next pick, a card that finishes one says “Goes with …”.`)));
+    }
+    if (d.builds.length) {
+      const l = E('div', 'maybuilds');
+      l.append(...d.builds.map((x) => {
+        const r = E('div', `maybld${x === b ? ' sel' : ''}`), items = E('span', 'mayitems'), wr = E('span', 'maywr');
+        const it = (id, sm) => { const e = Object.assign(new Image(), { src: itemPic(id), alt: '', title: itemName(id), loading: 'lazy' }); e.className = `mayit${sm ? ' sm' : ''}${have.has(id) ? ' have' : ''}`; return e; };
+        items.append(...x.items.map((id) => it(id)), ...(x.then.length ? [E('span', 'maythen', 'Then'), ...x.then.map((id) => it(id, true))] : []));
+        const w = E('div'), sm = E('small', '', x.pick != null ? `${x.pick}% picked` : '');
+        if (x.boost != null) sm.append(x.pick != null ? ' · ' : '', E('span', x.boost >= 0 ? 'plus' : 'minus', `${x.boost >= 0 ? '+' : '−'}${Math.abs(x.boost).toFixed(1)} pts`));
+        w.append(E('strong', '', x.win != null ? `${x.win}%` : ''), sm);
+        wr.append(w);
+        r.append(items, wr, ...(x === b ? [tag('', 'You’re on this one')] : []));
+        return r;
+      }));
+      right.append(sec('Build', l, E('p', 'hint', `DeepARAM’s core builds for ${c.name}, win rate first. What to buy on the overlay follows the one you’re on, and at a pick, a card in its best augments says “Fits your build”.`)));
+    }
+    if (d.changes.length) {
+      const t = E('div', 'maychg');
+      t.append(...['Change', 'Summoner’s Rift', 'Mayhem'].map((h) => E('span', 'hd', h)), ...d.changes.flatMap(([ab, what, rift, may]) => [E('span', '', [ab, what].filter(Boolean).join(' ')), E('span', '', rift), E('span', '', may)]));
+      right.append(sec(`${c.name} in Mayhem`, t, E('p', 'hint', `From DeepARAM’s Mayhem changes for ${c.name}.`)));
+    }
+    box.replaceChildren(left, ...(right.childElementCount ? [right] : []));
+    return true;
   }
 
   // ---- Aion 2's Combat Analysis (Ctrl+X in the game), for the Aion 2 page's DPS tracker: for players with Aion 2
@@ -18888,6 +19098,14 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [180, 'November 21: ARAM: Mayhem for patch 26.23', [
+      'Mayhem’s augment cards are rated right with 4 cards (Maestro), with a pick at level 21 (Superfans) and with an extra pick while you’re dead (K/DA). When a reroll comes back a higher rarity, Best pick goes by the win rate points each card adds.',
+      'The 4 new augments say New in 26.23 until DeepARAM has numbers for them.',
+      'With the app update (1.51), Premade knows the card you click: at your next pick, a card that makes one of DeepARAM’s best pairs with one you have says Goes with, and a card that fits the build you’re on says Fits your build.',
+      'Game in a Mayhem game: your augments, your champion’s best as pictures with their tier, DeepARAM’s top 5 pairs with why, both core builds with the one you’re on marked, and your champion’s Mayhem changes. What to buy on the overlay follows the build you’re on.',
+      'Stats, Games: each Mayhem game shows the augments you took, in order.',
+      'Callouts now run only on Summoner’s Rift: nothing is called or read out loud in ARAM: Mayhem, ARAM, URF or Arena.',
+    ]],
     [179, 'November 21: move and resize everyone’s rank', [
       'Everyone’s rank is cleaner: no dark band behind each player’s name and no summoner spells, and their rank sits beside the three rings, which are closer together.',
       'In a game, drag everyone’s rank (Alt+X) by its top line anywhere on your screen, and drag its bottom right corner to make it bigger or smaller. It stays where you left it; double-click its top line to put it back.',
@@ -19926,8 +20144,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['In game', 'From the loading screen on: everyone’s rank and last 20 games, when the next Dragon, Elder and Baron come, inhibitors coming back, the gold difference, and your CS and lane against your opponent.',
         'Nothing to set up: Game opens by itself when a game loads (Pregame settings).', '#liveBox', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
-      ['ARAM: Mayhem augments', 'Your champion’s best augments of each rarity on the overlay and on Game, and on each augment card its tier and a strength bar (DeepScore) for your champion, with its pick rate: the strongest card glows gold and the weakest says Reroll? when it’s C or D tier. Every pick is read, two in a row too, and your screen only while a pick is due. With our newest server: each augment’s Boost, the best augment pairs and DeepARAM’s Mayhem item build (Game, and what to buy next while you’re dead). Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
-        'Tick “Show each augment’s rating” on the Overlay page. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs, #augTips', 'app'],
+      ['ARAM: Mayhem augments', 'On each augment card (3, or 4 with Maestro) its tier and a strength bar (DeepScore) for your champion, with its pick rate and Boost: Best pick on the strongest (by Boost when the cards differ in rarity) and Reroll? on a weak C or D card; Goes with when it makes one of DeepARAM’s best pairs with an augment you clicked (app 1.51), Fits your build, and New in 26.23 for an augment with no numbers yet. The overlay shows your champion’s best augments as pictures and your picks. Game shows your picks, the best augments, DeepARAM’s top 5 pairs, both core builds (What to buy follows yours) and your champion’s Mayhem changes; Stats, Games shows the augments of each Mayhem game. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
+        'Tick “Show each augment’s rating” on the Overlay page. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs, #mayBox, #augTips', 'app'],
       ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
@@ -20284,7 +20502,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
     help: () => hs && { code: hs.code, on: hs.on, asking: hs.asking, open: hs.peer.open }, // Remote help: yours, offered or controlled (open: on our server)
     helpSend: (m) => ctlTo && hSend(ctlTo.conn, m), // as if from your page, to the PC you control or ask for
-    augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, mayBest, buyNext, mayState: () => augs && augs.may && { owed: augs.owed, reads: augs.reads }, augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
+    augCards: () => augs && !augs.may && { names: augs.cards.map((c) => c && c.name), box: augs.box }, mayhem: () => mayhem(), mayRate, mayBox, mayBuild, buyNext, mayState: () => augs && augs.may && { owed: augs.owed, reads: augs.reads, cards: augs.cards.length, click: augs.click }, mayPicks: () => myPicks(), augMatch, augTierOf, // TFT's augment cards and Mayhem ratings
     deep: () => deep, fame: () => fame, coll: () => coll, accounts: () => accounts, patchPop, notes: () => notes, watchList: () => watchList, nemeses, allies, buildOf, skillText, myRunesOf, metIn,
     premade: () => [...premade].map(([u, l]) => [u, l.map(([b, n]) => [b.puuid, n])]), clash: () => clash, patchDiff: () => patchDiff, statsTab: () => statsTab, hist: () => myHist,
     // reads your games in detail now, instead of one every 1.5 s; and looks up the next followed player now
