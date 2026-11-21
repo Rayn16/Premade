@@ -151,6 +151,7 @@ assert(lcuOk('GET', '/lol-chat/v1/me') && lcuOk('PUT', '/lol-chat/v1/me') && lcu
   && lcuOk('POST', '/lol-chat/v1/conversations/a1-b2@eu1.pvp.net/messages') && lcuOk('GET', '/lol-lobby/v2/received-invitations') && lcuOk('POST', '/lol-lobby/v2/received-invitations/ab-12/accept')
   && !lcuOk('GET', '/lol-chat/v1/conversations/../../lol-store/v1/messages') && !lcuOk('GET', '/lol-chat/v1/conversations/../messages') && !lcuOk('POST', '/lol-chat/v1/conversations/a%2F..%2Fb/messages')
   && !lcuOk('DELETE', '/lol-chat/v1/conversations/a1@eu1.pvp.net') && !lcuOk('DELETE', '/lol-chat/v1/friends/a1@eu1.pvp.net') && !lcuOk('POST', '/lol-lobby/v2/received-invitations/ab-12/x'), 'League chat, and nothing else in it');
+assert(lcuOk('GET', '/lol-summoner/v1/current-summoner/summoner-profile') && !lcuOk('PUT', '/lol-summoner/v1/current-summoner/summoner-profile'), 'your League background, read only');
 assert(!lcuOk('DELETE', '/lol-perks/v1/pages') && !lcuOk('get', '/lol-gameflow/v1/session') && !lcuOk('POST', '/lol-chat/v1/friends/a1/groups') && !lcuOk('POST', '/lol-store/v1/purchase')
   && !lcuOk('GET', '/lol-ranked/v1/ranked-stats/../../lol-store/v1/purchase') && !lcuOk('GET', '/lol-summoner/v1/current-summoner?x=1') && !lcuOk('GET', null), 'nothing else');
 assert.deepStrictEqual(summary(null), { inGame: false });

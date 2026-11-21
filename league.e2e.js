@@ -78,8 +78,22 @@ const SUMMONER = { data: Object.fromEntries([[4, 'Flash', 'CLASSIC ARAM'], [14, 
 // for playing it (allytips) and against it (enemytips)
 const TIPS = { Ahri: [['Use Charm to set up your combos.', 'Spirit Rush gets you in and out.'], ['Ahri is weak while Spirit Rush is down.']],
   Zed: [['Living Shadow first.'], ['Zed’s shadows copy his abilities: stand away from them.', 'Zhonya’s Hourglass stops Death Mark.', 'A third tip, not shown.']] };
-const champFull = (id, v) => ({ data: { [id]: { id, allytips: (TIPS[id] || [[]])[0], enemytips: (TIPS[id] || [[], []])[1], stats: { hp: id === 'Ahri' && v === '1.1' ? 600 : 590, armor: 21 }, passive: { name: 'Passive', description: 'Same.' },
+const champFull = (id, v) => ({ data: { [id]: { id, skins: id === 'Ahri' ? [{ num: 0, name: 'default' }, { num: 1, name: 'Dynasty Ahri' }, { num: 4, name: 'Popstar Ahri' }] : [{ num: 0, name: 'default' }], allytips: (TIPS[id] || [[]])[0], enemytips: (TIPS[id] || [[], []])[1], stats: { hp: id === 'Ahri' && v === '1.1' ? 600 : 590, armor: 21 }, passive: { name: 'Passive', description: 'Same.' },
   spells: ['Q', 'W', 'E', 'R'].map((k, i) => ({ name: id === 'Ahri' ? ['Orb of Deception', 'Fox-Fire', 'Charm', 'Spirit Rush'][i] : k, cooldownBurn: id === 'Ahri' && !i && v === '1.1' ? '6' : '7', costBurn: '50', rangeBurn: '900', tooltip: '', description: '' })) } } });
+// a 4x4 picture in one colour (Popstar Ahri's splash here), for the page to take a hue from (What's new 177)
+function solidPng(r, g, b) {
+  const zlib = require('zlib'), chunk = (type, data) => {
+    const td = Buffer.concat([Buffer.from(type), data]), len = Buffer.alloc(4), crc = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    crc.writeUInt32BE(zlib.crc32(td));
+    return Buffer.concat([len, td, crc]);
+  };
+  const head = Buffer.alloc(13);
+  head.writeUInt32BE(4, 0); head.writeUInt32BE(4, 4); head[8] = 8; head[9] = 2;
+  const rows = Buffer.concat([0, 1, 2, 3].map(() => Buffer.from([0, r, g, b, r, g, b, r, g, b, r, g, b])));
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', head), chunk('IDAT', zlib.deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]);
+}
+const PINK = solidPng(200, 40, 120); // hue 337.5 to the page's 24 bins
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 // Riot's rank emblems (Data Dragon's TFT ranked regalia), and which of them a page shows
 const REGALIA = { type: 'tft-regalia', data: { RANKED_TFT: Object.fromEntries(['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Emerald', 'Diamond', 'Master', 'Grandmaster', 'Challenger'].map((t) => [t, { id: t, image: { full: `TFT_Regalia_${t}.png` } }])) } };
@@ -287,6 +301,7 @@ function fakeLcu(method, p, body) {
     return { status: 204, data: null };
   }
   if (p === '/lol-champ-select/v1/session/my-selection/reroll') { lcu.cs.rerollsRemaining--; lcu.cs.myTeam[2].championId = 222; return { status: 204, data: null }; }
+  if (p === '/lol-summoner/v1/current-summoner/summoner-profile') return ok({ backgroundSkinId: 103001 }); // your League background: Dynasty Ahri
   if (p === '/lol-summoner/v1/current-summoner') return ok({ puuid: ME, gameName: 'Rayan', tagLine: 'EUW', summonerId: 1234, summonerLevel: 300, profileIconId: 4568 });
   if ((m = /^\/lol-summoner\/v2\/summoners\/puuid\/([\w-]+)$/.exec(p))) return ok({ puuid: m[1], summonerLevel: m[1] === 'enemy4' ? 30 : 200 });
   if ((m = /^\/lol-summoner\/v1\/summoners\/(\d+)$/.exec(p))) return CLASH_SUMS[m[1]] ? ok({ ...CLASH_SUMS[m[1]], summonerId: +m[1] }) : { status: 404, data: null };
@@ -448,6 +463,7 @@ async function context(browser, { version = '', phone = false } = {}) {
     if (u.endsWith('runesReforged.json')) return r.fulfill({ json: RUNE_TREES, headers: cors });
     if (u.endsWith('summoner.json')) return r.fulfill({ json: SUMMONER, headers: cors });
     if (u.endsWith('/cdn/1.1/data/en_US/tft-regalia.json')) return r.fulfill({ json: REGALIA, headers: cors });
+    if (u.endsWith('/splash/Ahri_4.jpg')) return r.fulfill({ body: PINK, contentType: 'image/png', headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
   if (phone) await ctx.addInitScript(() => { window.buzzes = []; navigator.vibrate = (p) => { buzzes.push(p); return true; }; }); // the phone's buzz
@@ -504,6 +520,25 @@ const leagueData = (over = {}) => ({
   const browser = await chromium.launch({ ...(process.env.PW_CHROMIUM_PATH && { executablePath: process.env.PW_CHROMIUM_PATH }), args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required',
     `--use-file-for-fake-audio-capture=${path.join(__dirname, 'fixtures/that-was-sick.wav')}`] }); // the mic says “That was sick.” every 5 s, for clips by voice
   try {
+    // ---- What's new 177: Premade opens on Rooms or Profile, whichever was used last (other pages don't count), and an
+    // invite link always opens Rooms
+    {
+      const [ctx, page] = await context(browser);
+      const shown = () => page.evaluate(() => document.querySelector('main > .view:not([hidden])').dataset.view);
+      await page.goto(URL_);
+      assert.strictEqual(await shown(), 'voice', 'Rooms the first time');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
+      await page.reload();
+      assert.strictEqual(await shown(), 'profile', 'Profile, used last');
+      await page.click('.nav[data-view="voice"]'); await page.click('.nav[data-view="settings"]');
+      await page.reload();
+      assert.strictEqual(await shown(), 'voice', 'Rooms, then Settings: Rooms');
+      await page.click('#leagueNav'); await page.click('.nav[data-view="profile"]');
+      await page.goto(URL_ + '&invite#abcd');
+      assert.strictEqual(await shown(), 'voice', 'an invite link: Rooms');
+      await ctx.close();
+      console.log('Opens where you left off: Profile after Profile, Rooms after Rooms then Settings, Rooms for an invite link');
+    }
     // ---- in a browser there's no Game page; an old app has it, with a note to restart for the update
     {
       const [ctx, page] = await context(browser);
@@ -742,6 +777,7 @@ const leagueData = (over = {}) => ({
       await until(() => riotCalls.length === before + 10, 'Ana updated from Riot, with Bob’s rank in her game');
       await wait(page, () => /^In game as Ahri/.test(document.getElementById('proStatus').textContent), null, 'and in a game');
       assert.match(await text(page, '#proNote'), /^As of /);
+      await page.click('#proMenu > summary'); // Not you? is in the ⋯ menu
       await page.click('#proForget');
       await wait(page, () => document.getElementById('proName').textContent === 'Your League profile' && document.getElementById('proGo').textContent === 'Show my profile', null, 'forgotten');
       // Cat's tags: green and red ones good to know, gold ones for fun (some only from Riot's match data: kill
@@ -821,14 +857,61 @@ const leagueData = (over = {}) => ({
     assert.match(await pc.getAttribute('#proIcon', 'src'), /\/cdn\/1\.1\/img\/profileicon\/4568\.png$/);
     assert.strictEqual(await text(pc, '#proStatus'), 'In the client');
     // who has Premade: once when it opened, and once with your League account, from this device with the app's version
-    for (let i = 0; i < 50 && !ctx.hellos.some((h) => h.riot.length > 1); i++) await new Promise((r) => setTimeout(r, 100));
+    for (let i = 0; i < 50 && !ctx.hellos.some((h) => h.skin); i++) await new Promise((r) => setTimeout(r, 100));
     const pm = await pc.evaluate(() => localStorage.getItem('lpc-code')); // this device's Premade code, always last
     assert.match(pm, /^Rayan#P-[a-z]{6}$/);
-    assert.deepStrictEqual(ctx.hellos.map(({ id, ...h }) => h), [{ v: '1.11.0', name: 'Rayan', riot: [pm] }, { v: '1.11.0', name: 'Rayan', riot: ['Rayan#EUW', pm] }], 'a hello when it opens and one with your account, not one each time your profile redraws');
+    assert.deepStrictEqual(ctx.hellos.map(({ id, ...h }) => h), [{ v: '1.11.0', name: 'Rayan', riot: [pm] }, { v: '1.11.0', name: 'Rayan', riot: ['Rayan#EUW', pm] }, { v: '1.11.0', name: 'Rayan', riot: ['Rayan#EUW', pm], skin: 103001 }],
+      'a hello when it opens, one with your account and one with the skin your profile shows (League’s background, What’s new 177), not one each time your profile redraws');
     assert(ctx.hellos.every((h) => h.id === ctx.hellos[0].id) && ctx.hellos[0].id === await pc.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
     // (without the ladder place and hidden MMR lines, which ranks.e2e.js checks)
     const proRanks = () => pc.$$eval('#proRanks .rank', (l) => l.map((e) => [...e.querySelectorAll('.ph, .rtier, .hint:not(.ladder):not(.mmr)')].map((x) => x.textContent).join('|')));
     assert.deepStrictEqual(await proRanks(), ['Solo/Duo|Gold II|45 LP · 31W 25L · 55%|Peak this season: Gold I', 'Flex|Unranked|']);
+    // ---- What's new 177: your profile over the background you set in League (Dynasty Ahri), ranks and mastery as pictures
+    // along the bottom. Background picks Popstar Ahri (kept for this account) and Profile, only Profile, takes its colors;
+    // the switch turns them off; Same as League goes back; Esc closes the picker with focus back on Background, and 50
+    // opens leave nothing behind
+    const proView = '.view[data-view="profile"]';
+    await wait(pc, () => /\/splash\/Ahri_1\.jpg$/.test(document.getElementById('proArt').src) && document.getElementById('proBgName').textContent === 'Dynasty Ahri', null, 'League’s background behind your profile');
+    assert.deepStrictEqual(await pc.$$eval('#proShow > div', (l) => l.map((d) => [d.querySelector('img').src.replace(/^.*\//, ''), d.querySelector('b').textContent, d.querySelector('small').textContent])),
+      [['TFT_Regalia_Gold.png', 'Gold II', 'Solo/Duo · 45 LP'], ['Ahri.png', 'Mastery 22', 'Best: Ahri, 120k points']], 'Solo/Duo and mastery as pictures (Flex unranked)');
+    await pc.click('#proBgBtn');
+    await wait(pc, () => !document.getElementById('proBgBox').hidden && document.querySelectorAll('#proBgSkins button').length === 3, null, 'the picker with Ahri’s skins');
+    assert.strictEqual(await pc.getAttribute('#proBgBtn', 'aria-expanded'), 'true');
+    assert.strictEqual(await pc.getAttribute('#proBgLeague', 'aria-pressed'), 'true');
+    assert.strictEqual(await text(pc, '#proBgLeague small'), 'Dynasty Ahri, the background you set in League');
+    assert.deepStrictEqual(await pc.$$eval('#proBgSkins button', (l) => l.map((b) => [b.textContent, b.getAttribute('aria-pressed')])), [['Ahri', 'false'], ['Dynasty Ahri', 'true'], ['Popstar Ahri', 'false']]);
+    assert.deepStrictEqual(await pc.$$eval('#proBgChamps button', (l) => l.map((b) => b.textContent)), ['Ahri', 'Zed', 'Lux', 'Garen'], 'your top champions first');
+    const looks = () => pc.evaluate((v) => [getComputedStyle(document.querySelector(v)).getPropertyValue('--bg').trim(), getComputedStyle(document.body).getPropertyValue('--bg').trim(), getComputedStyle(document.querySelector('.view[data-view="voice"]')).getPropertyValue('--bg').trim()], proView);
+    const usual = (await looks())[1];
+    await pc.click('#proBgSkins button:nth-child(3)');
+    await wait(pc, (v) => /\/splash\/Ahri_4\.jpg$/.test(document.getElementById('proArt').src) && document.querySelector(v).style.getPropertyValue('--bg'), proView, 'Popstar Ahri and its colors');
+    assert.deepStrictEqual(await looks(), ['hsl(337.5 44% 5%)', usual, usual], 'the skin’s colors on Profile only');
+    assert.strictEqual(await text(pc, '#proBgName'), 'Popstar Ahri');
+    assert.strictEqual(await pc.getAttribute('#proBgLeague', 'aria-pressed'), 'false');
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-probg'))), { tint: true, picks: { [ME]: 103004 } }, 'kept for this account');
+    await pc.click('#proBgTint');
+    assert.strictEqual(await pc.getAttribute('#proBgTint', 'aria-checked'), 'false');
+    assert.deepStrictEqual(await looks(), [usual, usual, usual], 'switched off: Premade’s usual colors, the art stays');
+    assert.match(await pc.getAttribute('#proArt', 'src'), /\/splash\/Ahri_4\.jpg$/);
+    await pc.click('#proBgTint');
+    await pc.fill('#proBgFind', 'ga');
+    await wait(pc, () => document.querySelector('#proBgChamps button') && document.querySelector('#proBgChamps button').textContent === 'Garen', null, 'a champion found by name');
+    await pc.click('#proBgChamps button');
+    await wait(pc, () => [...document.querySelectorAll('#proBgSkins button')].map((b) => b.textContent).join() === 'Garen', null, 'Garen’s skins');
+    await pc.fill('#proBgFind', '');
+    await pc.click('#proBgLeague');
+    await wait(pc, () => /\/splash\/Ahri_1\.jpg$/.test(document.getElementById('proArt').src), null, 'Same as League: Dynasty Ahri again');
+    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-probg')).picks), {});
+    await pc.keyboard.press('Escape');
+    assert(await pc.evaluate(() => document.getElementById('proBgBox').hidden && document.activeElement.id === 'proBgBtn'), 'Esc closes it, focus back on Background');
+    {
+      const count = () => pc.evaluate(() => [document.querySelectorAll('*').length, document.querySelectorAll('canvas').length]);
+      const before = await count();
+      for (let i = 0; i < 50; i++) { await pc.click('#proBgBtn'); await pc.click('#proBgX'); }
+      const after = await count();
+      assert(after[0] - before[0] < 20 && after[1] === before[1], `50 opens leave nothing behind: ${before} then ${after}`);
+    }
+    console.log('What’s new 177: League’s background behind your profile, ranks and mastery as pictures, a skin picked and kept, its colors on Profile only, the switch, Same as League, Esc');
     // last season from League's client; tags from your games; your roles; the pentakill in your fourth game
     assert.deepStrictEqual(await pc.$$eval('#proPast .tag', (l) => l.map((e) => e.textContent)), [`S${new Date().getFullYear() - 1} Platinum IV · peak Platinum II`]);
     assert.match(await pc.getAttribute('#proPast .tag', 'title'), /^Season \d{4}, Solo\/Duo: ended at Platinum IV, highest Platinum II\. From League’s client\.$/);

@@ -134,7 +134,6 @@ main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding
 .pagehead .toolbar { gap: 8px; }
 main > #msg:not(:empty) { margin-top: 16px; }
 .view, #msg { max-width: 1320px; margin-inline: auto; }
-.prohead:first-child { margin-top: 18px; } /* Profile: its own head, no page head above it */
 .view { display: grid; gap: 18px; align-content: start; }
 /* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
 .view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
@@ -738,7 +737,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 /* Profile, the first page: you in League like a stats site's profile. Icon and level, Riot ID, region and status,
    with looking anyone up beside them; a crest for each rank; recent games with their items; mastery */
 .prohead { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; }
-.proside { display: grid; gap: 10px; justify-items: end; margin-left: auto; }
 #proFindBox { display: grid; gap: 6px; width: min(100%, 400px); }
 #proFindNote:empty { display: none; }
 .proicon { position: relative; width: 96px; height: 96px; flex: none; border-radius: 50%; border: 2px solid var(--gold); background: var(--raised); }
@@ -1396,13 +1394,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .cmenu { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: 3; display: grid; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); box-shadow: 0 6px 18px rgb(0 0 0 / .35); }
 .clip .shot { cursor: pointer; }
 
-/* Profile (Open Design): the lookup and its buttons in a bar of their own above the player */
-.profind .proside { margin-left: 0; display: flex; flex-wrap: wrap; align-items: start; gap: 10px; justify-content: space-between; }
-.profind #proFindBox:not([hidden]) { flex: 1 1 320px; display: grid; gap: 6px; }
-.profind #proFind { grid-template-columns: minmax(0, 1fr) auto; }
-.prohead #proRanks { margin-left: auto; flex: 1 1 420px; max-width: 640px; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
-.prohead .rank { background: var(--soft); border: 0; padding: 12px 14px; grid-template-columns: 44px minmax(0, 1fr); }
-.prohead .rank img { max-width: 44px; }
 
 /* Recording: the big Record button and its timer beside the settings */
 .recgrid { display: grid; grid-template-columns: minmax(200px, 300px) minmax(0, 1fr); gap: 14px; align-items: stretch; }
@@ -1430,20 +1421,102 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .hbar { display: inline-block; vertical-align: middle; width: 64px; height: 8px; margin-right: 10px; border-radius: 4px; background: var(--soft-2); overflow: hidden; }
 .hbar > i { display: block; height: 100%; }
 /* Profile: the hero */
-.prohead { position: relative; overflow: hidden; }
-.prohead > :not(.heroart) { position: relative; }
-.proicon { width: 72px; height: 72px; border: 0; }
 .lvl { bottom: -8px; border-color: var(--line); color: var(--fg); }
 .proname { font: 600 32px/1.15 var(--body); letter-spacing: 0; color: var(--fg); }
-.prohead .rank { background: color-mix(in srgb, var(--panel) 86%, transparent); grid-template-columns: 48px minmax(0, 1fr) auto; }
-.prohead .rank img { max-width: 48px; }
-.prohead .rank > p:not(.rtier) { grid-column: 2 / -1; }
-.prohead .rank > :is(.rtier, .ph) { grid-column: 2; }
+#proRanks { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+#proRanks .rank { background: none; border: 0; padding: 0; border-radius: 0; grid-template-columns: 48px minmax(0, 1fr) auto; }
+#proRanks .rank img { max-width: 48px; }
+#proRanks .rank > p:not(.rtier) { grid-column: 2 / -1; }
+#proRanks .rank > :is(.rtier, .ph) { grid-column: 2; }
 .rank > .ring { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
 .rank .ph { font-size: 13px; color: var(--muted); }
 /* Profile: last 20 as figures, the record as a ring */
 .timers > span.wr { grid-template-columns: 40px auto; column-gap: 12px; align-items: center; }
 .timers > span.wr > .ring { grid-column: 1; grid-row: 1 / span 2; }
+/* Profile with your skin (What's new 177, the ProFinal board): the page runs edge to edge on its own --bg, which
+   proTint sets from the skin's main hue (only here: the menu and every other page keep the theme's). A full-width hero
+   with the splash at full strength under two fades into --bg (the only gradients), the lookup and Background at the
+   top, you on the left, and Solo/Duo, Flex and mastery as pictures along the bottom; everything else below in panels */
+.view[data-view="profile"] { --hair: color-mix(in srgb, var(--line) 70%, transparent); max-width: none; min-height: 100%; margin: 0 calc(-1 * var(--pad)) -32px; padding-bottom: 32px; background: var(--bg); color: var(--fg); }
+.view[data-view="profile"] > :not(.prohead) { width: min(100% - 2 * var(--pad), 1180px); justify-self: center; }
+.prohead { position: relative; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 16px; min-height: 728px; padding: 20px 32px 32px; background: var(--bg); }
+.proback { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.proback::before, .proback::after { content: ""; position: absolute; inset: 0; }
+.proback::before { background: linear-gradient(90deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 86%, transparent) 24%, color-mix(in srgb, var(--bg) 40%, transparent) 42%, transparent 62%); }
+.proback::after { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent) 0%, transparent 16%, transparent 46%, color-mix(in srgb, var(--bg) 72%, transparent) 72%, var(--bg) 100%); }
+.proart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; transition: opacity 200ms var(--ease-out); }
+.proart.load { opacity: 0; transition: none; }
+.prohead > :not(.proback, .probox) { position: relative; }
+.prohead svg.i { flex: none; width: 18px; height: 18px; }
+.promenu > summary circle { fill: currentColor; stroke: none; }
+.protop { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+#proFindBox:not([hidden]) { flex: 0 1 380px; display: grid; gap: 6px; }
+.prohead :is(#proId, .probg, .promenu > summary, .toolbar > .btn:not(.primary), #proAcct) { border-color: rgb(244 238 238 / 0.22); background: color-mix(in srgb, var(--bg) 72%, transparent); }
+.probg { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 12px 4px 4px; border: 1px solid; border-radius: var(--r-sm); color: var(--fg); font: inherit; cursor: pointer; text-align: left; }
+.probg img { width: 60px; height: 36px; object-fit: cover; border-radius: 5px; }
+.probg span, .prolg span, .proswitch span { display: flex; flex-direction: column; line-height: 1.3; }
+.probg small, .prolg small, .proswitch small { font-size: 12px; color: var(--muted); }
+.probg b { font-weight: 600; }
+.prohead .proid { display: flex; flex-direction: column; flex: none; gap: 14px; max-width: 460px; margin-top: 40px; }
+.prohead .proicon { width: 116px; height: 116px; border: 3px solid var(--fg); }
+.prohead .lvl { display: none; }
+.prohead .proname { font: 600 40px/1.1 var(--body); letter-spacing: -0.01em; }
+.prohead .proname small { margin-left: 6px; font-size: 22px; font-weight: 500; }
+.prohead #proSub { margin-top: 6px; color: var(--fg); font-size: 15px; }
+.prohead .toolbar { gap: 8px; }
+.promenu { position: relative; }
+.promenu > summary { display: grid; place-items: center; width: 40px; height: 100%; min-height: 34px; padding: 0; }
+.promenu .cmenu { top: calc(100% + 4px); bottom: auto; left: 0; right: auto; min-width: 200px; border-radius: var(--r-sm); background: var(--panel); }
+.promenu .cmenu .btn { justify-content: flex-start; }
+.proshow { margin-top: auto; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 24px 56px; }
+.proshow:empty { display: none; }
+.proshow > div { display: flex; flex-direction: column; align-items: center; min-width: 140px; text-align: center; }
+.proshow figure { height: 100px; margin: 0; display: flex; align-items: flex-end; justify-content: center; }
+.proshow figure img { height: 88px; width: auto; }
+.proshow figure img.mast { width: 84px; height: 84px; border-radius: 50%; border: 3px solid var(--best); }
+.proshow b { margin-top: 10px; font-size: 16px; font-weight: 600; }
+.proshow small { font-size: 13px; color: var(--muted); }
+.probox { position: absolute; top: 76px; right: 32px; z-index: 4; width: 540px; max-width: calc(100% - 64px); display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 16px 40px rgb(0 0 0 / 0.5); animation: probox-in 150ms var(--ease-out); }
+@keyframes probox-in { from { opacity: 0; transform: translateY(calc(4px * var(--m))); } }
+.probox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.probox-head .btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-color: transparent; background: none; }
+.prolg { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.prolg img { width: 68px; height: 40px; object-fit: cover; border-radius: 6px; }
+.prolg span { flex: 1; }
+.prolg > svg { margin-right: 6px; visibility: hidden; }
+.prolg[aria-pressed="true"] { border-color: var(--fg); background: var(--soft-2); }
+.prolg[aria-pressed="true"] > svg { visibility: visible; }
+.prochamps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.prochamps input { flex: 1 1 140px; height: 40px; min-width: 0; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--fg); font: 14px/1.2 var(--body); }
+#proBgChamps { display: contents; }
+.prochip { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px 0 4px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--raised); color: var(--fg); font: 500 14px/1 var(--body); cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
+.prochip:active { transform: scale(var(--press)); }
+.prochip[aria-pressed="true"] { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+.prochip img { width: 32px; height: 32px; border-radius: 6px; }
+.proskins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; max-height: 360px; overflow: auto; padding: 3px; }
+.proskins button { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0; border: 0; background: none; color: var(--fg); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.proskins img { width: 100%; aspect-ratio: 360 / 212; object-fit: cover; border-radius: 8px; outline: 1px solid rgb(244 238 238 / 0.12); outline-offset: 2px; background: var(--raised); }
+.proskins button[aria-pressed="true"] { font-weight: 600; }
+.proskins button[aria-pressed="true"] img { outline: 2px solid var(--fg); }
+.proswitch { display: flex; align-items: center; gap: 12px; padding: 4px 0 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.proswitch > i { flex: none; position: relative; width: 36px; height: 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); }
+.proswitch > i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform var(--t-press) var(--ease-out); }
+.proswitch[aria-checked="true"] > i { border-color: #388361; background: #254034; }
+.proswitch[aria-checked="true"] > i::after { transform: translateX(16px); background: var(--good); }
+.progh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+@container app (max-width: 760px) {
+  .prohead { min-height: 560px; padding: 16px 16px 24px; }
+  .prohead .proid { margin-top: 16px; }
+  .prohead .proicon { width: 88px; height: 88px; }
+  .prohead .proname { font-size: 30px; }
+  .proshow { flex-wrap: nowrap; gap: 12px; }
+  .proshow > div { flex: 1 1 0; min-width: 0; }
+  .proshow figure { height: 72px; }
+  .proshow figure img { height: 64px; }
+  .proshow figure img.mast { width: 60px; height: 60px; }
+  .probox { top: 64px; right: 16px; max-width: calc(100% - 32px); }
+  .proskins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 #proWl { margin-top: -4px; }
 /* game rows like Porofessor's: the champion, the result over the queue and when, K/D/A, CS, then tags and items */
 .games summary.gsum { display: grid; grid-template-columns: 40px minmax(0, 1.5fr) minmax(0, 0.9fr) minmax(0, 0.7fr) 146px; grid-template-areas: "pic res kda cs items" "pic res kda cs tags"; gap: 2px 16px; padding: 10px 14px; }
@@ -1630,8 +1703,9 @@ dialog.wizard { transform: scale(var(--from)); }
     <p id="msg" role="alert"></p>
 
     <section class="view" data-view="profile" aria-label="Profile" hidden>
-      <section class="panel profind" aria-label="Look up a player">
-        <div class="proside">
+      <header class="prohead" aria-label="Player">
+        <div class="proback" aria-hidden="true"><img id="proArt" class="proart" alt="" hidden></div>
+        <div class="protop">
           <div id="proFindBox" hidden>
             <form id="proFind" class="chatform" role="search">
               <input id="proId" type="search" autocomplete="off" spellcheck="false" placeholder="Look up a player: Name#TAG" aria-label="Look up a player by Riot ID">
@@ -1639,28 +1713,40 @@ dialog.wizard { transform: scale(var(--from)); }
             </form>
             <p id="proFindNote" class="hint" role="status"></p>
           </div>
+          <button id="proBgBtn" class="probg" type="button" aria-expanded="false" aria-controls="proBgBox" hidden><img id="proBgThumb" alt=""><span><small>Background</small><b id="proBgName"></b></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        </div>
+        <div class="proid">
+          <div class="proicon"><img id="proIcon" alt="Profile icon" hidden><span id="proLvl" class="lvl"></span></div>
+          <div>
+            <h1 class="proname"><span id="proName"></span><small id="proTag"></small></h1>
+            <p id="proSub" class="hint"></p>
+          </div>
+          <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
+          <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
           <div class="toolbar">
             <select id="proAcct" aria-label="Your account" hidden></select>
             <button id="proRoom" class="btn primary" type="button">Voice room</button>
             <button id="profileBtn" class="btn" type="button" hidden>Share my profile</button>
-            <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
-            <button id="proForget" class="btn" type="button" hidden>Not you?</button>
-            <button id="proCmp" class="btn" type="button" aria-expanded="false" hidden>Compare with me</button>
-            <button id="proMineToo" class="btn" type="button" hidden>Add to my accounts</button>
             <button id="proBack" class="btn" type="button" hidden>Back to my profile</button>
+            <details id="proMenu" class="cmore promenu">
+              <summary class="btn" aria-label="More: compare, refresh, accounts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
+              <div class="cmenu">
+                <button id="proRefresh" class="btn" type="button" hidden>Refresh</button>
+                <button id="proForget" class="btn" type="button" hidden>Not you?</button>
+                <button id="proCmp" class="btn" type="button" aria-expanded="false" hidden>Compare with me</button>
+                <button id="proMineToo" class="btn" type="button" hidden>Add to my accounts</button>
+              </div>
+            </details>
           </div>
         </div>
-      </section>
-      <header class="panel prohead">
-        <img id="proArt" class="heroart" alt="" hidden>
-        <div class="proicon"><img id="proIcon" alt="" hidden><span id="proLvl" class="lvl"></span></div>
-        <div class="proid">
-          <h1 class="proname"><span id="proName"></span><small id="proTag"></small></h1>
-          <p id="proSub" class="hint"></p>
-          <div id="proPast" class="tags past" aria-label="Past ranks" hidden></div>
-          <p id="proStatus" class="pstat" hidden><span class="dot"></span><span></span></p>
+        <div id="proShow" class="proshow" aria-label="Ranks and mastery"></div>
+        <div id="proBgBox" class="probox" role="dialog" aria-labelledby="h-probg" hidden>
+          <div class="probox-head"><h2 id="h-probg" class="ph">Background</h2><button id="proBgX" class="btn ghost" type="button" aria-label="Close"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+          <button id="proBgLeague" class="prolg" type="button" aria-pressed="false" hidden><img alt=""><span><b>Same as League</b><small></small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></button>
+          <div class="prochamps"><input id="proBgFind" type="search" autocomplete="off" spellcheck="false" placeholder="Find a champion" aria-label="Find a champion"><span id="proBgChamps"></span></div>
+          <div id="proBgSkins" class="proskins"></div>
+          <button id="proBgTint" class="proswitch" type="button" role="switch" aria-checked="true"><i aria-hidden="true"></i><span><b>Color your profile from the skin</b><small>Only this page. Off keeps Premade’s usual colors</small></span></button>
         </div>
-        <div id="proRanks" class="ranks"></div>
       </header>
       <section id="weekBox" class="panel" aria-labelledby="h-week" hidden>
         <h2 id="h-week" class="ph"></h2>
@@ -1686,6 +1772,7 @@ dialog.wizard { transform: scale(var(--from)); }
       </section>
       <div class="prodash">
         <section id="proGamesBox" class="panel" aria-labelledby="h-proform">
+          <div class="progh"><h2 id="h-proform" class="ph">Recent games</h2>
           <div id="proQueues" class="tabs" role="tablist" aria-label="Queues">
             <button class="tab" type="button" role="tab" data-q="all">All</button>
             <button class="tab" type="button" role="tab" data-q="solo">Solo/Duo</button>
@@ -1693,8 +1780,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <button class="tab" type="button" role="tab" data-q="normal">Normal</button>
             <button class="tab" type="button" role="tab" data-q="aram">ARAM</button>
             <button class="tab" type="button" role="tab" data-q="tft">TFT</button>
-          </div>
-          <h2 id="h-proform" class="ph">Recent games</h2>
+          </div></div>
           <div id="proForm" class="timers"></div>
           <div id="proWl" class="blk" aria-hidden="true"></div>
           <div id="proChamps" class="picks"></div>
@@ -1702,6 +1788,10 @@ dialog.wizard { transform: scale(var(--from)); }
           <div id="proMoreBar" class="toolbar" hidden><button id="proMore" class="btn small" type="button">Show more games</button><span id="proMoreNote" class="hint" role="status"></span></div>
         </section>
         <div class="stack">
+          <section id="proRankBox" class="panel" aria-labelledby="h-proranks">
+            <h2 id="h-proranks" class="ph">Ranked this season</h2>
+            <div id="proRanks" class="ranks"></div>
+          </section>
           <section id="proTagsBox" class="panel" aria-labelledby="h-protags" hidden>
             <h2 id="h-protags" class="ph">Tags <button class="tip" type="button" popovertarget="t-tags" aria-label="About tags and past ranks">?</button></h2>
             <div id="proTags" class="tags"></div>
@@ -8254,6 +8344,7 @@ dialog.wizard { transform: scale(var(--from)); }
   setInterval(() => { if (!document.querySelector('.view[data-view="re4"]').hidden && !document.hidden) re4(); }, 15000);
   function view(name, fade) { // fade: picked in the menu, so the page fades in (a shortcut's page is just there)
     bump('u', '#' + name);
+    if (name === 'voice' || name === 'profile') store.set('lpc-start', name); // Premade opens on the one of these two you used last
     for (const v of document.querySelectorAll('main > .view')) { v.hidden = v.dataset.view !== name; v.classList.toggle('enter', !!fade); }
     for (const b of document.querySelectorAll('.nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     const lol = $('leagueTabs').contains(document.querySelector(`.nav[data-view="${name}"]`)); // a League page: its tabs show and League is lit
@@ -8612,7 +8703,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   // your champions for your role: from your last 100 games and your mastery, the ones you may pick now that Riot
   // recommends for that position
-  let myHist = null, myHistAt = -Infinity, myMastery = [], champPos = null;
+  let myHist = null, myHistAt = -Infinity, myMastery = [], champPos = null, myBg = 0; // myBg: the background skin you set in League (app 1.50)
   // up to n games of someone's match history, newest first; League's client gives 20 at a time
   async function historyOf(who, n) {
     const all = new Map();
@@ -8629,9 +8720,11 @@ dialog.wizard { transform: scale(var(--from)); }
   async function loadMine(force) {
     if (!force && performance.now() - myHistAt < 120000) return;
     myHistAt = performance.now();
-    const [h, m, cp, who] = await Promise.all([historyOf('current-summoner', 100),
-      lcuGet('/lol-champion-mastery/v1/local-player/champion-mastery'), champPos ? null : lcuGet('/lol-perks/v1/recommended-champion-positions'), lcuGet('/lol-summoner/v1/current-summoner')]);
-    if (who && who.puuid && me0 && who.puuid !== me0.puuid) { myHist = null; myMastery = []; rankNow = null; rankAt = -Infinity; proAcct = ''; } // League has another account now
+    const [h, m, cp, who, sp] = await Promise.all([historyOf('current-summoner', 100),
+      lcuGet('/lol-champion-mastery/v1/local-player/champion-mastery'), champPos ? null : lcuGet('/lol-perks/v1/recommended-champion-positions'), lcuGet('/lol-summoner/v1/current-summoner'),
+      lcuGet('/lol-summoner/v1/current-summoner/summoner-profile')]); // an app before 1.50 refuses that one, and Profile keeps the background it knew
+    if (who && who.puuid && me0 && who.puuid !== me0.puuid) { myHist = null; myMastery = []; rankNow = null; rankAt = -Infinity; proAcct = ''; myBg = 0; } // League has another account now
+    if (sp && Number.isInteger(sp.backgroundSkinId) && sp.backgroundSkinId > 0) myBg = sp.backgroundSkinId;
     if (h) myHist = gamesOf(h);
     const plat = h && String((h.games.games.find((g) => g.platformId) || {}).platformId || '').toLowerCase();
     if (PLATS[plat]) myPlat = plat;
@@ -13611,6 +13704,7 @@ dialog.wizard { transform: scale(var(--from)); }
       c: [...by.values()].sort((a, b) => b.length - a.length).slice(0, 5).map((l) => [id(l[0].champ), champName(l[0].champ), l.length, sum(l, (v) => +v.win), ...['k', 'd', 'a'].map((s) => avg(sum(l, (v) => v[s]), l.length))]),
       f: [(fame.pentas || []).length, (fame.quadras || []).length, Math.max(streak, (fame.streak && fame.streak.n) || 0)],
       best: [id(best.champ), champName(best.champ), best.k, best.d, best.a, best.win ? 1 : 0, best.at],
+      ...(proBgMine && { bg: [proBgMine.c, proBgMine.num, Number.isFinite(hues.get(proBgMine.src)) && proBgSet.tint !== false ? hues.get(proBgMine.src) : -1] }), // your skin and its hue (-1: Premade's colors)
     };
     return new URL(`profile.html#${await packLink(p)}`, ROOT).href; // the normal page, also from the test version
   }
@@ -13719,12 +13813,148 @@ dialog.wizard { transform: scale(var(--from)); }
   const PROQ = { all: [''], solo: ['Solo/Duo', [420], '&queue=420'], flex: ['Flex', [440], '&queue=440'], normal: ['Normal', [400, 430, 480, 490], '&type=normal'], aram: ['ARAM', ARAMS, '&queue=450'], tft: ['TFT'] };
   const qOk = (x, q) => (q === 'tft' ? !!x.tft : !x.tft && (!PROQ[q][1] || PROQ[q][1].includes(x.queue)));
   let ddTft = null, ddTftAt = -Infinity; // TFT's units, traits, items and augments from Data Dragon: id -> { name, img }
+  // Profile's background (What's new 177): a skin's splash behind you. Yours is the one picked in Background, else the
+  // one you set in League (app 1.50: summoner-profile's backgroundSkinId), else your most played champion's. lpc-probg:
+  // { tint: the page takes the skin's colors, picks: puuid -> skin id }, so each account keeps its own. A friend who
+  // uses Premade shows the one their Premade shows (their hello's skin, from our server's /skins); anyone else their top
+  // mastery champion. Skin ids are the champion's number x 1000 + the skin's; names come from Data Dragon's champion
+  // file, which has no chromas (they have no splash of their own), so a chroma shows the skin it belongs to.
+  let proBgSet = load('lpc-probg', null), proBgMine = null, proBgChamp = '', tintSrc = '';
+  if (!proBgSet || typeof proBgSet !== 'object' || !proBgSet.picks || typeof proBgSet.picks !== 'object' || Array.isArray(proBgSet.picks)) proBgSet = { tint: true, picks: {} };
+  const saveBg = () => store.set('lpc-probg', JSON.stringify(proBgSet));
+  const skinList = new Map(); // a champion's Data Dragon id -> [{ num, name }], null while it loads
+  function skinsOf(c) {
+    if (!c || !ddVersion) return null;
+    if (!skinList.has(c.id)) {
+      skinList.set(c.id, null);
+      fetch(`${DD}/cdn/${ddVersion}/data/en_US/champion/${c.id}.json`).then((r) => r.json()).then((j) => j.data[c.id].skins.map((x) => ({ num: x.num | 0, name: x.num ? String(x.name) : c.name })))
+        .catch(() => [{ num: 0, name: c.name }]).then((l) => { skinList.set(c.id, l); if (!profView.hidden) renderProfile(); });
+    }
+    return skinList.get(c.id);
+  }
+  function skinArt(id) { // -> { id, c, num, name, src }
+    const c = champOf(Math.floor(id / 1000));
+    if (!c) return null;
+    const want = id % 1000, s = (skinsOf(c) || []).filter((x) => x.num <= want).pop() || { num: want, name: '' };
+    return { id: +c.key * 1000 + s.num, c, num: s.num, name: s.name || c.name, src: `${DD}/cdn/img/champion/splash/${c.id}_${s.num}.jpg` };
+  }
+  const friendSkin = new Map(); // a player's Riot ID in lower case -> { at, id } from /skins (0: none), asked again after 10 minutes
+  function friendBg(p) {
+    const k = p.n.toLowerCase(), f = friendSkin.get(k);
+    if (!f || Date.now() - f.at > 600000) {
+      friendSkin.set(k, { at: Date.now(), id: f ? f.id : 0 });
+      fetch(`${serverUrl}/skins?riot=${encodeURIComponent(p.n)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null).then((j) => { // an older server has no /skins: their top mastery, as for anyone
+        const id = j && Number.isInteger(j[k]) ? j[k] : 0;
+        friendSkin.set(k, { at: Date.now(), id });
+        if (id !== (f ? f.id : 0) && !profView.hidden) renderProfile();
+      });
+    }
+    return f ? f.id : 0;
+  }
+  function bgOf(p, mine, most) { // the skin behind p
+    const top = p.m && p.m[0] ? p.m[0].championId * 1000 : 0;
+    return (mine ? proBgSet.picks[p.u] || p.bg : friendBg(p) || top) || (most ? most * 1000 : top);
+  }
+  // the page's colors from the skin: its splash drawn small on one canvas, the hue with the most strong color in it
+  // (grey, very dark and very bright pixels left out), worked out once a splash. Data Dragon lets pages read its pictures.
+  const tintCv = Object.assign(document.createElement('canvas'), { width: 64, height: 38 }), hues = new Map(); // splash -> hue, null when it can't be read
+  function hueOf(src) {
+    if (hues.has(src)) return;
+    hues.set(src, undefined);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      let h = null;
+      try {
+        const x = tintCv.getContext('2d', { willReadFrequently: true }), bins = new Array(24).fill(0);
+        x.drawImage(img, 0, 0, 64, 38);
+        const d = x.getImageData(0, 0, 64, 38).data;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), c = mx - Math.min(r, g, b), sat = mx ? c / mx : 0;
+          if (sat < 0.25 || mx < 0.15 || mx > 0.95) continue;
+          const six = mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4;
+          bins[Math.floor(six * 4) % 24] += sat * mx;
+        }
+        const best = bins.indexOf(Math.max(...bins));
+        if (bins[best] > 0) h = best * 15 + 7.5;
+      } catch {} // a picture the page may not read: Premade's colors
+      hues.set(src, h);
+      proTint();
+    };
+    img.onerror = () => { hues.set(src, null); proTint(); };
+    img.src = src;
+  }
+  const TINT = ['--bg', '--panel', '--raised', '--line', '--muted', '--fg'];
+  function proTint() { // on the Profile page only, while Color your profile is on; the text stays light, green, red and the red button as they are
+    const h = proBgSet.tint !== false && tintSrc ? hues.get(tintSrc) : null;
+    const v = Number.isFinite(h) ? [`hsl(${h} 44% 5%)`, `hsl(${h} 37% 8%)`, `hsl(${h} 32% 11.5%)`, `hsl(${h} 25% 20%)`, `hsl(${h} 17.5% 72%)`, '#f4eeee'] : null;
+    TINT.forEach((k, i) => (v ? profView.style.setProperty(k, v[i]) : profView.style.removeProperty(k)));
+    profView.style.colorScheme = v ? 'dark' : '';
+  }
+  function proBgOpen(on) {
+    const box = $('proBgBox'), was = !box.hidden;
+    box.hidden = !on;
+    $('proBgBtn').setAttribute('aria-expanded', String(on));
+    if (on && !was) { proBgChamp = ''; $('proBgFind').value = ''; renderProfile(); (box.querySelector('.prolg:not([hidden]), #proBgFind')).focus(); }
+    if (!on && was && (box.contains(document.activeElement) || document.activeElement === document.body)) $('proBgBtn').focus();
+  }
+  function renderBgBox(p, sk) { // the Background picker: League's own, your top champions (or the ones you search for) and the shown one's skins
+    if ($('proBgBox').hidden) return;
+    const lg = p.bg ? skinArt(p.bg) : null, picked = !!proBgSet.picks[p.u], q = $('proBgFind').value.trim().toLowerCase();
+    $('proBgLeague').hidden = !lg;
+    if (lg) {
+      $('proBgLeague').setAttribute('aria-pressed', String(!picked));
+      if ($('proBgLeague').firstChild.getAttribute('src') !== lg.src) $('proBgLeague').firstChild.src = lg.src;
+      $('proBgLeague').querySelector('small').textContent = `${lg.name}, the background you set in League`;
+    }
+    const c = champOf(proBgChamp) || (sk && sk.c), all = Object.values(ddChampByName).filter((x, i, l) => l.indexOf(x) === i);
+    const champs = q ? all.filter((x) => x.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 6)
+      : [...new Set([c, ...(p.m || []).map((m) => champOf(m.championId))].filter(Boolean))].slice(0, 5);
+    const skins = c ? skinsOf(c) || [] : [], key = JSON.stringify([champs.map((x) => x.id), c && c.id, sk && sk.id, skins.length, ddVersion]);
+    if ($('proBgSkins').dataset.key !== key) {
+      $('proBgSkins').dataset.key = key;
+      $('proBgChamps').replaceChildren(...champs.map((x) => {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'prochip' });
+        b.dataset.c = x.id;
+        b.setAttribute('aria-pressed', String(!!c && x.id === c.id));
+        b.append(Object.assign(new Image(), { src: champPic(x.id), alt: '' }), x.name);
+        return b;
+      }));
+      $('proBgSkins').replaceChildren(...skins.map((x) => {
+        const b = Object.assign(document.createElement('button'), { type: 'button' }), id = +c.key * 1000 + x.num;
+        b.dataset.skin = id;
+        b.setAttribute('aria-pressed', String(!!sk && sk.id === id));
+        b.append(Object.assign(new Image(), { src: `${DD}/cdn/img/champion/splash/${c.id}_${x.num}.jpg`, alt: '', loading: 'lazy' }), x.name);
+        return b;
+      }));
+    }
+    $('proBgTint').setAttribute('aria-checked', String(proBgSet.tint !== false));
+  }
+  function proBgPick(id) { // a skin, or 0 for Same as League
+    const p = shownMine();
+    if (!p || !p.u) return;
+    if (id) proBgSet.picks[p.u] = id; else delete proBgSet.picks[p.u];
+    saveBg();
+    renderProfile();
+    checkIn(); // friends see it from your next hello
+  }
+  $('proBgBtn').addEventListener('click', () => proBgOpen($('proBgBox').hidden));
+  $('proBgX').addEventListener('click', () => proBgOpen(false));
+  $('proBgBox').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); proBgOpen(false); } });
+  document.addEventListener('pointerdown', (e) => { if (!$('proBgBox').hidden && !$('proBgBox').contains(e.target) && !$('proBgBtn').contains(e.target)) proBgOpen(false); });
+  $('proBgLeague').addEventListener('click', () => proBgPick(0));
+  $('proBgFind').addEventListener('input', () => renderProfile());
+  $('proBgChamps').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { proBgChamp = b.dataset.c; renderProfile(); } });
+  $('proBgSkins').addEventListener('click', (e) => { const b = e.target.closest('[data-skin]'); if (b) proBgPick(+b.dataset.skin); });
+  $('proBgTint').addEventListener('click', () => { proBgSet.tint = proBgSet.tint === false; saveBg(); proTint(); renderProfile(); });
+  $('proMenu').addEventListener('click', (e) => { if (e.target.closest('.cmenu button')) $('proMenu').open = false; }); // a pick in the ⋯ menu closes it
   const liveRk = new Map(); // puuid -> { at, rk } for the players in a live game on Profile: undefined while asked, null when it failed
   let proSaved = '', proList = '', riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
   function liveMine() { // yours from League's client, once it has said who you are and given your games
     if (!lcuOn() || !me0 || !me0.gameName || !myHist) return null;
     return { n: `${me0.gameName}#${me0.tagLine || ''}`, u: me0.puuid, lvl: me0.summonerLevel | 0, icon: me0.profileIconId | 0, plat: myPlat || (proMine && proMine.plat) || '',
-      rk: rankNow, games: myHist, m: myMastery.slice().sort((a, b) => b.championPoints - a.championPoints).slice(0, 5), at: Date.now(), src: 'league' };
+      rk: rankNow, games: myHist, m: myMastery.slice().sort((a, b) => b.championPoints - a.championPoints).slice(0, 5), at: Date.now(), src: 'league',
+      bg: myBg || (proMine && acctOf(proMine.n) === acctOf(`${me0.gameName}#${me0.tagLine || ''}`) && proMine.bg) || 0, ms: myMastery.reduce((t, x) => t + (x.championLevel | 0), 0) }; // bg: League's background; ms: your mastery score
   }
   // More than one League account: each one's profile is kept (lpc-accounts, by Riot ID in lower case, as lpc-past keeps
   // past ranks) with its own LP (each lpc-lp entry's a) and games, and Account on Profile and in Stats' Ranked switches
@@ -13757,7 +13987,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const usedDay = () => { const p = useDay().prev; if (!p) return undefined; const u = Object.entries(p.u).sort((a, b) => b[1] - a[1]).slice(0, 60); return { d: p.d, h: p.h, u: Object.fromEntries(u) }; };
   function checkIn() {
     if (!opts.hello) { if (inbox) inboxOpen(); return void (checkedIn = ''); } // turned off in Settings > App: nothing goes, and turned on again it says hello at once
-    const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: [...Object.values(accounts).map((a) => a && a.n).filter(Boolean).slice(0, 9), myCode], day: usedDay() });
+    const body = JSON.stringify({ id: myDevice, v: client ? client.version || 'old' : 'web', name: myName, riot: [...Object.values(accounts).map((a) => a && a.n).filter(Boolean).slice(0, 9), myCode], day: usedDay(), skin: (proBgMine && proBgMine.hello) || undefined }); // skin: the one you picked or set in League, for friends' Profile (/skins)
     const k = body + new Date().toISOString().slice(0, 10); // and again on a new day
     if (k === checkedIn) return;
     checkedIn = k;
@@ -13786,6 +14016,8 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   const shownPro = () => proOther || shownMine();
   function saveMine(p) {
+    const old = accounts[acctOf(p.n)];
+    if (old && !p.bg && old.bg) p = { ...p, bg: old.bg, ms: p.ms || old.ms }; // Riot's refresh doesn't know League's background
     proMine = p;
     if (p.src === 'riot') riotMineAt = performance.now(); // just asked
     const { live, ...keep } = p; // whether you're in a game is only true for now
@@ -14021,7 +14253,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // Stats go by them. Each part asks again only after its own wait.
   function profileData() {
     const lm = liveMine();
-    if (lm && lm.rk) { const key = JSON.stringify([lm.n, lm.lvl, lm.icon, lm.plat, lm.rk, lm.games.map((x) => x.id), lm.m]); if (key !== proSaved) { proSaved = key; saveMine(lm); } }
+    if (lm && lm.rk) { const key = JSON.stringify([lm.n, lm.lvl, lm.icon, lm.plat, lm.rk, lm.games.map((x) => x.id), lm.m, lm.bg, lm.ms]); if (key !== proSaved) { proSaved = key; saveMine(lm); } }
     const mine = !proOther, was = rankNow;
     ddSoon(); // champion names, for reports and Stats
     riotCheck();
@@ -14061,19 +14293,22 @@ dialog.wizard { transform: scale(var(--from)); }
     $('proId').placeholder = setup ? 'Your Riot ID: Name#TAG' : 'Look up a player: Name#TAG';
     $('proId').setAttribute('aria-label', setup ? 'Your Riot ID' : 'Look up a player by Riot ID');
     $('proGo').textContent = setup ? 'Show my profile' : 'Look up';
-    for (const id of ['proRanks', 'proGamesBox', 'proMasteryBox', 'proPast', 'proTagsBox', 'proRolesBox']) $(id).hidden = !p;
+    for (const id of ['proRanks', 'proRankBox', 'proGamesBox', 'proMasteryBox', 'proPast', 'proTagsBox', 'proRolesBox']) $(id).hidden = !p;
+    $('proMenu').hidden = ['proRefresh', 'proForget', 'proCmp', 'proMineToo'].every((id) => $(id).hidden);
+    $('proBgBtn').hidden = !(mine && p && p.u);
+    if ($('proBgBtn').hidden) proBgOpen(false);
     proStatus();
     renderLive(p);
     renderWeek(mine && p);
     $('proChampBox').hidden ||= !p;
-    if (!p) { proList = ''; return void renderCmp(p); }
+    if (!p) { proList = ''; proArt(null); $('proShow').replaceChildren(); return void renderCmp(p); }
     if (!proMore || proMore.n !== p.n) { proMore = { n: p.n, games: [], lcu: null, riot: {}, tft: null, auto: {}, busy: false, note: '' }; proShow = 20; }
     renderCmp(p);
     renderTags(p);
     const q = proQ, tft = q === 'tft', all = proAll(p).filter((x) => qOk(x, q)), label = PROQ[q][0] ? PROQ[q][0] + ' ' : '';
     for (const b of $('proQueues').children) b.setAttribute('aria-selected', String(b.dataset.q === q));
     if (q !== 'all' && all.length < 20 && !proMore.busy && !proMore.auto[q] && moreFrom(p)) { proMore.auto[q] = true; return void moreGames(p); } // the tab's own games, once
-    $('proRanks').hidden = tft && p.src !== 'league'; // TFT ranks come from League's client only
+    $('proRanks').hidden = $('proRankBox').hidden = tft && p.src !== 'league'; // TFT ranks come from League's client only
     $('proRanks').replaceChildren(...(tft ? [['TFT', 'RANKED_TFT'], ['Double Up', 'RANKED_TFT_DOUBLE_UP'], ['Hyper Roll', 'RANKED_TFT_TURBO']].map(([n, k]) => tftCard(n, p.rk && p.rk[k]))
       : QS.map((k) => rankCard(QN[k], p.rk ? p.rk[k] || null : undefined, mine ? lpToday(k, p) : '', peakNow(p, k), [...rankWarns(p, k, mine), ...(mine ? [['goal', '', goalShort(p, k)]] : []),
         ...(k === 'RANKED_SOLO_5x5' && p.rk ? [['hint ladder', '', placeLine(p.plat, p.rk[k])], ['hint mmr', '', live ? mmrLine(p.rk[k]) : '']] : [])]))));
@@ -14091,9 +14326,16 @@ dialog.wizard { transform: scale(var(--from)); }
     $('proWl').hidden = !n;
     $('proWl').replaceChildren(...wlBlocks(g.map((x) => (tft ? x.place <= 4 : x.win)))); // a block a game, newest on the left
     if (n && !tft) $('proForm').firstChild.append(wrRing((100 * w) / n));
-    const art = !tft && by.size ? splashOf([...by].sort((x, y) => y[1].length - x[1].length)[0][0], 0) : ''; // the hero: your most played champion here
-    if ($('proArt').dataset.src !== art) { $('proArt').dataset.src = art; if (art) $('proArt').src = art; else $('proArt').removeAttribute('src'); }
-    $('proArt').hidden = !art;
+    const most = !tft && by.size ? [...by].sort((x, y) => y[1].length - x[1].length)[0][0] : 0, bg = bgOf(p, mine, most), sk = bg ? skinArt(bg) : null;
+    proArt(sk);
+    if (mine) {
+      const was = proBgMine ? proBgMine.hello : 0;
+      proBgMine = sk && { id: sk.id, c: sk.c.id, num: sk.num, src: sk.src, hello: proBgSet.picks[p.u] || p.bg ? sk.id : 0 }; // hello: only a skin you chose
+      if ((proBgMine ? proBgMine.hello : 0) !== was) checkIn(); // your hello carries it
+      if (sk) { $('proBgName').textContent = sk.name; if ($('proBgThumb').getAttribute('src') !== sk.src) $('proBgThumb').src = sk.src; }
+      renderBgBox(p, sk);
+    }
+    renderShow(p);
     $('proChamps').replaceChildren(...[...by].sort((x, y) => y[1].length - x[1].length).slice(0, 3)
       .map(([c, l]) => champTile(c, `${l.length} game${l.length === 1 ? '' : 's'} · ${Math.round((100 * l.filter((x) => x.win).length) / l.length)}% won · ${kda(...['k', 'd', 'a'].map((s) => l.reduce((t, x) => t + x[s], 0)))} KDA`, pages)));
     renderProChamps(p, tft ? [] : all, label, pages);
@@ -14113,6 +14355,31 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const img of $('proGames').querySelectorAll('.gitems img[data-id]')) img.title = itemName(+img.dataset.id); // once Data Dragon has the names
     $('proMasteryBox').hidden = !(p.m || []).length;
     $('proMastery').replaceChildren(...(p.m || []).slice(0, 5).map((x) => champTile(x.championId, `Level ${x.championLevel} · ${Math.round(x.championPoints / 1000).toLocaleString('en-US')}k points`, pages)));
+  }
+  function proArt(sk) { // the hero's splash: the new one fades in (200 ms, none with Animations off), and the page's colors follow it
+    const im = $('proArt'), src = sk ? sk.src : '';
+    if (im.dataset.src !== src) {
+      im.dataset.src = src;
+      if (src) { im.classList.add('load'); im.onload = im.onerror = () => im.classList.remove('load'); im.src = src; } else im.removeAttribute('src');
+    }
+    im.hidden = !src;
+    tintSrc = src;
+    if (src) hueOf(src);
+    proTint();
+  }
+  function renderShow(p) { // along the bottom of the hero: Solo/Duo and Flex as their emblems, and mastery with the best champion
+    const best = (p.m || [])[0], bc = best && champOf(best.championId), pts = best ? `${Math.round(best.championPoints / 1000).toLocaleString('en-US')}k points` : '';
+    const items = [...QS.map((k) => { const r = p.rk && p.rk[k]; return r && TIERS.includes(r.tier) && emblems[r.tier] ? [emblems[r.tier], `${cap(r.tier)}${TIERS.indexOf(r.tier) < 7 && r.division && r.division !== 'NA' ? ' ' + r.division : ''}`, `${QN[k]} · ${r.leaguePoints | 0} LP`, ''] : null; }),
+      bc && ddVersion ? [champPic(bc.id), p.ms ? `Mastery ${p.ms.toLocaleString('en-US')}` : bc.name, p.ms ? `Best: ${bc.name}, ${pts}` : `Top mastery, ${pts}`, 'mast'] : null].filter(Boolean);
+    const key = JSON.stringify(items);
+    if ($('proShow').dataset.key === key) return;
+    $('proShow').dataset.key = key;
+    $('proShow').replaceChildren(...items.map(([src, b, small, cls]) => {
+      const d = document.createElement('div'), f = document.createElement('figure');
+      f.append(Object.assign(new Image(), { src, alt: '', className: cls }));
+      d.append(f, Object.assign(document.createElement('b'), { textContent: b }), Object.assign(document.createElement('small'), { textContent: small }));
+      return d;
+    }));
   }
   // where you are: from League's client in the desktop app; for anyone else, or without it, from Riot (in a game right
   // now or not); and the voice room you're in. Every second with the page's render.
@@ -18524,6 +18791,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [177, 'November 21: your profile with your skin', [
+      'Your profile is one big splash of your skin: the background you set in League (desktop app 1.50), or any skin you pick with Background at the top. The page takes the skin’s colors, and a switch there turns that off.',
+      'Your ranks and mastery sit as pictures along the bottom of it. Friends who use Premade show the skin they picked; anyone else shows their top mastery champion.',
+      'Premade opens on Rooms or Profile, whichever you used last.',
+    ]],
     [176, 'November 21: your League numbers as pictures', [
       'Profile, Stats and the Game page after a game each lead with your champion’s splash. Win rates are rings, your last 20 are green and red blocks, games played are bars.',
       'Game rows read like Porofessor’s: Victory or Defeat over the queue, your K/D/A with deaths in red, CS and items.',
@@ -19356,7 +19628,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // showing now goes to the part of the page it's on), and 'app' when it needs the desktop app or 'web' when it's only
   // on the website. Add a line here with every new feature.
   const FEATURES = [
-    ['Rooms', 'Hang out with friends: join a room, talk and share your screens. Premade opens on it.', [
+    ['Rooms', 'Hang out with friends: join a room, talk and share your screens. Premade opens on it, or on Profile if you used that last.', [
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; hidden rooms show only to the friends the host ticks, at the top of their list. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
@@ -19487,9 +19759,13 @@ dialog.wizard { transform: scale(var(--from)); }
         'Nothing to set up: play custom games to the end with the desktop app. Customs, in League, Proximity voice.', '#h-customs, #createBtn', 'app'],
       ['Hurt voice', 'Your voice turns shaky and rough while your champion is low on health.', 'On unless you turn it off: Voice settings, In a game.', '#optHurt', 'app'],
     ]],
-    ['League: Profile', 'You in League, like a stats site. Premade opens on it.', [
-      ['Your League profile', 'Your most played champion’s splash behind your icon, Riot ID, level and ranks (each with a win-rate ring), where you are in League right now, your last 20 as green and red blocks, your recent games as rows with K/D/A, CS and items, your roles as bars, champions and mastery.',
+    ['League: Profile', 'You in League, like a stats site, over a big splash of your skin. Premade opens on it if you used it last.', [
+      ['Your League profile', 'A skin’s splash across the top behind your icon, Riot ID, level and ranks (each with a win-rate ring), where you are in League right now, your last 20 as green and red blocks, your recent games as rows with K/D/A, CS and items, your roles as bars, champions and mastery.',
         'In the desktop app it fills in while League is open and stays when League closes. On the website, type your Riot ID in the box at the top.', '.prohead'],
+      ['Your background', 'The background you set in League fills the top of your profile, or any skin you pick in Premade, kept for each account. Your profile takes the skin’s colors, only on this page. Friends who use Premade see the one you show; anyone else shows their top mastery champion.',
+        'Background at the top right of your profile: Same as League, a champion and one of its skins, and Color your profile from the skin. Same as League needs desktop app 1.50.', '#proBgBtn'],
+      ['Opens where you left off', 'Premade opens on Rooms or on your League profile, whichever of the two you used last. An invite link always opens Rooms.',
+        'Nothing to set: go to Rooms or Profile before you close Premade.', '.nav[data-view="profile"]'],
       ['Look up any player', 'Anyone’s profile on any server by their Riot ID: ranks, past seasons, tags, their live game and their games.',
         'Type Name#TAG in the box beside your name. In a live game, click a name to open that player.', '#proId'],
       ['Queues and older games', 'A tab for each queue (All, Solo/Duo, Flex, Normal, ARAM and TFT), each with its own record. Show more games goes back months, 20 games at a time.',
@@ -19805,7 +20081,7 @@ dialog.wizard { transform: scale(var(--from)); }
   renderPatch();
   checkWindow();
   renderAvoid();
-  view('voice');
+  view(store.get('lpc-start') === 'profile' && !cleanRoom(hashRoom || '') ? 'profile' : 'voice'); // an invite link always opens Rooms
   ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();

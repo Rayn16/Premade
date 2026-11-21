@@ -250,8 +250,10 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     await pc.fill('#proId', 'Duo#EUW');
     await pc.press('#proId', 'Enter');
     await wait(pc, () => document.getElementById('proName').textContent === 'Duo', null, 'Duo’s profile');
+    await pc.click('#proMenu > summary'); // Compare with me and Add to my accounts are in the ⋯ menu
     assert(await pc.isVisible('#proMineToo'), 'Add to my accounts');
     await pc.click('#proCmp');
+    assert(!(await pc.evaluate(() => document.getElementById('proMenu').open)), 'the menu closes on a pick');
     await wait(pc, () => !document.getElementById('proCmpBox').hidden, null, 'the comparison');
     assert.deepStrictEqual(await pc.$$eval('#cmpRows tr', (l) => l.map((tr) => [...[...tr.children].map((td) => td.textContent), [...tr.children].findIndex((td) => td.hasAttribute('data-best'))])), [
       ['Solo/Duo', 'Diamond II · 10 LP', 'Gold I · 40 LP', 1], ['Flex', 'Unranked', 'Unranked', -1], ['Plays most', 'Garen, Ahri, Lux', 'Thresh', -1], ['Record', '10W 10L · 50%', '12W 8L · 60%', 2],
