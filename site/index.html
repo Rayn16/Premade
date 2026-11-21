@@ -348,7 +348,6 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .ready th { font: 600 12.5px/1.2 var(--body); color: var(--muted); }
 .ready .dot { margin-right: 6px; }
 .tablewrap { overflow-x: auto; }
-.report .ready th, .report .ready td { white-space: normal; padding: 8px 6px; } /* a report's tables fit the report: nothing runs off the side */
 
 /* room chat */
 .chatlog { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 240px; overflow-y: auto; font-size: 14px; overflow-wrap: anywhere; }
@@ -588,33 +587,211 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .chart .gold { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linejoin: round; }
 .chart .lbl { fill: var(--muted); font: 500 11px var(--mono); }
 .goldfig { margin: 0; display: grid; gap: 6px; }
-.report { flex: 1 1 100%; min-width: 0; display: grid; gap: 12px; }
-.sbhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.sbres { font-size: 22px; }
-#postBody .sbres { display: none; } /* the Game page's own head says it */
-.sbhead .toolbar { margin-left: auto; }
-table.sbt caption { text-align: left; padding: 4px 0; color: var(--muted); font-size: 13px; }
-table.sbt .who { gap: 6px; }
 .sbch { position: relative; flex: none; }
 .sbch i { position: absolute; left: -4px; bottom: -4px; min-width: 16px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font: 700 10px/14px inherit; font-style: normal; text-align: center; }
 .sbsp { display: grid; grid-template-columns: 18px 18px; gap: 2px; flex: none; }
 .sbsp img { width: 18px; height: 18px; border-radius: 4px; }
 .sbsp img.rn { border-radius: 50%; background: var(--bg); }
-.sbdmg { display: block; height: 5px; margin-top: 3px; border-radius: 3px; background: var(--bad); }
-.sbit { white-space: nowrap; }
-.sbit img { width: 22px; height: 22px; border-radius: 4px; margin-right: 2px; vertical-align: middle; }
-.sbit img.tk { border-radius: 50%; margin-left: 4px; }
-table.sbt td .sub { display: block; }
 .lplist, .cliplist, .takeaways { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
 /* after a game: how you played (the Game page's last game, and each report) */
-#postHead[data-r="Win"]::before { background: var(--good); }
-#postHead[data-r="Lose"]::before { background: var(--bad); }
-.analysis { display: grid; gap: 12px; }
-.bench tbody th { font: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
-.bench td[data-k="good"] { color: var(--good); }
-.bench td[data-k="bad"] { color: var(--bad); }
-.bench td[data-k="good"]::after { content: " ▲"; }
-.bench td[data-k="bad"]::after { content: " ▼"; }
+.analysis { display: grid; gap: 22px; }
+/* a game's report (What's new 187): the head over the skin you played, tabs, the rows with drawers, the teams side by
+   side, filled lead charts, bars against your usual and builds by shop trip. Under 900 px of report a row folds onto two lines. */
+.report { --ally: #4a9fe8; --foe: #e05a5a; flex: 1 1 100%; min-width: 0; display: grid; container: rep / inline-size; }
+[data-theme="light"] .report { --ally: #1f6fbf; --foe: #c0392b; }
+.rhead { position: relative; min-height: 212px; overflow: hidden; border-radius: var(--r); }
+.rart { position: absolute; top: 0; right: 0; width: 74%; height: 100%; object-fit: cover; object-position: 50% 21%; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 50%), linear-gradient(to bottom, #000 60%, transparent); -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 50%), linear-gradient(to bottom, #000 60%, transparent); mask-composite: intersect; }
+.rart[hidden] { display: none; }
+.rclose { display: none; position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; place-items: center; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--fg) 24%, transparent); background: color-mix(in srgb, var(--bg) 60%, transparent); color: var(--fg); cursor: pointer; }
+.rclose:active { transform: scale(0.96); }
+details:has(> summary.gsum) > .gbody > .report .rclose { display: grid; }
+details[open]:has(> .gbody > .report > .rhead) > summary.gsum { display: none; } /* the row grows into the head */
+.rskin { position: absolute; right: 16px; bottom: 12px; font-size: 12.5px; color: color-mix(in srgb, var(--fg) 78%, transparent); }
+.rtop { position: relative; max-width: 600px; padding: 22px 24px 20px; display: grid; gap: 12px; }
+.rme { display: flex; align-items: center; gap: 14px; }
+.rme > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.rpic { position: relative; flex: none; width: 60px; height: 60px; }
+.rpic img { width: 60px; height: 60px; border-radius: 14px; border: 2px solid var(--fg); }
+.rpic i, .sbch i { position: absolute; right: -5px; bottom: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font: 600 11px/16px var(--body); font-style: normal; text-align: center; }
+.rpic i { min-width: 22px; height: 22px; line-height: 20px; font-size: 12px; }
+.rline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.sbres { font: 600 30px/1.1 var(--body); }
+.sbres[data-r="Win"], .sbwl[data-r="Win"] { color: var(--good); }
+.sbres[data-r="Lose"], .sbwl[data-r="Lose"] { color: var(--bad); }
+.rrank { font-size: 13.5px; }
+.rnums { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 22px; }
+.rnums b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.rnums > span:first-child b { font-size: 22px; }
+.rbar { gap: 8px; }
+.rbar .btn { background: color-mix(in srgb, var(--bg) 72%, transparent); }
+.rtabs { padding: 4px 20px 14px; margin: 0; }
+.rpane { min-width: 0; padding: 18px 20px 24px; display: grid; gap: 22px; align-content: start; }
+.rpane[data-tab="overview"] { padding: 8px 8px 20px; gap: 0; }
+.sbteam { display: grid; padding-top: 10px; }
+.sbth { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 4px 12px 8px; }
+.sbth b { font-size: 16px; }
+.sbteam[data-side="us"] .sbth b { color: var(--ally); }
+.sbteam[data-side="them"] .sbth b { color: var(--foe); }
+.sbwl { font-weight: 600; }
+.sbrow { display: grid; grid-template-columns: 44px 44px minmax(150px, 1.6fr) 96px minmax(104px, 1fr) 64px 52px 188px 40px; grid-template-areas: "pic sp who kda dmg cs gold items score";
+  align-items: center; column-gap: 12px; row-gap: 6px; width: 100%; padding: 8px 12px; border: 0; border-top: 1px solid var(--hair); background: none; color: inherit; font: inherit; text-align: left; }
+button.sbrow { cursor: pointer; }
+button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft); }
+.sbrow[data-me] { background: var(--soft); }
+.sbcols { padding-top: 0; padding-bottom: 6px; border-top: 0; font-size: 12.5px; color: var(--muted); }
+.c-pic { grid-area: pic; } .c-sp { grid-area: sp; } .c-who { grid-area: who; min-width: 0; display: grid; gap: 3px; } .c-kda { grid-area: kda; display: grid; } .c-dmg { grid-area: dmg; display: grid; gap: 4px; }
+.c-cs { grid-area: cs; display: grid; } .c-gold { grid-area: gold; } .c-items { grid-area: items; } .c-score { grid-area: score; justify-self: end; }
+.sbrow .sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.sbrow b, .c-dmg, .c-cs, .c-gold { font-variant-numeric: tabular-nums; }
+.sbch { position: relative; width: 40px; height: 40px; }
+.sbch img { width: 40px; height: 40px; border-radius: 10px; }
+.sbsp { display: grid; grid-template-columns: 20px 20px; gap: 3px; }
+.sbsp img { width: 20px; height: 20px; border-radius: 4px; }
+.sbsp img.rn { border-radius: 50%; background: var(--bg); }
+.sbname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.sbname b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbname .tag { font-size: 12px; } .sbname .tag[data-k=""] { border-color: var(--muted); }
+.sbrk { font-size: 12.5px; color: var(--muted); }
+.sbdmg { display: block; height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.sbdmg i { display: block; height: 100%; background: var(--ally); }
+.sbteam[data-side="them"] .sbdmg i { background: var(--foe); }
+.sbit { display: flex; align-items: center; gap: 3px; }
+.sbit img, .sbit .none { width: 24px; height: 24px; border-radius: 5px; }
+.sbit .none { background: var(--bg); }
+.sbit img.tk { margin-left: 3px; border-radius: 50%; }
+.sbring { position: relative; display: grid; place-items: center; width: 36px; height: 36px; }
+.sbring svg { position: absolute; inset: 0; width: 36px; height: 36px; }
+.sbring circle { fill: none; stroke: var(--hair); stroke-width: 3.5; }
+.sbring circle + circle { stroke: var(--fg); stroke-linecap: round; }
+.sbring[data-k="good"] circle + circle { stroke: var(--good); }
+.sbring[data-k="bad"] circle + circle { stroke: var(--bad); }
+.sbring b { position: relative; font-size: 12px; }
+.sbdrawer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 26px; padding: 10px 12px 14px 112px; background: var(--soft); }
+.sbx { display: flex; flex-wrap: wrap; gap: 12px 26px; }
+.sbx > span { display: grid; gap: 1px; }
+.sbx .sub { font-size: 12.5px; color: var(--muted); }
+.sbx b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sbacts { margin-left: auto; }
+.sbvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px 22px; margin: 10px 0 4px; padding: 14px 12px; border-block: 1px solid var(--hair); }
+.vs { display: grid; gap: 6px; }
+.vs > div:first-child { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); }
+.vs b, .latrow b { font-variant-numeric: tabular-nums; }
+.vs .us, .latrow .us { color: var(--ally); }
+.vs .them, .latrow .them { color: var(--foe); }
+.vsbar { display: flex; gap: 2px; height: 6px; }
+.vsbar i { border-radius: 3px 0 0 3px; background: var(--ally); }
+.vsbar i + i { flex: 1; border-radius: 0 3px 3px 0; background: var(--foe); }
+.goldfig.lead { margin: 16px 0 0; padding: 0 12px; gap: 8px; }
+.rpane:not([data-tab="overview"]) .goldfig.lead { margin: 0; padding: 0; }
+.lead figcaption { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.laning .lead figcaption { flex-direction: column; align-items: start; }
+.lead figcaption b { font-size: 15px; }
+.lead figcaption .sub { font-size: 13px; color: var(--muted); }
+.leadbox { position: relative; }
+.lead .chart { max-width: none; height: 160px; }
+.laning .lead .chart { height: 130px; }
+.chart .grid, .chart .axis { stroke: var(--hair); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart .axis { stroke: var(--line); }
+.chart .up { fill: var(--ally); fill-opacity: 0.32; }
+.chart .down { fill: var(--foe); fill-opacity: 0.32; }
+.chart .line { fill: none; stroke: var(--fg); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.lup, .ldown { position: absolute; left: 8px; font-size: 12px; }
+.lup { top: 4px; color: var(--ally); } .ldown { bottom: 4px; color: var(--foe); }
+.ticks { position: relative; height: 16px; font: 11.5px var(--mono); color: var(--muted); }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ticks span:first-child { transform: none; } .ticks span:last-child { transform: translateX(-100%); }
+.analysis > .takeaways { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px 32px; }
+.takeaways li[data-k] { display: flex; gap: 10px; align-items: baseline; }
+.takeaways li[data-k]::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transform: translateY(-1px); }
+.takeaways li[data-k="good"]::before { background: var(--good); }
+.takeaways li[data-k="bad"]::before { background: var(--bad); }
+.takeaways li b { font-weight: 600; }
+.blegend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; padding-top: 14px; border-top: 1px solid var(--hair); font-size: 13px; }
+.blegend > span[data-k] { display: inline-flex; align-items: center; gap: 8px; }
+.blegend > span[data-k]::before { content: ""; width: 26px; height: 6px; border-radius: 3px; background: var(--muted); }
+.blegend > span[data-k="us"]::before { width: 2px; height: 16px; background: var(--fg); }
+.blegend > span[data-k="hi"]::before { width: 8px; height: 8px; border-radius: 0; background: var(--best); transform: rotate(45deg); }
+.bgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 22px 40px; }
+.bgroup { display: grid; gap: 2px; align-content: start; }
+.bgroup h3 { margin: 0 0 6px; }
+.brow { position: relative; display: grid; grid-template-columns: minmax(118px, 168px) minmax(0, 1fr) 62px; align-items: center; gap: 12px; min-height: 34px; border-radius: var(--r-sm); }
+.brow:hover, .brow:focus-visible { background: var(--soft); }
+.bwhat { font-size: 13.5px; }
+.btrack { position: relative; height: 22px; }
+.btrack::before { content: ""; position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--hair); }
+.btrack i { position: absolute; }
+.bfill { top: 8px; height: 6px; border-radius: 3px; background: var(--muted); }
+.brow[data-k="good"] .bfill { background: var(--good); } .brow[data-k="bad"] .bfill { background: var(--bad); }
+.bmid { left: 50%; top: 4px; width: 1px; height: 14px; background: var(--line); }
+.bus { top: 3px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px; background: var(--fg); }
+.bhi { top: 7px; width: 8px; height: 8px; margin-left: -4px; background: var(--best); transform: rotate(45deg); }
+.bval { text-align: right; font-variant-numeric: tabular-nums; }
+.brow[data-k="good"] .bval { color: var(--good); } .brow[data-k="bad"] .bval { color: var(--bad); }
+.btip { display: none; position: absolute; z-index: 2; right: 0; bottom: calc(100% + 4px); padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--raised); font-size: 12.5px; white-space: nowrap; pointer-events: none; }
+.brow:hover .btip, .brow:focus-visible .btip { display: block; }
+.analysis > .timers { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px 28px; padding-top: 16px; border-top: 1px solid var(--hair); }
+.analysis > .timers > span { display: grid; gap: 4px; align-content: start; padding: 0; background: none; font: 400 13px/1.4 var(--body); }
+.analysis > .timers b { font: 600 14px/1.3 var(--body); color: var(--fg); }
+.analysis > .timers .sub { color: var(--muted); } .analysis > .timers .sub.bad { color: var(--bad); }
+.dmgbar { display: flex; gap: 2px; height: 8px; }
+.dmgbar i { border-radius: 2px; background: #e8955a; } .dmgbar i[data-k="1"] { background: var(--ally); } .dmgbar i[data-k="2"] { background: var(--fg); }
+.analysis > .duo { padding-top: 18px; border-top: 1px solid var(--hair); }
+.lhead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.lhead img { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--ally); }
+.lhead img.them { border-color: var(--foe); }
+.lhead b { font-size: 16px; } .lhead .sub, .laning > p { color: var(--muted); } .laning > p { margin: -8px 0 0; }
+.lats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px 40px; }
+.lat { display: grid; gap: 10px; }
+.lat h3 { margin: 0; }
+.latrow { display: grid; grid-template-columns: 40px 52px minmax(0, 1fr) 52px 56px; align-items: center; gap: 10px; }
+.latrow .us, .latrow .gap { text-align: right; }
+.latrow .vsbar { height: 8px; }
+.latrow .gap { font-size: 13px; } .latrow .gap[data-k="good"] { color: var(--good); } .latrow .gap[data-k="bad"] { color: var(--bad); }
+.laning .trends { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 22px 40px; padding-top: 16px; border-top: 1px solid var(--hair); }
+.builds { display: grid; gap: 18px; }
+.bhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.bhead .sub, .bfinal .sub, .bwho .sub, .bfirst .sub { font-size: 13px; color: var(--muted); }
+.bswitch { display: flex; gap: 6px; }
+.bduo { display: grid; gap: 18px; }
+.buyrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--hair); }
+.buyrow > .pic0 { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--ally); }
+.buyrow[data-side="them"] > .pic0 { border-color: var(--foe); }
+.bwho { display: grid; min-width: 0; } .bwho b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bfinal { display: flex; align-items: center; gap: 3px; } .bfinal .sub { margin-right: 6px; }
+.bfinal img { width: 26px; height: 26px; border-radius: 5px; }
+.trips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 0; }
+.trip { display: grid; gap: 6px; padding-right: 16px; margin-right: 16px; border-right: 1px solid var(--hair); }
+.trip:last-child { border-right: 0; }
+.trip time { font: 12.5px var(--mono); color: var(--muted); }
+.ti { display: flex; align-items: center; gap: 4px; }
+.ti img { width: 30px; height: 30px; border-radius: 6px; }
+.ti img.done { width: 36px; height: 36px; border: 2px solid var(--best); border-radius: 7px; }
+.bswitch .tab { border: 1px solid var(--line); border-radius: 999px; }
+.bswitch .tab[aria-pressed="true"] { color: var(--bg); background: var(--fg); border-color: var(--fg); }
+.tag[data-k="you"] { border-color: var(--fg); color: var(--fg); }
+.ball .buyrow { grid-template-columns: 32px minmax(90px, 130px) minmax(0, 1fr); padding: 8px 0; border-bottom: 0; border-top: 1px solid var(--hair); }
+.ball .buyrow > .pic0 { width: 32px; height: 32px; border: 0; border-radius: 8px; }
+.ball .bfinal { display: none; } .ball .trips { grid-column: auto; gap: 6px 14px; }
+.ball .trip { display: inline-flex; align-items: center; gap: 6px; padding: 0; margin: 0; border: 0; }
+.ball .ti img, .ball .ti img.done { width: 26px; height: 26px; border-radius: 5px; }
+.ball .ti img.done { border-width: 2px; }
+.ball .buyrow:has(.trips[hidden]) .bfinal { display: flex; grid-column: auto; } .ball .buyrow:has(.trips[hidden]) .bfinal .sub { display: none; }
+.bfirst { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.bfirst > span > .sub { display: inline; } .bfirst .us { color: var(--ally); } .bfirst .them { color: var(--foe); } .bfirst .hi { color: var(--best); }
+@container rep (max-width: 900px) {
+  .sbrow { grid-template-columns: 40px 44px minmax(0, 1fr) 88px 96px 44px; grid-template-areas: "pic sp who kda dmg score" "pic sp items items cs gold"; }
+  .sbcols { display: none; }
+  .sbdrawer { padding-left: 12px; }
+  .rart { width: 100%; }
+}
+@container rep (max-width: 560px) {
+  .sbrow { grid-template-columns: 40px minmax(0, 1fr) 80px 40px; grid-template-areas: "pic who kda score" "pic items items items" "pic dmg cs gold"; }
+  .c-sp { display: none; }
+  .buyrow { grid-template-columns: 40px minmax(0, 1fr); } .bfinal { grid-column: 1 / -1; }
+  .latrow { grid-template-columns: 36px 44px minmax(0, 1fr) 44px 48px; gap: 6px; }
+}
 .fightmap { width: min(100%, 320px); height: auto; border: 1px solid var(--line); border-radius: 6px; }
 
 /* the clip gallery and its player, help for a friend, what's new */
@@ -754,9 +931,7 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 #serverBox:has(#whoBox[open]) { grid-column: 1 / -1; } /* and the whole width of Settings while it's open */
 #whoBox > p, #whoBox > div { margin-top: 8px; }
 .noteedit textarea { font: 14px/1.4 var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--fg); width: min(32em, 100%); }
-.laning, .rtl, .buylist, .rmore { display: grid; gap: 10px; }
-.buyrow { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px; border-radius: 6px; }
-.buyrow[data-me] { background: color-mix(in srgb, var(--gold) 9%, transparent); }
+.laning { display: grid; gap: 18px; }
 .buys { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--muted); }
 .buy { display: grid; justify-items: center; gap: 2px; }
 .buy img { width: 28px; height: 28px; border-radius: 4px; }
@@ -1656,18 +1831,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .tile > small { font: 500 12.5px/1.2 var(--body); }
 .best td:nth-child(2) .hbar { width: 48px; }
 /* Game, after a game: the champion you played behind Victory or Defeat */
-#postHead:has(> b) { display: grid; gap: 6px; overflow: hidden; min-height: 112px; align-content: center; padding: 20px 24px; }
-#postHead:has(> b)::before { display: none; }
-#postHead > :not(.heroart) { position: relative; }
-#postHead > b { font: 600 32px/1.1 var(--body); }
-#postHead[data-r="Win"] > b { color: var(--good); }
-#postHead:has(> b)[data-r="Win"] { box-shadow: inset 3px 0 var(--good); }
-#postHead:has(> b)[data-r="Lose"] { box-shadow: inset 3px 0 var(--bad); }
-#postHead[data-r="Lose"] > b { color: var(--bad); }
-#postHead > span { color: var(--muted); }
-#postHead .sep { display: none; }
-#postHead .lp[data-d="up"] { color: var(--good); }
-#postHead .lp[data-d="down"] { color: var(--bad); }
 .takeaways { list-style: none; padding-left: 0; }
 .takeaways li { position: relative; padding-left: 16px; }
 .takeaways li::before { content: ""; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
@@ -1704,10 +1867,7 @@ dialog.wizard { transform: scale(var(--from)); }
 @keyframes page-in { from { opacity: 0; } }
 /* the big moments, each under half a second: the post-game result lands with a ring, checkmate topples the king, the
    Last Card places fly in */
-#postHead { position: relative; }
-#postHead.land { animation: land 420ms var(--ease-out) both; }
-#postHead.land::after { content: ""; position: absolute; left: 6px; top: 50%; width: 28px; height: 28px; margin-top: -14px; border: 2px solid var(--fg); border-radius: 50%; opacity: 0; pointer-events: none; animation: ring 380ms 100ms var(--ease-out); }
-#postHead.land[data-r="Win"]::after { border-color: var(--good); }
+#postBody .rhead { animation: land 420ms var(--ease-out) both; }
 #chResult:not([hidden]) { animation: land 360ms var(--ease-out) both; }
 .chmate .chpc { display: inline-block; transform-origin: 50% 90%; animation: topple 460ms var(--ease-io) both; }
 .chmated .chpc { display: inline-block; transform: rotate(calc(90deg * var(--m))); opacity: 0.55; }
@@ -10040,6 +10200,11 @@ dialog.wizard { transform: scale(var(--from)); }
           const q = p.puuid && scoutData.get(p.puuid), k = q && [q.ranked.RANKED_SOLO_5x5, q.ranked.RANKED_FLEX_SR].find((x) => x && TIERS.includes(x.tier));
           if (k) p.rk = [k.tier, rkName(k)];
         }
+        const mine = r.players[r.me], ch = mine && champOf(mine.champ), cg = clipGames[g.id];
+        if (ch && Math.floor(lastSkin / 1000) === +ch.key) { // the skin you played (What's new 187), for the report's head
+          r.sk = +(/_(\d+)\.jpg$/.exec(splashOf(mine.champ, lastSkin)) || [0, 0])[1];
+          r.skn = (csx.skins.find((x) => x.id === lastSkin || x.ch.some(([id]) => id === lastSkin)) || {}).name || '';
+        } else if (cg && cg.s && ch && champOf(cg.c) === ch) r.sk = cg.s | 0;
         keepDeep(g.id, m);
         reports = Object.fromEntries([...Object.entries(reports), [g.id, r]].slice(-40));
         store.set('lpc-reports', JSON.stringify(reports));
@@ -10091,105 +10256,232 @@ dialog.wizard { transform: scale(var(--from)); }
   // dodged, allies saved from death, turret plates taken and seconds dead
   const EXTRA = [['Skillshots hit', (c) => c.skillshotsHit], ['Skillshots dodged', (c) => c.skillshotsDodged], ['Allies saved', (c) => c.saveAllyFromDeath], ['Turret plates', (c) => c.turretPlatesTaken], ['Time dead', (c, s) => s.totalTimeSpentDead]];
   const extraIn = (s) => (s.challenges && typeof s.challenges === 'object' ? EXTRA.map(([, f]) => f(s.challenges, s) | 0) : null);
-  // The scoreboard (What's new 169), wherever a game's report shows (the Game page after a game, Stats games, a room's
-  // past games, Clips): Victory or Defeat with the queue, length, when and patch, your LP, buttons to the game's match
-  // video and clips; the teams by map side (red on top, as on the minimap), each with its kills, gold, towers, dragons
-  // and Barons; each player's champion and level, spells, keystone and second tree, name, You or Your lane, rank (as
-  // scouting saw it), K/D/A with KDA and kill share, damage against the game's top, CS, gold, vision, items and trinket,
-  // and This game's tags. A report kept before What's new 169 has no level, spells, trinket, ranks or totals.
+  // A game's report (What's new 187), wherever a game opens (Stats games and Profile rows, the Game page after a game,
+  // a room's past games, Clips): your game's own head over the skin you played (Victory or Defeat, LP, rank, the
+  // queue, length, when and patch, your K/D/A, kill share, CS and score, Watch the match, Your clips and the replay),
+  // then four tabs: Overview (your team on top, then theirs, a row per player you press for their drawer; the teams
+  // side by side; the gold lead), How you played, Laning and Builds. A tab shows once its part can (reportOpen). A
+  // report kept before What's new 169 has no level, spells, trinket, ranks or totals; before 187 no skin.
   const runeIcon = (id) => { for (const t of runeTrees || []) { if (t.id === id) return `${DD}/cdn/img/${t.icon}`; for (const row of t.slots) for (const x of row.runes || []) if (x.id === id) return `${DD}/cdn/img/${x.icon}`; } return ''; };
   const img = (src, cls = '') => Object.assign(new Image(), { src, alt: '', className: cls, loading: 'lazy' });
+  const mk = (tagName, cls = '', text) => { const e = document.createElement(tagName); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   function gameTags(r, p) { // This game's: the most damage, the most taken, the most vision, first blood, a quadra or penta
     const top = (f) => r.players.every((q) => f(q) <= f(p)) && f(p) > 0;
     return [top((q) => q.dmg) && ['good', 'Most damage'], top((q) => q.taken | 0) && ['', 'Took the most damage'], top((q) => q.vision) && ['', 'Most vision'], p.fb && ['', 'First blood'],
       p.multi && ['good', p.multi === 5 ? 'Penta kill' : 'Quadra kill']].filter(Boolean);
   }
-  function reportEl(r) {
-    const box = document.createElement('div'), copy = lcuOn(); // the desktop app: anyone's runes and items into League
-    box.className = 'report';
-    const me = r.players[r.me], foe = me && me.l ? r.players.find((p) => p.team !== me.team && p.l === me.l) : null, topDmg = Math.max(1, ...r.players.map((p) => p.dmg));
-    if (me) { // the head: result, game, LP, and the match video and clips when there are some
-      const head = Object.assign(document.createElement('div'), { className: 'sbhead' }), lp = lpLog.find((e) => e.id === r.id);
-      head.append(Object.assign(document.createElement('b'), { className: 'sbres', textContent: me.win ? 'Victory' : 'Defeat' }), Object.assign(document.createElement('span'), { className: 'sub',
-        textContent: [QUEUES[r.queue] || MODES[r.mode] || cap(r.mode), mmss(r.len), r.at ? whenText(r.at) : '', r.patch ? `Patch ${patchName(r.patch)}` : ''].filter(Boolean).join(' · ') }));
-      if (lp) head.append(tag(lp.delta >= 0 ? 'good' : 'bad', `${lp.delta >= 0 ? '+' : '−'}${Math.abs(lp.delta)} LP · ${rankText({ tier: lp.tier, division: lp.div, leaguePoints: lp.lp })}`));
-      const g = clipGames[r.id], n = Object.values(clipMeta).filter((m) => String(m.g) === String(r.id)).length, bar = Object.assign(document.createElement('span'), { className: 'toolbar' });
-      for (const [label, ok] of [['Watch the match', !!(g && g.v)], [`Your ${n} clip${n === 1 ? '' : 's'}`, n > 0]]) if (ok) bar.append(mkBtn('btn small', [label], () => openGameClips(r.id)));
-      bar.append(mkBtn('btn small', ['How you played'], () => { const m = box.querySelector('.rmore'); if (m) m.scrollIntoView({ block: 'start' }); }));
-      head.append(bar);
-      box.append(head);
+  const RTABS = [['overview', 'Overview'], ['how', 'How you played'], ['laning', 'Laning'], ['builds', 'Builds']];
+  let rtabN = 0;
+  const repFoe = (r, p) => (p && r.mode === 'CLASSIC' && p.l ? r.players.find((q) => q.team !== p.team && q.l === p.l) || null : null);
+  const pname = (p) => p.name.split('#')[0] || champName(p.champ);
+  function reportEl(r, start = 'overview') {
+    const box = mk('div', 'report'), me = r.players[r.me], n = ++rtabN;
+    box.dataset.start = box.dataset.tab = start;
+    if (me) box.append(reportHead(r, me, box));
+    const tabs = mk('div', 'tabs rtabs');
+    tabs.setAttribute('role', 'tablist');
+    tabs.setAttribute('aria-label', 'This game');
+    tabs.hidden = true;
+    box.append(tabs);
+    for (const [id, label] of RTABS) {
+      const pane = mk('div', 'rpane');
+      Object.assign(pane, { id: `rp${n}-${id}`, hidden: id !== 'overview' });
+      pane.dataset.tab = id;
+      pane.setAttribute('role', 'tabpanel');
+      pane.setAttribute('aria-label', label);
+      box.append(pane);
     }
-    for (const team of [...new Set(r.players.map((p) => p.team))].sort((a, b) => b - a)) { // red (200) on top, as on the map
-      const ps = r.players.filter((p) => p.team === team), t = document.createElement('table'), kills = ps.reduce((n, p) => n + p.k, 0), tt = r.teams && r.teams[team];
-      t.className = 'ready sbt'; // not .sb: that's the status bar's item, an inline flex row that pushed the players off to the side
-      t.innerHTML = `<caption></caption><thead><tr><th>${ps[0].win ? 'Won' : 'Lost'}</th><th>Rank</th><th>KDA</th><th>Damage</th><th>CS</th><th>Gold</th><th>Vision</th><th>Items</th><th>This game</th><th>Score</th>${copy ? '<th title="Save a player’s runes or items in League">Copy</th>' : ''}</tr></thead><tbody></tbody>`;
-      t.caption.textContent = [team === 200 ? 'Red side' : 'Blue side', `${kills} kills`, `${(ps.reduce((n, p) => n + p.gold, 0) / 1000).toFixed(1)}k gold`,
-        ...(tt ? [`${tt[0]} tower${tt[0] === 1 ? '' : 's'}`, `${tt[1]} dragon${tt[1] === 1 ? '' : 's'}`, `${tt[2]} Baron${tt[2] === 1 ? '' : 's'}`] : [])].join(' · ');
-      for (const p of ps) {
-        const tr = document.createElement('tr'), i = r.players.indexOf(p);
-        tr.innerHTML = '<td><div class="who"><span class="sbch"><img class="pic0" alt=""></span><span class="sbsp"></span><b></b></div></td><td></td><td></td><td><span class="sbdmg"></span></td><td></td><td></td><td></td><td class="sbit"></td><td><div class="tags"></div></td><td></td>';
-        tr.dataset.i = i;
-        tr.toggleAttribute('data-me', i === r.me);
-        if (copy) tr.append(copyCell(r, p));
-        const [who, rk, kd, dmg, csd, gold, vis, items, tags, score] = tr.children;
-        tr.querySelector('img').src = champImg(p.champ);
-        if (p.lvl) tr.querySelector('.sbch').append(Object.assign(document.createElement('i'), { textContent: p.lvl }));
-        tr.querySelector('.sbsp').append(...(p.sp || []).map(spellPic).filter(Boolean).map((x) => img(x)), ...(p.rn ? [runeIcon(p.rn[2]), runeIcon(p.rn[1])].filter(Boolean).map((x) => img(x, 'rn')) : []));
-        tr.querySelector('b').textContent = p.name.split('#')[0] || champName(p.champ);
-        if (i === r.me || p === foe) who.querySelector('.who').append(tag('', i === r.me ? 'You' : 'Your lane'));
-        if (i !== r.me && p.name) who.querySelector('.who').append(avoidBtn({ name: p.name, puuid: p.puuid }));
-        if (p.badge) who.querySelector('.who').append(tag(p.badge === 'MVP' ? 'good' : '', p.badge));
-        if (p.rk) rk.replaceChildren(withEmblem(p.rk[0], document.createTextNode(p.rk[1])));
-        kd.append(`${p.k}/${p.d}/${p.a}`, Object.assign(document.createElement('span'), { className: 'sub', textContent: `${kda(p.k, p.d, p.a)} KDA · ${pct((p.k + p.a) / Math.max(1, kills))} of kills` }));
-        dmg.prepend(p.dmg.toLocaleString('en-US'));
-        dmg.querySelector('.sbdmg').style.width = `${Math.round((100 * p.dmg) / topDmg)}%`;
-        csd.append(String(p.cs), Object.assign(document.createElement('span'), { className: 'sub', textContent: r.len ? `${(p.cs / (r.len / 60)).toFixed(1)} a minute` : '' }));
-        gold.textContent = p.gold.toLocaleString('en-US');
-        vis.textContent = p.vision;
-        items.append(...(p.it || []).map((x) => img(itemPic(x))), ...(p.tr ? [img(itemPic(p.tr), 'tk')] : []));
-        tags.firstChild.append(...gameTags(r, p).map(([k, x]) => tag(k, x)));
-        score.textContent = p.score;
-        t.tBodies[0].append(tr);
-      }
-      const wrap = document.createElement('div');
-      wrap.className = 'tablewrap';
-      wrap.append(t);
-      box.append(wrap);
-    }
-    if (r.gold && r.gold.length > 1) box.append(goldGraph(r.gold));
-    box.append(Object.assign(document.createElement('div'), { className: 'rmore' })); // the replay, laning and buys, once it's opened (reportOpen)
+    paneOf(box, 'overview').dataset.on = '1';
+    paneOf(box, 'overview').append(...overviewEl(r, box));
+    rtabsDraw(box);
     return box;
   }
-  // a game's row on the Clips page, opened: from the scoreboard's Watch the match and Your clips
+  const paneOf = (box, id) => box.querySelector(`:scope > .rpane[data-tab="${id}"]`);
+  function rtabShow(box, id) {
+    box.dataset.tab = id;
+    for (const p of box.querySelectorAll(':scope > .rpane')) p.hidden = p.dataset.tab !== id;
+    for (const b of box.querySelectorAll(':scope > .rtabs .tab')) b.setAttribute('aria-selected', String(b.dataset.tab === id));
+  }
+  function rtabsDraw(box) { // the tabs whose part can show; with only Overview, no tab row
+    const on = RTABS.filter(([id]) => paneOf(box, id).dataset.on), bar = box.querySelector(':scope > .rtabs');
+    bar.replaceChildren(...on.map(([id, label]) => {
+      const b = mk('button', 'tab', label);
+      b.type = 'button';
+      b.dataset.tab = id;
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-controls', paneOf(box, id).id);
+      b.addEventListener('click', () => { box.dataset.picked = '1'; rtabShow(box, id); });
+      return b;
+    }));
+    bar.hidden = on.length < 2;
+    const want = !box.dataset.picked && paneOf(box, box.dataset.start).dataset.on ? box.dataset.start : box.dataset.tab;
+    rtabShow(box, paneOf(box, want).dataset.on ? want : 'overview');
+  }
+  function rtabFill(box, id, kids) {
+    const pane = paneOf(box, id);
+    pane.replaceChildren(...kids.filter(Boolean));
+    if (!pane.childElementCount) return;
+    pane.dataset.on = '1';
+    rtabsDraw(box);
+  }
+  // the head: the skin you played behind the result; in a list of games the arrow closes it
+  function reportHead(r, me, box) {
+    const h = mk('div', 'rhead'), lp = lpLog.find((e) => e.id === r.id), c = champOf(me.champ), art = img('', 'rart'), kills = r.players.filter((p) => p.team === me.team).reduce((s, p) => s + p.k, 0);
+    art.addEventListener('error', () => { if (/_0\.jpg$/.test(art.src)) art.hidden = true; else art.src = art.src.replace(/_\d+\.jpg$/, '_0.jpg'); });
+    if (c) art.src = `${DD}/cdn/img/champion/splash/${c.id}_${r.sk | 0}.jpg`; else art.hidden = true;
+    const close = mk('button', 'rclose');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Close this game');
+    close.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    close.addEventListener('click', () => { const d = box.closest('details'); if (d) { d.open = false; d.querySelector('summary').focus(); } });
+    const top = mk('div', 'rtop'), who = mk('div', 'rme'), pic = mk('span', 'rpic'), line = mk('span', 'rline'), res = mk('b', 'sbres', me.win ? 'Victory' : 'Defeat');
+    pic.append(img(champImg(me.champ)), ...(me.lvl ? [mk('i', '', me.lvl)] : []));
+    res.dataset.r = me.win ? 'Win' : 'Lose';
+    const rank = lp ? rankText({ tier: lp.tier, division: lp.div, leaguePoints: lp.lp }) : me.rk ? me.rk[1] : '';
+    line.append(res, ...(lp ? [tag(lp.delta >= 0 ? 'good' : 'bad', `${lp.delta >= 0 ? '+' : '−'}${Math.abs(lp.delta)} LP`)] : []), ...(rank ? [mk('span', 'rrank', rank)] : []));
+    who.append(pic, mk('span', ''));
+    who.lastChild.append(line, mk('span', 'sub', [QUEUES[r.queue] || MODES[r.mode] || cap(r.mode), mmss(r.len), r.at ? whenText(r.at) : '', r.patch ? `Patch ${patchName(r.patch)}` : ''].filter(Boolean).join(' · ')));
+    const nums = mk('div', 'rnums'), num = (big, rest) => { const s = mk('span'); s.append(mk('b', '', big), rest); return s; };
+    nums.append(num(`${me.k} / ${me.d} / ${me.a}`, ` · ${kda(me.k, me.d, me.a)} KDA`), num(pct((me.k + me.a) / Math.max(1, kills)), ' of kills'),
+      num(String(me.cs), r.len ? ` CS · ${(me.cs / (r.len / 60)).toFixed(1)} a minute` : ' CS'), num(String(me.score), ' score'));
+    const g = clipGames[r.id], nc = Object.values(clipMeta).filter((m) => String(m.g) === String(r.id)).length, bar = mk('div', 'toolbar rbar');
+    for (const [label, ok] of [['Watch the match', !!(g && g.v)], [`Your ${nc} clip${nc === 1 ? '' : 's'}`, nc > 0]]) if (ok) bar.append(mkBtn('btn small', [label], () => openGameClips(r.id)));
+    top.append(who, nums, bar);
+    h.append(art, close, ...(r.skn ? [mk('span', 'rskin', r.skn)] : []), top);
+    return h;
+  }
+  // a score as a ring: green 60 and up, plain 40 to 59, red under 40
+  function scoreRing(v) {
+    const s = mk('span', 'sbring');
+    s.dataset.k = v >= 60 ? 'good' : v >= 40 ? '' : 'bad';
+    s.title = `Score ${v} of 100 against the other nine`;
+    s.innerHTML = `<svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle cx="18" cy="18" r="15" stroke-dasharray="${((v / 100) * 94.25).toFixed(1)} 94.25" transform="rotate(-90 18 18)"/></svg><b></b>`;
+    s.querySelector('b').textContent = v;
+    return s;
+  }
+  // Overview: your team on top (blue edge), then theirs; the teams side by side between them; the gold lead
+  function overviewEl(r, box) {
+    const me = r.players[r.me], foe = repFoe(r, me), ours = me ? me.team : 100, topDmg = Math.max(1, ...r.players.map((p) => p.dmg)), out = [];
+    const order = [...new Set(r.players.map((p) => p.team))].sort((a, b) => (a === ours ? -1 : b === ours ? 1 : a - b));
+    order.forEach((team, ti) => {
+      const ps = r.players.filter((p) => p.team === team), kills = ps.reduce((n, p) => n + p.k, 0), sec = mk('section', 'sbteam'), head = mk('div', 'sbth');
+      const name = me ? (team === ours ? 'Your team' : 'Their team') : team === 200 ? 'Red side' : 'Blue side';
+      sec.dataset.side = team === ours ? 'us' : 'them';
+      sec.setAttribute('aria-label', name);
+      head.append(mk('b', '', name), mk('span', 'sbwl', ps[0].win ? 'Victory' : 'Defeat'), ...(me ? [mk('span', 'sub', team === 200 ? 'Red side' : 'Blue side')] : []));
+      head.querySelector('.sbwl').dataset.r = ps[0].win ? 'Win' : 'Lose';
+      const cols = mk('div', 'sbrow sbcols');
+      cols.setAttribute('aria-hidden', 'true');
+      cols.innerHTML = '<span class="c-pic"></span><span class="c-sp"></span><span class="c-who">Player</span><span class="c-kda">KDA</span><span class="c-dmg">Damage</span><span class="c-cs">CS</span><span class="c-gold">Gold</span><span class="c-items">Items</span><span class="c-score">Score</span>';
+      sec.append(head, cols);
+      for (const p of ps) {
+        const i = r.players.indexOf(p), row = mk('button', 'sbrow'), dr = mk('div', 'sbdrawer');
+        row.type = 'button';
+        row.dataset.i = dr.dataset.i = i;
+        row.toggleAttribute('data-me', i === r.me);
+        dr.id = `${box.querySelector(':scope > .rpane').id.split('-')[0]}-d${i}`;
+        row.setAttribute('aria-controls', dr.id);
+        row.innerHTML = '<span class="c-pic sbch"><img class="pic0" alt=""></span><span class="c-sp sbsp"></span><span class="c-who"><span class="sbname"><b></b></span><span class="sbrk"></span></span><span class="c-kda"><b></b><span class="sub"></span></span><span class="c-dmg"><span></span><span class="sbdmg"><i></i></span></span><span class="c-cs"><span></span><span class="sub"></span></span><span class="c-gold"></span><span class="c-items sbit"></span><span class="c-score"></span>';
+        row.querySelector('img').src = champImg(p.champ);
+        row.querySelector('img').alt = champName(p.champ);
+        if (p.lvl) row.querySelector('.sbch').append(mk('i', '', p.lvl));
+        row.querySelector('.sbsp').append(...(p.sp || []).map(spellPic).filter(Boolean).map((x) => img(x)), ...(p.rn ? [runeIcon(p.rn[2]), runeIcon(p.rn[1])].filter(Boolean).map((x) => img(x, 'rn')) : []));
+        row.querySelector('.sbname b').textContent = pname(p);
+        row.querySelector('.sbname').append(...[i === r.me && ['you', 'You'], p === foe && ['', 'Your lane'], p.badge && [p.badge === 'MVP' ? 'good' : '', p.badge], ...gameTags(r, p)].filter(Boolean).map(([k, x]) => tag(k, x)));
+        if (p.rk) row.querySelector('.sbrk').textContent = p.rk[1];
+        row.querySelector('.c-kda b').textContent = `${p.k} / ${p.d} / ${p.a}`;
+        row.querySelector('.c-kda .sub').textContent = `${kda(p.k, p.d, p.a)} · ${pct((p.k + p.a) / Math.max(1, kills))} of kills`;
+        row.querySelector('.c-dmg > span').textContent = p.dmg.toLocaleString('en-US');
+        row.querySelector('.sbdmg i').style.width = `${Math.round((100 * p.dmg) / topDmg)}%`;
+        row.querySelector('.c-cs > span').textContent = p.cs;
+        row.querySelector('.c-cs .sub').textContent = r.len ? `${(p.cs / (r.len / 60)).toFixed(1)} a min` : '';
+        row.querySelector('.c-gold').textContent = k1(p.gold);
+        row.querySelector('.sbit').append(...[0, 1, 2, 3, 4, 5].map((k) => (p.it && p.it[k] ? Object.assign(img(itemPic(p.it[k])), { title: itemName(p.it[k]) }) : mk('span', 'none'))), ...(p.tr ? [img(itemPic(p.tr), 'tk')] : []));
+        row.querySelector('.c-score').append(scoreRing(p.score));
+        dr.append(mk('div', 'sbx'), drawerActs(r, p, i));
+        const open = (on) => { row.setAttribute('aria-expanded', String(on)); dr.hidden = !on; };
+        open(i === r.me); // your own row starts open
+        row.addEventListener('click', () => open(dr.hidden));
+        sec.append(row, dr);
+      }
+      out.push(sec);
+      if (!ti && order.length === 2) out.push(sideBySide(r, ours));
+    });
+    drawerFill(box, r, out);
+    if (r.gold && r.gold.length > 1) out.push(leadGraph(r.gold, 'Gold difference', (v) => k1(Math.round(v)), 100, ['Your team ahead', 'Their team ahead']));
+    return out;
+  }
+  // kills, gold, towers, dragons and Barons, then Voidgrubs once the timeline gives them: yours blue, theirs red
+  function sideBySide(r, ours) {
+    const them = r.players.find((p) => p.team !== ours).team, sum = (t, f) => r.players.filter((p) => p.team === t).reduce((n, p) => n + f(p), 0), a = r.teams && r.teams[ours], b = r.teams && r.teams[them];
+    const s = mk('div', 'sbvs');
+    s.setAttribute('aria-label', 'The teams side by side');
+    for (const [label, x, y, f] of [['Kills', sum(ours, (p) => p.k), sum(them, (p) => p.k), String], ['Gold', sum(ours, (p) => p.gold), sum(them, (p) => p.gold), k1],
+      ...(a && b ? [['Towers', a[0], b[0], String], ['Dragons', a[1], b[1], String], ['Barons', a[2], b[2], String]] : [])]) s.append(vsBar(label, x, y, f));
+    return s;
+  }
+  function vsBar(label, x, y, f = String) {
+    const d = mk('div', 'vs');
+    d.innerHTML = '<div><b class="us"></b><span></span><b class="them"></b></div><div class="vsbar"><i></i><i></i></div>';
+    d.querySelector('.us').textContent = f(x);
+    d.querySelector('span').textContent = label;
+    d.querySelector('.them').textContent = f(y);
+    d.querySelector('.vsbar i').style.width = `${x + y ? (100 * x) / (x + y) : 50}%`;
+    d.title = `${label}: yours ${f(x)}, theirs ${f(y)}`;
+    return d;
+  }
+  // a player's drawer: Riot's extra numbers (once Riot's copy is in), their vision against their lane opponent's,
+  // wards, how their game ranks among high elo games; Copy runes, Copy items and Avoid
+  function drawerActs(r, p, i) {
+    const acts = mk('span', 'toolbar sbacts'), who = pname(p);
+    if (lcuOn()) for (const [what, f, ok] of [['runes', copyRunes, !!p.rn], ['items', copyItems, has17() && !!(p.it && p.it.length)]]) {
+      if (!ok) continue;
+      const b = mk('button', 'btn small', `Copy ${what}`);
+      b.type = 'button';
+      b.setAttribute('aria-label', `Save ${who}’s ${what} on ${champName(p.champ)} in League`);
+      b.addEventListener('click', () => f(r, p, b));
+      acts.append(b);
+    }
+    if (i !== r.me && p.name) acts.append(avoidBtn({ name: p.name, puuid: p.puuid }));
+    return acts;
+  }
+  function drawerFill(box, r, root = [box]) {
+    for (const dr of root.flatMap((e) => [...e.querySelectorAll('.sbdrawer')])) {
+      const i = +dr.dataset.i, p = r.players[i], o = repFoe(r, p), hi = box.hi && box.hi[i], d = o ? p.vision - o.vision : 0;
+      const kv = [...(p.x ? EXTRA.map(([n], k) => [n, k === 4 ? mmss(p.x[k]) : String(p.x[k])]) : []), ...(o ? [['Vision vs their laner', `${d < 0 ? '−' : '+'}${Math.abs(d)} (${p.vision} vs ${o.vision})`]] : []),
+        ...(Array.isArray(p.wards) ? [['Wards', `${p.wards[0]} placed · ${p.wards[1]} destroyed · ${p.wards[2]} control`]] : []), ...(hi != null ? [[`Next to high elo ${champName(p.champ)}`, `${hi} of 100`]] : [])];
+      dr.querySelector('.sbx').replaceChildren(...kv.map(([k, v]) => { const s = mk('span'); s.append(mk('span', 'sub', k), mk('b', '', v)); return s; }));
+    }
+  }
+  // a game's row on the Clips page, opened: from the head's Watch the match and Your clips
   function openGameClips(id) {
     openRows.add(`g${id}`);
     view('clips', true);
     setTimeout(() => { const el = [...$('clipGrid').querySelectorAll('.cgame[open]')].find((x) => x.dataset.g === String(id)); if (el) el.scrollIntoView({ block: 'start' }); }, 300);
   }
-  function copyCell(r, p) {
-    const td = document.createElement('td'), who = p.name.split('#')[0] || champName(p.champ);
-    for (const [what, f, ok] of [['Runes', copyRunes, !!p.rn], ['Items', copyItems, has17() && !!(p.it && p.it.length)]]) {
-      if (!ok) continue;
-      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: what });
-      b.setAttribute('aria-label', `Save ${who}’s ${what.toLowerCase()} on ${champName(p.champ)} in League`);
-      b.addEventListener('click', () => f(r, p, b));
-      td.append(b);
-    }
-    return td;
-  }
-  // your team's gold lead over the game (from items), above the line ahead, below behind
-  function goldGraph(pts) { return leadGraph(pts, 'Gold difference from items, your team above the line', goldText, 100); }
-  // a lead over the game, above the line ahead and below behind: pts [[seconds, lead]]; what: what it is; fmt: a lead
-  // as signed text; even: a lead smaller than that is none
-  function leadGraph(pts, what, fmt, even) {
-    const W = 600, H = 140, end = pts[pts.length - 1][0] || 1, top = Math.max(10 * even, ...pts.map(([, g]) => Math.abs(g)));
-    const xy = pts.map(([t, g]) => `${((t / end) * (W - 20) + 10).toFixed(1)},${(H / 2 - (g / top) * (H / 2 - 10)).toFixed(1)}`).join(' ');
-    const fig = document.createElement('figure');
-    fig.className = 'goldfig';
-    fig.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img"><line x1="10" x2="${W - 10}" y1="${H / 2}" y2="${H / 2}" class="axis"/><polyline points="${xy}" class="gold"/></svg><figcaption class="hint"></figcaption>`;
-    fig.querySelector('svg').setAttribute('aria-label', `${what}, over the game: ${fmt(pts[pts.length - 1][1])} at the end`);
-    const best = Math.max(0, ...pts.map((p) => p[1])), worst = Math.min(0, ...pts.map((p) => p[1]));
-    fig.querySelector('figcaption').textContent = `${what}: ${best < even ? 'never ahead' : `up to ${fmt(best).replace('+', '')} ahead`}, ${worst > -even ? 'never behind' : `${fmt(worst).replace('−', '')} behind at worst`}.`;
+  // a lead over the game as a filled area (What's new 187): blue above the line while your side is ahead, red below,
+  // 5-minute marks and the end time. pts [[seconds, lead]]; fmt: a lead's size as text; even: a lead smaller than that
+  // is none; ends: what above and below the line mean, written on the chart
+  function leadGraph(pts, title, fmt, even, ends) {
+    const W = 640, H = 160, end = pts[pts.length - 1][0] || 1, top = Math.max(10 * even, ...pts.map(([, g]) => Math.abs(g))) * 1.12;
+    const X = (t) => +((t / end) * W).toFixed(1), Y = (v) => +(H / 2 - (v / top) * (H / 2 - 2)).toFixed(1), seg = [];
+    pts.forEach(([t, v], i) => { // where the line crosses, so each side's area ends there
+      seg.push([t, v]);
+      const nx = pts[i + 1];
+      if (nx && v && (v > 0) !== (nx[1] > 0) && nx[1]) { const f = v / (v - nx[1]); seg.push([t + f * (nx[0] - t), 0]); }
+    });
+    const area = (keep) => `M0,${H / 2} ${seg.map(([t, v]) => `L${X(t)},${Y(keep(v))}`).join(' ')} L${X(end)},${H / 2} Z`;
+    const marks = [];
+    for (let m = 300; m < end; m += 300) marks.push(m);
+    const best = pts.reduce((a, b) => (b[1] > a[1] ? b : a)), last = pts[pts.length - 1][1];
+    const cap = [best[1] >= even ? `Up to ${fmt(best[1])} ahead at ${mmss(best[0])}` : 'Never ahead', Math.abs(last) < even ? 'even at the end' : `${fmt(Math.abs(last))} ${last > 0 ? 'ahead' : 'behind'} at the end`].join(', ');
+    const fig = mk('figure', 'goldfig lead');
+    fig.innerHTML = `<figcaption><b></b><span class="sub"></span></figcaption><div class="leadbox"><svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">${marks.map((m) => `<line class="grid" x1="${X(m)}" x2="${X(m)}" y1="0" y2="${H}"/>`).join('')}<path class="up" d="${area((v) => Math.max(0, v))}"/><path class="down" d="${area((v) => Math.min(0, v))}"/><line class="axis" x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}"/><path class="line" d="${seg.map(([t, v], i) => `${i ? 'L' : 'M'}${X(t)},${Y(v)}`).join(' ')}"/></svg></div><div class="ticks" aria-hidden="true"></div>`;
+    fig.querySelector('b').textContent = title;
+    fig.querySelector('figcaption .sub').textContent = cap;
+    fig.querySelector('svg').setAttribute('aria-label', `${title}: ${cap}`);
+    if (ends) fig.querySelector('.leadbox').append(mk('span', 'lup', ends[0]), mk('span', 'ldown', ends[1]));
+    fig.querySelector('.ticks').append(...[0, ...marks.filter((m) => end - m >= 240), end].map((t) => { const s = mk('span', '', mmss(t)); s.style.left = `${(100 * t) / end}%`; return s; }));
     return fig;
   }
 
@@ -12765,7 +13057,8 @@ dialog.wizard { transform: scale(var(--from)); }
     li.querySelector('.gres').dataset.r = x.win ? 'Win' : 'Lose';
     li.querySelector('.gres').textContent = x.win ? 'Victory' : 'Defeat';
     li.querySelector('details').addEventListener('toggle', async (e) => {
-      const body = li.querySelector('.gbody');
+      const body = li.querySelector('.gbody'), old = body.querySelector('.report');
+      if (e.target.open && old) { delete old.dataset.picked; rtabShow(old, 'overview'); } // each opened game starts on Overview
       if (!e.target.open || body.childElementCount) return;
       body.textContent = 'Loading the report…';
       itemsSoon();
@@ -13216,7 +13509,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!lcu || !me0 || !me0.summonerId) return notify('Open League to save items in it.', true);
     btn.disabled = true;
     itemsSoon();
-    const tl = await Promise.race([timelineOf(r.id), sleep(5000)]), buys = goodTl(tl) ? buysOf(tl, p.pid || r.players.indexOf(p) + 1) : [];
+    const tl = await Promise.race([timelineOf(r.id), sleep(5000)]), all = await Promise.race([buysFor(r, goodTl(tl) ? tl : null), sleep(8000).then(() => null)]), buys = (all && all[r.players.indexOf(p)]) || [];
     for (let i = 0; i < 10 && !ddItems; i++) await sleep(500);
     const it = (id) => (ddItems && ddItems[id]) || {}, who = p.name.split('#')[0] || champName(p.champ), name = champName(p.champ);
     const block = (type, ids) => ids.length && { type, hideIfSummonerSpell: '', showIfSummonerSpell: '', items: ids.map((id) => ({ id: String(id), count: 1 })) };
@@ -13444,27 +13737,29 @@ dialog.wizard { transform: scale(var(--from)); }
     return timelines.get(id);
   };
   function reportOpen(box, r) {
-    const more = box && box.querySelector('.rmore');
+    if (!box) return;
     riotMore(box, r);
-    if (!more || more.dataset.done || !lcuOn() || !has17()) return;
-    more.dataset.done = '1';
-    const bar = document.createElement('div'), btn = document.createElement('button'), tlBox = document.createElement('div'), mine = !!me0 && r.players.some((p) => p.puuid === me0.puuid);
-    bar.className = 'toolbar';
+    if (box.dataset.done || !lcuOn() || !has17()) return;
+    box.dataset.done = '1';
+    const btn = mk('button', 'btn small replay', 'Looking for the replay…'), mine = !!me0 && r.players.some((p) => p.puuid === me0.puuid), bar = box.querySelector('.rbar');
     btn.type = 'button';
-    btn.className = 'btn small replay';
-    btn.textContent = 'Looking for the replay…';
     btn.disabled = true;
     btn.addEventListener('click', () => replayClick(r.id, btn, mine));
-    bar.append(btn);
-    tlBox.className = 'rtl';
-    tlBox.textContent = 'Loading the timeline…';
-    more.append(bar, tlBox);
+    if (bar) bar.append(btn); else { const tb = mk('div', 'toolbar'); tb.append(btn); paneOf(box, 'overview').prepend(tb); }
     replayState(r.id, btn, mine);
     itemsSoon();
     timelineOf(r.id).then(async (tl) => {
       for (let i = 0; i < 10 && !ddItems; i++) await sleep(300);
       const ok = goodTl(tl), buys = await buysFor(r, ok ? tl : null), how = await analysisEl(r, ok ? tl : null, buys).catch((e) => { console.error('analysis:', e); return null; });
-      tlBox.replaceChildren(...[how, ...(ok ? [laningEl(r, tl), junglerEl(r, tl)] : ['Riot has no timeline for this game.']), buysEl(r, buys)].filter(Boolean));
+      if (how) rtabFill(box, 'how', [how]);
+      if (ok) {
+        const lane = laningEl(r, tl, how);
+        rtabFill(box, 'laning', lane ? [lane, junglerEl(r, tl)] : []);
+        const grubs = teamMonsters(r, tl, 'HORDE'), vs = box.querySelector('.sbvs');
+        if (vs && grubs) vs.append(vsBar('Voidgrubs', ...grubs));
+        if (!(r.gold && r.gold.length > 1)) { const g = tlTeamGold(r, tl); if (g) paneOf(box, 'overview').append(leadGraph(g, 'Gold difference', (v) => k1(Math.round(v)), 100, ['Your team ahead', 'Their team ahead'])); }
+      } else paneOf(box, 'overview').append(mk('p', 'hint', 'Riot has no timeline for this game.'));
+      rtabFill(box, 'builds', [buildsEl(r, buys, how)]);
     });
   }
 
@@ -13518,56 +13813,66 @@ dialog.wizard { transform: scale(var(--from)); }
   async function riotMore(box, r, tries = 0) {
     if (!box || (!tries && box.dataset.riot)) return;
     box.dataset.riot = '1';
-    const wraps = [...box.querySelectorAll(':scope > .tablewrap')]; // each team's table
     if (!tries && r.mode === 'CLASSIC') Promise.all(r.players.map((p) => (POS[p.l] ? highOf(p.champ, p.l).then((t) => hiRank(t, ...hiShape(r, p))) : null))).then((hs) => {
       if (!hs.some((v) => v != null)) return;
-      for (const t of wraps.map((w) => w.firstChild)) {
-        t.tHead.rows[0].append(Object.assign(document.createElement('th'), { textContent: 'High elo', title: 'How this game ranks among high elo games on the same champion in the same role, from 0 to 100: 50 is their middle' }));
-        for (const tr of t.tBodies[0].rows) tr.append(Object.assign(document.createElement('td'), { textContent: hs[+tr.dataset.i] ?? '—' }));
-      }
+      box.hi = hs; // each player's "Next to high elo", in their drawer
+      drawerFill(box, r);
     });
-    if (await extrasFor(r)) return void (box.isConnected && wraps.length && wraps[wraps.length - 1].after(extraEl(r)));
+    if (await extrasFor(r)) return void drawerFill(box, r);
     if (tries < 5 && Date.now() - r.at - r.len * 1000 < 3600e3) setTimeout(() => { if (box.isConnected) riotMore(box, r, tries + 1); }, 60000); // a game that just ended: Riot may not have it yet
   }
-  // Riot's extra numbers for all ten, and each one's vision score against their lane opponent's
-  function extraEl(r) {
-    const t = document.createElement('table'), wrap = document.createElement('div');
-    t.className = 'ready';
-    t.innerHTML = `<thead><tr><th>More from Riot</th>${[...EXTRA.map(([n]) => n), 'Vision vs laner'].map((n) => `<th>${n}</th>`).join('')}</tr></thead><tbody></tbody>`;
-    [...r.players].sort((a, b) => b.team - a.team).forEach((p) => { // red side on top, as in the scoreboard above
-      const i = r.players.indexOf(p), tr = document.createElement('tr'), o = r.mode === 'CLASSIC' && p.l ? r.players.find((q) => q.team !== p.team && q.l === p.l) : null, d = o ? p.vision - o.vision : 0;
-      tr.innerHTML = '<td><div class="who"><img class="pic0" alt=""><b></b></div></td>';
-      tr.toggleAttribute('data-me', i === r.me);
-      tr.querySelector('img').src = champImg(p.champ);
-      tr.querySelector('b').textContent = p.name.split('#')[0] || champName(p.champ);
-      for (const v of [...(p.x ? p.x.map((v, k) => (k === 4 ? mmss(v) : String(v))) : EXTRA.map(() => '—')), o ? `${d < 0 ? '−' : '+'}${Math.abs(d)} (${p.vision} vs ${o.vision})` : '—']) tr.append(Object.assign(document.createElement('td'), { textContent: v }));
-      t.tBodies[0].append(tr);
-    });
-    wrap.className = 'tablewrap extra';
-    wrap.append(t);
-    return wrap;
+  // a team's epic monsters of a kind from the timeline: [yours, theirs], or null when neither took one
+  function teamMonsters(r, tl, kind) {
+    const me = r.players[r.me], ours = me ? me.team : 100, team = (id) => (r.players.find((p, i) => (p.pid || i + 1) === id) || {}).team;
+    const n = { [ours]: 0, them: 0 };
+    for (const e of tlEvents(tl, 'ELITE_MONSTER_KILL')) if (e.monsterType === kind) { if ((e.killerTeamId || team(e.killerId)) === ours) n[ours]++; else n.them++; }
+    return n[ours] || n.them ? [n[ours], n.them] : null;
+  }
+  // your team's gold lead minute by minute from the timeline, for reports kept without one
+  function tlTeamGold(r, tl) {
+    const me = r.players[r.me], ours = me ? me.team : 100, fr = (tl && tl.frames) || [];
+    if (fr.length < 2) return null;
+    return fr.map((f) => [Math.round(f.timestamp / 1000), r.players.reduce((s, p, i) => s + (p.team === ours ? 1 : -1) * (((f.participantFrames || {})[p.pid || i + 1] || {}).totalGold | 0), 0)]);
   }
   const k1 = (v) => (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v));
-  function laningEl(r, tl) {
+  // Laning: you against your lane opponent at 10 and 15 minutes as bars (blue you, red them), your gold and CS leads
+  // over the game against them; their jungler follows (junglerEl). how: How you played, for the matchup in high elo.
+  function laningEl(r, tl, how) {
     if (!r.players[r.me] || r.mode !== 'CLASSIC') return null;
     const ps = r.players.map((p, i) => ({ id: p.pid || i + 1, t: p.team, l: p.l || '', c: p.champ }));
     fillLanes(ps, tl);
     const m = ps[r.me], o = m.l && ps.find((p) => p.t !== m.t && p.l === m.l), rows = o ? laneAt(tl, m.id, o.id) : [];
     if (!rows.length) return null;
-    const box = document.createElement('div'), t = document.createElement('table');
-    box.className = 'laning';
-    box.innerHTML = `<h3 class="ph"></h3><div class="tablewrap"></div>`;
-    box.querySelector('h3').textContent = `Your laning against ${champName(o.c)}`;
-    t.className = 'ready';
-    t.innerHTML = '<thead><tr><th></th><th>CS</th><th>Gold</th><th>XP</th></tr></thead><tbody></tbody>';
+    const box = mk('div', 'laning'), head = mk('div', 'lhead'), foe = r.players[ps.indexOf(o)], name = champName(o.c);
+    head.append(img(champImg(m.c), 'pic0 us'), mk('b', '', 'You'), mk('span', 'sub', 'against'), img(champImg(o.c), 'pic0 them'), mk('b', '', name), mk('span', 'sub', `${pname(foe)}, ${(POS[o.l] || '').toLowerCase()}${o.l === 'JUNGLE' || o.l === 'UTILITY' ? '' : ' lane'}`));
+    box.append(head);
+    if (how && how.matchup) box.append(mk('p', '', how.matchup));
+    const at = mk('div', 'lats');
     for (const [min, a, b] of rows) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td></td><td></td><td></td><td></td>';
-      tr.children[0].textContent = `At ${min} minutes`;
-      [0, 1, 2].forEach((i) => { const f = i ? k1 : String, d = a[i] - b[i]; tr.children[i + 1].textContent = `${f(a[i])} vs ${f(b[i])} (${d >= 0 ? '+' : '−'}${f(Math.abs(d))})`; });
-      t.tBodies[0].append(tr);
+      const sec = mk('section', 'lat');
+      sec.setAttribute('aria-label', `At ${min} minutes`);
+      sec.append(mk('h3', 'ph', `At ${min} minutes`), ...['CS', 'Gold', 'XP'].map((what, i) => {
+        const f = i ? k1 : String, d = a[i] - b[i], row = mk('div', 'latrow');
+        row.innerHTML = '<span class="sub"></span><b class="us"></b><span class="vsbar"><i></i><i></i></span><b class="them"></b><b class="gap"></b>';
+        row.children[0].textContent = what;
+        row.children[1].textContent = f(a[i]);
+        row.querySelector('.vsbar i').style.width = `${a[i] + b[i] ? (100 * a[i]) / (a[i] + b[i]) : 50}%`;
+        row.children[3].textContent = f(b[i]);
+        row.children[4].textContent = `${d >= 0 ? '+' : '−'}${f(Math.abs(d))}`;
+        row.children[4].dataset.k = d > 0 ? 'good' : d < 0 ? 'bad' : '';
+        row.title = `${what} at ${min} minutes: ${f(a[i])} vs ${f(b[i])}`;
+        return row;
+      }));
+      at.append(sec);
     }
-    box.querySelector('.tablewrap').append(t);
+    box.append(at);
+    const fr = (tl && tl.frames) || [], pf = (f, p) => (f.participantFrames || {})[p.id] || {}, csOf = (q) => (q.minionsKilled | 0) + (q.jungleMinionsKilled | 0), lead = (f) => fr.map((x) => [Math.round(x.timestamp / 1000), f(x)]);
+    if (fr.length > 1) {
+      const charts = mk('div', 'trends');
+      charts.append(leadGraph(lead((x) => (pf(x, m).totalGold | 0) - (pf(x, o).totalGold | 0)), `Your gold against ${name}`, (v) => k1(Math.round(v)), 100),
+        leadGraph(lead((x) => csOf(pf(x, m)) - csOf(pf(x, o))), `Your CS against ${name}`, (v) => `${Math.round(v)} CS`, 3));
+      box.append(charts);
+    }
     return box;
   }
   // Their jungler in the first 14 minutes, to learn what to watch for on the minimap: where they were each minute
@@ -13629,31 +13934,68 @@ dialog.wizard { transform: scale(var(--from)); }
     box.append(duo);
     return box;
   }
-  function buysEl(r, all) {
-    const box = document.createElement('div');
-    box.className = 'buylist';
-    box.innerHTML = '<h3 class="ph">When everyone bought each item</h3>';
-    if (!all) box.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'Buy times show once Riot has this game’s timeline.' }));
-    r.players.forEach((p, i) => {
-      const buys = (all ? all[i] : (p.it || []).map((it) => [null, it])).filter(([, it]) => !(ddItems && ddItems[it] && ddItems[it].use)), row = document.createElement('div');
-      row.className = 'buyrow';
-      row.toggleAttribute('data-me', i === r.me);
-      row.innerHTML = '<div class="who"><img class="pic0" alt=""><b></b></div><div class="buys"></div>';
-      row.querySelector('img').src = champImg(p.champ);
-      row.querySelector('b').textContent = p.name.split('#')[0] || champName(p.champ);
-      row.querySelector('.buys').append(...buys.map(([t, it]) => {
-        const s = document.createElement('span'), img = new Image(), time = document.createElement('time');
-        s.className = 'buy';
-        img.alt = itemName(it);
-        img.title = t == null ? img.alt : `${img.alt} at ${mmss(t)}`;
-        img.src = itemPic(it);
-        time.textContent = t == null ? '' : mmss(t);
-        s.append(img, time);
-        return s;
-      }));
-      if (!buys.length) row.querySelector('.buys').textContent = 'No items';
-      box.append(row);
-    });
+  // Builds: yours and your lane opponent's by shop trip (buys within a minute of the trip's first), finished items
+  // ringed gold, final items at the right; Everyone shows all 10. all: everyone's buys (buysFor), or null without
+  // buy times; how: How you played, for high elo's first item.
+  function tripsOf(buys) {
+    const out = [];
+    for (const [t, it] of buys || []) {
+      if (ddItems && ddItems[it] && ddItems[it].use) continue; // no trinkets or consumables
+      const last = out[out.length - 1];
+      if (last && t - last[0] <= 60) last[1].push(it); else out.push([t, [it]]);
+    }
+    return out;
+  }
+  function tripEl([t, items]) {
+    const s = mk('span', 'trip');
+    s.append(mk('time', '', mmss(t)), mk('span', 'ti'));
+    s.lastChild.append(...items.map((it) => {
+      const i = img(itemPic(it));
+      i.alt = itemName(it);
+      i.title = `${i.alt} at ${mmss(t)}`;
+      i.classList.toggle('done', !!(ddItems && ddItems[it] && ddItems[it].done));
+      return i;
+    }));
+    return s;
+  }
+  function buildsEl(r, all, how) {
+    const me = r.players[r.me], foe = repFoe(r, me), box = mk('div', 'builds'), ours = me ? me.team : 100;
+    const final = (p) => { const f = mk('span', 'bfinal'); f.append(mk('span', 'sub', 'Final'), ...(p.it || []).map((it) => Object.assign(img(itemPic(it)), { alt: itemName(it), title: itemName(it) }))); return f; };
+    const row = (p, big) => {
+      const i = r.players.indexOf(p), el = mk('section', big ? 'buyrow' : 'buyrow small'), who = mk('span', 'bwho');
+      el.toggleAttribute('data-me', i === r.me);
+      el.dataset.side = p.team === ours ? 'us' : 'them';
+      who.append(mk('b', '', big ? `${i === r.me ? 'You' : pname(p)}, ${champName(p.champ)}` : pname(p)), mk('span', 'sub', big ? (i === r.me ? 'Your build' : 'Your lane opponent') : `${champName(p.champ)}, ${p.team === ours ? 'your team' : 'their team'}`));
+      el.setAttribute('aria-label', who.firstChild.textContent);
+      el.append(img(champImg(p.champ), 'pic0'), who, final(p), Object.assign(mk('div', 'trips'), { hidden: !all }));
+      if (all) el.lastChild.append(...tripsOf(all[i]).map(tripEl));
+      return el;
+    };
+    const head = mk('div', 'bhead'), duo = mk('div', 'bduo'), every = mk('div', 'ball');
+    if (me) {
+      const sw = mk('div', 'bswitch');
+      sw.setAttribute('role', 'group');
+      sw.setAttribute('aria-label', 'Whose builds');
+      for (const [label, el] of [[foe ? `You and ${champName(foe.champ)}` : 'You', duo], ['Everyone', every]]) {
+        const b = mk('button', 'tab', label);
+        b.type = 'button';
+        b.addEventListener('click', () => { for (const x of sw.children) x.setAttribute('aria-pressed', String(x === b)); duo.hidden = el !== duo; every.hidden = el !== every; });
+        b.setAttribute('aria-pressed', String(el === duo));
+        sw.append(b);
+      }
+      head.append(sw);
+      duo.append(...[me, foe].filter(Boolean).map((p) => row(p, true)));
+      const first = (p) => all && firstDone(all[r.players.indexOf(p)]), line = mk('div', 'bfirst'), part = (cls, who, f) => { const s = mk('span'); s.append(mk('b', cls, `${who} ${mmss(f[0])}`), ' ', mk('span', 'sub', itemName(f[1]))); return s; };
+      const mf = first(me), ff = foe && first(foe), hi = how && how.hi1;
+      if (mf || ff) {
+        line.append(mk('b', '', 'First item done'), ...(mf ? [part('us', 'You', mf)] : []), ...(ff ? [part('them', champName(foe.champ), ff)] : []), ...(hi != null ? [mk('b', 'hi', `High elo ${champName(me.champ)} ${mmss(hi)}`)] : []));
+        duo.append(line);
+      }
+      every.hidden = true;
+    }
+    head.append(mk('span', 'sub', all ? 'Each group is one trip to the shop, with the minute you bought it.' : 'Buy times show once Riot has this game’s timeline.'));
+    every.append(...r.players.slice().sort((a, b) => (b.team === ours) - (a.team === ours)).map((p) => row(p, false)));
+    box.append(head, ...(me ? [duo] : []), every);
     return box;
   }
 
@@ -13684,6 +14026,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const t = await Promise.race([riotCheck().then(() => topGet(c, role)), sleep(5000).then(() => null)]);
     return topOk(t) && t.role === role ? t : null;
   }
+  const GROUPS = ['Fights', 'Farming and items', 'Map and vision', 'Riot’s extra numbers'];
   async function analysisEl(r, tl, buys) {
     const m = r.players[r.me];
     if (!m || !(me0 ? m.puuid === me0.puuid : reports[r.id] === r)) return null; // your own games only
@@ -13706,78 +14049,81 @@ dialog.wizard { transform: scale(var(--from)); }
     const us10 = usTl.map((t) => (t.lane || []).find(([x]) => x === 10)).filter(Boolean), usAt10 = (i) => avgOf(us10.map(([, a, b]) => a[i] - b[i]));
     const first = (p) => (buys ? firstDone(buys[ps.indexOf(p)]) : null), mine1 = first(me), hi1 = top ? midOf(top.buys.map(firstDone).filter(Boolean).map(([t]) => t)) : null;
     const int = (v) => Math.round(v).toLocaleString('en-US'), one = (v) => v.toFixed(1), signed = (v) => (v < 0 ? '−' : '+') + int(Math.abs(v));
-    // [what, this game's (for a player, or a number), your usual, high elo, how it reads, more is better (1) or less (−1), a gap under this is even]
+    // [what, this game's (for a player, or a number), your usual, high elo, how it reads, more is better (1) or less (−1), a gap under this is even, its group (GROUPS)]
     const rows = [
-      ['KDA', (p) => kd(p.k, p.d, p.a), us.length ? kd(S(us, (g) => g.k), S(us, (g) => g.d), S(us, (g) => g.a)) : null, hx.length ? kd(S(hx, (g) => g.x[0]), S(hx, (g) => g.x[1]), S(hx, (g) => g.x[2])) : null, one, 1, 0.5],
-      ['Deaths', (p) => p.d, us.length ? S(us, (g) => g.d) / us.length : null, hx.length ? S(hx, (g) => g.x[1]) / hx.length : null, (v) => (Number.isInteger(v) ? String(v) : one(v)), -1, 1],
-      ['Kill participation', (p) => Math.min(1, (p.k + p.a) / Math.max(1, S(team(p), (q) => q.k))), null, hiEach((g) => HI[1](g.x, g.m)), pct, 1, 0.05],
-      ['Damage a minute', (p) => p.dmg / min, us.length ? per(us, (g) => g.dmg) : null, hiPer((g) => g.m[3]), int, 1, 60],
-      ['Share of team damage', (p) => p.dmg / Math.max(1, S(team(p), (q) => q.dmg)), null, hiEach((g) => g.m[3] / Math.max(1, g.m[5])), pct, 1, 0.03],
-      ['CS a minute', (p) => p.cs / min, us.length ? per(us, (g) => g.cs) : null, hiPer((g) => g.x[3]), one, 1, 0.5],
-      ['Gold a minute', (p) => p.gold / min, us.length && us.every((g) => g.gold > 0) ? per(us, (g) => g.gold) : null, hiPer((g) => g.m[1]), int, 1, 25],
-      ['Vision score a minute', (p) => p.vision / min, us.length ? per(us, (g) => g.vision) : null, hiPer((g) => g.m[2]), (v) => v.toFixed(2), 1, 0.1],
-      ...EXTRA.map(([what], i) => [what, (p) => (p.x ? p.x[i] : NaN), usX(i), null, i === 4 ? mmss : (v) => (Number.isInteger(v) ? String(v) : one(v)), i === 4 ? -1 : 1, [5, 3, 1, 1, 30][i]]),
-      ...(l10 ? [[`Gold at 10 minutes against ${foeName}`, at10(1), usAt10(1), hiAvg((g) => g.g), signed, 1, 150],
-        [`CS at 10 minutes against ${foeName}`, at10(0), usAt10(0), hiAvg((g) => (g.l ? g.l[0] : NaN)), signed, 1, 5],
-        [`XP at 10 minutes against ${foeName}`, at10(2), usAt10(2), hiAvg((g) => (g.l ? g.l[1] : NaN)), signed, 1, 150]] : []),
-      ...(mine1 ? [['First item done', (p) => (first(p) || [NaN])[0], avgOf(usTl.map((t) => firstDone(t.buys)).filter(Boolean).map(([t]) => t)), hi1, mmss, -1, 45]] : []),
+      ['KDA', (p) => kd(p.k, p.d, p.a), us.length ? kd(S(us, (g) => g.k), S(us, (g) => g.d), S(us, (g) => g.a)) : null, hx.length ? kd(S(hx, (g) => g.x[0]), S(hx, (g) => g.x[1]), S(hx, (g) => g.x[2])) : null, one, 1, 0.5, 0],
+      ['Deaths', (p) => p.d, us.length ? S(us, (g) => g.d) / us.length : null, hx.length ? S(hx, (g) => g.x[1]) / hx.length : null, (v) => (Number.isInteger(v) ? String(v) : one(v)), -1, 1, 0],
+      ['Kill participation', (p) => Math.min(1, (p.k + p.a) / Math.max(1, S(team(p), (q) => q.k))), null, hiEach((g) => HI[1](g.x, g.m)), pct, 1, 0.05, 0],
+      ['Damage a minute', (p) => p.dmg / min, us.length ? per(us, (g) => g.dmg) : null, hiPer((g) => g.m[3]), int, 1, 60, 0],
+      ['Share of team damage', (p) => p.dmg / Math.max(1, S(team(p), (q) => q.dmg)), null, hiEach((g) => g.m[3] / Math.max(1, g.m[5])), pct, 1, 0.03, 0],
+      ['CS a minute', (p) => p.cs / min, us.length ? per(us, (g) => g.cs) : null, hiPer((g) => g.x[3]), one, 1, 0.5, 1],
+      ['Gold a minute', (p) => p.gold / min, us.length && us.every((g) => g.gold > 0) ? per(us, (g) => g.gold) : null, hiPer((g) => g.m[1]), int, 1, 25, 1],
+      ...(mine1 ? [['First item done', (p) => (first(p) || [NaN])[0], avgOf(usTl.map((t) => firstDone(t.buys)).filter(Boolean).map(([t]) => t)), hi1, mmss, -1, 45, 1]] : []),
+      ...(l10 ? [[`CS at 10 vs ${foeName}`, at10(0), usAt10(0), hiAvg((g) => (g.l ? g.l[0] : NaN)), signed, 1, 5, 1],
+        [`Gold at 10 vs ${foeName}`, at10(1), usAt10(1), hiAvg((g) => g.g), signed, 1, 150, 1],
+        [`XP at 10 vs ${foeName}`, at10(2), usAt10(2), hiAvg((g) => (g.l ? g.l[1] : NaN)), signed, 1, 150, 1]] : []),
+      ['Vision score a minute', (p) => p.vision / min, us.length ? per(us, (g) => g.vision) : null, hiPer((g) => g.m[2]), (v) => v.toFixed(2), 1, 0.1, 2],
+      ...EXTRA.map(([what], i) => [what, (p) => (p.x ? p.x[i] : NaN), usX(i), null, i === 4 ? mmss : (v) => (Number.isInteger(v) ? String(v) : one(v)), i === 4 ? -1 : 1, [5, 3, 1, 1, 30][i], i > 2 ? 2 : 3]),
     ];
-    const cols = [['This game', `${name}, ${Math.round(min)} min`], ...(us.length ? [['Your usual', byChamp ? `${us.length} games on ${name}` : `${us.length} of your ${POS[me.l].toLowerCase()} games`]] : []),
-      ...(top ? [['High elo', `${name} ${POS[me.l].toLowerCase()}, ${top.n} games`]] : []), ...(foe ? [[foeName, `their ${POS[foe.l].toLowerCase()}`]] : [])];
-    const t = document.createElement('table'), judged = [];
-    t.className = 'ready bench';
-    t.innerHTML = '<thead><tr><th></th></tr></thead><tbody></tbody>';
-    t.tHead.rows[0].append(...cols.map(([h, sub]) => { const th = document.createElement('th'); th.append(h, Object.assign(document.createElement('span'), { className: 'sub', textContent: sub })); return th; }));
-    for (const [what, f, u, h, fmt, dir, even] of rows) {
+    // each number as a bar (What's new 187): filled to this game's, green or red when better or worse than your usual
+    // (else high elo, else your lane opponent), grey when even; a white line for your usual, a gold diamond for high elo;
+    // leads against your lane opponent centred on 0. Hover or focus a row for the exact numbers.
+    const legend = [['now', `This game, ${name}, ${Math.round(min)} min`], ...(us.length ? [['us', `Your usual, ${byChamp ? `${us.length} games on ${name}` : `${us.length} of your ${POS[me.l].toLowerCase()} games`}`]] : []),
+      ...(top ? [['hi', `High elo, ${name} ${POS[me.l].toLowerCase()}, ${top.n} games`]] : [])];
+    const groups = GROUPS.map((g) => { const sec = mk('section', 'bgroup'); sec.setAttribute('aria-label', g); sec.append(mk('h3', 'ph', g)); return sec; }), judged = [];
+    for (const [what, f, u, h, fmt, dir, even, gi] of rows) {
       const now = typeof f === 'function' ? f(me) : f, vs = foe && typeof f === 'function' ? f(foe) : null;
       if (!Number.isFinite(now)) continue;
-      const tr = document.createElement('tr'), td = (v) => Object.assign(document.createElement('td'), { textContent: Number.isFinite(v) ? fmt(v) : '—' });
-      tr.append(Object.assign(document.createElement('th'), { scope: 'row', textContent: what }), td(now), ...(us.length ? [td(u)] : []), ...(top ? [td(h)] : []), ...(foe ? [td(vs)] : []));
-      const base = [[u, 'us'], [h, 'hi'], [vs, 'foe']].find(([v]) => Number.isFinite(v)); // against your usual, else high elo, else your lane opponent
-      if (base) {
-        const d = ((now - base[0]) * dir) / even;
-        if (Math.abs(d) > 1) {
-          tr.children[1].dataset.k = d > 0 ? 'good' : 'bad';
-          tr.children[1].title = `${d > 0 ? 'Better' : 'Worse'} than ${base[1] === 'us' ? 'your usual' : base[1] === 'hi' ? 'high elo' : foeName}`;
-        }
-        judged.push({ what, now, base: base[0], from: base[1], d, fmt });
-      }
-      t.tBodies[0].append(tr);
+      const row = mk('div', 'brow'), base = [[u, 'us'], [h, 'hi'], [vs, 'foe']].find(([v]) => Number.isFinite(v)); // against your usual, else high elo, else your lane opponent
+      const d = base ? ((now - base[0]) * dir) / even : 0, k = Math.abs(d) > 1 ? (d > 0 ? 'good' : 'bad') : '';
+      if (base) judged.push({ what, now, base: base[0], from: base[1], d, fmt });
+      const vals = [now, u, h].filter(Number.isFinite), mid = / vs /.test(what) || vals.some((v) => v < 0), most = Math.max(1e-9, ...vals.map(Math.abs)) * 1.18, at = (v) => (mid ? 50 + (50 * v) / most : (100 * v) / most);
+      row.tabIndex = 0;
+      row.innerHTML = '<span class="bwhat"></span><span class="btrack"><i class="bfill"></i></span><b class="bval"></b><span class="btip" role="tooltip"></span>';
+      row.querySelector('.bwhat').textContent = what;
+      const fill = row.querySelector('.bfill'), track = row.querySelector('.btrack'), z = mid ? 50 : 0;
+      fill.style.left = `${Math.min(at(now), z)}%`;
+      fill.style.width = `${Math.abs(at(now) - z)}%`;
+      if (mid) track.prepend(mk('i', 'bmid'));
+      if (Number.isFinite(u)) { const e = mk('i', 'bus'); e.style.left = `${at(u)}%`; track.append(e); }
+      if (Number.isFinite(h)) { const e = mk('i', 'bhi'); e.style.left = `${at(h)}%`; track.append(e); }
+      row.querySelector('.bval').textContent = fmt(now);
+      row.dataset.k = k;
+      if (k) row.title = `${k === 'good' ? 'Better' : 'Worse'} than ${base[1] === 'us' ? 'your usual' : base[1] === 'hi' ? 'high elo' : foeName}`;
+      row.querySelector('.btip').textContent = [`This game ${fmt(now)}`, Number.isFinite(u) && `your usual ${fmt(u)}`, Number.isFinite(h) && `high elo ${fmt(h)}`, Number.isFinite(vs) && `${foeName} ${fmt(vs)}`].filter(Boolean).join(' · ');
+      groups[gi].append(row);
     }
     // what stood out: your best and worst against your usual (or high elo, or your lane opponent), the matchup in high
     // elo, deaths in the first 14 minutes and your first item's time against high elo
     const vsText = (j) => (j.from === 'us' ? `your usual ${j.fmt(j.base)}` : j.from === 'hi' ? `${j.fmt(j.base)} for high elo ${name} players` : `${j.fmt(j.base)} for ${foeName}`);
     const lower = (s) => s.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()), says = [], gaps = judged.filter((j) => Math.abs(j.d) > 1).sort((a, b) => b.d - a.d);
-    if (gaps.length && gaps[0].d > 0) says.push(`Your best: ${lower(gaps[0].what)}, ${gaps[0].fmt(gaps[0].now)} against ${vsText(gaps[0])}.`);
-    if (gaps.length && gaps[gaps.length - 1].d < 0) { const w = gaps[gaps.length - 1]; says.push(`To work on: ${lower(w.what)}, ${w.fmt(w.now)} against ${vsText(w)}.`); }
+    if (gaps.length && gaps[0].d > 0) says.push(['good', 'Your best:', `${lower(gaps[0].what)}, ${gaps[0].fmt(gaps[0].now)} against ${vsText(gaps[0])}.`]);
+    if (gaps.length && gaps[gaps.length - 1].d < 0) { const w = gaps[gaps.length - 1]; says.push(['bad', 'To work on:', `${lower(w.what)}, ${w.fmt(w.now)} against ${vsText(w)}.`]); }
     const vf = top && foe ? top.vs.find((v) => v.c === foe.c && v.n >= 10) : null;
-    if (vf && Math.abs(vf.w / vf.n - 0.5) > 0.04) says.push(`High elo ${name} players won ${pct(vf.w / vf.n)} of ${vf.n} games against ${foeName}: a ${vf.w < vf.n / 2 ? 'hard' : 'good'} matchup.`);
+    const matchup = vf && Math.abs(vf.w / vf.n - 0.5) > 0.04 ? [vf.w < vf.n / 2 ? 'Hard matchup:' : 'Good matchup:', `high elo ${name} players won ${pct(vf.w / vf.n)} of ${vf.n} games against ${foeName}.`] : null;
+    if (matchup) says.push(['', ...matchup]);
     const kills = tlEvents(tl, 'CHAMPION_KILL'), died = kills.filter((e) => e.victimId === me.id), early = died.filter((e) => e.timestamp < 840000 && e.position);
     if (early.length >= 2) {
       const at = new Map();
       for (const e of early) { const w = placeOf(e.position, me.t); at.set(w, (at.get(w) || 0) + 1); }
       const [where, n] = [...at].sort((a, b) => b[1] - a[1])[0];
-      says.push(`You died ${timesText(early.length)} before 14 minutes${n < 2 ? '' : n === early.length ? `, ${n === 2 ? 'both' : 'all'} in ${where}` : `, ${timesText(n)} in ${where}`}.`);
+      says.push(['', 'Early deaths:', `you died ${timesText(early.length)} before 14 minutes${n < 2 ? '' : n === early.length ? `, ${n === 2 ? 'both' : 'all'} in ${where}` : `, ${timesText(n)} in ${where}`}.`]);
     }
-    if (mine1 && hi1 != null && Math.abs(mine1[0] - hi1) >= 60) says.push(`Your first item, ${itemName(mine1[1])}, was done at ${mmss(mine1[0])}: ${mmss(Math.abs(mine1[0] - hi1))} ${mine1[0] > hi1 ? 'later' : 'sooner'} than high elo ${name} players (${mmss(hi1)}).`);
+    if (mine1 && hi1 != null && Math.abs(mine1[0] - hi1) >= 60) says.push(['', 'First item:', `${itemName(mine1[1])} at ${mmss(mine1[0])}, ${mmss(Math.abs(mine1[0] - hi1))} ${mine1[0] > hi1 ? 'later' : 'sooner'} than high elo ${name} players (${mmss(hi1)}).`]);
     // your damage by kind, wards and the like (reports since this update), and your leads over the game
     const tiles = [], dm = Array.isArray(m.dmgs) ? m.dmgs[0] + m.dmgs[1] + m.dmgs[2] : 0;
-    if (dm) tiles.push(['Your damage', ['physical', 'magic', 'true'].map((k, i) => `${pct(m.dmgs[i] / dm)} ${k}`).join(' · ')]);
-    if (Array.isArray(m.wards) && m.wards.some(Boolean)) tiles.push(['Wards', `${m.wards[0]} placed · ${m.wards[1]} destroyed · ${m.wards[2]} control bought`]);
-    if (m.tower) tiles.push(['Damage to towers', int(m.tower)]);
-    if (m.cc) tiles.push(['Crowd control', `${int(m.cc)} s`]);
-    const frames = (tl && tl.frames) || [], pf = (fr, p) => (fr.participantFrames || {})[p.id] || {}, csOf = (q) => (q.minionsKilled | 0) + (q.jungleMinionsKilled | 0);
-    const lead = (f) => frames.map((fr) => [Math.round(fr.timestamp / 1000), f(fr)]), charts = [];
-    if (foe && frames.length > 1) charts.push(leadGraph(lead((fr) => (pf(fr, me).totalGold | 0) - (pf(fr, foe).totalGold | 0)), `Your gold against ${foeName}, ahead above the line`, goldText, 100),
-      leadGraph(lead((fr) => csOf(pf(fr, me)) - csOf(pf(fr, foe))), `Your CS against ${foeName}`, (v) => (Math.abs(v) < 3 ? 'even' : `${v < 0 ? '−' : '+'}${Math.abs(v)} CS`), 3));
-    if (!(r.gold && r.gold.length > 1) && frames.length > 1) charts.push(leadGraph(lead((fr) => S(ps, (p) => (p.t === me.t ? 1 : -1) * (pf(fr, p).totalGold | 0))), 'Gold difference, your team above the line', goldText, 100));
+    if (dm) { const bar = mk('span', 'dmgbar'); bar.append(...m.dmgs.map((v, i) => { const e = mk('i'); e.dataset.k = i; e.style.width = `${(100 * v) / dm}%`; return e; })); tiles.push(['Your damage', bar, ['physical', 'magic', 'true'].map((k, i) => `${pct(m.dmgs[i] / dm)} ${k}`).join(' · ')]); }
+    if (Array.isArray(m.wards) && m.wards.some(Boolean)) tiles.push(['Wards', mk('b', '', `${m.wards[0]} placed · ${m.wards[1]} destroyed`), Object.assign(mk('span', m.wards[2] ? 'sub' : 'sub bad', `${m.wards[2]} control ward${m.wards[2] === 1 ? '' : 's'} bought`))]);
+    if (m.tower) tiles.push(['Damage to towers', mk('b', '', int(m.tower))]);
+    if (m.cc) tiles.push(['Crowd control', mk('b', '', `${int(m.cc)} s`)]);
     const box = document.createElement('div'), add = (cls, tagName, kids) => { const el = document.createElement(tagName); el.className = cls; el.append(...kids); box.append(el); return el; };
     box.className = 'analysis';
-    box.innerHTML = '<h3 class="ph">How you played</h3>';
-    if (says.length) add('takeaways', 'ul', says.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
-    add('tablewrap', 'div', [t]);
-    if (tiles.length) add('timers', 'div', tiles.map(([n, v]) => { const s = document.createElement('span'); s.append(Object.assign(document.createElement('b'), { textContent: n }), v); return s; }));
-    if (charts.length) add('trends', 'div', charts);
+    box.hi1 = hi1; // for Builds
+    box.matchup = matchup && `${matchup[1].replace(/^h/, 'H').replace(/\.$/, '')}: a ${matchup[0].split(' ')[0].toLowerCase()} matchup.`; // for Laning
+    if (says.length) add('takeaways', 'ul', says.map(([k, lead, x]) => { const li = mk('li'); li.dataset.k = k; li.append(mk('span')); li.firstChild.append(mk('b', '', lead), ' ', x); return li; }));
+    add('blegend', 'div', [...legend.map(([k, x]) => { const s = mk('span', '', x); s.dataset.k = k; return s; }), mk('span', 'sub', `Green: better than ${us.length ? 'your usual' : top ? 'high elo' : foeName}. Red: worse.`)]);
+    add('bgroups', 'div', groups.filter((g) => g.childElementCount > 1));
+    if (tiles.length) add('timers', 'div', tiles.map(([n, ...v]) => { const s = mk('span'); s.append(mk('span', 'sub', n), ...v); return s; }));
     if (!tl || !sr) return box;
     // where you got kills (dots), assists (rings) and died (crosses) on the Rift; your deaths; and the objectives
     const who = (id) => ps.find((p) => p.id === id), you = kills.filter((e) => e.position && (e.killerId === me.id || e.victimId === me.id || (e.assistingParticipantIds || []).includes(me.id)));
@@ -13822,25 +14168,13 @@ dialog.wizard { transform: scale(var(--from)); }
     const key = box.hidden ? '' : p ? `${r.id} ${ddVersion}` : `wait ${postWait}`;
     if (box.dataset.key === key) return;
     box.dataset.key = key;
-    $('postHead').dataset.r = p ? (p.win ? 'Win' : 'Lose') : '';
+    $('postHead').hidden = !!p; // the report's own head says it (What's new 187): one head, not two
     if (!p) {
       $('postHead').textContent = 'Game over. How you played shows up here once Riot has the game, usually within a few minutes.';
       $('postBody').replaceChildren();
       return;
     }
-    const lp = lpLog.find((e) => e.id === r.id), rep = reportEl(r);
-    $('postHead').classList.remove('land');
-    void $('postHead').offsetWidth; // restarts the landing
-    $('postHead').classList.add('land');
-    // the hero (What's new 176): the champion you played behind Victory or Defeat, then the game in one line, +LP in its colour
-    const art = Object.assign(new Image(), { className: 'heroart', alt: '' }), id = (champOf(p.champ) || {}).id, res = document.createElement('b'), line = document.createElement('span'), lpe = document.createElement('span');
-    if (id) art.src = `${DD}/cdn/img/champion/splash/${id}_0.jpg`;
-    res.textContent = p.win ? 'Victory' : 'Defeat';
-    line.append(Object.assign(document.createElement('span'), { className: 'sep', textContent: ' · ' }), [champName(p.champ), `${p.k}/${p.d}/${p.a}`, `${Math.round(r.len / 60)} min`, QUEUES[r.queue] || MODES[r.mode] || cap(r.mode)].join(' · '));
-    if (lp) { lpe.className = 'lp'; lpe.dataset.d = lp.delta >= 0 ? 'up' : 'down'; lpe.textContent = `${lp.delta >= 0 ? '+' : ''}${lp.delta} LP`; line.append(' · ', lpe); }
-    line.append(' · ' + [`score ${p.score}${p.badge ? ` (${p.badge})` : ''}`, whenText(r.at)].join(' · '));
-    $('postHead').replaceChildren(...(id ? [art] : []), res, line);
-    rep.prepend(rep.querySelector('.rmore')); // how you played first, then everyone's scores
+    const rep = reportEl(r, 'how'); // opens on How you played
     $('postBody').replaceChildren(rep);
     reportOpen(rep, r);
   }
@@ -19468,6 +19802,13 @@ dialog.wizard { transform: scale(var(--from)); }
       'The enemy spell strip takes your click any time in a game: move your mouse onto a spell and click, no Alt+X first. The rest of the overlay still lets your clicks through to League.',
       'With the app update (1.52), the strip shows each enemy’s second summoner spell from League itself, from the first second of the game and after an Unsealed Spellbook swap.',
     ]],
+    [187, 'November 21: game reports redrawn', [
+      'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, and Watch the match, Your clips and the replay.',
+      'Four tabs: Overview, How you played, Laning and Builds. After a game, the Game page opens on How you played.',
+      'Overview puts your team on top with a score ring for each player and a strip that sets kills, gold, towers, dragons, Barons and Voidgrubs side by side. Press a player for Riot’s extra numbers, how they compare with high elo, and Copy runes, Copy items or Avoid.',
+      'How you played shows each number as a bar, with a white line for your usual and a gold diamond for high elo.',
+      'Lead charts fill blue while your side is ahead and red while behind, with minute marks.',
+      'Builds shows yours and your lane opponent’s by shop trip, finished items ringed in gold. Everyone shows all 10.']],
     [186, 'November 21: game reports fixed', [
       'Opened games show both teams again: the players’ rows had slipped off to the side since the scoreboard came in.',
       'Builds show what everyone bought and when. When League’s copy of the game has no buy times, Premade asks Riot’s.',
@@ -20554,9 +20895,9 @@ dialog.wizard { transform: scale(var(--from)); }
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
       ['Jungle clear timer', 'In Practice Tool, your jungle clear timed camp by camp, from the gold each camp gives, against your best clear on that champion.',
         'Start a Practice Tool game from Pregame, buy a jungle pet and clear your camps. Pick how many camps make a clear on Game.', '#jgBox', 'app'],
-      ['Scoreboard', 'Both teams as they sat on the map with kills, gold, towers, dragons and Barons, and each player’s level, spells, runes, rank, K/D/A, damage, CS, gold, vision, items and this game’s tags. Watch the match and Your clips go to the game on the Clips page.',
+      ['Scoreboard', 'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, Watch the match, Your clips and the replay. Overview puts your team on top, a row for each player with level, spells, runes, rank, K/D/A, damage, CS, gold, items, this game’s tags and a score ring, and the teams’ kills, gold, towers, dragons, Barons and Voidgrubs side by side. Press a player for Riot’s extra numbers, how they compare with high elo, and Copy runes, Copy items or Avoid.',
         'Your last game, on Game, once a game ends; every game report; Scoreboard on each game on the Clips page and on the card after a game.', '#postBox', 'app'],
-      ['How you played', 'After a game: the champion you played behind Victory or Defeat and your +LP, then you against your usual games, high elo players and your lane opponent, your gold and CS minute by minute, where you got kills and died, and the objectives each team took.',
+      ['How you played', 'After a game the Game page opens on How you played: what stood out, each of your numbers as a bar against your usual games (a white line) and high elo players (a gold diamond), where you got kills and died, and the objectives each team took. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
     ]],
     ['League: Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [
@@ -20574,7 +20915,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Champions to try', 'For the champions you play most, the ones the same high elo players play, like “If you like Yasuo”.', 'Stats, Champions. Each champion’s page has them too.', '#h-try', 'app'],
       ['Nemeses, allies and duos', 'The champions you lose to most in your lane, the ones you win with, and which champions and roles win most with each friend.', 'Stats, Champions.', '#h-nem', 'app'],
       ['Collection and patch changes', 'Every champion you’ve played and won with, and what the patch changed for yours, with a popup on patch day.', 'Stats, Champions.', '#h-patch', 'app'],
-      ['Match history and game reports', 'Your last 100 games, filtered by champion, role, result, friend or date. Each report scores every player (MVP and ACE), with the replay, laning, item timings, Riot’s extra numbers and where their jungler was in the first 14 minutes, and saves anyone’s runes or build in League.',
+      ['Match history and game reports', 'Your last 100 games, filtered by champion, role, result, friend or date. Each report has four tabs (Overview, How you played, Laning and Builds) and scores every player (MVP and ACE), with the replay, Riot’s extra numbers and where their jungler was in the first 14 minutes. Builds shows yours and your lane opponent’s by shop trip, finished items ringed in gold, with buy times from Riot’s copy when League’s has none. Saves anyone’s runes or build in League.',
         'Stats, Games: click a game. Export to a spreadsheet is there too.', '#mfFind', 'app'],
       ['Talk time and voice games', 'How long everyone in your room talked, a talk map of where the room talked most, and each game with friends in voice, kept on this computer. Talk and win says whether you win more when the room talks more.',
         'Stats, Games.', '#talkMap'],
