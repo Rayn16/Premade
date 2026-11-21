@@ -41,6 +41,11 @@ a { color: var(--gold); }
 .champs .sub { color: var(--muted); font-size: 14px; }
 .champs .wr { font-weight: 600; }
 footer { display: grid; gap: 8px; text-align: center; }
+/* their skin from Premade's Profile across the top, fading into the page, and its colors when they had them on */
+#top.skin { position: relative; overflow: hidden; min-height: 260px; align-content: end; }
+#top.skin > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+#top.skin::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, var(--panel) 92%); }
+#top.skin > :not(img) { position: relative; }
 .legal { font-size: 12px; }
 </style>
 </head>
@@ -122,6 +127,12 @@ function rank(r) { // [tier, division, LP, wins, losses] -> [rank, LP and win ra
   $('when').textContent = num(p.at) ? `As of ${day(num(p.at), true)}` : '';
   const rk = Array.isArray(p.rk) ? p.rk : [];
   $('ranks').replaceChildren(...[['Solo/Duo', rank(rk[0])], ['Flex', rank(rk[1])]].map(([q, r]) => tile(q, r ? r[0] : 'Unranked', r ? r[1] : '')));
+  const bg = Array.isArray(p.bg) && /^[A-Za-z0-9]{1,30}$/.test(p.bg[0]) ? p.bg : null, hue = bg ? num(bg[2], 360) : 0;
+  if (bg) {
+    $('top').classList.add('skin');
+    $('top').prepend(Object.assign(new Image(), { src: `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${bg[0]}_${num(bg[1], 999) | 0}.jpg`, alt: '' }));
+    if (bg[2] >= 0) for (const [k, v] of [['--bg', `hsl(${hue} 44% 5%)`], ['--panel', `hsl(${hue} 37% 8%)`], ['--raised', `hsl(${hue} 32% 11.5%)`], ['--line', `hsl(${hue} 25% 20%)`], ['--muted', `hsl(${hue} 17.5% 72%)`], ['--fg', '#f4eeee']]) document.documentElement.style.setProperty(k, v);
+  }
   $('top').hidden = false;
   // Riot's rank emblems, from Data Dragon's TFT ranked regalia (the same crests as League's ranks)
   if (dd) fetch(`https://ddragon.leagueoflegends.com/cdn/${dd}/data/en_US/tft-regalia.json`).then((r) => r.json()).then((j) => {

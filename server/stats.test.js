@@ -9,6 +9,7 @@
 // and tells Premade's health.yml when the site goes down and when it's back, once each.
 // Open voice rooms (/rooms): an open room is listed for everyone, a hidden one (Hide room) only for a page that asks with
 // one of the Riot IDs it's shared with, with its password; a hidden room with nobody ticked is off the list.
+// Profile's skin (/skins): the skin a copy's hello last showed, by its Riot IDs.
 // WRANGLER=<path to wrangler> NODE_PATH=<folder with ws> node stats.test.js
 const assert = require('assert'), fs = require('fs'), os = require('os'), path = require('path');
 const { spawn } = require('child_process');
@@ -85,6 +86,12 @@ function join(id, token, ip) { // resolves with the server's first message type:
   ]);
   assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW'] })).status, 204); // a hello without a day keeps the last
   assert.deepEqual((await (await post('/who', { key: OWNER })).json()).apps.find((a) => a.name === 'Rayan').day.h, { start: 3, crash: 1, mem: 412 });
+  // Profile's skin: /skins gives the one a copy's last hello showed, by any of its Riot IDs in any case; a hello without one clears it
+  const skins = async (q) => (await fetch(`${BASE}/skins?riot=${encodeURIComponent(q)}`)).json();
+  assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW', 'Smurf#1234'], skin: 37006 })).status, 204);
+  assert.deepEqual(await skins('rayan#euw,Kev#NA1,Smurf#1234,nobody'), { 'rayan#euw': 37006, 'smurf#1234': 37006 });
+  assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan', riot: ['Rayan#EUW', 'Smurf#1234'], skin: 'x' })).status, 204);
+  assert.deepEqual(await skins('Rayan#EUW'), {}, 'no skin, none given');
   assert.equal((await post('/hello', { id: B, v: '1.13.0', name: 'Rayan the very long voice name', riot: ['Rayan#EUW', 'Smurf#1234'] })).status, 204);
   assert(apps.every((a) => Math.abs(a.last - now) < 30 && a.first <= a.last), JSON.stringify(apps));
   assert(apps[0].first < apps[0].last, 'the first opening is kept');

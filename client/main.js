@@ -415,7 +415,7 @@ const LCU_OK = [
   ['POST', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
   ['DELETE', /^\/lol-lobby\/v2\/lobby\/matchmaking\/search$/],
   ['PUT', /^\/lol-lobby\/v2\/lobby\/members\/localMember\/position-preferences$/],
-  ['GET', /^\/lol-summoner\/v1\/(current-summoner|summoners\/\d+|alias\/lookup\?gameName=[\w.!~*'()%-]*&tagLine=[\w.!~*'()%-]*)$/], // encoded names only
+  ['GET', /^\/lol-summoner\/v1\/(current-summoner|current-summoner\/summoner-profile|summoners\/\d+|alias\/lookup\?gameName=[\w.!~*'()%-]*&tagLine=[\w.!~*'()%-]*)$/], // encoded names only; summoner-profile: the background you set in League (Profile)
   ['GET', /^\/lol-summoner\/v2\/summoners\/puuid\/[\w-]+$/],
   ['GET', /^\/lol-ranked\/v1\/(current-ranked-stats|current-lp-change-notification|ranked-stats\/[\w-]+)$/],
   ['GET', /^\/lol-match-history\/v1\/(products\/lol\/[\w-]+\/matches\?begIndex=\d+&endIndex=\d+|products\/tft\/[\w-]+\/matches\?begin=\d+&count=\d+|games\/\d+|game-timelines\/\d+)$/],
