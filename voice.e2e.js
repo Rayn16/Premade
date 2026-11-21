@@ -305,7 +305,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // the first page is Rooms; League's pages are under League. Its profile, in a browser with no League and no Riot data, says where it comes from
     assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isVisible('#premadeList') && await ana.isHidden('#leagueList'), 'Rooms first');
-    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'Features', 'League'], 'the menu in a browser: hangout pages, then League');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'Settings', 'League'], 'the menu in a browser: hangout pages, then League');
     await ana.click('#leagueNav');
     assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
     await openPage(ana, 'profile');
@@ -1397,6 +1397,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await dee.isVisible('#getNew') && await eve.isHidden('#getNew'), 'old app: link to the installer');
     assert.strictEqual(await eve.textContent('#appVersion'), '1.5.0');
     await eve.evaluate(() => lpcClient.emit('update', { version: '1.3.1' }));
+    await waitFor(eve, () => document.getElementById('updDlg').open, null, 'the update pop-up');
     await eve.click('#restartBtn');
     assert(await eve.evaluate(() => lpcClient.calls.some(([k]) => k === 'update')), 'restart installs the update');
     // Discord status on Eve's profile: in a game as Annie, 2 in voice, no Join button for a game's room
@@ -1409,20 +1410,17 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.evaluate(() => lpc.league(null));
     assert(await dee.evaluate(() => lpcClient.calls.filter(([k]) => k === 'compact').pop()[1] === 0 && !document.body.classList.contains('compact')), 'full view again when the game ended');
 
-    // What's new: once for someone who had the app before this update, only what's new, then not again; never on a first launch
+    // What's new: never by itself, not after an update and not on a first launch (What's new 185)
     const gus = await player(browser, 'Gus', [1280, 720], { setup: false });
     await gus.goto(URL_);
     assert(await gus.evaluate(() => document.getElementById('setup').open && !document.getElementById('newsDlg').open), 'a first launch: setup, not What’s new');
-    await gus.evaluate(() => { localStorage.setItem('lpc-setup', '1'); localStorage.removeItem('lpc-news'); });
-    await gus.reload();
-    await waitFor(gus, () => document.getElementById('newsDlg').open, null, 'What’s new after an update');
-    assert.deepStrictEqual(await gus.$$eval('#newsList h3', (h) => h.map((x) => x.textContent)), [await gus.evaluate(() => lpc.news())], 'only what’s new since');
-    await gus.click('#newsClose');
+    await gus.evaluate(() => localStorage.setItem('lpc-setup', '1'));
     await gus.reload();
     await gus.waitForFunction(() => window.lpc);
-    assert(!(await gus.evaluate(() => document.getElementById('newsDlg').open)), 'not again');
+    await gus.waitForTimeout(500);
+    assert(!(await gus.evaluate(() => document.getElementById('newsDlg').open)), 'no What’s new after an update');
     await gus.context().close();
-    console.log('What’s new: once after an update, not on a first launch');
+    console.log('What’s new: never pops up by itself');
 
 
     // App size (Settings > Look): the whole app at 150%, still the window's size, and kept after a restart; at 200% the

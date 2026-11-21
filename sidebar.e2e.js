@@ -172,7 +172,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await pp.goto(URL0);
     await pp.waitForSelector('#railGrip', { state: 'attached' });
     assert(await pp.evaluate(() => document.documentElement.classList.contains('phone')) && await pp.isHidden('#railGrip'), 'phone, no edge');
-    assert.deepStrictEqual(await visibleNames(pp), ['Rooms', 'Friends', 'Aion 2', 'Settings', 'Features', 'League'], 'phone: Premade’s bar');
+    assert.deepStrictEqual(await visibleNames(pp), ['Rooms', 'Friends', 'Aion 2', 'Settings', 'League'], 'phone: Premade’s bar');
     await shot(pp, '8-phone-premade');
     await pp.click('#leagueNav');
     assert.deepStrictEqual(await visibleNames(pp), ['Proximity voice', 'Profile', 'Stats', 'TFT', 'Premade'], 'phone: League’s bar');

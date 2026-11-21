@@ -814,23 +814,6 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .feed li { display: flex; align-items: center; gap: 10px; }
 .feed .pic0, .feed .emb { width: 26px; height: 26px; }
 .feed .sub { display: inline; margin-left: 6px; }
-
-/* Features: Get set up's steps (a tick once done), then a card for each feature by page, with Show me at its foot;
-   Show me flashes the spot it takes you to */
-.featfind { max-width: 420px; }
-.featlist { display: grid; gap: 18px; }
-.feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
-.feat { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border-radius: var(--r); background: var(--soft); color: color-mix(in srgb, var(--fg) 78%, var(--muted)); font-size: 13.5px; line-height: 1.55; }
-.feat h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font: 600 15.5px/1.3 var(--body); color: var(--gold-hi); }
-.feat > .btn { align-self: flex-start; margin-top: auto; text-decoration: none; }
-.setup { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.setup .feat { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.setup .feat > div { flex: 1 1 200px; display: grid; gap: 4px; }
-.setup .feat > .btn { margin-top: 0; }
-.setup .feat[data-h="good"] .hint { display: none; } /* done: just its name and how it stands */
-.sn { width: 28px; height: 28px; flex: none; display: grid; place-items: center; align-self: flex-start; border: 1px solid var(--gold-line); border-radius: 50%; font: 600 13px/1 var(--mono); color: var(--gold); }
-.feat[data-h="good"] .sn { border-color: var(--good); background: var(--good); color: var(--bg); }
-.sstate { display: flex; align-items: center; gap: 8px; }
 .flash { animation: flash 2.4s ease-out; }
 @keyframes flash { 0%, 50% { outline: 3px solid var(--gold); outline-offset: 3px; } 100% { outline: 3px solid transparent; outline-offset: 3px; } }
 
@@ -1761,7 +1744,6 @@ dialog.wizard { transform: scale(var(--from)); }
     <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
     <button class="nav client-only" type="button" data-view="re4"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg><span>RE4 co-op</span></button>
     <button class="nav" type="button" data-view="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
-    <button class="nav" type="button" data-view="features"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7c-1.8-1.6-4.6-2.3-8-2v13c3.4-.3 6.2.4 8 2 1.8-1.6 4.6-2.3 8-2V5c-3.4-.3-6.2.4-8 2zM12 7v13"/></svg><span>Features</span></button>
     </div>
     <div id="leagueList" class="rlist" hidden>
       <button class="nav" type="button" data-view="prox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Proximity voice</span></button>
@@ -3163,21 +3145,6 @@ dialog.wizard { transform: scale(var(--from)); }
       <header class="pagehead"><div><h1 class="title">Aion 2</h1><p class="sub">Your group tracker: characters, gear and Abyss fights.</p></div></header>
       <iframe id="aionFrame" title="Aion 2 group tracker"></iframe>
     </section>
-
-    <section class="view" data-view="features" aria-label="Features" hidden>
-      <header class="pagehead"><div><h1 class="title">Features</h1><p class="sub">Everything Premade can do, where it is and how to set it up. Show me takes you straight there.</p></div></header>
-      <p class="hint browser-only">Features marked Desktop app need the Windows app. <a href="Premade-Setup.exe" download>Get the desktop app</a></p>
-      <label class="field featfind">Find a feature <input id="featFind" type="search" autocomplete="off" spellcheck="false" placeholder="Runes, clips, push to talk…"></label>
-      <nav id="featJump" class="toolbar" aria-label="Feature groups"></nav>
-      <section id="setupBox" class="panel fgroup" aria-labelledby="h-setup">
-        <h2 id="h-setup" class="ph">Get set up</h2>
-        <p id="setupNote" class="hint"></p>
-        <ol id="setupList" class="setup"></ol>
-        <div class="toolbar"><button id="setupRun" class="btn small" type="button">Run setup again</button></div>
-      </section>
-      <div id="featList" class="featlist"></div>
-      <p id="featNone" class="hint" hidden>Nothing matches that. Try another word, like mic, runes or overlay.</p>
-    </section>
   </main>
 
   <div id="chips" class="chips" aria-label="Players in the room" data-empty="No one else in the room"></div>
@@ -3190,7 +3157,6 @@ dialog.wizard { transform: scale(var(--from)); }
     <button id="sbVersion" class="sb pc-only" type="button" title="What's new"></button>
     <a id="sbTest" class="sb new test-only" href="../">Test version: back to normal</a>
     <a id="getNew" class="sb new" href="Premade-Setup.exe" download hidden>New app version: get the installer</a>
-    <button id="restartBtn" class="sb new" type="button" hidden>Update ready: restart</button>
     <span class="grow"></span>
     <button id="compactBtn" class="sb pc-only" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg><span>Compact</span></button>
   </footer>
@@ -3246,7 +3212,6 @@ dialog.wizard { transform: scale(var(--from)); }
       <div class="toolbar"><button id="wCreate" class="btn primary" type="button">Create a room</button><form id="wJoin" class="codeform"><input id="wCode" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Code" aria-label="Room code"><button class="btn">Join</button></form></div>
       <p id="wLeague" class="hint">In League you don't need a code: start a game and you join your game's room by itself, where teammates get louder as you walk up to them.</p>
       <p class="hint">You can change your name and mic later in Voice settings, at the bottom of the Rooms page.</p>
-      <p class="hint">Features, at the bottom of the menu, shows everything else Premade can do and how to set it up.</p>
     </section>
     <footer><button id="wSkip" class="btn ghost" type="button">Skip setup</button><button id="wBack" class="btn" type="button" hidden>Back</button><button id="wNext" class="btn primary" type="button">Next</button></footer>
   </div>
@@ -3336,6 +3301,14 @@ dialog.wizard { transform: scale(var(--from)); }
     <p id="newsVersion" class="hint"></p>
     <div id="newsList"></div>
     <footer><button id="newsClose" class="btn primary" type="button">Close</button></footer>
+  </div>
+</dialog>
+
+<dialog id="updDlg" class="wizard" aria-labelledby="updTitle">
+  <div class="wz">
+    <h2 id="updTitle" class="title">App update</h2>
+    <p class="hint">A new version of the Premade app is downloaded. Restart now to use it, or it installs when you quit.</p>
+    <footer><button id="updLater" class="btn" type="button">Later</button><button id="restartBtn" class="btn primary" type="button" autofocus hidden>Update ready: restart</button></footer>
   </div>
 </dialog>
 
@@ -3438,7 +3411,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // What this copy did each day (UTC), for Who has Premade (lpc-usage): h, its health (start: the page loaded, err: a
   // page error, crash: a part of the app that ended badly, fail: a connection to a friend that failed, relay: friends
   // reached through the relay, mem: the app's memory peak in MB) and u, how often each feature was used (a click in a
-  // feature's Show me spots, FEATURES; '#page' for a page opened). The hello carries the last day before today (prev),
+  // feature's spots, FEATURES; '#page' for a page opened). The hello carries the last day before today (prev),
   // so it goes once a day; no content, and nothing with Settings > App's switch off.
   let usage = load('lpc-usage', null), usageSave = 0;
   function useDay() {
@@ -3564,6 +3537,7 @@ dialog.wizard { transform: scale(var(--from)); }
   let leagueAt = 0;     // when League's data last came, for the game clock in between (gameNow)
   let lcu = null;       // where League's client is (its gameflow phase, desktop app 1.5+): null not known, '' League isn't running
   let stWas = '';       // your status as last sent (statusTick)
+  let updShown = false; // the update pop-up opened already, so Later keeps it shut
   let appUpdate = '';   // the app's own update: '', 'getting' (downloading after Update was clicked) or 'ready'
   let latest = '';      // the newest app version, from the site's latest.yml (the version check)
 
@@ -3969,6 +3943,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('sbVersion').textContent = myVersion();
     const upd = appUpdate === 'ready' || (client && client.update && client.version && latest && newer(latest, client.version));
     for (const b of [$('restartBtn'), $('updateBtn')]) { b.hidden = !upd; b.textContent = appUpdate === 'ready' ? 'Update ready: restart' : appUpdate === 'getting' ? 'Downloading the update…' : `Update to ${latest}`; b.disabled = appUpdate === 'getting'; }
+    if (appUpdate === 'ready' && !updShown && !document.querySelector('dialog[open]')) { updShown = true; $('updDlg').showModal(); } // the update pop-up, in the middle of the app, once it's downloaded
     $('railMic').dataset.state = mb.dataset.state; // the rail's foot: your name and the same mic button
     $('railMicText').textContent = mb.lastChild.textContent;
     $('railName').textContent = myName || 'Player';
@@ -8592,7 +8567,6 @@ dialog.wizard { transform: scale(var(--from)); }
     if (name === 'clips') { loadClips(); loadVids(); } // again: a game's row shows its match video (renderVids draws the rows)
     if (name === 'record') loadVids();
     if (name === 'settings') { loadScreens(); serverStats(); }
-    if (name === 'features') renderFeatures();
     if (name === 'tft') renderTft();
     if (name === 'overlay') ovOpen();
     if (name === 'help') renderRemoteHelp();
@@ -19147,6 +19121,7 @@ dialog.wizard { transform: scale(var(--from)); }
       else notify(`Close Premade and open it again: it fetches ${latest} as it starts, and this button then says Update ready.`, true);
     };
     $('restartBtn').addEventListener('click', update);
+    $('updLater').addEventListener('click', () => $('updDlg').close());
     $('updateBtn').addEventListener('click', update);
   }
   // Test version first: the site's test/ folder gets page changes before everyone else. The page's address is the
@@ -19340,6 +19315,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [185, 'November 21: no Features page, and updates in the middle', [
+      'The Features page is gone from the menu, with its Get set up list. Run setup again is still in Settings, App.',
+      'What’s new no longer pops up after an update. It’s still in Settings, App, and behind your version in the status bar.',
+      'A new desktop app version now shows as a pop-up in the middle of the app, with Restart and Later, instead of a button at the bottom.',
+    ]],
     [183, 'November 21: timers and callouts shared with your team', [
       'The enemy spell strip: their 5 faces above your minimap with Flash, their other spell and their ultimate. Click one and the countdown starts for you and every Premade teammate in your game, with the letter of who started it.',
       'Cooldowns count Cosmic Insight, Ultimate Hunter and Transcendence from their runes, as well as their level and items.',
@@ -20188,10 +20168,9 @@ dialog.wizard { transform: scale(var(--from)); }
     [2, 'October 19: app 1.6', ['Player scouting, auto runes and spells, the draft helper, the phone remote, objective timers, gold difference, clips, game reports, the LP tracker and match history.']],
     [1, 'October 18: app 1.5', ['League status for everyone in the room, and friends are silent once a game starts until their spot is known.']],
   ];
-  function openNews(all) {
-    const seen = +store.get('lpc-news') || NEWS[0][0] - 1, list = all ? NEWS : NEWS.filter(([n]) => n > seen);
+  function openNews() {
     $('newsVersion').textContent = `You have: ${myVersion()}.`;
-    $('newsList').replaceChildren(...list.map(([, title, items]) => {
+    $('newsList').replaceChildren(...NEWS.map(([, title, items]) => {
       const s = document.createElement('section'), h = document.createElement('h3'), ul = document.createElement('ul');
       h.className = 'ph';
       h.textContent = title;
@@ -20200,17 +20179,15 @@ dialog.wizard { transform: scale(var(--from)); }
       s.append(h, ul);
       return s;
     }));
-    store.set('lpc-news', String(Math.max(seen, NEWS[0][0]))); // the test version shares this, so never lower it
     if (!$('newsDlg').open) $('newsDlg').showModal();
   }
-  $('newsBtn').addEventListener('click', () => openNews(true));
-  $('sbVersion').addEventListener('click', () => openNews(true));
+  $('newsBtn').addEventListener('click', () => openNews());
+  $('sbVersion').addEventListener('click', () => openNews());
   $('newsClose').addEventListener('click', () => $('newsDlg').close());
 
-  // ---- Features: what the app can do, by the page it's on, and how to set each part up. A feature: its name, what it
-  // does, how to set it up or use it, where Show me takes you (the first of those spots that shows; one that isn't
-  // showing now goes to the part of the page it's on), and 'app' when it needs the desktop app or 'web' when it's only
-  // on the website. Add a line here with every new feature.
+  // ---- Features: what the app can do, by the page it's on. A feature: its name, what it does, how to set it up or use
+  // it, its spots (a click in one counts as a use of it for Who has Premade), and 'app' when it needs the desktop app or
+  // 'web' when it's only on the website. Add a line here with every new feature.
   const FEATURES = [
     ['Rooms', 'Hang out with friends: join a room, talk and share your screens. Premade opens on it, or on Profile if you used that last.', [
       ['Rooms and invite links', 'A room is everyone you play with. Open rooms you create appear on the Rooms page for everyone to join, and stay there after you leave while friends are still in; hidden rooms show only to the friends the host ticks, at the top of their list. Search open rooms by code, player count or game status, or refresh the list on demand. Friends can also join with a code or invite link.',
@@ -20230,7 +20207,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Nothing to set up: join a room and start a game. The Current room card keeps the code, how long you’ve been in, the invite link, Lock, Share screen and Leave.', '#roomCards, #curRoom, #createBtn'],
       ['Hide the room, and host controls', 'The host can hide the room: it leaves Open voice rooms, and only the friends they tick under Who can see it find it there and join in one click. It gets a password too (the invite link carries it), and unticking someone in the room keeps them in but stops them coming back. The host can also remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
         'Hide room, in your room’s Current room panel. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
-      ['Setup for what you play', 'The first start asks your name and what you play, tests your mic, checks your League screen only if you play League, and ends with you creating a room or joining a friend’s. Get set up on Features leaves out League’s steps if you don’t play it.', 'Runs on your first start; Run setup again in Settings, App.', '#setupAgain'],
+      ['Setup for what you play', 'The first start asks your name and what you play, tests your mic, checks your League screen only if you play League, and ends with you creating a room or joining a friend’s.', 'Runs on your first start; Run setup again in Settings, App.', '#setupAgain'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal (which stands in for the browser’s own noise filter, as Discord’s Krisp does, so your voice stays clear) and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
         'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],
       ['Voice connection', 'Normal, Faster for less delay, or Less data for slow internet. Normal and Faster send your voice at 80 kbps, so it stays clear up to its high tones. Faster uses shorter packets and a shorter playback buffer when supported. Your voice goes ahead of everything else on your connection, as on Discord. Help reports measured network and audio-buffer delay, and a privacy code: the call is end-to-end encrypted, and if you and a friend see the same code, nobody is listening in between. Voice reconnects by itself after Wi-Fi interruptions, and reconnects promptly when your internet returns.',
@@ -20305,7 +20282,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Start with League', 'Premade waits in the background from when Windows starts and opens when League’s client does.', 'Off until you tick it: Settings, App: Start with League.', '#optWithLeague', 'app'],
       ['Test version', 'New changes reach you first, before everyone else gets them. The status bar says when you’re on it, with a link back.', 'Settings, App: Use the test version.', '#optTest'],
       ['Back up and restore', 'Your settings, matchup notes, LP history, game history, reports and clip favorites in one file, for this PC or another.', 'Settings, App: Back up, then Restore on the other PC.', '#backupBtn'],
-      ['What’s new', 'Every change to Premade, newest first. It opens by itself after an update.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
+      ['What’s new', 'Every change to Premade, newest first.', 'Settings, App: What’s new, or your version in the status bar.', '#newsBtn'],
+      ['App update pop-up', 'When a new version of the desktop app is out, a pop-up in the middle of the app offers Restart now or Later.', 'Opens by itself once the update is downloaded; Later leaves it in Settings, App, and it installs when you quit.', '#updateBtn, #restartBtn', 'app'],
       ['Connection log', 'What your room, voice and screen share connections did, a line each time one changes, with when the window went to the background or the page stalled, so a drop can be worked out afterwards. The desktop app also writes it in a log file with its own crashes, the page’s errors, saves that failed and its memory every 10 minutes, keeps the last 3 days and copies the last 24 hours, so it still has a drop from before a restart. On the website: the last 500 lines, in memory only.',
         'Settings, App: Copy connection log after a drop, even after restarting, then paste it to whoever builds the app.', '#connLogBtn'],
       ['PC check-up', 'Tests what only a real PC can show: a call through our relay on your network, your graphics card’s video encoder, your mic’s quality and the key you hold to speak, and in the app the screen share sound filter, the overlay, Windows turning sounds down, the downloader, free space and half-made videos on your recording drives, and Premade’s memory. Each line says OK or what to fix.',
@@ -20523,98 +20501,6 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: the Overlay page, Callouts, From the game.', '#optJgClock', 'app'],
     ]],
   ];
-  // Get set up: the steps to a first game with friends, each with how it stands now (as the ready check sees it) and
-  // what to press
-  const goBtn = (at) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Show me' }); b.dataset.go = at; return b; };
-  const SETUP = [
-    ['Get the desktop app', 'The Windows app shares your screen without asking, shows the overlay over League and reads League’s own data: your champion, champ select, ranks and timers. If Windows warns about it, press More info, then Run anyway.',
-      () => (client ? appCell(readyNow().app) : ['', 'You’re on the website']), () => !client && Object.assign(document.createElement('a'), { className: 'btn small primary', href: ROOT + 'Premade-Setup.exe', download: '', textContent: 'Get the desktop app' })],
-    ['Your name', 'What friends see on your card.', () => (myName ? ['good', myName] : ['bad', 'Not set yet']), () => goBtn('#name')],
-    ['Your mic', 'Press Test mic and talk: the bar moves. Then press Set the gate for me, so typing and fans stay out. Headphones keep friends from hearing themselves.',
-      () => { const m = readyNow().mic; return m === 'off' ? ['bad', 'Not tested yet'] : CELLS.mic[m]; }, () => goBtn('#micTest')],
-    ['A room with your friends', 'Create room on the Rooms page and send your friends the invite link, or join theirs with its code. With the desktop app you can also just start a game: everyone in it with the app lands in its room.',
-      () => (room ? ['good', `In room ${room.toUpperCase()}`] : ['', 'Not in a room']), () => goBtn('#copyBtn, #createBtn')],
-    ['Your League screen', 'In League, Proximity voice, press Share League screen, so friends hear you by where your champion is. The desktop app shares the screen picked in Settings, Screen, without asking. Early in a game, hold Space for a moment while you walk.',
-      () => { const r = readyNow(); return r.map ? ['good', 'Minimap found'] : r.share ? ['ok', 'Looking for your minimap'] : ['bad', 'Not shared']; }, () => goBtn('#shareBtn, #createBtn')],
-    ['League in Borderless', 'In League: Settings, Video, Window Mode, Borderless. The overlay only shows over League in Borderless, and your screen share finds the minimap best in it.',
-      () => CELLS.win[windowMode] || ['', client ? 'Not known until League is open' : 'The desktop app checks it'],
-      () => winFixable() && Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Switch to Borderless', onclick: () => fixWindow().then(renderFeatures) })],
-  ].filter(([name]) => !PHONE || !['Get the desktop app', 'Your League screen', 'League in Borderless'].includes(name)); // a phone can't do these
-  const featView = main.querySelector('.view[data-view="features"]');
-  function renderFeatures() {
-    if (!$('featList').firstChild) { // the cards once: they only change with the app
-      $('featList').append(...FEATURES.map(([group, intro, list], i) => {
-        const s = document.createElement('section'), h = Object.assign(document.createElement('h2'), { id: `f-${i}`, className: 'ph', textContent: group }), cards = document.createElement('div');
-        s.className = 'panel fgroup';
-        s.setAttribute('aria-labelledby', h.id);
-        cards.className = 'feats';
-        cards.append(...list.filter(([, , , , need]) => !(need === 'web' && client)).map(([name, what, how, at, need]) => {
-          const a = document.createElement('article'), t = Object.assign(document.createElement('h3'), { textContent: name });
-          a.className = 'feat';
-          if (need === 'app' && !client) t.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Desktop app' }));
-          a.append(t, Object.assign(document.createElement('p'), { textContent: what }), Object.assign(document.createElement('p'), { className: 'hint', textContent: how }));
-          if (client || need !== 'app') a.append(goBtn(at));
-          return a;
-        }));
-        s.append(h, Object.assign(document.createElement('p'), { className: 'hint', textContent: intro }), cards);
-        return s;
-      }));
-      $('featJump').append(...[...featView.querySelectorAll('.fgroup')].map((s) => {
-        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tab', textContent: s.querySelector('h2').textContent });
-        b.addEventListener('click', () => s.scrollIntoView());
-        return b;
-      }));
-    }
-    let done = 0;
-    const plays = store.get('lpc-plays'), rows = !plays || plays.includes('league') ? SETUP : SETUP.filter(([name]) => !['Your League screen', 'League in Borderless'].includes(name)); // League's steps for League players (and whoever didn't say)
-    $('setupList').replaceChildren(...rows.map(([name, how, now, act], i) => {
-      const [h, state] = now(), li = document.createElement('li'), body = document.createElement('div'), st = document.createElement('span'), dot = document.createElement('span'), b = act();
-      if (h === 'good') done++;
-      li.className = 'feat';
-      li.dataset.h = dot.dataset.h = h;
-      dot.className = 'dot';
-      st.className = 'sstate';
-      st.append(dot, state);
-      body.append(Object.assign(document.createElement('h3'), { textContent: name }), st, Object.assign(document.createElement('p'), { className: 'hint', textContent: how }));
-      li.append(Object.assign(document.createElement('span'), { className: 'sn', textContent: h === 'good' ? '✓' : String(i + 1) }), body);
-      if (b) li.append(b);
-      return li;
-    }));
-    $('setupNote').textContent = done === rows.length ? 'All set. Have a good game.' : `${done} of ${rows.length} done. Run setup again walks you through your name${PHONE || rows !== SETUP ? ' and mic' : ', mic and screen'}.`;
-    featFilter();
-  }
-  // Show me: the page a spot is on (and its Stats tab and settings box), then the spot itself with a flash, or the part
-  // of the page it's on while it isn't showing
-  function showMe(at) {
-    const all = [...document.querySelectorAll(at)], v = all.length ? all[0].closest('main > .view') : null;
-    if (!v && all[0]?.checkVisibility()) { all[0].classList.remove('flash'); void all[0].offsetWidth; all[0].classList.add('flash'); all[0].focus(); return; } // the sidebar's edge
-    if (!v) return;
-    const tab = all[0].closest('.panel[data-tab]');
-    if (tab) { statsTab = tab.dataset.tab; store.set('lpc-stats-tab', statsTab); }
-    view(v.dataset.view);
-    const open = (e) => { for (let d = e.closest('details'); d; d = d.parentElement.closest('details')) d.open = true; return e.checkVisibility(); };
-    let el = all.find((e) => e.checkVisibility()) || all.find(open) || all[0];
-    while (!el.checkVisibility()) el = el.parentElement;
-    if (el === v) return;
-    const spot = el.matches('h2, h3') ? el.closest('.panel') || el : el.closest('label, .keyrow, .range') || el;
-    spot.scrollIntoView({ block: spot.offsetHeight > main.clientHeight / 2 ? 'start' : 'center' });
-    spot.classList.remove('flash');
-    void spot.offsetWidth; // so the flash starts over
-    spot.classList.add('flash');
-    if (el.matches('input, select, button')) el.focus({ preventScroll: true });
-  }
-  // Find a feature: the cards and steps with every word typed, and the groups with any of them
-  function featFilter() {
-    const words = $('featFind').value.toLowerCase().split(/\s+/).filter(Boolean);
-    for (const f of featView.querySelectorAll('.feat')) f.hidden = !words.every((w) => f.textContent.toLowerCase().includes(w));
-    for (const g of featView.querySelectorAll('.fgroup')) g.hidden = !g.querySelector('.feat:not([hidden])');
-    $('featNone').hidden = !!featView.querySelector('.feat:not([hidden])');
-  }
-  $('featFind').addEventListener('input', featFilter);
-  featView.addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) showMe(b.dataset.go); });
-  $('setupRun').addEventListener('click', openSetup);
-  setup.addEventListener('close', () => { if (!featView.hidden) renderFeatures(); });
-
   // ---- help tips open next to their "?"
   for (const b of document.querySelectorAll('.tip')) b.addEventListener('click', () => {
     for (const o of document.querySelectorAll('.tip')) o.style.anchorName = '';
@@ -20685,8 +20571,7 @@ dialog.wizard { transform: scale(var(--from)); }
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
-  if (!store.get('lpc-setup')) { store.set('lpc-news', String(NEWS[0][0])); openSetup(); } // what's new is for those who had the app before
-  else if ((+store.get('lpc-news') || NEWS[0][0] - 1) < NEWS[0][0]) openNews(false);
+  if (!store.get('lpc-setup')) openSetup();
 
   // Test hooks for voice.e2e.js, only with ?debug in the address.
   if (params.has('debug')) window.lpc = {
@@ -20725,6 +20610,7 @@ dialog.wizard { transform: scale(var(--from)); }
     fx: () => ({ on: fxNow, mix: fxMix }),
     hearMe,
     ready: readyNow,
+    features: () => FEATURES,
     // how strong each of the frequencies asked about comes out when an f Hz tone goes through the voice effects' pitch
     // shift (at ratio) or through Gibberish's scrambler
     tone: async (kind, f, ratio, freqs) => {
@@ -20748,7 +20634,6 @@ dialog.wizard { transform: scale(var(--from)); }
     },
     key: () => roomKey,
     hide: () => hideTo, // the friends a hidden room is shared with, as this page knows them
-    news: () => NEWS[0][1], // the newest What's new entry
     played: () => [...played],
     hurt: () => hurtLevel,
     denoise: async () => !!rn && !!(await rn.catch(() => null)),

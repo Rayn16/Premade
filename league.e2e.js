@@ -558,48 +558,16 @@ const leagueData = (over = {}) => ({
       console.log('Pregame and Game pages: only in the desktop app; an old app is told to restart for its update');
     }
 
-    // ---- Features: what the app can do and how to set it up, on the website and in the desktop app
+    // ---- Features: every feature's spots are in the desktop app (a click in one counts as its use for Who has Premade)
     {
-      const card = (p, name) => p.locator('.feat').filter({ has: p.locator('h3', { hasText: new RegExp(`^${name}`) }) });
-      const [ctx, page] = await context(browser);
-      await page.goto(URL_);
-      await openPage(page, 'features');
-      assert.deepStrictEqual(await texts(page, '#setupList h3'), ['Get the desktop app', 'Your name', 'Your mic', 'A room with your friends', 'Your League screen', 'League in Borderless']);
-      assert.deepStrictEqual(await texts(page, '#setupList .sstate'), ['You’re on the website', 'Rayan', 'Not tested yet', 'Not in a room', 'Not shared', 'The desktop app checks it']);
-      assert.strictEqual(await text(page, '#setupNote'), '1 of 6 done. Run setup again walks you through your name, mic and screen.');
-      assert(await page.locator('#setupList a[href$="/Premade-Setup.exe"]').isVisible(), 'the installer, on the website');
-      assert.match(await card(page, 'Auto hover').innerText(), /Desktop app/);
-      assert.strictEqual(await card(page, 'Auto hover').locator('[data-go]').count(), 0, 'no Show me for what needs the desktop app');
-      await page.fill('#featFind', 'push talk');
-      assert.deepStrictEqual(await texts(page, '.feat:not([hidden]) h3'), ['Mute and push to talk']);
-      assert.deepStrictEqual(await page.$$eval('.fgroup:not([hidden]) h2', (l) => l.map((e) => e.textContent)), ['Rooms']);
-      await page.fill('#featFind', 'qwerty');
-      assert(await page.locator('#featNone').isVisible(), 'nothing found');
-      await page.fill('#featFind', '');
-      await page.locator('#setupList li', { hasText: 'Your name' }).locator('[data-go]').click();
-      assert(await page.evaluate(() => !document.querySelector('.view[data-view="voice"]').hidden && document.getElementById('voiceSet').open && document.activeElement.id === 'name'
-        && document.getElementById('name').closest('label').classList.contains('flash')), 'Show me: your name, in Voice settings');
-      await ctx.close();
       const [actx, app] = await context(browser, { version: '1.13.0' });
       await actx.exposeFunction('fakeLcu', () => ({ status: 0, data: null })); // League isn't running
       await app.goto(URL_);
       await wait(app, () => window.lpc, null, 'the page');
-      await openPage(app, 'features');
-      assert.deepStrictEqual(await app.evaluate(() => [...document.querySelectorAll('[data-go]')].flatMap((b) => b.dataset.go.split(',')).filter((s) => !document.querySelector(s))), [], 'every Show me has a spot to go to');
-      assert.strictEqual(await app.locator('#featList .feat').count(), await app.locator('#featList [data-go]').count(), 'Show me on every feature in the desktop app');
-      assert.strictEqual(await card(app, 'Install as an app').count(), 0, 'website only');
-      assert.deepStrictEqual(await texts(app, '#setupList .sstate'), ['App 1.13.0: restart it to update', 'Rayan', 'Not tested yet', 'Not in a room', 'Not shared', 'Borderless']); // 2.0.0 is out here
-      await card(app, 'Champion pool').locator('[data-go]').click();
-      assert(await app.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden && document.querySelector('.tab[data-tab="champs"]').getAttribute('aria-selected') === 'true'
-        && document.getElementById('h-pool').closest('.panel').classList.contains('flash')), 'Show me: Champion pool, on Stats, Champions');
-      await openPage(app, 'features');
-      await card(app, 'Auto hover').locator('[data-go]').click();
-      assert(await app.evaluate(() => !document.querySelector('.view[data-view="pregame"]').hidden && document.getElementById('preSet').open && document.activeElement.id === 'optHoverPicks'), 'Show me: Auto hover, in Pregame settings');
-      await openPage(app, 'features');
-      await card(app, 'Tier list').locator('[data-go]').click();
-      assert(await app.evaluate(() => !document.querySelector('.view[data-view="pregame"]').hidden && document.querySelector('main').scrollTop === 0), 'Show me: the top of Pregame while the tier list isn’t showing');
+      assert.deepStrictEqual(await app.evaluate(() => lpc.features().flatMap(([, , list]) => list.flatMap((f) => (f[3] ? f[3].split(',') : []))).filter((s) => !document.querySelector(s))), [], 'every feature has a spot');
+      assert.strictEqual(await app.locator('.nav[data-view="features"], .view[data-view="features"]').count(), 0, 'no Features page (What’s new 185)');
       await actx.close();
-      console.log('Features: Get set up with what’s done (website and app), the desktop app’s features marked on the website, find a feature, and Show me to a setting, a Stats tab and Pregame settings');
+      console.log('Features: every feature has a spot in the desktop app, and no Features page');
     }
 
     // ---- Profile in a browser: from Riot, through our server, by Riot ID; the first one given is you

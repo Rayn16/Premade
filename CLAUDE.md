@@ -63,7 +63,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 5. Premade code rules
 
 - Width breakpoints in site/index.html use `@container app (max-width: …)`, not `@media`, and any vh/vw is divided by `var(--zoom, 1)`, so the Settings > Look size slider (70% to 200%) doesn't break the layout.
-- Every new or changed feature gets its line in the FEATURES array in site/index.html; league.e2e.js checks each Show me selector.
+- Every new or changed feature gets its line in the FEATURES array in site/index.html (its spots feed the usage counts in Who has Premade); league.e2e.js checks each spot exists.
 - Changes to client/main.js or client/preload.js need an app version bump in client/package.json.
 
 ---
