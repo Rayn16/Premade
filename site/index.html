@@ -1446,7 +1446,7 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .timers > span.wr > .ring { grid-column: 1; grid-row: 1 / span 2; }
 #proWl { margin-top: -4px; }
 /* game rows like Porofessor's: the champion, the result over the queue and when, K/D/A, CS, then tags and items */
-.games summary.gsum { display: grid; grid-template-columns: 40px minmax(8em, 1.1fr) minmax(7em, 1fr) minmax(5em, 0.7fr) auto; grid-template-areas: "pic res kda cs items" "pic res kda cs tags"; gap: 2px 16px; padding: 10px 14px; }
+.games summary.gsum { display: grid; grid-template-columns: 40px minmax(0, 1.5fr) minmax(0, 0.9fr) minmax(0, 0.7fr) 146px; grid-template-areas: "pic res kda cs items" "pic res kda cs tags"; gap: 2px 16px; padding: 10px 14px; }
 .games summary.gsum > .pic0 { grid-area: pic; width: 40px; height: 40px; border: 0; border-radius: var(--r-sm); align-self: center; }
 .gr1, .gk, .gcs { display: grid; gap: 2px; min-width: 0; align-self: center; line-height: 1.25; }
 .gr1 { grid-area: res; } .gk { grid-area: kda; } .gcs { grid-area: cs; }
@@ -1454,10 +1454,12 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .gr1 small, .gk small, .gcs small { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gk b { font: 600 15px/1.25 var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gk .d { color: var(--bad); }
+.gr1 .gwhen { font: inherit; }
+#proRoles .hbar { width: 32px; margin-right: 6px; }
 .gcs b { font-weight: 500; font-variant-numeric: tabular-nums; }
 .games summary.gsum .gitems { grid-area: items; justify-self: end; }
 .games summary.gsum .tags { grid-area: tags; justify-self: end; }
-@container app (max-width: 700px) { .games summary.gsum { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "pic res kda" "pic items items" "pic tags tags"; } .gcs { display: none; } .games summary.gsum .gitems, .games summary.gsum .tags { justify-self: start; } }
+@container app (max-width: 700px) { .games summary.gsum { grid-template-columns: 40px minmax(0, 1fr) minmax(0, 0.8fr); grid-template-areas: "pic res kda" "pic items items" "pic tags tags"; } .gcs { display: none; } .games summary.gsum .gitems, .games summary.gsum .tags { justify-self: start; } }
 /* Stats: the splash fills the hero, the win rate as a ring, five numbers in one row */
 .shero { position: relative; overflow: hidden; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr); min-height: 168px; }
 .shero > :not(.sheroart) { position: relative; }
@@ -1488,6 +1490,8 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 #postHead > :not(.heroart) { position: relative; }
 #postHead > b { font: 600 32px/1.1 var(--body); }
 #postHead[data-r="Win"] > b { color: var(--good); }
+#postHead:has(> b)[data-r="Win"] { box-shadow: inset 3px 0 var(--good); }
+#postHead:has(> b)[data-r="Lose"] { box-shadow: inset 3px 0 var(--bad); }
 #postHead[data-r="Lose"] > b { color: var(--bad); }
 #postHead > span { color: var(--muted); }
 #postHead .sep { display: none; }
