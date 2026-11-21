@@ -316,10 +316,10 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     const wb = JSON.parse(fs.readFileSync(winJson, 'utf8'));
     assert(wb.height === 700 && wb.max === false && Number.isFinite(wb.x), `the window remembered: ${JSON.stringify(wb)}`);
 
-    // the page's own overlay in a game: the objective timers and kills, with the gold and win chance once Riot's item prices load
+    // the page's own overlay in a game: the objective timers (Voidgrubs and Herald too, What's new 182) and kills, with the gold and win chance once Riot's item prices load
     const ovWin = () => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().split('?')[0].endsWith('overlay.html'));
     let ov;
-    await until(async () => (ov = ovWin()) && ov.isVisible() && /Dragon \d:\d\d · Baron \d+:\d\d · Kills 0–0( · Gold even · Win chance 50%)?\nCS 0 · 0\.0 a minute/.test(await ov.webContents.executeJavaScript('document.body.innerText')), 'the game line and CS counter on the overlay');
+    await until(async () => (ov = ovWin()) && ov.isVisible() && /Dragon \d:\d\d · Voidgrubs \d+:\d\d · Herald \d+:\d\d · Baron \d+:\d\d · Kills 0–0( · Gold even · Win chance 50%)?\nCS 0 · 0\.0 a minute/.test(await ov.webContents.executeJavaScript('document.body.innerText')), 'the game line and CS counter on the overlay');
     console.log(`the page's overlay: ${JSON.stringify(await ov.webContents.executeJavaScript('document.body.innerText'))}`);
     await js('for (const id of ["optOverlayGame", "optOverlayCs", "optOverlayWin"]) document.getElementById(id).click()'); // off in Settings: the page hides it, and the rest is set by hand
     await until(() => !ov.isVisible(), 'the overlay hidden with the game line off');
@@ -530,7 +530,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(copied.whole && Number.isFinite(cpLen) && cpLen > 2, `copied, and plays: ${cpLen} s`);
     assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(cp)})`), true);
     await js('document.querySelector(\'.nav[data-view="clips"]\').click()');
-    await until(() => js(`[...document.querySelectorAll('#vidList li')].some((li) => li.textContent.includes(${JSON.stringify(gv.name.slice(0, -5))}) && li.querySelectorAll('button').length === 4)`), 'the game on the Clips page');
+    await until(() => js(`[...document.querySelectorAll('#clipGrid li[data-vid]')].some((li) => li.dataset.vid === ${JSON.stringify(gv.name)} && li.querySelector('.cacts').childElementCount === 4)`), 'the game on the Clips page');
     assert.strictEqual(await js(`lpcClient.gameVideo('open', ${JSON.stringify(gv.name)})`), true);
     assert.strictEqual(await js(`lpcClient.gameVideo('show', ${JSON.stringify(gv.name)})`), true);
     assert.strictEqual(await js('lpcClient.gameVideo("folder")'), true);
