@@ -212,7 +212,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     console.log('room: the goal board (110 and 410 LP to go) and Best roles, Rayan in the middle and Duo in the jungle');
 
     // ---- Friends: Rayan's League friends, Duo with Premade open and Sleepy without; Duo invited to Rayan's room and
-    // joining from the invite; then Duo joining Rayan's League lobby and so his voice room, by itself
+    // joining from the invite; then both in one League lobby, with nobody joining a room by itself
     await duo.click('#leaveBtn');
     await openPage(ray, 'friends'); await openPage(duo, 'friends'); // Friends, its own page
     const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
@@ -243,35 +243,20 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await wait(duo, () => document.getElementById('frInvBox').hidden, null, 'the invite gone once in the room');
     await openPage(duo, 'voice');
     await duo.click('#leaveBtn');
-    await duo.waitForTimeout(1100); // invites in a later second than Leave join by themselves
+    // no lobby auto-join (What's new 193): Rayan in a room and Duo out of it, both in one League lobby; Rayan's Premade
+    // sends no invite and Duo's doesn't join
     L.lobby = { partyId: 'party-1234', members: [{ puuid: 'rayan-puuid', gameName: 'Rayan', gameTag: 'EUW' }, { puuid: 'duo-puuid', gameName: 'Duo', gameTag: 'EUW' }], invitations: [] };
-    // an invite that says it's from Rayan but not made in his lobby (someone else saying hello with his Riot ID): asked,
-    // not joined
-    await duo.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
-    S.inv.push({ to: 'duo#euw', src: await ray.evaluate(() => localStorage.getItem('lpc-device')), room: 'fake', key: '', lob: 'f'.repeat(64), at: Math.round(Date.now() / 1000) });
-    await until(async () => { await duo.evaluate(() => lpc.groupNow()); return (await duo.evaluate(() => lpc.toasts())).includes('Rayan invites you to their voice room, FAKE. Join from the Friends page.'); }, 'the made-up invite asked about');
-    assert.strictEqual(await duo.evaluate(() => lpc.slot()), -1, 'and not joined');
-    await ray.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
-    await until(async () => { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); return duo.evaluate((c) => lpc.room() === c && lpc.slot() >= 0, code); }, 'Duo in Rayan’s room from the lobby');
-    await toast(duo, `Joined Rayan’s voice room, ${CODE}, as you’re in their League lobby`, 'why');
-    // in the lobby before Rayan has a room: Duo joins as soon as he makes (here, joins again) one
-    await openPage(duo, 'voice'); await openPage(ray, 'voice');
-    for (const pg of [duo, ray]) await pg.click('#leaveBtn');
-    // Duo's lobby invite to Rayan, made while they were both in the room but first seen by Rayan after Leave (here its
-    // time moved to just before Leave, so it's new to his page), doesn't pull him back in
-    const stale = S.inv.find((v) => v.to === 'rayan#euw' && v.room === code);
-    assert(stale && stale.lob, 'Duo’s lobby invite to Rayan');
-    stale.at = Math.round(Date.now() / 1000) - 1;
-    for (let i = 0; i < 3; i++) { await ray.evaluate(() => lpc.groupNow()); await ray.waitForTimeout(700); }
-    assert.strictEqual(await ray.evaluate(() => lpc.slot()), -1, 'Rayan stays out after Leave');
-    await ray.waitForTimeout(1100); // invites in a later second than Leave join by themselves again
-    await ray.fill('#code', code);
-    await ray.click('#joinBtn');
-    await until(async () => { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); return duo.evaluate((c) => lpc.room() === c && lpc.slot() >= 0, code); }, 'Duo in Rayan’s new room from the lobby');
+    for (const pg of [ray, duo]) await pg.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'Lobby' }));
+    const sent = S.inv.filter((v) => v.to === 'duo#euw').map((v) => v.at).join();
+    for (let i = 0; i < 3; i++) { for (const pg of [ray, duo]) await pg.evaluate(() => lpc.groupNow()); await ray.waitForTimeout(700); }
+    assert.strictEqual(await duo.evaluate(() => lpc.slot()), -1, 'Duo stays out of Rayan’s room');
+    assert.strictEqual(S.inv.filter((v) => v.to === 'duo#euw').map((v) => v.at).join(), sent, 'and Rayan’s Premade sent no invite');
     L.lobby = null;
     for (const pg of [ray, duo]) await pg.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
+    await duo.fill('#code', code);
+    await duo.click('#joinBtn');
     await wait(ray, () => lpc.peers().some((p) => p.name === 'Duo'), null, 'Duo back in Rayan’s room', 30000);
-    console.log('Friends: who has Premade, one added and removed, an invite joined, and a friend in the lobby joining the room by itself');
+    console.log('Friends: who has Premade, one added and removed, an invite joined, and no room joined from the lobby');
 
     // ---- a squad: Rayan makes one, Duo joins it from the room and turns off pings for rank-ups
     await openPage(ray, 'friends'); await openPage(duo, 'friends');
