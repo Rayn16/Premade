@@ -1437,7 +1437,9 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .proname { font: 600 32px/1.15 var(--body); letter-spacing: 0; color: var(--fg); }
 .prohead .rank { background: color-mix(in srgb, var(--panel) 86%, transparent); grid-template-columns: 48px minmax(0, 1fr) auto; }
 .prohead .rank img { max-width: 48px; }
-.rank > .ring { grid-column: 3; grid-row: 1 / span 3; align-self: start; }
+.prohead .rank > p:not(.rtier) { grid-column: 2 / -1; }
+.prohead .rank > :is(.rtier, .ph) { grid-column: 2; }
+.rank > .ring { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
 .rank .ph { font-size: 13px; color: var(--muted); }
 /* Profile: last 20 as figures, the record as a ring */
 .timers > span.wr { grid-template-columns: 40px auto; column-gap: 12px; align-items: center; }
