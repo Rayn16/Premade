@@ -132,6 +132,7 @@ async function context(browser, opts) {
     const u = r.request().url();
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.1', '1.0'], headers: cors });
     if (u.endsWith('champion.json')) return r.fulfill({ json: { data: DDATA }, headers: cors });
+    if (u.endsWith('summoner.json')) return r.fulfill({ json: { data: { SummonerFlash: { key: '4', cooldown: [300] }, SummonerDot: { key: '14', cooldown: [180] } } }, headers: cors });
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
     const pic = u.match(/\/img\/champion\/(\w+)\.png$/);
     r.fulfill({ body: (pic && PNGS[pic[1]]) || PNG1, contentType: 'image/png', headers: cors });
@@ -422,6 +423,56 @@ const game = (over = {}) => ({
       assert(words.includes('Zed back mid') && words.some((w) => TWO.test(w)) && words.includes('Lee Sin heading top'), `read out loud after the sounds: ${words}`);
       await c.close();
       console.log('What’s new 182: no missing call after a recall to buy (face at their base), Zed back mid, 2 coming with the sharp sound, Lee Sin heading top, the objective window, Voidgrubs in 30 seconds, Ocean soul point');
+    }
+
+    // ---- What's new 183: the enemy spell strip from Riot's live game (Zed's Flash and Ignite, his Cosmic Insight), a
+    // click on it timing Flash for the game channel, a teammate's timer and callout coming back through it, and the
+    // callout log on the Game page
+    {
+      const [c, page] = await context(browser, { foeTimers: true, teamCall: true, callLog: true, missCall: true });
+      await c.addInitScript(() => { lpcClient.lcu = async (m, p) => (p === '/lol-summoner/v1/current-summoner' ? { status: 200, data: { puuid: 'me-p', gameName: 'Rayan', tagLine: 'EUW' } }
+        : /^\/lol-match-history\/v1\/products\/lol\/current-summoner\//.test(p) ? { status: 200, data: { games: { games: [{ gameId: 1, platformId: 'EUW1', gameDuration: 100 }] } } } : { status: 404, data: null }); });
+      const ps = [['me-p', 100, 157, 4, 7, []], ['zed-p', 200, 238, 4, 14, [8347]], ['lee-p', 200, 64, 4, 11, []], ['garen-p', 200, 86, 4, 12, []]];
+      let asked = 0;
+      await c.route(/\/riot\/api\/euw1\/lol\/spectator\/v5\/active-games\/by-summoner\/me-p$/, (r) => { asked++; r.fulfill({ json: { gameId: 777, participants: ps.map(([puuid, teamId, championId, spell1Id, spell2Id, perkIds]) => ({ puuid, teamId, championId, spell1Id, spell2Id, perks: { perkIds } })) }, headers: { 'access-control-allow-origin': '*' } }); });
+      const got = [];
+      let sock = null, url = '';
+      await c.routeWebSocket(/\/game\?/, (ws) => { sock = ws; url = ws.url(); ws.onMessage((m) => got.push(JSON.parse(m))); });
+      await page.reload();
+      const emit = (g) => page.evaluate((d) => lpcClient.emit('league', d), g);
+      const g = { ...foesGame(), players: foesGame().players.map((q) => ({ ...q, pos: { 'Rayan#EUW': 'BOTTOM', 'Mid#EUW': 'MIDDLE', 'Jungle#EUW': 'JUNGLE', 'Top#EUW': 'TOP' }[q.name] })) };
+      await emit(g);
+      await wait(page, () => ((lpcClient.lastOverlay.strip || [])[0] || {}).spells && lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells.length === 2, null, 'the strip with Zed’s two spells', 30000);
+      const zed = (await page.evaluate(() => lpcClient.lastOverlay.strip)).find((r) => r.name === 'Zed');
+      assert.deepStrictEqual(zed.spells.map((x) => [x.k, x.name, x.left]), [['flash:Zed', 'Flash', 0], ['sp14:Zed', 'Ignite', 0]], 'Zed’s Flash and Ignite from Riot’s live game');
+      assert.strictEqual(asked, 1, 'Riot’s live game asked once');
+      for (let i = 0; i < 100 && !sock; i++) await page.waitForTimeout(200);
+      assert(sock && /plat=euw1&u=me-p&g=777&team=100$/.test(url), `the game channel for game 777, team 100: ${url}`);
+      // a click on his Flash: 300 s less Cosmic Insight's 18 haste, 254 s, sent with your name
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'strip', go: 'flash:Zed' } }));
+      await wait(page, () => lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells[0].left > 0, null, 'Zed’s Flash running');
+      const left = (await page.evaluate(() => lpcClient.lastOverlay.strip)).find((r) => r.name === 'Zed').spells[0].left;
+      assert(left >= 252 && left <= 255, `Flash with Cosmic Insight: ${left} s`);
+      for (let i = 0; i < 25 && !got.length; i++) await page.waitForTimeout(200);
+      assert(got.some((m) => m.t === 'timer' && m.k === 'flash:Zed' && m.by === 'Rayan' && m.g === 'g0123456789a'), `sent to the game channel: ${JSON.stringify(got)}`);
+      // Kai, in the game but not in the room: his Ignite timer and "mid missing"
+      sock.send(JSON.stringify({ t: 'timer', g: 'g0123456789a', k: 'sp14:Zed', end: 300, by: 'Kai' }));
+      await wait(page, () => { const x = lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells[1]; return x.left > 0 && x.by === 'K'; }, null, 'Kai’s Ignite timer, with his letter');
+      sock.send(JSON.stringify({ t: 'call', g: 'g0123456789a', lane: 'mid', id: 'kai1', by: 'Kai' }));
+      await wait(page, () => (lpcClient.lastOverlay.calls || []).some((x) => x.text === 'Kai: Zed missing from mid'), null, 'Kai: Zed missing from mid');
+      assert.deepStrictEqual((await page.evaluate(() => lpcClient.lastOverlay.calls)).find((x) => /^Kai/.test(x.text)).pics, ['p:K', 'f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', 's:missing', 'w:missing mid']);
+      sock.send(JSON.stringify({ t: 'call', g: 'g0123456789a', lane: 'mid', id: 'kai1', by: 'Kai' })); // the same one again, as through the room too
+      // the callout log on the Game page, with a Wrong button
+      await page.click('#leagueNav'); await page.click('.nav[data-view="game"]');
+      await wait(page, () => !document.getElementById('callLogBox').hidden, null, 'the callout log');
+      const log = await page.$$eval('#callLogList li', (l) => l.map((li) => li.querySelector('span').textContent));
+      assert.deepStrictEqual(log.filter((t) => /^Kai/.test(t)), ['Kai: Zed missing from mid'], `once in the log: ${log}`);
+      await page.click('#callLogList li button');
+      assert.strictEqual(await page.$eval('#callLogList li button', (b) => b.textContent), 'Marked wrong');
+      await shot(page, '183-callout-log', '#callLogBox');
+      await overlayShot(browser, '183-strip-and-team-call', await page.evaluate(() => lpcClient.lastOverlay), 'none');
+      await c.close();
+      console.log('What’s new 183: the enemy spell strip from Riot’s live game, Flash with Cosmic Insight sent to the game channel, Kai’s Ignite and “Kai: Zed missing from mid” back through it, the callout log');
     }
 
     // ---- the voice that reads callouts: the computer's English voices by name, a girl's voice (Zira here), one picked
