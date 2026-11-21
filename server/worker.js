@@ -37,7 +37,8 @@ const dayOf = (x) => {
 };
 const helloOf = (b) => {
   if (!b || !DEVICE.test(b.id) || !/^(web|old|\d{1,4}\.\d{1,4}\.\d{1,4})$/.test(b.v)) return null;
-  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10), day: dayOf(b.day) };
+  return { id: b.id, v: b.v, name: typeof b.name === 'string' ? b.name.slice(0, 24) : '', riot: riotIdList(b.riot, 10), day: dayOf(b.day),
+    skin: Number.isInteger(b.skin) && b.skin >= 1 && b.skin <= 999999 ? b.skin : 0 }; // skin: the one that copy's Profile shows (/skins)
 };
 // the owner's key (the secret OWNER_KEY), checked in constant time; nobody is the owner without one
 const owner = (env, key) => {
@@ -181,6 +182,9 @@ export default {
       else if (b.locked === true) await directory(env).remove(b.room, b.owner);
       else await directory(env).put(b.room, b.owner, b.count || 1, b.playing === true);
       return Response.json({ ok: true }, { headers: CORS });
+    }
+    if (url.pathname === '/skins' && req.method === 'GET') { // ?riot=Name%23TAG,... (20 at most): { 'name#tag': skin id } for friends' Profile
+      return Response.json(await stats(env).skins(riotIdList((url.searchParams.get('riot') || '').split(','), 20)), { headers: CORS });
     }
     if (req.method === 'POST' && (url.pathname === '/hello' || url.pathname === '/who')) { // a plain text body, so no preflight
       const b = await req.json().catch(() => null);
@@ -391,7 +395,9 @@ export class Stats extends DurableObject {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS seen (day TEXT, kind TEXT, k TEXT, PRIMARY KEY (day, kind, k))');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS salt (day TEXT PRIMARY KEY, salt TEXT)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, v TEXT, name TEXT, riot TEXT, first INTEGER, last INTEGER)');
-    if (!ctx.storage.sql.exec('PRAGMA table_info(apps)').toArray().some((c) => c.name === 'day')) ctx.storage.sql.exec("ALTER TABLE apps ADD COLUMN day TEXT NOT NULL DEFAULT ''"); // helloOf's day
+    const cols = ctx.storage.sql.exec('PRAGMA table_info(apps)').toArray();
+    if (!cols.some((c) => c.name === 'day')) ctx.storage.sql.exec("ALTER TABLE apps ADD COLUMN day TEXT NOT NULL DEFAULT ''"); // helloOf's day
+    if (!cols.some((c) => c.name === 'skin')) ctx.storage.sql.exec('ALTER TABLE apps ADD COLUMN skin INTEGER NOT NULL DEFAULT 0'); // helloOf's skin
     ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS invites (dest TEXT, src TEXT, room TEXT, key TEXT, at INTEGER, lob TEXT NOT NULL DEFAULT '', PRIMARY KEY (dest, src))");
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendly (id TEXT PRIMARY KEY) WITHOUT ROWID');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS aion (n TEXT, s TEXT, o TEXT, PRIMARY KEY (n, s)) WITHOUT ROWID');
@@ -509,10 +515,17 @@ export class Stats extends DurableObject {
   webSocketClose(ws, code) {
     try { ws.close(code === 1005 ? 1000 : code, 'Bye'); } catch {}
   }
-  hello({ id, v, name, riot, day }) { // a hello without day (a page from before it) keeps the day already kept
+  hello({ id, v, name, riot, day, skin = 0 }) { // a hello without day (a page from before it) keeps the day already kept
     const now = Math.round(Date.now() / 1000);
-    this.ctx.storage.sql.exec("INSERT INTO apps (id, v, name, riot, first, last, day) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v, name = excluded.name, riot = excluded.riot, last = excluded.last, day = CASE excluded.day WHEN '' THEN day ELSE excluded.day END",
-      id, v, name, JSON.stringify(riot), now, now, day);
+    this.ctx.storage.sql.exec("INSERT INTO apps (id, v, name, riot, first, last, day, skin) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET v = excluded.v, name = excluded.name, riot = excluded.riot, last = excluded.last, day = CASE excluded.day WHEN '' THEN day ELSE excluded.day END, skin = excluded.skin",
+      id, v, name, JSON.stringify(riot), now, now, day, skin);
+  }
+  skins(riot) { // { riot id (lower case): skin id } for the copies heard from in the last 30 days that show one, the newest first
+    const want = new Set(riot.map(low)), out = {};
+    if (!want.size) return out;
+    for (const r of this.ctx.storage.sql.exec('SELECT riot, skin FROM apps WHERE skin > 0 AND last > ? ORDER BY last DESC', Math.round(Date.now() / 1000) - 30 * 86400)) // ponytail: reads every app, as friends() does
+      for (const n of JSON.parse(r.riot).map(low)) if (want.has(n) && !(n in out)) out[n] = r.skin;
+    return out;
   }
   who() { // [{ v, name, riot: [Riot ID], first, last, day: { d, h, u } or null }], the last opened first
     const sql = this.ctx.storage.sql;
