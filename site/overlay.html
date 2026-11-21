@@ -401,7 +401,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     const tint = (e, r) => { if (r && /^#[0-9a-f]{6}$/i.test(r[2] || '')) e.style.color = r[2]; return e; };
     const now = rk(x.now);
     nm.textContent = now ? String(now[0]) : 'Unranked';
-    rn.append(tint(nm, now), ...(now ? [tx('', `${x.lp | 0} LP`), wlOf(x.w, x.l)] : []));
+    rn.append(tint(nm, now), ...(now ? [tx('', `${x.lp | 0} LP`), ...((x.w | 0) + (x.l | 0) ? [wlOf(x.w, x.l)] : [])] : []));
     const small = (label, r) => { const s = tx('sm'), b = document.createElement('b'); b.textContent = String(r[0]); s.append(tx('', label), emb(r, 'emb'), tint(b, r)); return s; };
     ranks.append(emb(now, 'emb'), rn, ...(rk(x.peak) ? [small('Peak', x.peak)] : [tx('')]), ...(rk(x.end) ? [small('Last season', x.end)] : [tx('')]));
     const parts = [ranks], champs = (Array.isArray(x.champs) ? x.champs : []).slice(0, 5), ms = (Array.isArray(x.mastery) ? x.mastery : []).slice(0, 4);
@@ -434,7 +434,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     const row = el('st3'), { l20, role, sea } = x, n = (v) => (v.w | 0) + (v.l | 0);
     row.append(l20 ? cell(ring(pcOf(l20.w, n(l20)), 'last 20'), wlOf(l20.w, l20.l), () => l20Box(l20)) : cell(ring(null), tx('vl mu', 'Hidden')),
       role ? cell(ring(null, '', role.pos, role.off), tx('vl' + (role.off ? ' off' : ''), role.name), () => roleBox(role)) : cell(ring(null), tx('vl mu', 'Hidden')),
-      sea ? cell(n(sea) ? ring(pcOf(sea.w, n(sea)), 'season') : ring(null), n(sea) ? wlOf(sea.w, sea.l) : tx('vl mu', 'Unranked'), () => seaBox(sea)) : cell(ring(null), tx('vl mu', 'Unranked')));
+      sea ? cell(n(sea) ? ring(pcOf(sea.w, n(sea)), 'season') : ring(null), n(sea) ? wlOf(sea.w, sea.l) : tx('vl mu', Array.isArray(sea.now) ? String(sea.now[0]) : 'Unranked'), () => seaBox(sea)) : cell(ring(null), tx('vl mu', 'Unranked'))); // ranked with no record yet: its rank (What's new 194)
     return row;
   }
   function card(p, n) { // n: how many tags

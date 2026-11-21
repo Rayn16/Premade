@@ -306,13 +306,14 @@ function fakeLcu(method, p, body) {
   if (p === '/lol-champ-select/v1/session/my-selection/reroll') { lcu.cs.rerollsRemaining--; lcu.cs.myTeam[2].championId = 222; return { status: 204, data: null }; }
   if (p === '/lol-summoner/v1/current-summoner/summoner-profile') return ok({ backgroundSkinId: 103001 }); // your League background: Dynasty Ahri
   if (p === '/lol-summoner/v1/current-summoner') return ok({ puuid: ME, gameName: 'Rayan', tagLine: 'EUW', summonerId: 1234, summonerLevel: 300, profileIconId: 4568 });
-  if ((m = /^\/lol-summoner\/v2\/summoners\/puuid\/([\w-]+)$/.exec(p))) return ok({ puuid: m[1], summonerLevel: m[1] === 'enemy4' ? 30 : 200 });
+  if ((m = /^\/lol-summoner\/v2\/summoners\/puuid\/([\w-]+)$/.exec(p))) return ok({ puuid: m[1], summonerLevel: m[1] === 'enemy4' ? 30 : 200, ...(m[1] === 'enemy3' && { gameName: 'Shadow', tagLine: 'EUW' }) });
   if ((m = /^\/lol-summoner\/v1\/summoners\/(\d+)$/.exec(p))) return CLASH_SUMS[m[1]] ? ok({ ...CLASH_SUMS[m[1]], summonerId: +m[1] }) : { status: 404, data: null };
   if ((m = /alias\/lookup\?gameName=([^&]*)&tagLine=(.*)$/.exec(p))) {
     const who = { Singer: 'enemy5', Sniper: 'enemy4', Axe: 'enemy1' }[decodeURIComponent(m[1])];
     return who && m[2] === 'EUW' ? ok({ puuid: who }) : { status: 404, data: null };
   }
-  if ((m = /^\/lol-ranked\/v1\/ranked-stats\/(.+)$/.exec(p))) return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lp[m[1]] || 45, wins: 30, losses: 25 }, ...(m[1] === 'ally1' && { RANKED_FLEX_SR: { tier: 'SILVER', division: 'I', leaguePoints: 10, wins: 3, losses: 1 } }) } });
+  // Shadow's as League's client gives someone else's: their wins, never their losses (What's new 194)
+  if ((m = /^\/lol-ranked\/v1\/ranked-stats\/(.+)$/.exec(p))) return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lp[m[1]] || 45, wins: 30, losses: m[1] === 'enemy3' ? 0 : 25 }, ...(m[1] === 'ally1' && { RANKED_FLEX_SR: { tier: 'SILVER', division: 'I', leaguePoints: 10, wins: 3, losses: 1 } }) } });
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: { RANKED_SOLO_5x5: { tier: 'GOLD', division: 'II', leaguePoints: lcu.lpNote ? 63 : 45, wins: 31, losses: 25,
     highestTier: 'GOLD', highestDivision: 'I', previousSeasonEndTier: 'PLATINUM', previousSeasonEndDivision: 'IV', previousSeasonHighestTier: 'PLATINUM', previousSeasonHighestDivision: 'II' },
     RANKED_TFT: { tier: 'PLATINUM', division: 'I', leaguePoints: 77, wins: 9, losses: 51 }, RANKED_TFT_DOUBLE_UP: { tier: '', division: 'NA', wins: 0, losses: 0 }, RANKED_TFT_TURBO: { tier: '', ratedTier: 'PURPLE', ratedRating: 3200, wins: 2, losses: 10 } } });
@@ -795,8 +796,10 @@ const leagueData = (over = {}) => ({
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, Sniper in a game, and Riot's copies of four of your games
     const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$/.test(k)); // without the copies
-    const MY_RIOT = 'riot-me-'.padEnd(78, '0'), SNIPER = 'riot-sniper-'.padEnd(78, '0'), FOE = 'riot-foe-'.padEnd(78, '0');
+    const MY_RIOT = 'riot-me-'.padEnd(78, '0'), SNIPER = 'riot-sniper-'.padEnd(78, '0'), FOE = 'riot-foe-'.padEnd(78, '0'), SHADOW = 'riot-shadow-'.padEnd(78, '0');
     const RIOT = {
+      '/europe/riot/account/v1/accounts/by-riot-id/Shadow/EUW': { puuid: SHADOW, gameName: 'Shadow', tagLine: 'EUW' }, // Shadow's wins and losses (League's client gives no losses)
+      [`/euw1/lol/league/v4/entries/by-puuid/${SHADOW}`]: [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'II', leaguePoints: 45, wins: 30, losses: 25 }],
       '/europe/riot/account/v1/accounts/by-riot-id/Rayan/EUW': { puuid: MY_RIOT, gameName: 'Rayan', tagLine: 'EUW' },
       '/europe/riot/account/v1/accounts/by-riot-id/Sniper/EUW': { puuid: SNIPER, gameName: 'Sniper', tagLine: 'EUW' },
       [`/euw1/lol/spectator/v5/active-games/by-summoner/${SNIPER}`]: { gameQueueConfigId: 420, gameStartTime: Date.now() - 5.5 * 60000, participants: [{ puuid: SNIPER, riotId: 'Sniper#EUW', championId: 51, teamId: 200 },
@@ -1672,6 +1675,9 @@ const leagueData = (over = {}) => ({
     lcu.phase = 'InProgress';
     await league({ inGame: false, phase: 'InProgress' });
     await wait(pc, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && [...b.us, ...b.them].every((p) => /LP|Unranked/.test(p.rank)) && !!b.tips && b.tips.lines.length === 9; }, null, 'everyone’s rank on the loading screen');
+    // What's new 194: League's client gave Shadow 30 wins and no losses (100%); the record is Riot's, never League's 30W 0L
+    assert(await pc.evaluate(() => !/100%/.test(lpcClient.lastOverlay.board.them[2].rank)), 'no 100% from League’s client');
+    await wait(pc, () => / · 55% of 55$/.test(lpcClient.lastOverlay.board.them[2].rank), null, 'Shadow’s record from Riot');
     const board = await pc.evaluate(() => lpcClient.lastOverlay.board);
     const cardOf = ({ art, spells, stats, ...p }) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
     assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',

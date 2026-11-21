@@ -98,6 +98,11 @@ const state = (b, game = '') => ({ visible: true, board: b, pos: 'tl', scale: 1,
       ['Gold II', '45 LP', ['Gold I', 'Silver I'], 2, ['7412k', '561k']]);
     await hov('.foes .pc:nth-child(4) .st:nth-child(3)');
     assert.deepStrictEqual(await page.$eval('.foes .pc:nth-child(4) .st:nth-child(3) .pop', (e) => [e.querySelector('.rn b').textContent, e.querySelectorAll('.sm').length, e.querySelectorAll('.sec').length]), ['Unranked', 0, 2]);
+    // What's new 194: ranked with no record yet (League's client gives no losses, Riot's not in): the rank under an empty ring, no 0W 0L
+    await fire(state(board({ them: [P('F', false, { stats: { ...STATS, sea: { ...STATS.sea, w: 0, l: 0 } } })] })));
+    assert.deepStrictEqual((await rings('.foes .pc'))[2], ['', 'none', 'Gold II']);
+    await hov('.foes .pc .st:nth-child(3)');
+    assert.deepStrictEqual(await page.$eval('.foes .pc .st:nth-child(3) .pop .rn', (e) => [e.querySelector('b').textContent, e.querySelector('span').textContent, e.querySelectorAll('.vl').length]), ['Gold II', '45 LP', 0]);
     // every box inside the screen, on both sides, on the loading screen and in game; in game at the loading screen's size
     const inside = async (sideName, load) => {
       await fire(state(board({ side: sideName, load }), load ? '' : 'Dragon 1:00'));

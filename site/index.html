@@ -7234,7 +7234,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const ro = Object.entries(by).sort((a, b) => b[1][0] - a[1][0]), main = ro.length ? ro[0][0] : '', off = !!main && !!POS[p.pos] && main !== p.pos;
       if (main) out.role = { pos: main, name: POS[main], off, now: POS[p.pos] ? p.pos : '', list: ro.map(([r, [k, w]]) => [r, k, w]) };
     }
-    const q = [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((x) => x && TIERS.includes(x.tier) && (x.wins | 0) + (x.losses | 0) > 0), by = new Map();
+    const q = [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((x) => x && TIERS.includes(x.tier)), by = new Map(); // the card's rank; its record 0 until Riot's comes (riotRecord)
     for (const x of g || []) { const b = by.get(x.champ) || [0, 0]; b[0]++; b[1] += x.win; by.set(x.champ, b); }
     const rk = (r) => (r ? [rkName(r), emblems[r.tier] || '', TIER_C[TIERS.indexOf(r.tier)]] : null);
     if (q || (g && g.length)) out.sea = { w: q ? q.wins | 0 : 0, l: q ? q.losses | 0 : 0, now: rk(q), lp: q ? q.leaguePoints | 0 : 0,
@@ -14024,7 +14024,23 @@ dialog.wizard { transform: scale(var(--from)); }
       lcuGet(`/lol-champion-mastery/v1/${puuid}/champion-mastery`),
       lcuGet(`/lol-summoner/v2/summoners/puuid/${puuid}`),
     ]);
-    return { ranked: ranked && ranked.queueMap ? ranked.queueMap : {}, games: hist ? gamesOf(hist) : null, mastery: Array.isArray(mastery) ? mastery : [], level: (who && who.summonerLevel) | 0, icon: (who && who.profileIconId) | 0 };
+    const d = { ranked: ranked && ranked.queueMap ? ranked.queueMap : {}, games: hist ? gamesOf(hist) : null, mastery: Array.isArray(mastery) ? mastery : [], level: (who && who.summonerLevel) | 0, icon: (who && who.profileIconId) | 0 };
+    riotRecord(d.ranked, who);
+    return d;
+  }
+  // League's client gives someone else's ranked wins but never their losses (always 0), which made every win rate on
+  // the overlay, the Game page and Profile 100% (Rayan 2026-11-21, What's new 194). A record without losses is dropped,
+  // and Riot's (league-v4 through our server, by Riot ID) fills it in when it answers; without our server, no win rate.
+  function riotRecord(ranked, who) {
+    const qs = QS.filter((k) => ranked[k] && TIERS.includes(ranked[k].tier) && !(ranked[k].losses > 0));
+    if (!qs.length) return;
+    for (const k of qs) ranked[k].wins = ranked[k].losses = 0;
+    const n = who && who.gameName && who.tagLine ? `${who.gameName}#${who.tagLine}` : '';
+    if (n) riotUp({ n, plat: myPlat }).then((u) => u && riotGet(myPlat, `/lol/league/v4/entries/by-puuid/${u}`)).then((e) => {
+      const rk = ranksOf(e);
+      for (const k of qs) if (rk[k]) Object.assign(ranked[k], { wins: rk[k].wins | 0, losses: rk[k].losses | 0 });
+      if (qs.some((k) => rk[k])) { renderGame(); if (!profView.hidden) renderProfile(); }
+    }).catch(() => {});
   }
   // someone's best champions: their most played in their last 20 games, and their top mastery
   function bestText(s) {
@@ -17255,7 +17271,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const [r, h] = await Promise.all([lcuGet(`/lol-ranked/v1/ranked-stats/${w.u}`), lcuGet(`/lol-match-history/v1/products/lol/${w.u}/matches?begIndex=0&endIndex=4`)]), q = r && r.queueMap && r.queueMap.RANKED_SOLO_5x5;
     if (h) watchGames(w, gamesOf(h));
     const v = q && ladder({ tier: q.tier, div: q.division, lp: q.leaguePoints }), last = w.log[w.log.length - 1], st = q && stepOf(q), up = st != null && w.st != null && st > w.st, name = w.n.split('#')[0];
-    if (q) w.rank = rankText(q);
+    if (q) w.rank = rankText(q.losses > 0 ? q : { ...q, wins: 0, losses: 0 }); // League's client gives their wins, not their losses (What's new 194)
     if (v != null && (!last || last.v !== v)) {
       if (last && !up) notify(`${name}: ${v >= last.v ? '+' : '−'}${Math.abs(v - last.v)} LP, now ${rankText({ ...q, wins: 0, losses: 0 })}`, true);
       w.log = [...w.log, { at: Date.now(), v }].slice(-60);
@@ -20166,6 +20182,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [194, 'November 21: real win rates for other players', [
+      'Everyone showed a 100% win rate this season on the overlay: League’s client gives other players’ ranked wins but not their losses. Their wins and losses now come from Riot, so the Season ring, the rank line, Maybe a smurf and Climbing are right on the overlay, the Game page, champ select and Profile.',
+      'Until Riot answers, or without it, their rank shows with no win rate.',
+    ]],
     [193, 'November 21: no joining from your League lobby, no callout log', [
       'Being in a League lobby with a friend no longer puts you in each other’s voice room by itself, and the box for it under Friends is gone. Invite friends from the Friends page instead. Join my game’s room by itself, for the game you’re in, stays as it was.',
       'The Game page no longer lists last game’s callouts, and its switch on the Overlay page is gone.',
@@ -21364,7 +21384,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
       ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with their record, three rings and their rank beside them, and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen; in a game drag it by its top line anywhere and resize it by its corner, and it stays there. Looks: Cards, Rows or Your lane first.',
         'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it. Double-click its top line in a game to put it back.', '#optBoardLook', 'app'],
-      ['Three stats a player', 'Three rings on each player’s card, like Porofessor: Last 20 and Season with the win % inside, and the main role’s icon. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; Played and Winrate bars a role and a champion; rank emblems and mastery.', 'Hover a ring on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
+      ['Three stats a player', 'Three rings on each player’s card, like Porofessor: Last 20 and Season with the win % inside (Season’s wins and losses from Riot, as League’s client gives other players’ wins only), and the main role’s icon. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; Played and Winrate bars a role and a champion; rank emblems and mastery.', 'Hover a ring on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
         'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: the Overlay page, While you’re dead, What to buy.', '#csBuild', 'app'],
