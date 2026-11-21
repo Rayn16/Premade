@@ -1957,12 +1957,6 @@ dialog.wizard { transform: scale(var(--from)); }
 @keyframes ring { 0% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(calc(1 + 0.6 * var(--m))); } }
 @keyframes topple { 0% { transform: none; } 20% { transform: rotate(calc(-6deg * var(--m))); } 100% { transform: rotate(calc(90deg * var(--m))); opacity: 0.55; } }
 /* the callout log on the Game page (What's new 183) */
-.calllog { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.calllog li { display: grid; grid-template-columns: 48px 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.calllog li time { color: var(--muted); font-variant-numeric: tabular-nums; }
-.calllog li img { width: 96px; height: 96px; border-radius: 4px; }
-.calllog li[data-wrong] span { color: var(--muted); text-decoration: line-through; }
-@container app (max-width: 520px) { .calllog li { grid-template-columns: 40px 64px minmax(0, 1fr); } .calllog li img { width: 64px; height: 64px; } .calllog li button { grid-column: 3; justify-self: start; } }
 </style>
 <script>
   // The theme (Settings > Look), on the page before it shows: red and black unless you picked another ('dark', League's
@@ -2826,11 +2820,6 @@ dialog.wizard { transform: scale(var(--from)); }
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
-      <section id="callLogBox" class="panel" aria-labelledby="h-calllog" hidden>
-        <h2 id="h-calllog" class="ph">Callouts last game</h2>
-        <p class="hint">Each callout with your minimap when it showed. Wrong marks one that called something that wasn’t there.</p>
-        <ol id="callLogList" class="calllog"></ol>
-      </section>
       <section id="drillBox" class="panel" aria-labelledby="h-drill" hidden>
         <h2 id="h-drill" class="ph">CS drill <button class="tip" type="button" popovertarget="t-drill" aria-label="About the CS drill">?</button></h2>
         <p id="drillNow" class="phase" role="status"></p>
@@ -3232,8 +3221,6 @@ dialog.wizard { transform: scale(var(--from)); }
           <div class="toolbar ovmore" data-when="optCallSounds"><label class="field">Sound volume <input id="optCallVol" type="range" min="0" max="100" step="5"></label><button id="callSoundTry" class="btn small" type="button">Try both</button></div>
           <label class="check"><input id="optSpeakCalls" type="checkbox"><span><span>Read them out loud</span><span>Hear each callout after its sound</span></span></label>
           <div class="toolbar ovmore" data-when="optSpeakCalls"><label class="field">Voice <select id="optCallVoice"><option value="">My computer’s usual voice</option><option value="girl">A girl’s voice</option></select></label><button id="callVoiceTry" class="btn small" type="button">Try it</button></div>
-          <p class="ovpart">After the game</p>
-          <label class="check"><input id="optCallLog" type="checkbox"><span><span>Callout log</span><span>Every callout on the Game page, with your minimap then and a Wrong button</span></span></label>
         </section>
         <section class="ovcard" aria-labelledby="h-ovdead">
           <div class="ovhead"><span class="ovic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4"/></svg></span><div><h2 id="h-ovdead">While you’re dead</h2><p>Gone when you respawn</p></div><span class="ovn"></span></div>
@@ -3778,7 +3765,7 @@ dialog.wizard { transform: scale(var(--from)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true,
     overlayLane: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
-    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false, callLog: true,
+    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false,
@@ -7458,7 +7445,6 @@ dialog.wizard { transform: scale(var(--from)); }
   if (window.speechSynthesis) { voiceList(); speechSynthesis.addEventListener('voiceschanged', voiceList); }
   $('optCallVoice').addEventListener('change', (e) => { opts.callVoice = e.target.value; saveOpts(); speak('Jungler on topside'); });
   $('callVoiceTry').addEventListener('click', () => speak('Zed missing from mid'));
-  setTimeout(() => renderCallLog()); // the last game's, kept on this PC
   $('optCallVol').value = opts.callVol;
   $('optCallVol').addEventListener('change', (e) => { opts.callVol = +e.target.value; saveOpts(); chime('soft', opts.callVol / 100); });
   $('callSoundTry').addEventListener('click', () => { chime('sharp', opts.callVol / 100); setTimeout(() => chime('soft', opts.callVol / 100), 500); });
@@ -7478,7 +7464,6 @@ dialog.wizard { transform: scale(var(--from)); }
     while (callUp.length < 3 && calls.length) {
       const next = calls.shift();
       callUp.unshift({ text: next.text, pics: next.pics, from: now });
-      logCall(next.text);
       if (overlayHide || overlayEdit) continue;
       const sound = opts.callSounds && !!next.pics; // a short sound, then the words (callouts with pictures: not the reminder or the coach's tips)
       if (sound) chime(next.sharp ? 'sharp' : 'soft', opts.callVol / 100);
@@ -10050,39 +10035,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const who = (by || 'A teammate').slice(0, 20), foe = liveList().find((q) => !q.ally && CALL_POS[lane].includes(q.pos)), c = foe && champOf(foe.champ), where = lane === 'jungle' ? 'their jungle' : lane;
     sayCall(c ? `${who}: ${c.name} missing from ${where}` : `${who}: ${lane} missing`, 2, undefined, ['p:' + who.slice(0, 1).toUpperCase(), ...(c ? [foeFace(c.id)] : []), 's:missing', `w:missing ${lane}`]);
   }
-  // The callout log (What's new 183): every callout of the last game on the Game page, with a 96 px picture of your
-  // minimap when it showed and a Wrong button, kept on this PC. { room, list: [{ t, text, img, wrong }] }
-  let callLog = load('lpc-calllog', { room: '', list: [] });
-  function logCall(text) {
-    if (!opts.callLog || !league || !SR.test(league.mode)) return;
-    if (callLog.room !== league.room) callLog = { room: league.room, list: [] };
-    let img = '';
-    if (share && share.px && share.sq) {
-      const n = share.sq.s, a = document.createElement('canvas'), b = document.createElement('canvas');
-      a.width = a.height = n; b.width = b.height = 96;
-      a.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(share.px), n, n), 0, 0);
-      b.getContext('2d').drawImage(a, 0, 0, 96, 96);
-      img = b.toDataURL('image/jpeg', 0.7);
-    }
-    callLog.list.push({ t: Math.round(gameNow()), text, img, wrong: false });
-    if (callLog.list.length > 150) callLog.list.shift();
-    try { store.set('lpc-calllog', JSON.stringify(callLog)); } catch {}
-    renderCallLog();
-  }
-  function renderCallLog() {
-    const box = $('callLogBox'), l = opts.callLog ? callLog.list : [];
-    box.hidden = !l.length;
-    $('callLogList').replaceChildren(...l.map((c, i) => {
-      const li = document.createElement('li'), t = document.createElement('time'), w = document.createElement('button');
-      t.textContent = mmss(c.t);
-      li.append(t, ...(c.img ? [Object.assign(new Image(96, 96), { src: c.img, alt: `Your minimap at ${mmss(c.t)}` })] : []), Object.assign(document.createElement('span'), { textContent: c.text }), w);
-      Object.assign(w, { type: 'button', className: 'btn small', textContent: c.wrong ? 'Marked wrong' : 'Wrong' });
-      w.setAttribute('aria-pressed', String(!!c.wrong));
-      w.addEventListener('click', () => { c.wrong = !c.wrong; try { store.set('lpc-calllog', JSON.stringify(callLog)); } catch {} renderCallLog(); });
-      li.toggleAttribute('data-wrong', !!c.wrong);
-      return li;
-    }));
-  }
+  try { localStorage.removeItem('lpc-calllog'); } catch {} // the callout log's last game (What's new 183, gone in 193)
   // ---- power spikes (the Overlay page, Callouts): the other team reaching level 6, 11 or 16 (their ultimate's
   // ranks) or finishing an item, from League's scoreboard (what Tab shows), on the line at the top: “Zed is level 6”,
   // “Jinx finished Infinity Edge”. What they had when Premade first saw them isn't news.
@@ -19988,7 +19941,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'], ['optCallLog', 'callLog'],
+    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
     ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
@@ -19996,7 +19949,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
   $('attenRow').hidden = !client;
-  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optCallLog', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   $('optOverlayAny').value = ['full', 'always', 'off'].includes(opts.overlayAny) ? opts.overlayAny : 'full';
@@ -20213,8 +20166,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
-    [193, 'November 21: no more joining from your League lobby', [
+    [193, 'November 21: no joining from your League lobby, no callout log', [
       'Being in a League lobby with a friend no longer puts you in each other’s voice room by itself, and the box for it under Friends is gone. Invite friends from the Friends page instead. Join my game’s room by itself, for the game you’re in, stays as it was.',
+      'The Game page no longer lists last game’s callouts, and its switch on the Overlay page is gone.',
     ]],
     [192, 'November 21: Lock in fixed', [
       'Lock in in champ select now tells League your champion and locks it in one step, with the older way as a backup: from the bar at the bottom, a second click on a top 3 pick or the grid, your phone, and Lock in before time runs out.',
@@ -21430,8 +21384,6 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: the Overlay page, In game. Teammates in your game share it without being in your room.', '#optFoeTimers', 'app'],
       ['Teammates’ callouts', 'Say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid” with your letter, and you see theirs.',
         'Off until you turn it on: the Overlay page, Callouts, From your team.', '#optTeamCall', 'app'],
-      ['Callout log', 'After a game, the Game page lists every callout with the time, its faces and signs, a small picture of your minimap at that moment, and a Wrong button to mark the ones that missed.',
-        'On unless you turn it off: the Overlay page, Callouts, After the game.', '#optCallLog', 'app'],
       ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
       ['Dragon soul and Baron', '“You’re on Ocean soul point” or “They’re on Infernal soul point” once a team has 3 dragons, with the soul’s element, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: the Overlay page, Callouts, From the game.', '#optSpikeCall', 'app'],
       ['Ganks and heading to a lane', '“Vi heading your way” with a sharp sound when anyone but your lane opponents walks straight at you, “Vi and Zed heading your way” when two do within 2 seconds, and “Vi heading top” when their jungler walks toward a lane a teammate is in. No missing call when a laner bought an item out of sight (their faded face moves to their base), and “Zed back mid” when a missing laner returns.',

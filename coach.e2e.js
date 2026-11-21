@@ -430,7 +430,7 @@ const game = (over = {}) => ({
     // click on it timing Flash for the game channel, a teammate's timer and callout coming back through it, and the
     // callout log on the Game page
     {
-      const [c, page] = await context(browser, { foeTimers: true, teamCall: true, callLog: true, missCall: true });
+      const [c, page] = await context(browser, { foeTimers: true, teamCall: true, missCall: true });
       await c.addInitScript(() => { lpcClient.lcu = async (m, p) => (p === '/lol-summoner/v1/current-summoner' ? { status: 200, data: { puuid: 'me-p', gameName: 'Rayan', tagLine: 'EUW' } }
         : /^\/lol-match-history\/v1\/products\/lol\/current-summoner\//.test(p) ? { status: 200, data: { games: { games: [{ gameId: 1, platformId: 'EUW1', gameDuration: 100 }] } } } : { status: 404, data: null }); });
       const ps = [['me-p', 100, 157, 4, 7, []], ['zed-p', 200, 238, 4, 14, [8347]], ['lee-p', 200, 64, 4, 11, []], ['garen-p', 200, 86, 4, 12, []]];
@@ -469,17 +469,12 @@ const game = (over = {}) => ({
       await emit({ ...g, players: g.players.map((q) => ({ ...q, spells: q.champ === 'Zed' ? ['SummonerFlash', 'SummonerHaste'] : q.champ === 'LeeSin' ? ['SummonerFlash', 'SummonerSmitePlayerGanker'] : ['', ''] })) });
       await wait(page, () => lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells[1].name === 'Ghost', null, 'Zed’s Ghost from League’s live data');
       assert.deepStrictEqual((await page.evaluate(() => lpcClient.lastOverlay.strip)).find((r) => r.name === 'Lee Sin').spells.map((x) => x.k), ['flash:LeeSin', 'sp11:LeeSin'], 'Lee Sin’s Flash and Smite');
-      // the callout log on the Game page, with a Wrong button
-      await openPage(page, 'game');
-      await wait(page, () => !document.getElementById('callLogBox').hidden, null, 'the callout log');
-      const log = await page.$$eval('#callLogList li', (l) => l.map((li) => li.querySelector('span').textContent));
-      assert.deepStrictEqual(log.filter((t) => /^Kai/.test(t)), ['Kai: Zed missing from mid'], `once in the log: ${log}`);
-      await page.click('#callLogList li button');
-      assert.strictEqual(await page.$eval('#callLogList li button', (b) => b.textContent), 'Marked wrong');
-      await shot(page, '183-callout-log', '#callLogBox');
+      await page.waitForTimeout(1000); // a callout stays up 3 s, so a second copy would be on the line by now
+      const kai = (await page.evaluate(() => lpcClient.lastOverlay.calls)).filter((x) => /^Kai/.test(x.text)).length;
+      assert.strictEqual(kai, 1, `Kai’s callout shown once: ${kai}`);
       await overlayShot(browser, '183-strip-and-team-call', await page.evaluate(() => lpcClient.lastOverlay), 'none');
       await c.close();
-      console.log('What’s new 183: the enemy spell strip from Riot’s live game, Flash with Cosmic Insight sent to the game channel, Kai’s Ignite and “Kai: Zed missing from mid” back through it, the callout log');
+      console.log('What’s new 183: the enemy spell strip from Riot’s live game, Flash with Cosmic Insight sent to the game channel, Kai’s Ignite and “Kai: Zed missing from mid” back through it, once');
     }
 
     // ---- the voice that reads callouts: the computer's English voices by name, a girl's voice (Zira here), one picked
