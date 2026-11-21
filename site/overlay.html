@@ -237,6 +237,15 @@ body:not(.full) #call, body:not(.full) #ghosts { display: none; }
 .cpics .cw { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cpics .mate { width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; border: 2px solid #0ac8b9; background: #0a1428; display: grid; place-items: center; font: 700 15px/1 Georgia, serif; }
 .pill.pics.words { padding: 5px 16px 5px 5px; }
+/* the enemy strip (What's new 183): each enemy's face in a red ring, two summoner spells and the ultimate; a click
+   starts its timer for your team, again stops it; time left over the icon, a teal letter for a teammate's */
+.strip { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--gold-line); border-radius: 6px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+.strip .srow { display: flex; align-items: center; gap: 4px; }
+.strip .sface { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; border: 2px solid #ff5c5c; object-fit: cover; }
+.strip button { position: relative; width: 30px; height: 30px; margin: 0; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: #000; cursor: pointer; }
+.strip button img { display: block; width: 100%; height: 100%; }
+.strip button .left { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(0 0 0 / 0.6); color: #fff; font: 700 11px/1 'Segoe UI', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.strip button .by { position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 1px solid #0ac8b9; background: #0a1428; color: #f0e6d2; display: grid; place-items: center; font: 700 8px/1 Georgia, serif; }
 /* faded faces on League's minimap (What's new 181): grey, a third see-through, a grey ring, never red, and the seconds
    since in grey (not white, which the minimap reader takes for the camera box) */
 #ghosts { position: fixed; inset: 0; pointer-events: none; }
@@ -623,6 +632,27 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     p.setAttribute('aria-label', text);
     return p;
   }
+  const sp = (className, textContent) => Object.assign(document.createElement('span'), { className, textContent });
+  const mss = (n) => (n >= 60 ? `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}` : String(n));
+  function strip(rows) { // [{ name, pic, spells: [{ k, icon, name, left, by }] }]
+    const box = el('strip');
+    for (const r of rows.slice(0, 5)) {
+      if (!r || !Array.isArray(r.spells)) continue;
+      const row = el('srow');
+      row.append(Object.assign(new Image(), { src: /^https:\/\//.test(r.pic) ? r.pic : '', alt: String(r.name || ''), className: 'sface' }));
+      for (const x of r.spells.slice(0, 3)) {
+        if (!x || typeof x.k !== 'string' || !/^https:\/\//.test(x.icon)) continue;
+        const b = Object.assign(document.createElement('button'), { type: 'button' }), left = Math.max(0, +x.left | 0);
+        b.dataset.take = '';
+        b.setAttribute('aria-label', `${r.name}’s ${x.name}${left ? `, ${mss(left)} left` : ', ready'}`);
+        b.append(Object.assign(new Image(), { src: x.icon, alt: '' }), ...(left ? [sp('left', mss(left))] : []), ...(left && x.by ? [sp('by', String(x.by).slice(0, 1))] : []));
+        b.onclick = () => api.overlayProg && api.overlayProg({ id: 'strip', go: x.k });
+        row.append(b);
+      }
+      box.append(row);
+    }
+    return box;
+  }
   function ghost(g) { // a faded face where you last saw them, with the seconds since
     const e = el('ghost'), d = Math.min(0.1, Math.max(0.005, g.d));
     e.style.cssText = `left: ${g.x * 100}vw; top: ${g.y * 100}vh; width: ${d * 100}vh; height: ${d * 100}vh`;
@@ -694,6 +724,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     for (const t of s.toasts || []) add('toasts', el('toast', String(t)));
     if (Array.isArray(s.missing) && s.missing.length) add('missing', missing(s.missing));
+    if (Array.isArray(s.strip) && s.strip.length) add('strip', strip(s.strip));
     if (s.after && typeof s.after === 'object') add('after', after(s.after));
     if (s.vote && typeof s.vote === 'object') add('vote', after(s.vote));
     if (s.tips && Array.isArray(s.tips.lines)) add('tips', tips(s.tips));
