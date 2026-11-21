@@ -47,17 +47,21 @@ const PICS = { Zed: [[60, 70, 150], [200, 190, 60], [40, 140, 70], [120, 60, 160
 const picOf = (c) => { const out = Buffer.alloc(128 * 128 * 4); for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) out.set([...PICS[c][(y < 64 ? 0 : 2) + (x < 64 ? 0 : 1)], 255], (y * 128 + x) * 4); return out; };
 function withIcons(icons) { // [[champion, x, y]] in minimap pixels
   const out = new Uint8ClampedArray(corner), r = ctx.CameraBox.RING * m.s, k = 64 / 0.86;
-  for (const [c, cx, cy] of icons) for (let dy = -Math.ceil(r + 2); dy <= r + 2; dy++) for (let dx = -Math.ceil(r + 2); dx <= r + 2; dx++) {
+  for (const [c, cx, cy, ring] of icons) for (let dy = -Math.ceil(r + 2); dy <= r + 2; dy++) for (let dx = -Math.ceil(r + 2); dx <= r + 2; dx++) {
     const d = Math.hypot(dx, dy), to = ((m.y + cy + dy) * R + m.x + cx + dx) * 4;
     if (d <= 0.86 * r) out.set(PICS[c][(64 + (dy / r) * k < 64 ? 0 : 2) + (64 + (dx / r) * k < 64 ? 0 : 1)], to);
-    else if (d >= r - 1.6 && d <= r + 1.4) out.set([215, 40, 45], to);
+    else if (d >= r - 1.6 && d <= r + 1.4) out.set(ring || [215, 40, 45], to); // ring: your team's blue
   }
   return Buffer.from(out.buffer);
 }
 const SCREENS = { none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), red: withFoe([148, 198]), // x + y past the minimap's width: the bottom side; your red buff
   zedMid: withIcons([['Zed', 172, 109]]), leeJungle: withIcons([['LeeSin', 130, 215]]), // Zed in the middle lane on their side, Lee Sin in your jungle
   g1: withIcons([['LeeSin', 165, 168]]), g2: withIcons([['LeeSin', 150, 168]]), g3: withIcons([['LeeSin', 135, 168]]), // Lee Sin coming toward you (ME)
-  p1: withIcons([['LeeSin', 150, 140]]), p2: withIcons([['LeeSin', 150, 155]]), p3: withIcons([['LeeSin', 150, 170]]) }; // Lee Sin walking past you, closer but not at you
+  p1: withIcons([['LeeSin', 150, 140]]), p2: withIcons([['LeeSin', 150, 155]]), p3: withIcons([['LeeSin', 150, 170]]), // Lee Sin walking past you, closer but not at you
+  // What's new 182: Lee Sin and Zed (their mid) coming at you together; Lee Sin walking toward the top lane, where a
+  // teammate's blue icon is (Garen's picture there, as only the ring counts)
+  c1: withIcons([['LeeSin', 165, 168], ['Zed', 150, 130]]), c2: withIcons([['LeeSin', 150, 168], ['Zed', 140, 140]]), c3: withIcons([['LeeSin', 135, 168], ['Zed', 122, 144]]),
+  h1: withIcons([['LeeSin', 92, 112], ['Garen', 26, 120, [40, 120, 220]]]), h2: withIcons([['LeeSin', 80, 110], ['Garen', 26, 120, [40, 120, 220]]]), h3: withIcons([['LeeSin', 68, 108], ['Garen', 26, 120, [40, 120, 220]]]) };
 const yasuo = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'fixtures/ddragon-yasuo-128.rgba.gz')));
 
 // ---- a faded face (What's new 181) over the shared minimap, as overlay.html draws it: the picture in grey, a third
@@ -354,6 +358,72 @@ const game = (over = {}) => ({
       console.log(`callouts: Zed missing from mid 10 s after leaving the minimap with his faded face where he was, “${invade}”, then heading your way, all as pictures and read out loud`);
     }
 
+    // ---- What's new 182: no missing call after a recall to buy (the face moves to their base), "back mid", ganks from
+    // anyone but your lane opponents with "2 coming" and the sharp sound, their jungler heading to a teammate's lane,
+    // an objective window, Voidgrubs and the Herald, and the soul's element
+    {
+      const [c, page] = await context(browser, { missCall: true, gankCall: true, laneCall: true, missList: true, objCall: true, grubCall: true, spikeCall: true, callSounds: true, speakCalls: true });
+      await page.evaluate(() => { window.spoken = []; speechSynthesis.speak = (u) => spoken.push(u.text); speechSynthesis.cancel = () => {}; });
+      const said = (re, what, timeout = 15000) => wait(page, (re) => new RegExp(re).test(lpcClient.lastOverlay.call || ''), re, what, timeout);
+      const pos = (g, p) => ({ ...g, players: g.players.map((q) => ({ ...q, pos: { 'Rayan#EUW': 'BOTTOM', 'Mid#EUW': 'MIDDLE', 'Jungle#EUW': 'JUNGLE', 'Top#EUW': 'TOP' }[q.name], ...(p && p[q.name]) })) });
+      const emit = (g) => page.evaluate((d) => lpcClient.emit('league', d), g);
+      // Zed seen in mid, gone, then a new item on League's scoreboard: no missing call, his face at their fountain
+      await page.evaluate(() => { window.screenNow = 'zedMid'; });
+      await emit(pos(foesGame()));
+      await wait(page, () => (lpc.foes() || []).some((f) => f.id === 'Zed' && f.zone === 'mid'), null, 'Zed seen in mid');
+      await page.waitForTimeout(3500);
+      await page.evaluate(() => { window.screenNow = 'none'; });
+      await page.waitForTimeout(3000);
+      await emit(pos(foesGame(), { 'Mid#EUW': { items: [[1055, 1], [3057, 1]] } }));
+      await wait(page, () => (lpcClient.lastOverlay.ghosts || []).some((g) => /Zed\.png$/.test(g.pic) && g.s === 'shop'), null, 'Zed’s face at their base, shop');
+      const shop = (await page.evaluate(() => lpcClient.lastOverlay.ghosts)).find((g) => g.s === 'shop'), sq = await page.evaluate(() => lpc.me().minimap);
+      assert(shop.x * 2560 > sq.x + 0.9 * sq.s && shop.y * 1436 < sq.y + 0.1 * sq.s, `at their fountain, top right: ${JSON.stringify(shop)}`);
+      await page.waitForTimeout(8000);
+      assert(!(await page.evaluate(() => spoken)).some((t) => /missing/.test(t)), 'no missing call after a recall to buy');
+      // seen again, gone 10 s: missing; back in mid: back mid (seen 3 s first: 5 s here, as the screen is read a beat late)
+      await page.evaluate(() => { window.screenNow = 'zedMid'; });
+      await page.waitForTimeout(5000);
+      await page.evaluate(() => { window.screenNow = 'none'; });
+      await said('^Zed missing from mid$', 'Zed missing from mid');
+      await page.evaluate(() => { window.screenNow = 'zedMid'; });
+      await said('^Zed back mid$', 'Zed back mid');
+      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.callPics), ['f:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Zed.png', 's:eye', 'w:back mid']);
+      // Lee Sin and Zed (their mid, not your lane: you're bot) walking at you together: 2 coming, the sharp sound first
+      await page.evaluate(() => { window.screenNow = 'none'; });
+      await page.waitForTimeout(1500);
+      await wait(page, () => lpc.me().fresh, null, 'your Yasuo found on the minimap');
+      for (const k of ['c1', 'c2', 'c3']) { await page.evaluate((k) => { window.screenNow = k; }, k); await page.waitForTimeout(700); }
+      const TWO = /^(Zed and Lee Sin|Lee Sin and Zed) heading your way$/;
+      await wait(page, (re) => (lpcClient.lastOverlay.calls || []).some((x) => new RegExp(re).test(x.text)), TWO.source, '2 coming');
+      const two = (await page.evaluate(() => lpcClient.lastOverlay.calls)).find((x) => TWO.test(x.text));
+      assert.deepStrictEqual(two.pics.slice(2), ['s:arrow', 'a:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/Yasuo.png', 'w:2 coming'], 'their faces, an arrow, yours, 2 coming');
+      assert(await page.evaluate(() => lpc.played().filter((x) => x === 'sharp').length >= 2), 'the sharp sound');
+      // their jungler walking toward the top lane, where a teammate is
+      await page.waitForTimeout(3500);
+      for (const k of ['h1', 'h2', 'h3']) { await page.evaluate((k) => { window.screenNow = k; }, k); await page.waitForTimeout(700); }
+      await said('^Lee Sin heading top$', 'Lee Sin heading top');
+      assert(await page.evaluate(() => lpc.played().includes('soft')), 'the soft sound');
+      // their jungler dies at 6:00 with Dragon up (no dragon taken): an objective window
+      await emit(pos(foesGame(), { 'Jungle#EUW': { lvl: 6 } }));
+      await page.waitForTimeout(1500);
+      await emit({ ...pos(foesGame(), { 'Jungle#EUW': { lvl: 6, d: 1, dead: true, respawn: 40 } }), t: 360 });
+      await said('^Lee Sin dead for 40 seconds\\. Dragon is up\\.$', 'the objective window');
+      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.callPics), ['d:https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/LeeSin.png', 's:clock', 'w:0:40', 's:flame', 'w:Dragon up']);
+      // 7:30: Voidgrubs in 30 seconds, and both on the timers line
+      await emit({ ...pos(foesGame()), t: 452 });
+      await said('^Voidgrubs in 30 seconds$', 'Voidgrubs in 30 seconds');
+      assert.match(await page.evaluate(() => lpcClient.lastOverlay.game), /Voidgrubs 0:2\d · Herald 7:2\d · Baron/, 'Voidgrubs and the Herald on the timers line');
+      // their third dragon, an Ocean one: soul point with its element, a red ring
+      const drag = (t) => ({ e: 'dragon', team: 'CHAOS', t, type: 'Water' });
+      await emit({ ...pos(foesGame()), t: 1300, events: [drag(300), drag(600), drag(1290)] });
+      await said('^They’re on Ocean soul point$', 'Ocean soul point');
+      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.callPics), ['s!:drop', 'w:Ocean soul point']);
+      const words = await page.evaluate(() => spoken);
+      assert(words.includes('Zed back mid') && words.some((w) => TWO.test(w)) && words.includes('Lee Sin heading top'), `read out loud after the sounds: ${words}`);
+      await c.close();
+      console.log('What’s new 182: no missing call after a recall to buy (face at their base), Zed back mid, 2 coming with the sharp sound, Lee Sin heading top, the objective window, Voidgrubs in 30 seconds, Ocean soul point');
+    }
+
     // ---- the voice that reads callouts: the computer's English voices by name, a girl's voice (Zira here), one picked
     // by name, and a higher usual voice when there's no woman's voice
     {
@@ -470,18 +540,18 @@ const game = (over = {}) => ({
       await page.check('#optSpeakCalls');
       assert(await shown('#optCallVoice'), 'Read them out loud on: the voice shows');
       await page.uncheck('#optSpeakCalls');
-      const MAP5 = ['optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList'];
+      const MAP5 = ['optJgCall', 'optGankCall', 'optLaneCall', 'optMissCall', 'optInvadeCall']; // faded faces have a switch of their own (What's new 182)
       await page.uncheck('#optGankCall');
       assert(await page.isChecked('#ovMapCalls') && (await saved()).gankCall === false, 'one of the five off: the switch stays on');
       await page.uncheck('#ovMapCalls');
       assert.deepStrictEqual(await on(...MAP5), [false, false, false, false, false]);
       assert(!(await shown('#ovMapList')), 'Minimap callouts off: all five off, the list hidden');
       let o = await saved();
-      assert(!o.jgCall && !o.missCall && !o.invadeCall && !o.missList && !('ovMapCalls' in o) && !('mapCalls' in o), `all five saved off, nothing new saved: ${JSON.stringify(o)}`);
+      assert(!o.jgCall && !o.missCall && !o.invadeCall && !o.laneCall && o.missList && !('ovMapCalls' in o) && !('mapCalls' in o), `all five saved off, nothing new saved: ${JSON.stringify(o)}`);
       await page.check('#ovMapCalls');
       assert.deepStrictEqual(await on(...MAP5), [true, true, true, true, true]);
       o = await saved();
-      assert(o.jgCall && o.gankCall && o.missCall && o.invadeCall && o.missList, 'all five saved on');
+      assert(o.jgCall && o.gankCall && o.missCall && o.invadeCall && o.laneCall, 'all five saved on');
       assert.match(await page.textContent('.ovcard:has(#h-ovcalls) .ovn'), /^\d+ of \d+ on$/);
       await page.click('#ovPresets [data-preset="light"]');
       assert(!(await page.isChecked('#ovMapCalls')) && !(await shown('#ovMapList')), 'Light: Minimap callouts off');
