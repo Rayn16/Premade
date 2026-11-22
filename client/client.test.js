@@ -290,6 +290,28 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
       delete process.env.PREMADE_FFMPEG;
       console.log(`clips as .mp4: ${m1} (H.264 + AAC), a cut, a reel of three and the clean-up's order`);
     }
+    // the clip ring on disk (app 1.53): each second written in a circle (the smallest is 64 MB, a part at most a
+    // quarter of it), read back joined in the order asked, and its file gone at the end
+    {
+      const r = await js(`(async () => {
+        const id = await lpcClient.ring('start', 1), add = (n, v) => lpcClient.ring('add', id, new Uint8Array(n).fill(v).buffer);
+        const at = [await add(3, 1), await add(2, 2)], joined = [...(await lpcClient.ring('read', id, [[at[1], 2], [at[0], 3]]))];
+        for (let i = 0; i < 4; i++) at.push(await add(15e6, 3 + i)); // 60 MB
+        at.push(await add(4e6, 9)); // past the 64 MB end: back to the start
+        const back = [...(await lpcClient.ring('read', id, [[at[6], 4], [at[5], 1]]))], tooBig = await add(16e6 + 1, 0);
+        return { id, at, joined, back, tooBig };
+      })()`);
+      assert.deepStrictEqual(r.at, [0, 3, 5, 15e6 + 5, 30e6 + 5, 45e6 + 5, 0], `where the seconds went: ${r.at}`);
+      assert.deepStrictEqual(r.joined, [2, 2, 1, 1, 1], 'read back in the order asked');
+      assert.deepStrictEqual(r.back, [9, 9, 9, 9, 6], 'round to the start, over the oldest');
+      assert.strictEqual(r.tooBig, null, 'a part over a quarter of the ring is refused');
+      const file = path.join(app.getPath('temp'), 'Premade ring', `${r.id}.webm`);
+      assert(fs.existsSync(file) && fs.statSync(file).size === 60e6 + 5, 'the ring is a file of what was written');
+      assert.strictEqual(await js(`lpcClient.ring('end', ${r.id})`), true);
+      assert(!fs.existsSync(file), 'its file goes at the end');
+      assert.strictEqual(await js(`lpcClient.ring('add', ${r.id}, new Uint8Array(1).buffer)`), null, 'an ended ring takes nothing');
+      console.log('clip ring: in a circle on disk, read back in order, gone at the end');
+    }
     // the performance meter
     const perf = await js('lpcClient.metrics()');
     assert(perf.cpu >= 0 && perf.cpu <= 100 && perf.mb > 30 && perf.mb < 5000, `the app's CPU and memory: ${JSON.stringify(perf)}`);

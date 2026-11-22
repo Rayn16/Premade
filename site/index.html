@@ -4415,7 +4415,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (m.t === 'ready?') { notify(`${nameOf(p)} started a ready check`, true); checkWindow().then(() => send(meMsg())); return; }
     if (m.t === 'echo') return echoMine(p);
     if (m.t === 'watch') { p.watch = m.on === true; return lendTick(); } // a teammate asking for your screen while they're dead, or done
-    if (m.t === 'see') { p.wantSee = m.on === true; p.seeH = +m.h > 0 ? Math.min(2160, +m.h) : 0; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done; h: how tall their tile is
+    if (m.t === 'see') { p.wantSee = m.on === true; p.seeH = +m.h > 0 ? Math.min(2160, +m.h) : 0; p.seeIdle = m.idle === true; return lendTick(); } // someone in the room asking to watch your screen (Screens in the room), or done; h: how tall their tile is
     if (m.t === 'shq') { const v = seen.get(p); if (v && typeof m.why === 'string') v.why = m.why; return; } // what holds back their screen you watch
     if (m.t === 'pt') return void ptMsg(p, m);
     if (m.t === 'guess') return takeGuess(p.slot, m);
@@ -4878,6 +4878,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // its meter out of sight. While a mic is open, a Bluetooth headset plays everything in phone quality (muffled), and
   // Windows turns other sounds down for voice chat (Chromium marks the mic as voice chat).
   function micIdle() {
+    // nothing to hear, say or record (What's new 196): the audio engine (noise removal, the voices' limiter, the level
+    // meters' 47 messages a second) sleeps; openMic, a recording or a sound (soundOn) starts it again
+    if (ac && ac.state === 'running' && !raw && !peer && !joining && !(recorder && recorder.mix) && !(screenRec && screenRec.mix) && performance.now() - soundAt > 5000) ac.suspend().catch(() => {});
+    if (bell && bell.state === 'running' && performance.now() - soundAt > 5000) bell.suspend().catch(() => {});
     if (!raw || micBusy || peer || joining || coach || voiceWant() || (!document.hidden && $('micBox').checkVisibility())) return;
     raw.getTracks().forEach((t) => t.stop());
     raw = null;
@@ -5787,7 +5791,8 @@ dialog.wizard { transform: scale(var(--from)); }
   // coming up. The alarms ring even outside a room (a context of their own, on the same speakers as the voices).
   const SOUNDS = { mute: [660, 440], unmute: [440, 660], join: [523, 784], leave: [784, 523], swap: [523, 659, 784, 1047], turn: [880, 660, 880, 660, 880, 660], spawn: [392, 523, 659], call: [659, 784, 988, 784, 988], ping: [988, 1319], sharp: [1175, 1568], soft: [523] }; // sharp and soft: callouts (What's new 182)
   const played = []; // for the test hooks
-  let bell = null;
+  let bell = null, soundAt = -Infinity;
+  const soundOn = (c) => { soundAt = performance.now(); if (c.state === 'suspended') c.resume().catch(() => {}); }; // asleep outside a room (micIdle)
   function bellCtx() {
     if (!bell) { bell = new AudioContext(); if (outId && bell.setSinkId) bell.setSinkId(outId).catch(() => {}); }
     bell.resume().catch(() => {});
@@ -5797,6 +5802,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!ac && ['turn', 'spawn', 'call', 'sharp', 'soft'].includes(name) && window.AudioContext) bellCtx();
     const c = ac || bell;
     if (!c) return;
+    soundOn(c);
     SOUNDS[name].forEach((f, i) => {
       const o = c.createOscillator(), g = c.createGain(), at = c.currentTime + i * 0.09;
       o.frequency.value = f;
@@ -7101,7 +7107,7 @@ dialog.wizard { transform: scale(var(--from)); }
   let front = null, anyLast = null, anyAt = -Infinity, anyT = 0;
   const anyWanted = () => !!client && !!peer && !league && !fresh(me) && opts.overlayAny !== 'off' && (opts.overlay || opts.overlayChat);
   setInterval(() => {
-    if (!anyWanted() || !client.frontApp) { front = null; return; }
+    if (!client || !client.frontApp || !(anyWanted() || seen.size)) { front = null; return; } // and while you watch screens: hid pauses them (seeIdle)
     client.frontApp().then((f) => { const j = JSON.stringify(f); if (j !== JSON.stringify(front)) { front = f; pushOverlay(); } }).catch(() => {});
   }, 1000);
   addEventListener('focus', () => pushOverlay());
@@ -7672,11 +7678,12 @@ dialog.wizard { transform: scale(var(--from)); }
     const full = l.room ? +opts.shareQ : 720, h = l.room && p.seeH ? Math.min(full, p.seeH) : full; // a dead teammate's is small: they're in a game
     const fps = l.room ? opts.shareFps : 10, rate = l.room ? Math.max(600000, Math.round((vRate(opts.shareQ, opts.shareFps) / 3) * (h / full) ** 2)) : 1200000;
     l.h = h;
+    l.idle = !!(l.room && p.seeIdle); // they can't see it: nothing made or sent until they can (seeIdle)
     for (const x of pc.getSenders()) {
       if (!x.track || x.track.kind !== 'video') continue;
       const q = x.getParameters();
       if (!q.encodings || !q.encodings[0]) continue;
-      Object.assign(q.encodings[0], { maxBitrate: rate, maxFramerate: fps, scaleResolutionDownBy: Math.max(1, (l.track.getSettings().height || h) / h) });
+      Object.assign(q.encodings[0], { active: !l.idle, maxBitrate: rate, maxFramerate: fps, scaleResolutionDownBy: Math.max(1, (l.track.getSettings().height || h) / h) });
       // under load (a fight, a busy PC or upload) fewer frames, not a smaller picture: 'motion' alone let WebRTC drop
       // a 1080p share to 480x270 and keep it there
       q.degradationPreference = 'maintain-resolution';
@@ -7691,8 +7698,8 @@ dialog.wizard { transform: scale(var(--from)); }
       if (!down) l.okAt = performance.now();
       if (!ok(p) || performance.now() - l.okAt > 10000) { lends.delete(p); l.call.close(); l.track.stop(); if (l.sound) l.sound.stop(); }
       else {
-        if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee);
-        if (l.on && l.room && l.h !== Math.min(+opts.shareQ, p.seeH || Infinity)) lendSet(p, l);
+        if (l.sound) l.sound.enabled = !!(opts.roomSound && p.wantSee && !p.seeIdle);
+        if (l.on && l.room && (l.h !== Math.min(+opts.shareQ, p.seeH || Infinity) || l.idle !== !!p.seeIdle)) lendSet(p, l);
       }
     }
     for (const p of peers.values()) {
@@ -7759,11 +7766,15 @@ dialog.wizard { transform: scale(var(--from)); }
       }
       v.tile.querySelector('span').textContent = v.call ? `${nameOf(p)}’s screen` : `${nameOf(p)}’s screen: connecting…`;
       v.tile.querySelector('button').setAttribute('aria-label', `Hide ${nameOf(p)}’s screen`);
-      if (!v.call && performance.now() - v.asked >= 5000) { v.asked = performance.now(); tell(p, { t: 'see', on: true, h: v.h }); }
+      const idle = seeIdle(v, p);
+      if (!v.call && !idle && performance.now() - v.asked >= 5000) { v.asked = performance.now(); tell(p, { t: 'see', on: true, h: v.h }); }
       if (v.call && v.streamAt) {
         const h = seeWant(v);
-        if (h !== v.h) { v.h = h; tell(p, { t: 'see', on: true, h }); } // their app sends only that much
-        if (performance.now() - v.statAt > 3000 && v.call.peerConnection) { v.statAt = performance.now(); seeStats(v); }
+        if (h !== v.h || idle !== v.idle) { v.h = h; v.idle = idle; v.idleAt = performance.now(); tell(p, { t: 'see', on: true, h, idle }); } // their app sends only that much
+        // paused 2 minutes (a game behind League): the call goes too, so both apps free what it holds, and it's asked
+        // for again once the tile can be seen
+        if (idle && performance.now() - v.idleAt > 120e3) { const old = v.call; v.call = null; v.vid.srcObject = null; v.streamAt = 0; tell(p, { t: 'see', on: false }); old.close(); }
+        else if (performance.now() - v.statAt > 3000 && v.call.peerConnection) { v.statAt = performance.now(); seeStats(v); }
       } else v.tile.querySelector('.shq').textContent = '';
     }
     if (ptTo && !seen.has(ptTo)) ptTo = null;
@@ -8112,6 +8123,11 @@ dialog.wizard { transform: scale(var(--from)); }
     const h = [360, 540, 720, 1080, 1440].find((x) => x >= px * (v.z || 1) * devicePixelRatio * 0.9) || 2160; // zoomed in: sharper
     return cam && cam.call === v.call ? Math.max(720, h) : h; // the overlay reads the same call
   }
+  // A screen nobody can see right now is paused (What's new 196): Premade minimized, in the tray or under a game that
+  // fills its screen (app 1.53's frontApp hid), or the room not on screen (another page, the compact strip in a game).
+  // Their app stops making it for you ({t:'see', idle}: its encoding off), so neither PC spends anything on it, and
+  // it's back the moment you look, on the same call. Never while it's popped out, full screen or the overlay's.
+  const seeIdle = (v, p) => !(document.pictureInPictureElement === v.vid || document.fullscreenElement || (cam && cam.p === p)) && (!!(front && front.hid) || !v.vid.getBoundingClientRect().height);
   const SHQ_WHY = { bandwidth: 'held back by their upload', cpu: 'held back by their PC', other: 'held back' };
   function seeStats(v) {
     v.call.peerConnection.getStats().then((st) => st.forEach((r) => {
@@ -11747,17 +11763,22 @@ dialog.wizard { transform: scale(var(--from)); }
   // Clip anywhere holds the screen all the time, at the clip quality only: asking the Recording page's (1440p 60 by
   // default) too cost Rayan's PC hundreds of MB (31 Oct). A recording frees the screen first and the clips restart with it.
   const capNow = () => capOf(Math.max(+opts.clipQ, +opts.shareQ, screenRec ? +opts.recQ : 0), Math.max(opts.clipFps, opts.shareFps, screenRec ? opts.recFps : 0));
+  // app 1.53: the seconds clips are cut from go to a file the app keeps (ring), only where each went stays here, so
+  // the page holds no video; the file is twice what's kept (a setting raised meanwhile makes clips shorter, not wrong)
+  const ringEnd = (r) => r.ring && r.ring.then((id) => { const end = () => (r.saving ? setTimeout(end, 1000) : id && client.ring('end', id).catch(() => {})); end(); });
   async function startRec(kind) {
     const r = (recorder = { parts: [], pre: [], at: performance.now(), kind });
+    if (client.ring && clipsOn()) { r.cap = Math.min(2e9, Math.max(64e6, ((opts.clipLen + 15) * vRate(opts.clipQ, opts.clipFps)) / 2)); r.ring = client.ring('start', r.cap).catch(() => 0); }
     let s;
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: capNow(), audio: true }); } catch (err) {
       console.warn('clips:', err);
       if (recorder === r) r.failed = true; // not again until the next game
-      return;
+      return ringEnd(r);
     }
-    if (recorder !== r) return s.getTracks().forEach((t) => t.stop());
+    if (recorder !== r) { ringEnd(r); return s.getTracks().forEach((t) => t.stop()); }
     const tracks = [s.getVideoTracks()[0]], heard = s.getAudioTracks()[0];
     if (ac && mic) { // what you hear and your mic, mixed
+      ac.resume(); // asleep outside a room (micIdle)
       r.mix = ac.createMediaStreamDestination();
       r.srcs = [heard, mic.getAudioTracks()[0]].filter(Boolean).map((t) => { const n = ac.createMediaStreamSource(new MediaStream([t])); n.connect(r.mix); return n; });
       tracks.push(r.mix.stream.getAudioTracks()[0]);
@@ -11771,11 +11792,18 @@ dialog.wizard { transform: scale(var(--from)); }
       if (e.data.size && clipsOn()) {
         // each second is kept as its bytes, not the recorder's Blob: a Blob's data sits in the app's main process, where
         // the page's clean-up doesn't see its size, so the seconds dropped below piled up there (Rayan, 30 Oct: 3.4 GB)
-        if (r.head) { const p = { at: performance.now(), blob: e.data }; r.parts.push(p); e.data.arrayBuffer().then((a) => { p.blob = new Uint8Array(a); }, () => {}); }
-        else headChunk(r, e.data);
+        if (r.head) {
+          const p = { at: performance.now(), blob: e.data };
+          r.parts.push(p);
+          e.data.arrayBuffer().then(async (a) => {
+            const id = r.ring && (await r.ring), off = id ? await client.ring('add', id, a).catch(() => null) : null;
+            if (Number.isInteger(off)) Object.assign(p, { off, len: a.byteLength, blob: null }); // on disk: only where it went
+            else p.blob = new Uint8Array(a);
+          }, () => {});
+        } else headChunk(r, e.data);
         // and no more than twice the bytes asked for: on a busy screen an encoder can make many times its bit rate (a
         // full screen of noise: 170 Mbps for the 14 asked, so the ring held 1 GB), and then a clip is shorter instead
-        const most = ((opts.clipLen + 15) * vRate(opts.clipQ, opts.clipFps)) / 4, size = (p) => p.blob.size || p.blob.length;
+        const most = Math.min(r.cap / 2 || Infinity, ((opts.clipLen + 15) * vRate(opts.clipQ, opts.clipFps)) / 4), size = (p) => (p.blob ? p.blob.size || p.blob.length : p.len);
         let bytes = r.parts.reduce((n, p) => n + size(p), 0);
         while (r.parts.length && (performance.now() - r.parts[0].at > (opts.clipLen + 15) * 1000 || bytes > most)) { bytes -= size(r.parts.shift()); r.trimmed = true; }
       }
@@ -11815,6 +11843,7 @@ dialog.wizard { transform: scale(var(--from)); }
     try { s = await navigator.mediaDevices.getDisplayMedia({ video: cap, audio: true }); } catch (err) { console.warn('recording:', err); return clipsCheck(); }
     const r = (screenRec = { stream: s, at: Date.now() }), tracks = [s.getVideoTracks()[0]], heard = s.getAudioTracks()[0];
     if (opts.recMic && ac && mic) {
+      ac.resume(); // asleep outside a room (micIdle)
       r.mix = ac.createMediaStreamDestination();
       r.srcs = [heard, mic.getAudioTracks()[0]].filter(Boolean).map((t) => { const n = ac.createMediaStreamSource(new MediaStream([t])); n.connect(r.mix); return n; });
       tracks.push(r.mix.stream.getAudioTracks()[0]);
@@ -12438,6 +12467,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (r.mr && r.mr.state !== 'inactive') r.mr.stop();
     if (r.stream) r.stream.getTracks().forEach((t) => t.stop());
     for (const n of r.srcs || []) n.disconnect();
+    ringEnd(r);
   }
   // a small JPEG of a video track's picture now, or of a video element's, for the gallery
   async function shot(from) {
@@ -12479,7 +12509,13 @@ dialog.wizard { transform: scale(var(--from)); }
       // only the seconds this clip needs (and a key frame's worth before them) are joined, not all that's kept;
       // joined here, not in a Blob: a Blob of the whole ring would copy it to the app's main process until a clean-up
       const since = performance.now() - (secs + 8) * 1000, keep = r.parts.filter((p) => p.at >= since), whole = keep.length === r.parts.length && !r.trimmed;
-      const head = new Uint8Array(await r.head.arrayBuffer()), list = [...(whole ? [head] : []), ...(await Promise.all(keep.map(async (p) => (p.blob instanceof Blob ? new Uint8Array(await p.blob.arrayBuffer()) : p.blob))))];
+      // the seconds on disk (app 1.53) read back in one go, in order with any still on their way there
+      const snap = keep.map((p) => (p.blob === null ? [p.off, p.len] : p.blob)), disk = snap.filter(Array.isArray);
+      const got = disk.length ? await client.ring('read', await r.ring, disk) : null;
+      if (disk.length && (!got || got.length !== disk.reduce((n, x) => n + x[1], 0))) throw new Error('the clip ring didn’t read back');
+      const head = new Uint8Array(await r.head.arrayBuffer()), list = [...(whole ? [head] : [])];
+      let o = 0;
+      for (const x of snap) list.push(Array.isArray(x) ? got.subarray(o, (o += x[1])) : x instanceof Blob ? new Uint8Array(await x.arrayBuffer()) : x);
       const body = new Uint8Array(list.reduce((n, u) => n + u.length, 0));
       list.reduce((at, u) => (body.set(u, at), at + u.length), 0);
       const out = cutClip(head, body, secs);
@@ -18048,6 +18084,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!ac && window.AudioContext) bellCtx();
     const c = ac || bell;
     if (!c) return;
+    soundOn(c);
     if (!chNoise || chNoise.sampleRate !== c.sampleRate) {
       chNoise = c.createBuffer(1, Math.round(c.sampleRate * 0.1), c.sampleRate);
       const d = chNoise.getChannelData(0);
@@ -20183,6 +20220,13 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [196, 'November 22: Premade is lighter', [
+      'A friend’s screen you can’t see right now is paused: with Premade on another page, as the strip in a game, minimized or under a full-screen game, their PC stops sending it to you and yours stops showing it. It’s back the moment you look. During a game with Premade behind League, that’s every screen in the room. Minimized and under a game need the app update (1.53).',
+      'Clips keep the last seconds of your game on your disk instead of in memory: up to 157 MB less during every game at 1080p 60 fps (app 1.53).',
+      'The overlay, the pointer window and the Find a video window close once they’ve been unused for a while, and open again when they’re needed (app 1.53).',
+      'Outside a room, Premade’s sound engine sleeps until you join, test your mic or a sound plays.',
+      'If one part of Premade hits an error, the rest keeps running: voices still fade with distance.',
+    ]],
     [195, 'November 21: open a player’s profile from the overlay', [
       'Click a player’s name on everyone’s rank, on the loading screen or with Alt+X in a game, and Premade comes to the front with their profile.',
     ]],
@@ -21111,7 +21155,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. It stays on for everyone when a game starts, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included. The Discord filter box turns that off, so the share sends all of your PC’s sound.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. It stays on for everyone when a game starts, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can, and nothing while they can’t see it (Premade on another page, minimized or under a full-screen game): it’s back the moment they look. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included. The Discord filter box turns that off, so the share sends all of your PC’s sound.',
         'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Discord filter, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareFilter, #optShareQ, #changeShareBtn, #createBtn'],
       ['Side by side and zoom', 'Watch every screen in your room full screen side by side; full screen, the controls and the mouse hide after 3 seconds without moving the mouse. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
@@ -21139,7 +21183,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'In your room, under Games: pick who to play, Normal or Card Chess, and a clock, then Play. It starts for both of you at once. The speaker button by Games turns the sounds on or off.', '#roomGames, #chSound, #createBtn'],
       ['Last Card', 'A card game for your whole room: 2 to 10 play, everyone else watches, and whoever joins later sees the table and everyone’s card count, never a hand. Match the top card’s color, number or symbol; Skip, Reverse and +2 in four colors, Wild and Wild +4, and Premade’s own black cards: Swap trades your whole hand with a player you pick, Freeze makes one miss their next turn, Shield blocks a +2 or +4 aimed at you. +2s and +4s stack, and whoever can’t add one draws the total. Can’t play? Draw 1, and play it if it fits. Press Last card as you play your second-to-last card, or the next player can catch you for +2. Whoever runs out of cards takes the next place and the rest play on. 30 seconds a turn: run out and Premade draws for you, 3 in a row and you’re out of that game, as is anyone who leaves the room. Reload and you get your hand back.',
         'In your room, under Games: pick Last Card, untick anyone who isn’t playing, then Play. It deals 7 cards each at once. Rematch keeps the same players. The speaker button by Games turns the sounds off.', '#roomGames, #lcPlay'],
-      ['Watch together', 'Watch YouTube with your room: every friend who presses Join plays the same video straight from YouTube, at the same spot, as sharp as YouTube gives them. Anyone in the room can play, pause, move along the bar, change the speed or skip, and the panel says who did it. A video picked while one plays waits in Up next, a YouTube playlist adds its videos, and anyone can play one now or remove it. A friend who gets an ad or a slow moment jumps back to the room’s spot, and whoever joins the room later lands there too. On another page, or with the panel scrolled away, a small player follows you in a corner; drag it to another corner. Volume and captions are yours only. Sign in to YouTube in the Find a video window and the player plays with your account, so YouTube Premium means no ads for you; otherwise YouTube shows its own ads, and videos whose owner turned off playing outside YouTube are skipped.',
+      ['Watch together', 'Watch YouTube with your room: every friend who presses Join plays the same video straight from YouTube, at the same spot, as sharp as YouTube gives them. Anyone in the room can play, pause, move along the bar, change the speed or skip, and the panel says who did it. A video picked while one plays waits in Up next, a YouTube playlist adds its videos, and anyone can play one now or remove it. A friend who gets an ad or a slow moment jumps back to the room’s spot, and whoever joins the room later lands there too. On another page, or with the panel scrolled away, a small player follows you in a corner; drag it to another corner. Volume and captions are yours only. Sign in to YouTube in the Find a video window and the player plays with your account, so YouTube Premium means no ads for you; otherwise YouTube shows its own ads, and videos whose owner turned off playing outside YouTube are skipped. The Find a video window closes after 10 minutes unused and opens again where it was.',
         'In your room’s Current room card: Watch together opens YouTube’s own site in a Premade window (desktop app); search, then click a video and it plays in the room. Friends press Join at the top of the room. On a phone or the website, join, watch and control what a friend on a PC starts.', '#wtBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
         'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
@@ -21362,7 +21406,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'The Clips page: search the rows or show only today’s, this week’s or the Saved ones. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, [data-cf="saved"], #optClipCap', 'app'],
       ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
         'Click a clip’s picture, or Watch the match on a game. Drag the handles, then Save the cut.', '#h-clips', 'app'],
-      ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick.',
+      ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick. The last seconds a clip is cut from wait in Windows’ temp folder, not in memory.',
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
         'Recording in the menu: Record, or the Record key (Ctrl+Shift+R) from any app. The same again stops it. Quality and Frame rate are there too.', '#recBtn, #recBox', 'app'],
@@ -21489,7 +21533,10 @@ dialog.wizard { transform: scale(var(--from)); }
   ddSoon(); // champion names early, as when Profile was the first page
   renderGames();
   remoteCheck();
-  setInterval(() => { swapTick(); applyFx(); statusTick(); volumes(); trackCheck(); gameCheck(); gamesTick(); autoPick(); autoShare(); pushDiscord(); leagueTick(); goldTick(); clipsCheck(); augTick(); dpsTick(); crumbTick(); clipMoments(); voiceCheck(); micIdle(); spawnTick(); patchWatch(); timerTick(); spikeTick(); objTick(); windowTick(); coachTick(); jgClockTick(); camTick(); lendTick(); seeTick(); groupTick(); }, 1000); // positions go stale even when no message arrives
+  // each second's jobs (positions go stale even when no message arrives); one that throws doesn't stop the ones after
+  // it (the voices' fade is 4th), and says so once
+  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, spikeTick, objTick, windowTick, coachTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
+  setInterval(() => { for (const f of TICK) try { f(); } catch (err) { if (!tickErr.has(f)) { tickErr.add(f); console.warn(`${f.name}:`, err); clog(`${f.name} failed: ${err.message}`); } } }, 1000);
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
   addEventListener('pagehide', () => { endGame(); if (peer) peer.destroy(); });
@@ -21573,7 +21620,9 @@ dialog.wizard { transform: scale(var(--from)); }
     deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), lendSound: async () => { // the screen's sound to the first watcher
       const l = [...lends.values()][0], st = l && l.call.peerConnection && await l.call.peerConnection.getStats(), o = st && [...st.values()].find((r) => r.type === 'outbound-rtp' && r.kind === 'audio');
       return o ? { target: o.targetBitrate || 0, fmtp: (st.get(o.codecId) || {}).sdpFmtpLine || '' } : null;
-    }, seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, h: v.h, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts })),
+    }, seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, h: v.h, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts, idle: !!v.idle })),
+    seeFrames: () => Promise.all([...seen.values()].map((v) => (v.call && v.call.peerConnection ? v.call.peerConnection.getStats().then((st) => { let n = 0; st.forEach((r) => { if (r.type === 'inbound-rtp' && r.kind === 'video') n = r.framesDecoded || 0; }); return n; }) : 0))),
+    lendActive: () => [...lends.values()].map((l) => (l.call.peerConnection ? l.call.peerConnection.getSenders().some((x) => x.track && x.track.kind === 'video' && x.getParameters().encodings[0].active !== false) : null)),
     screenStall: (name, broken) => { const v = [...seen].find(([p]) => nameOf(p) === name)?.[1]; if (!v || !v.call) return; v.vid.pause(); v.okAt = performance.now() - 11000; if (broken) Object.defineProperty(v.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // a still screen, or a broken screen call, for the e2e test
     lendStall: (name) => { const l = [...lends].find(([p]) => nameOf(p) === name)?.[1]; if (l) Object.defineProperty(l.call.peerConnection, 'iceConnectionState', { get: () => 'disconnected', configurable: true }); }, // your screen call to them stuck, as on Rayan's PC (28 Oct)
     ctlN: () => ctlTo && ctlTo.n, // remote control: the last of your input numbered, for the e2e test to send some out of order
