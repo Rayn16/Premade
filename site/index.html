@@ -185,6 +185,7 @@ main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding
 main > #msg:not(:empty) { margin-top: 16px; }
 .view, #msg { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
+.view[data-view="pregame"] { padding-top: 28px; } /* no page title (What's new 198) */
 /* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
 .view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
 #aionFrame { width: 100%; height: 100%; min-height: calc(420px / var(--zoom, 1)); border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
@@ -1546,8 +1547,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .best td:not(:first-child), .best th:not(:first-child) { text-align: right; }
 
 /* Champ select (Open Design): your team, your pick and the enemy team in three columns, the clock big, Lock in at the foot */
-.cshead { display: flex; align-items: center; gap: 16px; }
-.cshead .phase { flex: 1; margin: 0; }
 .cscols { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 1.6fr) minmax(190px, 0.8fr); gap: 14px; align-items: start; }
 @container app (max-width: 1100px) { .cscols { grid-template-columns: minmax(0, 1fr); } }
 .cscol { display: grid; gap: 10px; min-width: 0; align-content: start; }
@@ -1557,7 +1556,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .csteam, .csthemlist { display: grid; gap: 10px; }
 /* Champ select look (What's new 162): each player a card over their champion's splash in the skin picked, tabs for
    your pick in the middle, the draft verdict in words, and each enemy's abilities on a click */
-.cshead #dodgeBtn { margin-left: 4px; }
 .csverdict { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
 .csverdict b { color: var(--fg); }
 .csverdict .vword { padding: 6px 14px; border-radius: 999px; background: var(--line); font-weight: 700; color: var(--fg); }
@@ -1626,7 +1624,11 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
 .cschromas button { width: 32px; height: 32px; border: 2px solid var(--line); border-radius: 50%; background: var(--raised); cursor: pointer; }
 .cschromas button.base { width: auto; border-radius: 6px; padding: 0 10px; color: var(--fg); font: inherit; }
 .cschromas button[aria-pressed="true"] { border-color: var(--gold); }
-.csbar { position: sticky; bottom: 0; z-index: 2; margin: 0 -20px -18px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--panel); justify-content: flex-end; }
+/* What's new 198: the bar sits on the window's bottom edge (main's 32 px padding would leave it floating over the cards), Dodge far left */
+.csbar { position: sticky; bottom: -32px; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 -20px -18px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--panel); }
+.csbar #champForm { margin-left: auto; align-items: center; }
+.csbar:not(:has(> :not([hidden]))) { display: none; } /* locked in, in a custom game: nothing left on it */
+body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts { bottom: 120px; } /* popups above the bar, not over Lock in */
 
 /* Clips (Open Design): the picked clip big beside the list, with a search, a date filter and the folder's fill */
 .clipsgrid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
@@ -2593,7 +2595,6 @@ dialog.wizard { transform: scale(var(--from)); }
     </section>
 
     <section class="view" data-view="pregame" aria-label="Pregame" hidden>
-      <header class="pagehead"><div><h1 class="title">Pregame</h1><p class="sub">The queue, the ready check and champ select: your team, picks, bans and runes.</p></div></header>
       <p id="preNote" class="phase" role="status"></p>
       <p id="winFix" class="hint" hidden>League is in Fullscreen, so the overlay can’t show over it. <button id="winFixBtn" class="btn small" type="button">Switch to Borderless</button></p>
       <section id="queueBox" class="panel" aria-labelledby="h-queue" hidden>
@@ -2617,9 +2618,8 @@ dialog.wizard { transform: scale(var(--from)); }
         <p id="rcState" role="status"></p>
         <div class="toolbar"><button id="acceptBtn" class="btn primary huge" type="button">Accept</button><button id="declineBtn" class="btn" type="button">Decline</button></div>
       </section>
-      <section id="csBox" class="panel" aria-labelledby="h-cs" hidden>
-        <h2 id="h-cs" class="ph">Champ select <button class="tip" type="button" popovertarget="t-cs" aria-label="About champ select">?</button></h2>
-        <div class="cshead"><p id="csTurn" class="phase" data-game="1" role="status"></p><button id="dodgeBtn" class="btn small" type="button" title="Leave champ select without closing League. League counts it as a dodge: you lose LP and wait before you can queue again.">Dodge</button></div>
+      <section id="csBox" class="panel" aria-label="Champ select" hidden>
+        <p id="csTurn" class="sr" data-game="1" role="status"></p>
         <p id="csVerdict" class="csverdict" role="status" hidden></p>
         <p id="fsLine" class="phase" hidden></p>
         <div class="cscols">
@@ -2703,11 +2703,14 @@ dialog.wizard { transform: scale(var(--from)); }
         <section id="csSheet" class="cssheet" aria-labelledby="h-sheet" hidden><h3 id="h-sheet" class="ph"></h3><ul class="plain"></ul><h3 class="ph">Riot’s tips against them</h3><ul class="cssheettips"></ul></section>
         </div>
         </div>
-        <form id="champForm" class="pick csbar">
-          <label>Any champion <input id="anyChamp" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
+        <div class="csbar">
+        <button id="dodgeBtn" class="btn" type="button" title="Leave champ select without closing League. League counts it as a dodge: you lose LP and wait before you can queue again.">Dodge</button>
+        <form id="champForm" class="pick">
+          <label><span class="sr">Any champion</span><input id="anyChamp" list="champs" autocomplete="off" spellcheck="false" placeholder="Any champion"></label>
           <button id="hoverBtn" class="btn" type="submit">Hover</button>
           <button id="pickLock" class="btn primary" type="button">Lock in</button>
         </form>
+        </div>
       </section>
       <section id="clashBox" class="panel" aria-labelledby="h-clash" hidden>
         <h2 id="h-clash" class="ph">Clash</h2>
@@ -3665,7 +3668,6 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself, or out of a room someone else is in.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
 
-<div id="t-cs" class="tipbox" popover>The top 3 on the Picks tab weighs each champion you may pick for your role: how it does there in high elo, how it does in high elo against their champion in your lane and with your team, your own games and mastery on it, your games with your duo, and what your team still lacks (magic or physical damage, a tank). Click one to hover it, and again on your turn to lock it in. Whoever is picking or banning has their card lit, with the time left on it. On your ban turn, Bans for you lists the champions you lose to most, then the strongest in your role in high elo, leaving out the ones you play. Your team's ranks and last 20 games come from League's own client, with tags: a win streak, a first game on a champion, players you've met before, premades, someone who rarely plays their role, a possible smurf. Riot hides other players' names in Ranked Solo/Duo champ select, and so does this page. Once you lock in, the app makes a rune page for your champion and role (named LPC and the champion: the most popular one in high elo, Riot's recommended one, or your own usual one, Pregame settings), sets the summoner spells and puts the high elo build and your usual build in League's shop. When high elo players take another rune page against your laner, a button puts that one on. Tips for your lane show up once your champion and the one in your lane are known: how that matchup goes in high elo, the runes, spells and early items high elo players take in it, your own games against it, its range and damage, Riot's own tips for both champions and your matchup note. ADCs and supports also get tips against their other bot laner, from the high elo games with that champion on the other team. They show again on the loading screen, but not in the game itself, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
 <div id="t-mx" class="tipbox" popover>Pick a champion and the one it plays against to see how that matchup goes in high elo: the record, gold and CS at 10 minutes, the runes, spells and items players take in it, the rune page and build most of those games had, your own games and Riot's tips for both. The role is the one the first champion plays most in high elo, unless you pick one. Like the other tips, it hides during a game, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, plus what your team lacks and your games with your duo, and Balanced by both, plus your own games and mastery on it. For an ADC or a support, Bot lane first counts your lane 4 times the rest of the draft. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
@@ -7099,7 +7101,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // recent popups; in the theme's colours (theme) unless that's Light, as it sits over the game. Move it (edit) shows it
   // with a frame to drag anywhere; the client says where it was left (overlay-moved). The overlay shortcut hides all of
   // it until it's pressed again (overlayHide); everyone's rank has a key of its own (boardKey on, boardOff off, app 1.49).
-  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false, boardOff = false;
+  // A name on it opens that player's profile (What's new 195): it steps aside (boardAway) until you leave Premade, as
+  // it's over every window and covered Premade (What's new 198).
+  let overlayWas = '', overlayEdit = false, overlayOn = false, overlayHide = false, boardKey = false, boardOff = false, boardAway = false;
   const chats = []; // the last few chat messages, for the overlay
   // Who's talking in other games (What's new 122): in a room outside League, while the window in front fills its screen
   // (app 1.38: frontApp, checked each second only while it's needed) or, as set, whenever Premade isn't in front. It
@@ -7111,7 +7115,7 @@ dialog.wizard { transform: scale(var(--from)); }
     client.frontApp().then((f) => { const j = JSON.stringify(f); if (j !== JSON.stringify(front)) { front = f; pushOverlay(); } }).catch(() => {});
   }, 1000);
   addEventListener('focus', () => pushOverlay());
-  addEventListener('blur', () => pushOverlay());
+  addEventListener('blur', () => { boardAway = false; pushOverlay(); });
   function pushOverlay() {
     if (!client) return;
     const now = performance.now(), on = (o) => overlayEdit || (!overlayHide && !!o), voice = !!peer && !!(league || fresh(me));
@@ -7179,7 +7183,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const on = !!boardNow();
     boardKey = !on && !(loadingNow() && opts.overlayBoard); // the loading screen shows it by itself: brought back there, it doesn't stay on in the game
     boardOff = on;
-    overlayHide = false;
+    overlayHide = boardAway = false;
     notify(on ? `Everyone’s rank hidden.${keys.board ? ` ${keys.board} brings it back.` : ''}` : `Everyone’s rank is on the overlay.${keys.board ? ` ${keys.board} again hides it.` : ''}`, true);
     pushOverlay();
   }
@@ -7197,7 +7201,7 @@ dialog.wizard { transform: scale(var(--from)); }
     return me && POS[me.pos] ? { me, foe: laneFoe(me.pos, them), duo: DUO[me.pos] ? laneFoe(DUO[me.pos], them) : 0 } : null;
   }
   function boardNow() {
-    if (overlayEdit || overlayHide || boardOff || !(boardKey || PHASES[lcu] === 'loading')) return null; // first: nothing below is set up yet while the page starts
+    if (overlayEdit || overlayHide || boardOff || boardAway || !(boardKey || PHASES[lcu] === 'loading')) return null; // first: nothing below is set up yet while the page starts
     const loading = loadingNow() && opts.overlayBoard;
     if (!(loading || boardKey) || !boardCan()) return null;
     const rows = boardRows(), lane = myLane(rows), order = Object.keys(POS), byPos = (a, b) => order.indexOf(a.pos) - order.indexOf(b.pos); // top to support, League's order
@@ -8387,7 +8391,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (m && m.prog) { // the Scoreboard button on the card over League's end screen: Premade in front, on the Game page
       if (m.prog.go === 'scoreboard') { if (client.front) client.front(); view('game', true); }
       if (m.prog.id === 'strip' && TIMER_K.test(m.prog.go)) startTimer(m.prog.go, true); // a click on the enemy strip (What's new 183)
-      if (m.prog.id === 'player' && riotIdOk(m.prog.go)) { if (client.front) client.front(); view('profile', true); lookUp(m.prog.go); } // a name on everyone's rank (What's new 195)
+      if (m.prog.id === 'player' && riotIdOk(m.prog.go)) { boardAway = true; pushOverlay(); if (client.front) client.front(); view('profile', true); lookUp(m.prog.go); } // a name on everyone's rank (What's new 195)
       return;
     }
     if (!m || !Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
@@ -10779,6 +10783,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
     $('csBox').hidden = !(ph === 'ChampSelect' && cs);
+    $('preNote').hidden = !$('csBox').hidden; // champ select's own box says it all
     if (!$('csBox').hidden) renderChamps();
     const live = ph !== 'ChampSelect' && (!!league || playing(PHASES[ph])) && (livePlayers.length || (league && league.players && league.players.length));
     $('liveBox').hidden = !live;
@@ -11297,7 +11302,7 @@ dialog.wizard { transform: scale(var(--from)); }
           autoDone.clear(); avoidSaid.clear(); runesAlt = runesPick = ''; buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
         }
         if (['GameStart', 'InProgress', 'Reconnect'].includes(ph) && !curGame) await gameStart();
-        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = boardOff = overlayHide = false; } // hidden for that game, not the next one's loading screen
+        if (!['GameStart', 'InProgress', 'Reconnect'].includes(ph) && curGame) { afterGame(curGame); curGame = null; livePlayers = []; boardKey = boardOff = boardAway = overlayHide = false; } // hidden for that game, not the next one's loading screen
       }
       if (ph === 'ReadyCheck') await readyTick();
       if (ph === 'ChampSelect') await champTick();
@@ -20220,6 +20225,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [198, 'November 22: a cleaner champ select, profiles from the overlay in front', [
+      'Pregame has no title, and in champ select no status box, heading or status line above your team: the cards and the pick helper start at the top. Whose turn it is stays on the cards.',
+      'Hover and Lock in sit on a bar along the bottom of the window, with Dodge at its left, instead of floating above the cards.',
+      'A name clicked on everyone’s rank opens their profile in front of League: everyone’s rank was over Premade’s window. It steps aside while you read and comes back when you go back to League.',
+    ]],
     [197, 'November 22: Recording in Just League', [
       'With Just League on, Recording now sits at the bottom of the sidebar next to Settings, so you can record your whole screen, clip any app or game with Clip anywhere, and find your recordings.',
     ]],
@@ -21339,7 +21349,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
       ['Draft verdict', 'Once both teams have locked in: you’re ahead, even or behind on the draft, in words, and what each team lacks: a frontline, magic damage, crowd control or engage.', 'At the top of champ select, on Pregame.', '#csVerdict', 'app'],
       ['Enemy abilities', 'Your lane opponent’s show by themselves in champ select; click another enemy for theirs: their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
-      ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, at the top of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
+      ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, bottom left of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
         'Avoid beside a player in champ select, on Game or in a game report, or type their Riot ID in Pregame settings.', '#avoidForm', 'app'],
       ['ARAM bench', 'In ARAM and ARAM: Mayhem, which bench champion suits you best, with Reroll.', 'In ARAM champ select: click one to take it.', '#bench', 'app'],
@@ -21433,7 +21443,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Place each part', 'The timers, your CS, your mic, who’s talking, chat, popups, the callouts, what to buy, the tips while you’re dead, a teammate’s screen and the rest, each anywhere on your screen and at its own size, on a picture of your screen in a game.',
         'The Overlay page, Where it sits, Edit layout: drag a part, or pick it and use the arrow keys, then Size. Put it back returns it to where it started.', '#ovStage', 'app'],
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: the Overlay page, After the game.', '#optOverlayAfter', 'app'],
-      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with their record, three rings and their rank beside them, and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen; in a game drag it by its top line anywhere and resize it by its corner, and it stays there. Click a name to open that player’s profile in Premade. Looks: Cards, Rows or Your lane first.',
+      ['Premade’s loading screen', 'Over League’s whole loading screen: a card for each player over their champion’s art in their skin, with their record, three rings and their rank beside them, and the tips for your lane. Your team on top on the red side and at the bottom on the blue side. Alt+X shows it smaller in a game, or hides it on the loading screen; in a game drag it by its top line anywhere and resize it by its corner, and it stays there. Click a name to open that player’s profile in Premade, in front: everyone’s rank steps aside until you go back to League. Looks: Cards, Rows or Your lane first.',
         'On unless you turn it off: the Overlay page, Loading screen, Everyone’s rank, with its Look under it. Double-click its top line in a game to put it back.', '#optBoardLook', 'app'],
       ['Three stats a player', 'Three rings on each player’s card, like Porofessor: Last 20 and Season with the win % inside (Season’s wins and losses from Riot, as League’s client gives other players’ wins only), and the main role’s icon. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; Played and Winrate bars a role and a champion; rank emblems and mastery.', 'Hover a ring on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and 1 in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],

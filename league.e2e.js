@@ -1276,6 +1276,15 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !document.getElementById('csBox').hidden && document.querySelectorAll('#csRows .cscard').length === 5 && [...document.querySelectorAll('#csRows .csline')].filter((l) => /^Gold II · \d+W \d+L$/.test(l.textContent)).length === 3 && /hovering/.test(document.getElementById('csRows').textContent), null, 'champ select with ranks');
     const faces = await texts(pc, '#csRows .csface');
     assert.strictEqual(faces.length, 5);
+    // What's new 198: no page title, status box, heading or status line on show; Dodge, Hover and Lock in on one bar
+    // along the window's bottom edge, the popups above it
+    const top = await pc.evaluate(() => {
+      const v = document.querySelector('.view[data-view="pregame"]'), shown = (e) => !!e && e.getBoundingClientRect().height > 1, bar = document.querySelector('#csBox .csbar').getBoundingClientRect();
+      return { head: !!v.querySelector('.pagehead, h1, #h-cs'), note: shown(document.getElementById('preNote')), turn: shown(document.getElementById('csTurn')),
+        dodge: !!document.querySelector('.csbar #dodgeBtn'), barAt: Math.round(document.querySelector('main').getBoundingClientRect().bottom - bar.bottom), toasts: Math.round(bar.top - document.getElementById('toasts').getBoundingClientRect().bottom) };
+    });
+    assert.deepStrictEqual([top.head, top.note, top.turn, top.dodge, top.barAt], [false, false, false, true, 0], JSON.stringify(top));
+    assert(top.toasts >= 8, `the popups above the bar: ${top.toasts}`);
     assert.match(faces[0], /^Your duo Garen Top · hovering Gold II · 6W 14L$/, 'one tag, the most important: Friend is in 20 of your games, so your duo (What’s new 189)');
     assert.match(faces[4], /^Autofill: usually \w+ Thresh Support · hovering Gold II · \d+W \d+L$/);
     assert.doesNotMatch(faces.join(), /Premade|smurf|Comfort pick|Seen before/);
@@ -1714,6 +1723,10 @@ const leagueData = (over = {}) => ({
     await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'player', go: 'Sniper#EUW' } }));
     await wait(pc, () => document.querySelector('.nav[data-view="profile"]').getAttribute('aria-current') === 'page' && document.getElementById('proName').textContent === 'Sniper', null, 'Sniper’s profile from his name on the overlay');
     assert.strictEqual(await pc.evaluate(() => lpcClient.calls.filter((c) => c === 'front').length), fronts + 1, 'Premade in front once');
+    // What's new 198: everyone's rank (over every window) steps aside while Premade is in front, back once you leave it
+    assert(!(await pc.evaluate(() => (lpcClient.lastOverlay.board || {}).us)), 'everyone’s rank off Premade’s window');
+    await pc.evaluate(() => dispatchEvent(new Event('blur')));
+    await wait(pc, () => !!(lpcClient.lastOverlay.board || {}).us, null, 'everyone’s rank back once you go back to League');
     await pc.click('#proBack');
     await openPage(pc, 'overlay');
     await pc.check('#optBoardLook input[value="lane"]');
