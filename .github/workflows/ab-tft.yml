@@ -1,0 +1,30 @@
+# TEMPORARY (removed in the next commit): customs.e2e.js on GitHub, today's live version (4d525ad) against this
+# branch, twice each, both with this branch's Playwright 1.63.
+name: TFT memory A/B (temporary)
+on:
+  push:
+    branches: [claude/project-thread-ypy88n]
+    paths: ['.github/workflows/ab-tft.yml']
+jobs:
+  ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
+      - run: git worktree add ../before 4d525ad2f1a6810afb34da9abaf985c4da10a5f3
+      - run: |
+          for i in 1 2; do for v in ../before .; do
+            s=$(date +%s)
+            (cd $v && xvfb-run -a node customs.e2e.js 2>&1 | grep -E "enemy timers from the phone|timed out|Error|tests passed" | grep -v "WebSocket\|wasm" | head -3 | cut -c1-200 | sed "s|^|run $i $v: |") || true
+            echo "run $i $v took $(( $(date +%s) - s )) s"
+          done; done
+        env:
+          NODE_PATH: ${{ github.workspace }}/node_modules
