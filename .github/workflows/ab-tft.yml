@@ -1,5 +1,5 @@
-# TEMPORARY (removed in the next commit): the TFT Mayhem memory check on GitHub's Chromium 141, today's live
-# version (4d525ad) against this branch, twice each, plus this branch with the sound engine never sleeping.
+# TEMPORARY (removed in the next commit): what the TFT Mayhem memory check's 4 MB on GitHub's Chromium 141 is.
+# Today's live version (4d525ad): a heap snapshot diff over the 50 picks, then the same check over 100 picks.
 name: TFT memory A/B (temporary)
 on:
   push:
@@ -8,7 +8,7 @@ on:
 jobs:
   ab:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,15 +20,37 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
       - run: |
+          cat > $RUNNER_TEMP/snapdiff.js <<'EOF2'
+          // heap snapshot of a page (CDP session) summed by node type + name; diff(a, b) = the 15 biggest growths
+          module.exports = async (cdp) => {
+            const chunks = [], on = (e) => chunks.push(e.chunk);
+            cdp.on('HeapProfiler.addHeapSnapshotChunk', on);
+            await cdp.send('HeapProfiler.enable');
+            await cdp.send('HeapProfiler.collectGarbage');
+            await cdp.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
+            cdp.off('HeapProfiler.addHeapSnapshotChunk', on);
+            const s = JSON.parse(chunks.join('')), f = s.snapshot.meta.node_fields, types = s.snapshot.meta.node_types[0];
+            const it = f.indexOf('type'), iname = f.indexOf('name'), isz = f.indexOf('self_size'), agg = new Map();
+            for (let i = 0; i < s.nodes.length; i += f.length) {
+              const t = types[s.nodes[i + it]], k = t + ':' + (/string/.test(t) ? String(s.strings[s.nodes[i + iname]]).slice(0, 40) : s.strings[s.nodes[i + iname]]);
+              const a = agg.get(k) || [0, 0]; a[0] += s.nodes[i + isz]; a[1]++; agg.set(k, a);
+            }
+            return agg;
+          };
+          module.exports.diff = (a, b) => [...b].map(([k, [v, c]]) => [k, v - ((a.get(k) || [0])[0]), c - ((a.get(k) || [0, 0])[1])])
+            .sort((x, y) => y[1] - x[1]).slice(0, 15).map(([k, d, c]) => `${(d / 1e3).toFixed(0)} KB (${c >= 0 ? '+' : ''}${c}) ${k.replace(/\s+/g, ' ')}`).join('\n');
+          EOF2
           git worktree add ../before 4d525ad2f1a6810afb34da9abaf985c4da10a5f3
-          git worktree add ../nosleep HEAD
-          sed -i '/ac.suspend().catch/d; /bell.suspend().catch/d' ../nosleep/site/index.html
-          git -C ../nosleep diff --stat
+          cd ../before
+          sed -i "/const before = await metrics(), mayT0 = Date.now();/a\    const SD = require(process.env.SNAPDIFF), snapA = await SD(cdp);" tft.e2e.js
+          sed -i "/^    const after = await metrics();/a\    console.log('SNAPDIFF ' + before + ' -> ' + after); console.log(SD.diff(snapA, await SD(cdp)));" tft.e2e.js
+          git diff
       - run: |
-          for i in 1 2; do for v in ../before . ../nosleep; do
-            s=$(date +%s)
-            (cd $v && xvfb-run -a node tft.e2e.js 2>&1 | grep -E "Mayhem memory|AssertionError|TFT tests passed|page error" | head -4 | sed "s|^|run $i $v: |") || true
-            echo "run $i $v took $(( $(date +%s) - s )) s"
-          done; done
+          cd ../before
+          xvfb-run -a node tft.e2e.js 2>&1 | grep -E -A15 "SNAPDIFF" | head -16 || true
+          sed -i 's/for (let i = 0; i < 25; i++) for (const \[set, rr\]/for (let i = 0; i < 50; i++) for (const [set, rr]/' tft.e2e.js
+          git diff --stat
+          xvfb-run -a node tft.e2e.js 2>&1 | grep -E "SNAPDIFF|AssertionError" | head -3 || true
         env:
           NODE_PATH: ${{ github.workspace }}/node_modules
+          SNAPDIFF: ${{ runner.temp }}/snapdiff.js
