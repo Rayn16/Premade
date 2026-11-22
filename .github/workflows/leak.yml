@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false # a push waits for the run before it, so every run finishes
 jobs:
   leak:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Playwright 1.56 has no Chromium for ubuntu-latest (26.04)
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
