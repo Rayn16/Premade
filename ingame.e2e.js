@@ -350,6 +350,21 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       const benH = await ben.evaluate(() => lpc.seen()[0].h);
       assert.ok([360, 540, 720, 1080, 1440, 2160].includes(benH), `Ben asks for his tile's height: ${benH}`);
       await wait(ana, (h) => lpc.lendH()[lpc.lends().indexOf('Ben')] === Math.min(1080, h), benH, 'Ana sends Ben that size');
+      // a screen Ben can't see is paused (What's new 196): on another page Ana's app stops making it for him and his stops
+      // showing it, on the same call; back on his room it plays again
+      const decoded = async () => (await ben.evaluate(() => lpc.seeFrames()))[0], call0 = await ben.evaluate(() => lpc.seen()[0].callAt);
+      await ben.evaluate(() => document.querySelector('.nav[data-view="friends"]').click()); // the sidebar may show League's pages in a game
+      await wait(ana, () => lpc.lendActive()[lpc.lends().indexOf('Ben')] === false, null, 'Ana pauses the screen Ben can’t see');
+      assert.strictEqual(await ben.evaluate(() => lpc.seen()[0].idle), true);
+      const f0 = await decoded();
+      await ben.waitForTimeout(2000);
+      assert.ok((await decoded()) - f0 <= 2, 'nothing shown meanwhile');
+      await ben.evaluate(() => document.querySelector('.nav[data-view="voice"]').click());
+      await wait(ana, () => lpc.lendActive()[lpc.lends().indexOf('Ben')] === true, null, 'Ana sends it again once Ben looks');
+      let f1 = await decoded();
+      for (let i = 0; i < 40 && f1 <= f0 + 10; i++) { await ben.waitForTimeout(250); f1 = await decoded(); }
+      assert.ok(f1 > f0 + 10, `Ben's screen plays again: ${f0} -> ${f1} frames`);
+      assert.strictEqual(await ben.evaluate(() => lpc.seen()[0].callAt), call0, 'on the same call');
       assert.strictEqual(await ben.$eval('#screenGrid .pop', (b) => b.textContent), 'Pop out');
       assert.strictEqual(await ben.$eval('#screenGrid video', (v) => v.muted), false, 'not muted');
       await wait(ana, () => lpc.toasts().includes('Ben is watching your screen.'), null, 'Ana told who watches');

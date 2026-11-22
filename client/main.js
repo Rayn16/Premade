@@ -610,7 +610,12 @@ ipcMain.handle('youtube', (e) => {
   wc.on('did-navigate-in-page', pick);
   wc.setWindowOpenHandler(({ url }) => { if (ytPick(url)) pick(null, url); else openOut(url); return { action: 'deny' }; });
   ytWin.on('close', () => { try { fs.writeFileSync(ytFile(), JSON.stringify(ytWin.getNormalBounds())); } catch {} });
-  ytWin.on('closed', () => { ytWin = null; });
+  ytWin.on('closed', () => { clearTimeout(ytIdle); ytWin = null; });
+  // app 1.53: 10 minutes without being used (behind other windows or minimized) it closes, a YouTube page being a few
+  // hundred MB; Find a video opens it again where it was
+  let ytIdle = null;
+  ytWin.on('blur', () => { clearTimeout(ytIdle); ytIdle = setTimeout(() => { if (ytWin && !ytWin.isDestroyed() && !ytWin.isFocused()) ytWin.close(); }, 600e3); });
+  ytWin.on('focus', () => clearTimeout(ytIdle));
   ytWin.loadURL('https://www.youtube.com/');
   return true;
 });
@@ -768,7 +773,7 @@ function hider() {
 // everyone's rank on it (board: the loading screen, or the overlay shortcut in a game) it covers the whole screen.
 // With Aion 2's panels on it (prog, app 1.46) the mouse still goes through to the game, but the page hears it move and
 // takes it while it's over a panel (overlay-mouse), so a panel can be opened, closed, dragged and clicked.
-let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, passing = false, moveTimer = null, overlayRevision = 0;
+let overlayState = { visible: false }, placed = '', placedShape = '', placedAt = null, editing = false, passing = false, moveTimer = null, overlayRevision = 0, overlayGone = null;
 const display = async () => {
   if (overlayState.any && frontDisplay) return frontDisplay; // who's talking in another game: on that game's screen
   const s = chosen(await screens(false));
@@ -785,15 +790,16 @@ ipcMain.handle('front-app', (e) => {
       const l = require('koffi').load('user32.dll');
       frontApi = { rect: l.func('int __stdcall GetWindowRect(void* w, _Out_ int32_t* r)'), cls: l.func('int __stdcall GetClassNameW(void* w, _Out_ uint16_t* buf, int max)'), r: new Int32Array(4), buf: new Uint16Array(64) };
     }
-    const u = ctlUser32(), w = u.fg();
-    if (!w) return { full: false, mine: false };
-    if (u.thread(w) === process.pid) return { full: false, mine: true };
+    // hid (app 1.53): Premade's window can't be seen, minimized, in the tray or under a game that fills its screen
+    const u = ctlUser32(), w = u.fg(), hid = !win || win.isDestroyed() || win.isMinimized() || !win.isVisible();
+    if (!w) return { full: false, mine: false, hid };
+    if (u.thread(w) === process.pid) return { full: false, mine: true, hid };
     const n = frontApi.cls(w, frontApi.buf, 64), name = String.fromCharCode(...frontApi.buf.subarray(0, Math.max(0, n)));
-    if (!frontApi.rect(w, frontApi.r) || name === 'Progman' || name === 'WorkerW') return { full: false, mine: false }; // the desktop fills the screen too
+    if (!frontApi.rect(w, frontApi.r) || name === 'Progman' || name === 'WorkerW') return { full: false, mine: false, hid }; // the desktop fills the screen too
     const [left, top, right, bottom] = frontApi.r, b = screen.screenToDipRect(null, { x: left, y: top, width: right - left, height: bottom - top }), d = screen.getDisplayMatching(b);
     const full = b.x <= d.bounds.x + 1 && b.y <= d.bounds.y + 1 && b.x + b.width >= d.bounds.x + d.bounds.width - 1 && b.y + b.height >= d.bounds.y + d.bounds.height - 1;
     if (full && (!frontDisplay || frontDisplay.id !== d.id)) { frontDisplay = d; replaceOverlay(); }
-    return { full, mine: false };
+    return { full, mine: false, hid: hid || (full && d.id === screen.getDisplayMatching(win.getBounds()).id) };
   } catch (err) { console.error('front-app:', err.message); return null; }
 });
 ipcMain.on('overlay', (e, s) => {
@@ -801,7 +807,10 @@ ipcMain.on('overlay', (e, s) => {
   const revision = ++overlayRevision;
   overlayState = s;
   if (overlay) overlay.webContents.send('overlay', s);
-  if (!s.visible) { if (overlay) overlay.hide(); placed = placedShape = ''; return; }
+  clearTimeout(overlayGone);
+  // hidden 5 minutes (League closed, a room gone quiet): the window and its page process go, about 50 MB; the next
+  // show makes it again in under a second
+  if (!s.visible) { if (overlay) { overlay.hide(); overlayGone = setTimeout(() => { if (overlay && !overlayState.visible) { overlay.destroy(); overlay = null; editing = passing = false; } }, 300e3); } placed = placedShape = ''; return; }
   placeOverlay(s, revision);
 });
 // where it goes again once the screens change (League switching resolution, a screen plugged in or out): Windows may
@@ -813,7 +822,7 @@ async function placeOverlay(s, revision = ++overlayRevision) {
       width: 300, height: 360, show: false, frame: false, transparent: true, resizable: false, focusable: false,
       skipTaskbar: true, hasShadow: false, alwaysOnTop: true, webPreferences,
     });
-    for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(ev, replaceOverlay);
+    if (!screen.listeners('display-added').includes(replaceOverlay)) for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(ev, replaceOverlay); // once: the window can be made again
     overlay.setAlwaysOnTop(true, 'screen-saver');
     overlay.setIgnoreMouseEvents(true);
     overlay.webContents.on('did-finish-load', () => overlay.webContents.send('overlay', overlayState));
@@ -1053,6 +1062,40 @@ async function clipList() {
 }
 ipcMain.handle('clips', (e) => (fromSite(e) ? clipList() : []));
 ipcMain.handle('clip-read', (e, n) => (fromSite(e) && clipOk(n) ? fs.promises.readFile(clipAt(n)).catch(() => null) : null));
+// ---- the clip ring on disk (app 1.53): a game's last seconds, that clips are cut from, sat in the page's memory (45 s
+// of 1080p 60 fps: up to 157 MB, all game long); now each second is written to a file in Windows' temp folder and read
+// back only to cut a clip. The file is used in a circle of cap bytes (twice what the page keeps), so it never grows
+// past that, and it goes when the recording stops or the app quits (or when the app starts, after a crash).
+const ringDir = () => path.join(app.getPath('temp'), 'Premade ring'), rings = new Map(); // id -> { fh, file, at, cap }
+let ringN = 0, ringsLeft = null; // ringsLeft: clearing the folder at start
+const ringEnd = async (id) => { const r = rings.get(id); if (!r) return false; rings.delete(id); await r.fh.close().catch(() => {}); return fs.promises.rm(r.file, { force: true }).then(() => true, () => false); };
+ipcMain.handle('ring', async (e, what, id, b) => {
+  if (!fromSite(e)) return null;
+  if (what === 'start') { // id: its size in bytes; says the new ring's id
+    for (const k of rings.keys()) setTimeout(() => ringEnd(k), 30e3); // one left by a page that reloaded, or the last recording's (a clip may still be reading it)
+    const n = ++ringN, file = path.join(ringDir(), `${n}.webm`);
+    await ringsLeft;
+    await fs.promises.mkdir(ringDir(), { recursive: true });
+    rings.set(n, { fh: await fs.promises.open(file, 'w+'), file, at: 0, cap: Math.min(2e9, Math.max(64e6, +id || 0)) });
+    return n;
+  }
+  const r = rings.get(id), buf = what === 'add' && bytes(b);
+  if (!r) return null;
+  if (buf && buf.length <= r.cap / 4) { // the next second (a quarter of the ring at most, so the circle never reaches a kept one); says where it went
+    if (r.at + buf.length > r.cap) r.at = 0;
+    const at = r.at;
+    r.at += buf.length;
+    return r.fh.write(buf, 0, buf.length, at).then(() => at, () => null);
+  }
+  if (what === 'read' && Array.isArray(b)) { // [[at, length], ...]: those seconds, joined
+    const list = b.filter((x) => Array.isArray(x) && Number.isInteger(x[0]) && Number.isInteger(x[1]) && x[0] >= 0 && x[1] > 0 && x[0] + x[1] <= r.cap);
+    const out = Buffer.alloc(Math.min(r.cap, list.reduce((n, x) => n + x[1], 0)));
+    let o = 0;
+    for (const [at, n] of list) if (o + n <= out.length) { await r.fh.read(out, o, n, at); o += n; }
+    return out;
+  }
+  return what === 'end' ? ringEnd(id) : null;
+});
 ipcMain.handle('clip-rename', async (e, n, to) => {
   if (!fromSite(e) || !clipOk(n) || typeof to !== 'string') return '';
   to = to.trim().replace(EXT, '') + extOf(n);
@@ -1929,7 +1972,9 @@ ipcMain.handle('point', (e, m) => { // '' shown, else why not
   if (b.x !== d.bounds.x || b.y !== d.bounds.y || b.width !== d.bounds.width || b.height !== d.bounds.height) marks.setBounds(d.bounds);
   if (!marks.isVisible()) marks.showInactive();
   clearTimeout(marks.idle);
+  clearTimeout(marks.gone);
   marks.idle = setTimeout(() => { if (!marks.isDestroyed()) marks.hide(); }, 4000); // nothing left to draw
+  marks.gone = setTimeout(() => { if (!marks.isDestroyed()) marks.destroy(); }, 120e3); // and its page process goes (app 1.53)
   const f = (v) => Math.min(1, Math.max(0, v)), who = String(m.who || '').replace(/[\p{C}\s]+/gu, ' ').trim().slice(0, 24) || 'A friend';
   if (!marks.webContents.isLoading()) marks.webContents.executeJavaScript(`mark(${JSON.stringify({ x: f(m.x), y: f(m.y), d: m.d === true, who, c: Math.abs(m.c | 0) % 6 })})`).catch(() => {});
   return '';
@@ -1958,6 +2003,7 @@ app.whenReady().then(async () => {
 
   logLine(`Premade ${app.getVersion()} started${waiting ? ' with Windows' : ''}`);
   setTimeout(videosLeft, 15000); // not while the page loads
+  ringsLeft = fs.promises.rm(ringDir(), { recursive: true, force: true }).catch(() => {}); // a clip ring left by a crash
   const last = lastBounds();
   win = new BrowserWindow({
     width: 1180, height: 800, ...(last && { x: last.x, y: last.y, width: last.width, height: last.height }), minWidth: 420, minHeight: 480,
@@ -2014,6 +2060,7 @@ app.on('will-quit', (e) => {
     Promise.race([Promise.all([...[...vids.keys()].map(vidEnd), ...working]), new Promise((res) => setTimeout(res, 20000))]).finally(() => app.quit());
     return;
   }
+  try { fs.rmSync(ringDir(), { recursive: true, force: true }); } catch {} // the clip ring (app 1.53)
   logLine('quit');
   logFlush(true);
 });
