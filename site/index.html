@@ -186,6 +186,7 @@ main > #msg:not(:empty) { margin-top: 16px; }
 .view, #msg { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
 .view[data-view="pregame"] { padding-top: 28px; } /* no page title (What's new 198) */
+.view[data-view="game"] { padding-top: 28px; } /* no page title (What's new 200) */
 /* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
 .view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
 #aionFrame { width: 100%; height: 100%; min-height: calc(420px / var(--zoom, 1)); border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
@@ -2809,8 +2810,6 @@ dialog.wizard { transform: scale(var(--from)); }
     </section>
 
     <section class="view" data-view="game" aria-label="Game" hidden>
-      <header class="pagehead"><div><h1 class="title">Game</h1><p class="sub">Everyone in your game, objective timers and the gold difference, then how you played.</p></div></header>
-      <p id="lcuNote" class="phase" role="status"></p>
       <section id="liveBox" class="panel" aria-labelledby="h-live" hidden>
         <h2 id="h-live" class="ph">In game <button class="tip" type="button" popovertarget="t-live" aria-label="About the game">?</button></h2>
         <div id="timers" class="timers"></div>
@@ -2822,13 +2821,6 @@ dialog.wizard { transform: scale(var(--from)); }
         <p id="liveAvg" class="hint" hidden></p>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
-      </section>
-      <section id="drillBox" class="panel" aria-labelledby="h-drill" hidden>
-        <h2 id="h-drill" class="ph">CS drill <button class="tip" type="button" popovertarget="t-drill" aria-label="About the CS drill">?</button></h2>
-        <p id="drillNow" class="phase" role="status"></p>
-        <form id="drillExact" class="pick" hidden><label>Exact CS at 10:00, from League <input id="drillCs" type="number" inputmode="numeric" required></label><button class="btn small" type="submit">Save</button></form>
-        <div id="drillTrend" class="trends"></div>
-        <ol id="drillList" class="lplist"></ol>
       </section>
       <section id="comboBox" class="panel" aria-labelledby="h-combo" hidden>
         <h2 id="h-combo" class="ph">Combo trainer <button class="tip" type="button" popovertarget="t-combo" aria-label="About the combo trainer">?</button></h2>
@@ -3676,7 +3668,6 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Clip settings, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, Screen) with what you hear and your mic, like clips.</div>
-<div id="t-drill" class="tipbox" popover>A 10-minute last-hitting test: start a Practice Tool game (Pregame, Practice Tool), play one lane and last-hit minions until 10:00 on the game clock. Premade saves your CS at 10:00, so you can see yourself improve, and the overlay counts down. League's game data only counts CS in tens, so 80+ means 80 to 89: type the exact number League showed at 10:00 to save it. Skipping time or extra minions in Practice Tool makes the score meaningless.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
 <div id="t-remote" class="tipbox" popover>Start the queue, accept matches, go through champ select (both teams, picks and bans, trades, runes, spells, skins and dodge), start enemy timers and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found or my squad calls” on the phone and it gets a notification even with its screen off or the page closed, also for your squad’s calls and pings (Your group, on the Voice page) (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
@@ -7080,7 +7071,6 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!league && was && compactAuto) setCompact(false);
     if (league && league.result && !(ended && ended.room === league.room)) { ended = { result: league.result, room: league.room, at: performance.now() }; customDone(); }
     refreshMine();
-    drillTick();
     jgTick();
     comboCheck();
     applyHurt();
@@ -7122,7 +7112,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const any = !voice && anyWanted() && (client.frontApp ? !!front && !front.mine && (opts.overlayAny === 'always' || front.full) : !document.hasFocus()); // an older app: Premade not in front
     const talk = on(opts.overlay && (voice || any)), meOn = on(opts.overlayMe && (voice || any));
     overlayOn = on(opts.overlayChat && (voice || any)); // room chat shows there, so it needs no popup
-    const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText(true) : '', aug = on(opts.overlayGame && league) ? augNow() : '';
+    const game = [on(opts.overlayGame && league) ? gameLine() : '', on(league) ? winText() : ''].filter(Boolean).join(' · '), cs = on(opts.overlayCs && league) ? csText() : '', aug = on(opts.overlayGame && league) ? augNow() : '';
     const lane = on(opts.overlayLane && league) ? laneLine() : '', tft = on(opts.overlayTft && tftPlaying()) ? tftSheet() : null, buy = on(league) ? buyNext() : null, board = boardNow();
     const practice = on(league && league.mode === 'PRACTICETOOL') ? [comboLine(), jgLine()].filter(Boolean) : [];
     // in voice swap, a talker shows as the player whose spot their voice comes from
@@ -10204,62 +10194,13 @@ dialog.wizard { transform: scale(var(--from)); }
     if (o) itemsSoon();
     return o ? `vs ${champName(o.champ)}: CS ${d ? (d > 0 ? '+' : '−') + Math.abs(d) : 'even'}${g == null ? '' : ` · gold ${goldText(g)}`}` : '';
   }
-  function csText(over) { // over: for the overlay, which also counts down a CS drill
+  function csText() {
     const m = meIn(), min = gameNow() / 60, c = m && champOf(m.champ);
     if (!m || min < 1) return '';
     const on = c && myHist ? myHist.filter((g) => g.champ === +c.key && g.mode === league.mode && g.len > 0) : [];
     const usual = on.length ? on.reduce((n, g) => n + g.cs / (g.len / 60), 0) / on.length : 0;
-    return `CS ${m.cs} · ${(m.cs / min).toFixed(1)} a minute${usual ? ` (usual ${usual.toFixed(1)})` : ''}${over && drillOn() ? ` · drill ${mmss(Math.max(0, 600 - gameNow()))} left` : ''}`;
+    return `CS ${m.cs} · ${(m.cs / min).toFixed(1)} a minute${usual ? ` (usual ${usual.toFixed(1)})` : ''}`;
   }
-  // ---- CS drill: in a Practice Tool game, your CS when the game clock reaches 10:00 is saved (lpc-drills, the last 50),
-  // with when you got each ten, so you can see yourself improve. League's game data only counts CS in tens (Riot rounds
-  // it down on purpose), so the exact number League showed can be typed in.
-  let drills = load('lpc-drills', []), drill = null; // drill: this Practice Tool game's, { room, t, steps: [[seconds, cs]], done, saved }
-  if (!Array.isArray(drills)) drills = [];
-  const drillCs = (d) => d.exact || d.cs;
-  const drillOn = () => !!league && league.mode === 'PRACTICETOOL' && !!drill && drill.room === league.room && !drill.done;
-  function drillTick() {
-    const m = league && league.mode === 'PRACTICETOOL' ? meIn() : null, t = gameNow();
-    if (!m) return;
-    // a new game: another room, or the clock started again (Practice Tool on the same champion has the same room code)
-    if (!drill || drill.room !== league.room || t < drill.t - 30) drill = { room: league.room, steps: [], done: t >= 600, saved: false }; // first seen after 10:00: too late
-    drill.t = t;
-    if (drill.done) return;
-    const last = drill.steps[drill.steps.length - 1];
-    if (m.cs > (last ? last[1] : 0)) drill.steps.push([Math.round(t), m.cs]);
-    if (t < 600) return;
-    const best = Math.max(0, ...drills.map(drillCs));
-    drill.done = drill.saved = true;
-    drills = [...drills, { at: Date.now(), champ: m.champ, cs: m.cs, steps: drill.steps }].slice(-50);
-    store.set('lpc-drills', JSON.stringify(drills));
-    notify(`CS drill: ${m.cs}+ CS at 10:00${!best ? '' : m.cs > best ? ', your best yet' : `, your best is ${best}`}. You can type your exact CS on the Game page.`, true);
-  }
-  function renderDrill() {
-    const on = !!league && league.mode === 'PRACTICETOOL', last = drills[drills.length - 1], m = on && meIn();
-    $('drillBox').hidden = !(on || (!league && drills.length));
-    if ($('drillBox').hidden) return;
-    if (drills.length) ddSoon();
-    const best = drills.reduce((b, d) => (!b || drillCs(d) > drillCs(b) ? d : b), null), had = m && best && ((best.steps || []).find(([, n]) => n >= m.cs) || [])[0]; // when your best run had your CS
-    $('drillNow').textContent = drillOn() && m ? `Last-hit until 10:00 on the game clock: ${mmss(Math.max(0, 600 - gameNow()))} left, CS ${m.cs}${m.cs && had ? `. Your best run had ${m.cs} by ${mmss(had)}` : ''}.`
-      : on && !(drill && drill.saved) ? 'This game was past 10:00 when Premade saw it. For a drill, start a new Practice Tool game and last-hit until 10:00.'
-      : on ? `Done: ${last.cs}+ CS at 10:00. For another drill, start a new Practice Tool game.`
-      : 'Your CS at 10:00 in Practice Tool games. For another drill, start one on Pregame and last-hit until 10:00 on the game clock.';
-    const ask = !!last && !last.exact && Date.now() - last.at < 3600e3; // the exact number, while you remember it
-    $('drillExact').hidden = !ask;
-    if (ask) Object.assign($('drillCs'), { min: last.cs, max: last.cs + 9, placeholder: `${last.cs} to ${last.cs + 9}` });
-    const name = (k) => (champOf(k) || {}).name || k;
-    $('drillTrend').replaceChildren(...(drills.length >= 3 ? [trendChart(drills.slice(-20).map(drillCs), 'CS at 10:00', 0)] : []));
-    $('drillList').replaceChildren(...drills.slice(-10).reverse().map((d) => Object.assign(document.createElement('li'), {
-      textContent: `${new Date(d.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${name(d.champ)} · ${drillCs(d)}${d.exact ? '' : '+'} CS${d === best && drills.length > 1 ? ' · your best' : ''}`,
-    })));
-  }
-  $('drillExact').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const last = drills[drills.length - 1], v = +$('drillCs').value;
-    if (last && Number.isInteger(v) && v >= last.cs && v <= last.cs + 9) { last.exact = v; store.set('lpc-drills', JSON.stringify(drills)); }
-    $('drillCs').value = '';
-    renderDrill();
-  });
   const trOf = (...cells) => { const tr = document.createElement('tr'); for (const v of cells) tr.append(Object.assign(document.createElement('td'), { textContent: String(v) })); return tr; };
   // ---- combo trainer (app 1.15): in a Practice Tool game with it on, the app sends each press of League's usual keys
   // (client/main.js COMBO): abilities, summoner spells, items and right clicks. Presses less than opts.comboGap seconds
@@ -10779,7 +10720,6 @@ dialog.wizard { transform: scale(var(--from)); }
     $('winFix').hidden = !winFixable();
     $('preNote').textContent = old || (!ph ? 'Start League. This page fills in when you find a match: accept it here, then in champ select the best picks for you, bans, everyone’s rank, runes and builds.'
       : ph === 'ReadyCheck' ? 'Match found!' : ph === 'ChampSelect' ? 'Champ select' : inGame ? 'In game: timers, gold and everyone’s rank are on the Game page.' : STATUS[PHASES[ph] || 'client'][1] + '. Find a match and this page fills in.');
-    $('lcuNote').textContent = old || (inGame && ph !== 'ChampSelect' ? 'In game' : 'This page fills in when your game loads: everyone’s rank, objective timers and the gold difference, and how you played once it’s over. Before that, see Pregame.');
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
     $('csBox').hidden = !(ph === 'ChampSelect' && cs);
@@ -10788,7 +10728,6 @@ dialog.wizard { transform: scale(var(--from)); }
     const live = ph !== 'ChampSelect' && (!!league || playing(PHASES[ph])) && (livePlayers.length || (league && league.players && league.players.length));
     $('liveBox').hidden = !live;
     renderPost(live);
-    renderDrill();
     renderCombo();
     renderJg();
     if (live) {
@@ -14593,7 +14532,7 @@ dialog.wizard { transform: scale(var(--from)); }
       $('postBody').replaceChildren();
       return;
     }
-    const rep = reportEl(r, 'how'); // opens on How you played
+    const rep = reportEl(r);
     $('postBody').replaceChildren(rep);
     reportOpen(rep, r);
   }
@@ -20225,6 +20164,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [200, 'November 22: a cleaner Game page', [
+      'The Game page has no title, status line or CS drill: your game, or your last game’s report, starts at the top.',
+      'Your last game’s report opens on Overview instead of How you played.',
+    ]],
     [198, 'November 22: a cleaner champ select, profiles from the overlay in front', [
       'Pregame has no title, and in champ select no status box, heading or status line above your team: the cards and the pick helper start at the top. Whose turn it is stays on the cards.',
       'Hover and Lock in sit on a bar along the bottom of the window, with Dodge at its left, instead of floating above the cards.',
@@ -21364,14 +21307,13 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, League.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'On each augment card (3, or 4 with Maestro) its tier and a strength bar (DeepScore) for your champion, with its pick rate and Boost: Best pick on the strongest (by Boost when the cards differ in rarity) and Reroll? on a weak C or D card; Goes with when it makes one of DeepARAM’s best pairs with an augment you clicked (app 1.51), Fits your build, and New in 26.23 for an augment with no numbers yet. The overlay shows your champion’s best augments as pictures and your picks. Game shows your picks, the best augments, DeepARAM’s top 5 pairs, both core builds (What to buy follows yours) and your champion’s Mayhem changes; Stats, Games shows the augments of each Mayhem game. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
         'Tick “Show each augment’s rating” on the Overlay page. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs, #mayBox, #augTips', 'app'],
-      ['CS drill', 'A 10-minute last-hitting test: Premade saves your CS at 10:00 so you can see yourself improve, and the overlay counts down.', 'Start a Practice Tool game from Pregame, play one lane and last-hit until 10:00.', '#drillBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
       ['Jungle clear timer', 'In Practice Tool, your jungle clear timed camp by camp, from the gold each camp gives, against your best clear on that champion.',
         'Start a Practice Tool game from Pregame, buy a jungle pet and clear your camps. Pick how many camps make a clear on Game.', '#jgBox', 'app'],
       ['Scoreboard', 'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, Watch the match, Your clips and the replay. Overview puts your team on top, a row for each player with level, spells, runes, rank, K/D/A, damage, CS, gold, items, this game’s tags and a score ring, and the teams’ kills, gold, towers, dragons, Barons and Voidgrubs side by side. Press a player for Riot’s extra numbers, how they compare with high elo, and Copy runes, Copy items or Avoid.',
         'Your last game, on Game, once a game ends; every game report; Scoreboard on each game on the Clips page and on the card after a game.', '#postBox', 'app'],
-      ['How you played', 'After a game the Game page opens on How you played: what stood out, each of your numbers as a bar against your usual games (a white line) and high elo players (a gold diamond), where you got kills and died, and the objectives each team took. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
+      ['How you played', 'After a game the Game page shows your game, opening on Overview. How you played has what stood out, each of your numbers as a bar against your usual games (a white line) and high elo players (a gold diamond), where you got kills and died, and the objectives each team took. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
     ]],
     ['League: Stats', 'Your League numbers in four tabs: You, Champions, Games and Players.', [

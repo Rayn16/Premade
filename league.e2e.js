@@ -574,8 +574,6 @@ const leagueData = (over = {}) => ({
       await old.goto(URL_);
       await openPage(old, 'pregame');
       assert.match(await text(old, '#preNote'), /Restart the app to finish its update/);
-      await openPage(old, 'game');
-      assert.match(await text(old, '#lcuNote'), /Restart the app to finish its update/);
       await openPage(old, 'stats');
       assert(!(await old.locator('#lpQueue').isVisible()) && !(await old.locator('#clipsFolder').isVisible()), 'an old app has no Ranked, Match history or Clips');
       await ctx2.close();
@@ -1038,8 +1036,7 @@ const leagueData = (over = {}) => ({
       && document.querySelector('#re4InGame .dot').dataset.h === 'good', null, 'RE4 Play as Ada');
     await pc.evaluate(() => { lpcClient.inRe4 = false; });
     console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, and Play as Ada with the connected line');
-    await openPage(pc, 'game');
-    assert.match(await text(pc, '#lcuNote'), /^This page fills in when your game loads.* Before that, see Pregame\.$/);
+    assert(await pc.locator('.view[data-view="game"] .pagehead, #lcuNote, #drillBox').count() === 0, 'Game: no title, status line or CS drill (What’s new 200)');
     await openPage(pc, 'pregame');
     assert.match(await text(pc, '#preNote'), /Find a match and this page fills in/);
     // Clash: the other team in your next match, with their ranks and best champions
@@ -2066,15 +2063,16 @@ const leagueData = (over = {}) => ({
     await openPage(pc, 'game');
     await wait(pc, () => document.querySelector('#postBox .analysis .duo'), null, 'how you played, on the Game page');
     // one head (What's new 187): the report's own, over Ahri's art, with the result, LP, the queue, length and patch,
-    // your numbers; the Game page opens on How you played
+    // your numbers; the Game page opens on Overview (What's new 200)
     assert(await pc.locator('#postHead').isHidden(), 'the old hero is gone');
     assert.strictEqual(await text(pc, '#postBox .rhead .sbres'), 'Victory');
     assert.match(await text(pc, '#postBox .rhead .rline'), /^Victory\s*\+18 LP\s*Gold II · 63 LP$/);
     assert.match(await text(pc, '#postBox .rhead .rme .sub'), /^Ranked Solo\/Duo · 28:20 · .+ · Patch 26\.23$/);
     assert.match(await text(pc, '#postBox .rhead .rnums'), /^6 \/ 2 \/ 9 · 7\.5 KDA\s*\d+% of kills\s*\d+ CS · [\d.]+ a minute\s*100 score$/);
     assert.match(await pc.getAttribute('#postBox .rart', 'src'), /splash\/Ahri_\d+\.jpg$/);
-    assert.deepStrictEqual(await pc.$$eval('#postBox .rtabs .tab', (l) => l.map((b) => [b.textContent, b.getAttribute('aria-selected')])), [['Overview', 'false'], ['How you played', 'true'], ['Laning', 'false'], ['Builds', 'false']]);
-    assert(await pc.locator('#postBox .rpane[data-tab="how"]').isVisible() && await pc.locator('#postBox .rpane[data-tab="overview"]').isHidden(), 'How you played first');
+    assert.deepStrictEqual(await pc.$$eval('#postBox .rtabs .tab', (l) => l.map((b) => [b.textContent, b.getAttribute('aria-selected')])), [['Overview', 'true'], ['How you played', 'false'], ['Laning', 'false'], ['Builds', 'false']]);
+    assert(await pc.locator('#postBox .rpane[data-tab="overview"]').isVisible() && await pc.locator('#postBox .rpane[data-tab="how"]').isHidden(), 'Overview first');
+    await pc.click('#postBox .rtabs .tab:text-is("How you played")');
     await repShot(pc, '#postBox', 'report-game-page-how');
     // how you played, against your usual Ahri games, high elo Ahri players and Zed: what stood out as lines with a dot,
     // each number as a bar (green better and red worse than your usual, else high elo, else Zed; the exact numbers on
@@ -2539,40 +2537,11 @@ const leagueData = (over = {}) => ({
     await wait(phone3, () => document.getElementById('conn').textContent === 'Connected', null, 'the phone remote from a pasted link');
     await p3ctx.close();
     console.log('phone remote: from the home screen with its kept code, and from a pasted link');
-    // ---- CS drill: Practice Tool games to 10:00 saved with their CS (not one first seen after 10:00), the next one
-    // counted down on the page and the overlay against your best run, its exact CS typed in, and the chart of all three
-    const practice = (room, t, cs) => league(leagueData({ mode: 'PRACTICETOOL', room, t, events: [],
-      players: [{ name: 'Rayan#EUW', team: 'ORDER', champ: 'Ahri', champName: 'Ahri', pos: '', lvl: 9, k: 0, d: 0, a: 0, cs, items: [] }] }));
-    lcu.phase = 'InProgress';
-    await openPage(pc, 'game');
-    for (const [t, cs] of [[300, 30], [480, 60], [601, 80]]) await practice('gdrill000001', t, cs);
-    await wait(pc, () => lpc.toasts().includes('CS drill: 80+ CS at 10:00. You can type your exact CS on the Game page.'), null, 'the first drill');
-    for (const [t, cs] of [[300, 40], [450, 60], [602, 90]]) await practice('gdrill000001', t, cs); // the same champion again: the same room code, its clock started again
-    await wait(pc, () => lpc.toasts().includes('CS drill: 90+ CS at 10:00, your best yet. You can type your exact CS on the Game page.'), null, 'the second, your best yet');
-    await practice('gdrill000003', 700, 100);
-    await wait(pc, () => /^This game was past 10:00 when Premade saw it\./.test(document.getElementById('drillNow').textContent), null, 'too late for a drill');
-    await practice('gdrill000004', 290, 40);
-    await wait(pc, () => /^Last-hit until 10:00 on the game clock: 5:\d\d left, CS 40\. Your best run had 40 by 5:00\.$/.test(document.getElementById('drillNow').textContent), null, 'the drill on the Game page');
-    await wait(pc, () => /^CS 40 · \d+\.\d a minute · drill 5:\d\d left$/.test(lpcClient.lastOverlay.cs), null, 'the drill on the overlay');
-    await practice('gdrill000004', 600.5, 70);
-    await wait(pc, () => lpc.toasts().includes('CS drill: 70+ CS at 10:00, your best is 90. You can type your exact CS on the Game page.'), null, 'the third drill');
-    await wait(pc, () => document.getElementById('drillNow').textContent === 'Done: 70+ CS at 10:00. For another drill, start a new Practice Tool game.' && !document.getElementById('drillExact').hidden, null, 'the exact CS asked');
-    await pc.fill('#drillCs', '74');
-    await pc.click('#drillExact button');
-    await wait(pc, () => document.getElementById('drillExact').hidden, null, 'the exact CS saved');
-    assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-drills')).map((d) => [d.champ, d.cs, d.exact || 0, d.steps.length])), [['Ahri', 80, 0, 3], ['Ahri', 90, 0, 3], ['Ahri', 70, 74, 2]]);
-    lcu.phase = 'None';
-    await league({ inGame: false, phase: 'None' });
-    await wait(pc, () => /^Your CS at 10:00 in Practice Tool games\./.test(document.getElementById('drillNow').textContent), null, 'your drills after the game');
-    assert.deepStrictEqual(await pc.$$eval('#drillList li', (l) => l.map((e) => e.textContent.split(' · ').slice(1).join(' · '))), ['Ahri · 74 CS', 'Ahri · 90+ CS · your best', 'Ahri · 80+ CS']);
-    assert.strictEqual(await pc.textContent('#drillTrend figcaption'), 'CS at 10:00: 81 on average, 81 in your last 3');
-    await shot(pc, 'cs-drill');
-    console.log('CS drill: 80+ and 90+ saved, none for a game seen after 10:00, a drill counted down against your best, 74 typed in, the chart');
     // backup and restore: everything but the phone remote's code, back in after a reload
     await openPage(pc, 'settings');
     const [bk] = await Promise.all([pc.waitForEvent('download'), pc.click('#backupBtn')]);
     const backup = JSON.parse(fs.readFileSync(await bk.path(), 'utf8'));
-    assert(backup.app === 'league-proxchat' && backup.data['lpc-name'] === 'Rayan' && backup.data['lpc-lp'] && backup.data['lpc-clip-favs'] && backup.data['lpc-notes'] && backup.data['lpc-watch'] && backup.data['lpc-drills'] && !('lpc-remote' in backup.data) && !('lpc-device' in backup.data), `the backup: ${Object.keys(backup.data)}`);
+    assert(backup.app === 'league-proxchat' && backup.data['lpc-name'] === 'Rayan' && backup.data['lpc-lp'] && backup.data['lpc-clip-favs'] && backup.data['lpc-notes'] && backup.data['lpc-watch'] && !('lpc-remote' in backup.data) && !('lpc-device' in backup.data), `the backup: ${Object.keys(backup.data)}`);
     backup.data['lpc-range'] = '2000';
     pc.once('dialog', (d) => d.accept());
     await Promise.all([pc.waitForEvent('load'), pc.setInputFiles('#restoreFile', { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })]);
