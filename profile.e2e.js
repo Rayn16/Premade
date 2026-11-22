@@ -171,6 +171,9 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     await league({ inGame: false, phase: 'None' });
     await openPage(pc, 'profile');
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan' && lpc.lcu().hist === 28, null, 'your profile');
+    // the window itself never scrolls (What's new 199): the match rows' hidden screen-reader lines made it taller, so the
+    // wheel slid the whole app, status bar too, up out of the window
+    assert.deepStrictEqual(await pc.evaluate(() => { scrollTo(0, 1e5); return [document.scrollingElement.scrollHeight - innerHeight, scrollY]; }), [0, 0], 'only the page scrolls, not the window');
 
     // ---- the patch day popup: Ahri, the only one of your champions patch 1.1 changed; then Patch changes in Stats
     await wait(pc, () => document.getElementById('patchDlg').open, null, 'the patch day popup');

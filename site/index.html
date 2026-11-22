@@ -175,7 +175,7 @@ a { color: var(--link); }
 .just-league .me-box { margin-top: auto; }
 .phone .grip { display: none; }
 .phone .steps li:nth-child(3) { display: none; } /* setup has no screen check there */
-main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding: 0 var(--pad) 32px; }
+main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding: 0 var(--pad) 32px; position: relative; } /* holds its hidden screen-reader text (.sr, select.pillsel): placed by the window instead, it made the window taller and the wheel slid the whole app out of it (What's new 199) */
 /* each page's head: its name and what it's for along the top, its main buttons on the right */
 .pagehead { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; padding: 28px 0 4px; }
 .pagehead > div:first-child { display: grid; gap: 6px; flex: 1 1 320px; min-width: 0; }
@@ -20225,7 +20225,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
-    [198, 'November 22: a cleaner champ select, profiles from the overlay in front', [
+    [199, 'November 22: pages stay in the window', [
+      'Scrolling down a long page, like a profile with its match history, no longer slides the whole of Premade up out of the window with the status bar. Only the page scrolls.',
+    ]],
+    [198,'November 22: a cleaner champ select, profiles from the overlay in front', [
       'Pregame has no title, and in champ select no status box, heading or status line above your team: the cards and the pick helper start at the top. Whose turn it is stays on the cards.',
       'Hover and Lock in sit on a bar along the bottom of the window, with Dodge at its left, instead of floating above the cards.',
       'A name clicked on everyone’s rank opens their profile in front of League: everyone’s rank was over Premade’s window. It steps aside while you read and comes back when you go back to League.',
