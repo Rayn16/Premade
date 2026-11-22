@@ -175,7 +175,7 @@ a { color: var(--link); }
 .just-league .me-box { margin-top: auto; }
 .phone .grip { display: none; }
 .phone .steps li:nth-child(3) { display: none; } /* setup has no screen check there */
-main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding: 0 var(--pad) 32px; }
+main { --pad: clamp(16px, 2.4vw, 28px); grid-area: main; overflow: auto; padding: 0 var(--pad) 32px; position: relative; } /* holds its hidden screen-reader text (.sr, select.pillsel): placed by the window instead, it made the window taller and the wheel slid the whole app out of it (What's new 199) */
 /* each page's head: its name and what it's for along the top, its main buttons on the right */
 .pagehead { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; padding: 28px 0 4px; }
 .pagehead > div:first-child { display: grid; gap: 6px; flex: 1 1 320px; min-width: 0; }
@@ -20167,6 +20167,9 @@ dialog.wizard { transform: scale(var(--from)); }
     [200, 'November 22: a cleaner Game page', [
       'The Game page has no title, status line or CS drill: your game, or your last game’s report, starts at the top.',
       'Your last game’s report opens on Overview instead of How you played.',
+    ]],
+    [199, 'November 22: pages stay in the window', [
+      'Scrolling down a long page, like a profile with its match history, no longer slides the whole of Premade up out of the window with the status bar. Only the page scrolls.',
     ]],
     [198, 'November 22: a cleaner champ select, profiles from the overlay in front', [
       'Pregame has no title, and in champ select no status box, heading or status line above your team: the cards and the pick helper start at the top. Whose turn it is stays on the cards.',
