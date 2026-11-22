@@ -3301,7 +3301,7 @@ dialog.wizard { transform: scale(var(--from)); }
         </section>
         <section class="panel">
           <h2 class="ph">App</h2>
-          <label class="check"><input id="optJustLeague" type="checkbox"> Just League: only League’s pages in the sidebar. Rooms, Friends, Remote help, Recording, Aion 2 and RE4 co-op are hidden. Voice still works in your League games.</label>
+          <label class="check"><input id="optJustLeague" type="checkbox"> Just League: only League’s pages in the sidebar, with Recording and Settings. Rooms, Friends, Remote help, Aion 2 and RE4 co-op are hidden. Voice still works in your League games.</label>
           <fieldset id="optPlays" class="field"><legend>What you play: Aion 2 and RE4 co-op show in the sidebar only if you tick them</legend>
             <label class="check"><input type="checkbox" value="league"> League of Legends or TFT</label>
             <label class="check"><input type="checkbox" value="aion"> Aion 2</label>
@@ -19960,10 +19960,10 @@ dialog.wizard { transform: scale(var(--from)); }
   setup.addEventListener('close', closeSetup);
   $('setupAgain').addEventListener('click', openSetup);
 
-  // ---- Just League (What's new 184, Settings, App): the sidebar holds League's list only, with Settings at its foot; Rooms still open from an invite, outside the list. What you play: Aion 2 and RE4 co-op only if ticked
+  // ---- Just League (What's new 184, Settings, App): the sidebar holds League's list only, with Recording and Settings at its foot; Rooms still open from an invite, outside the list. What you play: Aion 2 and RE4 co-op only if ticked
   function justMove() {
-    const set = document.querySelector('.rail [data-view="settings"]');
-    (opts.justLeague ? $('leagueFoot') : $('premadeList')).append(set);
+    const [rec, set] = ['record', 'settings'].map((v) => document.querySelector(`.rail [data-view="${v}"]`)); // Recording too (What's new 197): screen recording and Clip anywhere live there
+    if (opts.justLeague) $('leagueFoot').append(rec, set); else { $('premadeList').insertBefore(rec, $('premadeList').querySelector('[data-view="aion"]')); $('premadeList').append(set); }
     $('optJustLeague').checked = !!opts.justLeague;
   }
   function setJust(on, page) {
@@ -20220,6 +20220,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [197, 'November 22: Recording in Just League', [
+      'With Just League on, Recording now sits at the bottom of the sidebar next to Settings, so you can record your whole screen, clip any app or game with Clip anywhere, and find your recordings.',
+    ]],
     [196, 'November 22: Premade is lighter', [
       'A friend’s screen you can’t see right now is paused: with Premade on another page, as the strip in a game, minimized or under a full-screen game, their PC stops sending it to you and yours stops showing it. It’s back the moment you look. During a game with Premade behind League, that’s every screen in the room. Minimized and under a game need the app update (1.53).',
       'Clips keep the last seconds of your game on your disk instead of in memory: up to 157 MB less during every game at 1080p 60 fps (app 1.53).',
@@ -21169,7 +21172,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Hide the room, and host controls', 'The host can hide the room: it leaves Open voice rooms, and only the friends they tick under Who can see it find it there and join in one click. It gets a password too (the invite link carries it), and unticking someone in the room keeps them in but stops them coming back. The host can also remove someone, and mute a noisy mic for everyone with Mute for all on their card.',
         'Hide room, in your room’s Current room panel. Only the host has it: whoever made the room, or once they leave, the player listed first.', '#lockBtn, #createBtn'],
       ['Setup for what you play', 'The first start asks your name and how you’ll use Premade: With friends in rooms (then what you play) or Just League. It tests your mic and checks your League screen only if you play League. With friends in rooms ends with you creating a room or joining a friend’s; Just League ends with Start with League and the overlay’s look, then opens on Profile.', 'Runs on your first start; Run setup again in Settings, App.', '#setupAgain'],
-      ['Just League', 'Only League’s pages in the sidebar, with Settings at the bottom: Rooms, Friends, Remote help, Recording, Aion 2 and RE4 co-op are hidden, and Premade opens on Profile. Voice still works in your League games, and an invite link still opens its room.', 'Settings, App: Just League, or pick Just League in setup.', '#optJustLeague'],
+      ['Just League', 'Only League’s pages in the sidebar, with Recording (record your screen, Clip anywhere) and Settings at the bottom: Rooms, Friends, Remote help, Aion 2 and RE4 co-op are hidden, and Premade opens on Profile. Voice still works in your League games, and an invite link still opens its room.', 'Settings, App: Just League, or pick Just League in setup.', '#optJustLeague'],
       ['What you play', 'Aion 2 and RE4 co-op show in the sidebar only if you tick them. If you never said, both show.', 'Settings, App: What you play, or in setup.', '#optPlays'],
       ['Mic and noise', 'Pick your mic and where voices play (Wave Link’s Voice Chat channel works), a noise gate that can set itself, smart noise removal (which stands in for the browser’s own noise filter, as Discord’s Krisp does, so your voice stays clear) and studio voice. Premade warns you about a crackling mic, uses another mic instead of a Bluetooth headset’s (which makes everything sound muffled), closes your mic when you leave the room, says when Windows turns other sounds down during voice chat, which can make your friends’ voices quiet too, and can lower your other apps, your game too, only while a friend talks (as Discord’s attenuation).',
         'Voice settings, Microphone, at the bottom of the Rooms page: Test mic, then Set the gate for me.', '#micTest'],

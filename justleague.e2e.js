@@ -95,16 +95,21 @@ const cur = (p) => p.evaluate(() => document.querySelector('main > .view:not([hi
     console.log('story 3: no Rooms flash on restart');
 
     // 4: off brings Premade's list back (staying on Settings), on hides it again
+    await p.evaluate(() => document.documentElement.classList.add('has-lcu')); // League's own client: Clips and Recording show
+    assert.deepStrictEqual(await shown(p), [...LEAGUE, 'Clips', 'Recording', 'Settings'], 'Recording at the foot with Settings (What’s new 197)');
+    await shot(p, 'sidebar-just-recording');
+    await p.click('.rail [data-view="record"]');
+    assert(await p.isVisible('#recBtn') && await p.isVisible('#optClipsAll'), 'Record your screen and Clip anywhere reachable');
     await p.click('.rail [data-view="settings"]');
     await p.uncheck('#optJustLeague');
     assert.strictEqual(await cur(p), 'settings', 'still on Settings');
-    assert.deepStrictEqual(await shown(p), ['Rooms', 'Friends', 'Remote help', 'Settings', 'League'], 'Premade’s list back (Aion 2 and RE4 co-op: League only was saved)');
+    assert.deepStrictEqual(await shown(p), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Settings', 'League'], 'Premade’s list back, Recording in its place (Aion 2 and RE4 co-op: League only was saved)');
     assert(await p.isVisible('#optPlays'), 'What you play shows');
     await p.locator('#optJustLeague').scrollIntoViewIfNeeded();
     await shot(p, 'settings-app-rooms');
     await p.check('#optJustLeague');
     assert.strictEqual(await cur(p), 'settings', 'on again: still on Settings');
-    assert.deepStrictEqual(await shown(p), [...LEAGUE, 'Settings'], 'League’s list again');
+    assert.deepStrictEqual(await shown(p), [...LEAGUE, 'Clips', 'Recording', 'Settings'], 'League’s list again');
     console.log('story 4: the Settings switch');
 
     // 5: With friends in rooms, only League: no Aion 2 or RE4 co-op; What you play brings Aion 2 back
