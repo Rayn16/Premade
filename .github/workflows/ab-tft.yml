@@ -1,5 +1,5 @@
-# TEMPORARY (removed in the next commit): what the TFT Mayhem memory check's 4 MB on GitHub's Chromium 141 is.
-# Today's live version (4d525ad): a heap snapshot diff over the 50 picks, then the same check over 100 picks.
+# TEMPORARY (removed in the next commit): who keeps Tesseract's results after the TFT test's Mayhem picks on
+# GitHub's Chromium 141 (today's live version, 4d525ad): the retainer path of the newest TSV string after 50 picks.
 name: TFT memory A/B (temporary)
 on:
   push:
@@ -20,37 +20,42 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg xvfb
       - run: |
-          cat > $RUNNER_TEMP/snapdiff.js <<'EOF2'
-          // heap snapshot of a page (CDP session) summed by node type + name; diff(a, b) = the 15 biggest growths
-          module.exports = async (cdp) => {
+          cat > $RUNNER_TEMP/snapwho.js <<'EOF2'
+          // who keeps a string alive: shortest strong retainer path from the newest string starting with `prefix` to the GC roots
+          module.exports = async (cdp, prefix) => {
             const chunks = [], on = (e) => chunks.push(e.chunk);
             cdp.on('HeapProfiler.addHeapSnapshotChunk', on);
             await cdp.send('HeapProfiler.enable');
             await cdp.send('HeapProfiler.collectGarbage');
             await cdp.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
             cdp.off('HeapProfiler.addHeapSnapshotChunk', on);
-            const s = JSON.parse(chunks.join('')), f = s.snapshot.meta.node_fields, types = s.snapshot.meta.node_types[0];
-            const it = f.indexOf('type'), iname = f.indexOf('name'), isz = f.indexOf('self_size'), agg = new Map();
-            for (let i = 0; i < s.nodes.length; i += f.length) {
-              const t = types[s.nodes[i + it]], k = t + ':' + (/string/.test(t) ? String(s.strings[s.nodes[i + iname]]).slice(0, 40) : s.strings[s.nodes[i + iname]]);
-              const a = agg.get(k) || [0, 0]; a[0] += s.nodes[i + isz]; a[1]++; agg.set(k, a);
+            const s = JSON.parse(chunks.join('')), m = s.snapshot.meta, nf = m.node_fields.length, ef = m.edge_fields.length;
+            const NT = m.node_types[0], ET = m.edge_types[0], N = s.nodes, E = s.edges, S = s.strings;
+            const nType = m.node_fields.indexOf('type'), nName = m.node_fields.indexOf('name'), nId = m.node_fields.indexOf('id'), nEc = m.node_fields.indexOf('edge_count');
+            const eType = m.edge_fields.indexOf('type'), eName = m.edge_fields.indexOf('name_or_index'), eTo = m.edge_fields.indexOf('to_node');
+            const count = N.length / nf, ret = Array.from({ length: count }, () => []);
+            let e = 0, target = -1;
+            for (let i = 0; i < count; i++) {
+              for (let k = 0; k < N[i * nf + nEc]; k++, e += ef) if (ET[E[e + eType]] !== 'weak') ret[E[e + eTo] / nf].push([i, e]);
+              if (/string/.test(NT[N[i * nf + nType]]) && String(S[N[i * nf + nName]]).slice(0, 80).replace(/\s+/g, ' ').startsWith(prefix) && (target < 0 || N[i * nf + nId] > N[target * nf + nId])) target = i;
             }
-            return agg;
+            if (target < 0) return 'no such string';
+            const from = new Map([[target, null]]), q = [target];
+            while (q.length) { const i = q.shift(); if (i === 0) break; for (const [r, ei] of ret[i]) if (!from.has(r)) { from.set(r, [i, ei]); q.push(r); } }
+            if (!from.has(0)) return 'not reachable from the roots';
+            const out = [];
+            for (let i = 0; i !== target; ) { const [child, ei] = from.get(i); const en = ET[E[ei + eType]] === 'element' || ET[E[ei + eType]] === 'hidden' ? `[${E[ei + eName]}]` : S[E[ei + eName]];
+              out.push(`${NT[N[i * nf + nType]]} ${String(S[N[i * nf + nName]]).slice(0, 60).replace(/\s+/g, ' ')} --${ET[E[ei + eType]]}:${String(en).slice(0, 40)}-->`); i = child; }
+            return out.join('\n') + '\n' + String(S[N[target * nf + nName]]).slice(0, 60);
           };
-          module.exports.diff = (a, b) => [...b].map(([k, [v, c]]) => [k, v - ((a.get(k) || [0])[0]), c - ((a.get(k) || [0, 0])[1])])
-            .sort((x, y) => y[1] - x[1]).slice(0, 15).map(([k, d, c]) => `${(d / 1e3).toFixed(0)} KB (${c >= 0 ? '+' : ''}${c}) ${k.replace(/\s+/g, ' ')}`).join('\n');
           EOF2
           git worktree add ../before 4d525ad2f1a6810afb34da9abaf985c4da10a5f3
           cd ../before
-          sed -i "/const before = await metrics(), mayT0 = Date.now();/a\    const SD = require(process.env.SNAPDIFF), snapA = await SD(cdp);" tft.e2e.js
-          sed -i "/^    const after = await metrics();/a\    console.log('SNAPDIFF ' + before + ' -> ' + after); console.log(SD.diff(snapA, await SD(cdp)));" tft.e2e.js
+          sed -i "/^    const after = await metrics();/a\    const W = require(process.env.SNAPWHO); console.log('WHO'); console.log(await W(cdp, '1 1 0 0 0 0 0 0 1280 450'));" tft.e2e.js
           git diff
       - run: |
           cd ../before
-          xvfb-run -a node tft.e2e.js 2>&1 | grep -E -A15 "SNAPDIFF" | head -16 || true
-          sed -i 's/for (let i = 0; i < 25; i++) for (const \[set, rr\]/for (let i = 0; i < 50; i++) for (const [set, rr]/' tft.e2e.js
-          git diff --stat
-          xvfb-run -a node tft.e2e.js 2>&1 | grep -E "SNAPDIFF|AssertionError" | head -3 || true
+          xvfb-run -a node tft.e2e.js 2>&1 | grep -E -A16 "^WHO$" | head -17 || true
         env:
           NODE_PATH: ${{ github.workspace }}/node_modules
-          SNAPDIFF: ${{ runner.temp }}/snapdiff.js
+          SNAPWHO: ${{ runner.temp }}/snapwho.js
