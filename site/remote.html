@@ -9,248 +9,469 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="LPC Remote">
-<meta name="theme-color" content="#010a13">
+<meta name="theme-color" content="#0b0809">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
-/* The phone remote for the desktop app: queue, accept matches, champ select as in League's client (both teams, the
-   bans and the clock; pick or ban, trades, runes, spells, skins, ARAM's bench and dodge), enemy timers, room chat and
-   League chat (index.html's Pregame page shows the QR code that opens it). It can live on the home screen
-   (remote-manifest.json) and show a notification when a match is found or your squad calls (remote-sw.js). The same
-   navy and gold as the app. */
+/* The phone remote for the desktop app (What's new 215): one screen with only what's happening in League now (Play,
+   Finding a match, Match found over everything, champ select, the game) and a menu along the bottom (League, Chat,
+   Settings), in your colours from the app (look in its state; lpc-remote-look keeps them for the next open).
+   index.html's Pregame settings show the QR code that opens it. It can live on the home screen (remote-manifest.json)
+   and show a notification when a match is found or your squad calls (remote-sw.js). */
 :root {
-  --bg: #010a13; --panel: #0a1428; --raised: #0f1e35; --fg: #f0e6d2; --muted: #a09b8c; --line: #1f2f45;
-  --gold: #c8aa6e; --gold-line: #785a28; --accent: #0ac8b9; --accent-fg: #010a13; --good: #3ccf8e; --bad: #ff6b6b;
+  --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a;
+  --accent: #d9202d; --accent-fg: #ffffff; --good: #3ccf8e; --bad: #ff6b6b; --g-great: #7cb3ff; --g-good: #5fd4c4; --g-risky: #f59e5b;
+  --soft: color-mix(in srgb, var(--fg) 5%, transparent); --fill: color-mix(in srgb, var(--fg) 10%, transparent);
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1); --m: 1;
   color-scheme: dark;
 }
+/* motion as in the app (Settings > Look > Animations): presses shrink a little and screens rise in; Reduced there, or
+   the phone's own setting while the app follows Windows, keeps only the fades */
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="on"]) { --m: 0; } }
+:root[data-motion="reduced"] { --m: 0; }
+@keyframes in { from { opacity: 0; transform: translateY(calc(6px * var(--m))); } }
+@keyframes pop { from { opacity: 0; transform: scale(calc(1 - 0.04 * var(--m))); } }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 520px; margin: 0 auto; padding: 16px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-header { display: flex; align-items: center; gap: 10px; }
-header img { width: 32px; height: 32px; border-radius: 6px; }
-h1 { flex: 1; margin: 0; font-size: 17px; font-weight: 600; color: var(--fg); }
-h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--fg); }
-p { margin: 0; }
-.hint { color: var(--muted); font-size: 14px; }
-.state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
-.dot[data-on] { background: var(--good); }
-.phase { padding: 10px 14px; border-left: 3px solid var(--gold-line); border-radius: 6px; background: var(--panel); }
-.panel { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-.btn { padding: 14px 18px; border: 1px solid var(--gold-line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 600 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-.btn:disabled { opacity: 0.5; }
-.btn.small { padding: 9px 12px; font-size: 14px; }
-.trade { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.trade span { flex: 1 1 100%; color: var(--muted); font-size: 14px; }
-input[type="url"] { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
-.row { display: flex; gap: 10px; }
-.row > * { flex: 1; min-width: 0; }
-:is(input[type="search"], #chatText, #lolText) { width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-.ch { display: grid; justify-items: center; gap: 4px; padding: 6px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
-.ch img { width: 52px; height: 52px; border-radius: 6px; background: var(--bg); }
-.ch[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
-.ch:disabled { opacity: 0.35; filter: grayscale(1); cursor: default; }
-.grid.all { max-height: 60vh; overflow-y: auto; }
-.cshead { display: flex; align-items: center; gap: 8px; }
-.cshead h2 { flex: 1; }
-#stage { color: var(--muted); font-size: 13px; }
-#clock { min-width: 2ch; text-align: right; font: 600 24px/1 ui-monospace, Consolas, monospace; }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 560px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--fg); font: 15px/1.4 var(--body); -webkit-tap-highlight-color: transparent; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 24px; font-weight: 600; line-height: 1.2; }
+h2 { font-size: 15px; font-weight: 600; }
+h2 span { font-weight: 400; color: var(--muted); }
+button, input { font: inherit; color: inherit; }
+button { padding: 0; border: 0; background: none; cursor: pointer; transition: transform calc(120ms * var(--m)) var(--ease), background-color 150ms, border-color 150ms, color 150ms; }
+button:active:not(:disabled) { transform: scale(calc(1 - 0.04 * var(--m))); }
+button:disabled { cursor: default; }
+:is(button, input, a):focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+input::placeholder { color: var(--muted); }
+img { display: block; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.scr { flex: none; display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 28px; animation: in 240ms var(--ease); }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+.sub { display: flex; flex-direction: column; gap: 10px; }
+.note { font-size: 13.5px; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.pill.fg { color: var(--fg); }
+:is(.pill, .role, .tog)[aria-pressed="true"], .pill[aria-selected="true"] { border-color: transparent; background: var(--fill); color: var(--fg); }
+.pill:disabled:not([aria-pressed="true"]) { opacity: 0.5; }
+.field { width: 100%; height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: transparent; font-size: 16px; }
+.big { width: 100%; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 600; }
+.red { background: var(--accent); color: var(--accent-fg); }
+.out { border: 1px solid var(--line); }
+.big:disabled, .yes { background: var(--fill); }
+.big:disabled { color: var(--muted); }
+.card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: var(--soft); animation: in 200ms var(--ease); }
+.two { display: flex; gap: 8px; }
+.two button { flex: 1; height: 44px; border-radius: 10px; font-weight: 500; }
+.two .yes { font-weight: 600; }
+.no { border: 1px solid var(--line); }
+.two button:disabled { opacity: 0.5; }
+#call { margin: 16px 16px 0; }
+/* Play */
+.rrow { display: flex; align-items: center; gap: 6px; }
+.lab { flex: none; width: 52px; font-size: 13px; color: var(--muted); }
+.role { flex: 1 1 0; min-width: 0; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); }
+.friends { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; }
+.friend { flex: none; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px; }
+.friend img, .party img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: var(--raised); }
+.friend img { outline: 2px solid transparent; outline-offset: 2px; }
+.friend[data-st="asked"] img { outline-color: var(--fg); }
+.friend[data-st="in"] img { outline-color: var(--good); }
+.friend b { margin-top: 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 500; }
+.friend small { font-size: 12px; color: var(--muted); }
+.friend[data-st="in"] small { color: var(--good); }
+#me { display: flex; flex-direction: column; gap: 14px; padding-top: 20px; border-top: 1px solid var(--line); }
+#meProfile { min-height: 44px; display: inline-flex; align-items: center; color: var(--fg); font-size: 14px; text-underline-offset: 3px; }
+.ranks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.crest, .wring { position: relative; flex: none; }
+.crest img { position: absolute; inset: 11px; width: 34px; height: 34px; object-fit: contain; }
+.rk > span:last-child { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.rk b { font-weight: 600; }
+.rk small { font-size: 13.5px; }
+.rk i { font-size: 12.5px; font-style: normal; color: var(--muted); }
+.today { display: flex; align-items: center; gap: 10px; }
+.blocks { display: flex; flex-wrap: wrap; gap: 4px; }
+.blocks i { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; background: var(--good); color: var(--bg); font: 700 11.5px/1 var(--body); }
+.blocks i.l, .last i.l { background: var(--bad); }
+.lp { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--good); }
+.lp.down { color: var(--bad); }
+.last { display: flex; gap: 4px; }
+.last span { display: flex; flex-direction: column; gap: 3px; width: 31px; }
+.last img { width: 31px; height: 31px; border-radius: 6px; object-fit: cover; background: var(--raised); }
+.last i { height: 4px; border-radius: 2px; background: var(--good); }
+#meLast { gap: 8px; }
+#meLast > span { font-size: 13px; color: var(--muted); }
+.bar { flex: none; padding: 10px 16px; }
+/* Finding a match and Match found */
+#finding { gap: 28px; }
+.qclock { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 0 8px; }
+.qclock b { font: 600 68px/1 var(--mono); }
+.qclock span { font-size: 14px; color: var(--muted); }
+.party { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.party div { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; }
+.party div span { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13.5px; }
+.party img { width: 52px; height: 52px; }
+#found { flex: 1 0 auto; align-items: center; gap: 0; padding: 96px 24px 40px; animation: pop 180ms var(--ease); }
+.rcring { position: relative; flex: none; width: 220px; height: 220px; }
+.rcring b, .wring b { position: absolute; inset: 0; display: grid; place-items: center; }
+.rcring b { font: 600 64px/1 var(--mono); }
+#rcArc { transition: stroke-dasharray calc(250ms * var(--m)) linear; }
+#found h1 { margin: 36px 0 6px; font-size: 30px; }
+#rcGame { font-size: 15px; color: var(--muted); }
+#rcWait { margin-top: 28px; font-size: 14px; color: var(--muted); animation: in 200ms var(--ease); }
+.rcbtns { margin-top: auto; padding-top: 28px; width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.rcbtns button { border-radius: 14px; }
+#accept, #accepted { height: 64px; font-size: 19px; }
+#decline { font-weight: 500; }
+/* champ select */
+#cs { gap: 14px; padding: 16px 16px 24px; }
+#cs h1, #game h1 { font-size: 20px; }
+#clock { font: 600 28px/1 var(--mono); }
 #clock[data-low] { color: var(--bad); }
-.bans { display: flex; justify-content: space-between; gap: 8px; }
-.bans { align-items: center; }
-.bans div { display: flex; gap: 4px; }
-.bans div > * { width: 24px; height: 24px; border-radius: 4px; background: var(--raised); filter: grayscale(1); opacity: 0.75; }
-.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.side { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; min-width: 0; }
-.side li { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px; border: 1px solid transparent; border-radius: 8px; }
-.side.them li { flex-direction: row-reverse; text-align: right; }
-.side li[data-now] { border-color: var(--gold); background: var(--raised); }
-.face { flex: none; width: 40px; height: 40px; border: 1px solid var(--gold-line); border-radius: 6px; background: var(--raised); }
-.side li:not([data-locked]) img.face { opacity: 0.5; } /* a hover, not a pick yet */
-.side .txt { flex: 1; display: grid; min-width: 0; }
-.side :is(b, small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.side b { font-size: 14px; }
-.side li[data-me] b { color: var(--gold); }
-.side small { color: var(--muted); font-size: 12px; }
-.sp { flex: none; display: grid; gap: 2px; }
-.sp img { display: block; width: 17px; height: 17px; border-radius: 3px; }
-.tabs { display: flex; border-bottom: 1px solid var(--line); }
-.tabs button { flex: 1; padding: 10px 2px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
-.tabs [aria-pressed="true"] { border-bottom-color: var(--gold); color: var(--gold); }
-.tab { display: grid; gap: 12px; }
-select, #pageName { padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: 16px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; }
-#find #role { flex: none; }
-.recs { display: flex; flex-wrap: wrap; gap: 8px; }
-.recs:empty { display: none; }
-.editor { display: grid; gap: 10px; }
-:is(.editor, #roster) h3 { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.teams { display: flex; flex-direction: column; gap: 8px; }
+.team { display: flex; justify-content: space-between; }
+.tile { position: relative; width: 64px; height: 84px; overflow: hidden; border-radius: 8px; background: var(--raised); }
+.tile[data-me] { outline: 2px solid var(--fg); outline-offset: -2px; }
+.tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; transition: opacity 260ms; }
+.tile:not([data-locked]) img { opacity: 0.45; }
+.them .tile img { animation: pop 260ms var(--ease); }
+.tile svg { position: absolute; left: 21px; top: 20px; color: var(--muted); }
+.tile::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: linear-gradient(color-mix(in srgb, var(--bg) 0%, transparent), color-mix(in srgb, var(--bg) 94%, transparent)); }
+.tile span { position: absolute; z-index: 1; left: 6px; right: 4px; bottom: 5px; display: flex; flex-direction: column; line-height: 1.15; }
+.tile b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; }
+.tile small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: color-mix(in srgb, var(--fg) 84%, var(--bg)); }
+.bans { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bans .lab { width: auto; }
+.bans > span:not(.lab) { display: flex; gap: 4px; }
+.bans img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; filter: grayscale(1); opacity: 0.6; }
+.asks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.asks > span { font-size: 13.5px; color: var(--muted); }
+.tabs { display: flex; gap: 6px; }
+.tabs .pill { flex: 1 1 auto; padding: 0 10px; }
+.tab { display: flex; flex-direction: column; gap: 10px; animation: in 200ms var(--ease); }
+.picks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pick { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.pick[aria-pressed="true"] { border-color: transparent; background: var(--fill); }
+.pick img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--raised); }
+.pick b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
+.word { padding: 1px 8px; border: 1px solid currentColor; border-radius: 999px; font-size: 11.5px; color: var(--muted); }
+.word[data-g="great"] { color: var(--g-great); }
+.word[data-g="good"] { color: var(--g-good); }
+.word[data-g="risky"] { color: var(--g-risky); }
+.find { display: flex; gap: 8px; margin: 6px 0 0; }
+.search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); }
+.search:focus-within { border-color: var(--fg); }
+.search input { flex: 1; min-width: 0; height: 40px; padding: 0; border: 0; background: transparent; color: var(--fg); font-size: 16px; outline: none; }
+.tog { flex: none; height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 8px; }
+.ch { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.ch img { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; outline: 2px solid transparent; outline-offset: 2px; background: var(--raised); }
+.ch[aria-pressed="true"] img { outline-color: var(--fg); }
+.ch span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.ch:disabled { opacity: 0.35; }
+.ch:disabled img { filter: grayscale(1); }
+.dodge { align-self: flex-start; min-height: 44px; color: var(--muted); font-size: 14px; }
+.dodge[data-armed] { color: var(--bad); }
+/* champ select: runes, spells and skins */
+.vshead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vsf { display: flex; gap: 4px; }
+.vsf button { width: 44px; height: 44px; overflow: hidden; border: 2px solid transparent; border-radius: 50%; background: var(--raised); }
+.vsf button[aria-pressed="true"] { border-color: var(--fg); }
+.vsf img { width: 100%; height: 100%; object-fit: cover; }
+.run { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; text-align: left; transition: background-color 180ms; }
+.run[aria-pressed="true"] { background: var(--fill); }
+.run > b { font-size: 13.5px; font-weight: 600; }
+.ri { width: 100%; display: flex; align-items: center; gap: 6px; }
+.ri img { width: 20px; height: 20px; }
+.ri img.ks { width: 36px; height: 36px; margin-right: 4px; }
+.ri hr { width: 1px; height: 20px; margin: 0 2px; border: 0; background: var(--line); }
+.rs { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 12.5px; line-height: 1.2; }
+.rs small { font-size: inherit; color: var(--muted); }
+.rs em { font-style: normal; color: var(--good); }
+.rbar { width: 72px; height: 4px; overflow: hidden; border-radius: 2px; background: var(--line); }
+.rbar i { display: block; height: 100%; background: var(--fg); }
+.chk { flex: none; width: 18px; height: 18px; color: var(--good); }
+h2.gap { margin-top: 14px; }
+.wide { width: 100%; height: 48px; border: 1px solid var(--line); border-radius: 12px; font-weight: 500; }
+.chead { flex: none; display: flex; align-items: center; gap: 4px; min-height: 52px; }
+.chead button { width: 44px; height: 44px; display: grid; place-items: center; }
+.chead b { font-weight: 600; }
+.editor { display: flex; flex-direction: column; gap: 10px; }
+.editor h3 { margin: 6px 0 0; font-size: 13px; font-weight: 500; color: var(--muted); }
 .trees, .runerow { display: flex; justify-content: space-evenly; }
-.rune { padding: 2px; border: 2px solid transparent; border-radius: 50%; background: none; cursor: pointer; }
-.rune img { display: block; width: 36px; height: 36px; filter: grayscale(1); opacity: 0.45; }
-.rune.key img { width: 46px; height: 46px; }
-.rune[aria-pressed="true"] { border-color: var(--gold); }
+.rune { padding: 3px; border: 2px solid transparent; border-radius: 50%; }
+.rune img { width: 34px; height: 34px; filter: grayscale(1); opacity: 0.45; }
+.rune.key img { width: 44px; height: 44px; }
+.rune[aria-pressed="true"] { border-color: var(--fg); }
 .rune[aria-pressed="true"] img { filter: none; opacity: 1; }
-.chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.chip { padding: 8px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); color: var(--muted); font: 500 13px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
-.chip[aria-pressed="true"] { border-color: var(--gold); color: var(--fg); }
-.slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.slot { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: left; cursor: pointer; }
-.slot :is(img, .face) { flex: none; width: 36px; height: 36px; border-radius: 6px; }
-.slot b { color: var(--gold); font-family: ui-monospace, Consolas, monospace; }
-.slot[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
-.skins { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; }
-.skin { flex: none; width: 108px; display: grid; gap: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--fg); font: 500 12px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; scroll-snap-align: start; cursor: pointer; }
-.skin img { width: 100%; aspect-ratio: 308 / 560; object-fit: cover; border-radius: 6px; background: var(--bg); }
-.skin[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
-.chromas { display: flex; flex-wrap: wrap; gap: 10px; }
-.chromas:empty { display: none; }
-.chroma { width: 36px; height: 36px; padding: 0; border: 2px solid var(--line); border-radius: 50%; background: var(--raised); cursor: pointer; }
-.chroma[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--gold); }
-.btn.bad { border-color: var(--bad); color: var(--bad); }
-#dodge { justify-self: end; }
-.lockbar { position: sticky; bottom: 12px; z-index: 1; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); } /* Lock in stays in reach */
-.timers { display: flex; flex-wrap: wrap; gap: 8px; }
-.timers span { display: grid; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font: 500 16px/1.2 ui-monospace, Consolas, monospace; }
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tiles span { display: grid; align-content: start; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font-size: 15px; }
-:is(.timers, .tiles) b { font-size: 12.5px; font-weight: 500; line-height: 1.2; color: var(--muted); }
-.foes { display: grid; gap: 10px; margin-top: 12px; }
-.lines { display: grid; gap: 2px; color: var(--muted); font-size: 14px; }
-.lines:empty { display: none; }
-.buy { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--gold-line); border-radius: 8px; background: var(--raised); font-size: 14px; }
-.buy img { flex: none; width: 32px; height: 32px; border-radius: 4px; }
-.buy b { color: var(--gold); }
-/* the game's ten players and your last games: a line each, full width, with a win or a loss on the left edge */
-.roster li { padding: 6px; border: 1px solid var(--line); border-left-width: 3px; background: var(--raised); }
-.roster li[data-win="1"] { border-left-color: var(--good); }
-.roster li[data-win="0"] { border-left-color: var(--bad); }
-.roster .rk { color: var(--fg); }
-a.btn { display: block; text-align: center; text-decoration: none; }
-.check { display: flex; align-items: center; gap: 10px; }
-.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; overflow-wrap: anywhere; }
-.log:empty::before { content: attr(data-empty); color: var(--muted); }
-.log time { font: 500 12px/1 ui-monospace, Consolas, monospace; color: var(--muted); margin-right: 8px; }
-.log b { color: var(--gold); margin-right: 6px; }
-:is(#chatForm, #lolForm) .btn { flex: none; } /* the message gets the room */
-.wrap { display: flex; flex-wrap: wrap; gap: 8px; }
-input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: var(--gold); }
-:is(button, input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chips { display: flex; gap: 6px; }
+.chips .pill { flex: 1; padding: 0 6px; font-size: 13px; }
+.slots { display: flex; gap: 12px; }
+.slot { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; text-align: left; }
+.slot[aria-pressed="true"] { border-color: var(--fg); background: var(--fill); }
+.slot img, .slot i { flex: none; width: 48px; height: 48px; border-radius: 8px; background: var(--raised); }
+.slot span { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.slot b { font-weight: 600; }
+.slot small { font: 13px/1.25 var(--mono); color: var(--muted); }
+.sgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.sp { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 12px; }
+.sp img { width: 52px; height: 52px; border-radius: 8px; }
+.sp[aria-pressed="true"] { opacity: 0.4; }
+.skins { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; }
+.skin { flex: none; width: 112px; display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 12.5px; line-height: 1.25; color: var(--muted); }
+.skin img { width: 112px; height: 204px; border-radius: 10px; object-fit: cover; outline: 2px solid transparent; outline-offset: -2px; background: var(--raised); }
+.skin[aria-pressed="true"] { color: var(--fg); }
+.skin[aria-pressed="true"] img { outline-color: var(--fg); }
+.chromas { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.chromas .lab { width: auto; }
+.chroma { width: 44px; height: 44px; border: 3px solid var(--line); border-radius: 50%; background: var(--raised); }
+.chroma[aria-pressed="true"] { border-color: var(--fg); }
+/* in a game */
+#game { gap: 20px; padding: 16px 16px 24px; }
+#gClock { font: 600 22px/1 var(--mono); }
+.winrow { display: flex; align-items: center; gap: 16px; }
+.win { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.wring b { color: var(--fg); font-size: 16px; font-weight: 600; }
+.stats { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stats span { display: flex; flex-direction: column; line-height: 1.25; }
+.stats b { font-size: 19px; font-weight: 600; }
+.stats small { font-size: 12.5px; color: var(--muted); }
+.objs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.obj { min-width: 0; display: flex; flex-direction: column; gap: 7px; padding: 10px 10px 12px; border-radius: 10px; background: var(--soft); text-align: left; }
+.obj > span { font-size: 12.5px; line-height: 1.2; color: var(--muted); }
+.obj b { font: 600 17px/1 var(--mono); }
+.obj[data-up] b { color: var(--good); }
+.obj b.off { font: 500 14px/1.2 var(--body); color: var(--muted); }
+.obj > i { margin-top: auto; height: 3px; overflow: hidden; border-radius: 2px; background: var(--line); }
+.obj > i i { display: block; height: 100%; background: var(--muted); }
+.obj[data-up] > i i { background: var(--good); }
+.lrow { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.lrow > span { flex: none; width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow > i { flex: 1; height: 8px; overflow: hidden; border-radius: 4px; background: var(--raised); }
+.lrow > i i { display: block; height: 100%; border-radius: 4px; background: var(--fg); }
+.lrow.them { color: var(--muted); }
+.lrow.them > i i { background: var(--muted); }
+.lrow b { width: 64px; text-align: right; font: 400 13px var(--mono); color: var(--fg); }
+.buy { display: flex; align-items: center; gap: 12px; }
+.buy img { width: 44px; height: 44px; border-radius: 8px; }
+.buy span { display: flex; flex-direction: column; line-height: 1.3; }
+.buy small { font-size: 13px; color: var(--muted); }
+.buy b { font-weight: 600; }
+.foes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0 2px; }
+.foe { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.fface { width: 56px; height: 56px; overflow: hidden; border: 2px solid var(--line); border-radius: 50%; background: var(--raised); transition: border-color 200ms; }
+.fface[data-called] { border-color: var(--fg); }
+.fface img { width: 100%; height: 100%; object-fit: cover; }
+.fcd { display: flex; gap: 1px; }
+.fcd button { position: relative; width: 34px; height: 44px; display: grid; place-items: center; }
+.fcd img { width: 30px; height: 30px; border-radius: 6px; background: var(--raised); transition: opacity 200ms; }
+.fcd [data-left] img { opacity: 0.3; }
+.fcd b { position: absolute; inset: 7px 0; display: grid; place-items: center; font: 600 10.5px/1 var(--mono); color: var(--fg); }
+.fold { width: 100%; display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 0 2px; border-top: 1px solid var(--line); font-size: 15px; font-weight: 600; text-align: left; }
+.fold svg { transition: transform calc(180ms * var(--m)) var(--ease); }
+.fold[aria-expanded="true"] svg { transform: rotate(180deg); }
+.players { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; animation: in 200ms var(--ease); }
+.players li { display: flex; align-items: center; gap: 10px; min-height: 42px; }
+.players li.gap { margin-top: 12px; }
+.players img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--raised); }
+.who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 400; }
+li[data-me] .who b { font-weight: 600; }
+.who small { font-size: 12px; color: var(--muted); }
+.kda { font: 13px var(--mono); }
+.rkn { flex: none; width: 92px; text-align: right; font-size: 13px; color: var(--muted); }
+/* Chat */
+#chat { flex: 1 1 auto; min-height: 0; gap: 0; padding: 0; }
+.ctabs { flex: none; display: flex; gap: 8px; padding: 16px 16px 6px; }
+.pad { padding: 16px; }
+.cbox { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.log { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 12px 16px; list-style: none; display: flex; flex-direction: column; gap: 14px; overflow-wrap: anywhere; }
+.log li:first-child { margin-top: auto; }
+.log li { display: flex; flex-direction: column; animation: in 200ms var(--ease); }
+.log li > span:first-child { font-size: 13px; }
+.log b { font-weight: 600; }
+.log time { color: var(--muted); }
+.log:empty::before { content: attr(data-empty); margin-top: auto; font-size: 14px; color: var(--muted); }
+.send { flex: none; display: flex; gap: 8px; margin: 0; padding: 10px 16px 12px; }
+.send input { flex: 1; min-width: 0; height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: transparent; font-size: 16px; }
+.send button { flex: none; width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; }
+.lol { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 10px 16px 16px; }
+.conv { width: 100%; min-height: 62px; display: flex; align-items: center; gap: 12px; padding: 0 2px; border-bottom: 1px solid var(--line); text-align: left; }
+.conv span { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.conv[data-unread] b { font-weight: 600; }
+.conv b { font-weight: 400; }
+.conv small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--muted); }
+.conv i, .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fg); }
+#convBox .chead { padding: 0 8px; }
+/* Settings */
+#settings { gap: 0; padding: 20px 16px 24px; }
+#settings h1 { margin-bottom: 8px; }
+.set { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.set > span { flex: 1; display: flex; flex-direction: column; line-height: 1.35; }
+.set b { font-weight: 500; }
+.set small { font-size: 13.5px; color: var(--muted); }
+.sw { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 46px; height: 28px; margin: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); cursor: pointer; transition: background-color 150ms, border-color 150ms; }
+.sw::before { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform calc(150ms * var(--m)) var(--ease), background-color 150ms; }
+.sw:checked { border-color: color-mix(in srgb, var(--good) 60%, var(--bg)); background: color-mix(in srgb, var(--good) 28%, var(--bg)); }
+.sw:checked::before { transform: translateX(18px); background: var(--good); }
+.sw:disabled { opacity: 0.5; }
+#pushNote { padding-top: 10px; }
+#install .wide { margin: 24px 0 8px; }
+.end { margin-top: 24px; }
+/* the menu, and a note over it */
+nav { flex: none; height: 76px; display: flex; justify-content: space-around; padding: 8px 12px 18px; border-top: 1px solid var(--line); background: var(--panel); }
+nav button { position: relative; width: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border-radius: 10px; color: var(--muted); font-size: 12px; font-weight: 500; }
+nav [aria-current="page"] { background: var(--fill); color: var(--fg); }
+nav .dot { position: absolute; top: 5px; right: 30px; width: 8px; height: 8px; }
+#toast { position: fixed; z-index: 2; left: 16px; right: 16px; bottom: 96px; display: flex; justify-content: center; pointer-events: none; }
+body[data-bar] #toast { bottom: 164px; }
+#toast span { padding: 10px 16px; border-radius: 12px; background: var(--fg); color: var(--bg); font-size: 14px; font-weight: 500; text-align: center; animation: in 180ms var(--ease); }
 </style>
 </head>
 <body>
-<main>
-  <header><img src="icon-192.png" alt=""><h1>Phone remote</h1><span class="state"><span id="dot" class="dot"></span><span id="conn">Connecting…</span></span></header>
-  <p id="phase" class="phase" role="status">Connecting to the app on your PC…</p>
-  <form id="linkForm" class="panel" hidden>
-    <p>Scan the QR code in the app on your PC (Pregame page, Phone remote), or paste its link here:</p>
-    <input id="link" type="url" autocomplete="off" spellcheck="false" placeholder="https://…/remote.html#…" aria-label="Phone remote link">
-    <button class="btn primary">Connect</button>
-  </form>
-  <section id="call" class="panel" aria-labelledby="h-call" hidden>
-    <h2 id="h-call">Your squad</h2>
+<p id="conn" class="sr" role="status">Connecting…</p>
+<main id="main">
+  <section id="call" class="card" aria-label="Your squad" hidden>
     <p id="callText" role="status"></p>
-    <div class="row"><button id="callIn" class="btn primary" type="button">In 10</button><button id="callNo" class="btn" type="button">Not tonight</button></div>
+    <div class="two"><button id="callIn" class="yes" type="button">In 10</button><button id="callNo" class="no" type="button">Not tonight</button></div>
   </section>
-  <section id="queue" class="panel" aria-labelledby="h-queue" hidden>
-    <h2 id="h-queue">Queue</h2>
-    <p id="queueState" role="status"></p>
-    <button id="queueBtn" class="btn primary" type="button">Find match</button>
+  <form id="linkForm" class="scr" hidden>
+    <h1>Connect your phone</h1>
+    <p class="note">Scan the QR code under Phone remote in Premade on your PC, or paste its link here.</p>
+    <input id="link" class="field" type="url" autocomplete="off" spellcheck="false" placeholder="https://…/remote.html#…" aria-label="Phone remote link">
+    <button class="big yes">Connect</button>
+  </form>
+  <section id="wait" class="scr" aria-labelledby="waitHead">
+    <h1 id="waitHead">Connecting</h1>
+    <p id="waitText" class="note">Looking for Premade on your PC.</p>
   </section>
-  <section id="rc" class="panel" aria-labelledby="h-rc" hidden>
-    <h2 id="h-rc">Match found</h2>
-    <p id="rcLeft" role="status"></p>
-    <div class="row"><button id="accept" class="btn primary" type="button">Accept</button><button id="decline" class="btn" type="button">Decline</button></div>
+  <section id="play" class="scr" aria-labelledby="h-play" hidden>
+    <div class="head"><h1 id="h-play">Play</h1><button id="leave" class="pill fg" type="button" hidden>Leave</button></div>
+    <p id="playNote" class="note" hidden></p>
+    <div id="games" class="pills" role="group" aria-label="Game" hidden></div>
+    <section id="rolesBox" class="sub" aria-labelledby="h-roles" hidden><h2 id="h-roles">Roles <span id="roleLine"></span></h2><div id="roleRows" class="sub"></div></section>
+    <section id="inviteBox" class="sub" aria-labelledby="h-inv" hidden><h2 id="h-inv">Invite <span>League friends online now</span></h2><div id="friends" class="friends"></div></section>
+    <section id="me" aria-labelledby="h-me" hidden>
+      <div class="head"><h2 id="h-me">Your League</h2><a id="meProfile" target="_blank" rel="noopener" hidden>Open my profile</a></div>
+      <div id="meRanks" class="ranks"></div>
+      <div id="meToday" class="today"><span class="lab">Today</span><div id="todayBlocks" class="blocks" role="img"></div><span id="todayLp" class="lp"></span></div>
+      <div id="meLast" class="sub"><span>Last 10 games</span><div id="last10" class="last"></div></div>
+    </section>
   </section>
-  <section id="cs" class="panel" aria-labelledby="h-cs" hidden>
-    <div class="cshead"><h2 id="h-cs">Champ select</h2><span id="stage"></span><span id="clock" role="timer" aria-label="Seconds left"></span></div>
-    <p id="turn" role="status"></p>
-    <div id="bans" class="bans" hidden><div id="ourBans" aria-label="Your team’s bans"></div><span class="hint">Bans</span><div id="theirBans" aria-label="Their bans"></div></div>
-    <div class="teams"><ol id="team" class="side" aria-label="Your team"></ol><ol id="them" class="side them" aria-label="Their team"></ol></div>
-    <div id="trades"></div>
-    <p id="csNote" class="hint" role="status" hidden></p>
-    <div id="tabBar" class="tabs">
-      <button id="tab-champs" type="button" aria-pressed="true">Champions</button>
-      <button id="tab-runes" type="button" aria-pressed="false">Runes</button>
-      <button id="tab-spells" type="button" aria-pressed="false">Spells</button>
-      <button id="tab-skins" type="button" aria-pressed="false">Skins</button>
+  <section id="finding" class="scr" aria-labelledby="h-find" hidden>
+    <h1 id="h-find">Finding a match</h1>
+    <div class="qclock"><b id="qTime" role="timer" aria-label="Time in queue"></b><span id="qEst"></span></div>
+    <div class="party"><span id="qLine"></span><div id="party"></div></div>
+  </section>
+  <section id="found" class="scr" aria-labelledby="h-found" hidden>
+    <div id="rcRing" class="rcring" role="img"><svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true"><circle cx="110" cy="110" r="96" fill="none" stroke="var(--line)" stroke-width="8"/><circle id="rcArc" cx="110" cy="110" r="96" fill="none" stroke="var(--fg)" stroke-width="8" stroke-linecap="round" transform="rotate(-90 110 110)"/></svg><b id="rcLeft"></b></div>
+    <h1 id="h-found">Match found</h1>
+    <p id="rcGame"></p>
+    <p id="rcWait" hidden></p>
+    <div class="rcbtns"><button id="accept" class="big red" type="button">Accept</button><button id="decline" class="big out" type="button">Decline</button><button id="accepted" class="big" type="button" disabled hidden>Accepted</button></div>
+  </section>
+  <section id="cs" class="scr" aria-labelledby="turn" hidden>
+    <div class="head"><h1 id="turn"></h1><span id="clock" role="timer" aria-label="Seconds left"></span></div>
+    <div class="teams"><div id="team" class="team" role="list" aria-label="Your team"></div><div id="them" class="team them" role="list" aria-label="Their team"></div></div>
+    <div id="bans" class="bans" hidden><span class="lab">Bans</span><span id="ourBans" aria-label="Your team’s bans"></span><span id="theirBans" aria-label="Their bans"></span></div>
+    <div id="trades" class="sub"></div>
+    <div id="csTabs" class="tabs" role="tablist" aria-label="Champ select">
+      <button id="tab-champs" class="pill" type="button" role="tab" aria-controls="champsTab">Champions</button>
+      <button id="tab-runes" class="pill" type="button" role="tab" aria-controls="runesTab">Runes</button>
+      <button id="tab-spells" class="pill" type="button" role="tab" aria-controls="spellsTab">Spells</button>
+      <button id="tab-skins" class="pill" type="button" role="tab" aria-controls="skinsTab">Skins</button>
     </div>
-    <div id="champsTab" class="tab">
-      <div id="benchBox" class="tab" hidden><p class="hint">The bench: tap a champion to take it.</p><div id="bench" class="grid"></div><button id="reroll" class="btn small" type="button">Reroll</button></div>
-      <p id="picksHead" class="hint"></p>
-      <div id="picks" class="grid"></div>
-      <form id="find" class="row">
-        <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search champions" aria-label="Search champions">
-        <select id="role" aria-label="Role"><option value="">All roles</option><option value="t">Top</option><option value="j">Jungle</option><option value="m">Middle</option><option value="b">Bottom</option><option value="s">Support</option></select>
-      </form>
-      <div id="grid" class="grid all"></div>
-    </div>
-    <div id="runesTab" class="tab" hidden>
-      <select id="pageSel" aria-label="Your rune page"></select>
-      <div id="recs" class="recs"></div>
-      <div id="editor" class="editor"></div>
-      <input id="pageName" type="text" maxlength="25" autocomplete="off" spellcheck="false" aria-label="The page’s name">
-      <div class="row"><button id="pageSave" class="btn primary" type="button">Save</button><button id="pageNew" class="btn" type="button">Save as a new page</button></div>
-    </div>
-    <div id="spellsTab" class="tab" hidden>
-      <div class="slots"><button id="slotD" class="slot" type="button" aria-pressed="true"></button><button id="slotF" class="slot" type="button" aria-pressed="false"></button></div>
-      <p class="hint">Tap D or F, then the spell for it.</p>
-      <div id="spellGrid" class="grid"></div>
-    </div>
-    <div id="skinsTab" class="tab" hidden>
+    <section id="champsTab" class="tab" role="tabpanel" aria-labelledby="tab-champs">
+      <div id="benchBox" class="sub" hidden><h2>Bench</h2><div id="bench" class="grid"></div><button id="reroll" class="pill fg" type="button" hidden></button></div>
+      <div id="picksBox" class="sub" hidden><h2 id="picksHead">Picks for you</h2><div id="picks" class="picks"></div></div>
+      <div id="findBox" class="sub" hidden>
+        <form id="find" class="find"><label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM16.5 16.5 20 20"/></svg><input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search" aria-label="Search champions"></label><button id="mine" class="tog" type="button" aria-pressed="true" hidden></button></form>
+        <div id="grid" class="grid"></div>
+        <p id="noMatch" class="note" hidden>No champion by that name.</p>
+      </div>
+    </section>
+    <section id="runesTab" class="tab" role="tabpanel" aria-labelledby="tab-runes" hidden>
+      <div id="runeRows" class="sub"></div>
+      <div id="editBox" class="sub" hidden>
+        <div class="chead"><button id="edBack" type="button" aria-label="Back to the rune pages"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><b>Edit runes</b></div>
+        <div id="editor" class="editor"></div>
+        <input id="pageName" class="field" type="text" maxlength="25" autocomplete="off" spellcheck="false" aria-label="The page’s name">
+        <div class="two"><button id="pageSave" class="yes" type="button">Save</button><button id="pageNew" class="no" type="button">Save as a new page</button></div>
+      </div>
+    </section>
+    <section id="spellsTab" class="tab" role="tabpanel" aria-labelledby="tab-spells" hidden>
+      <div id="slots" class="slots"></div>
+      <p id="spellNote" class="note"></p>
+      <div id="spellGrid" class="sgrid"></div>
+    </section>
+    <section id="skinsTab" class="tab" role="tabpanel" aria-labelledby="tab-skins" hidden>
       <div id="skins" class="skins"></div>
-      <div id="chromas" class="chromas"></div>
+      <div id="chromaRow" class="chromas" hidden><span class="lab">Chromas</span><span id="chromas" class="chromas"></span></div>
+    </section>
+    <button id="dodge" class="dodge" type="button" hidden>Dodge</button>
+  </section>
+  <section id="game" class="scr" aria-labelledby="h-game" hidden>
+    <div class="head"><h1 id="h-game">In game</h1><span id="gClock"></span></div>
+    <div id="winrow" class="winrow"><div id="win" class="win" role="img" hidden><span id="winRing" class="wring"></span>Win chance</div><div id="stats" class="stats"></div></div>
+    <div id="objs" class="objs"></div>
+    <section id="laneBox" class="sub" aria-labelledby="laneHead" hidden><h2 id="laneHead"></h2><div id="lane" class="sub"></div><p id="laneLine" class="note"></p></section>
+    <div id="buy" class="buy" hidden></div>
+    <section id="foesBox" class="sub" aria-labelledby="h-foes" hidden><h2 id="h-foes">Their team</h2><div id="foes" class="foes"></div><p id="foesNote" class="note"></p></section>
+    <section id="playersBox" hidden>
+      <button id="fold" class="fold" type="button" aria-expanded="false" aria-controls="players">Everyone’s rank and score<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <ol id="players" class="players" hidden></ol>
+    </section>
+  </section>
+  <section id="chat" class="scr" aria-label="Chat" hidden>
+    <div id="chatTabs" class="ctabs"><button id="ct-room" class="pill" type="button">Room</button><button id="ct-lol" class="pill" type="button">League friends</button></div>
+    <p id="chatNone" class="note pad" hidden></p>
+    <div id="roomBox" class="cbox" hidden>
+      <ol id="chatLog" class="log" role="log" aria-label="Room chat" data-empty="No messages yet."></ol>
+      <form id="chatForm" class="send"><input id="chatText" maxlength="300" autocomplete="off" placeholder="Message the room" aria-label="Message the room"><button aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button></form>
     </div>
-    <button id="dodge" class="btn small" type="button" hidden>Dodge</button>
-    <button id="lock" class="btn primary lockbar" type="button">Lock in</button>
+    <div id="lolBox" class="lol" hidden><div id="lolInv" class="sub"></div><div id="lolConvs" role="list" aria-label="League friends"></div></div>
+    <div id="convBox" class="cbox" hidden>
+      <div class="chead"><button id="back" type="button" aria-label="Back to League friends"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><b id="convName"></b></div>
+      <ol id="lolLog" class="log" role="log" data-empty="No messages yet."></ol>
+      <form id="lolForm" class="send"><input id="lolText" maxlength="500" autocomplete="off"><button aria-label="Send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button></form>
+    </div>
   </section>
-  <section id="game" class="panel" aria-labelledby="h-game" hidden>
-    <h2 id="h-game">In game</h2>
-    <div id="timers" class="timers"></div>
-    <div id="gameLines" class="lines"></div>
-    <p id="buy" class="buy" hidden></p>
-    <div id="foes" class="foes" hidden></div>
-    <div id="teamCalls" class="foes" hidden></div>
-    <div id="roster" class="tab" hidden><h3>Your team</h3><ol id="gTeam" class="side roster" aria-label="Your team"></ol><h3>Their team</h3><ol id="gThem" class="side roster" aria-label="Their team"></ol></div>
+  <section id="settings" class="scr" aria-labelledby="h-set" hidden>
+    <h1 id="h-set">Settings</h1>
+    <label class="set"><span><b>Accept matches for me</b><small>Accepts each match found, even when you’re away from the PC.</small></span><input id="auto" class="sw" type="checkbox" role="switch"></label>
+    <label id="pushRow" class="set" hidden><span><b>Tell me when a match is found</b><small>A notification, even with the screen off. On iPhone it needs the home screen icon.</small></span><input id="push" class="sw" type="checkbox" role="switch"></label>
+    <p id="pushNote" class="note" role="status" hidden></p>
+    <label class="set"><span><b>Ring</b><small>Rings when a match is found and when it’s your turn to pick.</small></span><input id="ring" class="sw" type="checkbox" role="switch"></label>
+    <label id="awakeRow" class="set" hidden><span><b>Keep the screen on</b><small>While this page is open.</small></span><input id="awake" class="sw" type="checkbox" role="switch"></label>
+    <div id="install"><button id="installBtn" class="wide" type="button">Add to home screen</button><p class="note">It opens like an app and keeps your link, so you scan the QR code only once.</p><p id="installHow" class="note" role="status" hidden></p></div>
+    <p class="note end">Anyone with your link can use your League from their phone. Keep it to yourself.</p>
   </section>
-  <section id="chat" class="panel" aria-labelledby="h-chat" hidden>
-    <h2 id="h-chat">Room chat</h2>
-    <ol id="chatLog" class="log" data-empty="No messages yet."></ol>
-    <form id="chatForm" class="row"><input id="chatText" maxlength="300" autocomplete="off" placeholder="Message the room" aria-label="Message"><button class="btn">Send</button></form>
-  </section>
-  <section id="lol" class="panel" aria-labelledby="h-lol" hidden>
-    <h2 id="h-lol">League chat</h2>
-    <div id="lolInv"></div>
-    <div id="lolConvs" class="wrap"></div>
-    <ol id="lolLog" class="log" data-empty="No messages yet." hidden></ol>
-    <form id="lolForm" class="row" hidden><input id="lolText" maxlength="500" autocomplete="off" placeholder="Message" aria-label="Message"><button class="btn">Send</button></form>
-  </section>
-  <section id="me" class="panel" aria-labelledby="h-me" hidden>
-    <h2 id="h-me">Your League</h2>
-    <p id="meName"></p>
-    <div id="meRanks" class="tiles"></div>
-    <p id="meToday"></p>
-    <ol id="meGames" class="side roster" aria-label="Your last games"></ol>
-    <a id="meProfile" class="btn" target="_blank" rel="noopener" hidden>Open my full profile</a>
-  </section>
-  <label class="check"><input id="auto" type="checkbox"> Accept matches for me</label>
-  <label id="pushRow" class="check" hidden><input id="push" type="checkbox"> Tell me when a match is found or my squad calls, even with the screen off</label>
-  <p id="pushNote" class="hint" role="status" hidden></p>
-  <p id="sound" class="hint" hidden>Tap anywhere to turn on the ring when a match is found.</p>
-  <label id="awakeRow" class="check" hidden><input id="awake" type="checkbox"> Keep the screen on while this page is open</label>
-  <p id="install" class="hint" hidden>Put the remote on your home screen: in Chrome, the ⋮ menu, Add to Home screen; on an iPhone, Safari’s Share button, Add to Home Screen. <button id="installBtn" class="btn small" type="button" hidden>Add it now</button></p>
-  <p class="hint">This page talks to Premade on your PC, which talks to League. Keep the link to yourself: anyone with it can accept, pick and chat for you while the app is open.</p>
 </main>
+<div id="bar" class="bar" hidden><button id="queueBtn" class="big red" type="button" hidden>Find match</button><button id="lock" class="big red" type="button" hidden>Lock in</button></div>
+<div id="toast" role="status"></div>
+<nav id="menu" aria-label="Phone remote" hidden>
+  <button id="m-league" type="button" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/></svg><span>League</span></button>
+  <button id="m-chat" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span><i id="chatDot" class="dot" role="img" aria-label="New messages" hidden></i></button>
+  <button id="m-settings" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Settings</span></button>
+</nav>
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
 <script>
 (() => {
   // The PC's page is lolprox-r<code>-0 on our connection server; this phone takes the first free one of -1 to -9 and
-  // dials it. The PC sends { t: 'state', phase, auto, alarm, queue, rc, cs, game, chat, lol, now } (index.html
-  // remoteState) whenever it changes; this page sends hi (with whether it's on the screen), accept, decline, hover,
-  // lock, auto, queue, trade, spells, skin, page (the rune page to use), runes (a page to save), bench, reroll, dodge,
-  // chat, timer (an enemy timer: what, champ), and for League chat lolopen, lolsay and lolinv. The code is kept on
-  // the phone, so the home screen icon (which opens remote.html with no code) connects too.
+  // dials it. The PC sends { t: 'state', phase, auto, alarm, look, queue, rc, cs, game, chat, lol, me, now } (index.html
+  // remoteState) whenever it changes; this page sends hi (with whether it's on the screen), accept, decline, auto,
+  // queue, game (the game to play, which makes a lobby outside one), roles, invite, leave; in champ select hover, lock,
+  // trade, spells, skin, runerow (a rune page's row, as the PC's Runes tab), runefoe (whose pages), runes (a page saved
+  // in the editor), bench, reroll, dodge; in a game timer (an enemy timer by its key) and call (they're missing); chat,
+  // and for League chat lolopen, lolsay and lolinv. The code is kept on the phone, so the home screen icon (which opens
+  // remote.html with no code) connects too.
   const $ = (id) => document.getElementById(id);
   const local = new URLSearchParams(location.search).get('peer'); // ?peer=127.0.0.1:9000 for tests, as in index.html
   const peerOpts = local ? { host: local.split(':')[0], port: +local.split(':')[1], path: '/', config: { iceServers: [] } }
@@ -259,27 +480,72 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   const valid = (c) => /^[a-z0-9]{12}$/.test(c || '');
   if (valid(location.hash.slice(1))) store.set('lpc-remote-code', location.hash.slice(1));
   const code = valid(location.hash.slice(1)) ? location.hash.slice(1) : store.get('lpc-remote-code') || '', pc = `lolprox-r${code}-0`;
-  const POS = { TOP: 'top', JUNGLE: 'jungle', MIDDLE: 'mid', BOTTOM: 'bot', UTILITY: 'support' };
-  const PHASE = { '': 'League isn’t running on your PC.', None: 'In League’s client.', Lobby: 'In a lobby.', Matchmaking: 'Finding a match…', ReadyCheck: 'Match found!',
-    ChampSelect: 'In champ select.', GameStart: 'Loading into the game.', InProgress: 'In game.', Reconnect: 'In game.', WaitingForStats: 'Game over.', PreEndOfGame: 'Game over.', EndOfGame: 'Game over.' };
-  let peer = null, conn = null, state = null, redial = 0, ddv = '';
+  const POS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Middle', BOTTOM: 'Bottom', UTILITY: 'Support', FILL: 'Fill' };
+  const ROLE = { TOP: 'M5 15V5h10', JUNGLE: 'M5 15l3-7 3 5 4-8', MIDDLE: 'M5 15 15 5', BOTTOM: 'M5 15h10V5', UTILITY: 'M10 15.5c-4-2.6-5.5-5.2-4.4-7.4 1-2 3.4-1.8 4.4.1 1-1.9 3.4-2.1 4.4-.1 1.1 2.2-.4 4.8-4.4 7.4z', FILL: 'M10 3.5 16.5 10 10 16.5 3.5 10z' };
+  const LETTER = { TOP: 't', JUNGLE: 'j', MIDDLE: 'm', BOTTOM: 'b', UTILITY: 's' }; // a champion's roles as the PC sends them
+  const WORD = { great: 'Great', good: 'Good', ok: 'OK', risky: 'Risky' }; // the pick helper's words
+  const DD = 'https://ddragon.leagueoflegends.com/cdn';
+  let peer = null, conn = null, state = null, redial = 0, ddv = '', downText = '';
   const champs = {}, spells = {}, runes = {}; // number -> Data Dragon's champion, summoner spell or rune (with its tree and row)
   let trees = []; // Data Dragon's rune trees, each a keystone row and three more
   const send = (m) => { if (conn && conn.open) conn.send(m); };
   const hi = () => ({ t: 'hi', seen: document.visibilityState === 'visible' }); // the PC only has our server push a match found to a phone that isn't looking
-  const name = (k) => (champs[k] || {}).name || 'a champion';
-  const pic = (k) => (champs[k] && ddv ? `https://ddragon.leagueoflegends.com/cdn/${ddv}/img/champion/${champs[k].id}.png` : '');
-  const mmss = (s) => (s <= 0 ? 'up' : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
+  const name = (k) => (champs[k] || {}).name || '';
+  const pic = (k) => (champs[k] && ddv ? `${DD}/${ddv}/img/champion/${champs[k].id}.png` : '');
+  const face = (n) => (ddv && n > 0 ? `${DD}/${ddv}/img/profileicon/${n}.png` : ''); // a profile icon
+  const spellPic = (k) => (spells[k] && ddv ? `${DD}/${ddv}/img/spell/${spells[k].image.full}` : '');
+  const spellName = (k) => (spells[k] || {}).name || '';
+  const runePic = (id) => (runes[id] ? `${DD}/img/${runes[id].icon}` : '');
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const goldText = (g) => (Math.abs(g) < 100 ? 'even' : `${g > 0 ? '+' : '−'}${(Math.abs(g) / 1000).toFixed(1)}k`);
-  // on the home screen? If not, how to put it there (Chrome also offers its own button)
+  const hhmm = (at) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  $('install').hidden = standalone;
-  let installAsk = null;
-  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installAsk = e; $('installBtn').hidden = false; });
-  $('installBtn').addEventListener('click', () => { if (installAsk) installAsk.prompt(); installAsk = null; $('installBtn').hidden = true; });
+  function el(tag, cls, ...kids) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    e.append(...kids);
+    return e;
+  }
+  const img = (src, alt = '', cls = '') => Object.assign(new Image(), { alt, className: cls, decoding: 'async' }, src && { src }); // no src: an empty circle, not a broken picture
+  function btn(cls, kids, on, pressed) {
+    const b = el('button', cls, ...kids);
+    b.type = 'button';
+    if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+    if (on) b.addEventListener('click', on);
+    return b;
+  }
+  const T = document.createElement('template'), svg = (html) => { T.innerHTML = html; return T.content.firstChild; }; // our own markup only
+  const ic = (d, size, vb = 24, w = 1.8) => svg(`<svg width="${size}" height="${size}" viewBox="0 0 ${vb} ${vb}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`);
+  function arc(size, r, w, pct, color) { // a ring filled to pct, from the top
+    const c = 2 * Math.PI * r, h = size / 2, p = Math.max(0, Math.min(100, pct));
+    return svg(`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${w}"/>${p ? `<circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${((c * p) / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${h} ${h})"/>` : ''}</svg>`);
+  }
+  let toastAt = 0;
+  function toast(text) {
+    $('toast').replaceChildren(el('span', '', text));
+    clearTimeout(toastAt);
+    toastAt = setTimeout(() => $('toast').replaceChildren(), 2600);
+  }
+
+  // your colours and motion from the app on your PC (Settings > Look there), kept for the next open
+  const LOOK = ['bg', 'panel', 'raised', 'fg', 'muted', 'line', 'accent', 'accent-fg', 'good', 'bad', 'g-great', 'g-good', 'g-risky'];
+  const colour = (v) => typeof v === 'string' && /^(#[0-9a-f]{3,8}|rgba?\([\d.,\s%]+\))$/i.test(v.trim());
+  let lookWas = '';
+  function look(l) {
+    const j = JSON.stringify(l), r = document.documentElement, v = (l && l.v) || {};
+    if (j === lookWas) return;
+    lookWas = j;
+    store.set('lpc-remote-look', j);
+    for (const k of LOOK) if (colour(v[k])) r.style.setProperty(`--${k}`, v[k].trim()); else r.style.removeProperty(`--${k}`);
+    r.style.colorScheme = l.scheme === 'light' ? 'light' : 'dark';
+    if (l.motion === 'on' || l.motion === 'reduced') r.dataset.motion = l.motion; else delete r.dataset.motion;
+    document.querySelector('meta[name="theme-color"]').content = colour(v.bg) ? v.bg.trim() : '#0b0809';
+  }
+  try { const l = JSON.parse(store.get('lpc-remote-look')); if (l && typeof l === 'object') look(l); } catch {}
+
   if (!valid(code)) {
-    $('phase').hidden = true;
-    $('conn').textContent = '';
+    $('wait').hidden = true;
     $('linkForm').hidden = false;
     $('linkForm').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -293,18 +559,18 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   }
 
   // the ring when a match is found, and when it's your turn to pick or ban (if the PC has its turn alarm on): the phone
-  // vibrates, and plays a ring once a tap on the page has allowed sound. (The tap's own button still works: nothing
-  // above the note moves, and nothing is drawn again.)
+  // vibrates, and plays a ring once a tap on the page has allowed sound (turning Ring on is such a tap). Ring off: neither.
   let ac = null, rang = false, turnRang = -1;
-  const soundNote = () => { $('sound').hidden = !!ac && ac.state === 'running'; };
+  const ringOn = () => store.get('lpc-remote-ring') !== '0';
   const unlock = () => {
+    if (!ringOn()) return;
     if (!ac) try { ac = new AudioContext(); } catch {}
-    if (ac && ac.state === 'suspended') ac.resume().then(soundNote, () => {});
-    soundNote();
+    if (ac && ac.state === 'suspended') ac.resume().catch(() => {});
   };
   addEventListener('pointerdown', unlock, true);
-  function ring(notes, buzz) {
-    if (navigator.vibrate) navigator.vibrate(buzz);
+  function buzz(notes, pattern) {
+    if (!ringOn()) return;
+    if (navigator.vibrate) navigator.vibrate(pattern);
     if (!ac || ac.state !== 'running') return;
     notes.forEach((f, i) => {
       const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + i * 0.18;
@@ -318,6 +584,8 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     });
   }
   const MATCH = [880, 1175, 880, 1175, 880, 1175, 880, 1175], TURN = [880, 660, 880, 660];
+  $('ring').checked = ringOn();
+  $('ring').addEventListener('change', (e) => { store.set('lpc-remote-ring', e.target.checked ? '1' : '0'); unlock(); });
   // Keep the screen on (where the phone allows it), as a screen that goes off stops the page and its ring
   let wake = null;
   async function keepAwake(on) {
@@ -332,10 +600,19 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     if ($('awake').checked) keepAwake(true);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('awake').checked) keepAwake(true); });
   }
+  // Add to home screen: Chrome's own prompt where it offers one, else how to
+  $('install').hidden = standalone;
+  let installAsk = null;
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installAsk = e; });
+  $('installBtn').addEventListener('click', () => {
+    if (installAsk) { installAsk.prompt(); installAsk = null; return; }
+    $('installHow').textContent = iphone ? 'In Safari, tap Share, then Add to Home Screen.' : 'In your browser’s menu, tap Add to Home screen.';
+    $('installHow').hidden = false;
+  });
 
   fetch('https://ddragon.leagueoflegends.com/api/versions.json').then((r) => r.json()).then((v) => {
     ddv = v[0];
-    const get = (file, use) => fetch(`https://ddragon.leagueoflegends.com/cdn/${ddv}/data/en_US/${file}.json`).then((r) => r.json()).then(use).then(() => { drawn = {}; render(); }, () => {});
+    const get = (file, use) => fetch(`${DD}/${ddv}/data/en_US/${file}.json`).then((r) => r.json()).then(use).then(() => { drawn = {}; render(); }, () => {});
     get('champion', (j) => { for (const c of Object.values(j.data)) champs[c.key] = c; });
     get('summoner', (j) => { for (const x of Object.values(j.data)) spells[x.key] = x; });
     get('runesReforged', (j) => { trees = j; for (const t of j) t.slots.forEach((row, i) => { for (const r of row.runes) runes[r.id] = { ...r, tree: t.id, row: i }; }); });
@@ -359,271 +636,291 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     conn = null;
     if (old) old.close(); // a try that never opened
     const c = (conn = peer.connect(pc, { reliable: true }));
-    c.on('open', () => { if (conn !== c) return; c.send(hi()); render(); }); // any message has the PC send its state again: its first one can get lost
+    c.on('open', () => { if (conn !== c) return; downText = ''; c.send(hi()); render(); }); // any message has the PC send its state again: its first one can get lost
     c.on('data', (m) => { if (conn === c && m && m.t === 'state') { state = m; if (m.now > 0) skew = Date.now() - m.now; render(); } });
     c.on('close', () => { if (conn !== c) return; conn = null; state = null; down('Lost the app on your PC. Trying again…'); later(); });
   }
-  function down(text) { $('phase').textContent = text; render(); }
+  function down(text) { downText = text; render(); }
 
-  const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  // ---- one screen at a time: Match found over everything, else the menu's (League follows League: Play, Finding a
+  // match, champ select, the game). A match found, champ select or a game brings League back from Chat or Settings.
+  // Each part is drawn again only when what it shows changes (drawn), so a tap's button stays put.
+  let tab = 'league', bigWas = '', scrWas = '', drawn = {}, skew = 0, lastGame = '', noteWas = '', seenRoom = -1;
+  const changed = (k, v) => { const j = JSON.stringify(v); if (drawn[k] === j) return false; drawn[k] = j; return true; };
+  const SCREENS = ['wait', 'play', 'finding', 'found', 'cs', 'game', 'chat', 'settings'];
   function render() {
     const on = !!(conn && conn.open), s = on ? state : null;
-    $('dot').toggleAttribute('data-on', on);
     $('conn').textContent = on ? 'Connected' : 'Connecting…';
-    soundNote();
-    if (s) $('phase').textContent = PHASE[s.phase] || 'In League’s client.';
     const found = !!(s && s.rc && s.rc.response !== 'Accepted' && s.rc.response !== 'Declined');
-    if (found && !rang) ring(MATCH, [500, 200, 500, 200, 500, 200, 500]);
+    if (found && !rang) buzz(MATCH, [500, 200, 500, 200, 500, 200, 500]);
     rang = !!(s && s.rc);
     const a = s && s.cs && s.cs.action;
-    if (a && a.now && a.id !== turnRang) { turnRang = a.id; if (s.alarm) ring(TURN, [300, 150, 300]); }
-    const q = s && s.queue;
-    $('queue').hidden = !q || (s.phase !== 'Lobby' && s.phase !== 'Matchmaking');
-    if (!$('queue').hidden) {
-      const finding = s.phase === 'Matchmaking';
-      $('queueState').textContent = finding ? `Finding a match: ${clock(q.time || 0)}${q.est ? `, usually about ${clock(q.est)}` : ''}.` : q.lead ? `In a lobby${q.custom ? ' for a custom game' : ''}.` : 'In a lobby. Its leader starts the game.';
-      $('queueBtn').hidden = !finding && !q.lead;
-      $('queueBtn').textContent = finding ? 'Stop' : q.custom ? 'Start the game' : 'Find match';
-      $('queueBtn').classList.toggle('primary', !finding);
-    }
-    $('rc').hidden = !(s && s.rc);
-    if (s && s.rc) $('rcLeft').textContent = s.rc.response === 'Accepted' ? 'You accepted. Waiting for the others…' : s.rc.response === 'Declined' ? 'You declined.' : `${s.rc.left} s left`;
-    $('cs').hidden = !(s && s.cs);
-    if (s && s.cs) renderCs(s.cs);
-    else if (s) ed = null; // champ select is over: a page left half changed goes
-    $('game').hidden = !(s && s.game);
-    if (s && s.game) {
-      const g = s.game, items = [...(g.timers || []).map(([n, t]) => [n, mmss(t)]), ...(g.kills ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`]] : []), ...(g.gold != null ? [['Gold', goldText(g.gold)]] : []), ...(g.win != null ? [['Win chance', `${g.win}%`]] : [])];
-      $('timers').replaceChildren(...items.map(([n, v]) => { const el = document.createElement('span'), b = document.createElement('b'); b.textContent = n; el.append(b, v); return el; }));
-      renderFoes(g.foes);
-      renderCalls(!!g.calls);
-      $('gameLines').replaceChildren(...(g.lines || []).map((t) => el('p', '', t)));
-      $('buy').hidden = !g.buy;
-      if (g.buy) $('buy').replaceChildren(...(/^https:/.test(g.buy.pic) ? [img(g.buy.pic, '')] : []), el('span', '', el('b', '', 'Buy next: '), g.buy.name, el('br'), g.buy.why));
-      const ps = Array.isArray(g.players) ? g.players : [], pk = JSON.stringify(ps) + (ddv ? '+' : '');
-      $('roster').hidden = !ps.length;
-      if ($('roster').dataset.k !== pk) { // only when a player's line changes, so the pictures don't flicker
-        $('roster').dataset.k = pk;
-        const one = (p) => { const li = entry(p.champ, p.me ? 'You' : p.name || name(p.champ), [name(p.champ), p.score].filter(Boolean).join(' · '), p.rank && el('small', 'rk', p.rank)); li.toggleAttribute('data-me', !!p.me); return li; };
-        $('gTeam').replaceChildren(...ps.filter((p) => p.ally).map(one));
-        $('gThem').replaceChildren(...ps.filter((p) => !p.ally).map(one));
-      }
-    }
-    $('me').hidden = !(s && s.me) || !!(s.cs || s.game); // not in champ select or a game, where those come first
-    if (!$('me').hidden) renderMe(s.me);
-    $('chat').hidden = !(s && Array.isArray(s.chat));
-    if (!$('chat').hidden) renderChat(s.chat);
-    $('lol').hidden = !(s && s.lol);
-    if (s && s.lol) renderLol(s.lol);
+    if (a && a.now && a.id !== turnRang) { turnRang = a.id; if (s.alarm) buzz(TURN, [300, 150, 300]); }
+    if (s && s.look) look(s.look);
+    const big = !s ? '' : s.rc ? 'rc' : s.cs ? 'cs' : s.game ? 'game' : '';
+    if (big && big !== bigWas) tab = 'league';
+    bigWas = big;
+    if (s && s.queue && s.queue.name) lastGame = s.queue.name; // for Match found
+    const scr = s && s.rc ? 'found' : tab !== 'league' ? tab : !s || (!s.game && /^(GameStart|InProgress|Reconnect)$/.test(s.phase)) ? 'wait'
+      : s.cs ? 'cs' : s.game ? 'game' : s.phase === 'Matchmaking' ? 'finding' : 'play';
+    for (const id of SCREENS) $(id).hidden = id !== scr;
+    if (scr !== scrWas) { scrWas = scr; $('main').scrollTop = 0; }
+    $('menu').hidden = scr === 'found';
+    for (const t of ['league', 'chat', 'settings']) if (t === tab) $(`m-${t}`).setAttribute('aria-current', 'page'); else $(`m-${t}`).removeAttribute('aria-current');
+    $('queueBtn').hidden = $('lock').hidden = true;
+    if (scr === 'wait') drawWait(s);
+    else if (scr === 'play') drawPlay(s);
+    else if (scr === 'finding') drawFinding(s.queue || {});
+    else if (scr === 'found') drawFound(s.rc);
+    else if (scr === 'cs') drawCs(s.cs);
+    else if (scr === 'game') drawGame(s.game);
+    else if (scr === 'chat') drawChat(s);
     $('auto').checked = !!(s && s.auto);
     $('auto').disabled = !s;
+    if (s && !s.cs) csReset();
+    $('bar').hidden = $('queueBtn').hidden && $('lock').hidden;
+    document.body.toggleAttribute('data-bar', !$('bar').hidden);
+    // a dot on Chat: a room message since you last looked, a League friend's unread message or an invite
+    const room = s && Array.isArray(s.chat) && s.chat.length ? s.chat[s.chat.length - 1].at : 0;
+    if (seenRoom < 0 || (scr === 'chat' && !$('roomBox').hidden)) seenRoom = room;
+    $('chatDot').hidden = tab === 'chat' || !s || !(room > seenRoom || (s.lol && (s.lol.inv.length || s.lol.convs.some((c) => c.unread > 0))));
+    const note = (s && s.cs && s.cs.note) || ''; // what the PC says about what you did, as a note over the menu
+    if (note && note !== noteWas) toast(note);
+    noteWas = note;
   }
-  // enemy timers (when the PC has them on): a tap starts one, or takes a running one off. Drawn again only when the
-  // champions change, so a button doesn't move under a finger
-  function renderFoes(foes) {
-    const list = Array.isArray(foes) ? foes : [], key = list.join() + (ddv ? '+' : '');
-    $('foes').hidden = !list.length;
-    if ($('foes').dataset.k === key) return;
-    $('foes').dataset.k = key;
-    const btn = (label, m) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = label; b.addEventListener('click', () => send({ t: 'timer', ...m })); return b; };
-    const row = (who, ...bs) => { const r = document.createElement('div'), s = document.createElement('span'); r.className = 'trade'; s.textContent = who; r.append(s, ...bs); return r; };
-    $('foes').replaceChildren(...list.map((k) => row(name(k), btn('Flash', { what: 'flash', champ: k }), btn('Ultimate', { what: 'r', champ: k }))),
-      ...(list.length ? [row('Their jungle', btn('Red buff', { what: 'red' }), btn('Blue buff', { what: 'blue' }))] : []));
+  function drawWait(s) {
+    $('waitHead').textContent = s ? 'In game' : downText ? 'Not connected' : 'Connecting';
+    $('waitText').textContent = s ? 'Loading into the game.' : downText || 'Looking for Premade on your PC.';
   }
-  // callouts for your Premade teammates in the game (What's new 183, with Teammates' callouts on the PC): a tap on a lane
-  // says its laner is missing, like “Premade, mid missing”
-  function renderCalls(on) {
-    $('teamCalls').hidden = !on;
-    if (!on || $('teamCalls').childElementCount) return;
-    const r = document.createElement('div'), s = document.createElement('span');
-    r.className = 'trade';
-    s.textContent = 'Missing';
-    r.append(s, ...['top', 'jungle', 'mid', 'bot'].map((lane) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = lane[0].toUpperCase() + lane.slice(1); b.addEventListener('click', () => send({ t: 'call', lane })); return b; }));
-    $('teamCalls').replaceChildren(r);
+  const roleLine = (r) => [r[0], r[0] === 'FILL' ? '' : r[1]].map((k) => POS[k]).filter(Boolean).join(', then ');
+
+  // ---- Play: the game to play (outside a lobby, a tap makes one), your two roles, your League friends to invite, and
+  // Find match (Start the game in a custom game) in a lobby you lead; Your League under them
+  function drawPlay(s) {
+    const q = s.queue || {}, lobby = s.phase === 'Lobby', games = q.games || [], mayNot = lobby && !q.lead;
+    $('leave').hidden = !lobby;
+    $('playNote').textContent = !s.phase ? 'League isn’t running on your PC.' : mayNot ? 'Your lobby’s leader picks the game and starts it.' : !lobby && games.length ? 'Pick a game to make a lobby.' : '';
+    $('playNote').hidden = !$('playNote').textContent;
+    $('games').hidden = !games.length || (lobby && q.custom);
+    if (changed('games', [games, q.now, mayNot])) $('games').replaceChildren(...games.map(([id, n]) => Object.assign(btn('pill', [n], () => { if (id !== q.now) send({ t: 'game', id }); }, id === q.now), { disabled: mayNot })));
+    const r = lobby && q.roles;
+    $('rolesBox').hidden = !r;
+    if (r && changed('roles', r)) {
+      $('roleLine').textContent = roleLine(r);
+      const row = (i) => el('div', 'rrow', el('span', '', i ? 'Second' : 'First'), ...Object.keys(POS).map((k) => {
+        const b = btn('role', [ic(ROLE[k], 20, 20, 1.7)], () => pickRole(r, i, k), r[i] === k);
+        b.setAttribute('aria-label', `${i ? 'Second' : 'First'} role: ${POS[k]}`);
+        b.title = POS[k];
+        return b;
+      }));
+      $('roleRows').replaceChildren(row(0), ...(r[0] === 'FILL' ? [] : [row(1)])); // Fill needs no second
+    }
+    $('inviteBox').hidden = !lobby || !q.friends;
+    if (lobby && q.friends && changed('friends', [q.friends, ddv])) $('friends').replaceChildren(...(q.friends.length ? q.friends.map((f) => {
+      const b = btn('friend', [img(face(f.icon)), el('b', '', f.name), el('small', '', f.st === 'in' ? 'Joined' : f.st ? 'Invited' : 'Invite')], () => send({ t: 'invite', puuid: f.id }));
+      b.dataset.st = f.st || '';
+      b.disabled = !!f.st;
+      b.setAttribute('aria-label', f.st === 'in' ? `${f.name} is in your lobby` : f.st ? `${f.name} is invited` : `Invite ${f.name}`);
+      return b;
+    }) : [el('p', 'note', 'None of your League friends are online.')]));
+    $('me').hidden = !s.me;
+    if (s.me && changed('me', s.me)) drawMe(s.me);
+    $('queueBtn').hidden = !(lobby && q.lead);
+    $('queueBtn').textContent = q.custom ? 'Start the game' : 'Find match';
+    $('queueBtn').className = 'big red';
   }
-  function renderMe(m) {
-    const k = JSON.stringify(m) + (ddv ? '+' : '');
-    if ($('me').dataset.k === k) return;
-    $('me').dataset.k = k;
-    $('meName').textContent = m.name;
-    $('meRanks').replaceChildren(...(m.ranks || []).map(([n, v]) => el('span', '', el('b', '', n), v)));
-    $('meToday').textContent = m.today || '';
-    $('meGames').replaceChildren(...(m.games || []).map((g) => { const li = entry(g.champ, name(g.champ) || 'A game', `${g.win ? 'Win' : 'Loss'} · ${g.line}`); li.dataset.win = g.win ? '1' : '0'; return li; }));
-    $('meProfile').hidden = !m.link;
-    if (m.link) $('meProfile').href = m.link;
+  function pickRole(r, i, k) { // the role that's in the other row swaps into this one's
+    const n = [...r];
+    if (n[i] === k) return;
+    if (n[1 - i] === k) n[1 - i] = n[i];
+    n[i] = k;
+    send({ t: 'roles', first: n[0], second: n[1] });
   }
-  let chatWas = '';
-  function renderChat(lines) {
-    const j = JSON.stringify(lines);
-    if (j === chatWas) return;
-    chatWas = j;
-    $('chatLog').replaceChildren(...lines.map((l) => {
-      const li = document.createElement('li'), t = document.createElement('time'), b = document.createElement('b');
-      t.textContent = new Date(l.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      b.textContent = l.who;
-      li.append(t, b, String(l.text));
-      return li;
+  // Your League: each rank's crest in a ring of its LP, today's ranked games as W and L with the LP, and your last 10
+  // games as their champions with a win or a loss under each
+  function drawMe(m) {
+    $('meProfile').hidden = !/^https?:\/\//.test(m.link || '');
+    if (!$('meProfile').hidden) $('meProfile').href = m.link;
+    $('meRanks').hidden = !m.ranks.length;
+    $('meRanks').replaceChildren(...m.ranks.map((k) => {
+      const ranked = Number.isInteger(k.lp), c = /^#[0-9a-f]{6}$/i.test(k.c || '') ? k.c : 'var(--fg)';
+      const crest = el('span', 'crest', arc(56, 24, 4, !ranked ? 0 : k.top ? 100 : k.lp, c), ...(/^https:\/\//.test(k.emb || '') ? [img(k.emb)] : []));
+      crest.setAttribute('role', 'img');
+      crest.setAttribute('aria-label', `${k.q}: ${k.tier}${ranked ? `, ${k.lp} LP` : ''}`);
+      return el('div', 'rk', crest, el('span', '', el('b', '', k.tier), ...(ranked ? [el('small', '', `${k.lp} LP`)] : []), el('i', '', k.q)));
     }));
-    $('chatLog').scrollTop = $('chatLog').scrollHeight;
-  }
-  // League chat (app 1.14 on the PC): your invites to accept or decline, your conversations with friends, and the open
-  // one's messages to answer
-  let lolWas = '';
-  function renderLol(l) {
-    const j = JSON.stringify(l);
-    if (j === lolWas) return;
-    lolWas = j;
-    const btn = (text, cls, m) => Object.assign(document.createElement('button'), { type: 'button', className: cls, textContent: text, onclick: () => send(m) });
-    $('lolInv').replaceChildren(...l.inv.map((i) => {
-      const row = document.createElement('div'), t = document.createElement('span');
-      row.className = 'trade';
-      t.textContent = `${i.from} invited you to ${i.q}.`;
-      row.append(t, btn('Accept', 'btn small primary', { t: 'lolinv', id: i.id, yes: true }), btn('Decline', 'btn small', { t: 'lolinv', id: i.id, yes: false }));
-      return row;
+    const t = m.today || [], w = t.filter(Boolean).length;
+    $('meToday').hidden = !t.length;
+    $('todayBlocks').replaceChildren(...t.map((x) => el('i', x ? '' : 'l', x ? 'W' : 'L')));
+    $('todayBlocks').setAttribute('aria-label', `Today: ${w} won, ${t.length - w} lost`);
+    $('todayLp').textContent = `${m.lp < 0 ? '−' : '+'}${Math.abs(m.lp | 0)} LP`;
+    $('todayLp').classList.toggle('down', m.lp < 0);
+    $('meLast').hidden = !m.games.length;
+    $('last10').replaceChildren(...m.games.map((g) => {
+      const sp = el('span', '', img(pic(g.champ)), el('i', g.win ? '' : 'l')), lp = Number.isInteger(g.lp) ? `, ${g.lp < 0 ? '−' : '+'}${Math.abs(g.lp)} LP` : '';
+      sp.setAttribute('role', 'img');
+      sp.setAttribute('aria-label', sp.title = `${name(g.champ) || 'A game'}: ${g.win ? 'won' : 'lost'}, ${g.kda}${lp}`);
+      return sp;
     }));
-    $('lolConvs').replaceChildren(...(l.convs.length ? l.convs.map((c) => btn(`${c.name}${c.unread ? ` (${c.unread})` : ''}`, `btn small${l.open && l.open.id === c.id ? ' primary' : ''}`, { t: 'lolopen', id: c.id }))
-      : [Object.assign(document.createElement('span'), { className: 'hint', textContent: 'No messages from friends yet.' })]));
-    $('lolLog').hidden = $('lolForm').hidden = !l.open;
-    if (!l.open) return;
-    $('lolLog').replaceChildren(...l.open.msgs.map((m) => { const li = document.createElement('li'), b = document.createElement('b'); b.textContent = m.me ? 'You' : l.open.name; li.append(b, String(m.text)); return li; }));
-    $('lolLog').scrollTop = $('lolLog').scrollHeight;
   }
-  $('lolForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const text = $('lolText').value.trim();
-    if (text && conn && conn.open) { send({ t: 'lolsay', text }); $('lolText').value = ''; }
-  });
-  // ---- champ select, as in League's client: whose turn it is and until when, both teams and their bans, then tabs to
-  // pick or ban (or take a champion from ARAM's bench), and for your runes, summoner spells and skin. Each part is drawn
-  // again only when what it shows changes (drawn), so a tap's button stays put.
-  let drawn = {}, skew = 0, tab = 'champs', turnTab = -1, slot = 0, ed = null; // skew: this phone's clock less the PC's; turnTab: the turn that last brought up Champions; slot: D (0) or F (1); ed: the rune page as changed here
-  const changed = (k, v) => { const j = JSON.stringify(v); if (drawn[k] === j) return false; drawn[k] = j; return true; };
-  // ponytail: the stat shards as League has had them since 2024, by hand as Data Dragon hasn't got them; change them
-  // here when Riot does
-  const SHARDS = [[[5008, 'Adaptive force'], [5005, 'Attack speed'], [5007, 'Ability haste']], [[5008, 'Adaptive force'], [5010, 'Move speed'], [5001, 'Health scaling']], [[5011, 'Health'], [5013, 'Tenacity'], [5001, 'Health scaling']]];
-  const DD = 'https://ddragon.leagueoflegends.com/cdn';
-  const spellPic = (k) => (spells[k] && ddv ? `${DD}/${ddv}/img/spell/${spells[k].image.full}` : '');
-  const spellName = (k) => (spells[k] || {}).name || '';
-  function el(tag, cls, ...kids) {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
-    e.append(...kids);
-    return e;
+  function drawFinding(q) {
+    $('qTime').textContent = mmss(q.time || 0);
+    $('qEst').textContent = q.est ? `Usually about ${mmss(q.est)}` : '';
+    if (changed('party', [q.name, q.roles, q.party, ddv])) {
+      $('qLine').textContent = [q.name, q.roles && roleLine(q.roles)].filter(Boolean).join(' · ');
+      $('party').replaceChildren(...(q.party || []).map((p) => el('span', '', img(face(p.icon)), p.name)));
+    }
+    $('queueBtn').hidden = false;
+    $('queueBtn').textContent = 'Stop';
+    $('queueBtn').className = 'big out';
   }
-  const img = (src, alt, cls = '') => Object.assign(new Image(), { src, alt, className: cls, loading: 'lazy' });
-  const face = (k, cls = 'face') => (pic(k) ? img(pic(k), name(k), cls) : el('span', cls));
-  function btn(cls, kids, on, pressed) {
-    const b = el('button', cls, ...kids);
-    b.type = 'button';
-    if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-    b.addEventListener('click', on);
-    return b;
+  function drawFound(rc) {
+    const yes = rc.response === 'Accepted', no = rc.response === 'Declined', c = 2 * Math.PI * 96;
+    $('rcLeft').textContent = String(rc.left);
+    $('rcArc').style.strokeDasharray = `${((c * Math.min(12, rc.left)) / 12).toFixed(1)} ${c.toFixed(1)}`; // League gives 12 s
+    $('rcRing').setAttribute('aria-label', `${rc.left} seconds to accept`);
+    $('rcGame').textContent = lastGame;
+    $('rcWait').hidden = !yes && !no;
+    $('rcWait').textContent = no ? 'You declined.' : 'Waiting for everyone to accept';
+    $('accept').hidden = $('decline').hidden = yes || no;
+    $('accepted').hidden = !yes;
   }
-  // a champion's button: hovers it, then locks it in (or bans it) on your turn
-  const champBtn = (k, a, off) => Object.assign(btn('ch', [img(pic(k), ''), name(k)], () => tap(k), !!a && a.champ === k), { disabled: !!off });
-  function tap(k) {
-    const a = state && state.cs && state.cs.action;
-    if (a) send(a.now && a.champ === k ? { t: 'lock', champ: k } : { t: 'hover', champ: k });
+
+  // ---- champ select, as in League's client: whose turn it is and the clock, both teams over their champions' art and
+  // the bans, trades, then tabs to pick or ban (or take a champion from ARAM's bench), and for your runes, summoner
+  // spells and skin; Lock in pinned over the menu
+  let tab2 = 'champs', turnTab = -1, slot = -1, ed = null, editing = false, mineOn = true, inCs = false; // slot: D (0), F (1) or none; ed: the rune page as changed here
+  function csReset() { if (!inCs) return; inCs = false; ed = null; editing = false; mineOn = true; slot = -1; $('q').value = ''; dodgeSet(false); }
+  const who = (p) => p.name || name(p.champ) || POS[p.pos] || 'A teammate';
+  function art(p) { // their champion's loading screen art in their skin (a chroma shows its skin's)
+    const c = champs[p.champ];
+    if (!c) return '';
+    const base = ((state && state.cs && state.cs.skins) || []).find((x) => x.ch.some(([id]) => id === p.skin)), sk = base ? base.id : p.skin | 0;
+    return `${DD}/img/champion/loading/${c.id}_${Math.floor(sk / 1000) === +c.key ? sk % 1000 : 0}.jpg`;
   }
-  // a row of a list: the champion's face, a bold line and smaller ones (text, or an element) under it
-  function entry(champ, title, ...lines) {
-    return el('li', '', face(champ), el('span', 'txt', el('b', '', title), ...lines.filter(Boolean).map((t) => (typeof t === 'string' ? el('small', '', t) : t))));
+  function artImg(src) {
+    const i = img(src);
+    i.addEventListener('error', () => { if (/_0\.jpg$/.test(i.src)) i.hidden = true; else i.src = i.src.replace(/_\d+\.jpg$/, '_0.jpg'); });
+    return i;
   }
-  // a teammate or an opponent: their name where League shows it, else their champion; their role, whether it's their
-  // turn, their champion (dimmed while it's a hover) and an ally's summoner spells
-  function seat(p, ally) {
-    const li = document.createElement('li'), c = p.champ ? name(p.champ) : '', who = p.me ? 'You' : p.name || c || (ally ? 'Teammate' : 'Opponent');
-    const sub = [POS[p.pos], p.now && `${p.now === 'ban' ? 'banning' : 'picking'}…`, c && !p.locked ? `hovering ${c}` : c !== who && c].filter(Boolean).join(' · ');
-    li.toggleAttribute('data-me', !!p.me);
-    li.toggleAttribute('data-now', !!p.now);
-    li.toggleAttribute('data-locked', !!p.locked);
-    li.append(p.champ ? face(p.champ) : el('span', 'face'), el('span', 'txt', el('b', '', who), el('small', '', sub || '\u00a0')));
-    if (Array.isArray(p.spells)) li.append(el('span', 'sp', ...p.spells.filter(spellPic).map((k) => img(spellPic(k), spellName(k)))));
-    return li;
+  // a team's five: each one changed in place, so a champion coming in fades or pops without the others
+  function tiles(box, list) {
+    while (box.children.length > list.length) box.lastChild.remove();
+    list.forEach((p, i) => {
+      const t = box.children[i] || box.appendChild(Object.assign(el('div', 'tile', el('span', '', el('b'), el('small'))), { role: 'listitem' })), k = JSON.stringify(p);
+      if (t.dataset.k === k) return;
+      t.dataset.k = k;
+      t.setAttribute('role', 'listitem');
+      t.toggleAttribute('data-me', !!p.me);
+      t.toggleAttribute('data-locked', !!p.locked);
+      t.setAttribute('aria-label', [p.name, p.champ !== p.name && p.champ, p.sub].filter(Boolean).join(', ') || 'Nobody yet');
+      const old = t.querySelector('img, svg'), src = p.art || p.pos || '';
+      if (!old || old.dataset.src !== src) {
+        const n = p.art ? artImg(p.art) : ic(ROLE[p.pos] || ROLE.FILL, 22, 20, 1.6);
+        n.dataset.src = src;
+        if (old) old.replaceWith(n); else t.prepend(n);
+      }
+      t.querySelector('b').textContent = p.name;
+      t.querySelector('small').textContent = p.sub;
+    });
   }
-  function renderCs(cs) {
-    const a = cs.action, ban = !!a && a.type === 'ban', me = cs.team.find((p) => p.me) || {};
-    const them = cs.them || (cs.theirs || []).map((champ) => ({ champ, locked: champ > 0 })); // from a PC page still on the last version
-    $('stage').textContent = cs.stage || '';
-    $('turn').textContent = a ? `${a.now ? `Your turn to ${a.type}` : 'Your pick comes later'}${a.champ ? `, hovering ${name(a.champ)}` : ''}.` : me.locked ? `You’re playing ${name(me.champ)}.` : 'Waiting for the others.';
-    $('csNote').textContent = cs.note || '';
-    $('csNote').hidden = !cs.note;
+  const doing = (p) => (p.now === 'ban' ? 'Banning' : p.now ? 'Picking' : '');
+  function drawCs(cs) {
+    if (!inCs) { inCs = true; tab2 = 'champs'; }
+    const a = cs.action, ban = !!a && a.type === 'ban', me = cs.team.find((p) => p.me) || {}, them = cs.them || [];
+    const now = [...cs.team, ...them].filter((p) => p.now), mate = now.length === 1 && cs.team.includes(now[0]) && !now[0].me ? now[0] : null;
+    $('turn').textContent = a && a.now ? `Your turn to ${a.type}` : mate ? `${me.locked ? 'Locked in. ' : ''}${who(mate)} is ${mate.now === 'ban' ? 'banning' : 'picking'}` : cs.stage || (me.locked ? 'Locked in' : 'Champ select');
+    tiles($('team'), cs.team.map((p) => ({ art: art(p), pos: p.pos, me: p.me, locked: p.locked, name: p.me ? 'You' : p.name || name(p.champ), champ: name(p.champ), sub: doing(p) || POS[p.pos] || '' })));
+    tiles($('them'), them.map((p) => ({ art: p.champ ? art(p) : '', pos: p.pos, locked: true, name: name(p.champ), champ: name(p.champ), sub: doing(p) })));
     const bans = cs.bans || [[], []];
-    if (changed('bans', bans)) {
+    if (changed('bans', [bans, ddv])) {
       $('bans').hidden = !bans[0].length && !bans[1].length;
-      $('ourBans').replaceChildren(...bans[0].map((k) => face(k, '')));
-      $('theirBans').replaceChildren(...bans[1].map((k) => face(k, '')));
+      const faces = (l) => l.map((k) => Object.assign(img(pic(k), name(k)), { title: name(k) }));
+      $('ourBans').replaceChildren(...faces(bans[0]));
+      $('theirBans').replaceChildren(...faces(bans[1]));
     }
-    if (changed('teams', [cs.team.map(({ trades, ...p }) => p), them])) {
-      $('team').replaceChildren(...cs.team.map((p) => seat(p, true)));
-      $('them').replaceChildren(...them.map((p) => seat(p, false)));
-    }
-    // trades League offers with each teammate (index.html tradesWith): ask, or answer what they asked
-    if (changed('trades', cs.team.map((p) => [p.trades, p.name, p.champ, p.pos]))) $('trades').replaceChildren(...cs.team.filter((p) => Array.isArray(p.trades) && p.trades.length).map((p) => {
-      const row = document.createElement('div'), who = document.createElement('span');
-      row.className = 'trade';
-      who.textContent = `${p.name || (p.champ ? name(p.champ) : 'A teammate')}${POS[p.pos] ? `, ${POS[p.pos]}` : ''}`;
-      row.append(who);
-      for (const t of p.trades) {
-        const acts = t.state === 'AVAILABLE' ? [['request', `Ask to swap ${t.what}`]] : t.state === 'RECEIVED' ? [['accept', `Swap ${t.what}`], ['decline', 'No thanks']] : [['cancel', `Cancel the ${t.what} swap`]];
-        for (const [act, label] of acts) {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'btn small' + (act === 'accept' ? ' primary' : '');
-          b.textContent = label;
-          b.addEventListener('click', () => send({ t: 'trade', path: t.path, id: t.id, act }));
-          row.append(b);
+    // trades League offers with each teammate (index.html tradesWith): what they asked of you, what you asked, and what you may ask
+    if (changed('trades', [cs.team.map((p) => [p.trades, p.name, p.champ, p.pos]), ddv])) {
+      const cards = [], asks = new Map();
+      for (const p of cs.team) for (const t of p.trades || []) {
+        const w = who(p), go = (act) => () => send({ t: 'trade', path: t.path, id: t.id, act });
+        if (t.state === 'RECEIVED') cards.push(el('div', 'card', el('span', '', el('b', '', w), ` wants to swap ${t.what}`), el('div', 'two', btn('yes', [`Swap ${t.what}`], go('accept')), btn('no', ['No thanks'], go('decline')))));
+        else if (t.state === 'SENT') cards.push(el('div', 'card', el('span', '', 'You asked ', el('b', '', w), ` to swap ${t.what}`), el('div', 'two', btn('no', ['Cancel'], go('cancel')))));
+        else {
+          const b = btn('pill', [t.what[0].toUpperCase() + t.what.slice(1)], go('request'));
+          b.setAttribute('aria-label', `Ask ${w} to swap ${t.what}`);
+          asks.set(w, [...(asks.get(w) || []), b]);
         }
       }
-      return row;
-    }));
+      $('trades').replaceChildren(...cards, ...[...asks].map(([w, bs]) => el('div', 'asks', el('span', '', `Swap with ${w}`), ...bs)));
+    }
     // the tabs there's something for (Champions while there's a pick, a ban or ARAM's bench); your turn brings up Champions
     const modeSpells = Object.values(spells).filter((x) => (x.modes || []).includes(cs.mode || 'CLASSIC')).sort((x, y) => x.name.localeCompare(y.name));
-    const tabs = { champs: !!(a || cs.bench || cs.rerolls), runes: !!(cs.pages && cs.pages.length && trees.length), spells: !!(cs.spells && modeSpells.length), skins: !!(cs.skins && cs.skins.length) };
-    if (a && a.now && a.id !== turnTab) { turnTab = a.id; tab = 'champs'; }
-    if (!tabs[tab]) tab = Object.keys(tabs).find((k) => tabs[k]) || tab;
-    $('tabBar').hidden = !tabs[tab];
+    const tabs = { champs: !!(a || cs.bench || cs.rerolls), runes: !!((cs.pages || []).length && trees.length), spells: !!(cs.spells && modeSpells.length), skins: !!(cs.skins && cs.skins.length) };
+    if (a && a.now && a.id !== turnTab) { turnTab = a.id; tab2 = 'champs'; }
+    if (!tabs[tab2]) tab2 = Object.keys(tabs).find((k) => tabs[k]) || tab2;
+    $('csTabs').hidden = !tabs[tab2];
     for (const [k, on] of Object.entries(tabs)) {
       $(`tab-${k}`).hidden = !on;
-      $(`tab-${k}`).setAttribute('aria-pressed', String(k === tab));
-      $(`${k}Tab`).hidden = !on || k !== tab;
+      $(`tab-${k}`).setAttribute('aria-selected', String(k === tab2));
+      $(`${k}Tab`).hidden = !on || k !== tab2;
     }
-    // Champions: ARAM's bench and rerolls, the best picks (or bans) for you, then every champion you may pick or ban,
-    // by name or role; banned and taken ones can't be
+    // Champions: ARAM's bench and rerolls, the picks (or bans) for you with the pick helper's word, then every champion
+    // you may pick or ban by name, your role's at first; banned and taken ones can't be. A tap hovers; Lock in locks in.
     $('benchBox').hidden = !cs.bench && !cs.rerolls;
-    if (changed('bench', [cs.bench, cs.rerolls])) {
-      $('bench').replaceChildren(...(cs.bench || []).map((k) => btn('ch', [img(pic(k), ''), name(k)], () => send({ t: 'bench', champ: k }))));
+    if (changed('bench', [cs.bench, cs.rerolls, ddv])) {
+      $('bench').replaceChildren(...(cs.bench || []).map((k) => champBtn(k, () => send({ t: 'bench', champ: k }))));
       $('bench').hidden = !(cs.bench || []).length;
       $('reroll').hidden = !cs.rerolls;
       $('reroll').textContent = `Reroll (${cs.rerolls} left)`;
     }
-    $('picksHead').textContent = ban ? 'Bans for you: tap to hover, tap again on your turn to ban.' : 'Best picks for you: tap to hover, tap again on your turn to lock in.';
-    $('picksHead').hidden = $('picks').hidden = !a || !(cs.picks || []).length;
-    if (changed('picks', [cs.picks, a && a.champ])) $('picks').replaceChildren(...(cs.picks || []).map((k) => champBtn(k, a)));
-    $('find').hidden = $('grid').hidden = !a; // nothing left to pick or ban
-    $('role').hidden = !(cs.roles || []).some(Boolean);
-    const q = $('q').value.trim().toLowerCase(), role = $('role').hidden ? '' : $('role').value;
+    const picks = (cs.picks || []).filter(([k]) => champs[k]);
+    $('picksBox').hidden = !a || !picks.length;
+    $('picksHead').textContent = ban ? 'Bans for you' : 'Picks for you';
+    if (changed('picks', [picks, a && a.champ])) $('picks').replaceChildren(...picks.map(([k, g]) => {
+      const wd = WORD[g] ? Object.assign(el('span', 'word', WORD[g]), { title: '' }) : null, b = btn('pick', [img(pic(k)), el('b', '', name(k)), ...(wd ? [wd] : [])], () => send({ t: 'hover', champ: k }), !!a && a.champ === k);
+      if (wd) { wd.dataset.g = g; b.setAttribute('aria-label', `${name(k)}, ${g === 'ok' ? 'an OK' : `a ${WORD[g].toLowerCase()}`} pick for you`); }
+      return b;
+    }));
+    $('findBox').hidden = !a; // nothing left to pick or ban
+    const role = !ban && LETTER[me.pos];
+    $('mine').hidden = !role;
+    $('mine').textContent = POS[me.pos] || '';
+    $('mine').setAttribute('aria-pressed', String(mineOn));
+    const qv = $('q').value.trim().toLowerCase(), only = role && mineOn ? role : '';
     const gone = new Set([...bans.flat(), ...cs.team.filter((p) => p.locked && !p.me).map((p) => p.champ), ...them.filter((p) => p.locked).map((p) => p.champ)]);
-    if (a && changed('grid', [cs.can, cs.roles, [...gone], a.champ, q, role])) {
-      const list = (cs.can || []).map((k, i) => [k, (cs.roles || [])[i] || '']).filter(([k, r]) => champs[k] && (!q || name(k).toLowerCase().includes(q)) && (!role || r.includes(role)))
+    if (a && changed('grid', [cs.can, cs.roles, [...gone], a.champ, qv, only, ddv])) {
+      const list = (cs.can || []).map((k, i) => [k, (cs.roles || [])[i] || '']).filter(([k, r]) => champs[k] && (!qv || name(k).toLowerCase().includes(qv)) && (!only || r.includes(only)))
         .sort(([x], [y]) => name(x).localeCompare(name(y)));
-      $('grid').replaceChildren(...list.map(([k]) => champBtn(k, a, gone.has(k))), ...(list.length || !(q || role) ? [] : [el('p', 'hint', 'No champion by that name or role.')]));
+      $('grid').replaceChildren(...list.map(([k]) => {
+        const b = champBtn(k, () => send({ t: 'hover', champ: k }), a.champ === k);
+        b.disabled = gone.has(k);
+        if (b.disabled) b.setAttribute('aria-label', `${name(k)}, ${bans.flat().includes(k) ? 'banned' : 'taken'}`);
+        return b;
+      }));
+      $('noMatch').hidden = !!list.length || !qv;
     }
     $('dodge').hidden = !cs.dodge;
-    $('lock').hidden = !a;
-    $('lock').textContent = `${ban ? 'Ban' : 'Lock in'}${a && a.champ ? ` ${name(a.champ)}` : ''}`;
+    // Lock in (or Ban) with the champion hovered, red on your turn; Locked in once you have
+    $('lock').hidden = !a && !me.locked;
+    $('lock').textContent = a ? `${ban ? 'Ban' : 'Lock in'}${a.champ ? ` ${name(a.champ)}` : ''}` : 'Locked in';
     $('lock').disabled = !(a && a.now && a.champ);
-    if (tabs.runes) runesTab(cs);
+    $('lock').className = $('lock').disabled ? 'big' : 'big red';
+    if (tabs.runes) drawRunes(cs);
     if (tabs.spells && changed('spells', [cs.spells, slot, modeSpells.map((x) => x.key)])) {
-      ['slotD', 'slotF'].forEach((id, i) => {
-        $(id).replaceChildren(spellPic(cs.spells[i]) ? img(spellPic(cs.spells[i]), '') : el('span', 'face'), el('b', '', 'DF'[i]), spellName(cs.spells[i]));
-        $(id).setAttribute('aria-pressed', String(slot === i));
-      });
-      $('spellGrid').replaceChildren(...modeSpells.map((x) => btn('ch', [img(spellPic(x.key), ''), x.name], () => pickSpell(+x.key), cs.spells[slot] === +x.key)));
+      $('slots').replaceChildren(...[0, 1].map((i) => {
+        const k = cs.spells[i], b = btn('slot', [spellPic(k) ? img(spellPic(k)) : el('i'), el('span', '', el('b', '', spellName(k) || 'None'), el('small', '', 'DF'[i]))], () => { slot = slot === i ? -1 : i; render(); }, slot === i);
+        b.id = i ? 'slotF' : 'slotD';
+        b.setAttribute('aria-label', `${'DF'[i]}: ${spellName(k) || 'none'}`);
+        return b;
+      }));
+      $('spellNote').textContent = slot < 0 ? 'Tap D or F, then a spell' : `Now pick a spell for ${'DF'[slot]}`;
+      $('spellGrid').replaceChildren(...modeSpells.map((x) => btn('sp', [img(spellPic(x.key)), x.name], () => pickSpell(+x.key), cs.spells.includes(+x.key))));
     }
     if (tabs.skins && changed('skins', [cs.skins, cs.skin, me.champ])) {
       const c = champs[me.champ], sel = cs.skins.find((x) => x.id === cs.skin || x.ch.some(([id]) => id === cs.skin));
-      $('skins').replaceChildren(...cs.skins.map((x) => btn('skin', [img(c ? `${DD}/img/champion/loading/${c.id}_${x.id % 1000}.jpg` : '', ''), x.name], () => send({ t: 'skin', id: x.id }), x === sel)));
+      $('skins').replaceChildren(...cs.skins.map((x) => btn('skin', [img(c ? `${DD}/img/champion/loading/${c.id}_${x.id % 1000}.jpg` : ''), x.name], () => send({ t: 'skin', id: x.id }), x === sel)));
+      $('chromaRow').hidden = !(sel && sel.ch.length);
       $('chromas').replaceChildren(...(sel ? sel.ch : []).map(([id, n, color]) => {
         const b = btn('chroma', [], () => send({ t: 'skin', id }), id === cs.skin);
         b.setAttribute('aria-label', n || 'A chroma');
@@ -633,30 +930,63 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
       }));
     }
   }
-  // Spells: the one tapped goes on the key picked (D or F); if it's on the other one already, they swap, as in League
+  const champBtn = (k, on, pressed) => btn('ch', [img(pic(k)), el('span', '', name(k))], on, pressed);
+  // Spells: the one tapped goes on the key picked (F if none); if it's on the other one already, they swap, as in League
   function pickSpell(k) {
-    const was = state.cs.spells, next = [...was];
-    next[slot] = k;
-    if (was[1 - slot] === k) next[1 - slot] = was[slot];
+    const i = slot < 0 ? 1 : slot, was = state.cs.spells, next = [...was];
+    next[i] = k;
+    if (was[1 - i] === k) next[1 - i] = was[i];
+    slot = -1;
     send({ t: 'spells', d: next[0], f: next[1] });
+    render();
   }
-  // Runes: the page League uses (or pick another), Riot's and high elo's pages for your champion to start from, and the
-  // page as League's editor has it, saved over that page (when it's yours to change) or as a new one. ed is the page as
-  // changed here, which the PC's pages take over from again once saved or untouched
+  // Runes, as the PC's Runes tab (What's new 213): pages as rows, against their laner (tap one of them for theirs) and
+  // for your champion with your own pages; a tap puts one on in League. Edit runes opens the page League uses.
+  function drawRunes(cs) {
+    const ru = cs.ru || {}, vs = ru.vs;
+    $('runeRows').hidden = editing;
+    $('editBox').hidden = !editing;
+    if (editing) return drawEditor(cs);
+    if (!changed('ru', [ru, trees.length, ddv])) return;
+    const out = [];
+    if (vs) {
+      out.push(el('div', 'vshead', el('h2', '', `Against ${name(vs.foe)}`), el('div', 'vsf', ...vs.theirs.map((k) => {
+        const b = btn('', [img(pic(k))], () => send({ t: 'runefoe', champ: k }), k === vs.foe);
+        b.setAttribute('aria-label', `Pages against ${name(k)}`);
+        return b;
+      }))), el('p', 'note', vs.rows.length ? vs.note : vs.empty.join('. ')), ...vs.rows.map((r, i) => runeRow(r, '', () => send({ t: 'runerow', g: 'vs', i }))));
+    }
+    const fr = [...(ru.for || []).map((r, i) => runeRow(r, r.title, () => send({ t: 'runerow', g: 'for', i }))), ...(ru.mine || []).map((r, i) => runeRow(r, `Your page: ${r.title}`, () => send({ t: 'runerow', g: 'mine', i })))];
+    if (fr.length) out.push(el('h2', vs ? 'gap' : '', ru.champ ? `For ${name(ru.champ)}` : 'Your pages'), ...fr);
+    out.push(el('p', 'note', fr.length || (vs && vs.rows.length) ? 'Tap a page and it goes on in League.' : 'Pages for your champion show here once you lock in.'), btn('wide', ['Edit runes'], () => { editing = true; render(); }));
+    $('runeRows').replaceChildren(...out);
+  }
+  // a page: its keystone, the three runes under it, then the second tree's two; how many took it and won with it
+  function runeRow(r, label, on) {
+    const p = r.p || [], ri = (id, cls = '') => (runePic(id) ? img(runePic(id), '', cls) : el('span'));
+    const stat = el('span', 'rs', ...(r.stat ? [el('span', '', r.stat)] : []), ...(r.k && r.n ? [el('span', 'rbar', Object.assign(el('i'), { style: `width: ${Math.round((100 * r.k) / r.n)}%` }))] : []),
+      ...(r.k ? [el('small', '', `${r.w} won`)] : []), ...(r.tag ? [el('em', '', 'Wins more')] : []));
+    const b = btn('run', [...(label ? [el('b', '', label)] : []), el('span', 'ri', ri(p[2], 'ks'), ri(p[3]), ri(p[4]), ri(p[5]), el('hr'), ri(p[6]), ri(p[7]), stat, el('span', 'chk', ...(r.on ? [ic('M5 12.5 10 17 19 7', 18, 24, 2.4)] : [])))], on, !!r.on);
+    b.setAttribute('aria-label', `${label ? `${label}: ` : ''}${[p[2], p[3], p[4], p[5], p[6], p[7]].map((id) => (runes[id] || {}).name).filter(Boolean).join(', ')}${r.stat ? `, ${r.stat}` : ''}${r.k ? `, ${r.w} won` : ''}${r.on ? ', on in League' : ''}`);
+    return b;
+  }
+  // the editor: the page League uses as its editor has it, saved over that page (when it's yours to change) or as a new
+  // one. ed is the page as changed here, which the PC's pages take over from again once saved or untouched
+  // ponytail: the stat shards as League has had them since 2024, by hand as Data Dragon hasn't got them; change them
+  // here when Riot does
+  const SHARDS = [[[5008, 'Adaptive force'], [5005, 'Attack speed'], [5007, 'Ability haste']], [[5008, 'Adaptive force'], [5010, 'Move speed'], [5001, 'Health scaling']], [[5011, 'Health'], [5013, 'Tenacity'], [5001, 'Health scaling']]];
   const rowOf = (id) => (runes[id] ? runes[id].row : -1);
   function runesOk(p) {
     const pri = trees.find((t) => t.id === p[0]), sec = trees.find((t) => t.id === p[1]);
     return !!pri && !!sec && pri !== sec && pri.slots.every((row, i) => row.runes.some((r) => r.id === p[2 + i]))
       && [p[6], p[7]].every((k) => runes[k] && runes[k].tree === sec.id && runes[k].row > 0) && rowOf(p[6]) !== rowOf(p[7]) && p.slice(8).every((k) => k > 0);
   }
-  function runesTab(cs) {
+  function drawEditor(cs) {
     const cur = cs.pages.find((x) => x.cur) || cs.pages[0], base = JSON.stringify(cur);
-    if (changed('pageSel', cs.pages.map((x) => [x.id, x.name, x === cur]))) $('pageSel').replaceChildren(...cs.pages.map((x) => new Option(x.name || 'A rune page', x.id, false, x === cur)));
     if (!ed || (ed.base !== base && !ed.dirty)) {
       ed = { id: cur.id, edit: cur.edit, base, dirty: false, p: [...cur.p, ...Array(11).fill(0)].slice(0, 11) };
       $('pageName').value = cur.name;
     }
-    if (changed('recs', cs.recs)) $('recs').replaceChildren(...(cs.recs || []).map((r) => btn('btn small', [r.name], () => edit((p) => p.splice(0, 11, ...r.p)))));
     if (changed('editor', ed.p)) {
       const p = ed.p, pri = trees.find((t) => t.id === p[0]), sec = trees.find((t) => t.id === p[1]);
       // a row of trees or runes to tap: on(page, id) changes the page, has(id) is whether it's picked
@@ -666,7 +996,7 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
         ...(pri ? pri.slots.map((r, i) => row(r.runes, (q, id) => { q[2 + i] = id; }, (id) => id === p[2 + i], 'runerow', !i)) : []),
         el('h3', '', 'Secondary'), row(trees.filter((t) => t.id !== p[0]), (q, id) => { if (q[1] !== id) { q[1] = id; q.fill(0, 6, 8); } }, (id) => id === p[1], 'trees'),
         ...(sec ? sec.slots.slice(1).map((r) => row(r.runes, secondaryRune, (id) => id === p[6] || id === p[7])) : []),
-        el('h3', '', 'Stat shards'), ...SHARDS.map((r, i) => el('div', 'chips', ...r.map(([id, label]) => btn('chip', [label], () => edit((q) => { q[8 + i] = id; }), p[8 + i] === id)))));
+        el('h3', '', 'Stat shards'), ...SHARDS.map((r, i) => el('div', 'chips', ...r.map(([id, label]) => btn('pill', [label], () => edit((q) => { q[8 + i] = id; }), p[8 + i] === id)))));
     }
     $('pageSave').disabled = !ed.edit || !runesOk(ed.p);
     $('pageNew').disabled = !runesOk(ed.p);
@@ -693,9 +1023,9 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     $('clock').textContent = left < 0 ? '' : String(left);
     $('clock').toggleAttribute('data-low', left >= 0 && left <= 10);
   }, 250);
-  for (const k of ['champs', 'runes', 'spells', 'skins']) $(`tab-${k}`).addEventListener('click', () => { tab = k; render(); });
+  for (const k of ['champs', 'runes', 'spells', 'skins']) $(`tab-${k}`).addEventListener('click', () => { tab2 = k; render(); });
   $('q').addEventListener('input', render);
-  $('role').addEventListener('change', render);
+  $('mine').addEventListener('click', () => { mineOn = !mineOn; render(); });
   $('find').addEventListener('submit', (e) => {
     e.preventDefault();
     const b = $('grid').querySelector('button:not(:disabled)');
@@ -704,30 +1034,174 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   $('reroll').addEventListener('click', () => send({ t: 'reroll' }));
   // Dodge leaves champ select without closing League, which League counts as a dodge (LP and a wait), so it takes a
   // second tap within 4 s
-  let dodgeAt = 0;
-  const dodgeSet = (armed) => { dodgeAt = armed ? Date.now() : 0; $('dodge').textContent = armed ? 'Tap again to dodge' : 'Dodge'; $('dodge').classList.toggle('bad', armed); };
+  let dodgeAt = 0, dodgeT = 0;
+  function dodgeSet(armed) {
+    dodgeAt = armed ? Date.now() : 0;
+    clearTimeout(dodgeT);
+    if (armed) dodgeT = setTimeout(() => dodgeSet(false), 4000);
+    $('dodge').textContent = armed ? 'Tap again to dodge. You lose LP.' : 'Dodge';
+    $('dodge').toggleAttribute('data-armed', armed);
+  }
   $('dodge').addEventListener('click', () => {
-    if (Date.now() - dodgeAt > 4000) { dodgeSet(true); setTimeout(() => { if (dodgeAt && Date.now() - dodgeAt >= 4000) dodgeSet(false); }, 4100); return; }
+    if (!dodgeAt) return dodgeSet(true);
     dodgeSet(false);
     send({ t: 'dodge' });
   });
-  $('slotD').addEventListener('click', () => { slot = 0; render(); });
-  $('slotF').addEventListener('click', () => { slot = 1; render(); });
-  $('pageSel').addEventListener('change', () => { send({ t: 'page', id: +$('pageSel').value }); ed = null; });
+  $('edBack').addEventListener('click', () => { editing = false; render(); });
   $('pageName').addEventListener('input', () => { if (ed) ed.dirty = true; });
   $('pageSave').addEventListener('click', () => savePage(false));
   $('pageNew').addEventListener('click', () => savePage(true));
-  $('accept').addEventListener('click', () => send({ t: 'accept' }));
-  $('decline').addEventListener('click', () => send({ t: 'decline' }));
   $('lock').addEventListener('click', () => send({ t: 'lock' }));
-  $('auto').addEventListener('change', (e) => send({ t: 'auto', on: e.target.checked }));
-  $('queueBtn').addEventListener('click', () => send({ t: 'queue', on: !(state && state.phase === 'Matchmaking') }));
+
+  // ---- in a game: the clock, your team's chance to win and the score, the objectives' timers (and their buffs' with
+  // enemy timers on, a tap to start one), your lane, what to buy next, their team with a Flash and an ultimate to time
+  // and a face to call missing, and everyone's rank and score folded away
+  let playersOpen = false;
+  function drawGame(g) {
+    $('gClock').textContent = g.clock > 0 ? mmss(g.clock) : '';
+    $('win').hidden = g.win == null;
+    if (g.win != null && changed('win', g.win)) {
+      $('winRing').replaceChildren(arc(72, 31, 5, g.win, g.win >= 50 ? 'var(--good)' : 'var(--bad)'), el('b', '', `${g.win}%`));
+      $('win').setAttribute('aria-label', `Win chance ${g.win}%`);
+    }
+    const st = [g.kills && [`${g.kills[0]} – ${g.kills[1]}`, 'Kills'], g.towers && [`${g.towers[0]} – ${g.towers[1]}`, 'Towers'], g.gold != null && [goldText(g.gold), 'Gold']].filter(Boolean);
+    if (changed('stats', st)) $('stats').replaceChildren(...st.map(([v, k]) => el('span', '', el('b', '', v), el('small', '', k))));
+    $('winrow').hidden = g.win == null && !st.length;
+    // objectives, then their red and blue: kept in place, only their times change
+    const tm = g.timers || [], buff = (k) => (tm.find((t) => t[2] === k) || [])[1];
+    const list = [...tm.filter((t) => !t[2]).map(([n, s]) => [n, s, '']), ...(g.ft ? [['Their red', buff('red'), 'red'], ['Their blue', buff('blue'), 'blue']] : [])];
+    const ok = list.map(([n, , k]) => n + k).join();
+    if ($('objs').dataset.k !== ok) {
+      $('objs').dataset.k = ok;
+      $('objs').replaceChildren(...list.map(([n, , k]) => {
+        const t = k ? btn('obj', [el('span', '', n), el('b'), el('i', '', el('i'))], () => send({ t: 'timer', k })) : el('div', 'obj', el('span', '', n), el('b'), el('i', '', el('i')));
+        return t;
+      }));
+    }
+    list.forEach(([n, s, k], i) => {
+      const t = $('objs').children[i], run = s != null, up = run && s <= 0, b = t.querySelector('b');
+      t.toggleAttribute('data-up', up);
+      b.textContent = !run ? 'Start' : up ? 'Up' : mmss(s);
+      b.className = run ? '' : 'off';
+      t.querySelector('i i').style.width = `${up ? 100 : run ? Math.max(3, Math.round(100 * (1 - Math.min(s, 360) / 360))) : 0}%`;
+      if (k) t.setAttribute('aria-label', run ? `${n} buff: back ${up ? 'now' : `in ${mmss(s)}`}. Tap to clear.` : `${n} buff taken: tap to start its timer`);
+    });
+    // your lane against theirs: CS, CS a minute against your usual, and the gold in your items against theirs
+    const l = g.lane;
+    $('laneBox').hidden = !l;
+    if (l && changed('lane', [l, ddv])) {
+      const most = Math.max(l.me, l.foe, 1) * 1.05, row = (n, cs, cls) => el('div', `lrow${cls}`, el('span', '', n), el('i', '', Object.assign(el('i'), { style: `width: ${Math.round((100 * cs) / most)}%` })), el('b', '', `${cs} CS`));
+      $('laneHead').replaceChildren('Your lane ', el('span', '', `against ${name(l.champ)}`));
+      $('lane').replaceChildren(row('You', l.me, ''), row(name(l.champ), l.foe, ' them'));
+      $('laneLine').textContent = [l.rate ? `${l.rate} CS a minute${l.usual ? `, your usual is ${l.usual}` : ''}.` : '', l.gold == null ? '' : Math.abs(l.gold) < 100 ? `Even gold with ${name(l.champ)}.` : `Gold ${goldText(l.gold)} on ${name(l.champ)}.`].filter(Boolean).join(' ');
+    }
+    $('buy').hidden = !g.buy;
+    if (g.buy && changed('buy', g.buy)) $('buy').replaceChildren(...(/^https:\/\//.test(g.buy.pic) ? [img(g.buy.pic)] : []), el('span', '', el('small', '', 'Buy next'), el('b', '', g.buy.name), el('small', '', g.buy.why ? `${g.buy.why[0].toUpperCase()}${g.buy.why.slice(1)}.` : '')));
+    drawFoes(g);
+    const ps = g.players || [];
+    $('playersBox').hidden = !ps.length;
+    $('fold').setAttribute('aria-expanded', String(playersOpen));
+    $('players').hidden = !playersOpen;
+    if (playersOpen && changed('players', [ps, ddv])) $('players').replaceChildren(...ps.map((p, i) => {
+      const li = el('li', i && p.ally !== ps[i - 1].ally ? 'gap' : '', img(pic(p.champ)), el('span', 'who', el('b', '', p.me ? 'You' : p.name || name(p.champ)), el('small', '', name(p.champ))), el('span', 'kda', String(p.score || '').split(' · ')[0]), el('span', 'rkn', p.rank || ''));
+      li.toggleAttribute('data-me', !!p.me);
+      return li;
+    }));
+  }
+  // their team (enemy timers or teammates' callouts on, on the PC's Overlay page): a tap on their Flash or ultimate
+  // starts its timer, or takes a running one off; a tap on a face tells your team they're missing. Drawn again only when
+  // the champions change, so a button doesn't move under a finger
+  function drawFoes(g) {
+    const foes = g.foes || [], key = JSON.stringify([foes.map((f) => [f.champ, f.lane, f.t.map((x) => [x.k, x.icon, x.name])]), g.calls, ddv]);
+    $('foesBox').hidden = !foes.length;
+    $('foesNote').textContent = [foes.some((f) => f.t.length) && 'Tap Flash or the ultimate when they use it.', g.calls && 'Tap a face to tell your team they’re missing.'].filter(Boolean).join(' ');
+    if ($('foes').dataset.k !== key) {
+      $('foes').dataset.k = key;
+      $('foes').replaceChildren(...foes.map((f) => {
+        const n = name(f.champ), b = btn('fface', [img(pic(f.champ))], () => {
+          send({ t: 'call', lane: f.lane });
+          b.setAttribute('data-called', '');
+          setTimeout(() => b.removeAttribute('data-called'), 3000);
+          toast(`Told your team ${n} is missing`);
+        });
+        b.disabled = !g.calls || !f.lane;
+        b.setAttribute('aria-label', g.calls ? `Tell your team ${n} is missing` : n);
+        return el('div', 'foe', b, el('div', 'fcd', ...f.t.map((x) => Object.assign(btn('', [img(/^https:\/\//.test(x.icon) ? x.icon : ''), el('b')], () => send({ t: 'timer', k: x.k })), { title: x.name }))));
+      }));
+    }
+    foes.forEach((f, i) => f.t.forEach((x, j) => {
+      const b = $('foes').children[i].querySelectorAll('.fcd button')[j], left = x.left > 0;
+      b.toggleAttribute('data-left', left);
+      b.querySelector('b').textContent = left ? mmss(x.left) : '';
+      b.setAttribute('aria-label', left ? `${name(f.champ)}’s ${x.name} is back in ${mmss(x.left)}. Tap to clear.` : `${name(f.champ)} used ${x.name}`);
+    }));
+  }
+  $('fold').addEventListener('click', () => { playersOpen = !playersOpen; render(); });
+
+  // ---- Chat: your room's chat, and League chat (app 1.14 on the PC): invites to join or not, your conversations with
+  // friends, and one open to answer
+  let chatMode = 'room', conv = '';
+  const line = (whom, at, text) => el('li', '', el('span', '', el('b', '', whom), ' ', el('time', '', at ? hhmm(at) : '')), el('span', '', String(text)));
+  function drawChat(s) {
+    const room = !!(s && Array.isArray(s.chat)), L = s && s.lol;
+    if (chatMode === 'room' && !room && L) chatMode = 'lol';
+    if (chatMode === 'lol' && !L && room) chatMode = 'room';
+    $('chatTabs').hidden = !room && !L;
+    $('ct-room').hidden = !room;
+    $('ct-lol').hidden = !L;
+    $('ct-room').setAttribute('aria-pressed', String(chatMode === 'room'));
+    $('ct-lol').setAttribute('aria-pressed', String(chatMode === 'lol'));
+    $('chatNone').hidden = room || !!L;
+    $('chatNone').textContent = !s ? 'Chat shows here once your phone is connected.' : 'Join a room in Premade on your PC to chat with it here.';
+    $('roomBox').hidden = !room || chatMode !== 'room';
+    if (!$('roomBox').hidden && changed('chatLog', s.chat)) {
+      $('chatLog').replaceChildren(...s.chat.map((l) => line(l.who, l.at, l.text)));
+      $('chatLog').scrollTop = $('chatLog').scrollHeight;
+    }
+    const lol = L && chatMode === 'lol' ? L : null, open = lol && conv ? (lol.open && lol.open.id === conv ? lol.open : { id: conv, name: (lol.convs.find((c) => c.id === conv) || {}).name || '', msgs: [] }) : null;
+    $('lolBox').hidden = !lol || !!open;
+    $('convBox').hidden = !open;
+    if (lol && !open) {
+      if (changed('lolInv', lol.inv)) $('lolInv').replaceChildren(...lol.inv.map((i) => el('div', 'card', el('span', '', el('b', '', i.from), ` invited you to ${i.q}`),
+        el('div', 'two', btn('yes', ['Join'], () => send({ t: 'lolinv', id: i.id, yes: true })), btn('no', ['Not now'], () => send({ t: 'lolinv', id: i.id, yes: false }))))));
+      if (changed('lolConvs', lol.convs)) $('lolConvs').replaceChildren(...(lol.convs.length ? lol.convs.map((c) => {
+        const b = btn('conv', [el('span', '', el('b', '', c.name), el('small', '', c.last || '')), ...(c.unread ? [Object.assign(el('i'), { role: 'img', ariaLabel: 'Unread' })] : [])], () => { conv = c.id; send({ t: 'lolopen', id: c.id }); render(); });
+        b.toggleAttribute('data-unread', c.unread > 0);
+        b.setAttribute('role', 'listitem');
+        return b;
+      }) : [el('p', 'note', 'No messages from friends yet.')]));
+    }
+    if (open) {
+      $('convName').textContent = open.name;
+      $('lolText').placeholder = `Message ${open.name}`;
+      $('lolText').setAttribute('aria-label', `Message ${open.name}`);
+      $('lolLog').setAttribute('aria-label', open.name);
+      if (changed('lolLog', [open.id, open.msgs])) {
+        $('lolLog').replaceChildren(...open.msgs.map((m) => line(m.me ? 'You' : open.name, m.at, m.text)));
+        $('lolLog').scrollTop = $('lolLog').scrollHeight;
+      }
+    }
+  }
+  for (const [id, m] of [['ct-room', 'room'], ['ct-lol', 'lol']]) $(id).addEventListener('click', () => { chatMode = m; conv = ''; render(); });
+  $('back').addEventListener('click', () => { conv = ''; render(); });
   $('chatForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const text = $('chatText').value.trim();
     if (text && conn && conn.open) { send({ t: 'chat', text }); $('chatText').value = ''; }
   });
+  $('lolForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('lolText').value.trim();
+    if (text && conn && conn.open) { send({ t: 'lolsay', text }); $('lolText').value = ''; }
+  });
+  for (const t of ['league', 'chat', 'settings']) $(`m-${t}`).addEventListener('click', () => { tab = t; render(); });
+  $('accept').addEventListener('click', () => send({ t: 'accept' }));
+  $('decline').addEventListener('click', () => send({ t: 'decline' }));
+  $('auto').addEventListener('change', (e) => send({ t: 'auto', on: e.target.checked }));
+  $('queueBtn').addEventListener('click', () => send({ t: 'queue', on: !(state && state.phase === 'Matchmaking') }));
+  $('leave').addEventListener('click', () => send({ t: 'leave' }));
   document.addEventListener('visibilitychange', () => send(hi()));
+  $('menu').hidden = false;
 
   // ---- a notification when a match is found, even with the screen off or this page closed: when no phone has the
   // remote on its screen, the PC has our server push one (server/push.js) to the phones that turned them on, and
@@ -742,10 +1216,9 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
   const sw = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
     ? navigator.serviceWorker.register('remote-sw.js', { scope: 'remote.html' }).then(() => navigator.serviceWorker.ready) : null; // ready: once it runs
   function pushShow(note = '') {
-    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
     $('pushRow').hidden = !sw || !pushKey;
     $('push').checked = !!sw && store.get('lpc-remote-push') === code && Notification.permission === 'granted';
-    $('pushNote').textContent = note || (!pushKey ? '' : !sw && iphone && !standalone ? 'For a notification when a match is found, even with the screen off, put the remote on your Home Screen (below) and turn it on there.'
+    $('pushNote').textContent = note || (!pushKey ? '' : !sw && iphone && !standalone ? 'For a notification when a match is found, even with the screen off, add the remote to your Home Screen (below) and turn it on there.'
       : sw && Notification.permission === 'denied' ? 'Your phone blocks notifications from this page. Allow them in its settings to hear about a match with the screen off.' : '');
     $('pushNote').hidden = !$('pushNote').textContent;
   }
@@ -792,6 +1265,7 @@ input[type="checkbox"] { flex: none; width: 20px; height: 20px; accent-color: va
     .then((r) => { $('callText').textContent = r.ok ? `Sent: ${a === 'in10' ? 'In 10' : 'Not tonight'}.` : 'That call is over.'; }, () => { $('callText').textContent = 'That didn’t send. Check your connection.'; });
   $('callIn').addEventListener('click', () => answer('in10'));
   $('callNo').addEventListener('click', () => answer('no'));
+  render();
   claim(1);
 })();
 </script>

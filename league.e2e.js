@@ -454,7 +454,7 @@ function fakeApp(version) {
   };
 }
 async function context(browser, { version = '', phone = false } = {}) {
-  const ctx = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } });
+  const ctx = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: process.env.SHOTS ? 2 : 1 } : { viewport: { width: 1280, height: 900 } });
   await ctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', 'access-control-allow-origin': '*' } }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   const cors = { 'access-control-allow-origin': '*' };
@@ -1182,11 +1182,28 @@ const leagueData = (over = {}) => ({
     await pc.click('#createBtn'); // a room, for the mic: clips mix it in
     await wait(pc, () => lpc.slot() >= 0, null, 'a room');
 
-    // ---- the phone remote on Pregame: a QR code and a link, and the phone connects
-    await openPage(pc, 'pregame');
-    await wait(pc, () => !document.getElementById('remoteBox').hidden && /remote\.html/.test(document.getElementById('remoteLink').href), null, 'the phone remote panel');
+    // ---- the phone remote's QR card under its switch (What's new 215): the code and the link, Copy link, and a new code
+    // only after Make a new code; then the phone connects
+    await preSettings();
+    await wait(pc, () => !document.getElementById('remoteCard').hidden && /remote\.html/.test(document.getElementById('remoteLink').href), null, 'the QR card');
+    assert(await pc.evaluate(() => !document.getElementById('remoteBox') && document.getElementById('optRemote').closest('label').nextElementSibling === document.getElementById('remoteCard')), 'the QR card right under the switch, no panel of its own');
     const dark = await pc.evaluate(() => { const d = document.getElementById('qr').getContext('2d').getImageData(0, 0, 232, 232).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 50) n++; return n; });
     assert(dark > 3000, `the QR code is drawn (${dark} dark pixels)`);
+    const oldLink = await pc.getAttribute('#remoteLink', 'href');
+    await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await pc.click('#remoteCopy');
+    await wait(pc, () => document.getElementById('remoteCopy').textContent === 'Copied', null, 'Copied');
+    assert.strictEqual(await pc.evaluate(() => navigator.clipboard.readText()), oldLink, 'the link copied');
+    await wait(pc, () => document.getElementById('remoteCopy').textContent === 'Copy link', null, 'Copy link again after 2 s');
+    await pc.click('#remoteNew');
+    assert(await pc.isVisible('#remoteAsk') && await pc.isHidden('#remoteBtns'), 'New code asks first, in the card');
+    assert.strictEqual(await text(pc, '#remoteAsk p'), 'A new code stops the old link. Phones using it scan again.');
+    await pc.click('#remoteKeep');
+    assert(await pc.isHidden('#remoteAsk') && (await pc.getAttribute('#remoteLink', 'href')) === oldLink, 'Keep this one: the same code');
+    await pc.click('#remoteNew');
+    await pc.click('#remoteRenew');
+    await wait(pc, (o) => document.getElementById('remoteLink').href !== o && document.getElementById('remoteState').textContent === 'New code made. Scan it again on your phone.', oldLink, 'a new code');
+    await shot(pc, 'settings-phone-remote-card');
     const link = await pc.getAttribute('#remoteLink', 'href');
     assert.match(link, /^http:\/\/127\.0\.0\.1:8081\/remote\.html\?peer=127\.0\.0\.1:9001&debug#[a-z0-9]{12}$/);
     const phoneBrowser = await chromium.launch(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : { channel: 'chromium' }); // use the full Chromium build: headless shell says no to notifications
@@ -1216,8 +1233,34 @@ const leagueData = (over = {}) => ({
     await phone.goto(link);
     await wait(phone, () => document.getElementById('conn').textContent === 'Connected', null, 'the phone to connect');
     await wait(pc, () => document.getElementById('remoteState').textContent === 'Your phone is connected.', null, 'the PC to see the phone');
-    await wait(phone, () => /client/.test(document.getElementById('phase').textContent), null, 'the phone to show League');
-    console.log(`phone remote: QR code (${dark} dark pixels) and link, the phone connected`);
+    await wait(phone, () => !document.getElementById('play').hidden && !document.getElementById('menu').hidden && document.querySelector('#m-league').getAttribute('aria-current') === 'page', null, 'the phone on Play');
+    assert(!(await phone.evaluate(() => [...document.querySelectorAll('h1, header')].some((e) => /Phone remote|Connected/.test(e.textContent)))), 'no Phone remote or Connected header');
+    console.log(`phone remote: QR card (${dark} dark pixels), Copy link, a new code only after Make a new code, the phone connected`);
+    // your colours on the phone (What's new 215): the PC's theme and its animations setting
+    const phoneVar = (k) => phone.evaluate((k) => getComputedStyle(document.documentElement).getPropertyValue(k).trim(), k);
+    assert.strictEqual(await phoneVar('--accent'), '#d9202d', 'red and black, as on the PC');
+    const setPc = (sel, v) => pc.evaluate(([sel, v]) => { const e = document.querySelector(sel); if (e.type === 'radio') e.checked = true; else e.value = v; e.dispatchEvent(new Event('change')); }, [sel, v]);
+    await setPc('input[name="theme"][value="league"]');
+    await wait(phone, () => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() === '#0ac8b9' && getComputedStyle(document.body).backgroundColor === 'rgb(1, 10, 19)', null, 'League blue and gold on the phone');
+    await setPc('input[name="theme"][value="red"]');
+    await wait(phone, () => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() === '#d9202d', null, 'red and black again');
+    // a press shrinks a button a little; with Reduced motion on the PC nothing moves (Settings opens on the release)
+    const press = async (moves) => {
+      const b = await phone.locator('#m-settings').boundingBox();
+      await phone.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      await phone.mouse.down();
+      await (moves ? wait(phone, () => getComputedStyle(document.getElementById('m-settings')).transform === 'matrix(0.96, 0, 0, 0.96, 0, 0)', null, 'the press') : phone.waitForTimeout(300));
+      const t = await phone.$eval('#m-settings', (e) => getComputedStyle(e).transform);
+      await phone.mouse.up();
+      return t;
+    };
+    await press(true);
+    await setPc('#optMotion', 'reduced');
+    await wait(phone, () => document.documentElement.dataset.motion === 'reduced' && getComputedStyle(document.documentElement).getPropertyValue('--m').trim() === '0', null, 'reduced motion on the phone');
+    assert.match(await press(false), /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/, 'no transforms with Reduced motion');
+    await setPc('#optMotion', 'auto');
+    await wait(phone, () => !document.documentElement.dataset.motion, null, 'the phone’s own motion setting again');
+    console.log('phone remote: your theme (League blue and gold, then red) and reduced motion from the PC');
     // notifications on: subscribed with our server's key for this code, its push address and keys sent there; a push shows
     // Match found (remote-sw.js, through Chromium's own way in for push messages); then off again
     await wait(phone, () => !document.getElementById('pushRow').hidden && document.getElementById('pushNote').hidden, null, 'the notification setting on the phone');
@@ -1237,18 +1280,31 @@ const leagueData = (over = {}) => ({
     await until(() => pushes.length === 3, 'the push address taken back');
     assert.deepStrictEqual(pushes[2], ['POST', `/push/${code}`, JSON.stringify({ drop: 'https://fcm.googleapis.com/fcm/send/phone-1' })]);
     assert(!(await phone.evaluate(() => localStorage.getItem('test-sub'))), 'unsubscribed');
+    assert.deepStrictEqual((await phone.$$eval('#settings .set:not([hidden]) b', (l) => l.map((b) => b.textContent))).slice(0, 3), ['Accept matches for me', 'Tell me when a match is found', 'Ring']);
+    assert.strictEqual(await text(phone, '#settings .end'), 'Anyone with your link can use your League from their phone. Keep it to yourself.');
+    await shot(phone, 'phone-settings');
     // room chat: you're in a room, so it's on the phone, and what the phone writes goes to the room as yours
-    await wait(phone, () => !document.getElementById('chat').hidden && document.getElementById('chatLog').children.length === 0, null, 'room chat on the phone');
+    await phone.click('#m-chat');
+    await wait(phone, () => !document.getElementById('chat').hidden && !document.getElementById('roomBox').hidden && document.getElementById('chatLog').children.length === 0, null, 'room chat on the phone');
     await phone.fill('#chatText', 'brb, in queue');
     await phone.click('#chatForm button');
     await wait(pc, () => /Rayan\s*brb, in queue/.test(document.getElementById('chatLog').textContent), null, 'the phone’s message in the room chat');
-    await wait(phone, () => /Rayan\s*brb, in queue/.test(document.getElementById('chatLog').textContent) && document.getElementById('chatText').value === '', null, 'the message on the phone');
+    await wait(phone, () => /^Rayan \d\d:\d\d( [AP]M)?brb, in queue$/.test(document.querySelector('#chatLog li:last-child')?.textContent) && document.getElementById('chatText').value === '', null, 'the message on the phone, with its time');
+    await shot(phone, 'phone-chat');
     console.log('phone remote: notifications on (a push shows Match found) and off, room chat written from the phone');
-    // Your League on the phone: your ranks, last games and a link to your full profile
-    await wait(phone, () => !document.getElementById('me').hidden && /^Rayan#EUW$/.test(document.getElementById('meName').textContent) && document.querySelectorAll('#meGames li').length > 0
-      && /profile\.html#./.test(document.getElementById('meProfile').href) && /Solo\/Duo/i.test(document.getElementById('meRanks').textContent), null, 'your League on the phone');
+    // Your League on the phone as pictures (What's new 215): each rank's crest in a ring of its LP, your last 10 games as
+    // their champions with a win or a loss, and a link to your full profile
+    await phone.click('#m-league');
+    await wait(phone, () => !document.getElementById('me').hidden && document.querySelectorAll('#meRanks .crest').length === 2 && document.querySelectorAll('#last10 > span').length === 10
+      && /profile\.html#./.test(document.getElementById('meProfile').href), null, 'your League on the phone');
+    assert.deepStrictEqual(await phone.$$eval('#meRanks .crest', (l) => l.map((c) => c.getAttribute('aria-label'))), ['Solo/Duo: Gold II, 45 LP', 'Flex: Unranked']);
+    assert.match(await phone.getAttribute('#meRanks .crest img', 'src'), /TFT_Regalia_Gold\.png$/, 'Gold’s crest');
+    assert.match(await phone.getAttribute('#last10 > span', 'aria-label'), /^Ahri: (won|lost), \d+\/\d+\/\d+/);
+    assert.strictEqual(await phone.locator('#last10 > span > img').count(), 10, 'their champions’ faces');
+    assert(await phone.isHidden('#meToday'), 'no ranked games today');
 
     // ---- the queue: a Practice Tool game in one click outside a lobby, Find match in a lobby you lead, Stop from the phone
+    await openPage(pc, 'pregame');
     await wait(pc, () => !document.getElementById('queueBox').hidden && !document.getElementById('practiceBtn').hidden && document.getElementById('queueBtn').hidden, null, 'Practice Tool offered outside a lobby');
     await pc.click('#practiceBtn');
     await until(() => callsTo(/custom\/start-champ-select$/, 'POST').length === 1, 'the Practice Tool game started');
@@ -1259,11 +1315,18 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => [...document.querySelectorAll('#queuePick optgroup')].map((g) => g.label).join() === 'Summoner’s Rift,ARAM,Co-op vs. AI', null, 'the games to pick');
     assert.deepStrictEqual(await pc.$$eval('#queuePick option', (l) => l.map((o) => o.textContent)), ['Pick a game', 'Draft Pick', 'Ranked Solo/Duo', 'ARAM', 'Intro']);
     assert(await pc.locator('#pos1Label').isHidden() && await pc.locator('#inviteBox').isHidden() && await pc.locator('#lobbyLeave').isHidden(), 'no roles, friends or Leave outside a lobby');
+    // What's new 215, Play from your phone: League's games as pills, and outside a lobby a tap makes one
+    await wait(phone, () => [...document.querySelectorAll('#games .pill')].map((b) => b.textContent).join() === 'Draft Pick,Ranked Solo/Duo,ARAM,Intro', null, 'the games on the phone');
+    assert.strictEqual(await text(phone, '#playNote'), 'Pick a game to make a lobby.');
+    assert(await phone.isHidden('#rolesBox') && await phone.isHidden('#inviteBox') && await phone.isHidden('#leave') && await phone.isHidden('#queueBtn'), 'no roles, friends, Leave or Find match outside a lobby');
+    await phone.click('#games .pill:text-is("ARAM")');
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST').length === 2, 'an ARAM lobby from the phone');
+    assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST')[1][2], { queueId: 450 });
     await pc.selectOption('#queuePick', '420');
-    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST').length === 2, 'a Ranked Solo/Duo lobby');
-    assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST')[1][2], { queueId: 420 });
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST').length === 3, 'a Ranked Solo/Duo lobby');
+    assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby$/, 'POST')[2][2], { queueId: 420 });
     lcu.lobby = { localMember: { isLeader: true, puuid: ME, firstPositionPreference: 'MIDDLE', secondPositionPreference: 'UNSELECTED' }, gameConfig: { isCustom: false, queueId: 420, showPositionSelector: true },
-      members: [{ puuid: ME }, { puuid: 'ally1' }], invitations: [] };
+      members: [{ puuid: ME, gameName: 'Rayan', summonerIconId: 29 }, { puuid: 'ally1', gameName: 'Friend', summonerIconId: 30 }], invitations: [] };
     lcu.phase = 'Lobby';
     await league({ inGame: false, phase: 'Lobby' });
     await wait(pc, () => document.getElementById('queueState').textContent === 'In a lobby for Ranked Solo/Duo.' && document.getElementById('practiceBtn').hidden && !document.getElementById('queueBtn').hidden, null, 'the lobby, with a friend in it');
@@ -1287,22 +1350,49 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST')[0][2], [{ toSummonerId: 31, toPuuid: 'duo1' }]);
     await wait(pc, () => document.querySelector('#friendRows tr:first-child button').textContent === 'Invited' && document.querySelector('#friendRows tr:first-child button').disabled, null, 'Invited');
     await shot(pc, 'pregame-lobby');
+    // the lobby on the phone: the game filled, your roles (the one in the other row swaps in; Fill needs no second),
+    // your friends there and online, one invited from the phone, and Find match
+    await wait(phone, () => document.querySelector('#games .pill[aria-pressed="true"]')?.textContent === 'Ranked Solo/Duo' && document.getElementById('roleLine').textContent === 'Top, then Middle', null, 'the lobby on the phone');
+    const roleRows = () => phone.$$eval('#roleRows .rrow', (l) => l.map((r) => `${r.firstChild.textContent} ${[...r.querySelectorAll('[aria-pressed="true"]')].map((b) => b.title).join()}`));
+    assert.deepStrictEqual(await roleRows(), ['First Top', 'Second Middle']);
+    const put2 = lcu.calls.length, puts = () => callsTo(/position-preferences$/, 'PUT', put2).map((c) => c[2]);
+    await phone.click('#roleRows [aria-label="Second role: Top"]');
+    await until(() => puts().length === 1, 'the roles swapped from the phone');
+    await wait(phone, () => document.getElementById('roleLine').textContent === 'Middle, then Top', null, 'the swap on the phone');
+    await phone.click('#roleRows [aria-label="First role: Fill"]');
+    await wait(phone, () => document.querySelectorAll('#roleRows .rrow').length === 1 && document.getElementById('roleLine').textContent === 'Fill', null, 'Fill, and no second');
+    await phone.click('#roleRows [aria-label="First role: Middle"]');
+    await until(() => puts().length === 3, 'Middle from the phone');
+    assert.deepStrictEqual(puts(), [{ firstPreference: 'MIDDLE', secondPreference: 'TOP' }, { firstPreference: 'FILL', secondPreference: 'UNSELECTED' }, { firstPreference: 'MIDDLE', secondPreference: 'UNSELECTED' }]);
+    const phoneFriends = () => phone.$$eval('#friends .friend', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' ').trim() + (b.disabled ? ' (off)' : '')));
+    await wait(phone, () => document.querySelectorAll('#friends .friend').length === 3, null, 'friends on the phone');
+    assert.deepStrictEqual(await phoneFriends(), ['Duo Invited (off)', 'Friend Joined (off)', 'Gamer Invite']);
+    await phone.click('#friends .friend:has-text("Gamer")');
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST').length === 2, 'Gamer invited from the phone');
+    assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST')[1][2], [{ toSummonerId: 32, toPuuid: 'gamer1' }]);
+    await wait(phone, () => document.querySelector('#friends .friend:last-child')?.innerText.replace(/\s+/g, ' ').trim() === 'Gamer Invited', null, 'Invited on the phone');
+    assert.deepStrictEqual([await text(phone, '#queueBtn'), await phone.getAttribute('#queueBtn', 'class')], ['Find match', 'big red']);
+    await shot(phone, 'phone-play');
     await pc.click('#queueBtn');
     await until(() => callsTo(/matchmaking\/search$/, 'POST').length === 1, 'Find match');
     lcu.search = { timeInQueue: 65.4, estimatedQueueTime: 120 };
     lcu.phase = 'Matchmaking';
     await league({ inGame: false, phase: 'Matchmaking' });
     await wait(pc, () => document.getElementById('queueState').textContent === 'Finding a match: 1:05, usually about 2:00.' && document.getElementById('queueBtn').textContent === 'Stop', null, 'finding a match');
-    await wait(phone, () => document.getElementById('queueState').textContent === 'Finding a match: 1:05, usually about 2:00.' && document.getElementById('queueBtn').textContent === 'Stop', null, 'the queue on the phone');
+    await wait(phone, () => !document.getElementById('finding').hidden && document.getElementById('qTime').textContent === '1:05' && document.getElementById('queueBtn').textContent === 'Stop', null, 'the queue on the phone');
+    assert.deepStrictEqual([await text(phone, '#qEst'), await text(phone, '#qLine')], ['Usually about 2:00', 'Ranked Solo/Duo · Middle']);
+    await wait(phone, () => [...document.querySelectorAll('#party span')].map((e) => e.textContent).join() === 'Rayan,Friend', null, 'your party on the phone');
+    await shot(phone, 'phone-finding');
     await phone.click('#queueBtn');
     await until(() => callsTo(/matchmaking\/search$/, 'DELETE').length === 1, 'Stop from the phone');
-    // and Leave lobby
+    // and Leave lobby: here, and the phone's Leave
     lcu.phase = 'Lobby';
     await league({ inGame: false, phase: 'Lobby' });
     await wait(pc, () => !document.getElementById('lobbyLeave').hidden, null, 'Leave lobby');
-    await pc.click('#lobbyLeave');
-    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'DELETE').length === 1, 'the lobby left');
-    console.log('queue: a Practice Tool game in one click, a lobby for the game picked here, your roles, a friend invited, Find match here, Stop from the phone, Leave lobby');
+    await wait(phone, () => !document.getElementById('leave').hidden && document.getElementById('finding').hidden, null, 'Leave on the phone');
+    await phone.click('#leave');
+    await until(() => callsTo(/^\/lol-lobby\/v2\/lobby$/, 'DELETE').length === 1, 'the lobby left from the phone');
+    console.log('queue: a Practice Tool game in one click, a lobby for the game picked here or on the phone, your roles here and on the phone, friends invited from both, Find match here, Stop and Leave from the phone');
 
     // ---- ready checks: accepted here, on the phone, then for you
     await openPage(pc, 'voice');
@@ -1317,20 +1407,25 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(callsTo(/ready-check\/accept$/, 'POST').length, 1);
     await backToQueue();
     await readyCheck();
-    await wait(phone, () => !document.getElementById('rc').hidden && /\d+ s left/.test(document.getElementById('rcLeft').textContent), null, 'the new ready check on the phone'); // not the last one's You accepted
+    await wait(phone, () => !document.getElementById('found').hidden && /^\d+$/.test(document.getElementById('rcLeft').textContent) && !document.getElementById('accept').hidden, null, 'the new ready check on the phone'); // not the last one's accepted
+    assert(await phone.isHidden('#menu'), 'Match found over everything: no menu');
+    assert.deepStrictEqual([await phone.getAttribute('#accept', 'class'), await text(phone, '#rcGame')], ['big red', 'Ranked Solo/Duo']);
+    await shot(phone, 'phone-match-found');
     await phone.click('#accept');
-    await wait(phone, () => /You accepted/.test(document.getElementById('rcLeft').textContent), null, 'accepted from the phone');
+    await wait(phone, () => document.getElementById('rcWait').textContent === 'Waiting for everyone to accept' && !document.getElementById('accepted').hidden && document.getElementById('accept').hidden, null, 'accepted from the phone');
     assert(await phone.evaluate(() => buzzes.length >= 1 && buzzes.every((b) => b.length === 7)), 'the phone buzzed for the match');
     await until(() => callsTo(/ready-check\/accept$/, 'POST').length === 2, 'the accept from the phone sent to League');
     await backToQueue();
+    await phone.click('#m-settings');
     await phone.check('#auto');
     await wait(pc, () => document.getElementById('optAutoAccept').checked, null, 'auto-accept turned on from the phone');
+    await phone.click('#m-league');
     assert(!pushes.some(([, p]) => p.endsWith('/ring')), 'no notification for a phone that has the remote on its screen');
     const onScreen = (v) => phone.evaluate((v) => { Object.defineProperty(document, 'visibilityState', { value: v, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, v);
     await onScreen('hidden'); // the phone locked
     await wait(pc, () => lpc.lcu().phones === 1 && lpc.lcu().seen === 0, null, 'the PC to know the phone isn’t looking');
     // the PC's 1 s tick back in the queue first (the phone shows the queue only after it), so it sees a new match found
-    await wait(phone, () => !document.getElementById('queue').hidden && /^Finding a match/.test(document.getElementById('queueState').textContent), null, 'the PC back in the queue');
+    await wait(phone, () => !document.getElementById('finding').hidden && /^\d+:\d\d$/.test(document.getElementById('qTime').textContent), null, 'the PC back in the queue');
     await readyCheck();
     await wait(pc, () => lpc.toasts().includes('Match found: accepted it for you'), null, 'accepted for you');
     assert.strictEqual(callsTo(/ready-check\/accept$/, 'POST').length, 3);
@@ -1382,33 +1477,35 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'pick-helper-ban-phase');
     await wait(pc, () => lpc.toasts().includes('Your turn to ban!'), null, 'the turn alarm');
     await wait(phone, () => buzzes.some((b) => b.length === 3), null, 'the turn alarm on the phone');
-    // the phone: both teams as League shows them (no name Riot hides), whose turn it is, the bans and the seconds left;
-    // bans for you, and every champion found by name or role
-    const seats = (id) => phone.$$eval(`#${id} li`, (l) => l.map((li) => li.innerText.replace(/\s+/g, ' ').trim() + (li.hasAttribute('data-now') ? ' (now)' : '') + (li.hasAttribute('data-locked') ? ' (locked)' : '')));
+    // the phone: both teams over their champions' art as League shows them (no name Riot hides), whose turn it is, the
+    // bans and the seconds left; bans for you, and every champion found by name
+    const seats = (id) => phone.$$eval(`#${id} .tile`, (l, id) => l.map((t) => t.getAttribute('aria-label') + (t.hasAttribute('data-me') ? ' (me)' : '') + (id === 'team' && t.hasAttribute('data-locked') ? ' (locked)' : '')), id);
     const grid = () => phone.$$eval('#grid button', (l) => l.map((b) => b.textContent + (b.disabled ? ' (off)' : '')));
-    await wait(phone, () => document.querySelectorAll('#team li').length === 5 && /^\d+$/.test(document.getElementById('clock').textContent), null, 'champ select on the phone');
-    assert.deepStrictEqual(await seats('team'), ['Friend top · hovering Garen', 'Teammate jungle', 'You mid · banning… (now)', 'Teammate bot', 'Hooks support · hovering Thresh']);
-    assert.deepStrictEqual(await seats('them'), Array(5).fill('Opponent'));
-    assert.deepStrictEqual([await text(phone, '#stage'), await text(phone, '#turn')], ['Ban phase', 'Your turn to ban.']);
+    await wait(phone, () => document.querySelectorAll('#team .tile').length === 5 && /^\d+$/.test(document.getElementById('clock').textContent), null, 'champ select on the phone');
+    assert.deepStrictEqual(await seats('team'), ['Friend, Garen, Top', 'Jungle', 'You, Banning (me)', 'Bottom', 'Hooks, Thresh, Support']);
+    assert.deepStrictEqual(await seats('them'), Array(5).fill('Nobody yet'));
+    assert.match(await phone.getAttribute('#team .tile:first-child img', 'src'), /\/cdn\/img\/champion\/loading\/Garen_0\.jpg$/, 'Garen’s art on Friend’s tile');
+    assert.strictEqual(await text(phone, '#turn'), 'Your turn to ban');
     assert(+(await text(phone, '#clock')) <= 30);
     assert.strictEqual(await phone.locator('#ourBans > *').count(), 1, 'Friend’s ban');
     await wait(phone, () => [...document.querySelectorAll('#picks button')].map((b) => b.textContent).join() === 'Darius,Vi,Zed', null, 'bans for you on the phone');
-    assert.match(await text(phone, '#picksHead'), /^Bans for you/);
+    assert.strictEqual(await text(phone, '#picksHead'), 'Bans for you');
     assert.strictEqual(await text(phone, '#lock'), 'Ban');
     assert(await phone.locator('#lock').isDisabled(), 'nothing hovered yet');
+    assert(await phone.isHidden('#mine'), 'no role filter for bans');
     assert.deepStrictEqual(await grid(), ['Ahri', 'Caitlyn', 'Darius', 'Garen', 'Jinx', 'Lee Sin', 'Lux', 'Sona', 'Thresh', 'Vi', 'Zed']);
+    await shot(phone, 'phone-ban');
     await phone.fill('#q', 'lu');
     await wait(phone, () => [...document.querySelectorAll('#grid button')].map((b) => b.textContent).join() === 'Lux', null, 'the search on the phone');
+    await phone.fill('#q', 'qq');
+    await wait(phone, () => !document.querySelector('#grid button') && !document.getElementById('noMatch').hidden, null, 'nothing found');
     await phone.fill('#q', '');
-    await phone.selectOption('#role', 'm');
-    await wait(phone, () => [...document.querySelectorAll('#grid button')].map((b) => b.textContent).join() === 'Ahri,Lux,Zed', null, 'middles on the phone');
-    await phone.selectOption('#role', '');
     // trades: ask Friend for their champion here, take Hooks's position swap on the phone
     await pc.click('#csRows .cscard:first-child button:has-text("Ask to swap champions")');
     await until(() => callsTo(/champion-swaps\/5\/request$/, 'POST').length === 1, 'the champion trade asked');
     await wait(pc, () => /Cancel the champions swap/.test(document.getElementById('csRows').textContent), null, 'the trade sent');
-    await wait(phone, () => [...document.querySelectorAll('#trades button')].some((b) => b.textContent === 'Swap positions'), null, 'the trade on the phone');
-    assert.match(await text(phone, '#trades'), /Hooks|support/);
+    await wait(phone, () => [...document.querySelectorAll('#trades button')].some((b) => b.textContent === 'Swap positions') && /You asked Friend to swap champions/.test(document.getElementById('trades').textContent), null, 'the trades on the phone');
+    assert.match(await text(phone, '#trades'), /Hooks wants to swap positions/);
     await phone.click('#trades button:has-text("Swap positions")');
     await until(() => callsTo(/position-swaps\/6\/accept$/, 'POST').length === 1, 'the position trade taken from the phone');
     assert.strictEqual(await text(pc, '#pickLock'), 'Ban');
@@ -1425,7 +1522,7 @@ const leagueData = (over = {}) => ({
     lcu.noLock = true;
     await pc.click('#pickLock');
     await wait(pc, () => lpc.toasts().includes('League didn’t ban Darius: Invalid action.'), null, 'League’s reason for no ban');
-    await wait(phone, () => document.getElementById('csNote').textContent === 'League didn’t ban Darius: Invalid action.', null, 'the reason on the phone');
+    await wait(phone, () => document.getElementById('toast').textContent === 'League didn’t ban Darius: Invalid action.', null, 'the reason on the phone');
     lcu.noLock = false;
     await pc.click('#bans button:has-text("Darius")');
     await wait(pc, () => /Your turn to pick/.test(document.getElementById('csTurn').textContent), null, 'my pick');
@@ -1543,16 +1640,25 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await tierTab(), 'Middle', 'the tier list on your role');
     await pc.evaluate(() => { document.querySelector('main').scrollTop = 0; });
     await shot(pc, 'pregame-picks');
-    // on the phone: their Zed, and Darius banned, so neither can be picked
-    await wait(phone, () => document.getElementById('stage').textContent === 'Your team is picking' && /Zed/.test(document.getElementById('them').textContent), null, 'their Zed on the phone');
-    assert.deepStrictEqual(await seats('them'), ['Opponent', 'Opponent', 'Zed (locked)', 'Opponent', 'Opponent']);
-    assert.deepStrictEqual(await phone.$$eval('#ourBans img', (l) => l.map((i) => i.alt)), ['Darius']);
-    await wait(phone, () => /Darius \(off\)/.test([...document.querySelectorAll('#grid button')].map((b) => b.textContent + (b.disabled ? ' (off)' : '')).join()), null, 'Darius off on the phone');
+    // on the phone: their Zed, and Darius banned, so neither can be picked; your role's champions first (Middle), then all
+    await wait(phone, () => document.getElementById('turn').textContent === 'Your turn to pick' && /Zed/.test(document.getElementById('them').innerHTML), null, 'their Zed on the phone');
+    assert.deepStrictEqual(await seats('them'), ['Nobody yet', 'Nobody yet', 'Zed', 'Nobody yet', 'Nobody yet']);
+    assert(await phone.evaluate(() => [...document.querySelectorAll('#ourBans img')].some((i) => i.alt === 'Darius')), 'Darius banned');
+    await wait(phone, () => /Zed \(off\)/.test([...document.querySelectorAll('#grid button')].map((b) => b.textContent + (b.disabled ? ' (off)' : '')).join()), null, 'Zed off on the phone');
+    assert.deepStrictEqual([await text(phone, '#mine'), await phone.getAttribute('#mine', 'aria-pressed'), await grid()], ['Middle', 'true', ['Ahri', 'Lux', 'Zed (off)']]);
+    await phone.click('#mine');
+    await wait(phone, () => document.querySelectorAll('#grid button').length === 11, null, 'every champion');
     assert.deepStrictEqual(await grid(), ['Ahri', 'Caitlyn', 'Darius (off)', 'Garen', 'Jinx', 'Lee Sin', 'Lux', 'Sona', 'Thresh', 'Vi', 'Zed (off)']);
+    await phone.click('#mine');
+    // the picks for you with the pick helper's word (What's new 189's colours)
+    await wait(phone, () => [...document.querySelectorAll('#picks .pick b')].some((b) => b.textContent === 'Ahri'), null, 'the picks on the phone');
+    const words = await phone.$$eval('#picks .pick', (l) => l.map((b) => [b.querySelector('b').textContent, (b.querySelector('.word') || {}).textContent || '', getComputedStyle(b.querySelector('.word') || b).color]));
+    assert(words.length >= 2 && words.length <= 4 && words.every(([, w]) => ['Great', 'Good', 'OK', 'Risky'].includes(w)), JSON.stringify(words));
+    for (const [, w, c] of words) if (w === 'Great' || w === 'Good') assert.strictEqual(c, w === 'Great' ? 'rgb(124, 179, 255)' : 'rgb(95, 212, 196)', `${w} in its colour`);
     await shot(phone, 'phone-pick');
     // hover from the phone, lock in here
-    await wait(phone, () => [...document.querySelectorAll('#picks button')].some((b) => b.textContent === 'Ahri'), null, 'the picks on the phone');
-    await phone.click('#picks button:has-text("Ahri")');
+    await phone.click('#picks .pick:has(b:text-is("Ahri"))');
+    await wait(phone, () => document.getElementById('lock').textContent === 'Lock in Ahri' && !document.getElementById('lock').disabled && document.getElementById('lock').className === 'big red', null, 'Lock in Ahri, red, on the phone');
     await wait(pc, () => /hovering Ahri/.test(document.getElementById('csTurn').textContent), null, 'Ahri hovered from the phone');
     await wait(pc, () => document.querySelector('#dGrid .dchamp[aria-pressed="true"] img').alt === 'Ahri', null, 'Ahri hovered in the grid');
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])');
@@ -1605,47 +1711,67 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => lpc.toasts().includes('Saved your note on Ahri against Zed.')));
     await wait(pc, () => document.querySelector('#csTips li').textContent === 'Your note: Respect his level 6. Ward the side bushes.', null, 'your note first in the tips');
     await shot(pc, 'champ-select');
-    // ---- on the phone once you've locked in: your runes (the page in use changed rune by rune and saved over it,
-    // Riot's page saved as a new one, then another page picked), your summoner spells and your skin
-    await wait(phone, () => document.getElementById('turn').textContent === 'You’re playing Ahri.' && !document.getElementById('tab-runes').hidden && !document.getElementById('tab-skins').hidden, null, 'the runes and skins tabs on the phone');
-    assert(await phone.locator('#lock').isHidden(), 'nothing left to pick');
+    // ---- on the phone once you've locked in: Locked in; your runes as the PC's Runes tab (What's new 213): pages against
+    // Zed, for Ahri and your own, a tap puts one on in League; Edit runes changes the page in use rune by rune, saved over
+    // it and as a new one; then Riot's pick and your own page tapped. Your summoner spells and your skin
+    await wait(phone, () => document.getElementById('lock').textContent === 'Locked in' && !document.getElementById('tab-runes').hidden && !document.getElementById('tab-skins').hidden, null, 'the runes and skins tabs on the phone');
+    assert(await phone.locator('#lock').isDisabled() && (await phone.getAttribute('#lock', 'class')) === 'big', 'Locked in, not red');
     await shot(phone, 'phone-champ-select');
     await phone.click('#tab-runes');
-    await wait(phone, () => document.getElementById('pageSel').selectedOptions[0].textContent === 'LPC Ahri' && document.querySelectorAll('#recs button').length === 2, null, 'your rune page on the phone');
+    const runs = () => phone.$$eval('#runeRows .run', (l) => l.map((b) => ((b.querySelector(':scope > b') || {}).textContent || 'Against') + (b.getAttribute('aria-pressed') === 'true' ? ' (on)' : '')));
+    await wait(phone, () => document.querySelectorAll('#runeRows .run').length === 5, null, 'the Runes tab’s rows on the phone');
+    assert.deepStrictEqual(await runs(), ['Against (on)', 'Most taken in high elo (on)', 'Your usual', 'Riot’s pick', 'Your page: My page']);
+    assert.deepStrictEqual(await texts(phone, '#runeRows h2'), ['Against Zed', 'For Ahri']);
+    assert.match(await phone.getAttribute('#runeRows .run', 'aria-label'), /^Electrocute, .*, 10 of 10 games, 4 won, on in League$/);
+    await shot(phone, 'phone-runes');
+    await phone.click('#runeRows .wide'); // Edit runes
+    await wait(phone, () => !document.getElementById('editBox').hidden && document.getElementById('pageName').value === 'LPC Ahri', null, 'your rune page in the editor');
     const pressed = () => phone.$$eval('#editor [aria-pressed="true"]', (l) => l.map((b) => b.textContent || b.querySelector('img').alt));
     assert.deepStrictEqual(await pressed(), ['Domination', 'Electrocute', 'Taste of Blood', 'Eyeball Collection', 'Treasure Hunter', 'Sorcery', 'Manaflow Band', 'Scorch', 'Adaptive force', 'Adaptive force', 'Health']);
-    assert.deepStrictEqual(await texts(phone, '#recs button'), ['Most popular in high elo', 'Riot’s Electrocute']);
     await phone.click('#editor button:has(img[alt="Dark Harvest"])');
     await phone.click('#editor button:has(img[alt="Celerity"])'); // a third row: Manaflow Band, picked first, goes
     await phone.locator('#editor .chips').first().locator('button', { hasText: 'Attack speed' }).click();
     assert.deepStrictEqual(await pressed(), ['Domination', 'Dark Harvest', 'Taste of Blood', 'Eyeball Collection', 'Treasure Hunter', 'Sorcery', 'Celerity', 'Scorch', 'Attack speed', 'Adaptive force', 'Health']);
-    await shot(phone, 'phone-runes');
+    await shot(phone, 'phone-runes-editor');
     const fromPhone = lcu.calls.length;
     await phone.click('#pageSave');
-    await wait(phone, () => document.getElementById('csNote').textContent === 'Saved “LPC Ahri”, and it’s your rune page now.', null, 'the page saved from the phone');
+    await wait(phone, () => document.getElementById('toast').textContent === 'Saved “LPC Ahri”, and it’s your rune page now.', null, 'the page saved from the phone');
     assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT', fromPhone).map((c) => [c[2].name, c[2].primaryStyleId, c[2].subStyleId, c[2].selectedPerkIds]), [['LPC Ahri', 8100, 8200, [8128, 8139, 8138, 8135, 8234, 8237, 5005, 5008, 5011]]]);
     assert.deepStrictEqual(callsTo(/currentpage$/, 'PUT', fromPhone).map((c) => c[2]), [50]);
-    await phone.click('#recs button:has-text("Riot’s Electrocute")');
+    // back to the rows: none is League's page now; then the edited page again, as a new one
+    await phone.click('#edBack');
+    await wait(phone, () => !document.querySelector('#runeRows .run[aria-pressed="true"]'), null, 'the rows without the edited page');
+    await phone.click('#runeRows .wide');
     await phone.fill('#pageName', 'From my phone');
     await phone.click('#pageNew');
-    await wait(phone, () => document.getElementById('pageSel').selectedOptions[0].textContent === 'From my phone', null, 'the new page in use');
-    assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', fromPhone).map((c) => c[2]), [{ name: 'From my phone', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8112, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5002], current: true }]);
-    await phone.selectOption('#pageSel', { label: 'My page' });
-    await until(() => callsTo(/currentpage$/, 'PUT', fromPhone).map((c) => c[2]).join() === '50,1', 'My page picked on the phone');
+    await until(() => callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', fromPhone).length === 1, 'the new page from the phone');
+    assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', fromPhone).map((c) => c[2]), [{ name: 'From my phone', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8128, 8139, 8138, 8135, 8234, 8237, 5005, 5008, 5011], current: true }]);
+    await wait(phone, () => document.getElementById('pageName').value === 'From my phone', null, 'the new page in use');
+    // a row tapped: Riot's pick goes on as Premade's page (over LPC Ahri), then your own page
+    await phone.click('#edBack');
+    await phone.click('#runeRows .run:has(b:text-is("Riot’s pick"))');
+    await until(() => callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT', fromPhone).length === 2, 'Riot’s pick from the phone');
+    assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT', fromPhone)[1][2].selectedPerkIds, [8112, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5002]);
+    await wait(phone, () => document.querySelector('#runeRows .run[aria-pressed="true"] > b')?.textContent === 'Riot’s pick', null, 'Riot’s pick on, on the phone');
+    await phone.click('#runeRows .run:has(b:text-is("Your page: My page"))');
+    await until(() => callsTo(/currentpage$/, 'PUT', fromPhone).map((c) => c[2]).join() === '50,50,1', 'My page picked on the phone');
     lcu.pages = lcu.pages.filter((x) => x.id !== 51); // deleted in League again, so the page made later is 51 too
     // spells: Teleport on F, then on D (Flash goes to F, as in League); only the ones in this mode (no ARAM's Mark)
     await phone.click('#tab-spells');
+    await shot(phone, 'phone-spells');
     const spellGrid = () => phone.$$eval('#spellGrid button', (l) => l.map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? ' (on)' : '')));
-    await wait(phone, () => document.getElementById('slotD').textContent === 'DFlash' && document.getElementById('slotF').textContent === 'FIgnite', null, 'your spells on the phone');
-    assert.deepStrictEqual(await spellGrid(), ['Flash (on)', 'Heal', 'Ignite', 'Smite', 'Teleport']);
+    const spellSlots = () => phone.$$eval('#slots .slot', (l) => l.map((b) => b.getAttribute('aria-label') + (b.getAttribute('aria-pressed') === 'true' ? ' (on)' : '')));
+    await wait(phone, () => document.getElementById('slotD')?.getAttribute('aria-label') === 'D: Flash' && document.getElementById('slotF')?.getAttribute('aria-label') === 'F: Ignite', null, 'your spells on the phone');
+    assert.deepStrictEqual(await spellGrid(), ['Flash (on)', 'Heal', 'Ignite (on)', 'Smite', 'Teleport'], 'the two you have greyed out');
     await phone.click('#slotF');
-    await wait(phone, () => document.querySelector('#spellGrid [aria-pressed="true"]').textContent === 'Ignite', null, 'F picked');
+    await wait(phone, () => document.getElementById('spellNote').textContent === 'Now pick a spell for F', null, 'F picked');
+    assert.deepStrictEqual(await spellSlots(), ['D: Flash', 'F: Ignite (on)']);
     await phone.click('#spellGrid button:has-text("Teleport")');
-    await wait(phone, () => document.getElementById('slotF').textContent === 'FTeleport', null, 'Teleport on F');
+    await wait(phone, () => document.getElementById('slotF').getAttribute('aria-label') === 'F: Teleport', null, 'Teleport on F');
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH', fromPhone).map((c) => c[2]), [{ spell1Id: 4, spell2Id: 12 }]);
     await phone.click('#slotD');
     await phone.click('#spellGrid button:has-text("Teleport")');
-    await wait(phone, () => document.getElementById('slotD').textContent === 'DTeleport' && document.getElementById('slotF').textContent === 'FFlash', null, 'Teleport on D, Flash on F');
+    await wait(phone, () => document.getElementById('slotD').getAttribute('aria-label') === 'D: Teleport' && document.getElementById('slotF').getAttribute('aria-label') === 'F: Flash', null, 'Teleport on D, Flash on F');
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH', fromPhone).pop()[2], { spell1Id: 12, spell2Id: 4 });
     // skins: the ones you own, then a chroma you own
     await phone.click('#tab-skins');
@@ -1761,7 +1887,7 @@ const leagueData = (over = {}) => ({
     [lcu.cs.myTeam, lcu.cs.theirTeam] = JSON.parse(wasCs);
     // Dodge from the phone: only on a second tap
     await phone.click('#dodge');
-    assert.strictEqual(await text(phone, '#dodge'), 'Tap again to dodge');
+    assert.strictEqual(await text(phone, '#dodge'), 'Tap again to dodge. You lose LP.');
     assert.strictEqual(callsTo(/session\/quit$/).length, 0, 'not on the first tap');
     await phone.click('#dodge');
     await until(() => callsTo(/session\/quit$/, 'POST').length === 1, 'a dodge from the phone');
@@ -1872,15 +1998,24 @@ const leagueData = (over = {}) => ({
     assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[0-4]\d VOIDGRUBS UP HERALD [45]:\d\d BARON (10:00|9:[1-5]\d) THEIR MID INHIBITOR (4:[01]\d|3:[3-5]\d) KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i); // counting down since the game data came: up to 50 s on a busy container
     await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Voidgrubs up · Herald \d+:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k · Win chance 9\d%$/.test(lpcClient.lastOverlay.game), null, 'the overlay line, ending with the chance to win');
     assert(await pc.evaluate(() => !lpcClient.lastOverlay.board && document.getElementById('gameTips').hidden), 'no ranks on the overlay and no tips once the game is on');
-    await wait(phone, () => /Dragon1:\d\dVoidgrubs(up|0:00)Herald\d+:\d\dBaron.*Gold\+15\.5k/.test(document.getElementById('timers').textContent), null, 'the timers on the phone');
+    // the phone as a second screen (What's new 215): the clock, the score, the objectives' timers
+    await wait(phone, () => !document.getElementById('game').hidden && [...document.querySelectorAll('#objs .obj > span')].map((e) => e.textContent).join() === 'Dragon,Voidgrubs,Herald,Baron,Their mid inhibitor', null, 'the timers on the phone');
+    assert.match(await text(phone, '#gClock'), /^1\d:\d\d$/);
+    assert.deepStrictEqual(await phone.$$eval('#stats > span', (l) => l.map((e) => `${e.querySelector('b').textContent} ${e.querySelector('small').textContent}`)), ['5 – 3 Kills', '1 – 0 Towers', '+15.5k Gold']);
+    assert.match(await phone.$eval('#objs .obj:first-child b', (b) => b.textContent), /^1:\d\d$/, 'Dragon’s time left');
     // your lane and CS a minute: on the Game page and the overlay, against your usual on Ahri
     await wait(pc, () => /^Your lane against Zed: level 11 vs 10 · CS 100 vs 90 · kills 3 vs 2\. CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(document.getElementById('laneStats').textContent) && !document.getElementById('laneStats').hidden, null, 'lane stats');
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
     await wait(pc, () => lpcClient.lastOverlay.lane === 'vs Zed: CS +10 · gold +3.1k', null, 'your lane on the overlay: CS and item gold against Zed');
-    // the phone as a second screen: the chance to win, your CS and lane, and all ten players with their rank
-    await wait(phone, () => /Win chance9\d%/.test(document.getElementById('timers').textContent) && /CS 100 · .*vs Zed: CS \+10 · gold \+3\.1k$/.test(document.getElementById('gameLines').textContent)
-      && document.querySelectorAll('#gTeam li').length === 5 && document.querySelectorAll('#gThem li').length === 5 && /LP/.test(document.getElementById('gThem').textContent), null, 'the game on the phone');
-    assert(await phone.evaluate(() => /^You/.test(document.querySelector('#gTeam li[data-me]').textContent)), 'you are marked on the phone');
+    // and the chance to win, your CS and gold against Zed, and all ten players with their rank, folded away
+    await wait(phone, () => /^9\d%$/.test((document.querySelector('#winRing b') || {}).textContent) && /^\d+(\.\d)? CS a minute, your usual is 5\.3\. Gold \+3\.1k on Zed\.$/.test(document.getElementById('laneLine').textContent), null, 'the game on the phone');
+    assert.deepStrictEqual(await phone.$$eval('#lane .lrow', (l) => l.map((r) => `${r.firstChild.textContent} ${r.lastChild.textContent}`)), ['You 100 CS', 'Zed 90 CS']);
+    assert(await phone.isHidden('#players'), 'everyone folded away');
+    await phone.click('#fold');
+    await wait(phone, () => document.querySelectorAll('#players li').length === 10 && /Gold/.test(document.getElementById('players').textContent), null, 'everyone with their rank on the phone');
+    assert.strictEqual(await phone.$eval('#players li[data-me] .who b', (b) => b.textContent), 'You', 'you are marked on the phone');
+    await phone.click('#fold');
+    await shot(phone, 'phone-in-game');
     // the overlay picker, see-through slider and key
     await openSet(pc, 'overlay');
     await pc.uncheck('#optOverlayCs');
@@ -1930,7 +2065,6 @@ const leagueData = (over = {}) => ({
     await wait(pc, (a) => lpcClient.lastOverlay.aug === a, AHRI_AUG, 'back on the overlay while dead');
     await league(leagueData());
     await shot(pc, 'in-game');
-    await shot(phone, 'phone-in-game');
     console.log(`in game: all ten scouted (one found by Riot ID), timers and gold: ${await pc.evaluate(() => lpcClient.lastOverlay.game)}`);
     await openPage(pc, 'profile');
     await wait(pc, () => /^In game as Ahri · 1\d min$/.test(document.getElementById('proStatus').textContent), null, 'in game on your profile');
@@ -2430,7 +2564,10 @@ const leagueData = (over = {}) => ({
     await wait(fr, () => [...document.querySelectorAll('#players .plol')].some((e) => e.textContent === 'Gold II · 63 LP, +18 today'), null, 'your rank on the friend’s card for you');
     assert(await pc.locator('#players .watch').isHidden(), 'no Watch while the friend isn’t playing');
     await fr.evaluate(() => { document.getElementById('chatText').value = 'gg wp'; document.getElementById('chatForm').requestSubmit(); }); // off the room page since What's new 152; the phone remote still has it
-    await wait(phone, () => /Fren\s*gg wp/.test(document.getElementById('chatLog').textContent), null, 'the friend’s message on the phone');
+    await wait(phone, () => !document.getElementById('chatDot').hidden, null, 'a dot on Chat for the friend’s message');
+    await phone.click('#m-chat');
+    await wait(phone, () => /Fren .*gg wp/.test(document.getElementById('chatLog').textContent) && document.getElementById('chatDot').hidden, null, 'the friend’s message on the phone');
+    await phone.click('#m-league');
     assert((await embs(pc, '#players .plol .emb')).includes('TFT_Regalia_Platinum.png'), 'the emblem on the friend’s card');
     await fr.evaluate((d) => lpcClient.emit('league', d), leagueData({ me: { champ: 'Garen', champName: 'Garen', team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 } }));
     await wait(pc, () => { const b = document.querySelector('#players .watch'); return b && !b.hidden; }, null, 'Watch on the friend’s card');
@@ -2546,7 +2683,7 @@ const leagueData = (over = {}) => ({
     await until(() => callsTo(/my-selection\/reroll$/, 'POST').length === 1, 'a reroll');
     await wait(pc, () => document.getElementById('rerollBtn').hidden && /You’re playing Jinx/.test(document.getElementById('csTurn').textContent), null, 'no rerolls left');
     // and on the phone: the bench, Garen taken back from it, and a reroll
-    await wait(phone, () => document.getElementById('turn').textContent === 'You’re playing Jinx.' && [...document.querySelectorAll('#bench button')].map((b) => b.textContent).join() === 'Sona,Garen' && document.getElementById('reroll').hidden, null, 'the bench on the phone');
+    await wait(phone, () => /^You, Jinx/.test(document.querySelector('#team .tile[data-me]')?.getAttribute('aria-label')) && [...document.querySelectorAll('#bench button')].map((b) => b.textContent).join() === 'Sona,Garen' && document.getElementById('reroll').hidden, null, 'the bench on the phone');
     await phone.click('#bench button:has-text("Garen")');
     await until(() => callsTo(/bench\/swap\/86$/, 'POST').length === 1, 'Garen taken from the bench on the phone');
     lcu.cs.rerollsRemaining = 1; // another one earned

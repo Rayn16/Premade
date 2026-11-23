@@ -712,9 +712,13 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .timers { display: flex; flex-wrap: wrap; gap: 8px; }
 .timers > span { display: grid; gap: 4px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--soft); font: 600 20px/1.2 var(--body); font-variant-numeric: tabular-nums; }
 .timers b { font: 500 12.5px/1.2 var(--body); color: var(--muted); }
-.remote { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-#qr { width: 232px; height: 232px; flex: none; border-radius: 6px; background: #fff; }
-#remoteLink { font-size: 13px; overflow-wrap: anywhere; }
+/* the phone remote's QR card, under its switch (What's new 215) */
+.rcard { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 12px; animation: probox-in 200ms var(--ease-out); }
+.rcard > div { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.rcard p { margin: 0; }
+#remoteAsk { display: flex; flex-direction: column; gap: 8px; animation: probox-in 180ms var(--ease-out); }
+#qr { width: 152px; height: 152px; flex: none; border-radius: 8px; background: #fff; }
+#remoteLink { font: 12.5px/1.45 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
 .chart { display: block; width: 100%; max-width: 640px; height: auto; }
 .chart .axis { stroke: var(--line); stroke-width: 1; }
 .chart .gold { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linejoin: round; }
@@ -3036,18 +3040,6 @@ dialog.wizard { transform: scale(var(--from)); }
           <label class="check"><input id="optLolStatus" type="checkbox"> Show my Premade room in my League status, so friends can join</label>
         </div>
       </section>
-      <section id="remoteBox" class="panel" aria-labelledby="h-remote" hidden>
-        <h2 id="h-remote" class="ph">Phone remote <button class="tip" type="button" popovertarget="t-remote" aria-label="About the phone remote">?</button></h2>
-        <div class="remote">
-          <canvas id="qr" width="232" height="232" role="img" aria-label="QR code that opens the phone remote"></canvas>
-          <div class="me-text">
-            <p>Point your phone's camera at the code, or open this link on your phone:</p>
-            <a id="remoteLink" target="_blank" rel="noopener"></a>
-            <p id="remoteState" class="hint" role="status"></p>
-            <button id="remoteNew" class="btn small" type="button">New code</button>
-          </div>
-        </div>
-      </section>
     </section>
 
     <section class="view" data-view="game" aria-label="Game" hidden>
@@ -3406,6 +3398,16 @@ dialog.wizard { transform: scale(var(--from)); }
           <section class="ovcard" aria-labelledby="h-setremote">
             <h3 id="h-setremote">Phone remote <button class="tip" type="button" popovertarget="t-remote" aria-label="About the phone remote">?</button></h3>
             <label class="check"><input id="optRemote" type="checkbox"><span><span>Phone remote</span><span>Accept matches, queue and pick champions from my phone</span></span></label>
+            <div id="remoteCard" class="rcard" hidden>
+              <canvas id="qr" width="232" height="232" role="img" aria-label="QR code that opens the phone remote"></canvas>
+              <div>
+                <b>Scan this with your phone’s camera.</b>
+                <a id="remoteLink" target="_blank" rel="noopener"></a>
+                <div id="remoteBtns" class="toolbar"><button id="remoteCopy" class="btn small" type="button">Copy link</button><button id="remoteNew" class="btn small" type="button">New code</button></div>
+                <div id="remoteAsk" hidden><p>A new code stops the old link. Phones using it scan again.</p><div class="toolbar"><button id="remoteRenew" class="btn small" type="button">Make a new code</button><button id="remoteKeep" class="btn small" type="button">Keep this one</button></div></div>
+                <p id="remoteState" class="hint" role="status"></p>
+              </div>
+            </div>
           </section>
         </div>
       </div>
@@ -3951,7 +3953,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Settings, Clips, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, League, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
-<div id="t-remote" class="tipbox" popover>Start the queue, accept matches, go through champ select (both teams, picks and bans, trades, runes, spells, skins and dodge), start enemy timers and write in the room chat from your phone, on any network: scan the code with your phone's camera. Your phone buzzes and rings when a match is found or it's your turn, while the page is open. Tick “Tell me when a match is found or my squad calls” on the phone and it gets a notification even with its screen off or the page closed, also for your squad’s calls and pings (Your group, on the Voice page) (on an iPhone, open the remote from its home screen icon first). Add it to your home screen to use it like an app. It works while this app is open on your PC. Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
+<div id="t-remote" class="tipbox" popover>Your phone as a remote for League, on any network, while this app is open on your PC: scan the code with your phone’s camera, or Copy link and open it there. It follows League one screen at a time, in your colours: pick the game and your roles, invite friends and find a match; accept it; go through champ select (picks for you, trades, runes, spells, skins and dodge); and in a game see the score, the objectives and your lane, time their Flash and ultimates and call them missing. Chat has your room’s chat and League chat. It buzzes and rings when a match is found or it’s your turn while the page is open; turn on “Tell me when a match is found” in its Settings for a notification even with its screen off, also for your squad’s calls and pings (on an iPhone, open the remote from its home screen icon first). Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
@@ -10551,11 +10553,14 @@ dialog.wizard { transform: scale(var(--from)); }
     if (o) itemsSoon();
     return o ? `vs ${champName(o.champ)}: CS ${d ? (d > 0 ? '+' : '−') + Math.abs(d) : 'even'}${g == null ? '' : ` · gold ${goldText(g)}`}` : '';
   }
+  const csUsual = (m) => { // your CS a minute on this champion in this mode, from your games (0: none)
+    const c = m && champOf(m.champ), on = c && myHist ? myHist.filter((g) => g.champ === +c.key && g.mode === league.mode && g.len > 0) : [];
+    return on.length ? on.reduce((n, g) => n + g.cs / (g.len / 60), 0) / on.length : 0;
+  };
   function csText() {
-    const m = meIn(), min = gameNow() / 60, c = m && champOf(m.champ);
+    const m = meIn(), min = gameNow() / 60;
     if (!m || min < 1) return '';
-    const on = c && myHist ? myHist.filter((g) => g.champ === +c.key && g.mode === league.mode && g.len > 0) : [];
-    const usual = on.length ? on.reduce((n, g) => n + g.cs / (g.len / 60), 0) / on.length : 0;
+    const usual = csUsual(m);
     return `CS ${m.cs} · ${(m.cs / min).toFixed(1)} a minute${usual ? ` (usual ${usual.toFixed(1)})` : ''}`;
   }
   const trOf = (...cells) => { const tr = document.createElement('tr'); for (const v of cells) tr.append(Object.assign(document.createElement('td'), { textContent: String(v) })); return tr; };
@@ -11327,7 +11332,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const GAME_STATUS = { inQueue: 'In queue', championSelect: 'In champ select', inGame: 'In a game', spectating: 'Watching a game' };
   for (const id of ['pos1', 'pos2']) $(id).replaceChildren(...[['UNSELECTED', 'Pick one'], ...Object.entries(POS), ['FILL', 'Fill']].map(([v, t]) => new Option(t, v)));
   async function lobbyTick(ph) {
-    if (!lobbyOk() || preViewEl.hidden || !(ph === 'None' || ph === 'Lobby')) return;
+    if (!lobbyOk() || (preViewEl.hidden && !remoteConns.size) || !(ph === 'None' || ph === 'Lobby')) return; // Pregame or the phone's Play
     if (performance.now() - queuesAt > 600000) {
       queuesAt = performance.now();
       const q = await lcuGet('/lol-game-queues/v1/queues');
@@ -11406,14 +11411,14 @@ dialog.wizard { transform: scale(var(--from)); }
   // picking the role that's in the other box swaps the two
   $('pos1').addEventListener('change', () => { const me = lobby && lobby.localMember, a = $('pos1').value; if (me) setRoles(a, a === me.secondPositionPreference ? me.firstPositionPreference || 'UNSELECTED' : me.secondPositionPreference || 'UNSELECTED'); });
   $('pos2').addEventListener('change', () => { const me = lobby && lobby.localMember, b = $('pos2').value; if (me) setRoles(b === me.firstPositionPreference ? me.secondPositionPreference || 'UNSELECTED' : me.firstPositionPreference || 'UNSELECTED', b); });
-  $('queuePick').addEventListener('change', async () => {
-    const id = +$('queuePick').value;
-    if (!id) return;
+  async function pickGame(id) { // here and on the phone: outside a lobby it makes one
     if (!okStatus(await lcuAsk('POST', '/lol-lobby/v2/lobby', { queueId: id }))) notify('League didn’t switch to that game. It may need more champions or a higher level.', true);
     $('queuePick').dataset.key = '';
     leagueTick();
-  });
-  $('lobbyLeave').addEventListener('click', async () => { if (!okStatus(await lcuAsk('DELETE', '/lol-lobby/v2/lobby'))) notify('Couldn’t leave the lobby.', true); leagueTick(); });
+  }
+  $('queuePick').addEventListener('change', () => { if (+$('queuePick').value) pickGame(+$('queuePick').value); });
+  const leaveLobby = async () => { if (!okStatus(await lcuAsk('DELETE', '/lol-lobby/v2/lobby'))) notify('Couldn’t leave the lobby.', true); leagueTick(); };
+  $('lobbyLeave').addEventListener('click', leaveLobby);
 
   // ---- League chat (app 1.14): your League friends' messages and party invites, read and answered here and on the
   // phone remote, through League's own client: your conversations with friends and your invites every 5 seconds (every
@@ -11595,7 +11600,7 @@ dialog.wizard { transform: scale(var(--from)); }
       }
       if (ph === 'ReadyCheck') await readyTick();
       if (ph === 'ChampSelect') await champTick();
-      [lobby, search] = await Promise.all([ph === 'Lobby' ? lcuGet('/lol-lobby/v2/lobby') : null, ph === 'Matchmaking' ? lcuGet('/lol-matchmaking/v1/search') : null]);
+      [lobby, search] = await Promise.all([ph === 'Lobby' || ph === 'Matchmaking' ? lcuGet('/lol-lobby/v2/lobby') : null, ph === 'Matchmaking' ? lcuGet('/lol-matchmaking/v1/search') : null]); // the lobby in queue too: the phone's party
       await lobbyTick(ph);
       await chatTick(ph);
       if (ph) await patchTick();
@@ -11611,10 +11616,11 @@ dialog.wizard { transform: scale(var(--from)); }
 
   // ---- phone remote: your phone opens remote.html#<code> (the QR code) and joins this page's own room on the
   // connection server as lolprox-r<code>-<1 to 9>; this page is lolprox-r<code>-0. The phone gets League's state and
-  // sends accept, decline, the queue, the auto-accept setting and in champ select all you'd do there in League (hover,
-  // lock in, trades, spells, skin, runes, the bench), and answers League chat (lolopen, lolsay and lolinv). Anyone with
-  // the code can use it, so New code makes another.
-  let remote = null, remoteWas = '', qrLib = null;
+  // your colours, and sends accept, decline, the queue, the auto-accept setting, the game, your roles, invites and
+  // leaving the lobby (What's new 215), in champ select all you'd do there in League (hover, lock in, trades, spells,
+  // skin, the Runes tab's rows and editor, the bench), in a game enemy timers and callouts, and answers League chat
+  // (lolopen, lolsay and lolinv). Anyone with the code can use it, so New code makes another.
+  let remote = null, remoteWas = '', qrLib = null, remoteFresh = false; // remoteFresh: a new code no phone has used yet
   const remoteConns = new Set();
   const id12 = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); // a code or id our server takes
   const newRemote = () => { const c = id12(); store.set('lpc-remote', c); return c; };
@@ -11626,7 +11632,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const code = remoteCode(), pr = (remote = roomMsgs(new Peer(`lolprox-r${code}-0`, peerOpts)));
       pr.on('connection', (c) => {
         if (!new RegExp(`^lolprox-r${code}-[1-9]$`).test(c.peer)) return c.close();
-        c.on('open', () => { remoteConns.add(c); remoteWas = ''; pushRemote(); renderRemote(); });
+        c.on('open', () => { remoteConns.add(c); remoteWas = ''; remoteFresh = false; pushRemote(); renderRemote(); });
         c.on('data', (m) => { if (m && m.t === 'hi') c.seen = m.seen === true; onRemote(m); }); // seen: the remote is on the phone's screen
         c.on('close', () => { remoteConns.delete(c); renderRemote(); });
       });
@@ -11641,10 +11647,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ponytail: goes by what each phone said last, so one frozen before it could say it went off screen misses the push
   // until its connection drops; a heartbeat from the phone if that bites
   const ringPhone = () => { if (remote && ![...remoteConns].some((c) => c.seen)) fetch(`${serverUrl}/push/${remoteCode()}/ring`, { method: 'POST' }).catch(() => {}); };
-  function renderRemote() {
-    $('remoteBox').hidden = !remote;
+  function renderRemote() { // the QR card under the switch
+    $('remoteCard').hidden = !remote;
     $('remoteLink').href = $('remoteLink').textContent = remote ? remoteUrl() : '';
-    $('remoteState').textContent = !remote ? '' : remoteConns.size ? 'Your phone is connected.' : remote.open ? 'Waiting for your phone.' : 'Connecting…';
+    $('remoteState').textContent = !remote ? '' : remoteConns.size ? 'Your phone is connected.' : remoteFresh ? 'New code made. Scan it again on your phone.' : remote.open ? 'Waiting for your phone.' : 'Connecting…';
   }
   async function drawQr() {
     qrLib = qrLib || new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'vendor/qrcode/qrcode.js'; s.onload = () => res(window.qrcode); s.onerror = rej; document.head.append(s); });
@@ -11661,67 +11667,101 @@ dialog.wizard { transform: scale(var(--from)); }
   function remoteState() {
     const a = cs && lcu === 'ChampSelect' ? myAction() : null;
     return {
-      t: 'state', phase: lcu || '', auto: opts.autoAccept, alarm: opts.turnAlarm,
-      queue: lcu === 'Lobby' && lobby ? { lead: lead(), custom: custom() } : lcu === 'Matchmaking' && search ? { time: Math.round(search.timeInQueue || 0), est: Math.round(search.estimatedQueueTime || 0) } : null,
+      t: 'state', phase: lcu || '', auto: opts.autoAccept, alarm: opts.turnAlarm, look: lookRemote(),
+      queue: /^(None|Lobby|Matchmaking)$/.test(lcu) ? queueRemote() : null,
       rc: lcu === 'ReadyCheck' && rc && rc.state === 'InProgress' ? { response: rc.playerResponse, left: Math.max(0, 12 - Math.round(rc.timer || 0)) } : null,
       cs: cs && lcu === 'ChampSelect' ? csRemote(a) : null,
-      game: league ? { timers: timers().map(([n, s]) => [n, Math.round(s)]), ...teamGold(), foes: opts.foeTimers ? liveList().filter((p) => !p.ally && p.champ).map((p) => p.champ) : null, calls: !!opts.teamCall, ...gameRemote() } : null, // foes: to tap for enemy timers
+      game: league ? gameRemote() : null,
       chat: peer ? remoteLines() : null, // in a voice room
       lol: chatOk() && lcu ? { inv: lolChat.inv, convs: lolChat.convs.slice(0, 12).map(({ id, name, unread, last }) => ({ id, name, unread, last: last.slice(0, 80) })),
         open: lolChat.open ? { id: lolChat.open, name: chatName(), msgs: lolChat.msgs.slice(-15) } : null } : null, // League chat (app 1.14)
       me: statsRemote(),
     };
   }
-  // the phone's Your League: your ranks, today's ranked record and LP, your last 10 games with the LP each won or lost,
-  // and your profile link (Stats, Share my profile), made again whenever your games or rank change
+  // the phone's Play and Finding a match (What's new 215): League's games to pick (the lobby's filled; only its leader
+  // changes it, and outside a lobby a pick makes one), your two roles, your League friends online to invite (those in
+  // the lobby joined), and in queue the time, the usual wait, the game, your roles and your party
+  function queueRemote() {
+    const here = !!lobby && lcu !== 'None', cfg = (here && lobby.gameConfig) || {}, me = (here && lobby.localMember) || {}, mates = (here && lobby.members) || [];
+    const inLobby = new Set(mates.map((m) => m && m.puuid)), asked = new Set(((here && lobby.invitations) || []).filter((i) => i && ['Pending', 'Requested', 'OnHold'].includes(i.state)).map((i) => i.toPuuid));
+    return {
+      games: lobbyOk() ? queueList.slice().sort((a, b) => (b.gameSelectPriority | 0) - (a.gameSelectPriority | 0) || a.id - b.id).map((q) => [q.id, q.description || q.name || QUEUES[q.id] || `Queue ${q.id}`]) : [],
+      now: here && !custom() ? cfg.queueId | 0 : 0, lead: lead(), custom: custom(), name: !here ? '' : custom() ? 'Custom game' : QUEUES[cfg.queueId] || '',
+      roles: here && cfg.showPositionSelector ? [me.firstPositionPreference || 'UNSELECTED', me.secondPositionPreference || 'UNSELECTED'] : null,
+      friends: lcu === 'Lobby' && here && mayInvite() ? friends.map((f) => ({ id: f.puuid, name: f.gameName || 'A friend', icon: f.icon | 0, st: inLobby.has(f.puuid) ? 'in' : asked.has(f.puuid) ? 'asked' : '' }))
+        .sort((a, b) => !!b.st - !!a.st || a.name.localeCompare(b.name)) : null,
+      party: lcu === 'Matchmaking' && here ? mates.filter(Boolean).map((m) => ({ icon: m.summonerIconId | 0, name: String(m.gameName || m.summonerName || '') })) : null,
+      time: lcu === 'Matchmaking' && search ? Math.round(search.timeInQueue || 0) : 0, est: lcu === 'Matchmaking' && search ? Math.round(search.estimatedQueueTime || 0) : 0,
+    };
+  }
+  // the phone in your colours (Settings > Look) and with your animations setting (Auto: the phone's own)
+  const LOOK_KEYS = ['bg', 'panel', 'raised', 'fg', 'muted', 'line', 'accent', 'accent-fg', 'good', 'bad', 'g-great', 'g-good', 'g-risky'];
+  function lookRemote() {
+    const css = getComputedStyle(document.documentElement);
+    return { v: Object.fromEntries(LOOK_KEYS.map((k) => [k, css.getPropertyValue(`--${k}`).trim()])), scheme: css.colorScheme === 'light' ? 'light' : 'dark', motion: ['on', 'reduced'].includes(opts.motion) ? opts.motion : '' };
+  }
+  // the phone's Your League: each rank's crest, tier and LP, today's ranked games as wins and losses with the LP, your
+  // last 10 games with the LP each won or lost, and your profile link (Stats, Share my profile), made again whenever
+  // your games or rank change
   let remoteProfile = { key: '', link: '' };
   function statsRemote() {
     if (!me0 || !me0.gameName || !myHist) return null;
     const key = JSON.stringify([me0.gameName, myHist.length && myHist[0].id, rankNow]), day = new Date().toDateString();
     if (remoteProfile.key !== key) { remoteProfile.key = key; profileUrl().then((link) => { if (remoteProfile.key === key) { remoteProfile.link = link || ''; pushRemote(); } }); }
-    const today = lpOf(myAcct()).filter((e) => new Date(e.at).toDateString() === day), lp = today.reduce((n, e) => n + e.delta, 0), w = today.filter((e) => e.win).length;
+    const today = lpOf(myAcct()).filter((e) => new Date(e.at).toDateString() === day);
+    const rk = (q, r) => { const i = r ? TIERS.indexOf(r.tier) : -1; return i < 0 ? { q, tier: 'Unranked' } : { q, tier: rkName(r), lp: r.leaguePoints | 0, top: i >= 7, c: TIER_C[i], emb: emblems[r.tier] || '' }; };
     return {
-      name: `${me0.gameName}#${me0.tagLine || ''}`, ranks: rankNow ? [['Solo/Duo', rankText(rankNow.RANKED_SOLO_5x5)], ['Flex', rankText(rankNow.RANKED_FLEX_SR)]] : [], // none until League says
-      today: today.length ? `Today: ${w}W ${today.length - w}L, ${lp >= 0 ? '+' : ''}${lp} LP` : '', link: remoteProfile.link,
-      games: myHist.slice(0, 10).map((g) => { const e = lpLog.find((x) => x.id === g.id); return { champ: g.champ, win: g.win, line: [`${g.k}/${g.d}/${g.a}`, g.mode === 'CLASSIC' ? `${g.cs} CS` : '', e ? `${e.delta < 0 ? '−' : '+'}${Math.abs(e.delta)} LP` : ''].filter(Boolean).join(' · ') }; }),
+      ranks: rankNow ? [rk('Solo/Duo', rankNow.RANKED_SOLO_5x5), rk('Flex', rankNow.RANKED_FLEX_SR)] : [], // none until League says
+      today: today.map((e) => !!e.win), lp: today.reduce((n, e) => n + e.delta, 0), link: remoteProfile.link,
+      games: myHist.slice(0, 10).map((g) => { const e = lpLog.find((x) => x.id === g.id); return { champ: g.champ, win: !!g.win, kda: `${g.k}/${g.d}/${g.a}`, ...(e ? { lp: e.delta } : {}) }; }),
     };
   }
-  // the phone as a second screen in a game: your team's win chance, your CS and lane, what to buy next (while you're
-  // dead or in base, as on the overlay) and all ten players with their Solo/Duo rank (looked up as on the Game page)
+  // the phone as a second screen in a game: the clock, the objective timers (with their buffs' and their Flash and
+  // ultimates' with enemy timers on), kills, towers, gold and your team's win chance, your CS and gold against your
+  // laner, what to buy next (while you're dead or in base, as on the overlay), their five to time and call missing
+  // (as the overlay's enemy strip), and all ten players with their Solo/Duo rank (looked up as on the Game page)
   function gameRemote() {
-    const w = winChance(), b = buyNext();
+    const w = winChance(), b = buyNext(), m = meIn(), o = laneFoeIn(m), min = gameNow() / 60, strip = stripRows() || [];
     return {
-      win: w == null ? null : Math.round(100 * Math.min(0.99, Math.max(0.01, w))), lines: [csText(), laneLine()].filter(Boolean), buy: b ? { name: b.name, why: b.why, pic: b.pic } : null,
-      players: liveList().map((p) => { scoutOf(p.puuid); const s = p.puuid && scoutData.get(p.puuid); return { champ: p.champ, name: String(p.name || '').split('#')[0], ally: p.ally, me: p.me, score: p.score || '', rank: s && s.ranked ? rankText(s.ranked.RANKED_SOLO_5x5) : '' }; }),
+      clock: Math.round(gameNow()), timers: timers().map(([n, s, k]) => [n, Math.round(s), ...(k ? [k] : [])]), ...teamGold(), ft: !!opts.foeTimers && SR.test(league.mode),
+      win: w == null ? null : Math.round(100 * Math.min(0.99, Math.max(0.01, w))), buy: b ? { name: b.name, why: b.why, pic: b.pic } : null,
+      lane: o ? { me: m.cs, foe: o.cs, champ: +(champOf(o.champ) || {}).key || 0, rate: min >= 1 ? +(m.cs / min).toFixed(1) : 0, usual: +csUsual(m).toFixed(1), gold: itemGold ? goldOf(m) - goldOf(o) : null } : null,
+      foes: opts.foeTimers || opts.teamCall ? liveList().filter((p) => !p.ally && champOf(p.champ)).slice(0, 5).map((p) => {
+        const r = strip.find((x) => x.name === champName(p.champ));
+        return { champ: p.champ, lane: CALL_LANES.find((l) => CALL_POS[l].includes(p.pos)) || '', t: r ? r.spells.map(({ k, icon, name, left }) => ({ k, icon, name, left })) : [] };
+      }) : null,
+      calls: !!opts.teamCall,
+      players: liveList().map((p) => { scoutOf(p.puuid); const s = p.puuid && scoutData.get(p.puuid), r = s && s.ranked && s.ranked.RANKED_SOLO_5x5; return { champ: p.champ, name: String(p.name || '').split('#')[0], ally: p.ally, me: p.me, score: p.score || '', rank: !s || !s.ranked ? '' : r && TIERS.includes(r.tier) ? rkName(r) : 'Unranked' }; }),
     };
   }
-  // champ select as the phone shows it (remote.html renderCs), like League's own: both teams with whose turn it is
-  // (names only where League shows them), the bans, when this part ends (by this PC's clock: pushRemote adds its time,
-  // so the phone counts down by its own), what you may pick or ban with each one's roles, your spells, skin and rune
-  // pages, and whether you can dodge. theirs is for a phone still on the last version.
+  // champ select as the phone shows it (remote.html drawCs), like League's own: both teams with whose turn it is
+  // (names only where League shows them) and their skins, the bans, when this part ends (by this PC's clock: pushRemote
+  // adds its time, so the phone counts down by its own), the picks or bans for you, what you may pick or ban with each
+  // one's roles, your spells and skin, your rune pages with the Runes tab's rows (ru), and whether you can dodge.
   const ROLE_KEY = { TOP: 't', JUNGLE: 'j', MIDDLE: 'm', BOTTOM: 'b', UTILITY: 's' };
-  function advIds() { // the phone's picks: the top of the pick helper's list (What's new 189), or Best picks for you off Summoner's Rift
+  function advIds() { // the phone's picks with the pick helper's word: the top 4 of its list (What's new 189), or Best picks for you off Summoner's Rift
     const t = tiers();
-    if (mapNow() !== 11 || cs.benchEnabled || !t || !t.n) return suggestions().map((x) => x.id);
-    return advPool(advRole || myPos() || usualRole(), advNow()).filter((x) => !x.off).slice(0, 8).map((x) => x.id);
+    if (mapNow() !== 11 || cs.benchEnabled || !t || !t.n) return suggestions().slice(0, 4).map((x) => [x.id, '']);
+    return advPool(advRole || myPos() || usualRole(), advNow()).filter((x) => !x.off).slice(0, 4).map((x) => [x.id, GRADES.find(([m]) => x.s >= m)[1]]);
   }
   function csRemote(a) {
     csExtras();
     const acts = csActions(), me = myCell() || {}, t = cs.timer || {};
     // locked: a champion and no pick still to make (ARAM has no picks at all; their hovers never show)
-    const seat = (p) => ({ champ: p.championId || p.championPickIntent || 0, locked: p.championId > 0 && !acts.some((x) => x.type === 'pick' && !x.completed && x.actorCellId === p.cellId), pos: String(p.assignedPosition || '').toUpperCase(),
+    const seat = (p) => ({ champ: p.championId || p.championPickIntent || 0, skin: p.selectedSkinId | 0, locked: p.championId > 0 && !acts.some((x) => x.type === 'pick' && !x.completed && x.actorCellId === p.cellId), pos: String(p.assignedPosition || '').toUpperCase(),
       name: hidden(p) && p.cellId !== cs.localPlayerCellId ? '' : String(p.gameName || ''), now: (acts.find((x) => x.isInProgress && x.actorCellId === p.cellId) || {}).type || '' });
     const ours = new Set(cs.myTeam.map((p) => p.cellId)), bans = acts.filter((x) => x.type === 'ban' && x.completed && x.championId > 0), ban = !!a && a.type === 'ban', can = (ban ? bannable : pickable) || [];
-    const top = me.championId && mapNow() === 11 ? topMineNow(me.championId, myPos(), renderGame) : null; // as champ select's runes
+    const ru = ruRows(me.championId | 0), rows = (l) => l.map(({ use, ...r }) => r); // the rows as data: a tap comes back as runerow
     return {
       action: a ? { id: a.id, type: a.type, now: !!a.isInProgress, champ: a.championId || 0 } : null,
       stage: csStage(), ends: csEnds(),
       team: cs.myTeam.map((p) => ({ ...seat(p), spells: [p.spell1Id | 0, p.spell2Id | 0], me: p.cellId === cs.localPlayerCellId, trades: p.cellId === cs.localPlayerCellId ? [] : tradesWith(p.cellId) })),
-      them: (cs.theirTeam || []).filter(Boolean).map(seat), theirs: (cs.theirTeam || []).map((p) => (p && p.championId) || 0),
+      them: (cs.theirTeam || []).filter(Boolean).map(seat),
       bans: [bans.filter((x) => ours.has(x.actorCellId)), bans.filter((x) => !ours.has(x.actorCellId))].map((l) => l.map((x) => x.championId)),
-      picks: ban ? banIdeas().map((x) => x.c) : advIds(), can, roles: can.map((id) => ((champPos && champPos[id] && champPos[id].recommendedPositions) || []).map((r) => ROLE_KEY[r] || '').join('')),
+      picks: ban ? banIdeas().slice(0, 4).map((x) => [x.c, '']) : advIds(), can, roles: can.map((id) => ((champPos && champPos[id] && champPos[id].recommendedPositions) || []).map((r) => ROLE_KEY[r] || '').join('')),
       mode: (gfs && gfs.gameData && gfs.gameData.queue && gfs.gameData.queue.gameMode) || '', spells: [me.spell1Id | 0, me.spell2Id | 0], skin: me.selectedSkinId | 0,
-      skins: me.championId ? csx.skins : [], pages: csx.pages, recs: [...(topOk(top) && top.runes && top.runes.n >= 5 ? [{ name: `Most popular in ${eloIn(top.elo)}`, p: top.runes.perks }] : []), ...csx.recs],
+      skins: me.championId ? csx.skins : [], pages: csx.pages,
+      ru: { champ: me.championId | 0, vs: ru.vs && { foe: ru.vs.foe, theirs: ru.vs.theirs, note: ru.vs.note, rows: rows(ru.vs.rows), empty: ru.vs.empty }, for: rows(ru.for), mine: rows(ru.mine) },
       bench: cs.benchEnabled ? (cs.benchChampions || []).map((b) => (b && b.championId) || 0).filter((c) => c > 0) : null, rerolls: cs.allowRerolling ? cs.rerollsRemaining | 0 : 0,
       note: remoteNote && Date.now() - remoteNote.at < 8000 ? remoteNote.text : '', dodge: !cs.isCustomGame, // a custom game has no dodge
     };
@@ -11925,40 +11965,53 @@ dialog.wizard { transform: scale(var(--from)); }
       else if (l.querySelector('.ruchk')) l.querySelector('.ruchk').remove();
     });
   }
-  function csRunes(champ) {
+  // the Runes tab's rows, for this page and the phone's (What's new 215): { cur, vs, for, mine }, each row { title, sub,
+  // p, spells, stat, k (games), n (of), w (won), tag, on, use }
+  function ruRows(champ) {
     runesSoon();
     const pages = csx.pages, cur = pages.find((x) => x.cur) || pages[0], same = (p) => !!cur && cur.p.slice(0, 11).join() === p.join();
     const map = mapNow(), pos = myPos(), top = champ && map === 11 ? topMineNow(champ, pos, renderGame) : null;
     // against their laner: your lane's, or the one tapped (off Summoner's Rift, nothing)
     const theirs = (cs.theirTeam || []).map((p) => (p && p.championId) || 0).filter((c) => c > 0), foe = theirs.includes(ruFoe) ? ruFoe : laneFoe(pos);
-    $('ruVs').hidden = !champ || !foe || map !== 11 || !runeTrees.length;
-    if (!$('ruVs').hidden) {
-      const fk = JSON.stringify([theirs, foe, ddVersion]);
-      if ($('ruFaces').dataset.key !== fk) {
-        $('ruFaces').dataset.key = fk;
-        $('ruFaces').replaceChildren(...theirs.map((c) => { const b = mkBtn('ruface', [Object.assign(new Image(), { src: champImg(c), alt: '' })], () => { ruFoe = c; renderGame(); }, c === foe); b.setAttribute('aria-label', champName(c)); b.title = champName(c); return b; }));
-      }
+    let vs = null;
+    if (champ && foe && map === 11 && runeTrees.length) {
       const v = vsPages(top, runeCountNow(champ, renderGame), pos, foe), name = champName(foe), elo = v.from === 'count' ? 'high elo' : eloIn(top && top.elo);
-      $('ruVsHead').textContent = `Against ${name}`;
-      $('ruVsNote').hidden = !v.pages.length;
-      $('ruVsNote').textContent = `Most taken first, from ${v.n} ${elo} games against ${name}`;
-      $('ruVsNote').title = v.from === 'count' ? 'Ranked Solo/Duo games our server counted from high elo ladders, this patch and the one before.' : `The ${eloOf(top && top.elo)} games of ${champName(champ)} our server keeps.`;
-      ruList($('ruVsList'), v.pages.map((x) => ({ title: runeName(x.p[2]) || 'A page', sub: `+ ${runeName(x.p[1])}`, p: x.p, spells: v.spells, stat: `${x.k} of ${v.n} games`, k: x.k, w: x.w, tag: x.more, on: same(x.p), use: () => putLpc(x.p, v.spells) })),
-        v.pages.length ? null : [`Not enough games against ${name} yet`, `${v.n ? `${v.n} ${elo} games so far.` : `No ${elo} games so far.`} Pages show here from 5.`]);
+      vs = { foe, theirs, name, note: `Most taken first, from ${v.n} ${elo} games against ${name}`,
+        tip: v.from === 'count' ? 'Ranked Solo/Duo games our server counted from high elo ladders, this patch and the one before.' : `The ${eloOf(top && top.elo)} games of ${champName(champ)} our server keeps.`,
+        rows: v.pages.map((x) => ({ title: runeName(x.p[2]) || 'A page', sub: `+ ${runeName(x.p[1])}`, p: x.p, spells: v.spells, stat: `${x.k} of ${v.n} games`, k: x.k, n: v.n, w: x.w, tag: x.more, on: same(x.p), use: () => putLpc(x.p, v.spells) })),
+        empty: v.pages.length ? null : [`Not enough games against ${name} yet`, `${v.n ? `${v.n} ${elo} games so far.` : `No ${elo} games so far.`} Pages show here from 5.`] };
     }
     // for your champion: high elo's most taken, your usual (with high elo's or Riot's shards, as setRunes) and Riot's
     const pop = topOk(top) && top.runes && top.runes.n >= 5 ? top.runes : null, own = champ && map === 11 ? myRunesOf(champ, pos) : null, riot = champ ? csx.recs[0] : null;
     const mine = own && [...own.perks, ...(pop ? pop.perks.slice(8) : riot ? riot.p.slice(8) : [5008, 5008, 5011])];
-    const fr = [pop && { title: `Most taken in ${eloIn(top.elo)}`, p: pop.perks, spells: top.spells, stat: `${pop.n} of ${top.n} games`, k: pop.n, w: pop.w },
+    const fr = [pop && { title: `Most taken in ${eloIn(top.elo)}`, p: pop.perks, spells: top.spells, stat: `${pop.n} of ${top.n} games`, k: pop.n, n: top.n, w: pop.w },
       mine && { title: 'Your usual', p: mine, stat: 'From your games' }, riot && { title: 'Riot’s pick', p: riot.p }].filter(Boolean)
       .map((r) => ({ ...r, sub: ruName(r.p), on: same(r.p), use: () => putLpc(r.p, r.spells) }));
+    // your pages: League's you can change, newest first, without Premade's own
+    const mp = pages.filter((x) => x.edit && !x.name.startsWith('LPC ')).sort((a, b) => b.at - a.at || b.id - a.id)
+      .map((x) => ({ title: x.name || 'A rune page', sub: ruName(x.p), p: x.p.slice(0, 11), on: !!cur && x.id === cur.id, use: async () => { await usePage(x.id); csEd = null; ruSwap = true; renderGame(); } }));
+    return { cur, vs, for: fr, mine: mp };
+  }
+  function csRunes(champ) {
+    const { cur, vs, for: fr, mine: mp } = ruRows(champ);
+    $('ruVs').hidden = !vs;
+    if (vs) {
+      const fk = JSON.stringify([vs.theirs, vs.foe, ddVersion]);
+      if ($('ruFaces').dataset.key !== fk) {
+        $('ruFaces').dataset.key = fk;
+        $('ruFaces').replaceChildren(...vs.theirs.map((c) => { const b = mkBtn('ruface', [Object.assign(new Image(), { src: champImg(c), alt: '' })], () => { ruFoe = c; renderGame(); }, c === vs.foe); b.setAttribute('aria-label', champName(c)); b.title = champName(c); return b; }));
+      }
+      $('ruVsHead').textContent = `Against ${vs.name}`;
+      $('ruVsNote').hidden = !vs.rows.length;
+      $('ruVsNote').textContent = vs.note;
+      $('ruVsNote').title = vs.tip;
+      ruList($('ruVsList'), vs.rows, vs.empty);
+    }
     $('ruFor').hidden = !fr.length || !runeTrees.length;
     $('ruForHead').textContent = `For ${champName(champ)}`;
     if (!$('ruFor').hidden) ruList($('ruForList'), fr);
-    // your pages: League's you can change, newest first, without Premade's own
-    const mp = pages.filter((x) => x.edit && !x.name.startsWith('LPC ')).sort((a, b) => b.at - a.at || b.id - a.id);
     $('ruMine').hidden = !mp.length || !runeTrees.length;
-    if (!$('ruMine').hidden) ruList($('ruMineList'), mp.map((x) => ({ title: x.name || 'A rune page', sub: ruName(x.p), p: x.p.slice(0, 11), on: !!cur && x.id === cur.id, use: async () => { await usePage(x.id); csEd = null; ruSwap = true; renderGame(); } })));
+    if (!$('ruMine').hidden) ruList($('ruMineList'), mp);
     // the editor
     $('csRunes').hidden = !cur || !runeTrees.length;
     if ($('csRunes').hidden) return;
@@ -12165,25 +12218,39 @@ dialog.wizard { transform: scale(var(--from)); }
     else if (m.t === 'lock') lockIn(Number.isInteger(m.champ) ? m.champ : 0);
     else if (m.t === 'auto' && typeof m.on === 'boolean') { opts.autoAccept = $('optAutoAccept').checked = m.on; saveOpts(); }
     else if (m.t === 'queue' && typeof m.on === 'boolean') (m.on ? (lcu === 'Lobby' && lead() ? startQueue() : null) : lcu === 'Matchmaking' ? stopQueue() : null);
+    else if (m.t === 'game' && Number.isInteger(m.id) && queueList.some((q) => q.id === m.id) && (lcu === 'None' || (lcu === 'Lobby' && lead()))) pickGame(m.id);
+    else if (m.t === 'roles' && lcu === 'Lobby' && [m.first, m.second].every((r) => [...Object.keys(POS), 'FILL', 'UNSELECTED'].includes(r))) setRoles(m.first, m.second);
+    else if (m.t === 'invite' && lcu === 'Lobby' && mayInvite() && friends.some((f) => f.puuid === m.puuid)) invite(friends.find((f) => f.puuid === m.puuid));
+    else if (m.t === 'leave' && lcu === 'Lobby') leaveLobby();
     else if (m.t === 'trade' && typeof m.path === 'string' && typeof m.act === 'string') trade(m.path, m.id, m.act);
     else if (m.t === 'chat' && typeof m.text === 'string') sendChat(m.text);
     else if (m.t === 'call' && typeof m.lane === 'string') sendCall(m.lane);
-    else if (m.t === 'timer' && typeof m.what === 'string') startTimer(/^(red|blue)$/.test(m.what) ? m.what : `${m.what}:${(champOf(m.champ) || {}).id}`, true);
+    else if (m.t === 'timer' && typeof m.k === 'string') startTimer(m.k, true); // its key, as the overlay's strip
     else if (m.t === 'lolopen') chatOpen(m.id);
     else if (m.t === 'lolsay') chatSay(m.text);
     else if (m.t === 'lolinv' && typeof m.id === 'string') chatInvite(m.id, m.yes === true);
     else if (cs && m.t === 'spells' && [m.d, m.f].every((x) => Number.isInteger(x) && x > 0)) mySelection({ spell1Id: m.d, spell2Id: m.f }, 'spell');
     else if (cs && m.t === 'skin' && Number.isInteger(m.id) && m.id > 0) mySelection({ selectedSkinId: m.id }, 'skin');
-    else if (cs && m.t === 'page' && Number.isInteger(m.id)) usePage(m.id);
+    else if (cs && m.t === 'runerow' && ['vs', 'for', 'mine'].includes(m.g) && Number.isInteger(m.i)) { const ru = ruRows((myCell() || {}).championId | 0), r = (m.g === 'vs' ? (ru.vs || {}).rows || [] : ru[m.g])[m.i]; if (r) r.use(); }
+    else if (cs && m.t === 'runefoe' && Number.isInteger(m.champ)) { ruFoe = m.champ; renderGame(); }
     else if (cs && m.t === 'runes' && Number.isInteger(m.id) && typeof m.name === 'string' && Array.isArray(m.p) && m.p.length === 11 && m.p.every((x) => Number.isInteger(x) && x > 0)) savePage(m.id, m.name, m.p);
     else if (cs && m.t === 'bench' && Number.isInteger(m.champ) && cs.benchEnabled) benchTake(m.champ);
     else if (cs && m.t === 'reroll' && cs.allowRerolling) reroll();
     else if (cs && m.t === 'dodge' && !cs.isCustomGame) dodge();
     remoteWas = '';
   }
-  $('remoteNew').addEventListener('click', () => {
-    if (!confirm('Make a new code? Your phone will need to scan the new QR code.')) return;
+  // the QR card: Copy link (Copied for 2 s), and New code asks first, in the card
+  $('remoteCopy').addEventListener('click', () => navigator.clipboard.writeText(remoteUrl()).then(() => {
+    $('remoteCopy').textContent = 'Copied';
+    setTimeout(() => { $('remoteCopy').textContent = 'Copy link'; }, 2000);
+  }, () => notify('Couldn’t copy the link. Select it and copy it instead.', true)));
+  const remoteAsk = (on) => { $('remoteAsk').hidden = !on; $('remoteBtns').hidden = on; };
+  $('remoteNew').addEventListener('click', () => remoteAsk(true));
+  $('remoteKeep').addEventListener('click', () => remoteAsk(false));
+  $('remoteRenew').addEventListener('click', () => {
+    remoteAsk(false);
     newRemote();
+    remoteFresh = true;
     if (remote) { remote.destroy(); remote = null; remoteConns.clear(); }
     remoteCheck();
   });
@@ -20718,6 +20785,13 @@ dialog.wizard { transform: scale(var(--from)); }
       'The pick helper and Bans for you only suggest champions that play your role: the roles League lists for each champion (with League closed, a fifth of its high elo games or more). A few off-role games in high elo, like Katarina’s as an ADC, no longer count.',
       'The draft board and the tier list go by the same rule.',
     ]],
+    [215, 'November 23: a new phone remote', [
+      'The phone remote follows League on your PC one screen at a time, in your colours: Play, Finding a match, Match found, champ select and your game, with Chat and Settings in a menu along the bottom.',
+      'Play from your phone: pick the game and your two roles, invite your League friends who are online, then Find match or Leave.',
+      'Your League as pictures: your rank crests with your LP, today’s wins and losses, and your last 10 games as their champions.',
+      'Champ select as League shows it, with Great and Good on the picks for you and the Runes tab’s pages to tap. In a game: the score, the objectives, your lane, their Flash and ultimates to time, and a tap on a face to call them missing.',
+      'On your PC, the QR code sits under the Phone remote switch with Copy link, and New code asks first.',
+    ]],
     [214, 'November 23: friends you play with', [
       'Profile has a column on the right with the League friends you played with this season, most games first, with your games together and your win rate with each.',
       'Click a friend for their profile. Point at one for Invite, Control their PC and Copy Riot ID. Room invites show at the top of it.',
@@ -21800,12 +21874,14 @@ dialog.wizard { transform: scale(var(--from)); }
         'RE4 co-op, In the game: load into your game, pick under Play as and press Switch, then Direct Connect.', '#re4Char', 'app'],
     ]],
     ['Phone remote', 'Your phone as a remote for Premade, on any network, while the app is open on your PC.', [
-      ['Phone remote', 'Start the queue, accept matches, go through champ select, start enemy timers, and use room chat and League chat from your phone. Champ select as League shows it: pick or ban, lock in, answer trades, dodge, take one from ARAM’s bench, and change your runes, spells and skin. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
-        'Settings, Champ select: tick Phone remote, then scan the QR code on Pregame with your phone’s camera. Add it to your home screen to use it like an app; on an iPhone, open it from there for notifications. Keep the link to yourself: New code makes a fresh one.', '#remoteBox, #optRemote', 'app'],
-      ['Your game on your phone', 'During a game the phone remote is a second screen: the objective timers, kills, gold and your team’s chance to win, your CS and lane, what to buy next while you’re dead or in base, and all ten players with their champion, score and Solo/Duo rank.',
-        'Open the phone remote while you play. It shows by itself once the game loads.', '#remoteBox, #optRemote', 'app'],
-      ['Your League on your phone', 'Outside champ select and games, the phone remote shows your Solo/Duo and Flex ranks, today’s ranked wins, losses and LP, your last 10 games with the LP each won or lost, and Open my full profile, the page from Share my profile.',
-        'Open the phone remote while League and Premade are open on your PC.', '#remoteBox, #optRemote', 'app'],
+      ['Phone remote', 'Your phone follows League on your PC one screen at a time, in your colours, with Chat (room chat and League chat) and Settings in a menu along the bottom. Match found fills the screen with the seconds left and Accept. Champ select as League shows it: both teams over their champions’ art, the bans, picks for you with the pick helper’s word, every champion by your role, trades, Lock in, dodge, ARAM’s bench, and Runes (the Runes tab’s pages to tap), Spells and Skins tabs. It buzzes and rings when a match is found or it’s your turn, and can notify you with the screen off.',
+        'Settings, Champ select: turn on Phone remote, then scan the QR code under it with your phone’s camera, or Copy link. Add it to your home screen to use it like an app; on an iPhone, open it from there for notifications. Keep the link to yourself: New code makes a fresh one.', '#remoteCard, #optRemote', 'app'],
+      ['Play from your phone', 'Pick the game, your two roles and invite your League friends who are online from your phone, then Find match (Start the game in a custom game) or Leave. Outside a lobby a game makes one; in a lobby only its leader changes the game and starts it. In queue it shows the time, the usual wait and your party, with Stop.',
+        'Open the phone remote while League and Premade are open on your PC.', '#remoteCard, #optRemote', 'app'],
+      ['Your game on your phone', 'During a game the phone remote is a second screen: the clock, kills, towers, gold and your team’s chance to win, the objective timers, your CS and gold against your laner, what to buy next while you’re dead or in base, their five to time their Flash and ultimate (and their red and blue) and to call missing with a tap on a face, and all ten players with their score and Solo/Duo rank.',
+        'Open the phone remote while you play. It shows by itself once the game loads. Enemy timers and Teammates’ callouts on the Overlay page add their taps.', '#remoteCard, #optRemote', 'app'],
+      ['Your League on your phone', 'On Play, the phone remote shows your Solo/Duo and Flex crests with your LP, today’s ranked wins and losses with the LP, your last 10 games as their champions with a win or a loss under each, and Open my profile, the page from Share my profile.',
+        'Open the phone remote while League and Premade are open on your PC.', '#remoteCard, #optRemote', 'app'],
     ]],
     ['Settings', 'Every setting in one place, League’s too, a section at a time.', [
       ['Settings sections', 'Overlay, Callouts, Champ select, Clips, Voice, League, Look and App down the left, one at a time beside them. Settings opens on the one you used last; Voice shows only for rooms (What’s new 207).', 'Settings: pick a section on the left.', '#setList [data-sec]'],

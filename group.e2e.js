@@ -375,16 +375,24 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 
     // ---- the phone remote: League chat, answered from the phone; a squad call's notification with In 10 and Not tonight
     // (In 10 answers our server), a ping's without; the call opened on the remote, as tapping it does, and Not tonight
-    const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: process.env.SHOTS ? 2 : 1 });
     await routes(pctx);
     await pctx.grantPermissions(['notifications']);
     const phone = await pctx.newPage();
     phone.on('pageerror', (e) => console.log('[phone] page error:', e.message));
     await phone.goto('http://127.0.0.1:8086/remote.html?peer=127.0.0.1:9006&debug#rayanremote2');
     await wait(phone, () => document.getElementById('conn').textContent === 'Connected', null, 'the phone connected');
-    await wait(phone, () => !document.getElementById('lol').hidden && document.querySelectorAll('#lolLog li').length === 3, null, 'League chat on the phone');
-    assert.deepStrictEqual(await texts(phone, '#lolConvs button'), ['Duo#EUW (2)']);
+    // Chat (What's new 215): a dot for Duo's unread messages; the room's chat and League friends; the conversation opened
+    await wait(phone, () => !document.getElementById('chatDot').hidden, null, 'a dot on Chat');
+    await phone.click('#m-chat');
+    await phone.click('#ct-lol');
+    await wait(phone, () => document.querySelectorAll('#lolConvs .conv').length === 1, null, 'League chat on the phone');
+    assert.deepStrictEqual(await phone.$$eval('#lolConvs .conv', (l) => l.map((b) => b.querySelector('b').textContent + (b.hasAttribute('data-unread') ? ' (unread)' : ''))), ['Duo#EUW (unread)']);
+    await phone.click('#lolConvs .conv');
+    await wait(phone, () => !document.getElementById('convBox').hidden && document.querySelectorAll('#lolLog li').length === 3, null, 'the conversation on the phone');
+    assert.strictEqual(await text(phone, '#convName'), 'Duo#EUW');
     assert.deepStrictEqual(await said(phone), ['Duo#EUW: gg wp', 'You: one more?', 'Duo#EUW: sure, 2 min']);
+    await shot(phone, 'phone-league-chat');
     await phone.fill('#lolText', 'omw');
     await phone.click('#lolForm button');
     await until(() => chat.msgs.some((m) => m.body === 'omw' && m.fromPid === ME), 'the phone’s answer sent through League');

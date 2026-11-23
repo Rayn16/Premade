@@ -191,26 +191,29 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     assert.deepStrictEqual(await rayan.evaluate(() => lpc.toasts().filter((t) => /clip/i.test(t))), []);
     console.log('enemy timers by voice: Flash with boots, an ultimate at level 11 with haste, a buff, their jungler by the pet, for both of them');
 
-    // ---- the phone remote: a button for each of them, and a tap takes a running timer off
+    // ---- the phone remote (What's new 215): their faces with their Flash, a tap takes a running timer off; their buffs
+    // with the objectives, a tap starts one
     const link = await rayan.evaluate(() => document.getElementById('remoteLink').href);
     assert.match(link, /remote\.html\?peer=127\.0\.0\.1:9005&debug#[a-z0-9]{12}$/);
     const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     await pctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', 'access-control-allow-origin': '*' } }));
+    await pctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
     await pctx.route(/ddragon\.leagueoflegends\.com/, (r) => { const u = r.request().url(); r.fulfill(u.endsWith('versions.json') ? { json: ['1.1'] } : u.endsWith('champion.json') ? { json: { data: DDATA } } : { body: PNG, contentType: 'image/png' }); });
     await pctx.route(/127\.0\.0\.1:9005\/push\//, (r) => r.fulfill({ json: {}, headers: { 'access-control-allow-origin': '*' } }));
     const phone = await pctx.newPage();
     phone.on('pageerror', (e) => console.log('[phone] page error:', e.message));
     await phone.goto(link);
     await wait(phone, () => document.getElementById('conn').textContent === 'Connected', null, 'the phone to connect');
-    await wait(phone, () => [...document.querySelectorAll('#foes .trade span')].map((s) => s.textContent).join() === 'Zed,Lee Sin,Garen,Their jungle', null, 'a row for each of them');
-    assert(/Zed Flash/.test(await phone.textContent('#timers')), 'the timers on the phone');
-    await phone.locator('#foes .trade', { hasText: 'Zed' }).getByRole('button', { name: 'Flash' }).click();
+    await wait(phone, () => document.querySelectorAll('#foes .foe').length === 3 && [...document.querySelectorAll('#objs button.obj > span')].map((s) => s.textContent).join() === 'Their red,Their blue', null, 'a face for each of them, and their buffs');
+    await phone.getByRole('button', { name: /^Zed’s Flash is back in \d+:\d\d\. Tap to clear\.$/ }).click();
     await wait(rayan, () => !lpc.timers().some(([n]) => n === 'Zed Flash'), null, 'the tap to take Zed Flash off');
     await wait(friend, () => !lpc.timers().some(([n]) => n === 'Zed Flash'), null, 'Zed Flash off for Friend too');
-    await phone.locator('#foes .trade', { hasText: 'Their jungle' }).getByRole('button', { name: 'Blue buff' }).click();
+    await wait(phone, () => !!document.querySelector('#foes button[aria-label="Zed used Flash"]'), null, 'Zed’s Flash off on the phone');
+    await phone.getByRole('button', { name: 'Their blue buff taken: tap to start its timer' }).click();
     await wait(friend, () => lpc.timers().some(([n]) => n === 'Their blue'), null, 'their blue from the phone, for Friend');
+    await wait(phone, () => /^Their blue buff: back in \d:\d\d\. Tap to clear\.$/.test(document.querySelector('#objs button.obj:last-child')?.getAttribute('aria-label')), null, 'their blue counting down on the phone');
     await pctx.close();
-    console.log('enemy timers from the phone: a row for each of them, a tap starts one or takes it off, for everyone');
+    console.log('enemy timers from the phone: a face for each of them, a tap starts one or takes it off, for everyone');
 
     await friend.evaluate(() => lpc.league(null)); // the rest of this game is Rayan's
 
