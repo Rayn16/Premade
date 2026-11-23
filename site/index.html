@@ -9585,9 +9585,9 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const [mine, other] of [[d.us, d.them], [d.them, d.us]]) for (const p of known(mine)) Object.assign(p, advScore(p.c, p.role, known(mine).filter((q) => q !== p), known(other), gone));
     return d;
   }
-  // the champions to rank for a role: those with 10 high elo games there, yours with 2 games there, your favorites Riot
-  // recommends there; or, while searching, every champion with that in its name. Banned, picked and ones you can't pick
-  // (or ban, on your ban turn) are greyed out.
+  // the champions to rank for a role: those with 10 high elo games there that play it (playsIn), yours with 2 games
+  // there, your favorites Riot recommends there; or, while searching, every champion with that in its name. Banned,
+  // picked and ones you can't pick (or ban, on your ban turn) are greyed out.
   // What's new 189: Meta is the high elo win rate alone; Matchups the draft's matchups (Bot lane first weighing them for
   // an ADC or a support), what your team lacks and your games with your duo; Balanced both, and your own games and mastery
   function advPool(role, d, q = advQ.trim().toLowerCase()) {
@@ -9595,7 +9595,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const mine = new Map(), taken = advGone(d);
     for (const g of (!d.foe && myHist) || []) if (g.lane === role) mine.set(g.champ, (mine.get(g.champ) || 0) + 1); // d.foe: the draft board's other team (What's new 202), none of yours
     const ids = q ? [...new Set(Object.values(ddChamp).map((c) => +c.key))].filter((id) => champName(id).toLowerCase().includes(q))
-      : [...new Set([...[...((t && t.by[role]) || [])].filter(([, [n]]) => n >= 10).map(([c]) => c), ...[...mine].filter(([, n]) => n >= 2).map(([c]) => c),
+      : [...new Set([...[...((t && t.by[role]) || [])].filter(([c, [n]]) => n >= 10 && playsIn(c, role, t)).map(([c]) => c), ...[...mine].filter(([, n]) => n >= 2).map(([c]) => c),
         ...[...(d.foe ? [] : advFavs)].filter((c) => champPos && champPos[c] && (champPos[c].recommendedPositions || []).includes(role))])];
     const mates = d.us.filter((p) => p.c > 0 && p.role && p.role !== role), foes = d.them.filter((p) => p.c > 0 && p.role);
     const meta = advOpts.mode === 'meta', need = needIn(d), duo = d.try || meta ? null : duoNow(), bot = botFirst(role);
@@ -9826,7 +9826,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   let tryMemo = {}, topsVer = 0; // topsVer: one more for each answer from /riot/champ
   function tryRanks() { // the ten rankings, worked out again only when something they go by changed
-    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, tryD.bans, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs]]);
+    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, tryD.bans, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs], !!champPos]);
     if (tryMemo.key !== key || tryMemo.t !== t) {
       tryMemo = { key, t, r: {} };
       for (const s of ['us', 'them']) for (const r of Object.keys(POS)) { const d = tryNow(s, r); tryMemo.r[s + r] = { d, pool: advPool(r, d, '') }; }
@@ -14409,7 +14409,7 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const g of myHist || []) mine.set(g.champ, (mine.get(g.champ) || 0) + 1);
     const ok = (c) => !!champOf(c) && !banned.has(c) && !team.has(c) && !((mine.get(c) || 0) >= 3) && (!Array.isArray(bannable) || bannable.includes(c));
     const nem = nemeses().filter((x) => ok(x.c)).slice(0, 3).map((x) => ({ c: x.c, why: `You lost ${x.l} of ${x.n} against it` })), pos = myPos();
-    const strong = [...((pos && (tiers() || { by: {} }).by[pos]) || [])].filter(([c, [n]]) => n >= 10 && ok(c) && !nem.some((x) => x.c === c))
+    const strong = [...((pos && (tiers() || { by: {} }).by[pos]) || [])].filter(([c, [n]]) => n >= 10 && playsIn(c, pos) && ok(c) && !nem.some((x) => x.c === c))
       .sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0])).map(([c, [n, w]]) => ({ c, why: `High elo: ${pct(w / n)} of ${n} games, ${POS[pos].toLowerCase()}` }));
     return [...nem, ...strong].slice(0, 6);
   }
@@ -16220,9 +16220,17 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   const adj = (w, n, k = 20) => (w + k / 2) / (n + k);
   const recIn = (c, role) => { const t = tiers(); return (t && t.by[role] && t.by[role].get(c)) || [0, 0]; }; // [games, wins]
+  // a role a champion plays (What's new 216): one League lists for it (Riot's recommended positions), else a fifth or more
+  // of its games in t, so a few off-role games (Katarina's 10 of 68 as an ADC) don't put it in that role's lists
+  function playsIn(c, role, t = tiers()) {
+    const rp = champPos && champPos[c] && champPos[c].recommendedPositions;
+    if (Array.isArray(rp) && rp.length) return rp.includes(role);
+    const all = Object.values(t.by).reduce((n, m) => n + ((m.get(c) || [0])[0] | 0), 0);
+    return ((t.by[role] && t.by[role].get(c)) || [0])[0] >= all / 5; // ponytail: a fifth, from patch 16.22's high elo (Katarina 15% as an ADC, Yasuo 23%); tune with real drafts
+  }
   const TIERS_AT = [['S', 0.53], ['A', 0.515], ['B', 0.495], ['C', 0.48], ['D', 0]];
-  // the tier list (Pregame): champions with 10 high elo games or more in a role, best first, with a tier from their
-  // pulled-in win rate, their win rate and how often they're picked. Your role in champ select, else the one picked
+  // the tier list (Pregame): champions with 10 high elo games or more in a role they play, best first, with a tier from
+  // their pulled-in win rate, their win rate and how often they're picked. Your role in champ select, else the one picked
   // above it, else the one you play most. Emerald and Diamond's games instead when picked above it, or for your rank
   // (eloNow) once that role has a champion with 10 of them.
   function renderTier() {
@@ -16236,7 +16244,7 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const b of $('tierRoles').children) b.setAttribute('aria-selected', String(b.dataset.role === role));
     $('tierEloBox').hidden = !ed;
     $('tierElo').value = e;
-    const rows = [...(t.by[role] || [])].filter(([c, [n]]) => n >= 10 && champOf(c)).sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0]));
+    const rows = [...(t.by[role] || [])].filter(([c, [n]]) => n >= 10 && playsIn(c, role, t) && champOf(c)).sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0]));
     const key = `${role} ${e} ${t.n} ${t.bn} ${rows.join(';')} ${ddVersion} ${tierAll}`, bans = t.bn >= 100; // ban rates once 100 games' bans are counted
     if ($('tierBox').dataset.key === key) return;
     $('tierBox').dataset.key = key;
@@ -20546,6 +20554,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [216, 'November 23: picks only for your role', [
+      'The pick helper and Bans for you only suggest champions that play your role: the roles League lists for each champion (with League closed, a fifth of its high elo games or more). A few off-role games in high elo, like Katarina’s as an ADC, no longer count.',
+      'The draft board and the tier list go by the same rule.',
+    ]],
     [213, 'November 23: a new Runes tab in champ select', [
       'The Runes tab is a list of pages to tap. Against your laner on top: what high elo players take on your champion against them, most taken first, with how many of those games won. Tap another enemy’s face to see theirs.',
       'A page that wins clearly more than the most taken one gets a Wins more tag (it needs 30 games each, so it’s not luck).',
@@ -21720,7 +21732,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame, each slot a card with its champion’s art: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup, both champions side by side: the high elo record, runes, first items and tips. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
       ['Ban ideas', 'Your bans at the top of the draft board: 5 squares and 3 ideas, what beats the team you’re building, how often high elo picks and bans it, and in Balanced the champions you lose to. Click an idea to ban it: it greys out everywhere, and its x takes it back.', 'Outside champ select, on Pregame: Your bans on the draft board.', '#tdBans', 'app'],
       ['Mock draft helper', 'In a room’s Mock draft, each player on a side sees the top 3 for their side and a score on every champion.', 'Rooms: start a Mock draft and join a side.', '#mdHelp'],
-      ['The draft', 'Both teams by role with a score for each champion and each team, and every champion ranked for the role you pick by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
+      ['The draft', 'Both teams by role with a score for each champion and each team, and the champions that play the role you pick (the roles League lists for each) ranked by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
         'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
       ['Auto hover', 'Hovers your first free champion that fits your role as soon as champ select starts, and your ban on your ban turn. You still lock in yourself.',
         'Pregame settings: type your champions, first choice first, then your bans.', '#optHoverPicks', 'app'],
