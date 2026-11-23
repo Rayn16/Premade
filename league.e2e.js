@@ -222,15 +222,18 @@ function copy5(id) {
 // a game's timeline, a frame a minute: everyone in their lane's part of the map (you ahead of Zed in CS and gold, behind
 // in XP), your buys, the order you levelled Q, W, E and R, and the fights and objectives: you kill Zed in the middle
 // lane with Lee Sin, Zed and Vi kill you twice in the river, and you help Jinx kill Caitlyn; your team takes two
-// dragons, Baron and three towers (and an inhibitor), theirs the Rift Herald and a tower. Riot's positions are game
-// units from the blue base, bottom left; a tower's teamId is whose tower fell.
+// dragons, Baron and three towers (and an inhibitor), theirs the Rift Herald and a tower; you and Zed take a turret plate
+// each (Riot's copy says 3 for you: your team's); late on, Lee Sin kills two and dies in a fight.  Riot's positions are game units from the blue base, bottom left; a
+// tower's teamId is whose tower fell.
 const FIGHTS = [[390, 'CHAMPION_KILL', 1, { victimId: 8, assistingParticipantIds: [3], position: { x: 7400, y: 7400 } }],
   [490, 'CHAMPION_KILL', 8, { victimId: 1, assistingParticipantIds: [7], position: { x: 5500, y: 9000 } }], [330, 'ELITE_MONSTER_KILL', 7, { monsterType: 'HORDE' }], [540, 'ELITE_MONSTER_KILL', 3, { monsterType: 'DRAGON', monsterSubType: 'FIRE_DRAGON' }],
   [760, 'CHAMPION_KILL', 8, { victimId: 1, assistingParticipantIds: [7], position: { x: 10000, y: 4500 } }], [840, 'ELITE_MONSTER_KILL', 7, { monsterType: 'RIFT_HERALD' }],
   [900, 'BUILDING_KILL', 1, { teamId: 200, buildingType: 'TOWER_BUILDING' }], [1000, 'BUILDING_KILL', 8, { teamId: 100, buildingType: 'TOWER_BUILDING' }],
   [1100, 'CHAMPION_KILL', 4, { victimId: 9, assistingParticipantIds: [1, 5], position: { x: 12000, y: 2500 } }], [1260, 'ELITE_MONSTER_KILL', 3, { monsterType: 'DRAGON', monsterSubType: 'WATER_DRAGON' }],
   [1500, 'ELITE_MONSTER_KILL', 3, { monsterType: 'BARON_NASHOR' }], [1560, 'BUILDING_KILL', 2, { teamId: 200, buildingType: 'TOWER_BUILDING' }],
-  [1600, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'TOWER_BUILDING' }], [1620, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'INHIBITOR_BUILDING' }]];
+  [1600, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'TOWER_BUILDING' }], [1620, 'BUILDING_KILL', 4, { teamId: 200, buildingType: 'INHIBITOR_BUILDING' }],
+  [1700, 'CHAMPION_KILL', 2, { victimId: 9, position: { x: 9000, y: 9000 } }], [1710, 'CHAMPION_KILL', 2, { victimId: 10, position: { x: 9000, y: 9000 } }], [1720, 'CHAMPION_KILL', 6, { victimId: 3, position: { x: 9000, y: 9000 } }],
+  [300, 'TURRET_PLATE_DESTROYED', 1, { teamId: 200, laneType: 'MID_LANE' }], [600, 'TURRET_PLATE_DESTROYED', 8, { teamId: 100, laneType: 'MID_LANE' }]];
 const SPOT = { TOP: [2000, 12000], JUNGLE: [5000, 7000], MIDDLE: [7400, 7400], BOTTOM: [12500, 2500], UTILITY: [12000, 2300] };
 const SKILLS = [1, 2, 3, 1, 1, 4, 1, 2, 1, 2, 4, 2, 2, 3, 3, 4, 3, 3];
 const SWING = { 9002: -2000, 9006: 3000 }; // your gold from 15 minutes on: you won 9002 from 1.3k behind and lost 9006 from 3.8k ahead
@@ -509,8 +512,8 @@ const texts = (page, sel) => page.evaluate((sel) => [...document.querySelectorAl
 async function sideways(page, sel, what) {
   const bad = await page.$eval(`${sel} .report`, (rep) => {
     const box = rep.getBoundingClientRect(), out = [];
-    for (const e of rep.querySelectorAll('*')) if (e.checkVisibility() && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflowX !== 'visible') out.push(`${e.className} scrolls`);
-    for (const r of rep.querySelectorAll('.sbrow[data-i]')) { const b = r.getBoundingClientRect(); if (r.checkVisibility() && (b.left < box.left - 1 || b.right > box.right + 1)) out.push(`row ${r.dataset.i} at ${b.left}-${b.right} outside ${box.left}-${box.right}`); }
+    for (const e of rep.querySelectorAll('*')) if (e.checkVisibility() && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflowX !== 'visible' && getComputedStyle(e).textOverflow !== 'ellipsis') out.push(`${e.className} scrolls`); // a name or tag cut with … is fine
+    for (const r of rep.querySelectorAll('.pside[data-i]')) { const b = r.getBoundingClientRect(); if (r.checkVisibility() && (b.left < box.left - 1 || b.right > box.right + 1)) out.push(`row ${r.dataset.i} at ${b.left}-${b.right} outside ${box.left}-${box.right}`); }
     if (rep.scrollWidth > rep.clientWidth + 1) out.push(`the report ${rep.scrollWidth} > ${rep.clientWidth}`);
     return out;
   });
@@ -707,8 +710,8 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await page.getAttribute('#proId', 'placeholder'), 'Look up a player: Name#TAG');
       // a game's report, from Riot's copy of the game
       await page.click('#proGames > li:first-child summary');
-      await wait(page, () => document.querySelectorAll('#proGames > li:first-child .report button.sbrow').length === 10, null, 'the report from Riot');
-      assert(await page.locator('#proGames > li:first-child .report .sbrow[data-me]').count() === 1, 'Ana marked in it');
+      await wait(page, () => document.querySelectorAll('#proGames > li:first-child .report button.pside').length === 10, null, 'the report from Riot');
+      assert(await page.locator('#proGames > li:first-child .report .pside[data-me]').count() === 1, 'Ana marked in it');
       assert(!riotCalls.some((c) => c.includes('oops')), 'only real match ids asked for');
       assert.strictEqual(riotCalls.length, 15, `Nobody, Busy (asked again after a second), Ana in 10 calls (her server from Riot), Bob's rank in her game and her game for the report, nothing twice: ${riotCalls.join(' ')}`);
       // her game right now: her team first, everyone's rank, the name hidden for streamer mode
@@ -928,19 +931,52 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.locator('#proGames > li').count(), 20);
     assert.strictEqual(await pc.$$eval('#proGames > li:first-child .gitems img', (l) => l.length), 4);
     await pc.click('#proGames > li:first-child summary');
-    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report button.sbrow').length === 10, null, 'a game’s report on your profile');
-    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report .sbteam', (l) => l.map((t) => [t.getAttribute('aria-label'), t.querySelectorAll('.sbrow[data-i]').length, !!t.querySelector('.sbrow[data-me]')])),
-      [['Your team', 5, true], ['Their team', 5, false]], 'your team on top');
-    // Riot's extra numbers for all ten in their drawers, from Riot's copy of the game, and how each game ranks among
-    // high elo games on that champion in that role (only Ahri's are counted with their length here: you're at 75 of 100)
-    const drawer = (who) => pc.$eval(`#proGames > li:first-child .report .sbrow[data-i]:has(.sbname b:text-is("${who}")) + .sbdrawer`, (d) => [...d.querySelectorAll('.sbx > span')].map((s) => `${s.firstChild.textContent}: ${s.lastChild.textContent}`));
-    await wait(pc, () => /Skillshots hit/.test((document.querySelector('#proGames > li:first-child .report .sbrow[data-me] + .sbdrawer') || {}).textContent), null, 'Riot’s extra numbers in the drawers');
-    assert.deepStrictEqual((await drawer('Shadow')).slice(0, 6), ['Skillshots hit: 40', 'Skillshots dodged: 25', 'Allies saved: 0', 'Turret plates: 1', 'Time dead: 2:30', 'Vision vs their laner: +0 (20 vs 20)']);
-    assert.deepStrictEqual((await drawer('Rayan')).slice(0, 6), ['Skillshots hit: 60', 'Skillshots dodged: 20', 'Allies saved: 2', 'Turret plates: 3', 'Time dead: 1:00', 'Vision vs their laner: +0 (20 vs 20)']);
-    assert.strictEqual(await pc.getAttribute('#proGames > li:first-child .report .sbrow[data-me]', 'aria-expanded'), 'true', 'your own drawer starts open');
-    assert.strictEqual(await pc.locator('#proGames > li:first-child .report .sbdrawer:not([hidden])').count(), 1, 'the others closed');
-    await wait(pc, () => /Next to high elo/.test(document.querySelector('#proGames > li:first-child .report .sbrow[data-me] + .sbdrawer').textContent), null, 'how your game ranks among high elo games');
-    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report .sbdrawer', (l) => l.map((d) => (/Next to high elo ([A-Za-z]+)(\d+ of 100)/.exec(d.textContent) || []).slice(1).join(' ')).filter(Boolean)), ['Ahri 75 of 100'], 'only Ahri’s games are counted');
+    await wait(pc, () => document.querySelectorAll('#proGames > li:first-child .report button.pside').length === 10, null, 'a game’s report on your profile');
+    assert.deepStrictEqual(await pc.$$eval('#proGames > li:first-child .report .lrow', (l) => l.map((r) => [...r.querySelectorAll('.pside')].map((p) => `${p.dataset.side}${p.hasAttribute('data-me') ? ' me' : ''}`).join(' vs '))),
+      ['us vs them', 'us vs them', 'us me vs them', 'us vs them', 'us vs them'], 'your team on the left, lane against lane');
+    // What's new 219: every drawer starts closed, yours too. Pressing your side opens Your game: rings for how many high
+    // elo Ahri middle games you beat (only Ahri's 40 have their length here), your best, your biggest leak and a target
+    const R = '#proGames > li:first-child .report', open = `${R} .sbdrawer:not([hidden])`;
+    assert.strictEqual(await pc.locator(open).count(), 0, 'every drawer starts closed, yours too');
+    await pc.click(`${R} .pside[data-me] .c-pic`);
+    await wait(pc, () => document.querySelector('#proGames > li:first-child .report .sbdrawer:not([hidden]) .ringb[data-area="lane"]'), null, 'your rings, Laning from the timeline');
+    assert.strictEqual(await pc.getAttribute(`${R} .pside[data-me]`, 'aria-expanded'), 'true');
+    assert.deepStrictEqual(await texts(pc, `${open} .povr, ${open} .ringb`), ['69 Your game against 40 high elo Ahri middle games', '100 Fighting', '88 Damage', '88 Farming', '0 Vision', '67 Laning']);
+    assert.deepStrictEqual(await pc.$$eval(`${open} .sbring`, (l) => l.map((e) => e.dataset.k)), ['good', 'good', 'good', 'good', 'bad', 'good'], 'green 60 and up, red under 40');
+    assert.deepStrictEqual(await texts(pc, `${open} .pcard`), ['Your best KDA: 7.5 Better than 100% of high elo Ahri games.', 'Biggest leak Vision score a minute: 0.71 Behind 100% of high elo Ahri games.',
+      'Next game Aim for 0.97 vision score a minute That’s their middle. Zed had 0.71.']);
+    assert.strictEqual(await pc.locator(`${open} .pdet`).count(), 0, 'no ring open yet');
+    // a ring opens its numbers: bars against high elo and where you rank among the 10; Fighting adds the Rift and your deaths
+    await pc.click(`${open} .ringb[data-area="fight"]`);
+    assert.strictEqual(await pc.getAttribute(`${open} .ringb[data-area="fight"]`, 'aria-pressed'), 'true');
+    assert.deepStrictEqual(await texts(pc, `${open} .pdet .prow, ${open} .pdet .pten`), ['KDA 7.5 middle 4.7', 'Deaths 2 middle 3', 'Kill participation 100% middle 58%', 'Time dead 1:00 1st of 10', 'Skillshots dodged 20 2nd of 10', 'Allies saved 2 1st of 10']);
+    assert.strictEqual(await pc.$eval(`${open} .pten .pfaces img[data-me]`, (i) => i.alt), 'Ahri', 'you lit among the faces');
+    assert.deepStrictEqual(await pc.$eval(`${open} .fightmap`, (cv) => [cv.getAttribute('aria-label'), ...[[7400, 7400], [5500, 9000], [10000, 4500]].map(([x, y]) => [...cv.getContext('2d').getImageData(Math.round(x / 14870 * 480), Math.round((1 - y / 14870) * 480), 1, 1).data].join())]),
+      ['Where on Summoner’s Rift you got kills (1), assists (1) and died (2)', '60,207,142,255', '255,107,107,255', '255,107,107,255']);
+    assert.deepStrictEqual(await texts(pc, `${open} .pdeaths li`), ['8:10 Zed with Vi, in the river', '12:40 Zed with Vi, in the river']);
+    assert.deepStrictEqual(await pc.$$eval(`${open} .pdeaths time`, (l) => l.map((t) => t.dataset.k)), ['bad', 'bad'], 'red before 14:00');
+    await pc.click(`${open} .ringb[data-area="dmg"]`);
+    assert.deepStrictEqual(await texts(pc, `${open} .pdet .prow, ${open} .pdet .pmore, ${open} .pdet .pten`), ['Damage a minute 953 middle 774', 'Share of team damage 43% middle 30%', 'Your damage by kind 11% physical · 78% magic · 11% true',
+      'Skillshots hit 60 1st of 10', 'Damage to towers 4,500 1st of 10']);
+    await pc.click(`${open} .ringb[data-area="farm"]`);
+    assert.deepStrictEqual(await texts(pc, `${open} .pdet .pten`), ['Turret plates 1 1st of 10'], 'your own plates from the timeline, not Riot’s 3 (your team’s)');
+    await pc.click(`${open} .ringb[data-area="vis"]`);
+    assert.deepStrictEqual(await texts(pc, `${open} .pdet .prow, ${open} .pdet .pmore, ${open} .pdet .pten`), ['Vision score a minute 0.71 middle 0.97', '20 Vision score against Zed 20', 'Wards placed 11 1st of 10', 'Control wards 2 1st of 10', 'Wards destroyed 3 1st of 10']);
+    await pc.click(`${open} .ringb[data-area="vis"]`);
+    assert.strictEqual(await pc.locator(`${open} .pdet`).count(), 0, 'pressed again, it closes');
+    // the lanes: one tag at most, an arrow to who won the lane; the gold graph with what happened when, your deaths on it
+    assert.deepStrictEqual(await pc.$$eval(`${R} .lrow`, (l) => l.map((r) => [r.getAttribute('aria-label'), r.querySelector('.lmid').title, ...[...r.querySelectorAll('.pside .sbname')].map((n) => n.querySelectorAll('.tag').length)].join(' '))),
+      ['Top  1 1', 'Jungle  1 1', 'Middle Middle: Ahri won the lane, 700 more gold at 14:00 1 1', 'Bottom  1 1', 'Support  1 1']);
+    assert.strictEqual(await pc.$eval(`${R} .lrow[data-lane="MIDDLE"] .larrow`, (a) => a.dataset.side), 'us', 'the arrow points at your side');
+    assert.deepStrictEqual(await pc.$$eval(`${R} .when span`, (l) => l.map((e) => `${e.dataset.row}${e.dataset.side} ${e.title}`)), ['0us 9:00: Your team took a dragon',
+      '0them 14:00: Their team took the Rift Herald', '0us 15:00: Your team took a tower', '0them 16:40: Their team took a tower', '0us 21:00: Your team took a dragon', '0us 25:00: Your team took Baron',
+      '0us 26:00: Your team took a tower', '0us 26:40: Your team took a tower', '1us 28:20: a fight, 2 for 1 in the middle lane'], 'objectives on top, fights of 3 kills or more under them (no Voidgrubs)');
+    assert.deepStrictEqual(await pc.$$eval(`${R} .ldeath`, (l) => l.map((e) => e.title)), ['8:10: you died to Zed', '12:40: you died to Zed']);
+    // someone else's drawer: their rings (too few high elo Zed games here), Copy runes, Copy items, Avoid; yours closes
+    await pc.click(`${R} .pside:has(.sbname b:text-is("Shadow")) .c-pic`);
+    assert.deepStrictEqual(await texts(pc, `${open} > *`), ['Shadow’s game Not enough high elo Zed games to compare with yet', 'Copy runes Copy items Avoid']);
+    assert.strictEqual(await pc.locator(open).count(), 1, 'one drawer at a time');
+    await pc.click(`${R} .pside:has(.sbname b:text-is("Shadow")) .c-pic`);
     assert(await pc.locator('#profileBtn').isVisible() && await pc.locator('#proBack').isHidden() && await pc.locator('#proNote').isHidden(), 'Share, and nothing about it being old');
     const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-profile')));
     assert(kept.n === 'Rayan#EUW' && kept.plat === 'euw1' && kept.games.length === 20 && kept.icon === 4568 && kept.rk.RANKED_SOLO_5x5.tier === 'GOLD', 'kept for when League is closed');
@@ -2307,7 +2343,7 @@ const leagueData = (over = {}) => ({
     assert(r.gold && r.gold.length >= 1, 'the gold over the game was kept');
     assert.deepStrictEqual(await pc.evaluate(() => lpc.lpLog().map((e) => [e.id, e.delta, e.win])), [[1, -15, false], [GAME, 18, true]]);
     await openPage(pc, 'game');
-    await wait(pc, () => document.querySelector('#postBox .analysis .duo'), null, 'how you played, on the Game page');
+    await wait(pc, () => document.querySelector('#postBox .when') && document.querySelector('#postBox .rtabs:not([hidden])'), null, 'the report on the Game page, with its timeline');
     // one head (What's new 187): the report's own, over Ahri's art, with the result, LP, the queue, length and patch,
     // your numbers; the Game page opens on Overview (What's new 200)
     assert(await pc.locator('#postHead').isHidden(), 'the old hero is gone');
@@ -2316,55 +2352,39 @@ const leagueData = (over = {}) => ({
     assert.match(await text(pc, '#postBox .rhead .rme .sub'), /^Ranked Solo\/Duo · 28:20 · .+ · Patch 26\.23$/);
     assert.match(await text(pc, '#postBox .rhead .rnums'), /^6 \/ 2 \/ 9 · 7\.5 KDA\s*\d+% of kills\s*\d+ CS · [\d.]+ a minute\s*100 score$/);
     assert.match(await pc.getAttribute('#postBox .rart', 'src'), /splash\/Ahri_\d+\.jpg$/);
-    assert.deepStrictEqual(await pc.$$eval('#postBox .rtabs .tab', (l) => l.map((b) => [b.textContent, b.getAttribute('aria-selected')])), [['Overview', 'true'], ['How you played', 'false'], ['Laning', 'false'], ['Builds', 'false']]);
-    assert(await pc.locator('#postBox .rpane[data-tab="overview"]').isVisible() && await pc.locator('#postBox .rpane[data-tab="how"]').isHidden(), 'Overview first');
-    await pc.click('#postBox .rtabs .tab:text-is("How you played")');
-    await repShot(pc, '#postBox', 'report-game-page-how');
-    // how you played, against your usual Ahri games, high elo Ahri players and Zed: what stood out as lines with a dot,
-    // each number as a bar (green better and red worse than your usual, else high elo, else Zed; the exact numbers on
-    // hover), your damage and wards, the map with your kill (a green dot) and deaths (red crosses), your deaths and the objectives
+    assert.deepStrictEqual(await pc.$$eval('#postBox .rtabs .tab', (l) => l.map((b) => [b.textContent, b.getAttribute('aria-selected')])), [['Overview', 'true'], ['Laning', 'false'], ['Builds', 'false']], 'no How you played tab (What’s new 219)');
+    assert(await pc.locator('#postBox .rpane[data-tab="overview"]').isVisible() && await pc.locator('#postBox .rpane[data-tab="how"]').count() === 0, 'Overview first');
+    // What's new 219: your row starts closed like the others; pressed, Your game with its rings and 3 cards, and the
+    // Laning ring opens the Laning tab
     const post = (sel) => pc.$$eval(`#postBox ${sel}`, (l) => l.map((e) => e.textContent));
-    assert.deepStrictEqual(await pc.$$eval('#postBox .analysis > .takeaways li', (l) => l.map((e) => `${e.dataset.k || 'grey'} ${e.textContent}`)), ['good Your best: CS a minute, 12.7 against your usual 5.3.', 'bad To work on: skillshots dodged, 20 against 25 for Zed.',
-      'grey Hard matchup: high elo Ahri players won 40% of 30 games against Zed.', 'grey Early deaths: you died twice before 14 minutes, both in the river.', 'grey First item: Luden’s Companion at 12:00, 2:00 later than high elo Ahri players (10:00).']);
-    assert.deepStrictEqual(await post('.blegend > span'), ['This game, Ahri, 28 min', 'Your usual, 7 games on Ahri', 'High elo, Ahri middle, 40 games', 'Green: better than your usual. Red: worse.']);
-    assert.deepStrictEqual(await pc.$$eval('#postBox .bgroup', (gs) => gs.map((g) => [g.querySelector('h3').textContent, ...[...g.querySelectorAll('.brow')].map((r) => `${r.querySelector('.bwhat').textContent} | ${r.querySelector('.bval').textContent}${({ good: ' ▲', bad: ' ▼' })[r.dataset.k] || ''} | ${r.querySelector('.btip').textContent}`)])), [
-      ['Fights', 'KDA | 7.5 ▲ | This game 7.5 · your usual 4.0 · high elo 4.7 · Zed 2.0', 'Deaths | 2 | This game 2 · your usual 3 · high elo 3 · Zed 5',
-        'Kill participation | 100% ▲ | This game 100% · high elo 58% · Zed 83%', 'Damage a minute | 953 ▲ | This game 953 · your usual 667 · high elo 768 · Zed 635', 'Share of team damage | 43% ▲ | This game 43% · high elo 30% · Zed 33%'],
-      ['Farming and items', 'CS a minute | 12.7 ▲ | This game 12.7 · your usual 5.3 · high elo 6.7 · Zed 8.5', 'Gold a minute | 494 ▲ | This game 494 · high elo 384 · Zed 424',
-        'First item done | 12:00 | This game 12:00 · your usual 12:00 · high elo 10:00', 'CS at 10 vs Zed | +10 | This game +10 · your usual +10 · high elo +5',
-        'Gold at 10 vs Zed | +500 | This game +500 · your usual +500 · high elo +25', 'XP at 10 vs Zed | −200 | This game −200 · your usual −200 · high elo +100'],
-      ['Map and vision', 'Vision score a minute | 0.71 ▲ | This game 0.71 · your usual 0.60 · high elo 0.96 · Zed 0.71', 'Turret plates | 3 ▲ | This game 3 · Zed 1', 'Time dead | 1:00 ▲ | This game 1:00 · Zed 2:30'],
-      ['Riot’s extra numbers', 'Skillshots hit | 60 ▲ | This game 60 · Zed 40', 'Skillshots dodged | 20 ▼ | This game 20 · Zed 25', 'Allies saved | 2 ▲ | This game 2 · Zed 0']]);
-    const kda = await pc.$eval('#postBox .brow', (r) => [r.querySelector('.bus').style.left, r.querySelector('.bhi').style.left, r.querySelector('.bfill').style.width]);
-    assert(kda.every((v) => /^[\d.]+%$/.test(v)) && parseFloat(kda[2]) > parseFloat(kda[1]) && parseFloat(kda[1]) > parseFloat(kda[0]), `KDA: the fill past the high elo diamond past your usual's line: ${kda}`);
-    assert(await pc.locator('#postBox .brow:has(.bwhat:text-is("XP at 10 vs Zed")) .bmid').count() === 1, 'leads against Zed centred on 0');
-    await pc.hover('#postBox .brow');
-    assert(await pc.locator('#postBox .brow .btip').first().isVisible(), 'the exact numbers on hover');
-    assert.deepStrictEqual(await post('.analysis .timers > span'), ['Your damage11% physical · 78% magic · 11% true', 'Wards11 placed · 3 destroyed2 control wards bought', 'Damage to towers4,500', 'Crowd control36 s']);
-    assert.deepStrictEqual(await pc.$eval('#postBox .fightmap', (cv) => [cv.getAttribute('aria-label'), ...[[7400, 7400], [5500, 9000], [10000, 4500]].map(([x, y]) => [...cv.getContext('2d').getImageData(Math.round(x / 14870 * 480), Math.round((1 - y / 14870) * 480), 1, 1).data].join())]),
-      ['Where on Summoner’s Rift you got kills (1), assists (1) and died (2)', '60,207,142,255', '255,107,107,255', '255,107,107,255']);
-    assert.deepStrictEqual(await post('.analysis .duo ol li'), ['8:10: Zed with Vi, in the river', '12:40: Zed with Vi, in the river']);
-    assert.strictEqual(await text(pc, '#postBox .analysis .duo .stack .hint'), 'Objectives: your team took 2 dragons, 1 Baron, 3 towers; theirs 1 Voidgrub, 1 Rift Herald, 1 tower.');
+    assert.strictEqual(await pc.locator('#postBox .sbdrawer:not([hidden])').count(), 0, 'every drawer closed after a game, yours too');
+    await pc.click('#postBox .pside[data-me] .c-pic');
+    await wait(pc, () => document.querySelectorAll('#postBox .sbdrawer:not([hidden]) .pcard').length === 3, null, 'your game: rings and cards');
+    assert.deepStrictEqual(await texts(pc, '#postBox .sbdrawer:not([hidden]) .povr'), ['69 Your game against 40 high elo Ahri middle games']);
+    await repShot(pc, '#postBox', 'report-your-game');
+    await pc.click('#postBox .sbdrawer:not([hidden]) .ringb[data-area="fight"]');
+    await repShot(pc, '#postBox', 'report-your-game-fighting');
+    await pc.click('#postBox .sbdrawer:not([hidden]) .ringb[data-area="lane"]');
+    assert(await pc.locator('#postBox .rpane[data-tab="laning"]').isVisible(), 'the Laning ring opens Laning');
     // Laning: at 10 and 15 minutes against Zed, your gold and CS leads filled, with minute marks
-    await pc.click('#postBox .rtabs .tab:text-is("Laning")');
     assert.strictEqual(await text(pc, '#postBox .laning > p'), 'High elo Ahri players won 40% of 30 games against Zed: a hard matchup.');
     assert.deepStrictEqual(await post('.laning .lead figcaption'), ['Your gold against ZedUp to 1.5k ahead at 30:00, 1.5k ahead at the end', 'Your CS against ZedUp to 30 CS ahead at 30:00, 30 CS ahead at the end']);
     assert.deepStrictEqual(await post('.laning .lead:first-child .ticks span'), ['0:00', '5:00', '10:00', '15:00', '20:00', '25:00', '30:00']);
     assert(await pc.$eval('#postBox .laning .lead .up', (p) => p.getAttribute('d').split('L').length > 20), 'your gold lead filled above the line');
     await repShot(pc, '#postBox', 'report-laning');
-    // Overview: the teams, yours on top, each row with its drawer
+    // Overview: the gold on top, the teams side by side, then lane against lane, your side lit
     await pc.click('#postBox .rtabs .tab:text-is("Overview")');
-    const sb = await pc.$$eval('#postBox .sbteam', (ts) => ts.map((t) => [t.getAttribute('aria-label'), t.querySelectorAll('button.sbrow').length, t.querySelector('.sbwl').textContent]));
-    assert.deepStrictEqual(sb, [['Your team', 5, 'Victory'], ['Their team', 5, 'Defeat']], 'your team first, both of 5');
-    assert.match(await text(pc, '#postBox .sbrow[data-me] .sbname'), /You/);
-    assert(await pc.$$eval('#postBox .sbrow[data-me] .sbit img', (l) => l.length) > 0, 'your items');
+    assert.deepStrictEqual(await pc.$eval('#postBox .rpane[data-tab="overview"]', (p) => [...p.children].map((e) => e.className.split(' ').pop()).slice(0, 5)), ['lead', 'sbvs', 'sbhead', 'lrow', 'sbdrawer'], 'the gold graph first');
+    assert.match(await text(pc, '#postBox .sbhead'), /^Blue side\s*Victory\s*Your team\s*Their team\s*Defeat\s*Red side$/);
+    assert.strictEqual(await pc.locator('#postBox .lrow:has(.pside[data-me])').getAttribute('aria-label'), 'Middle', 'you against Zed in the middle');
+    assert(await pc.$$eval('#postBox .pside[data-me] .sbit img', (l) => l.length) > 0, 'your items');
     assert.deepStrictEqual(await pc.$$eval('#postBox .sbvs .vs', (l) => l.map((v) => v.title)), ['Kills: yours 14, theirs 12', 'Gold: yours 54.0k, theirs 52.0k', 'Towers: yours 3, theirs 1', 'Dragons: yours 2, theirs 0', 'Barons: yours 1, theirs 0', 'Voidgrubs: yours 0, theirs 1'], 'the teams side by side, Voidgrubs from the timeline');
     await repShot(pc, '#postBox', 'report-overview-game-page');
     // What's new 218: a player's name opens their profile, without opening their drawer
-    assert.strictEqual(await pc.locator('#postBox .sbrow .sbname b.plink').count(), 10, 'every name a link');
+    assert.strictEqual(await pc.locator('#postBox .pside .sbname b.plink').count(), 10, 'every name a link');
     await pc.click('#postBox .plink:text-is("Sniper")');
     await wait(pc, () => document.querySelector('.nav[data-view="profile"]').getAttribute('aria-current') === 'page' && document.getElementById('proName').textContent === 'Sniper', null, 'Sniper’s profile from his name after the game');
-    assert.strictEqual(await pc.getAttribute('#postBox .sbrow:has(.plink:text-is("Sniper"))', 'aria-expanded'), 'false', 'his drawer still closed');
+    assert.strictEqual(await pc.getAttribute('#postBox .pside:has(.plink:text-is("Sniper"))', 'aria-expanded'), 'false', 'his drawer still closed');
     await pc.click('#proBack');
     await openPage(pc, 'stats');
     await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'after', go: 'scoreboard' } }));
@@ -2463,18 +2483,23 @@ const leagueData = (over = {}) => ({
       const navy = { '--bg': '#0d161c', '--panel': '#182127', '--raised': '#232b31', '--line': '#2c3a44', '--muted': '#9fb0ba', '--fg': '#f4eeee' };
       await pc.evaluate((v) => { for (const [k, x] of Object.entries(v)) document.documentElement.style.setProperty(k, x); }, navy);
       await repShot(pc, first, 'report-overview-navy');
-      await pc.click(`${first} .rtabs .tab:text-is("How you played")`);
-      await repShot(pc, first, 'report-how-navy');
+      await pc.click(`${first} .pside[data-me] .c-pic`);
+      await pc.click(`${first} .ringb[data-area="fight"]`);
+      await repShot(pc, first, 'report-your-game-navy');
+      await pc.click(`${first} .pside[data-me] .c-pic`);
       await pc.click(`${first} .rtabs .tab:text-is("Overview")`);
       await pc.evaluate((v) => { for (const k of Object.keys(v)) document.documentElement.style.removeProperty(k); }, navy);
     }
-    // a 1040 px window (rows on two lines, all four tabs fit), a smaller one, and the app at 200% size
+    // a 1040 px window (lane rows without items, the tabs on one line), a smaller one, and the app at 200% size, with
+    // your drawer open on Fighting
+    await pc.click(`${first} .pside[data-me] .c-pic`);
+    await pc.click(`${first} .ringb[data-area="fight"]`);
     for (const w of [1040, 820]) {
       await pc.setViewportSize({ width: w, height: 900 });
       await sideways(pc, first, `a ${w} px window`);
-      assert.strictEqual(await pc.$eval(`${first} .rtabs`, (t) => new Set([...t.children].map((b) => Math.round(b.getBoundingClientRect().top))).size), 1, `the four tabs on one line at ${w} px`);
+      assert.strictEqual(await pc.$eval(`${first} .rtabs`, (t) => new Set([...t.children].map((b) => Math.round(b.getBoundingClientRect().top))).size), 1, `the tabs on one line at ${w} px`);
       if (w === 1040) {
-        assert(await pc.$eval(`${first} .sbrow[data-me]`, (r) => r.querySelector('.c-items').getBoundingClientRect().top > r.querySelector('.c-kda').getBoundingClientRect().bottom), 'items under the name in a smaller window');
+        assert(await pc.locator(`${first} .pside[data-me] .c-items`).isHidden() && await pc.locator(`${first} .pside[data-me] .c-kda`).isVisible(), 'lane rows drop items in a smaller window');
         await repShot(pc, first, 'report-1040');
       }
     }
@@ -2482,6 +2507,7 @@ const leagueData = (over = {}) => ({
     await pc.evaluate(() => document.documentElement.style.setProperty('--zoom', 2));
     await sideways(pc, first, 'the app at 200% size');
     await pc.evaluate(() => document.documentElement.style.setProperty('--zoom', 1));
+    await pc.click(`${first} .pside[data-me] .c-pic`);
     await pc.click(`${first} .rtabs .tab:text-is("Laning")`);
     assert.match(await text(pc, `${first} .lhead`), /^You\s*against\s*Zed\s*Shadow, middle lane$/);
     assert.deepStrictEqual(await pc.$$eval(`${first} .lat`, (l) => l.map((x) => [x.querySelector('h3').textContent, ...[...x.querySelectorAll('.latrow')].map((r) => `${r.title} ${r.querySelector('.gap').textContent}`)])),
@@ -2503,13 +2529,14 @@ const leagueData = (over = {}) => ({
     await pc.click(`${first} .bswitch .tab:text-is("You and Zed")`);
     await repShot(pc, first, 'report-builds');
     await pc.click(`${first} .rtabs .tab:text-is("Overview")`);
-    await pc.click(`${first} button.sbrow:has(.sbname b:text-is("Shadow"))`); // Shadow's drawer
+    await pc.click(`${first} .pside:has(.sbname b:text-is("Shadow")) .c-pic`); // Shadow's drawer
     // copied from a report into League: Zed's runes as the app's own page, with the shards from Riot's copy of the game,
     // then yours over it; your items as an item set for Ahri, in the order you bought them
     const copied = lcu.calls.length;
     await pc.click(`${first} button[aria-label="Save Shadow’s runes on Zed in League"]`);
     await wait(pc, () => lpc.toasts().includes('Shadow’s runes on Zed are your rune page “Copy: Shadow’s Zed” in League.'), null, 'Zed’s runes in League');
     assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', copied).map((c) => c[2]), [{ name: 'Copy: Shadow’s Zed', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8112, 8139, 8138, 8135, 8226, 8237, 5005, 5008, 5011], current: true }]);
+    await pc.click(`${first} .pside[data-me] .c-pic`); // your drawer (one open at a time)
     await pc.click(`${first} button[aria-label="Save Rayan’s runes on Ahri in League"]`);
     await wait(pc, () => lpc.toasts().includes('Rayan’s runes on Ahri are your rune page “Copy: Rayan’s Ahri” in League.'), null, 'your runes over it');
     assert.deepStrictEqual([callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', copied).length, callsTo(/^\/lol-perks\/v1\/pages\/51$/, 'PUT', copied).length, callsTo(/currentpage$/, 'PUT', copied).map((c) => c[2])], [1, 1, [51]]);
@@ -2521,7 +2548,7 @@ const leagueData = (over = {}) => ({
       ['Rayan’s Ahri', [103], [11], [['Start', [1056, 2003]], ['Then, in order', [3020, 6655, 3157, 3089]], ['Ended the game with', [3020, 6655]]]]);
     assert(lcu.itemSets.itemSets.some((x) => x.uid === 'lpc-103'), 'the app’s own Ahri set kept');
     await pc.click('#proGames li:nth-child(2) summary');
-    await wait(pc, () => document.querySelector('#proGames li:nth-child(2) .report .sbrow'), null, 'an older game’s report, from Riot');
+    await wait(pc, () => document.querySelector('#proGames li:nth-child(2) .report .pside'), null, 'an older game’s report, from Riot');
     await wait(pc, () => document.querySelector('#proGames li:nth-child(2) .laning .lhead'), null, 'laning in a game with no lanes');
     assert.match(await text(pc, '#proGames li:nth-child(2) .lhead'), /against\s*Zed/);
     // buy times when League's copy of the game has none: Riot's copy of the timeline through our server (an undone buy

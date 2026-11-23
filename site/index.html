@@ -766,52 +766,108 @@ details[open]:has(> .gbody > .report > .rhead) > summary.gsum { display: none; }
 .rtabs { padding: 4px 20px 14px; margin: 0; }
 .rpane { min-width: 0; padding: 18px 20px 24px; display: grid; gap: 22px; align-content: start; }
 .rpane[data-tab="overview"] { padding: 8px 8px 20px; gap: 0; }
-.sbteam { display: grid; padding-top: 10px; }
-.sbth { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 4px 12px 8px; }
-.sbth b { font-size: 16px; }
-.sbteam[data-side="us"] .sbth b { color: var(--ally); }
-.sbteam[data-side="them"] .sbth b { color: var(--foe); }
+/* the scoreboard lane against lane (What's new 219): your laner on the left facing theirs, the lane between them with an
+   arrow to who won it; your side lit; a player's drawer opens under their lane, one at a time, every one closed at first */
+.sbhead, .lrow { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); }
+.sbhead { align-items: baseline; padding: 14px 8px 8px; }
+.sbhead > span { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.sbhead > span:first-child { justify-content: flex-end; }
+.sbhead b { font-size: 16px; } .sbhead .sub { font-size: 13px; color: var(--muted); }
+.sbhead [data-side="us"] b { color: var(--ally); } .sbhead [data-side="them"] b { color: var(--foe); }
 .sbwl { font-weight: 600; }
-.sbrow { display: grid; grid-template-columns: 44px 44px minmax(150px, 1.6fr) 96px minmax(104px, 1fr) 64px 52px 188px 40px; grid-template-areas: "pic sp who kda dmg cs gold items score";
-  align-items: center; column-gap: 12px; row-gap: 6px; width: 100%; padding: 8px 12px; border: 0; border-top: 1px solid var(--hair); background: none; color: inherit; font: inherit; text-align: left; }
-button.sbrow { cursor: pointer; }
-button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft); }
-.sbrow[data-me] { background: var(--soft); }
-.sbcols { padding-top: 0; padding-bottom: 6px; border-top: 0; font-size: 12.5px; color: var(--muted); }
-.c-pic { grid-area: pic; } .c-sp { grid-area: sp; } .c-who { grid-area: who; min-width: 0; display: grid; gap: 3px; } .c-kda { grid-area: kda; display: grid; } .c-dmg { grid-area: dmg; display: grid; gap: 4px; }
-.c-cs { grid-area: cs; display: grid; } .c-gold { grid-area: gold; } .c-items { grid-area: items; } .c-score { grid-area: score; justify-self: end; }
-.sbrow .sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
-.sbrow b, .c-dmg, .c-cs, .c-gold { font-variant-numeric: tabular-nums; }
+.lrow { align-items: stretch; border-top: 1px solid var(--hair); }
+.lmid { display: grid; justify-items: center; align-content: center; gap: 2px; color: var(--muted); font-size: 11.5px; }
+.larrow { display: flex; } .larrow[data-side="us"] { color: var(--ally); } .larrow[data-side="them"] { color: var(--foe); }
+.pside { display: grid; align-items: center; column-gap: 6px; min-width: 0; padding: 8px; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+button.pside { cursor: pointer; transition: background-color var(--t-press); }
+button.pside:hover, .pside[aria-expanded="true"] { background: var(--soft); }
+.pside[data-me] { background: color-mix(in srgb, var(--fg) 9%, transparent); }
+.pside[data-at="r"] { grid-template-columns: 40px 44px minmax(0, 1fr) 76px 52px 60px 112px 32px; grid-template-areas: "pic sp who kda dmg cs items score"; }
+.pside[data-at="l"] { grid-template-columns: 32px 112px 60px 52px 76px minmax(0, 1fr) 44px 40px; grid-template-areas: "score items cs dmg kda who sp pic"; text-align: right; }
+.pside[data-at="l"] > span { justify-items: end; } .pside[data-at="l"] :is(.sbname, .sbit) { justify-content: flex-end; }
+.c-pic { grid-area: pic; } .c-sp { grid-area: sp; } .c-who { grid-area: who; min-width: 0; display: grid; gap: 3px; } .c-kda { grid-area: kda; display: grid; } .c-dmg { grid-area: dmg; display: grid; gap: 5px; }
+.c-cs { grid-area: cs; display: grid; } .c-items { grid-area: items; } .c-score { grid-area: score; }
+.pside .sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pside b, .c-dmg, .c-cs { font-variant-numeric: tabular-nums; }
+.c-kda b { white-space: nowrap; }
 .sbch { position: relative; width: 40px; height: 40px; }
 .sbch img { width: 40px; height: 40px; border-radius: 10px; }
+.pside[data-at="l"] .sbch i { right: auto; left: -5px; }
 .sbsp { display: grid; grid-template-columns: 20px 20px; gap: 3px; }
 .sbsp img { width: 20px; height: 20px; border-radius: 4px; }
 .sbsp img.rn { border-radius: 50%; background: var(--bg); }
-.sbname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.sbname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; max-width: 100%; }
 .sbname b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sbname b.plink { font-weight: 700; } /* a name that opens their profile (What's new 218): .plink resets the font, so it stays bold */
-.sbname .tag { font-size: 12px; } .sbname .tag[data-k=""] { border-color: var(--muted); }
-.sbrk { font-size: 12.5px; color: var(--muted); }
-.sbdmg { display: block; height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.sbname .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 12px; } .sbname .tag[data-k=""] { border-color: var(--muted); }
+.sbrk { font-size: 12px; color: var(--muted); }
+.sbdmg { display: flex; width: 100%; height: 5px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.pside[data-at="l"] .sbdmg { justify-content: flex-end; }
 .sbdmg i { display: block; height: 100%; background: var(--ally); }
-.sbteam[data-side="them"] .sbdmg i { background: var(--foe); }
-.sbit { display: flex; align-items: center; gap: 3px; }
-.sbit img, .sbit .none { width: 24px; height: 24px; border-radius: 5px; }
+.pside[data-side="them"] .sbdmg i { background: var(--foe); }
+.sbit { display: flex; align-items: center; gap: 2px; }
+.sbit img, .sbit .none { width: 17px; height: 17px; border-radius: 4px; }
 .sbit .none { background: var(--bg); }
-.sbit img.tk { margin-left: 3px; border-radius: 50%; }
-.sbring { position: relative; display: grid; place-items: center; width: 36px; height: 36px; }
-.sbring svg { position: absolute; inset: 0; width: 36px; height: 36px; }
+.sbring { position: relative; display: grid; place-items: center; width: 32px; height: 32px; }
+.sbring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sbring circle { fill: none; stroke: var(--hair); stroke-width: 3.5; }
 .sbring circle + circle { stroke: var(--fg); stroke-linecap: round; }
 .sbring[data-k="good"] circle + circle { stroke: var(--good); }
 .sbring[data-k="bad"] circle + circle { stroke: var(--bad); }
-.sbring b { position: relative; font-size: 12px; }
-.sbdrawer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 26px; padding: 10px 12px 14px 112px; background: var(--soft); }
-.sbx { display: flex; flex-wrap: wrap; gap: 12px 26px; }
-.sbx > span { display: grid; gap: 1px; }
-.sbx .sub { font-size: 12.5px; color: var(--muted); }
-.sbx b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.sbacts { margin-left: auto; }
+.sbring b { position: relative; font-size: 11.5px; }
+/* a player's drawer: their game as rings; yours with 3 cards and a ring's numbers (bars, faces among the 10, the Rift) */
+.sbdrawer { display: grid; gap: 14px; padding: 16px 20px; background: var(--soft); }
+.sbacts { justify-content: flex-end; }
+.ptop { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.povr { display: flex; align-items: center; gap: 14px; flex: 1 1 250px; min-width: 0; }
+.povr > span:last-child { display: grid; gap: 2px; min-width: 0; } .povr b { font-size: 16px; font-weight: 600; } .povr .sub { font-size: 13px; color: var(--muted); }
+.povr .sbring { width: 72px; height: 72px; flex: none; } .povr .sbring circle { stroke-width: 3; } .povr .sbring b { font-size: 22px; }
+.prings { display: flex; flex-wrap: wrap; gap: 2px; }
+.ringb { display: grid; justify-items: center; gap: 6px; width: 80px; padding: 8px 2px 6px; border: 0; border-radius: 10px; background: none; color: var(--fg); font: 12.5px var(--body); }
+button.ringb { cursor: pointer; transition: transform var(--t-press) var(--ease-out), background-color var(--t-press); }
+button.ringb:hover { background: var(--soft); } .ringb[aria-pressed="true"] { background: color-mix(in srgb, var(--fg) 12%, transparent); }
+button.ringb:active { transform: scale(calc(1 - 0.04 * var(--m))); }
+.ringb .sbring { width: 48px; height: 48px; } .ringb .sbring b { font-size: 14px; }
+span.ringb { width: 72px; padding: 4px 2px; } span.ringb .sbring { width: 40px; height: 40px; } span.ringb .sbring b { font-size: 12.5px; }
+.pcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 28px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.pcard { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; gap: 12px; }
+.pcard > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.pcard .pk { font-size: 12.5px; font-weight: 600; } .pcard[data-k="good"] .pk { color: var(--good); } .pcard[data-k="bad"] .pk { color: var(--bad); }
+.pcard b { font-size: 15px; font-weight: 600; } .pcard .sub { font-size: 13px; color: var(--muted); }
+.pcard > .pgbar { height: 40px; } .pcard > .pgbar::before { top: 18px; } .pcard > .pgbar .pband { top: 15px; } .pcard > .pgbar .pmid { top: 11px; } .pcard > .pgbar .pdot { top: 13px; }
+.pmini { width: 96px; height: 96px; border-radius: 8px; }
+.pface { display: grid; justify-items: center; gap: 4px; font-size: 12.5px; } .pface img { width: 48px; height: 48px; border-radius: 12px; }
+.pdet { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px 36px; padding-top: 14px; border-top: 1px solid var(--hair); animation: pdet-in var(--t-sheet) var(--ease-out); }
+@keyframes pdet-in { from { opacity: 0; transform: translateY(calc(6px * var(--m))); } }
+.pcol { display: grid; gap: 4px; align-content: start; min-width: 0; } .pcol > .ph { margin-bottom: 4px; }
+.prow { display: grid; grid-template-columns: 150px minmax(0, 1fr) 64px; align-items: center; gap: 12px; min-height: 36px; }
+.prow > span:last-child { display: grid; justify-items: end; line-height: 1.2; } .prow b { font-variant-numeric: tabular-nums; }
+.prow b[data-k="good"] { color: var(--good); } .prow b[data-k="bad"] { color: var(--bad); } .prow .sub, .pten .sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pgbar { position: relative; display: block; height: 18px; }
+.pgbar::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: var(--hair); }
+.pgbar i, .pkey i { position: absolute; }
+.pband { top: 4px; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--fg) 28%, transparent); }
+.pmid { top: 0; width: 2px; height: 18px; margin-left: -1px; border-radius: 1px; background: var(--fg); }
+.pdot { top: 2px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 2px var(--panel); }
+.pdot[data-k="good"] { background: var(--good); } .pdot[data-k="bad"] { background: var(--bad); }
+.pkey { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.pkey span { display: inline-flex; align-items: center; gap: 6px; } .pkey i { position: static; margin: 0; } .pkey .pband { width: 22px; height: 8px; } .pkey .pmid { height: 14px; } .pkey .pdot { width: 10px; height: 10px; box-shadow: none; }
+.pmore { display: grid; gap: 6px; margin-top: 12px; } .pmore > .sub { font-size: 12.5px; color: var(--muted); }
+.pten { display: grid; grid-template-columns: 150px auto minmax(0, 1fr); align-items: center; gap: 12px; min-height: 34px; }
+.pten > span:last-child { display: grid; line-height: 1.2; } .pten b { font-variant-numeric: tabular-nums; }
+.pfaces { display: flex; flex-wrap: wrap; gap: 3px; } .pfaces img { width: 22px; height: 22px; border-radius: 6px; opacity: 0.38; } .pfaces img[data-me] { opacity: 1; outline: 2px solid var(--best); outline-offset: 1px; }
+.pfight { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 12px; }
+.pfight .fightmap { width: 200px; }
+.pdeaths { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; min-width: 0; font-size: 13px; }
+.pdeaths li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pdeaths time { flex: none; width: 38px; font: 12.5px var(--mono); color: var(--muted); } .pdeaths time[data-k="bad"] { color: var(--bad); }
+.pby { display: flex; gap: 2px; flex: none; } .pby img { width: 20px; height: 20px; border-radius: 5px; }
+.pdeaths .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+/* what happened when, over the gold graph, and your deaths on its line */
+.when { position: relative; height: 46px; }
+.when span { position: absolute; display: grid; place-items: center; width: 20px; height: 20px; transform: translateX(-50%); color: var(--muted); }
+.when span[data-row="1"] { top: 24px; } .when [data-side="us"] { color: var(--ally); } .when [data-side="them"] { color: var(--foe); }
+.ldeath { position: absolute; transform: translate(-50%, -50%); color: var(--bad); font: 700 18px/1 var(--body); }
 .sbvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px 22px; margin: 10px 0 4px; padding: 14px 12px; border-block: 1px solid var(--hair); }
 .vs { display: grid; gap: 6px; }
 .vs > div:first-child { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -840,39 +896,6 @@ button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft)
 .ticks { position: relative; height: 16px; font: 11.5px var(--mono); color: var(--muted); }
 .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .ticks span:first-child { transform: none; } .ticks span:last-child { transform: translateX(-100%); }
-.analysis > .takeaways { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px 32px; }
-.takeaways li[data-k] { display: flex; gap: 10px; align-items: baseline; }
-.takeaways li[data-k]::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transform: translateY(-1px); }
-.takeaways li[data-k="good"]::before { background: var(--good); }
-.takeaways li[data-k="bad"]::before { background: var(--bad); }
-.takeaways li b { font-weight: 600; }
-.blegend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; padding-top: 14px; border-top: 1px solid var(--hair); font-size: 13px; }
-.blegend > span[data-k] { display: inline-flex; align-items: center; gap: 8px; }
-.blegend > span[data-k]::before { content: ""; width: 26px; height: 6px; border-radius: 3px; background: var(--muted); }
-.blegend > span[data-k="us"]::before { width: 2px; height: 16px; background: var(--fg); }
-.blegend > span[data-k="hi"]::before { width: 8px; height: 8px; border-radius: 0; background: var(--best); transform: rotate(45deg); }
-.bgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 22px 40px; }
-.bgroup { display: grid; gap: 2px; align-content: start; }
-.bgroup h3 { margin: 0 0 6px; }
-.brow { position: relative; display: grid; grid-template-columns: minmax(118px, 168px) minmax(0, 1fr) 62px; align-items: center; gap: 12px; min-height: 34px; border-radius: var(--r-sm); }
-.brow:hover, .brow:focus-visible { background: var(--soft); }
-.bwhat { font-size: 13.5px; }
-.btrack { position: relative; height: 22px; }
-.btrack::before { content: ""; position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--hair); }
-.btrack i { position: absolute; }
-.bfill { top: 8px; height: 6px; border-radius: 3px; background: var(--muted); }
-.brow[data-k="good"] .bfill { background: var(--good); } .brow[data-k="bad"] .bfill { background: var(--bad); }
-.bmid { left: 50%; top: 4px; width: 1px; height: 14px; background: var(--line); }
-.bus { top: 3px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px; background: var(--fg); }
-.bhi { top: 7px; width: 8px; height: 8px; margin-left: -4px; background: var(--best); transform: rotate(45deg); }
-.bval { text-align: right; font-variant-numeric: tabular-nums; }
-.brow[data-k="good"] .bval { color: var(--good); } .brow[data-k="bad"] .bval { color: var(--bad); }
-.btip { display: none; position: absolute; z-index: 2; right: 0; bottom: calc(100% + 4px); padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--raised); font-size: 12.5px; white-space: nowrap; pointer-events: none; }
-.brow:hover .btip, .brow:focus-visible .btip { display: block; }
-.analysis > .timers { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px 28px; padding-top: 16px; border-top: 1px solid var(--hair); }
-.analysis > .timers > span { display: grid; gap: 4px; align-content: start; padding: 0; background: none; font: 400 13px/1.4 var(--body); }
-.analysis > .timers b { font: 600 14px/1.3 var(--body); color: var(--fg); }
-.analysis > .timers .sub { color: var(--muted); } .analysis > .timers .sub.bad { color: var(--bad); }
 .dmgbar { display: flex; gap: 2px; height: 8px; }
 .dmgbar i { border-radius: 2px; background: #e8955a; } .dmgbar i[data-k="1"] { background: var(--ally); } .dmgbar i[data-k="2"] { background: var(--fg); }
 .analysis > .duo { padding-top: 18px; border-top: 1px solid var(--hair); }
@@ -918,16 +941,29 @@ button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft)
 .ball .buyrow:has(.trips[hidden]) .bfinal { display: flex; grid-column: auto; } .ball .buyrow:has(.trips[hidden]) .bfinal .sub { display: none; }
 .bfirst { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
 .bfirst > span > .sub { display: inline; } .bfirst .us { color: var(--ally); } .bfirst .them { color: var(--foe); } .bfirst .hi { color: var(--best); }
+@container rep (max-width: 1200px) { /* lane rows drop items, then spells and damage, then CS */
+  .pside .c-items { display: none; }
+  .pside[data-at="r"] { grid-template-columns: 40px 44px minmax(0, 1fr) 76px 52px 60px 32px; grid-template-areas: "pic sp who kda dmg cs score"; }
+  .pside[data-at="l"] { grid-template-columns: 32px 60px 52px 76px minmax(0, 1fr) 44px 40px; grid-template-areas: "score cs dmg kda who sp pic"; }
+}
+@container rep (max-width: 960px) {
+  .pside :is(.c-sp, .c-dmg) { display: none; }
+  .pside[data-at="r"] { grid-template-columns: 40px minmax(0, 1fr) 76px 60px 32px; grid-template-areas: "pic who kda cs score"; }
+  .pside[data-at="l"] { grid-template-columns: 32px 60px 76px minmax(0, 1fr) 40px; grid-template-areas: "score cs kda who pic"; }
+}
 @container rep (max-width: 900px) {
-  .sbrow { grid-template-columns: 40px 44px minmax(0, 1fr) 88px 96px 44px; grid-template-areas: "pic sp who kda dmg score" "pic sp items items cs gold"; }
-  .sbcols { display: none; }
-  .c-kda .sub { white-space: normal; }
-  .sbdrawer { padding-left: 12px; }
+  .sbdrawer { padding: 16px; }
+  .pcards, .pdet { grid-template-columns: minmax(0, 1fr); }
   .rart { width: 100%; }
 }
+@container rep (max-width: 700px) {
+  .sbhead, .lrow { grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); }
+  .pside .c-cs, .c-kda .sub { display: none; }
+  .pside[data-at="r"] { grid-template-columns: 40px minmax(0, 1fr) 64px 32px; grid-template-areas: "pic who kda score"; }
+  .pside[data-at="l"] { grid-template-columns: 32px 64px minmax(0, 1fr) 40px; grid-template-areas: "score kda who pic"; }
+}
 @container rep (max-width: 560px) {
-  .sbrow { grid-template-columns: 40px minmax(0, 1fr) 80px 40px; grid-template-areas: "pic who kda score" "pic items items items" "pic dmg cs gold"; }
-  .c-sp { display: none; }
+  .prow, .pten { grid-template-columns: 110px minmax(0, 1fr) auto; } .pfight { grid-template-columns: minmax(0, 1fr); }
   .buyrow { grid-template-columns: 40px minmax(0, 1fr); } .bfinal { grid-column: 1 / -1; }
   .latrow { grid-template-columns: 36px 44px minmax(0, 1fr) 44px 48px; gap: 6px; }
 }
@@ -10850,10 +10886,10 @@ dialog.wizard { transform: scale(var(--from)); }
   const mk = (tagName, cls = '', text) => { const e = document.createElement(tagName); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   function gameTags(r, p) { // This game's: the most damage, the most taken, the most vision, first blood, a quadra or penta
     const top = (f) => r.players.every((q) => f(q) <= f(p)) && f(p) > 0;
-    return [top((q) => q.dmg) && ['good', 'Most damage'], top((q) => q.taken | 0) && ['', 'Took the most damage'], top((q) => q.vision) && ['', 'Most vision'], p.fb && ['', 'First blood'],
+    return [top((q) => q.dmg) && ['good', 'Most damage'], top((q) => q.taken | 0) && ['', 'Took most damage'], top((q) => q.vision) && ['', 'Most vision'], p.fb && ['', 'First blood'],
       p.multi && ['good', p.multi === 5 ? 'Penta kill' : 'Quadra kill']].filter(Boolean);
   }
-  const RTABS = [['overview', 'Overview'], ['how', 'How you played'], ['laning', 'Laning'], ['builds', 'Builds']];
+  const RTABS = [['overview', 'Overview'], ['laning', 'Laning'], ['builds', 'Builds']]; // How you played went into your drawer (What's new 219)
   let rtabN = 0;
   const repFoe = (r, p) => (p && r.mode === 'CLASSIC' && p.l ? r.players.find((q) => q.team !== p.team && q.l === p.l) || null : null);
   const pname = (p) => p.name.split('#')[0] || champName(p.champ);
@@ -10933,65 +10969,104 @@ dialog.wizard { transform: scale(var(--from)); }
     h.append(art, close, ...(r.skn ? [mk('span', 'rskin', r.skn)] : []), top);
     return h;
   }
-  // a score as a ring: green 60 and up, plain 40 to 59, red under 40
-  function scoreRing(v) {
+  // a number out of 100 as a ring: green 60 and up, plain 40 to 59, red under 40
+  const kOf = (v) => (v >= 60 ? 'good' : v >= 40 ? '' : 'bad');
+  function ringEl(v, title) {
     const s = mk('span', 'sbring');
-    s.dataset.k = v >= 60 ? 'good' : v >= 40 ? '' : 'bad';
-    s.title = `Score ${v} of 100 against the other nine`;
+    s.dataset.k = kOf(v);
+    if (title) s.title = title;
     s.innerHTML = `<svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15"/><circle cx="18" cy="18" r="15" stroke-dasharray="${((v / 100) * 94.25).toFixed(1)} 94.25" transform="rotate(-90 18 18)"/></svg><b></b>`;
     s.querySelector('b').textContent = v;
     return s;
   }
-  // Overview: your team on top (blue edge), then theirs; the teams side by side between them; the gold lead
+  const scoreRing = (v) => ringEl(v, `Score ${v} of 100 against the other nine in this game`);
+  const goldFig = (pts) => leadGraph(pts, 'Gold difference', (v) => k1(Math.round(v)), 100, ['Your team ahead', 'Their team ahead']);
+  const LANES = [['TOP', 'Top', 'M5 19V5h14M9 15V9h6'], ['JUNGLE', 'Jungle', 'M12 3c-2 4-2 8 0 12M8 6c-1 4 0 7 4 9M16 6c1 4 0 7-4 9M12 15v6'], ['MIDDLE', 'Middle', 'M5 19 19 5M5 13v6h6M13 5h6v6'],
+    ['BOTTOM', 'Bottom', 'M19 5v14H5M15 9v6H9'], ['UTILITY', 'Support', 'M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z']];
+  const svgPath = (d, w = 20) => `<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+  // the scoreboard's rows (What's new 219): on Summoner's Rift lane against lane, your laner facing theirs (players with
+  // no lane, or a taken one, fill the rest by damage); other modes pair each team's players by damage; with more than
+  // two teams (Arena) each team gets its own row
+  function lanePairs(r, ours) {
+    const teams = [...new Set(r.players.map((p) => p.team))].sort((a, b) => (a === ours ? -1 : b === ours ? 1 : a - b));
+    const byDmg = (t) => r.players.filter((p) => p.team === t).sort((a, b) => b.dmg - a.dmg);
+    if (teams.length !== 2) return teams.map((t) => { const l = byDmg(t); return [l[0], l[1] || null, null]; });
+    const seat = (l) => { const out = LANES.map(([k]) => l.find((p) => p.l === k) || null), rest = l.filter((p) => !out.includes(p)); return out.map((p) => p || rest.shift() || null).concat(rest); };
+    const [a, b] = teams.map(byDmg).map((l) => (r.mode === 'CLASSIC' ? seat(l) : l));
+    return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => [a[i] || null, b[i] || null, r.mode === 'CLASSIC' && i < 5 ? LANES[i] : null]).filter(([x, y]) => x || y);
+  }
+  const oneTag = (r, p) => (p.badge ? [p.badge === 'MVP' ? 'good' : '', p.badge] : gameTags(r, p)[0]); // one at most: MVP or ACE, else the first of this game's
+  // Overview (What's new 219): the gold lead on top (what happened when goes over it once the timeline is in), the teams
+  // side by side, then the lanes; every player's drawer starts closed, yours too
   function overviewEl(r, box) {
-    const me = r.players[r.me], foe = repFoe(r, me), ours = me ? me.team : 100, topDmg = Math.max(1, ...r.players.map((p) => p.dmg)), out = [];
-    const order = [...new Set(r.players.map((p) => p.team))].sort((a, b) => (a === ours ? -1 : b === ours ? 1 : a - b));
-    order.forEach((team, ti) => {
-      const ps = r.players.filter((p) => p.team === team), kills = ps.reduce((n, p) => n + p.k, 0), sec = mk('section', 'sbteam'), head = mk('div', 'sbth');
-      const name = me ? (team === ours ? 'Your team' : 'Their team') : team === 200 ? 'Red side' : 'Blue side';
-      sec.dataset.side = team === ours ? 'us' : 'them';
-      sec.setAttribute('aria-label', name);
-      head.append(mk('b', '', name), mk('span', 'sbwl', ps[0].win ? 'Victory' : 'Defeat'), ...(me ? [mk('span', 'sub', team === 200 ? 'Red side' : 'Blue side')] : []));
-      head.querySelector('.sbwl').dataset.r = ps[0].win ? 'Win' : 'Lose';
-      const cols = mk('div', 'sbrow sbcols');
-      cols.setAttribute('aria-hidden', 'true');
-      cols.innerHTML = '<span class="c-pic"></span><span class="c-sp"></span><span class="c-who">Player</span><span class="c-kda">KDA</span><span class="c-dmg">Damage</span><span class="c-cs">CS</span><span class="c-gold">Gold</span><span class="c-items">Items</span><span class="c-score">Score</span>';
-      sec.append(head, cols);
-      for (const p of ps) {
-        const i = r.players.indexOf(p), row = mk('button', 'sbrow'), dr = mk('div', 'sbdrawer');
-        row.type = 'button';
-        row.dataset.i = dr.dataset.i = i;
-        row.toggleAttribute('data-me', i === r.me);
-        dr.id = `${box.querySelector(':scope > .rpane').id.split('-')[0]}-d${i}`;
-        row.setAttribute('aria-controls', dr.id);
-        row.innerHTML = '<span class="c-pic sbch"><img class="pic0" alt=""></span><span class="c-sp sbsp"></span><span class="c-who"><span class="sbname"><b></b></span><span class="sbrk"></span></span><span class="c-kda"><b></b><span class="sub"></span></span><span class="c-dmg"><span></span><span class="sbdmg"><i></i></span></span><span class="c-cs"><span></span><span class="sub"></span></span><span class="c-gold"></span><span class="c-items sbit"></span><span class="c-score"></span>';
-        row.querySelector('img').src = champImg(p.champ);
-        row.querySelector('img').alt = champName(p.champ);
-        if (p.lvl) row.querySelector('.sbch').append(mk('i', '', p.lvl));
-        row.querySelector('.sbsp').append(...(p.sp || []).map(spellPic).filter(Boolean).map((x) => img(x)), ...(p.rn ? [runeIcon(p.rn[2]), runeIcon(p.rn[1])].filter(Boolean).map((x) => img(x, 'rn')) : []));
-        Object.assign(row.querySelector('.sbname b'), { textContent: pname(p) }, riotIdOk(p.name) && { className: 'plink', title: `Open ${pname(p)}’s profile` });
-        row.querySelector('.sbname').append(...[i === r.me && ['you', 'You'], p === foe && ['', 'Your lane'], p.badge && [p.badge === 'MVP' ? 'good' : '', p.badge], ...gameTags(r, p)].filter(Boolean).map(([k, x]) => tag(k, x)));
-        if (p.rk) row.querySelector('.sbrk').textContent = p.rk[1];
-        row.querySelector('.c-kda b').textContent = `${p.k} / ${p.d} / ${p.a}`;
-        row.querySelector('.c-kda .sub').textContent = `${kda(p.k, p.d, p.a)} · ${pct((p.k + p.a) / Math.max(1, kills))} of kills`;
-        row.querySelector('.c-dmg > span').textContent = p.dmg.toLocaleString('en-US');
-        row.querySelector('.sbdmg i').style.width = `${Math.round((100 * p.dmg) / topDmg)}%`;
-        row.querySelector('.c-cs > span').textContent = p.cs;
-        row.querySelector('.c-cs .sub').textContent = r.len ? `${(p.cs / (r.len / 60)).toFixed(1)} a min` : '';
-        row.querySelector('.c-gold').textContent = k1(p.gold);
-        row.querySelector('.sbit').append(...[0, 1, 2, 3, 4, 5].map((k) => (p.it && p.it[k] ? Object.assign(img(itemPic(p.it[k])), { title: itemName(p.it[k]) }) : mk('span', 'none'))), ...(p.tr ? [img(itemPic(p.tr), 'tk')] : []));
-        row.querySelector('.c-score').append(scoreRing(p.score));
-        dr.append(mk('div', 'sbx'), drawerActs(r, p, i));
-        const open = (on) => { row.setAttribute('aria-expanded', String(on)); dr.hidden = !on; };
-        open(i === r.me); // your own row starts open
-        row.addEventListener('click', (e) => { if (e.target.closest('.plink')) { view('profile', true); lookUp(p.name, r.plat); } else open(dr.hidden); }); // the name opens their profile (What's new 218)
-        sec.append(row, dr);
+    const me = r.players[r.me], ours = me ? me.team : 100, topDmg = Math.max(1, ...r.players.map((p) => p.dmg)), out = [], id0 = box.querySelector(':scope > .rpane').id.split('-')[0];
+    const teams = [...new Set(r.players.map((p) => p.team))], kills = (t) => r.players.filter((p) => p.team === t).reduce((n, p) => n + p.k, 0);
+    if (r.gold && r.gold.length > 1) out.push(goldFig(r.gold));
+    if (teams.length === 2) {
+      out.push(sideBySide(r, ours));
+      const head = mk('div', 'sbhead');
+      head.setAttribute('aria-hidden', 'true');
+      head.append(...[ours, teams.find((t) => t !== ours)].map((t, k) => {
+        const s = mk('span'), w = r.players.find((p) => p.team === t).win, wl = mk('span', 'sbwl', w ? 'Victory' : 'Defeat'), parts = [mk('b', '', me ? (t === ours ? 'Your team' : 'Their team') : t === 200 ? 'Red side' : 'Blue side'), wl, ...(me ? [mk('span', 'sub', t === 200 ? 'Red side' : 'Blue side')] : [])];
+        s.dataset.side = t === ours ? 'us' : 'them';
+        wl.dataset.r = w ? 'Win' : 'Lose';
+        s.append(...(k ? parts : parts.reverse()));
+        return s;
+      }));
+      head.insertBefore(mk('span'), head.lastChild);
+      out.push(head);
+    }
+    const side = (p, at) => {
+      if (!p) return mk('span', 'pside');
+      const i = r.players.indexOf(p), b = mk('button', 'pside'), dr = mk('div', 'sbdrawer'), t = oneTag(r, p);
+      b.type = 'button';
+      b.dataset.i = dr.dataset.i = i;
+      b.dataset.at = at;
+      b.dataset.side = p.team === ours ? 'us' : 'them';
+      b.toggleAttribute('data-me', i === r.me);
+      dr.id = `${id0}-d${i}`;
+      dr.hidden = true;
+      b.setAttribute('aria-controls', dr.id);
+      b.setAttribute('aria-expanded', 'false');
+      b.innerHTML = '<span class="c-pic sbch"><img class="pic0" alt=""></span><span class="c-sp sbsp"></span><span class="c-who"><span class="sbname"><b></b></span><span class="sbrk"></span></span><span class="c-kda"><b></b><span class="sub"></span></span><span class="c-dmg"><span></span><span class="sbdmg"><i></i></span></span><span class="c-cs"><span></span><span class="sub"></span></span><span class="c-items sbit"></span><span class="c-score"></span>';
+      Object.assign(b.querySelector('img'), { src: champImg(p.champ), alt: champName(p.champ) });
+      if (p.lvl) b.querySelector('.sbch').append(mk('i', '', p.lvl));
+      b.querySelector('.sbsp').append(...(p.sp || []).map(spellPic).filter(Boolean).map((x) => img(x)), ...(p.rn ? [runeIcon(p.rn[2]), runeIcon(p.rn[1])].filter(Boolean).map((x) => img(x, 'rn')) : []));
+      Object.assign(b.querySelector('.sbname b'), { textContent: pname(p) }, riotIdOk(p.name) && { className: 'plink', title: `Open ${pname(p)}’s profile` });
+      if (t) b.querySelector('.sbname').append(tag(...t));
+      if (p.rk) b.querySelector('.sbrk').textContent = p.rk[1];
+      b.querySelector('.c-kda').title = `${kda(p.k, p.d, p.a)} KDA`;
+      b.querySelector('.c-kda b').textContent = `${p.k} / ${p.d} / ${p.a}`;
+      b.querySelector('.c-kda .sub').textContent = `${pct((p.k + p.a) / Math.max(1, kills(p.team)))} of kills`;
+      b.querySelector('.c-dmg').title = `${p.dmg.toLocaleString('en-US')} damage to champions`;
+      b.querySelector('.c-dmg > span').textContent = k1(p.dmg);
+      b.querySelector('.sbdmg i').style.width = `${Math.round((100 * p.dmg) / topDmg)}%`;
+      b.querySelector('.c-cs > span').textContent = `${p.cs} CS`;
+      b.querySelector('.c-cs .sub').textContent = `${k1(p.gold)} gold`;
+      b.querySelector('.sbit').append(...[0, 1, 2, 3, 4, 5].map((k) => (p.it && p.it[k] ? Object.assign(img(itemPic(p.it[k])), { title: itemName(p.it[k]) }) : mk('span', 'none'))));
+      b.querySelector('.c-score').append(scoreRing(p.score));
+      b.addEventListener('click', (e) => {
+        if (e.target.closest('.plink')) { view('profile', true); lookUp(p.name, r.plat); return; } // the name opens their profile (What's new 218)
+        const on = dr.hidden;
+        for (const x of box.querySelectorAll('.pside[aria-expanded="true"]')) { x.setAttribute('aria-expanded', 'false'); box.querySelector(`.sbdrawer[data-i="${x.dataset.i}"]`).hidden = true; } // one drawer at a time
+        b.setAttribute('aria-expanded', String(on));
+        dr.hidden = !on;
+      });
+      return [b, dr];
+    };
+    for (const [a, b, lane] of lanePairs(r, ours)) {
+      const row = mk('div', 'lrow'), mid = mk('span', 'lmid'), [sa, da] = [].concat(side(a, 'l')), [sb, db] = [].concat(side(b, 'r'));
+      row.setAttribute('role', 'group');
+      if (lane) {
+        row.dataset.lane = lane[0];
+        row.setAttribute('aria-label', lane[1]);
+        mid.innerHTML = svgPath(lane[2]);
+        mid.append(mk('span', '', lane[1]));
       }
-      out.push(sec);
-      if (!ti && order.length === 2) out.push(sideBySide(r, ours));
-    });
+      row.append(sa, mid, sb);
+      out.push(row, ...[da, db].filter(Boolean));
+    }
     drawerFill(box, r, out);
-    if (r.gold && r.gold.length > 1) out.push(leadGraph(r.gold, 'Gold difference', (v) => k1(Math.round(v)), 100, ['Your team ahead', 'Their team ahead']));
     return out;
   }
   // kills, gold, towers, dragons and Barons, then Voidgrubs once the timeline gives them: yours blue, theirs red
@@ -11013,8 +11088,7 @@ dialog.wizard { transform: scale(var(--from)); }
     d.title = `${label}: yours ${f(x)}, theirs ${f(y)}`;
     return d;
   }
-  // a player's drawer: Riot's extra numbers (once Riot's copy is in), their vision against their lane opponent's,
-  // wards, how their game ranks among high elo games; Copy runes, Copy items and Avoid
+  // Copy runes, Copy items and Avoid, at the bottom of a player's drawer
   function drawerActs(r, p, i) {
     const acts = mk('span', 'toolbar sbacts'), who = pname(p);
     if (lcuOn()) for (const [what, f, ok] of [['runes', copyRunes, !!p.rn], ['items', copyItems, has17() && !!(p.it && p.it.length)]]) {
@@ -11028,12 +11102,48 @@ dialog.wizard { transform: scale(var(--from)); }
     if (i !== r.me && p.name) acts.append(avoidBtn({ name: p.name, puuid: p.puuid }));
     return acts;
   }
+  // a player's drawer (What's new 219): their game against the games it's measured against (benchFor) as an overall ring
+  // and a ring for each area; yours also has your best, your biggest leak and a target for next game, and a ring
+  // opens its numbers as bars with where you rank among the 10 in this game; then Copy runes, Copy items, Avoid.
+  // Redrawn as Riot's copy, the high elo games and the timeline come in, keeping the ring you opened.
   function drawerFill(box, r, root = [box]) {
-    for (const dr of root.flatMap((e) => [...e.querySelectorAll('.sbdrawer')])) {
-      const i = +dr.dataset.i, p = r.players[i], o = repFoe(r, p), hi = box.hi && box.hi[i], d = o ? p.vision - o.vision : 0;
-      const kv = [...(p.x ? EXTRA.map(([n], k) => [n, k === 4 ? mmss(p.x[k]) : String(p.x[k])]) : []), ...(o ? [['Vision vs their laner', `${d < 0 ? '−' : '+'}${Math.abs(d)} (${p.vision} vs ${o.vision})`]] : []),
-        ...(Array.isArray(p.wards) ? [['Wards', `${p.wards[0]} placed · ${p.wards[1]} destroyed · ${p.wards[2]} control`]] : []), ...(hi != null ? [[`Next to high elo ${champName(p.champ)}`, `${hi} of 100`]] : [])];
-      dr.querySelector('.sbx').replaceChildren(...kv.map(([k, v]) => { const s = mk('span'); s.append(mk('span', 'sub', k), mk('b', '', v)); return s; }));
+    for (const dr of root.flatMap((e) => (e.matches('.sbdrawer') ? [e] : [...e.querySelectorAll('.sbdrawer')]))) {
+      const i = +dr.dataset.i, p = r.players[i], b = benchFor(box, r, i), ms = b && b.gs.length ? measure(gameOf(box, r, i), b.gs) : [], rs = ringsOf(ms), mine = i === r.me;
+      const kids = [];
+      if (b) {
+        const top = mk('div', 'ptop'), ovr = mk('div', 'povr'), txt = mk('span'), yours = mine && (me0 ? p.puuid === me0.puuid : reports[r.id] === r);
+        txt.append(mk('b', '', yours ? 'Your game' : `${pname(p)}’s game`), mk('span', 'sub', rs ? `against ${b.what}` : `Not enough ${b.what} to compare with yet`));
+        ovr.append(...(rs ? [ringEl(rs.all, `${rs.all} of 100: the five rings’ average`)] : []), txt);
+        top.append(ovr);
+        if (rs) {
+          const rings = mk('div', 'prings');
+          rings.setAttribute('role', 'group');
+          rings.setAttribute('aria-label', `${yours ? 'Your' : `${pname(p)}’s`} game by area`);
+          RINGS.forEach(([k, label], n) => {
+            if (rs.areas[n] == null) return;
+            const el = mk(mine ? 'button' : 'span', 'ringb'), lane = k === 'lane' && !!paneOf(box, 'laning').dataset.on;
+            el.dataset.area = k;
+            el.append(ringEl(rs.areas[n]), mk('span', '', label));
+            el.title = mine ? (lane ? 'Laning: opens the Laning tab' : `${label}: tap for its numbers`) : `${label}: ${rs.areas[n]} of 100`;
+            if (mine) {
+              el.type = 'button';
+              el.setAttribute('aria-pressed', String(dr.dataset.area === k));
+              el.addEventListener('click', () => {
+                if (lane) { box.dataset.picked = '1'; return rtabShow(box, 'laning'); } // the at-10 numbers live in Laning
+                dr.dataset.area = dr.dataset.area === k ? '' : k; // one open at a time; again closes it
+                drawerFill(box, r, [dr]);
+                dr.querySelector(`.ringb[data-area="${k}"]`).focus();
+              });
+            }
+            rings.append(el);
+          });
+          top.append(rings);
+        }
+        kids.push(top);
+        if (mine && rs && ms.length > 1) kids.push(cardsEl(box, r, i, ms, b));
+        if (mine && (dr.dataset.area || !rs)) kids.push(detailEl(box, r, i, rs ? dr.dataset.area : '', ms, b));
+      }
+      dr.replaceChildren(...kids.filter(Boolean), drawerActs(r, p, i));
     }
   }
   // a game's row on the Clips page, opened: from the head's Watch the match and Your clips
@@ -11065,6 +11175,7 @@ dialog.wizard { transform: scale(var(--from)); }
     fig.querySelector('svg').setAttribute('aria-label', `${title}: ${cap}`);
     if (ends) fig.querySelector('.leadbox').append(mk('span', 'lup', ends[0]), mk('span', 'ldown', ends[1]));
     fig.querySelector('.ticks').append(...[0, ...marks.filter((m) => end - m >= 240), end].map((t) => { const s = mk('span', '', mmss(t)); s.style.left = `${(100 * t) / end}%`; return s; }));
+    fig.at = (t) => { const k = pts.findIndex(([x]) => x >= t), [t0, v0] = pts[Math.max(0, k - 1)], [t1, v1] = pts[k < 0 ? pts.length - 1 : k], v = t1 > t0 ? v0 + ((v1 - v0) * (t - t0)) / (t1 - t0) : v1; return [+((100 * t) / end).toFixed(2), +((100 * Y(v)) / H).toFixed(2)]; }; // where a moment sits: [left, top] in %
     return fig;
   }
 
@@ -14100,10 +14211,9 @@ dialog.wizard { transform: scale(var(--from)); }
     const info = t && t.info, fr = info && Array.isArray(info.frames) ? info.frames : null;
     if (!fr) return null;
     const ids = Array.isArray(info.participants) ? info.participants : [], m = r.players.some((p) => !ids.some((x) => p.puuid && x.puuid === p.puuid)) ? await riotCopy(r.id, plat) : null;
-    r.buys = r.players.map((p) => { // by puuid, else by champion and team as extrasFor does
-      const q = ids.find((x) => p.puuid && x.puuid === p.puuid) || (m ? m.info.participants.find((x) => x.championId === p.champ && x.teamId === p.team) : null);
-      return q ? buysOf({ frames: fr }, q.participantId) : [];
-    });
+    const qs = r.players.map((p) => ids.find((x) => p.puuid && x.puuid === p.puuid) || (m ? m.info.participants.find((x) => x.championId === p.champ && x.teamId === p.team) : null)); // by puuid, else by champion and team as extrasFor does
+    r.buys = qs.map((q) => (q ? buysOf({ frames: fr }, q.participantId) : []));
+    r.plates = platesOf({ frames: fr }, qs.map((q) => (q ? q.participantId : 0))) || r.plates; // each player's own (What's new 219)
     if (reports[r.id] === r) store.set('lpc-reports', JSON.stringify(reports));
     return r.buys;
   }
@@ -14752,15 +14862,20 @@ dialog.wizard { transform: scale(var(--from)); }
     itemsSoon();
     timelineOf(r.id).then(async (tl) => {
       for (let i = 0; i < 10 && !ddItems; i++) await sleep(300);
-      const ok = goodTl(tl), buys = await buysFor(r, ok ? tl : null), how = await analysisEl(r, ok ? tl : null, buys).catch((e) => { console.error('analysis:', e); return null; });
-      if (how) rtabFill(box, 'how', [how]);
+      const ok = goodTl(tl), buys = await buysFor(r, ok ? tl : null), how = await hiBits(r).catch(() => null), ov = paneOf(box, 'overview');
       if (ok) {
         const lane = laningEl(r, tl, how);
         rtabFill(box, 'laning', lane ? [lane, junglerEl(r, tl)] : []);
         const grubs = teamMonsters(r, tl, 'HORDE'), vs = box.querySelector('.sbvs');
         if (vs && grubs) vs.append(vsBar('Voidgrubs', ...grubs));
-        if (!(r.gold && r.gold.length > 1)) { const g = tlTeamGold(r, tl); if (g) paneOf(box, 'overview').append(leadGraph(g, 'Gold difference', (v) => k1(Math.round(v)), 100, ['Your team ahead', 'Their team ahead'])); }
-      } else paneOf(box, 'overview').append(mk('p', 'hint', 'Riot has no timeline for this game.'));
+        let fig = ov.querySelector(':scope > .goldfig.lead');
+        if (!fig) { const g = tlTeamGold(r, tl); if (g) ov.prepend((fig = goldFig(g))); }
+        if (fig) whenEl(r, tl, fig);
+        laneWinners(r, tl, box);
+        Object.assign(box, { tl, l10: r.mode === 'CLASSIC' ? lanesAt10(r, tl) : null });
+        r.plates = platesOf(tl, r.players.map((p, i) => p.pid || i + 1)) || r.plates;
+        drawerFill(box, r);
+      } else ov.append(mk('p', 'hint', 'Riot has no timeline for this game.'));
       rtabFill(box, 'builds', [buildsEl(r, buys, how)]);
     });
   }
@@ -14806,20 +14921,254 @@ dialog.wizard { transform: scale(var(--from)); }
   // vision, damage, the team's kills, the team's damage], as our server keeps them. Null without 20 such games.
   const hiOk = (g) => Array.isArray(g.x) && g.x.length === 4 && Array.isArray(g.m) && g.m.length === 6 && g.m[0] > 0;
   const HI = [(x) => (x[0] + x[2]) / Math.max(1, x[1]), (x, m) => Math.min(1, (x[0] + x[2]) / Math.max(1, m[4])), (x, m) => (60 * m[3]) / m[0], (x, m) => (60 * m[1]) / m[0], (x, m) => (60 * x[3]) / m[0], (x, m) => (60 * m[2]) / m[0]];
-  function hiRank(t, x, m) {
-    const gs = t ? t.all.filter(hiOk) : [];
-    if (gs.length < 20) return null;
-    return Math.round(100 * avgOf(HI.map((f) => { const v = f(x, m); return gs.reduce((n, g) => { const w = f(g.x, g.m); return n + (w < v ? 1 : w === v ? 0.5 : 0); }, 0) / gs.length; })));
-  }
   const hiShape = (r, p) => { const team = r.players.filter((q) => q.team === p.team); return [[p.k, p.d, p.a, p.cs], [r.len, p.gold, p.vision, p.dmg, team.reduce((n, q) => n + q.k, 0), team.reduce((n, q) => n + q.dmg, 0)]]; };
+  // ---- a player's game by area (What's new 219): each number as how many of the games it's measured against it beats
+  // (ties count half), an area the average of its numbers, the overall ring the areas' average. A game: { x, m } as our
+  // server keeps them (hiShape for a player in a report), l: CS, gold and XP at 10 against the lane opponent.
+  const RINGS = [['fight', 'Fighting'], ['dmg', 'Damage'], ['farm', 'Farming'], ['vis', 'Vision'], ['lane', 'Laning']];
+  const one1 = (v) => v.toFixed(1), int0 = (v) => Math.round(v).toLocaleString('en-US');
+  const MEASURES = [ // [area, what, a game's number, fewer is better, how it reads]
+    ['fight', 'KDA', (g) => HI[0](g.x, g.m), 0, one1], ['fight', 'Deaths', (g) => g.x[1], 1, String], ['fight', 'Kill participation', (g) => HI[1](g.x, g.m), 0, pct],
+    ['dmg', 'Damage a minute', (g) => HI[2](g.x, g.m), 0, int0], ['dmg', 'Share of team damage', (g) => g.m[3] / Math.max(1, g.m[5]), 0, pct],
+    ['farm', 'CS a minute', (g) => HI[4](g.x, g.m), 0, one1], ['farm', 'Gold a minute', (g) => HI[3](g.x, g.m), 0, int0], ['vis', 'Vision score a minute', (g) => HI[5](g.x, g.m), 0, (v) => v.toFixed(2)],
+    ['lane', 'CS at 10', (g) => (g.l ? g.l[0] : NaN), 0, (v) => sgn(v)], ['lane', 'Gold at 10', (g) => (g.l ? g.l[1] : NaN), 0, (v) => sgn(v)], ['lane', 'XP at 10', (g) => (g.l ? g.l[2] : NaN), 0, (v) => sgn(v)]];
+  const benchGame = (g) => ({ x: g.x, m: g.m, l: Array.isArray(g.l) ? [g.l[0], Number.isFinite(g.g) ? g.g : NaN, g.l[1]] : null }); // our server keeps CS and XP at 10 in l, gold in g
+  const gameOf = (box, r, i) => { const [x, m] = hiShape(r, r.players[i]); return { x, m, l: box.l10 ? box.l10[i] : null }; };
+  const quant = (s, q) => s[Math.round(q * (s.length - 1))];
+  function measure(g, games) { // [{ area, what, v, beat (0 to 100), lo, mid, hi (their middle half and middle), a0, a1 (a bar's ends), less, fmt }]
+    const out = [];
+    for (const [area, what, f, less, fmt] of MEASURES) {
+      const v = f(g), s = games.map(f).filter(Number.isFinite).sort((a, b) => a - b);
+      if (!Number.isFinite(v) || s.length < 9) continue;
+      const beat = Math.round((100 * s.reduce((n, w) => n + (w === v ? 0.5 : (less ? w > v : w < v) ? 1 : 0), 0)) / s.length);
+      out.push({ area, what, v, beat, less, fmt, lo: quant(s, 0.25), mid: quant(s, 0.5), hi: quant(s, 0.75), a0: Math.min(v, s[0]), a1: Math.max(v, s[s.length - 1]) });
+    }
+    return out;
+  }
+  function ringsOf(ms) {
+    const areas = RINGS.map(([k]) => { const l = ms.filter((x) => x.area === k); return l.length ? Math.round(avgOf(l.map((x) => x.beat))) : null; }), has = areas.filter((v) => v != null);
+    return has.length ? { areas, all: Math.round(avgOf(has)) } : null;
+  }
+  // the games a player's game is measured against: in other modes the other players of this game; on the Rift high elo
+  // games on their champion in their role (benchOf, once our server answers: undefined till then)
+  function benchFor(box, r, i) {
+    if (r.mode !== 'CLASSIC') return { gs: r.players.map((q, j) => j !== i && gameOf(box, r, j)).filter(Boolean), what: `the other ${r.players.length - 1} players in this game` };
+    return box.bench ? box.bench[i] : undefined;
+  }
+  // high elo games of a champion in a role, or in its most played role when that has under 20 (our server answers the
+  // most played role when none is asked for); { gs: [] } under 20 either way, null without a role
+  async function benchOf(p) {
+    if (!POS[p.l]) return null;
+    const ask = (role) => Promise.race([riotCheck().then(() => topGet(p.champ, role)), sleep(5000).then(() => null)]); // if our server answers within 5 s
+    const name = champName(p.champ), t = await ask(p.l), main = t && Object.entries(t.roles).sort((a, b) => b[1][0] - a[1][0])[0];
+    for (const x of [t, main && main[0] !== p.l ? await ask('') : null]) {
+      const gs = x ? x.all.filter(hiOk).map(benchGame) : [];
+      if (gs.length >= 20) return { gs, hi: true, what: `${gs.length} high elo ${name} ${(POS[x.role] || '').toLowerCase()} games`.replace('  ', ' ') };
+    }
+    return { gs: [], what: `high elo ${name} games` };
+  }
+  // your game in three cards: your best number, your biggest leak (where you died, or its bar) and a target for next game
+  const lower = (s) => s.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase());
+  function barEl(x, at = x.v) { // a number on its bar: a grey band for their middle half, a line for their middle, the dot at you
+    const s = mk('span', 'pgbar'), w = x.a1 - x.a0 || 1, pos = (v) => (100 * Math.max(0, Math.min(1, (v - x.a0) / w))).toFixed(1);
+    s.innerHTML = '<i class="pband"></i><i class="pmid"></i><i class="pdot"></i>';
+    Object.assign(s.children[0].style, { left: `${pos(x.lo)}%`, width: `${(pos(x.hi) - pos(x.lo)).toFixed(1)}%` });
+    s.children[1].style.left = `${pos(x.mid)}%`;
+    s.children[2].style.left = `${pos(at)}%`;
+    s.children[2].dataset.k = kOf(x.beat);
+    s.setAttribute('aria-hidden', 'true');
+    return s;
+  }
+  function deathsOf(box, r, i) { // your deaths from the timeline, each with who was in on it
+    if (!box.tl) return null;
+    const id = r.players[i].pid || i + 1, who = (k) => r.players.find((q, j) => (q.pid || j + 1) === k);
+    return tlEvents(box.tl, 'CHAMPION_KILL').filter((e) => e.victimId === id).map((e) => ({ t: e.timestamp / 1000, pos: e.position, by: [e.killerId, ...(e.assistingParticipantIds || [])].map(who).filter(Boolean) }));
+  }
+  function miniMap(died) { // the Rift with your death crosses, the first 14 minutes bright
+    const cv = document.createElement('canvas'), g = cv.getContext('2d'), W = 192;
+    cv.width = cv.height = W;
+    cv.className = 'pmini';
+    g.drawImage(rift, 0, 0, W, W);
+    g.strokeStyle = look.bad;
+    g.lineWidth = 4;
+    for (const e of died.filter((x) => x.pos)) {
+      const x = (e.pos.x / MAP) * W, y = (1 - e.pos.y / MAP) * W;
+      g.globalAlpha = e.t < 840 ? 1 : 0.45;
+      g.beginPath(); g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke();
+    }
+    cv.setAttribute('aria-hidden', 'true');
+    return cv;
+  }
+  function cardsEl(box, r, i, ms, b) {
+    const p = r.players[i], foe = repFoe(r, p), name = (x) => (x.area === 'lane' && foe ? `${x.what} against ${champName(foe.champ)}` : x.what), noun = b.hi ? `high elo ${champName(p.champ)} games` : b.what.replace(/ in this game$/, '');
+    const best = ms.reduce((a, x) => (x.beat > a.beat ? x : a)), leak = ms.reduce((a, x) => (x.beat < a.beat ? x : a)), died = leak.what === 'Deaths' ? deathsOf(box, r, i) : null;
+    const card = (k, kind, pic, head, sub) => { const c = mk('div', 'pcard'), t = mk('span'); c.dataset.k = k; t.append(mk('span', 'pk', kind), mk('b', '', head), mk('span', 'sub', sub)); c.append(pic, t); return c; };
+    const out = mk('div', 'pcards'), early = died ? died.filter((e) => e.t < 840).length : 0;
+    out.append(card('good', 'Your best', barEl(best), `${name(best)}: ${best.fmt(best.v)}`, `Better than ${best.beat}% of ${noun}.`));
+    out.append(died ? card('bad', 'Biggest leak', miniMap(died), `${leak.v} death${leak.v === 1 ? '' : 's'}`, `More than ${100 - leak.beat}% of their games.${early ? ` ${early} came before 14:00.` : ''}`)
+      : card('bad', 'Biggest leak', barEl(leak), `${name(leak)}: ${leak.fmt(leak.v)}`, `Behind ${100 - leak.beat}% of ${noun}.`));
+    // next game: their middle for your leak, and one reason from this game
+    let pic = barEl(leak, leak.mid), why = '';
+    if (died && died.length) {
+      const n = new Map();
+      for (const e of died) for (const q of new Set(e.by)) n.set(q, (n.get(q) || 0) + 1);
+      const [q, k] = [...n].sort((a, c) => c[1] - a[1])[0] || [];
+      if (q) { pic = mk('span', 'pface'); pic.append(img(champImg(q.champ)), mk('span', '', `${k} of ${died.length}`)); why = ` ${champName(q.champ)} was in on ${k} of your ${died.length}.`; }
+    } else if (foe && leak.area !== 'lane') { const f = MEASURES.find(([, w]) => w === leak.what)[2], v = f(gameOf(box, r, r.players.indexOf(foe))); if (Number.isFinite(v)) why = ` ${champName(foe.champ)} had ${leak.fmt(v)}.`; }
+    const aim = leak.what === 'Deaths' ? `Aim for ${Math.round(leak.mid)} deaths or fewer` : `Aim for ${leak.fmt(leak.mid)} ${lower(name(leak))}`;
+    out.append(card('', 'Next game', pic, aim, `That’s their middle.${why}`));
+    return out;
+  }
+  // a ring's numbers as bars, where you rank among the 10 in this game on Riot's extra numbers that fit your champion
+  // (best on the left), and for Fighting the Rift with your kills, assists and deaths and your deaths list. area '':
+  // only where you rank among the 10 (too few high elo games for rings)
+  const nth = (n) => n + (n % 100 > 10 && n % 100 < 14 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  const TENS = { // [what, a player's number, fewer is better, how it reads, left out when yours is 0]
+    fight: [['Time dead', (p) => p.x && p.x[4], 1, mmss], ['Skillshots dodged', (p) => p.x && p.x[1], 0, String], ['Allies saved', (p) => p.x && p.x[2], 0, String, 1]],
+    dmg: [['Skillshots hit', (p) => p.x && p.x[0], 0, String, 1], ['Damage to towers', (p) => p.tower, 0, int0]],
+    farm: [['Turret plates', (p, j, r) => r.plates && r.plates[j], 0, String]],
+    vis: [['Wards placed', (p) => p.wards && p.wards[0], 0, String], ['Control wards', (p) => p.wards && p.wards[2], 0, String], ['Wards destroyed', (p) => p.wards && p.wards[1], 0, String]] };
+  function tenEl(r, i, [what, f, less, fmt, fits]) {
+    const vs = r.players.map((p, j) => f(p, j, r));
+    if (!vs.every(Number.isFinite) || (fits && !vs[i])) return null;
+    const order = vs.map((v, j) => j).sort((a, b) => (less ? vs[a] - vs[b] : vs[b] - vs[a])), row = mk('div', 'pten'), faces = mk('span', 'pfaces'), n = mk('span');
+    faces.append(...order.map((j) => { const e = img(champImg(r.players[j].champ)); e.alt = champName(r.players[j].champ); e.toggleAttribute('data-me', j === i); return e; }));
+    n.append(mk('b', '', fmt(vs[i])), mk('span', 'sub', `${nth(order.indexOf(i) + 1)} of ${vs.length}`));
+    row.title = what === 'Turret plates' ? 'Your own plates, most on the left' : less ? 'Least on the left' : 'Most on the left';
+    row.append(mk('span', '', what), faces, n);
+    return row;
+  }
+  function detailEl(box, r, i, k, ms, b) {
+    const p = r.players[i], det = mk('div', 'pdet'), left = mk('div', 'pcol'), right = mk('div', 'pcol'), label = k ? RINGS.find(([x]) => x === k)[1] : '';
+    det.setAttribute('aria-label', k ? `${label} against ${b.hi ? 'high elo' : 'the others'}` : 'Among the 10 in this game');
+    if (k) {
+      left.append(mk('b', 'ph', `${label} against ${b.hi ? 'high elo' : `the other ${r.players.length - 1}`}`), ...ms.filter((x) => x.area === k).map((x) => {
+        const row = mk('div', 'prow'), n = mk('span');
+        n.append(mk('b', '', x.fmt(x.v)), mk('span', 'sub', `middle ${x.fmt(x.mid)}`));
+        n.firstChild.dataset.k = kOf(x.beat);
+        row.title = `${x.what}: ${x.fmt(x.v)}. Better than ${x.beat}% of their games; their middle ${x.fmt(x.mid)}`;
+        row.append(mk('span', '', x.what), barEl(x), n);
+        return row;
+      }));
+      const key = mk('span', 'pkey');
+      key.innerHTML = '<span><i class="pband"></i>Their middle half of games</span><span><i class="pmid"></i>Their middle</span><span><i class="pdot"></i>You</span>';
+      left.append(key);
+      const dm = Array.isArray(p.dmgs) ? p.dmgs[0] + p.dmgs[1] + p.dmgs[2] : 0, foe = repFoe(r, p);
+      if (k === 'dmg' && dm) {
+        const s = mk('div', 'pmore'), bar = mk('span', 'dmgbar');
+        bar.append(...p.dmgs.map((v, n) => { const e = mk('i'); e.dataset.k = n; e.style.width = `${(100 * v) / dm}%`; return e; }));
+        s.append(mk('span', '', 'Your damage by kind'), bar, mk('span', 'sub', ['physical', 'magic', 'true'].map((w, n) => `${pct(p.dmgs[n] / dm)} ${w}`).join(' · ')));
+        left.append(s);
+      }
+      if (k === 'vis' && foe) left.append(Object.assign(vsBar(`Vision score against ${champName(foe.champ)}`, p.vision, foe.vision), { className: 'vs pmore' }));
+    }
+    const tens = (k ? TENS[k] || [] : Object.values(TENS).flat()).map((x) => tenEl(r, i, x)).filter(Boolean);
+    if (tens.length) right.append(mk('b', 'ph', 'Among the 10 in this game'), ...tens);
+    const died = k === 'fight' && deathsOf(box, r, i);
+    if (died && r.mode === 'CLASSIC') right.append(fightEl(box, r, i, died));
+    det.append(...(k ? [left] : []), ...(right.childElementCount ? [right] : []));
+    return det.childElementCount ? det : null;
+  }
+  // where you got kills (dots), assists (rings) and died (crosses) on the Rift, and your deaths: when (red before 14:00),
+  // who was in on it and where
+  function fightEl(box, r, i, died) {
+    const id = r.players[i].pid || i + 1, team = r.players[i].team, you = tlEvents(box.tl, 'CHAMPION_KILL').filter((e) => e.position && (e.killerId === id || e.victimId === id || (e.assistingParticipantIds || []).includes(id)));
+    const cv = document.createElement('canvas'), g = cv.getContext('2d'), W = 480;
+    cv.width = cv.height = W;
+    cv.className = 'fightmap';
+    g.drawImage(rift, 0, 0, W, W);
+    g.lineWidth = 4;
+    for (const e of you) {
+      const x = (e.position.x / MAP) * W, y = (1 - e.position.y / MAP) * W;
+      g.strokeStyle = g.fillStyle = e.victimId === id ? look.bad : look.good;
+      g.beginPath();
+      if (e.victimId === id) { g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke(); } else { g.arc(x, y, 7, 0, 7); if (e.killerId === id) g.fill(); else g.stroke(); }
+    }
+    cv.setAttribute('role', 'img');
+    cv.setAttribute('aria-label', `Where on Summoner’s Rift you got kills (${you.filter((e) => e.killerId === id).length}), assists (${you.filter((e) => e.killerId !== id && e.victimId !== id).length}) and died (${died.length})`);
+    const box2 = mk('div', 'pfight'), ol = mk('ol', 'pdeaths');
+    ol.append(...died.map((e) => {
+      const li = mk('li'), t = mk('time', '', mmss(e.t)), by = mk('span', 'pby');
+      t.dataset.k = e.t < 840 ? 'bad' : '';
+      by.append(...e.by.map((q) => Object.assign(img(champImg(q.champ)), { alt: champName(q.champ) })));
+      li.append(t, by, mk('span', 'sub', e.by.length ? `${champName(e.by[0].champ)}${e.by.length > 1 ? ` with ${e.by.slice(1).map((q) => champName(q.champ)).join(', ')}` : ''}${e.pos ? `, in ${placeOf(e.pos, team)}` : ''}` : `a tower or minions${e.pos ? `, in ${placeOf(e.pos, team)}` : ''}`));
+      return li;
+    }));
+    box2.append(cv, ...(died.length ? [ol] : [mk('span', 'sub', 'You didn’t die.')]));
+    return box2;
+  }
+  // over the gold graph (What's new 219): objectives in the taking team's colour on top, fights of 3 kills or more
+  // (each within 20 s of the last) under them coloured by who won, hover for what and where; your deaths on the line
+  const WHEN = { dragon: 'M8 2c1 3 4 4 4 8a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-7z', baron: 'M2 8c3-4 9-4 12 0-3 4-9 4-12 0zM8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z',
+    tower: 'M5 14h6l-1-7h1V3H9.5v1.5h-.75V3h-1.5v1.5H6.5V3H5v4h1z', fight: 'M3 3l7 7M13 3 6 10M3 13l2-2M13 13l-2-2' };
+  const TOOK = { DRAGON: 'a dragon', ELDER: 'the Elder Dragon', RIFT_HERALD: 'the Rift Herald', BARON_NASHOR: 'Baron', ATAKHAN: 'Atakhan' };
+  function whenEl(r, tl, fig) {
+    const me = r.players[r.me], ours = me ? me.team : 100, team = (id) => (r.players.find((p, i) => (p.pid || i + 1) === id) || {}).team, evs = [];
+    const by = (t) => (t === ours ? ['us', me ? 'Your team' : 'Blue side'] : ['them', me ? 'Their team' : 'Red side']);
+    for (const e of tlEvents(tl, 'ELITE_MONSTER_KILL')) {
+      const k = /ELDER/.test(`${e.monsterType} ${e.monsterSubType}`) ? 'ELDER' : e.monsterType, [sd, who] = by(e.killerTeamId || team(e.killerId));
+      if (TOOK[k]) evs.push([e.timestamp, /DRAGON|ELDER/.test(k) ? 'dragon' : 'baron', sd, `${who} took ${TOOK[k]}`, 0]);
+    }
+    for (const e of tlEvents(tl, 'BUILDING_KILL')) if (e.buildingType === 'TOWER_BUILDING' && e.teamId) { const [sd, who] = by(e.teamId === 100 ? 200 : 100); evs.push([e.timestamp, 'tower', sd, `${who} took a tower`, 0]); } // teamId: whose tower fell
+    const ks = tlEvents(tl, 'CHAMPION_KILL').slice().sort((a, b) => a.timestamp - b.timestamp);
+    for (let a = 0; a < ks.length;) {
+      let z = a + 1;
+      while (z < ks.length && ks[z].timestamp - ks[z - 1].timestamp <= 20000) z++;
+      const f = ks.slice(a, z), won = f.filter((e) => team(e.victimId) !== ours).length;
+      a = z;
+      if (f.length >= 3) evs.push([f[0].timestamp, 'fight', won > f.length - won ? 'us' : won < f.length - won ? 'them' : '', `a fight, ${won} for ${f.length - won}${f[0].position ? ` in ${placeOf(f[0].position, ours)}` : ''}`, 1]);
+    }
+    const strip = mk('div', 'when');
+    strip.setAttribute('aria-label', 'What happened when');
+    strip.append(...evs.sort((a, b) => a[0] - b[0]).map(([t, k, sd, what, row]) => {
+      const s = mk('span');
+      s.innerHTML = svgPath(WHEN[k], 14).replace('0 0 24 24', '0 0 16 16');
+      Object.assign(s.dataset, { side: sd, row });
+      s.style.left = `${fig.at(t / 1000)[0]}%`;
+      s.title = `${mmss(t / 1000)}: ${what}`;
+      return s;
+    }));
+    fig.querySelector('.when')?.remove();
+    if (evs.length) fig.insertBefore(strip, fig.querySelector('.leadbox'));
+    const lb = fig.querySelector('.leadbox'), id = me && (me.pid || r.me + 1);
+    for (const x of lb.querySelectorAll('.ldeath')) x.remove();
+    if (me) for (const e of tlEvents(tl, 'CHAMPION_KILL').filter((x) => x.victimId === id)) {
+      const [x, y] = fig.at(e.timestamp / 1000), k = r.players.find((p, i) => (p.pid || i + 1) === e.killerId), s = mk('span', 'ldeath', '×');
+      Object.assign(s.style, { left: `${x}%`, top: `${y}%` });
+      s.title = `${mmss(e.timestamp / 1000)}: you died${k ? ` to ${champName(k.champ)}` : ''}`;
+      lb.append(s);
+    }
+  }
+  // each lane's winner: more gold at 14:00 than the lane opponent, an arrow towards them (hover says by how much)
+  function laneWinners(r, tl, box) {
+    const f = (tl.frames || []).find((x) => Math.abs(x.timestamp - 840000) <= 40000), gold = (p) => (((f.participantFrames || {})[p.pid || r.players.indexOf(p) + 1] || {}).totalGold | 0);
+    if (!f) return;
+    for (const row of box.querySelectorAll('.lrow[data-lane]')) {
+      const [a, b] = [...row.querySelectorAll('button.pside')].map((s) => r.players[+s.dataset.i]), mid = row.querySelector('.lmid');
+      mid.querySelector('.larrow')?.remove();
+      if (!a || !b || a.team === b.team || gold(a) === gold(b)) continue;
+      const d = gold(a) - gold(b), w = d > 0 ? a : b, s = mk('span', 'larrow');
+      s.innerHTML = svgPath(d > 0 ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6', 18);
+      s.dataset.side = row.querySelector(`.pside[data-i="${r.players.indexOf(w)}"]`).dataset.side;
+      mid.title = `${row.getAttribute('aria-label')}: ${champName(w.champ)} won the lane, ${k1(Math.abs(d))} more gold at 14:00`;
+      mid.append(s);
+    }
+  }
+  // each player's CS, gold and XP at 10 against their lane opponent, from the timeline, for the Laning ring
+  function lanesAt10(r, tl) {
+    const ps = r.players.map((p, i) => ({ id: p.pid || i + 1, t: p.team, l: p.l || '', c: p.champ }));
+    fillLanes(ps, tl);
+    return ps.map((m) => { const o = m.l && ps.find((q) => q.t !== m.t && q.l === m.l), x = o ? laneAt(tl, m.id, o.id).find(([t]) => t === 10) : null; return x ? [0, 1, 2].map((k) => x[1][k] - x[2][k]) : null; });
+  }
+  // each player's own turret plates from the timeline (Riot's turretPlatesTaken counts their team's), null without any
+  function platesOf(tl, ids) {
+    const ev = tlEvents(tl, 'TURRET_PLATE_DESTROYED');
+    return ev.length ? ids.map((id) => ev.filter((e) => e.killerId === id).length) : null;
+  }
   async function riotMore(box, r, tries = 0) {
     if (!box || (!tries && box.dataset.riot)) return;
     box.dataset.riot = '1';
-    if (!tries && r.mode === 'CLASSIC') Promise.all(r.players.map((p) => (POS[p.l] ? highOf(p.champ, p.l).then((t) => hiRank(t, ...hiShape(r, p))) : null))).then((hs) => {
-      if (!hs.some((v) => v != null)) return;
-      box.hi = hs; // each player's "Next to high elo", in their drawer
-      drawerFill(box, r);
-    });
+    if (!tries && r.mode === 'CLASSIC') Promise.all(r.players.map(benchOf)).then((bs) => { box.bench = bs; drawerFill(box, r); }); // each player's rings (What's new 219)
     if (await extrasFor(r)) return void drawerFill(box, r);
     if (tries < 5 && Date.now() - r.at - r.len * 1000 < 3600e3) setTimeout(() => { if (box.isConnected) riotMore(box, r, tries + 1); }, 60000); // a game that just ended: Riot may not have it yet
   }
@@ -15010,8 +15359,6 @@ dialog.wizard { transform: scale(var(--from)); }
   const firstDone = (buys) => (buys || []).find(([, id]) => ddItems && ddItems[id] && ddItems[id].done) || null; // [seconds, item] of the first finished item
   const avgOf = (l) => (l.length ? l.reduce((a, b) => a + b, 0) / l.length : null);
   const midOf = (l) => (l.length ? l.slice().sort((a, b) => a - b)[l.length >> 1] : null);
-  const timesText = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
-  const MONSTERS = { DRAGON: 'dragon', ELDER: 'Elder Dragon', HORDE: 'Voidgrub', RIFT_HERALD: 'Rift Herald', BARON_NASHOR: 'Baron', ATAKHAN: 'Atakhan' };
   // where on the Rift a spot is for a player of team (100 is blue): a base, a lane, the river or a jungle. Riot's
   // positions are game units from the blue base, bottom left.
   // ponytail: straight-line zones and terrain.js's river, not Riot's own map regions
@@ -15028,140 +15375,13 @@ dialog.wizard { transform: scale(var(--from)); }
     const t = await Promise.race([riotCheck().then(() => topGet(c, role)), sleep(5000).then(() => null)]);
     return topOk(t) && t.role === role ? t : null;
   }
-  const GROUPS = ['Fights', 'Farming and items', 'Map and vision', 'Riot’s extra numbers'];
-  async function analysisEl(r, tl, buys) {
-    const m = r.players[r.me];
-    if (!m || !(me0 ? m.puuid === me0.puuid : reports[r.id] === r)) return null; // your own games only
-    await Promise.race([extrasFor(r), sleep(5000)]); // Riot's extra numbers, if Riot answers soon
-    const ps = r.players.map((p, i) => ({ ...p, id: p.pid || i + 1, t: p.team, c: p.champ, l: p.l || '' }));
-    if (tl) fillLanes(ps, tl);
-    const me = ps[r.me], sr = r.mode === 'CLASSIC', foe = sr && me.l ? ps.find((p) => p.t !== me.t && p.l === me.l) : null;
-    const name = champName(me.c), foeName = foe ? champName(foe.c) : '', min = Math.max(1, r.len / 60), top = sr && POS[me.l] ? await highOf(me.c, me.l) : null;
-    const S = (l, f) => l.reduce((n, x) => n + f(x), 0), per = (l, f) => S(l, f) / Math.max(1, S(l, (g) => g.len / 60)), team = (p) => ps.filter((q) => q.t === p.t), kd = (k, d, a) => (k + a) / Math.max(1, d);
-    // your usual: your other games in this mode on this champion, else in this role; 3 at least
-    const pool = me0 && m.puuid === me0.puuid ? (myHist || []).filter((g) => g.id !== r.id && g.mode === r.mode && g.len > 0) : [];
-    let byChamp = true, us = pool.filter((g) => g.champ === me.c);
-    if (us.length < 3) { byChamp = false; us = me.l ? pool.filter((g) => g.lane === me.l) : []; }
-    if (us.length < 3) us = [];
-    const usTl = us.length && sr ? Object.entries(deep).filter(([id, g]) => +id !== r.id && g.tl && g.ps && g.ps[g.me] && (byChamp ? g.ps[g.me].c === me.c : g.ps[g.me].l === me.l)).map(([, g]) => g.tl) : [];
-    const hx = top ? top.all.filter((g) => Array.isArray(g.x) && g.x.length === 4) : [], hiAvg = (f) => avgOf(top ? top.all.map(f).filter(Number.isFinite) : []);
-    const hm = hx.filter(hiOk), hiPer = (f) => (hm.length >= 10 ? S(hm, f) / S(hm, (g) => g.m[0] / 60) : null), hiEach = (f) => (hm.length >= 10 ? avgOf(hm.map(f)) : null); // with each game's length (m)
-    const usX = (i) => { const l = us.map((g) => extras[g.id]).filter((e) => e && e.length === 6); return l.length >= 3 ? avgOf(l.map((e) => e[i + 1])) : null; }; // your usual extra numbers
-    const l10 = tl && foe ? laneAt(tl, me.id, foe.id).find(([t]) => t === 10) : null, at10 = (i) => (l10 ? l10[1][i] - l10[2][i] : null);
-    const us10 = usTl.map((t) => (t.lane || []).find(([x]) => x === 10)).filter(Boolean), usAt10 = (i) => avgOf(us10.map(([, a, b]) => a[i] - b[i]));
-    const first = (p) => (buys ? firstDone(buys[ps.indexOf(p)]) : null), mine1 = first(me), hi1 = top ? midOf(top.buys.map(firstDone).filter(Boolean).map(([t]) => t)) : null;
-    const int = (v) => Math.round(v).toLocaleString('en-US'), one = (v) => v.toFixed(1), signed = (v) => (v < 0 ? '−' : '+') + int(Math.abs(v));
-    // [what, this game's (for a player, or a number), your usual, high elo, how it reads, more is better (1) or less (−1), a gap under this is even, its group (GROUPS)]
-    const rows = [
-      ['KDA', (p) => kd(p.k, p.d, p.a), us.length ? kd(S(us, (g) => g.k), S(us, (g) => g.d), S(us, (g) => g.a)) : null, hx.length ? kd(S(hx, (g) => g.x[0]), S(hx, (g) => g.x[1]), S(hx, (g) => g.x[2])) : null, one, 1, 0.5, 0],
-      ['Deaths', (p) => p.d, us.length ? S(us, (g) => g.d) / us.length : null, hx.length ? S(hx, (g) => g.x[1]) / hx.length : null, (v) => (Number.isInteger(v) ? String(v) : one(v)), -1, 1, 0],
-      ['Kill participation', (p) => Math.min(1, (p.k + p.a) / Math.max(1, S(team(p), (q) => q.k))), null, hiEach((g) => HI[1](g.x, g.m)), pct, 1, 0.05, 0],
-      ['Damage a minute', (p) => p.dmg / min, us.length ? per(us, (g) => g.dmg) : null, hiPer((g) => g.m[3]), int, 1, 60, 0],
-      ['Share of team damage', (p) => p.dmg / Math.max(1, S(team(p), (q) => q.dmg)), null, hiEach((g) => g.m[3] / Math.max(1, g.m[5])), pct, 1, 0.03, 0],
-      ['CS a minute', (p) => p.cs / min, us.length ? per(us, (g) => g.cs) : null, hiPer((g) => g.x[3]), one, 1, 0.5, 1],
-      ['Gold a minute', (p) => p.gold / min, us.length && us.every((g) => g.gold > 0) ? per(us, (g) => g.gold) : null, hiPer((g) => g.m[1]), int, 1, 25, 1],
-      ...(mine1 ? [['First item done', (p) => (first(p) || [NaN])[0], avgOf(usTl.map((t) => firstDone(t.buys)).filter(Boolean).map(([t]) => t)), hi1, mmss, -1, 45, 1]] : []),
-      ...(l10 ? [[`CS at 10 vs ${foeName}`, at10(0), usAt10(0), hiAvg((g) => (g.l ? g.l[0] : NaN)), signed, 1, 5, 1],
-        [`Gold at 10 vs ${foeName}`, at10(1), usAt10(1), hiAvg((g) => g.g), signed, 1, 150, 1],
-        [`XP at 10 vs ${foeName}`, at10(2), usAt10(2), hiAvg((g) => (g.l ? g.l[1] : NaN)), signed, 1, 150, 1]] : []),
-      ['Vision score a minute', (p) => p.vision / min, us.length ? per(us, (g) => g.vision) : null, hiPer((g) => g.m[2]), (v) => v.toFixed(2), 1, 0.1, 2],
-      ...EXTRA.map(([what], i) => [what, (p) => (p.x ? p.x[i] : NaN), usX(i), null, i === 4 ? mmss : (v) => (Number.isInteger(v) ? String(v) : one(v)), i === 4 ? -1 : 1, [5, 3, 1, 1, 30][i], i > 2 ? 2 : 3]),
-    ];
-    // each number as a bar (What's new 187): filled to this game's, green or red when better or worse than your usual
-    // (else high elo, else your lane opponent), grey when even; a white line for your usual, a gold diamond for high elo;
-    // leads against your lane opponent centred on 0. Hover or focus a row for the exact numbers.
-    const legend = [['now', `This game, ${name}, ${Math.round(min)} min`], ...(us.length ? [['us', `Your usual, ${byChamp ? `${us.length} games on ${name}` : `${us.length} of your ${POS[me.l].toLowerCase()} games`}`]] : []),
-      ...(top ? [['hi', `High elo, ${name} ${POS[me.l].toLowerCase()}, ${top.n} games`]] : [])];
-    const groups = GROUPS.map((g) => { const sec = mk('section', 'bgroup'); sec.setAttribute('aria-label', g); sec.append(mk('h3', 'ph', g)); return sec; }), judged = [];
-    for (const [what, f, u, h, fmt, dir, even, gi] of rows) {
-      const now = typeof f === 'function' ? f(me) : f, vs = foe && typeof f === 'function' ? f(foe) : null;
-      if (!Number.isFinite(now)) continue;
-      const row = mk('div', 'brow'), base = [[u, 'us'], [h, 'hi'], [vs, 'foe']].find(([v]) => Number.isFinite(v)); // against your usual, else high elo, else your lane opponent
-      const d = base ? ((now - base[0]) * dir) / even : 0, k = Math.abs(d) > 1 ? (d > 0 ? 'good' : 'bad') : '';
-      if (base) judged.push({ what, now, base: base[0], from: base[1], d, fmt });
-      const vals = [now, u, h].filter(Number.isFinite), mid = / vs /.test(what) || vals.some((v) => v < 0), most = Math.max(1e-9, ...vals.map(Math.abs)) * 1.18, at = (v) => (mid ? 50 + (50 * v) / most : (100 * v) / most);
-      row.tabIndex = 0;
-      row.innerHTML = '<span class="bwhat"></span><span class="btrack"><i class="bfill"></i></span><b class="bval"></b><span class="btip" role="tooltip"></span>';
-      row.querySelector('.bwhat').textContent = what;
-      const fill = row.querySelector('.bfill'), track = row.querySelector('.btrack'), z = mid ? 50 : 0;
-      fill.style.left = `${Math.min(at(now), z)}%`;
-      fill.style.width = `${Math.abs(at(now) - z)}%`;
-      if (mid) track.prepend(mk('i', 'bmid'));
-      if (Number.isFinite(u)) { const e = mk('i', 'bus'); e.style.left = `${at(u)}%`; track.append(e); }
-      if (Number.isFinite(h)) { const e = mk('i', 'bhi'); e.style.left = `${at(h)}%`; track.append(e); }
-      row.querySelector('.bval').textContent = fmt(now);
-      row.dataset.k = k;
-      if (k) row.title = `${k === 'good' ? 'Better' : 'Worse'} than ${base[1] === 'us' ? 'your usual' : base[1] === 'hi' ? 'high elo' : foeName}`;
-      row.querySelector('.btip').textContent = [`This game ${fmt(now)}`, Number.isFinite(u) && `your usual ${fmt(u)}`, Number.isFinite(h) && `high elo ${fmt(h)}`, Number.isFinite(vs) && `${foeName} ${fmt(vs)}`].filter(Boolean).join(' · ');
-      groups[gi].append(row);
-    }
-    // what stood out: your best and worst against your usual (or high elo, or your lane opponent), the matchup in high
-    // elo, deaths in the first 14 minutes and your first item's time against high elo
-    const vsText = (j) => (j.from === 'us' ? `your usual ${j.fmt(j.base)}` : j.from === 'hi' ? `${j.fmt(j.base)} for high elo ${name} players` : `${j.fmt(j.base)} for ${foeName}`);
-    const lower = (s) => s.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()), says = [], gaps = judged.filter((j) => Math.abs(j.d) > 1).sort((a, b) => b.d - a.d);
-    if (gaps.length && gaps[0].d > 0) says.push(['good', 'Your best:', `${lower(gaps[0].what)}, ${gaps[0].fmt(gaps[0].now)} against ${vsText(gaps[0])}.`]);
-    if (gaps.length && gaps[gaps.length - 1].d < 0) { const w = gaps[gaps.length - 1]; says.push(['bad', 'To work on:', `${lower(w.what)}, ${w.fmt(w.now)} against ${vsText(w)}.`]); }
-    const vf = top && foe ? top.vs.find((v) => v.c === foe.c && v.n >= 10) : null;
-    const matchup = vf && Math.abs(vf.w / vf.n - 0.5) > 0.04 ? [vf.w < vf.n / 2 ? 'Hard matchup:' : 'Good matchup:', `high elo ${name} players won ${pct(vf.w / vf.n)} of ${vf.n} games against ${foeName}.`] : null;
-    if (matchup) says.push(['', ...matchup]);
-    const kills = tlEvents(tl, 'CHAMPION_KILL'), died = kills.filter((e) => e.victimId === me.id), early = died.filter((e) => e.timestamp < 840000 && e.position);
-    if (early.length >= 2) {
-      const at = new Map();
-      for (const e of early) { const w = placeOf(e.position, me.t); at.set(w, (at.get(w) || 0) + 1); }
-      const [where, n] = [...at].sort((a, b) => b[1] - a[1])[0];
-      says.push(['', 'Early deaths:', `you died ${timesText(early.length)} before 14 minutes${n < 2 ? '' : n === early.length ? `, ${n === 2 ? 'both' : 'all'} in ${where}` : `, ${timesText(n)} in ${where}`}.`]);
-    }
-    if (mine1 && hi1 != null && Math.abs(mine1[0] - hi1) >= 60) says.push(['', 'First item:', `${itemName(mine1[1])} at ${mmss(mine1[0])}, ${mmss(Math.abs(mine1[0] - hi1))} ${mine1[0] > hi1 ? 'later' : 'sooner'} than high elo ${name} players (${mmss(hi1)}).`]);
-    // your damage by kind, wards and the like (reports since this update), and your leads over the game
-    const tiles = [], dm = Array.isArray(m.dmgs) ? m.dmgs[0] + m.dmgs[1] + m.dmgs[2] : 0;
-    if (dm) { const bar = mk('span', 'dmgbar'); bar.append(...m.dmgs.map((v, i) => { const e = mk('i'); e.dataset.k = i; e.style.width = `${(100 * v) / dm}%`; return e; })); tiles.push(['Your damage', bar, ['physical', 'magic', 'true'].map((k, i) => `${pct(m.dmgs[i] / dm)} ${k}`).join(' · ')]); }
-    if (Array.isArray(m.wards) && m.wards.some(Boolean)) tiles.push(['Wards', mk('b', '', `${m.wards[0]} placed · ${m.wards[1]} destroyed`), Object.assign(mk('span', m.wards[2] ? 'sub' : 'sub bad', `${m.wards[2]} control ward${m.wards[2] === 1 ? '' : 's'} bought`))]);
-    if (m.tower) tiles.push(['Damage to towers', mk('b', '', int(m.tower))]);
-    if (m.cc) tiles.push(['Crowd control', mk('b', '', `${int(m.cc)} s`)]);
-    const box = document.createElement('div'), add = (cls, tagName, kids) => { const el = document.createElement(tagName); el.className = cls; el.append(...kids); box.append(el); return el; };
-    box.className = 'analysis';
-    box.hi1 = hi1; // for Builds
-    box.matchup = matchup && `${matchup[1].replace(/^h/, 'H').replace(/\.$/, '')}: a ${matchup[0].split(' ')[0].toLowerCase()} matchup.`; // for Laning
-    if (says.length) add('takeaways', 'ul', says.map(([k, lead, x]) => { const li = mk('li'); li.dataset.k = k; li.append(mk('span')); li.firstChild.append(mk('b', '', lead), ' ', x); return li; }));
-    add('blegend', 'div', [...legend.map(([k, x]) => { const s = mk('span', '', x); s.dataset.k = k; return s; }), mk('span', 'sub', `Green: better than ${us.length ? 'your usual' : top ? 'high elo' : foeName}. Red: worse.`)]);
-    add('bgroups', 'div', groups.filter((g) => g.childElementCount > 1));
-    if (tiles.length) add('timers', 'div', tiles.map(([n, ...v]) => { const s = mk('span'); s.append(mk('span', 'sub', n), ...v); return s; }));
-    if (!tl || !sr) return box;
-    // where you got kills (dots), assists (rings) and died (crosses) on the Rift; your deaths; and the objectives
-    const who = (id) => ps.find((p) => p.id === id), you = kills.filter((e) => e.position && (e.killerId === me.id || e.victimId === me.id || (e.assistingParticipantIds || []).includes(me.id)));
-    const cv = document.createElement('canvas'), g = cv.getContext('2d'), W = 480;
-    cv.width = cv.height = W;
-    cv.className = 'fightmap';
-    g.drawImage(rift, 0, 0, W, W);
-    g.lineWidth = 4;
-    for (const e of you) {
-      const x = (e.position.x / MAP) * W, y = (1 - e.position.y / MAP) * W;
-      g.strokeStyle = g.fillStyle = e.victimId === me.id ? look.bad : look.good;
-      g.beginPath();
-      if (e.victimId === me.id) { g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke(); } else { g.arc(x, y, 7, 0, 7); if (e.killerId === me.id) g.fill(); else g.stroke(); }
-    }
-    cv.setAttribute('role', 'img');
-    cv.setAttribute('aria-label', `Where on Summoner’s Rift you got kills (${you.filter((e) => e.killerId === me.id).length}), assists (${you.filter((e) => e.killerId !== me.id && e.victimId !== me.id).length}) and died (${died.length})`);
-    const fig = document.createElement('figure'), side = document.createElement('div'), deaths = document.createElement('ol');
-    fig.className = 'goldfig';
-    fig.append(cv, Object.assign(document.createElement('figcaption'), { className: 'hint', textContent: 'Where you got kills (dots), assists (rings) and died (crosses).' }));
-    deaths.className = 'takeaways';
-    deaths.append(...died.map((e) => {
-      const k = who(e.killerId), help = (e.assistingParticipantIds || []).map(who).filter(Boolean).map((p) => champName(p.c));
-      return Object.assign(document.createElement('li'), { textContent: `${mmss(e.timestamp / 1000)}: ${k ? champName(k.c) : 'a tower or minions'}${help.length ? ` with ${help.join(', ')}` : ''}${e.position ? `, in ${placeOf(e.position, me.t)}` : ''}` });
-    }));
-    const took = (tm) => { // a team's epic monsters and towers
-      const n = {};
-      for (const e of tlEvents(tl, 'ELITE_MONSTER_KILL')) { const k = /ELDER/.test(`${e.monsterType} ${e.monsterSubType}`) ? 'ELDER' : e.monsterType; if ((e.killerTeamId || (who(e.killerId) || {}).t) === tm && MONSTERS[k]) n[k] = (n[k] || 0) + 1; }
-      n.tower = tlEvents(tl, 'BUILDING_KILL').filter((e) => e.buildingType === 'TOWER_BUILDING' && e.teamId && e.teamId !== tm).length; // teamId: whose tower fell
-      return Object.entries({ ...MONSTERS, tower: 'tower' }).filter(([k]) => n[k]).map(([k, w]) => `${n[k]} ${w}${n[k] > 1 ? 's' : ''}`).join(', ') || 'none';
-    };
-    const them = (ps.find((p) => p.t !== me.t) || {}).t;
-    side.className = 'stack';
-    side.append(Object.assign(document.createElement('h3'), { className: 'ph', textContent: died.length > 1 ? `Your ${died.length} deaths` : died.length ? 'Your death' : 'You didn’t die' }), ...(died.length ? [deaths] : []),
-      Object.assign(document.createElement('p'), { className: 'hint', textContent: `Objectives: your team took ${took(me.t)}; theirs ${took(them)}.` }));
-    add('duo', 'div', [fig, side]);
-    return box;
+  // high elo's matchup against your lane opponent (for Laning) and their first finished item's time (for Builds)
+  async function hiBits(r) {
+    const m = r.players[r.me], foe = repFoe(r, m), top = m && r.mode === 'CLASSIC' && POS[m.l] ? await highOf(m.champ, m.l) : null;
+    if (!top) return null;
+    const vf = foe ? top.vs.find((v) => v.c === foe.champ && v.n >= 10) : null;
+    return { hi1: midOf(top.buys.map(firstDone).filter(Boolean).map(([t]) => t)),
+      matchup: vf && Math.abs(vf.w / vf.n - 0.5) > 0.04 ? `High elo ${champName(m.champ)} players won ${pct(vf.w / vf.n)} of ${vf.n} games against ${champName(foe.champ)}: a ${vf.w < vf.n / 2 ? 'hard' : 'good'} matchup.` : null };
   }
   // the Game page once a game is over: your last game's report with how you played, until the next game loads
   function renderPost(live) {
@@ -20775,6 +20995,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [219, 'November 23: a new look at how you played', [
+      'After a game the scoreboard is lane against lane: your laner facing theirs, one tag each, and an arrow to who won the lane. The gold difference is on top, with dragons, Barons, towers and big fights above it and your deaths on its line.',
+      'Press yourself for Your game: rings for how many high elo games on your champion and role you beat, overall and in Fighting, Damage, Farming, Vision and Laning, with your best number, your biggest leak and a target for next game. Press a ring for its numbers, and where you rank among the 10 in this game.',
+      'It replaces the How you played tab and the strip of numbers under your row. Turret plates are now your own, not your team’s. Everyone else’s side shows their rings too.',
+    ]],
     [218, 'November 23: open a player’s profile from your game', [
       'Click a player’s name in a game’s report, on the Game page after a game or wherever a game opens, for their profile. The rest of their row still opens their extra numbers, Copy runes and Avoid.',
     ]],
@@ -21948,7 +22173,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Type Name#TAG in the box beside your name. In a live game, click a name to open that player.', '#proId'],
       ['Queues and older games', 'A tab for each queue (All, Solo/Duo, Flex, Normal and ARAM), each with its own record. Show more games goes back months, 20 games at a time.',
         'Pick a tab above Recent games.', '#proQueues'],
-      ['Match history and game reports', 'Recent games, searched and filtered by champion, role, result, friend or date, and saved as a spreadsheet. Each report has four tabs (Overview, How you played, Laning and Builds) and scores every player (MVP and ACE), with the replay, Riot’s extra numbers and where their jungler was in the first 14 minutes. Builds shows yours and your lane opponent’s by shop trip, finished items ringed in gold, with buy times from Riot’s copy when League’s has none. Saves anyone’s runes or build in League.',
+      ['Match history and game reports', 'Recent games, searched and filtered by champion, role, result, friend or date, and saved as a spreadsheet. Each report has three tabs (Overview, Laning and Builds) and scores every player (MVP and ACE), with the replay, Riot’s extra numbers and where their jungler was in the first 14 minutes. Builds shows yours and your lane opponent’s by shop trip, finished items ringed in gold, with buy times from Riot’s copy when League’s has none. Saves anyone’s runes or build in League.',
         'Profile, Recent games: search or pick a filter, click a game, or Export to a spreadsheet. With is for your own games.', '#mfFind, #exportBtn'],
       ['Rank cards', 'Each rank with Riot’s emblem, this season’s peak and your past seasons, and League’s warnings: placement games left, days until decay from Diamond up, and when one loss can drop you a division. Under Solo/Duo, where it stands on its server’s ladder at every rank, like “Top 14% of EUW · about #420,000”, and in the desktop app a rough idea of your hidden MMR, like “Your games are around Gold I while you’re Silver II, so you should climb fast”.',
         'Nothing to set up. Ladder places are for EUW, NA and KR, counted once a day. A goal you pick in Stats, You, shows on its card too.', '#proRanks'],
@@ -22015,10 +22240,10 @@ dialog.wizard { transform: scale(var(--from)); }
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
       ['Jungle clear timer', 'In Practice Tool, your jungle clear timed camp by camp, from the gold each camp gives, against your best clear on that champion.',
         'Start a Practice Tool game from Pregame, buy a jungle pet and clear your camps. Pick how many camps make a clear on Game.', '#jgBox', 'app'],
-      ['Scoreboard', 'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, Watch the match, Your clips and the replay. Overview puts your team on top, a row for each player with level, spells, runes, rank, K/D/A, damage, CS, gold, items, this game’s tags and a score ring, and the teams’ kills, gold, towers, dragons, Barons and Voidgrubs side by side. Click a name for that player’s profile, or the rest of their row for Riot’s extra numbers, how they compare with high elo, and Copy runes, Copy items or Avoid.',
+      ['Scoreboard', 'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, Watch the match, Your clips and the replay. Overview starts with the gold difference over the game, with dragons, Barons, towers and big fights above it and your deaths on its line, then the teams’ kills, gold, towers, dragons, Barons and Voidgrubs side by side, then lane against lane: your laner facing theirs with level, spells, runes, rank, K/D/A, damage, CS, gold, items, one tag and a score ring, and an arrow to who won the lane. Click a name for that player’s profile, or the rest of their side for their rings against high elo, and Copy runes, Copy items or Avoid.',
         'Your last game, on Game, once a game ends; every game report; Scoreboard on each game on the Clips page and on the card after a game.', '#postBox', 'app'],
-      ['How you played', 'After a game the Game page shows your game, opening on Overview. How you played has what stood out, each of your numbers as a bar against your usual games (a white line) and high elo players (a gold diamond), where you got kills and died, and the objectives each team took. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
-        'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
+      ['How you played', 'After a game the Game page shows your game, opening on Overview. Press yourself for Your game: a ring for how many high elo games on your champion and role you beat, and one each for Fighting, Damage, Farming, Vision and Laning, then your best number, your biggest leak and a target for next game. Press a ring for its numbers as bars against high elo, where you rank among the 10 in Riot’s extra numbers (your own turret plates), and for Fighting where you got kills and died. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
+        'Your last game, on Game, once a game ends: press your own side of your lane. Every game report has it too.', '#postBox', 'app'],
     ]],
     ['League: Stats', 'How you play, in two tabs: You and Champions, for the account Profile shows, also with League closed.', [
       ['Your last 20 games', 'KDA, CS a minute, vision score, kill participation and deaths in your last 20 games on Summoner’s Rift, each with a line of the 20 and the change in your last 5.',
