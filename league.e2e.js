@@ -1038,7 +1038,7 @@ const leagueData = (over = {}) => ({
     console.log('RE4 co-op: host checks in green, amber and idle, the next clicks, Play, Set up and Tailscale sign-in, a friend online, invites with a Tailscale share link, and Play as Ada with the connected line');
     assert(await pc.locator('.view[data-view="game"] .pagehead, #lcuNote, #drillBox').count() === 0, 'Game: no title, status line or CS drill (What’s new 200)');
     await openPage(pc, 'pregame');
-    assert.match(await text(pc, '#preNote'), /Find a match and this page fills in/);
+    assert(await pc.locator('#preNote').isHidden(), 'no Start League or status line on the idle page (What’s new 202)');
     // Clash: the other team in your next match, with their ranks and best champions
     await wait(pc, () => !document.getElementById('clashBox').hidden && document.querySelectorAll('#clashRows tr').length === 2 && [...document.querySelectorAll('#clashRows tr')].every((tr) => /LP[\s\S]*Garen/.test(tr.textContent)), null, 'Clash scouting');
     assert.strictEqual(await text(pc, '#clashNote'), 'Your next Clash match is against Night Owls.');
@@ -1049,45 +1049,61 @@ const leagueData = (over = {}) => ({
     // the tier list from our server's high elo games: Middle, the role you play most, then Top
     const tierRows = () => pc.$$eval('#tierRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim()));
     const tierTab = () => pc.$eval('#tierRoles [aria-selected="true"]', (b) => b.textContent);
-    await wait(pc, () => !document.getElementById('tierBox').hidden && document.querySelectorAll('#tierRows tr').length === 4, null, 'the tier list');
+    await wait(pc, () => !document.getElementById('tierBox').hidden && document.querySelectorAll('#tierRows tr').length === 3, null, 'the tier list');
     assert.strictEqual(await tierTab(), 'Middle');
-    assert.strictEqual(await text(pc, '#tierNote'), 'Middle in 50 Challenger and Grandmaster games our server counted from Riot, patch 25.20.');
+    assert.strictEqual(await pc.textContent('#tierTipNote'), 'Middle in 50 Challenger and Grandmaster games our server counted from Riot, patch 25.20.', 'the games sentence, in the ? tip (What’s new 202)');
+    assert(await pc.locator('#tierNote').isHidden());
+    assert.deepStrictEqual(await tierRows(), ['Vi S 72% 18 · 36% picked', 'Ahri S 55% 40 · 80% picked', 'Lux S 58% 12 · 24% picked'], 'S tier only');
+    await shot(pc, 'pregame-empty-board-tier-folded');
+    await pc.click('#tierMore');
+    await wait(pc, () => document.querySelectorAll('#tierRows tr').length === 4 && document.getElementById('tierMore').textContent === 'See less', null, 'See more');
     assert.deepStrictEqual(await tierRows(), ['Vi S 72% 18 · 36% picked', 'Ahri S 55% 40 · 80% picked', 'Lux S 58% 12 · 24% picked', 'Zed A 53% 30 · 60% picked']);
     await pc.click('#tierRoles [data-role="TOP"]');
-    await wait(pc, () => document.querySelectorAll('#tierRows tr').length === 3, null, 'the tier list for top');
-    assert.deepStrictEqual(await tierRows(), ['Garen S 57% 30 · 60% picked', 'Lee Sin C 49% 47 · 94% picked', 'Darius D 45% 20 · 40% picked']);
+    await wait(pc, () => document.querySelectorAll('#tierRows tr').length === 3 && /Garen/.test(document.getElementById('tierRows').textContent), null, 'the tier list for top');
+    assert.deepStrictEqual(await tierRows(), ['Garen S 57% 30 · 60% picked', 'Lee Sin C 49% 47 · 94% picked', 'Darius D 45% 20 · 40% picked'], 'one S tier: the top 3, folded again');
+    assert(await pc.locator('#tierMore').isHidden(), 'nothing more to see');
     await shot(pc, 'pregame');
     console.log('tier list: Middle (Vi, Ahri, Lux, Zed), then Top (Garen, Lee Sin, Darius)');
-    // What's new 190: Try a draft on Pregame, outside champ select: fill both teams by hand, the pick helper on that draft
+    // What's new 202: the draft board, always there outside champ select: both teams, a helper on every role
     const tryCalls = lcu.calls.length;
-    await pc.click('#tdBtn');
-    await wait(pc, () => !document.getElementById('tdPanel').hidden && document.querySelectorAll('#tdUs .tryslot').length === 5 && !document.getElementById('dTop').hidden, null, 'Try a draft open');
-    assert.strictEqual(await pc.textContent('#tdMe [aria-selected="true"]'), 'Middle', 'the role you play most');
-    assert.deepStrictEqual(await texts(pc, '#tdUs .tryslot'), ['Top', 'Jungle', 'You', 'Bottom', 'Support']);
+    await wait(pc, () => !document.getElementById('tdBox').hidden && document.querySelectorAll('#tdUs .slot').length === 5 && document.querySelectorAll('#tdThem .slot').length === 5 && !document.getElementById('dTop').hidden, null, 'the draft board');
+    assert(await pc.locator('#tdBtn, #mxBox').count() === 0, 'no Try a draft button, no Matchup explorer');
+    assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .stext small'), ['Middle'], 'your usual role picked');
+    const boardFaces = (team) => pc.$$eval(`${team} .slot`, (l) => l.map((s) => [...s.querySelectorAll('.face')].map((f) => `${f.querySelector('img').alt} ${f.textContent}`).join(', ')));
+    assert.deepStrictEqual(await boardFaces('#tdUs'), ['Garen Great, Lee Sin Risky, Darius Risky', 'Vi Risky', 'Ahri Great, Vi Great, Zed Great', '', 'Lux Great, Sona Good'], 'each of your roles: its best (up to 3) as faces');
+    assert.deepStrictEqual(await boardFaces('#tdThem'), ['Garen Great, Lee Sin OK, Darius Risky', 'Vi Good', 'Vi Great, Zed Good, Ahri OK', '', 'Lux OK'], 'and theirs, from their side');
     const tryPick = async (slot, name) => {
-      await pc.click(slot);
+      await pc.click(`${slot} .sbtn`);
       await pc.fill('#dFind', name);
       await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 1, null, `${name} found`);
       await pc.click('#dGrid .dchamp');
       await pc.fill('#dFind', '');
     };
-    await tryPick('#tdThem .tryslot:nth-child(3)', 'zed');
-    await tryPick('#tdUs .tryslot:nth-child(1)', 'garen');
-    await wait(pc, () => document.querySelector('#tdThem .tryslot:nth-child(3) img')?.alt === 'Zed' && document.querySelector('#tdUs .tryslot:nth-child(1) img')?.alt === 'Garen' && document.querySelectorAll('#dTopRows .bigrow').length === 3, null, 'their Zed, your Garen, and the top 3');
-    assert.strictEqual(await text(pc, '#dTopHead'), 'Top 3 for Middle');
-    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lux Great Lane Even gold at 10 Team You 3W 2L', 'Vi Great Lane Team You Not played', 'Ahri Great Lane Even gold at 10 Team You 6W 2L']);
-    assert.deepStrictEqual(await pc.$$eval('#dGrid .dchamp', (l) => l.map((b) => `${b.querySelector('img').alt}${b.getAttribute('aria-disabled') === 'true' ? ' (off)' : ''}`)), ['Lux', 'Vi', 'Ahri', 'Zed (off)'], 'their Zed taken');
+    await tryPick('#tdThem .slot:nth-child(3)', 'zed');
+    await pc.click('#tdUs .slot:nth-child(1) .sbtn');
+    await pc.click('#tdUs .slot:nth-child(1) .face:has(img[alt="Garen"])');
+    await wait(pc, () => document.querySelector('#tdThem .slot:nth-child(3) .sq')?.title === 'Zed' && document.querySelector('#tdUs .slot:nth-child(1) .sq')?.title === 'Garen', null, 'their Zed, and your Garen from a face');
+    assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .stext small'), ['Top'], 'the slot stays picked');
+    await pc.click('#tdUs .slot:nth-child(3) .sbtn');
+    await wait(pc, () => document.getElementById('dTopHead').textContent === 'Middle for your team' && document.querySelectorAll('#dTopRows .bigrow').length === 3, null, 'your middle');
+    assert.strictEqual(await text(pc, '#dSub'), 'Best picks');
+    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lux Great Lane Even gold at 10 With You 3W 2L', 'Vi Great Lane With You Not played', 'Ahri Great Lane Even gold at 10 With You 6W 2L']);
+    assert.deepStrictEqual(await pc.$$eval('#dGrid .dchamp', (l) => l.slice(0, 6).map((b) => `${b.querySelector('img').alt}${b.querySelector('.dsc') ? '' : ' (no score)'}${b.getAttribute('aria-disabled') === 'true' ? ' (off)' : ''}`)),
+      ['Lux', 'Vi', 'Ahri', 'Zed (off)', 'Caitlyn (no score)', 'Darius (no score)'], 'ranked first, then every other champion A to Z; their Zed taken');
+    assert.strictEqual(await text(pc, '#dNote'), 'Ranked by their high elo win rate and how each does with your team and against theirs. No score: few high elo games as middle.');
     assert(await pc.locator('#draft').isHidden(), 'the slots stand in for the draft rows');
-    await pc.hover('#tdUs .tryslot:nth-child(1)');
-    await wait(pc, () => !!document.querySelector('#tdPanel .hbox[data-on]') && /^Best for you with Garen/.test(document.querySelector('#tdPanel .hbox').textContent), null, 'the box beside your Garen');
-    await shot(pc, 'pick-helper-try-a-draft');
-    await pc.mouse.move(2, 2);
+    await pc.click('#tdThem .slot:nth-child(1) .sbtn');
+    await wait(pc, () => document.getElementById('dTopHead').textContent === 'Top for their team' && document.querySelectorAll('#dTopRows .bigrow').length === 2, null, 'their top: your Garen taken');
+    assert.strictEqual(await text(pc, '#dSub'), 'What beats your team here');
+    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lee Sin OK Lane With Tier C', 'Darius Risky Lane With Tier D'], 'their side: Tier, not your games');
+    await shot(pc, 'pregame-draft-board');
+    if (process.env.SHOTS) { const vp = pc.viewportSize(); await pc.setViewportSize({ width: 390, height: 844 }); await shot(pc, 'pregame-draft-board-phone'); await pc.setViewportSize(vp); }
+    await pc.click('#tdUs .slot:nth-child(1) .sx');
+    await wait(pc, () => !document.querySelector('#tdUs .slot:nth-child(1) img.sq') && document.querySelector('#tdUs .slot[data-on]') === document.querySelector('#tdUs .slot:nth-child(1)'), null, 'the x took Garen out');
     assert(!lcu.calls.slice(tryCalls).some(([m, p]) => m !== 'GET' && /champ-select/.test(p)), 'nothing sent to League');
     await pc.click('#tdClear');
-    await wait(pc, () => !document.querySelector('#tdUs img, #tdThem img'), null, 'cleared');
-    await pc.click('#tdBtn');
-    await wait(pc, () => document.getElementById('tdPanel').hidden, null, 'closed');
-    console.log('Try a draft: their Zed and your Garen by hand, the top 3 and the box beside Garen, nothing sent to League');
+    await wait(pc, () => !document.querySelector('#tdUs img.sq, #tdThem img.sq') && document.getElementById('tdClear').disabled, null, 'cleared');
+    console.log('draft board: 5 slots a side with their faces, a face and a search fill slots, your middle and their bottom ranked, x and Clear, nothing sent to League');
     await openPage(pc, 'settings');
     // its boxes stack with no holes: each is at the top or 16px under the one above it in its column
     // (measured once the page's ResizeObserver has given every box its rows for the height it has now, not mid-layout)
@@ -2594,8 +2610,10 @@ const leagueData = (over = {}) => ({
       await wait(hp, () => !document.getElementById('winFix').hidden, null, 'League in Fullscreen, on Pregame');
       // the tier list: arrows for Ahri, rising since last patch, and Zed, falling; how often each was banned; a row
       // opens that champion's page in the role
-      await wait(hp, () => !document.getElementById('tierBox').hidden && document.querySelectorAll('#tierRows tr').length === 4, null, 'the tier list');
-      assert.strictEqual(await text(hp, '#tierNote'), 'Middle in 200 Challenger and Grandmaster games our server counted from Riot, patch 25.20 and 25.19.');
+      await wait(hp, () => !document.getElementById('tierBox').hidden && document.querySelectorAll('#tierRows tr').length === 3, null, 'the tier list: two S tier, so the top 3');
+      await hp.click('#tierMore');
+      await wait(hp, () => document.querySelectorAll('#tierRows tr').length === 4, null, 'See more');
+      assert.strictEqual(await hp.textContent('#tierTipNote'), 'Middle in 200 Challenger and Grandmaster games our server counted from Riot, patch 25.20 and 25.19.');
       assert.deepStrictEqual(await hp.$$eval('#tierRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim())),
         ['Vi S 60% 40 · 20% picked 0%', 'Ahri S 55%▲ 160 · 80% picked 3%', 'Lux B 51% 80 · 40% picked 0%', 'Zed B 50%▼ 120 · 60% picked 20%']);
       assert.deepStrictEqual(await hp.$$eval('#tierRows .trend', (l) => l.map((e) => e.title)), ['Rising: 65% won in 80 games this patch, 45% in 80 last patch', 'Falling: 40% won in 60 games this patch, 60% in 60 last patch']);
@@ -2604,19 +2622,23 @@ const leagueData = (over = {}) => ({
       await wait(hp, () => document.getElementById('champDlg').open && /Ahri middle won 47% of 60 Challenger and Grandmaster games on patch 25\.20/.test(document.getElementById('champDlgBody').textContent), null, 'Ahri’s page from the tier list');
       await hp.click('#champDlgClose');
       console.log('tier list 2.0: Ahri rising, Zed falling, ban rates, and a row opens the champion’s page');
-      // the matchup explorer: Ahri against Zed in the middle, Ahri's most played role
-      await hp.fill('#mxA', 'Ahri');
-      await hp.fill('#mxB', 'Zed');
-      await wait(hp, () => document.getElementById('mxNote').textContent === 'Ahri middle against Zed:' && document.querySelectorAll('#mxBuild > *').length === 4 && /Arcane Comet/.test(document.getElementById('mxBuild').textContent)
-        && /Riot’s tip for Ahri/.test(document.getElementById('mxTips').textContent), null, 'the matchup explorer');
-      assert.strictEqual(await hp.textContent('#mxTips h3'), 'Tips: Ahri against Zed');
-      assert.deepStrictEqual((await tipsIn(hp, '#mxTips')).filter((t) => !t.startsWith('You:')), ['High elo: Ahri won 6 of 20 games against Zed. A hard matchup for Ahri.',
-        'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
+      // the matchup on the draft board (the Matchup explorer before What's new 202): your Ahri against their Zed in the middle
+      for (const [slot, name] of [['#tdThem .slot:nth-child(3)', 'zed'], ['#tdUs .slot:nth-child(3)', 'ahri']]) {
+        await hp.click(`${slot} .sbtn`);
+        await hp.fill('#dFind', name);
+        await wait(hp, () => document.querySelectorAll('#dGrid .dchamp').length === 1, null, `${name} found`);
+        await hp.click('#dGrid .dchamp');
+        await hp.fill('#dFind', '');
+      }
+      await wait(hp, () => !document.getElementById('dMu').hidden && /Riot’s tip for Ahri/.test(document.getElementById('dMu').textContent) && document.querySelectorAll('#dMu .wg').length === 2, null, 'the matchup on the board');
+      assert.deepStrictEqual(await texts(hp, '#dMu .mutext > *'), ['Ahri against Zed', 'High elo: Ahri won 6 of 20 games against Zed. A hard matchup for Ahri.']);
+      assert.deepStrictEqual(await hp.$$eval('#dMu .wg img', (l) => l.map((i) => i.alt)), ['Arcane Comet', 'Domination', 'Luden’s Companion', 'Zhonya’s Hourglass'], 'keystone and second tree, first items in order');
+      assert.strictEqual(await text(hp, '#dMu .wg .wcap'), 'in 20 of 20');
+      assert.deepStrictEqual((await texts(hp, '#dMu li')).filter((t) => !t.startsWith('You:')), ['Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
         'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
         'Against Zed, high elo Ahri players take Arcane Comet (20 of 20 games; usually Electrocute) and Flash + Teleport (20 of 20 games; usually Flash + Ignite).', 'Riot’s tip for Ahri: Use Charm to set up your combos.']);
-      assert.deepStrictEqual(await texts(hp, '#mxBuild > *'), ['Runes in this matchup: Arcane Comet, Manaflow Band, Transcendence, Scorch, Taste of Blood, Treasure Hunter (Sorcery with Domination), in 20 of 20 games, 6 won. Spells: Flash and Teleport.',
-        'Start Doran’s Ring Health Potion', 'First items, in order Luden’s Companion Zhonya’s Hourglass', 'Boots Sorcerer’s Shoes']);
-      console.log('matchup explorer: Ahri against Zed, with its tips, rune page, spells and build');
+      await shot(hp, 'pregame-draft-board-matchup');
+      console.log('draft board matchup: Ahri against Zed, with the record, runes, first items and tips');
       // champ select, middle, before their laner is known: Ahri, whom Zed beats in high elo, ranks below the safe picks
       champSelect(6660001);
       lcu.phase = 'ChampSelect';
@@ -2673,10 +2695,10 @@ const leagueData = (over = {}) => ({
       console.log('Fullscreen fix: Borderless in one click from the ready check, through League’s own settings');
       // in a game the explorer hides, like all advice
       await hl(leagueData());
-      await wait(hp, () => document.getElementById('mxBox').hidden, null, 'no matchup explorer in a game');
+      await wait(hp, () => document.getElementById('tdBox').hidden && !document.getElementById('tierBox').hidden, null, 'no draft board in a game, the tier list stays');
       await hl({ inGame: false, phase: 'None' });
       await hctx.close();
-      console.log('matchup explorer: hidden in a game');
+      console.log('draft board: hidden in a game');
     }
 
     // ---- builds at your rank: for your Gold II, Emerald and Diamond's games (ed) in champ select, on the tier list and
@@ -2717,12 +2739,12 @@ const leagueData = (over = {}) => ({
       // the tier list on Emerald and Diamond's games, for your rank; Challenger and Grandmaster's a click away
       await wait(ep, () => !document.getElementById('tierBox').hidden && !document.getElementById('tierEloBox').hidden && document.querySelectorAll('#tierRows tr').length === 2, null, 'the tier list for your rank');
       assert.strictEqual(await ep.inputValue('#tierElo'), 'ed');
-      assert.strictEqual(await text(ep, '#tierNote'), 'Middle in 40 Emerald and Diamond games our server counted from Riot, patch 25.20.');
+      assert.strictEqual(await ep.textContent('#tierTipNote'), 'Middle in 40 Emerald and Diamond games our server counted from Riot, patch 25.20.');
       assert.deepStrictEqual(await ep.$$eval('#tierRows tr', (trs) => trs.map((tr) => tr.innerText.replace(/\s+/g, ' ').trim())), ['Ahri S 60% 30 · 75% picked', 'Zed D 42% 12 · 30% picked']);
       await ep.selectOption('#tierElo', '');
-      await wait(ep, () => document.getElementById('tierNote').textContent === 'Middle in 200 Challenger and Grandmaster games our server counted from Riot, patch 25.20 and 25.19.', null, 'Challenger and Grandmaster’s tier list');
+      await wait(ep, () => document.getElementById('tierTipNote').textContent === 'Middle in 200 Challenger and Grandmaster games our server counted from Riot, patch 25.20 and 25.19.', null, 'Challenger and Grandmaster’s tier list');
       await ep.selectOption('#tierElo', 'ed');
-      await wait(ep, () => /Emerald and Diamond/.test(document.getElementById('tierNote').textContent), null, 'and back');
+      await wait(ep, () => /Emerald and Diamond/.test(document.getElementById('tierTipNote').textContent), null, 'and back');
       // Ahri's page from it: Emerald and Diamond's games, with high elo's one-tricks and pro players, and champions to try
       await ep.click('#tierRows tr:first-child td:nth-child(3)');
       await wait(ep, () => document.getElementById('champDlg').open && /Pro players/.test(document.getElementById('champDlgBody').textContent) && /Champions to try/.test(document.getElementById('champDlgBody').textContent), null, 'Ahri’s page');

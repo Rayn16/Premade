@@ -617,7 +617,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .grade { padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
 .grade[data-g="great"] { color: var(--g-great); } .grade[data-g="good"] { color: var(--g-good); } .grade[data-g="ok"] { color: var(--muted); } .grade[data-g="risky"] { color: var(--g-risky); }
 .tag[data-k="duo"] { border-color: var(--g-great); color: var(--g-great); }
-.cscol.csus, .trybox { position: relative; }
+.cscol.csus { position: relative; }
 .hbox { position: absolute; left: calc(100% + 10px); z-index: 6; width: 300px; display: grid; gap: 10px; padding: 14px; border: 1px solid var(--gold-line); border-radius: 12px; background: var(--raised); box-shadow: 0 16px 40px rgb(0 0 0 / .5); pointer-events: none;
   opacity: 0; visibility: hidden; transform: translateX(calc(-4px * var(--m, 1))); transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out), visibility 0s 150ms; }
 .hbox[data-on] { opacity: 1; visibility: visible; transform: none; transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); }
@@ -641,17 +641,50 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .csbanned { position: absolute; top: 8px; right: 8px; z-index: 2; width: 32px; height: 32px; border-radius: 6px; filter: grayscale(1); opacity: 0.7; }
 .dslot[data-turn] { border-color: var(--best) !important; border-style: solid; }
 @keyframes tp-in { from { opacity: 0; } }
-/* What's new 190: Try a draft on Pregame, and the helper in a room's Mock draft */
-.trybox { display: grid; gap: 12px; }
-.tryrow { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; align-items: center; font-size: 14px; }
-.tryrow .tabs { border: 0; padding: 0; }
-.tryslots { display: grid; grid-template-columns: repeat(5, minmax(0, 72px)); gap: 8px; }
-.tryslot { position: relative; display: grid; justify-items: center; gap: 4px; padding: 6px 4px; border: 2px dashed var(--line); border-radius: 8px; background: none; color: var(--muted); font: 500 12px/1.2 var(--body); cursor: pointer; }
-.tryslot:has(img) { border-style: solid; color: var(--fg); }
-.tryslot img { width: 48px; height: 48px; border-radius: 6px; }
-.tryslot[aria-pressed="true"] { border-color: var(--gold); border-style: solid; }
-.tryslot[data-me] { color: var(--fg); }
-@container app (max-width: 560px) { .tryrow { grid-template-columns: minmax(0, 1fr); } }
+/* What's new 190: the helper in a room's Mock draft */
+/* What's new 202: Pregame's draft board, both teams and every champion, a helper on every role */
+.board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@container app (max-width: 1050px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bmidc { grid-column: 1 / -1; order: 3; } }
+@container app (max-width: 640px) { .board { grid-template-columns: minmax(0, 1fr); } }
+.bcol, .bmidc { display: grid; gap: 10px; min-width: 0; align-content: start; }
+.bcol > .ph { min-height: 28px; font-size: 14px; }
+.slots { display: grid; gap: 6px; }
+.slot { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 4px; padding: 8px; border: 1px solid transparent; border-radius: 12px; transition: background-color var(--t-press); }
+.slot:hover { background: var(--soft); }
+.slot[data-on] { background: var(--soft-2); border-color: var(--line); }
+.sbtn { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.sq { flex: none; display: grid; place-items: center; width: 48px; height: 48px; box-sizing: border-box; border: 2px solid #4aa8ff; border-radius: 8px; object-fit: cover; }
+.sq.them { border-color: #ff5c5c; }
+.sq.none { border: 2px dashed var(--line); color: var(--muted); font: 600 20px/1 var(--body); }
+.stext { display: grid; gap: 3px; min-width: 0; }
+.stext small { font-size: 12px; color: var(--muted); }
+.sname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.sname b { font-size: 15px; font-weight: 600; }
+.sname b.dim { font-weight: 500; color: var(--muted); }
+.sx { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: 18px; cursor: pointer; transition: transform var(--t-press); }
+.sx:hover { color: var(--fg); background: var(--soft-2); }
+.sx:active { transform: scale(0.94); }
+.faces { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; padding-left: 56px; }
+.face { display: flex; align-items: center; gap: 5px; min-height: 32px; padding: 3px 7px 3px 3px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--fg); font: 600 12px/1 var(--body); cursor: pointer; transition: transform var(--t-press); }
+.face:hover { background: var(--soft-2); }
+.face:active { transform: scale(0.97); }
+.face img { width: 24px; height: 24px; border-radius: 5px; }
+.face .grade { padding: 0; border: 0; }
+.mu { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.muhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.muhead > img { width: 40px; height: 40px; border-radius: 8px; }
+.muhead > .muvs { font-size: 12px; color: var(--muted); }
+.mutext { flex: 1 1 180px; display: grid; gap: 2px; min-width: 0; }
+.mutext small { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.mu .lbar.wide { width: 96px; height: 10px; }
+.mu .lbar.wide i { height: 10px; }
+.mu .wp > img.rk { width: 32px; height: 32px; }
+.mu .wp > img.it { width: 28px; height: 28px; }
+.mu .tipsbox h3 { display: none; }
+.trow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.mini { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.mini select { padding: 8px 10px; font-size: 13px; }
+#tierMore { justify-self: start; }
 .mdhelp { display: grid; gap: 8px; margin-top: 12px; }
 .mdgrid .champbtn { position: relative; }
 .champbtn .dsc { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); pointer-events: none; }
@@ -2638,6 +2671,8 @@ dialog.wizard { transform: scale(var(--from)); }
         <div id="dTop" class="dtop" hidden>
           <div class="tophead"><h3 id="dTopHead" class="ph">Top 3</h3><label id="dBotBox" class="check" hidden><input id="dBot" type="checkbox"><span>Bot lane first</span></label></div>
           <p id="dBotNote" class="hint" hidden></p>
+          <div id="dMu" class="mu" hidden></div>
+          <p id="dSub" class="sub" hidden></p>
           <div id="dTopRows" class="big"></div>
         </div>
         <div id="draft" class="draft" hidden>
@@ -2718,33 +2753,21 @@ dialog.wizard { transform: scale(var(--from)); }
         <p id="clashNote" role="status"></p>
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Their team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="clashRows"></tbody></table></div>
       </section>
-      <section id="tdBox" class="panel trybox" aria-labelledby="h-try" hidden>
-        <div class="tophead"><h2 id="h-try" class="ph">Try a draft</h2><div class="toolbar"><button id="tdClear" class="btn small" type="button" hidden>Clear</button><button id="tdBtn" class="btn small" type="button">Try a draft</button></div></div>
-        <p id="tdNote" class="hint">Fill both teams by hand and see the pick helper on that draft. Nothing goes to League.</p>
-        <div id="tdPanel" class="trybox" hidden>
-          <div class="tryrow"><span>You play</span><div id="tdMe" class="tabs" role="tablist" aria-label="Your role"><button class="tab" type="button" role="tab" data-role="TOP">Top</button><button class="tab" type="button" role="tab" data-role="JUNGLE">Jungle</button><button class="tab" type="button" role="tab" data-role="MIDDLE">Middle</button><button class="tab" type="button" role="tab" data-role="BOTTOM">Bottom</button><button class="tab" type="button" role="tab" data-role="UTILITY">Support</button></div></div>
-          <div class="tryrow"><span>Your team</span><div id="tdUs" class="tryslots"></div></div>
-          <div class="tryrow"><span>Their team</span><div id="tdThem" class="tryslots"></div></div>
-          <div id="tdHelp"></div>
+      <section id="tdBox" class="panel" aria-labelledby="h-try" hidden>
+        <div class="tophead"><h2 id="h-try" class="ph">Draft board <button class="tip" type="button" popovertarget="t-try" aria-label="About the draft board">?</button></h2><button id="tdClear" class="btn small" type="button">Clear</button></div>
+        <div class="board">
+          <div class="bcol"><h3 class="ph">Your team <span id="tdUsG"></span></h3><ul id="tdUs" class="plain slots"></ul></div>
+          <div id="tdHelp" class="bmidc"></div>
+          <div class="bcol"><h3 class="ph">Their team <span id="tdThemG"></span></h3><ul id="tdThem" class="plain slots"></ul></div>
         </div>
       </section>
       <section id="tierBox" class="panel" aria-labelledby="h-tier" hidden>
         <h2 id="h-tier" class="ph">Tier list <button class="tip" type="button" popovertarget="t-tier" aria-label="About the tier list">?</button></h2>
-        <div id="tierEloBox" class="toolbar" hidden><label class="field">Games from <select id="tierElo"><option value="">Challenger and Grandmaster</option><option value="ed">Emerald and Diamond</option></select></label></div>
-        <div id="tierRoles" class="tabs" role="tablist" aria-label="Role"><button class="tab" type="button" role="tab" data-role="TOP">Top</button><button class="tab" type="button" role="tab" data-role="JUNGLE">Jungle</button><button class="tab" type="button" role="tab" data-role="MIDDLE">Middle</button><button class="tab" type="button" role="tab" data-role="BOTTOM">Bottom</button><button class="tab" type="button" role="tab" data-role="UTILITY">Support</button></div>
-        <p id="tierNote" class="hint" role="status"></p>
+        <div class="trow"><div id="tierRoles" class="tabs" role="tablist" aria-label="Role"><button class="tab" type="button" role="tab" data-role="TOP">Top</button><button class="tab" type="button" role="tab" data-role="JUNGLE">Jungle</button><button class="tab" type="button" role="tab" data-role="MIDDLE">Middle</button><button class="tab" type="button" role="tab" data-role="BOTTOM">Bottom</button><button class="tab" type="button" role="tab" data-role="UTILITY">Support</button></div>
+          <label id="tierEloBox" class="mini" hidden>Games from <select id="tierElo"><option value="">Challenger and Grandmaster</option><option value="ed">Emerald and Diamond</option></select></label></div>
+        <p id="tierNote" class="hint" role="status" hidden></p>
         <div class="tablewrap"><table class="ready tier"><thead><tr><th>Champion</th><th>Tier</th><th>Win rate</th><th>Games</th><th id="tierBan" hidden>Banned</th></tr></thead><tbody id="tierRows"></tbody></table></div>
-      </section>
-      <section id="mxBox" class="panel" aria-labelledby="h-mx" hidden>
-        <h2 id="h-mx" class="ph">Matchup explorer <button class="tip" type="button" popovertarget="t-mx" aria-label="About the matchup explorer">?</button></h2>
-        <div class="pick">
-          <label>Champion <input id="mxA" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
-          <label>Against <input id="mxB" list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label>
-          <label>Role <select id="mxRole"><option value="">Its usual</option><option value="TOP">Top</option><option value="JUNGLE">Jungle</option><option value="MIDDLE">Middle</option><option value="BOTTOM">Bottom</option><option value="UTILITY">Support</option></select></label>
-        </div>
-        <p id="mxNote" class="hint" role="status"></p>
-        <div id="mxTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
-        <div id="mxBuild"></div>
+        <button id="tierMore" class="btn small" type="button" aria-expanded="false" hidden>See more</button>
       </section>
       <section id="lolChatBox" class="panel" aria-labelledby="h-lolchat" hidden>
         <h2 id="h-lolchat" class="ph">League chat <button class="tip" type="button" popovertarget="t-lolchat" aria-label="About League chat">?</button></h2>
@@ -3660,8 +3683,8 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself, or out of a room someone else is in.</div>
 <div id="t-history" class="tipbox" popover>Each game is saved in this app when it ends: who was in voice, how long everyone talked, and the talk map. Only on this computer.</div>
 
-<div id="t-tier" class="tipbox" popover>The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
-<div id="t-mx" class="tipbox" popover>Pick a champion and the one it plays against to see how that matchup goes in high elo: the record, gold and CS at 10 minutes, the runes, spells and items players take in it, the rune page and build most of those games had, your own games and Riot's tips for both. The role is the one the first champion plays most in high elo, unless you pick one. Like the other tips, it hides during a game, as Riot's rules ask. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-tier" class="tipbox" popover><span id="tierTipNote"></span> The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. It starts with S tier (the top 3 when a role has fewer): See more shows every tier. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
+<div id="t-try" class="tipbox" popover>Try any draft before you queue. Click a slot, then one of its faces or any champion. Each role’s 3 faces are its best picks with everything else on the board, and on their side what beats your team. Fill both laners of a lane for that matchup: the high elo record, runes, first items and tips. Nothing goes to League, and the board hides during a game, as Riot’s rules ask.</div>
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, plus what your team lacks and your games with your duo, and Balanced by both, plus your own games and mastery on it. For an ADC or a support, Bot lane first counts your lane 4 times the rest of the draft. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
@@ -9486,17 +9509,17 @@ dialog.wizard { transform: scale(var(--from)); }
   function advPool(role, d, q = advQ.trim().toLowerCase()) {
     const t = tiers(), a = d.try ? null : myAction(), can = new Set((d.try ? [] : (a && a.type === 'ban' ? bannable : pickable)) || []);
     const mine = new Map(), taken = advGone(d);
-    for (const g of myHist || []) if (g.lane === role) mine.set(g.champ, (mine.get(g.champ) || 0) + 1);
+    for (const g of (!d.foe && myHist) || []) if (g.lane === role) mine.set(g.champ, (mine.get(g.champ) || 0) + 1); // d.foe: the draft board's other team (What's new 202), none of yours
     const ids = q ? [...new Set(Object.values(ddChamp).map((c) => +c.key))].filter((id) => champName(id).toLowerCase().includes(q))
       : [...new Set([...[...((t && t.by[role]) || [])].filter(([, [n]]) => n >= 10).map(([c]) => c), ...[...mine].filter(([, n]) => n >= 2).map(([c]) => c),
-        ...[...advFavs].filter((c) => champPos && champPos[c] && (champPos[c].recommendedPositions || []).includes(role))])];
+        ...[...(d.foe ? [] : advFavs)].filter((c) => champPos && champPos[c] && (champPos[c].recommendedPositions || []).includes(role))])];
     const mates = d.us.filter((p) => p.c > 0 && p.role && p.role !== role), foes = d.them.filter((p) => p.c > 0 && p.role);
     const meta = advOpts.mode === 'meta', need = needIn(d), duo = d.try || meta ? null : duoNow(), bot = botFirst(role);
     return ids.filter((id) => champOf(id)).map((id) => {
       const x = advScore(id, role, mates, foes, !meta && taken), w = bot ? x.parts.reduce((n, p) => n + p.d * (botTerm(p, role) ? 1 : 0.25), 0) : x.v, why = [...x.why];
-      const me = advOpts.mode === 'balanced' ? mineScore(id, why) : 0, nd = meta ? 0 : needFor(champOf(id), need, why), du = duoPart(id, duo, duo && duo.c);
+      const me = advOpts.mode === 'balanced' && !d.foe ? mineScore(id, why) : 0, nd = meta ? 0 : needFor(champOf(id), need, why), du = duoPart(id, duo, duo && duo.c);
       if (du && du.n) why.push(`With ${duo.name}: won ${du.w} of ${du.n}`);
-      return { id, ...x, why, w, du, s: meta ? x.m : w + nd + (du ? du.s : 0) + (advOpts.mode === 'balanced' ? x.m + me : 0), off: taken.has(id) || (can.size > 0 && !can.has(id)), fav: advFavs.has(id) };
+      return { id, ...x, why, w, du, s: meta ? x.m : w + nd + (du ? du.s : 0) + (advOpts.mode === 'balanced' ? x.m + me : 0), off: taken.has(id) || (can.size > 0 && !can.has(id)), fav: !d.foe && advFavs.has(id) };
     }).sort((x, y) => y.fav - x.fav || y.s - x.s || y.m - x.m);
   }
   // Bot lane first (What's new 189): for an ADC or a support, your lane (with your partner, against their ADC and
@@ -9526,7 +9549,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const advBand = (s) => { const i = [3, 1.5, 0, -1.5, -3.5].findIndex((m) => s >= m); return String(i < 0 ? 0 : 5 - i); }; // a score's colour, 5 best
   const advBadge = (s) => { const b = document.createElement('b'); b.className = 'dsc'; b.dataset.s = advBand(s); b.textContent = `${s >= 0 ? '+' : '−'}${Math.abs(s).toFixed(1)}`; return b; };
   let advLast = null; // the draft the helper drew last (d, the role, the ranked champions, your duo), for the box beside a teammate
-  function renderAdv(td) { // td: Try a draft's draft, else champ select's
+  function renderAdv(td, tdRole) { // td: the draft board's draft for its picked slot (role tdRole), else champ select's
     const t = tiers(), show = !!t && !!t.n && (!!td || (mapNow() === 11 && !cs.benchEnabled));
     $('draft').hidden = !show || !!td;
     $('dPool').hidden = !show;
@@ -9535,9 +9558,12 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!ddVersion) ddSoon();
     const d = td || advNow(), mean = (l) => { const k = l.filter((p) => p.c > 0 && p.role); return k.length ? k.reduce((n, p) => n + p.m + p.v, 0) / k.length : 0; }, full = (l) => l.filter((p) => p.c > 0).length >= 5, gap = mean(d.us) - mean(d.them);
     if (!td && full(d.us) && full(d.them)) advWord = gap >= 1.5 ? 'ahead' : gap <= -1.5 ? 'behind' : 'even'; // ponytail: 1.5 win rate points a champion, the draft colours' middle step; tune with real drafts
-    const role = advRole || (td ? tryD.me : myPos()) || usualRole(), pool = advPool(role, d), a = td ? null : myAction(), duo = td ? null : duoNow(), now = td ? [] : csActions().filter((x) => x.isInProgress).map((x) => x.actorCellId);
+    const role = td ? tdRole : advRole || myPos() || usualRole(), pool = advPool(role, d), a = td ? null : myAction(), duo = td ? null : duoNow(), now = td ? [] : csActions().filter((x) => x.isInProgress).map((x) => x.actorCellId);
     advLast = { d, role, pool, duo };
-    const key = JSON.stringify([!!td, role, advOpts, advQ, ddVersion, a && [a.championId, a.type, a.isInProgress], now, duo && [duo.cell, duo.c, duo.games.length], (myHist || []).length,
+    const own = td ? tryD[tryAt()[0]][role] | 0 : 0; // the picked slot's own champion
+    if (td) renderMu(own, tryD[tryAt()[0] === 'us' ? 'them' : 'us'][role] | 0, role, pool.find((x) => x.id === own));
+    else $('dMu').hidden = true;
+    const key = JSON.stringify([!!td, td && td.foe, own, role, advOpts, advQ, ddVersion, a && [a.championId, a.type, a.isInProgress], now, duo && [duo.cell, duo.c, duo.games.length], (myHist || []).length,
       [d.us, d.them].map((l) => l.map((p) => [p.c, p.role, p.hover, p.me, p.why])), pool.map((x) => [x.id, x.s.toFixed(1), x.off, x.fav, x.why])]);
     if ($('draft').dataset.key === key) return;
     $('draft').dataset.key = key;
@@ -9563,7 +9589,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     const by = { meta: 'their high elo win rate', matchups: 'how each does with your team and against theirs', balanced: 'their high elo win rate and how each does with your team and against theirs' }[advOpts.mode];
     const blind = advOpts.mode !== 'meta' && !d.them.some((p) => p.c > 0 && p.role === role); // their laner isn't known: safe blind picks first
-    $('dNote').textContent = `${POS[role]}: ${pool.length ? `champions by ${by}.${blind ? ' Their laner isn’t picked yet, so champions they can counter rank lower.' : ''} Hold the mouse on one to see why, and right-click one to make it a favorite.` : advQ ? 'no champion by that name.' : 'no champion has 10 high elo games here yet.'}`;
+    $('dNote').textContent = td ? (pool.length ? `Ranked by ${by}. No score: few high elo games as ${POS[role].toLowerCase()}.` : advQ ? 'No champion by that name.' : `Nobody has 10 high elo games as ${POS[role].toLowerCase()} yet.`) : `${POS[role]}: ${pool.length ? `champions by ${by}.${blind ? ' Their laner isn’t picked yet, so champions they can counter rank lower.' : ''} Hold the mouse on one to see why, and right-click one to make it a favorite.` : advQ ? 'no champion by that name.' : 'no champion has 10 high elo games here yet.'}`;
     $('dGrid').replaceChildren(...pool.map((x) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -9571,12 +9597,22 @@ dialog.wizard { transform: scale(var(--from)); }
       b.dataset.c = x.id;
       b.dataset.s = advBand(x.s);
       b.setAttribute('aria-disabled', String(x.off));
-      b.setAttribute('aria-pressed', String(!!a && a.championId === x.id));
+      b.setAttribute('aria-pressed', String(td ? own === x.id : !!a && a.championId === x.id));
       b.toggleAttribute('data-fav', x.fav);
-      b.title = [`${champName(x.id)}${x.off ? ': taken, or not yours to pick' : ''}`, ...x.why].join('\n');
+      b.title = [`${champName(x.id)}${x.off ? (td ? ': on the board' : ': taken, or not yours to pick') : ''}`, ...x.why].join('\n');
       b.append(Object.assign(new Image(), { src: champImg(x.id), alt: champName(x.id) }), advBadge(x.s));
       return b;
     }));
+    if (td && !advQ) { // the board: every other champion after them, A to Z, with no score
+      const has = new Set(pool.map((x) => x.id)), gone = advGone(d);
+      $('dGrid').append(...[...new Set(Object.values(ddChamp).map((c) => +c.key))].filter((id) => !has.has(id) && champOf(id)).sort((x, y) => champName(x).localeCompare(champName(y))).map((id) => {
+        const b = mkBtn('dchamp', [Object.assign(new Image(), { src: champImg(id), alt: champName(id) })], () => {}, own === id);
+        b.dataset.c = id;
+        b.setAttribute('aria-disabled', String(gone.has(id)));
+        b.title = `${champName(id)}${gone.has(id) ? ': on the board' : `: few high elo games as ${POS[role].toLowerCase()}`}`;
+        return b;
+      }));
+    }
     renderTop(d, role, pool, a, duo);
   }
   // ---- the top 3 (What's new 189): the first three of the same ranking in big rows, a word each (no percentages) and
@@ -9589,7 +9625,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const wrec = (l) => { const w = l.filter((g) => g.w || g.win).length; return `${w}W ${l.length - w}L`; };
   function laneBar(v) { const i = elm('i', v > 0 ? 'up' : 'down'); i.style.width = `${Math.min(50, Math.abs(v) * 5)}%`; return elm('span', 'lbar', i); } // ponytail: 10 points fills a side
   // o: pair (their half, before you and your duo pick), s (its score), duo and du (your games together), compact (Mock
-  // draft: lane and team only), click, pressed, hov
+  // draft: lane and team only), board (the draft board: With, Against, and You or, for their team, Tier), click, pressed, hov
   function topRow(x, d, role, o = {}) {
     const b = mkBtn('bigrow', [], o.click || (() => {}), o.pressed), bot = !!DUO[role], why = elm('span', 'why');
     const g = (label, title, ...kids) => { const w = elm('span', 'wg', elm('small', '', label), ...kids); w.title = title; why.append(w); };
@@ -9606,9 +9642,13 @@ dialog.wizard { transform: scale(var(--from)); }
         elm('small', bad.length ? 'wcap' : 'wcap none', bad.length ? `${bad.length} of the most picked beat${bad.length === 1 ? 's' : ''} it` : bl.n >= 5 ? 'Safe: none of the 10 most picked beats it' : 'Their laner isn’t picked yet'));
     }
     const mates = d.us.filter((p) => p.c > 0 && p.role && p.role !== role && !p.me && !(bot && p.role === DUO[role])), with_ = (p) => x.parts.find((q) => q.k === 'mate' && q.c === p.c);
-    if (mates.length) g('Team', mates.map((p) => { const q = with_(p); return `With ${champName(p.c)}: ${q ? `won ${q.w} of ${q.n}` : 'few high elo games together'}`; }).join('\n'),
+    if (mates.length) g(o.board ? 'With' : 'Team', mates.map((p) => { const q = with_(p); return `With ${champName(p.c)}: ${q ? `won ${q.w} of ${q.n}` : 'few high elo games together'}`; }).join('\n'),
       elm('span', 'wp', ...mates.map((p) => { const q = with_(p); return elm('span', 'fm', champFace(p.c), elm('i', !q ? '' : q.d >= 1 ? 'up' : q.d <= -1 ? 'down' : '')); })));
-    const mine = o.compact ? null : myOn(x.id);
+    const others = o.board ? d.them.filter((p) => p.c > 0 && !foes.includes(p)) : [], vs_ = (p) => x.parts.find((q) => q.k === 'foe' && q.c === p.c);
+    if (others.length) g('Against', others.map((p) => { const q = vs_(p); return `Against ${champName(p.c)}: ${q ? `won ${q.w} of ${q.n}` : 'few high elo games against each other'}`; }).join('\n'),
+      elm('span', 'wp', ...others.map((p) => { const q = vs_(p); return elm('span', 'fm', champFace(p.c), elm('i', !q ? '' : q.d >= 1 ? 'up' : q.d <= -1 ? 'down' : '')); })));
+    if (o.board && d.foe) { const [n, w] = recIn(x.id, role), t = elm('span', 'tl', TIERS_AT.find(([, m]) => adj(w, n) >= m)[0]); t.dataset.t = t.textContent; g('Tier', 'Its tier in high elo for this role', elm('span', 'wp', t)); }
+    const mine = o.compact || d.foe ? null : myOn(x.id);
     if (mine) g('You', 'Your own games on it, newest first', ...(mine.length ? [blocks(mine), elm('small', 'wcap', wrec(mine))] : [elm('small', 'wcap none', 'Not played')]));
     if (o.duo) {
       const l = (o.du || x.du || { l: [] }).l;
@@ -9623,8 +9663,10 @@ dialog.wizard { transform: scale(var(--from)); }
     const bot = !!DUO[role], partner = d.us.find((p) => p.role === DUO[role] && p.c > 0), foes = d.them.filter((p) => p.c > 0 && DUO[p.role]);
     $('dBotBox').hidden = $('dBotNote').hidden = !bot;
     $('dBot').checked = botFirst(role);
-    $('dBotNote').textContent = botFirst(role) ? `Your lane${partner ? ` with ${champName(partner.c)}` : ''}${foes.length ? `, against ${foes.map((p) => champName(p.c)).join(' and ')},` : ''} counts 4 times the rest of the draft.` : 'Every part of the draft counts the same.';
-    const me = d.us.find((p) => p.me), dp = duo && d.us.find((p) => p.cell === duo.cell), free = pool.filter((x) => !x.off), on = (c) => !!a && a.championId === c;
+    $('dBotNote').textContent = botFirst(role) ? `${d.foe ? 'Their' : 'Your'} lane${partner ? ` with ${champName(partner.c)}` : ''}${foes.length ? `, against ${foes.map((p) => champName(p.c)).join(' and ')},` : ''} counts 4 times the rest of the draft.` : 'Every part of the draft counts the same.';
+    const me = d.us.find((p) => p.me), dp = duo && d.us.find((p) => p.cell === duo.cell), own = d.try ? tryD[tryAt()[0]][role] | 0 : 0, free = pool.filter((x) => !x.off && x.id !== own), on = (c) => !!a && a.championId === c;
+    $('dSub').hidden = !d.try;
+    $('dSub').textContent = d.foe ? (own ? 'Other picks for them' : 'What beats your team here') : own ? 'Other picks' : 'Best picks';
     const click = (c) => () => (d.try ? tryPut(c) : a && a.isInProgress && a.championId === c ? lockIn(c) : hover(c)); // as a square in the grid
     if (bot && dp && dp.pos === DUO[role] && me && me.hover && dp.hover && !dp.c) { // you and your duo both still choosing: the best pairs
       const r2 = DUO[role], theirs = advPool(r2, d, '').filter((x) => !x.off), pairs = [];
@@ -9637,14 +9679,14 @@ dialog.wizard { transform: scale(var(--from)); }
       $('dTopRows').replaceChildren(...pairs.sort((p, q) => q.s - p.s).slice(0, 3).map((q) => topRow(q.x, d, role, { pair: q.y, s: q.s / 2, duo, du: q.du, click: click(q.x.id), pressed: on(q.x.id), hov: on(q.x.id) ? 'Hovering' : '' })));
       return;
     }
-    $('dTopHead').textContent = `Top 3 for ${POS[role]}`;
-    $('dTopRows').replaceChildren(...free.slice(0, 3).map((x) => topRow(x, d, role, { duo: dp ? duo : null, click: click(x.id), pressed: d.try ? undefined : on(x.id), hov: on(x.id) ? 'Hovering' : '' })));
+    $('dTopHead').textContent = d.try ? `${POS[role]} for ${d.foe ? 'their' : 'your'} team` : `Top 3 for ${POS[role]}`;
+    $('dTopRows').replaceChildren(...free.slice(0, 3).map((x) => topRow(x, d, role, { board: !!d.try, duo: dp ? duo : null, click: click(x.id), pressed: d.try ? undefined : on(x.id), hov: on(x.id) ? 'Hovering' : '' })));
     if (!free.length) $('dTopRows').append(elm('p', 'hint', myHist || d.try ? 'Nothing to go by for this role yet: search for a champion below.' : 'Loading your recent games…'));
   }
   $('dBot').addEventListener('change', () => { advOpts.bot = $('dBot').checked; store.set('lpc-draft', JSON.stringify(advOpts)); renderGame(); });
   // What's new 189: hold the mouse on a teammate's card (or Tab to it) for your 3 best picks with their champion: half how
   // each goes with it (its high elo games with both on one team, and your games together when it's your duo), half the
-  // rest of the draft. Once you lock in, how your champion goes with theirs. Try a draft's slots have it too.
+  // rest of the draft. Once you lock in, how your champion goes with theirs.
   let palAt = ''; // the card or slot the mouse is on (its data-pal)
   const pals = {};
   const palBox = (host, parent) => pals[host.id] || (pals[host.id] = parent.appendChild(Object.assign(elm('div', 'hbox'), { ariaHidden: 'true' })));
@@ -9675,14 +9717,11 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function renderPals() {
     const find = (el) => (el && advLast ? advLast.d.us.find((q) => q.pal === palAt) : null), place = (box, el, below) => { if (el) { box.style.top = `${el.offsetTop + (below ? el.offsetHeight + 8 : 0)}px`; if (below) box.style.left = `${el.offsetLeft}px`; } };
-    const li = palAt && !$('csBox').hidden ? $('csRows').querySelector(`[data-pal="${palAt}"]`) : null, sl = palAt && tryOn() ? $('tdUs').querySelector(`[data-pal="${palAt}"]`) : null;
-    const b1 = palBox($('csRows'), $('csRows').parentElement), b2 = palBox($('tdUs'), $('tdPanel'));
+    const li = palAt && !$('csBox').hidden ? $('csRows').querySelector(`[data-pal="${palAt}"]`) : null, b1 = palBox($('csRows'), $('csRows').parentElement);
     place(b1, li);
     palFill(b1, find(li));
-    place(b2, sl, true);
-    palFill(b2, find(sl));
   }
-  for (const host of [$('csRows'), $('tdUs')]) {
+  for (const host of [$('csRows')]) {
     const to = (e) => { const el = e.target.closest('[data-pal]'), k = el ? el.dataset.pal : ''; if (k !== palAt) { palAt = k; renderPals(); } };
     host.addEventListener('mouseover', to);
     host.addEventListener('focusin', to);
@@ -9690,49 +9729,89 @@ dialog.wizard { transform: scale(var(--from)); }
     host.addEventListener('focusout', (e) => { if (palAt && !host.contains(e.relatedTarget) && !host.matches(':hover')) { palAt = ''; renderPals(); } });
   }
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && palAt) { palAt = ''; renderPals(); } });
-  // ---- Try a draft (What's new 190): outside champ select, both teams filled by hand on Pregame, and the pick helper on
-  // that draft as in champ select. Click a slot, then a champion (a click on a filled slot picked again empties it). Nothing goes to League.
-  let tryD = null; // { me: your role, us and them: role -> champion, at: [team, role] picked to fill }
-  const tryOn = () => !!tryD && $('csBox').hidden;
-  const tryNew = (me = usualRole()) => ({ me, us: {}, them: {}, at: null });
-  function tryNow() {
-    const side = (m, ally) => Object.keys(POS).map((r) => ({ c: m[r] | 0, pos: r, role: r, me: ally && r === tryD.me, hover: false, pal: ally ? `t${r}` : '' }));
-    return advFill({ try: true, us: side(tryD.us, true), them: side(tryD.them, false), bans: [] });
+  // ---- the draft board (What's new 202, Try a draft before it): outside champ select, both teams and every champion on
+  // Pregame. Each slot ranks its role with the rest of the board, from its own team's side (theirs: what beats your
+  // team, none of your own games), and shows its first 3 as faces; the picked slot gets the whole helper in the middle.
+  // Kept while Premade runs, not saved. Nothing goes to League.
+  const tryD = { us: {}, them: {}, at: null }; // role -> champion for each team, and at: [team, role] picked (null: your usual role on your team)
+  const tryOn = () => $('csBox').hidden && !$('tdBox').hidden;
+  const tryAt = () => tryD.at || ['us', usualRole()];
+  function tryNow(t, r) { // the board for team t's role r, from t's side, with that slot left empty
+    const [a, b] = t === 'us' ? [tryD.us, tryD.them] : [tryD.them, tryD.us], side = (m, ally) => Object.keys(POS).map((x) => ({ c: (ally && x === r ? 0 : m[x]) | 0, pos: x, role: x, me: ally && x === r, hover: false, pal: '' }));
+    return advFill({ try: true, foe: t === 'them', us: side(a, true), them: side(b, false), bans: [] });
   }
-  function tryPut(c) {
-    const [t, r] = tryD.at || ['us', tryD.me];
+  let tryMemo = {}, topsVer = 0; // topsVer: one more for each answer from /riot/champ
+  function tryRanks() { // the ten rankings, worked out again only when something they go by changed
+    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs]]);
+    if (tryMemo.key !== key || tryMemo.t !== t) {
+      tryMemo = { key, t, r: {} };
+      for (const s of ['us', 'them']) for (const r of Object.keys(POS)) { const d = tryNow(s, r); tryMemo.r[s + r] = { d, pool: advPool(r, d, '') }; }
+    }
+    return tryMemo.r;
+  }
+  function tryPut(c) { // into the picked slot, which stays picked
+    const [t, r] = tryAt();
     tryD[t][r] = c;
-    tryD.at = null;
-    advRole = '';
-    renderTryDraft();
+    tryD.at = [t, r];
+    renderGame();
   }
   function renderTryDraft() {
-    const t = tiers(), cso = !$('csBox').hidden;
-    $('tdBox').hidden = cso || !t || !t.n;
-    if (cso || !tryD) { if ($('advBox').parentElement !== $('bansHead').parentElement) $('bansHead').before($('advBox')); } // back in champ select's Picks tab
-    $('tdPanel').hidden = $('tdClear').hidden = !tryD || $('tdBox').hidden;
-    $('tdNote').hidden = !!tryD;
-    $('tdBtn').textContent = tryD ? 'Close' : 'Try a draft';
-    if (!tryD || $('tdBox').hidden) return;
+    const t = tiers();
+    $('tdBox').hidden = !$('csBox').hidden || !t || !t.n || (inGameNow() && !loadingNow()); // no advice during a game (Riot's rules)
+    if ($('tdBox').hidden) { if ($('advBox').parentElement !== $('bansHead').parentElement) $('bansHead').before($('advBox')); return; } // back in champ select's Picks tab
     if ($('advBox').parentElement !== $('tdHelp')) $('tdHelp').append($('advBox'));
-    for (const b of $('tdMe').children) b.setAttribute('aria-selected', String(b.dataset.role === tryD.me));
-    for (const [el, t2] of [[$('tdUs'), 'us'], [$('tdThem'), 'them']]) el.replaceChildren(...Object.keys(POS).map((r) => {
-      const c = tryD[t2][r] | 0, at = !!tryD.at && tryD.at[0] === t2 && tryD.at[1] === r, me = t2 === 'us' && r === tryD.me;
-      const b = mkBtn('tryslot', [...(c ? [champFace(c)] : []), elm('span', '', me ? 'You' : c ? champName(c) : POS[r])], () => {
-        if (at && c) { delete tryD[t2][r]; tryD.at = null; advRole = ''; } else { tryD.at = at ? null : [t2, r]; advRole = at ? '' : r; }
-        renderTryDraft();
-      }, at);
-      b.toggleAttribute('data-me', me);
-      b.dataset.pal = t2 === 'us' ? `t${r}` : '';
-      b.title = `${t2 === 'us' ? 'Your team' : 'Their team'}, ${POS[r].toLowerCase()}: ${at ? (c ? 'click again to empty it, or a champion below' : 'now click a champion below') : 'click, then a champion below'}`;
-      return b;
-    }));
-    renderAdv(tryNow());
-    renderPals();
+    const R = tryRanks(), [at, ar] = tryAt(), pick = (s, r, c) => { if (c) tryD[s][r] = c; tryD.at = [s, r]; renderGame(); };
+    $('tdClear').disabled = !Object.keys(tryD.us).length && !Object.keys(tryD.them).length;
+    const rows = (s) => Object.keys(POS).map((r) => {
+      const c = tryD[s][r] | 0, pool = R[s + r].pool, x = pool.find((y) => y.id === c);
+      return { s, r, c, g: x ? x.s : null, faces: pool.filter((y) => !y.off && y.id !== c).slice(0, 3).map((y) => [y.id, y.s, y.why]) };
+    }), us = rows('us'), them = rows('them'), key = JSON.stringify([at, ar, ddVersion, us, them]);
+    if ($('tdBox').dataset.key !== key) {
+      $('tdBox').dataset.key = key;
+      const word = (l) => { const k = l.filter((x) => x.g != null); return k.length ? [grade(k.reduce((n, x) => n + x.g, 0) / k.length)] : []; }; // the team's picks so far
+      const slot = (x) => {
+        const on = x.s === at && x.r === ar, el = elm('li', 'slot'), team = x.s === 'us' ? 'your' : 'their';
+        el.toggleAttribute('data-on', on);
+        el.append(mkBtn('sbtn', [x.c ? Object.assign(champFace(x.c, `sq${x.s === 'us' ? '' : ' them'}`), { alt: '' }) : Object.assign(elm('span', 'sq none', '+'), { ariaHidden: 'true' }),
+          elm('span', 'stext', elm('small', '', POS[x.r]), elm('span', 'sname', elm('b', x.c ? '' : 'dim', x.c ? champName(x.c) : 'Empty'), ...(x.g == null ? [] : [grade(x.g)])))], () => pick(x.s, x.r), on));
+        if (x.c) { const b = mkBtn('sx', ['×'], () => { delete tryD[x.s][x.r]; tryD.at = [x.s, x.r]; renderGame(); }); b.ariaLabel = b.title = `Take ${champName(x.c)} out`; el.append(b); }
+        const f = elm('div', 'faces', ...x.faces.map(([c, sc, why]) => { const b = mkBtn('face', [champFace(c), grade(sc)], () => pick(x.s, x.r, c)); b.title = why.join('\n'); return b; }));
+        f.setAttribute('role', 'group');
+        f.ariaLabel = `Best for ${team} ${POS[x.r].toLowerCase()}`;
+        el.append(f);
+        return el;
+      };
+      $('tdUs').replaceChildren(...us.map(slot));
+      $('tdThem').replaceChildren(...them.map(slot));
+      $('tdUsG').replaceChildren(...word(us));
+      $('tdThemG').replaceChildren(...word(them));
+    }
+    renderAdv(R[at + ar].d, ar);
   }
-  $('tdBtn').addEventListener('click', () => { tryD = tryD ? null : tryNew(); advRole = ''; renderTryDraft(); });
-  $('tdClear').addEventListener('click', () => { tryD = tryNew(tryD.me); advRole = ''; renderTryDraft(); });
-  $('tdMe').addEventListener('click', (e) => { const b = e.target.closest('[data-role]'); if (b) { tryD.me = b.dataset.role; tryD.at = null; advRole = ''; renderTryDraft(); } });
+  $('tdClear').addEventListener('click', () => { tryD.us = {}; tryD.them = {}; renderGame(); });
+  // the matchup on the board (What's new 202, the Matchup explorer before it): the picked slot's champion (A) against
+  // the other team's in that role (B), from the high elo games our server counts: the record, gold at 10 and how hard,
+  // the lane bar (x: A in the picked slot's ranking), the runes and first items most of those games had, and the tips
+  function renderMu(A, B, role, x) {
+    const el = $('dMu');
+    el.hidden = !A || !B;
+    if (el.hidden) return void (el.dataset.key = '');
+    itemsSoon();
+    runesSoon();
+    const top = topNow(A, role, renderGame), vs = ((top && top.all) || []).filter((g) => g.o === B), n = vs.length + (((top && top.yvs && top.yvs[B]) || [])[0] | 0), tips = top && n >= 5 ? tipsFor(A, B, role) : null;
+    const lane = x && x.parts.find((p) => p.k === 'lane'), pg = top && pageVs(top, B), buys = vs.map((g) => (Array.isArray(g.b) ? g.b.filter((y) => Array.isArray(y) && y.length === 2 && y.every(Number.isInteger)) : [])).filter((y) => y.length);
+    const bu = ddItems && buys.length >= 5 ? buildFrom(buys) : null, key = JSON.stringify([A, B, role, !!top, n, tips && tips.lines, lane && lane.d, pg, bu && bu.core, runeTrees.length, ddVersion]);
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    const rec = tips && tips.lines.find((l) => l.startsWith('High elo: ')), a = champName(A), b = champName(B), bar = lane ? laneBar(lane.d) : null;
+    if (bar) { bar.classList.add('wide'); bar.title = `Lane: won ${lane.w} of ${lane.n}`; }
+    const why = elm('span', 'why');
+    if (pg) why.append(elm('span', 'wg', elm('small', '', 'Runes'), elm('span', 'wp', ...[[pg.perks[2], 'rk'], [pg.perks[1], '']].filter(([id]) => runeIcon(id)).map(([id, c]) => Object.assign(new Image(), { src: runeIcon(id), alt: runeName(id), title: runeName(id), className: c }))), elm('small', 'wcap', `in ${pg.k} of ${pg.n}`)));
+    if (bu && bu.core.length) why.append(elm('span', 'wg', elm('small', '', 'First items, in order'), elm('span', 'wp', ...bu.core.slice(0, 3).map((id) => Object.assign(new Image(), { src: itemPic(id), alt: itemName(id), title: itemName(id), className: 'it' })))));
+    el.replaceChildren(elm('div', 'muhead', champFace(A), elm('span', 'muvs', 'vs'), champFace(B), elm('span', 'mutext', elm('b', '', `${a} against ${b}`),
+      elm('small', '', !top ? 'Loading…' : n < 5 ? `Not enough Challenger and Grandmaster games of ${a} against ${b} yet: our server adds some every few minutes.` : rec || '')), ...(bar ? [bar] : [])),
+    ...(why.children.length ? [why] : []), ...(tips ? [elm('div', 'tipsbox', elm('ul', '', ...tips.lines.filter((l) => l !== rec).map((l) => elm('li', '', l))))] : []));
+  }
   $('dRoles').addEventListener('click', (e) => { const b = e.target.closest('[data-role]'); if (b) { advRole = b.dataset.role; renderGame(); } });
   $('dModes').addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) { advOpts.mode = b.dataset.mode; store.set('lpc-draft', JSON.stringify(advOpts)); renderGame(); } });
   $('dFind').addEventListener('input', () => { advQ = $('dFind').value; renderGame(); });
@@ -10718,12 +10797,11 @@ dialog.wizard { transform: scale(var(--from)); }
     renderChat();
     const old = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.' : lcu === null ? 'Looking for League…' : '';
     $('winFix').hidden = !winFixable();
-    $('preNote').textContent = old || (!ph ? 'Start League. This page fills in when you find a match: accept it here, then in champ select the best picks for you, bans, everyone’s rank, runes and builds.'
-      : ph === 'ReadyCheck' ? 'Match found!' : ph === 'ChampSelect' ? 'Champ select' : inGame ? 'In game: timers, gold and everyone’s rank are on the Game page.' : STATUS[PHASES[ph] || 'client'][1] + '. Find a match and this page fills in.');
+    $('preNote').textContent = old || (inGame ? 'In game: timers, gold and everyone’s rank are on the Game page.' : ''); // What's new 202: the draft board and tier list are the idle page
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
     $('csBox').hidden = !(ph === 'ChampSelect' && cs);
-    $('preNote').hidden = !$('csBox').hidden; // champ select's own box says it all
+    $('preNote').hidden = !$('csBox').hidden || !$('preNote').textContent; // champ select's own box says it all
     if (!$('csBox').hidden) renderChamps();
     const live = ph !== 'ChampSelect' && (!!league || playing(PHASES[ph])) && (livePlayers.length || (league && league.players && league.players.length));
     $('liveBox').hidden = !live;
@@ -10754,7 +10832,6 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     renderClash(ph);
     renderTier();
-    renderMx();
   }
   // Who is picking (What's new 189): one end time from League's own stamp (internalNowInEpochMs, when it worked out the
   // time left), not from when the session reached Premade; 0 when there's none. The phone counts down to it too.
@@ -15683,7 +15760,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!riotOn || !(c > 0)) return Promise.resolve(old ? old.d : null);
     if (old && performance.now() - old.at < 600000) return old.p;
     const t = { at: performance.now(), d: old ? old.d : null }; // the old answer until the new one comes
-    t.p = fetch(`${serverUrl}/riot/champ?c=${c}&r=${role}${e ? '&t=' + e : ''}`).then((r) => (r.ok ? r.json() : null)).then(topFrom).catch(() => null).then((d) => (t.d = d || t.d));
+    t.p = fetch(`${serverUrl}/riot/champ?c=${c}&r=${role}${e ? '&t=' + e : ''}`).then((r) => (r.ok ? r.json() : null)).then(topFrom).catch(() => null).then((d) => (topsVer++, (t.d = d || t.d)));
     for (const [x, o] of tops) if (t.at - o.at > 1800000) tops.delete(x); // up to 500 games each: drop the ones nothing asked for in half an hour (one in use is asked again every 10 minutes)
     tops.set(k, t);
     return t.p;
@@ -15781,14 +15858,19 @@ dialog.wizard { transform: scale(var(--from)); }
     $('tierEloBox').hidden = !ed;
     $('tierElo').value = e;
     const rows = [...(t.by[role] || [])].filter(([c, [n]]) => n >= 10 && champOf(c)).sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0]));
-    const key = `${role} ${e} ${t.n} ${t.bn} ${rows.join(';')} ${ddVersion}`, bans = t.bn >= 100; // ban rates once 100 games' bans are counted
+    const key = `${role} ${e} ${t.n} ${t.bn} ${rows.join(';')} ${ddVersion} ${tierAll}`, bans = t.bn >= 100; // ban rates once 100 games' bans are counted
     if ($('tierBox').dataset.key === key) return;
     $('tierBox').dataset.key = key;
-    $('tierNote').textContent = `${POS[role]} in ${t.n.toLocaleString('en-US')} ${eloOf(e)} games our server counted from Riot${t.patches.length ? `, patch ${t.patches.map(patchName).join(' and ')}` : ''}.`
-      + (rows.length ? '' : ' No champion has 10 games here yet: more come in every few minutes.');
+    $('tierTipNote').textContent = `${POS[role]} in ${t.n.toLocaleString('en-US')} ${eloOf(e)} games our server counted from Riot${t.patches.length ? `, patch ${t.patches.map(patchName).join(' and ')}` : ''}.`;
+    $('tierNote').hidden = !!rows.length;
+    $('tierNote').textContent = 'No champion has 10 games here yet: more come in every few minutes.';
     $('tierBan').hidden = !bans;
-    $('tierRows').replaceChildren(...rows.map(([c, [n, w]]) => {
-      const tr = document.createElement('tr'), k = TIERS_AT.find(([, min]) => adj(w, n) >= min)[0], trd = trendOf(t, c, role);
+    const tierOf = ([, [n, w]]) => TIERS_AT.find(([, min]) => adj(w, n) >= min)[0], s = rows.filter((r) => tierOf(r) === 'S'), shown = tierAll ? rows : s.length >= 3 ? s : rows.slice(0, 3); // What's new 202: S tier first (3 at least), See more for the rest
+    $('tierMore').hidden = shown.length === rows.length && !tierAll;
+    $('tierMore').textContent = tierAll ? 'See less' : 'See more';
+    $('tierMore').setAttribute('aria-expanded', String(tierAll));
+    $('tierRows').replaceChildren(...shown.map((r) => {
+      const [c, [n, w]] = r, tr = document.createElement('tr'), k = tierOf(r), trd = trendOf(t, c, role);
       tr.innerHTML = '<td><button type="button" class="who champlink"><img class="pic0" alt=""><b></b></button></td><td><span class="tl"></span></td><td></td><td></td><td hidden></td>';
       tr.querySelector('img').src = champImg(c);
       tr.querySelector('b').textContent = champName(c);
@@ -15803,31 +15885,10 @@ dialog.wizard { transform: scale(var(--from)); }
       return tr;
     }));
   }
-  for (const b of $('tierRoles').children) b.addEventListener('click', () => { tierRole = b.dataset.role; renderGame(); });
-  $('tierElo').addEventListener('change', () => { tierElo = $('tierElo').value; renderGame(); });
-  // the matchup explorer (Pregame): any champion against any other in a role (its most played in high elo unless picked),
-  // from the same high elo games: the matchup's tips, with the rune page, spells and build most of those games had. Not
-  // during a game, like all advice here (Riot's rules).
-  function renderMx() {
-    $('mxBox').hidden = !tiers() || (inGameNow() && !loadingNow());
-    if ($('mxBox').hidden) return;
-    const a = champByName($('mxA').value), b = champByName($('mxB').value), A = a ? +a.key : 0, B = b && b !== a ? +b.key : 0;
-    const role = $('mxRole').value || (A ? Object.keys(POS).reduce((x, r) => (recIn(A, r)[0] > recIn(A, x)[0] ? r : x)) : '');
-    const top = A && B ? topNow(A, role, renderGame) : null, vs = ((top && top.all) || []).filter((g) => g.o === B), n = vs.length + (((top && top.yvs && top.yvs[B]) || [])[0] | 0);
-    $('mxNote').textContent = !A || !B ? 'Pick two champions to see how that matchup goes in high elo.' : !top ? 'Loading…'
-      : n < 5 ? `Not enough Challenger and Grandmaster games of ${a.name} ${POS[role].toLowerCase()} against ${b.name} yet: our server adds some every few minutes.` : `${a.name} ${POS[role].toLowerCase()} against ${b.name}:`;
-    renderTips($('mxTips'), A && B ? tipsFor(A, B, role) : null);
-    const pg = top && pageVs(top, B), buys = vs.map((g) => (Array.isArray(g.b) ? g.b.filter((x) => Array.isArray(x) && x.length === 2 && x.every(Number.isInteger)) : [])).filter((x) => x.length);
-    const key = [A, B, role, vs.length, !!ddItems, !!runeNames].join();
-    if ($('mxBuild').dataset.key === key) return;
-    $('mxBuild').dataset.key = key;
-    const bu = ddItems && buys.length >= 5 ? buildFrom(buys) : null, p = (t) => Object.assign(document.createElement('p'), { className: 'hint', textContent: t });
-    $('mxBuild').replaceChildren(...[
-      pg && p(`Runes in this matchup: ${pg.perks.slice(2, 8).map((id) => runeName(id) || `rune ${id}`).join(', ')}${runeName(pg.perks[0]) ? ` (${runeName(pg.perks[0])} with ${runeName(pg.perks[1])})` : ''}, in ${pg.k} of ${pg.n} games, ${pg.w} won.${pg.spells ? ` Spells: ${pg.spells.map((x) => SPELLS[x] || 'a spell').join(' and ')}.` : ''}`),
-      bu && itemRow('Start', bu.start), bu && itemRow('First items, in order', bu.core), bu && itemRow('Boots', bu.boots ? [bu.boots] : []),
-    ].filter(Boolean));
-  }
-  for (const id of ['mxA', 'mxB', 'mxRole']) $(id).addEventListener('input', () => { itemsSoon(); runesSoon(); renderMx(); });
+  let tierAll = false; // See more: every tier, folded again on a role or games change
+  for (const b of $('tierRoles').children) b.addEventListener('click', () => { tierRole = b.dataset.role; tierAll = false; renderGame(); });
+  $('tierElo').addEventListener('change', () => { tierElo = $('tierElo').value; tierAll = false; renderGame(); });
+  $('tierMore').addEventListener('click', () => { tierAll = !tierAll; renderGame(); });
   const vsText = (v) => `${champName(v.c)}, ${pct(v.w / v.n)} won in ${v.n} games${v.gold == null ? '' : ` (${v.gold >= 0 ? '+' : '−'}${Math.abs(v.gold)} gold at 10)`}`;
 
   // ---- matchup tips: playing your champion against their champion in your lane, before the game (champ select and the
@@ -20164,6 +20225,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [202, 'November 23: Pregame: a draft board for every role', [
+      'Both teams and every champion are always there: click a slot, then a face or any champion.',
+      'Every role shows its 3 best picks, and their roles show what beats your team.',
+      'Fill both laners for that lane’s matchup: record, runes, first items and tips.',
+      'The tier list starts with S tier: See more for the rest.',
+    ]],
     [200, 'November 22: a cleaner Game page', [
       'The Game page has no title, status line or CS drill: your game, or your last game’s report, starts at the top.',
       'Your last game’s report opens on Overview instead of How you played.',
@@ -21276,7 +21343,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Bot lane first', 'For an ADC or a support, your lane with your partner and against their bot lane counts 4 times the rest of the draft.', 'On unless you turn it off: the switch beside the top 3, for Bottom and Support.', '#dBotBox', 'app'],
       ['Your duo’s picks', 'The teammate you play the most with gets a Your duo tag, and your games together (your own match history, up to 1,000 games back) count in the picks. Before either of you picks, the top 3 shows your best pairs.', 'Nothing to set up: Premade reads your games while League is open and you’re idle.', '#dTopRows', 'app'],
       ['Who is picking', 'The card of whoever is picking or banning lights up with the time left on it, counting down with League’s own clock.', 'In champ select, on Pregame.', '#csRows', 'app'],
-      ['Try a draft', 'Outside champ select, fill both teams by hand and see the pick helper on that draft: the top 3, the scores and the box beside a teammate. Nothing goes to League.', 'Pregame: Try a draft.', '#tdBox', 'app'],
+      ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup: the high elo record, runes, first items and tips. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
       ['Mock draft helper', 'In a room’s Mock draft, each player on a side sees the top 3 for their side and a score on every champion.', 'Rooms: start a Mock draft and join a side.', '#mdHelp'],
       ['The draft', 'Both teams by role with a score for each champion and each team, and every champion ranked for the role you pick by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
         'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
@@ -21299,8 +21366,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
         'Avoid beside a player in champ select, on Game or in a game report, or type their Riot ID in Pregame settings.', '#avoidForm', 'app'],
       ['ARAM bench', 'In ARAM and ARAM: Mayhem, which bench champion suits you best, with Reroll.', 'In ARAM champ select: click one to take it.', '#bench', 'app'],
-      ['Tier list', 'The strongest champions in each role in high elo (or Emerald and Diamond) this patch, with arrows for the ones rising or falling and how often each is banned. Click a champion for its page.', 'Tier list, on Pregame.', '#tierBox', 'app'],
-      ['Matchup explorer', 'Pick any two champions to see how that matchup goes in high elo: the record, gold and CS at 10 minutes, runes, spells and items. It hides during a game.', 'Matchup explorer, on Pregame.', '#mxA', 'app'],
+      ['Tier list', 'The strongest champions in each role in high elo (or Emerald and Diamond) this patch, S tier first with See more for the rest, with arrows for the ones rising or falling and how often each is banned. Click a champion for its page.', 'Tier list, on Pregame.', '#tierMore', 'app'],
       ['Clash', 'Your next Clash match’s other team: their ranks, recent games and tags.', 'On Pregame while you’re in Clash, once the bracket is out.', '#clashBox', 'app'],
       ['Borderless in one click', 'When League is in Fullscreen, where the overlay can’t show, one button switches it to Borderless through League’s own settings.', 'Switch to Borderless, on Pregame or in your ready check, outside a game.', '#winFix', 'app'],
     ]],
