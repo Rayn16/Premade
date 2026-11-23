@@ -173,8 +173,9 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-avoid')).map((e) => [e.n, e.u])), [['Toxic#EUW', ''], ['Bully#EUW', ''], ['Friend#EUW', 'ally1']]);
     await page.waitForTimeout(1500);
     assert(!(await page.evaluate(() => lpc.toasts().some((t) => /^Friend is on/.test(t)))), 'no popup for someone you just added');
-    // the list in Pregame settings: Friend taken off, a Riot ID added
-    await page.click('#preSet summary');
+    // the list in Settings, Champ select (What's new 207): Friend taken off, a Riot ID added
+    await openPage(page, 'settings');
+    await page.click('#setList [data-sec="champ"]');
     assert.deepStrictEqual(await page.$$eval('#avoidList li b', (l) => l.map((e) => e.textContent)), ['Toxic#EUW', 'Bully#EUW', 'Friend#EUW']);
     await page.locator('#avoidList li', { hasText: 'Friend#EUW' }).getByRole('button', { name: 'Take Friend#EUW off your avoid list' }).click();
     await page.fill('#avoidId', 'Nobody');
@@ -187,6 +188,7 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     await page.click('#avoidForm button');
     await wait(page, () => document.querySelectorAll('#avoidList li').length === 3, null, 'Grumpy added');
     assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-avoid')).map((e) => [e.n, e.u])), [['Toxic#EUW', ''], ['Bully#EUW', ''], ['grumpy#euw', 'grumpy1']], 'with League’s id for them');
+    await openPage(page, 'pregame');
     assert.strictEqual(await (await opened(page, card(page, 'Friend#EUW'))).locator('button.avoid').textContent(), 'Avoid');
     // lock in for you: not with 20 s left, then with 2.5 s left, once
     assert.strictEqual(calls(/actions\/8\/complete/).length, 0, 'plenty of time left');

@@ -100,11 +100,13 @@ const shown = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].fi
     assert(!/aren’t sharing their screen|They use the website/.test(await ana.textContent('#helpList')), 'no screen-share advice for a phone');
     await ana.click('#helpClose');
 
-    // League, Proximity voice: no tracking to set up, and why friends in a game go quiet
-    await nav(bo, 'League').click();
+    // Proximity voice's parts, under the room in League mode (What's new 207): no tracking to set up, and why friends
+    // in a game go quiet
+    await ana.click('#lolBtn');
     await bo.waitForFunction(() => /A phone isn’t on the map/.test(document.getElementById('offmap').textContent), null, { timeout: 5000 });
+    assert(await bo.isVisible('#proxRoom'), 'under the room on the phone too');
     assert.deepStrictEqual(await shown(bo, '#shareBtn, #sbVersion'), [], 'no League screen share on a phone');
-    await nav(bo, 'Rooms').click();
+    await ana.click('#lolBtn');
 
     assert(await bo.isHidden('#chatText'), 'no room chat on the room page (What’s new 152)');
 

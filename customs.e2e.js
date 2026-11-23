@@ -160,10 +160,11 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     const friend = await player(browser, 'Friend', { foeTimers: true });
     await join(friend, ROOM);
     await wait(rayan, () => lpc.peers().length === 1 && lpc.peers()[0].name === 'Friend', null, 'Friend in the room');
-    // the timers and coach settings on the Overlay page (In game and Callouts), off until turned on
-    await openPage(friend, 'overlay');
+    // the timers and coach settings in Settings, Overlay (In game) and Callouts (From the game), off until turned on
+    await openPage(friend, 'settings');
+    await friend.click('#setList [data-sec="callouts"]');
     assert.deepStrictEqual(await friend.evaluate(() => ['optFoeTimers', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock'].map((id) => document.getElementById(id).checked)), [true, false, false, false, false]);
-    assert.match(await friend.textContent('#h-ovcalls'), /Callouts/);
+    assert(await friend.isVisible('#optSpikeCall') && await friend.isHidden('#optFoeTimers'), 'Callouts on its own, the enemy spell strip in Overlay');
 
     // ---- a normal game, both in it, on the same team
     for (const p of [rayan, friend]) await feed(p, game(600, SR()));
@@ -299,11 +300,12 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     await wait(friend, () => lpc.customs().length === 1, null, 'the custom game on Friend’s page');
     assert.deepStrictEqual(await rayan.evaluate(() => lpc.customs().map(({ id, w, l }) => ({ id, w, l }))), [{ id: 5001, w: [['Rayan#EUW', 'Ahri'], ['Friend#EUW', 'Jinx']], l: [['Zedd#EUW', 'Zed'], ['Jungler#EUW', 'LeeSin']] }]);
     assert.deepStrictEqual(await friend.evaluate(() => lpc.inhouse().map((e) => [e.name, Math.round(e.r), e.w, e.l])), [['Rayan#EUW', 1016, 1, 0], ['Friend#EUW', 1016, 1, 0], ['Zedd#EUW', 984, 0, 1], ['Jungler#EUW', 984, 0, 1]]);
-    await openPage(friend, 'prox');
-    await wait(friend, () => document.getElementById('ladderList').textContent.includes('Rayan: 1016 · 1W 0L'), null, 'the ladder on Friend’s Voice page');
+    await openPage(friend, 'voice');
+    await wait(friend, () => document.getElementById('ladderList').textContent.includes('Rayan: 1016 · 1W 0L'), null, 'the ladder on Friend’s page');
     // Balance teams by the ladder: both of them are on it
     await wait(rayan, () => lpc.peers()[0].ready && lpc.lcu().me0, null, 'Friend’s Riot ID');
-    await openPage(rayan, 'prox');
+    await openPage(rayan, 'voice');
+    await rayan.click('#lolBtn'); // League mode on: Proximity voice's parts under the room (What's new 207)
     await rayan.click('#teamsBtn');
     await wait(friend, () => /on the ladder/.test(document.getElementById('teamsBox').textContent), null, 'teams by the ladder');
     for (const who of ['Rayan', 'Friend']) assert.match(await friend.textContent('#teamsBox'), new RegExp(`${who}( \\(you\\))?: 1016 on the ladder`));

@@ -201,7 +201,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.deepStrictEqual(await board(ray), [['Rayan (you): Gold I in Solo/Duo, 110 LP to go', 190, 300], ['Duo: Platinum IV in Solo/Duo, 410 LP to go', 0, 410]]);
     await wait(duo, () => document.querySelectorAll('#goalRows li').length === 2, null, 'the goal board on Duo’s page');
     assert.deepStrictEqual((await board(duo)).map(([t]) => t), ['Rayan: Gold I in Solo/Duo, 110 LP to go', 'Duo (you): Platinum IV in Solo/Duo, 410 LP to go']);
-    await openPage(ray, 'prox');
+    await ray.click('#lolBtn'); // League mode on: Proximity voice's parts under the room (What's new 207)
     await ray.click('#bestBtn');
     await wait(ray, () => !document.getElementById('rolesBox').hidden, null, 'the roles');
     assert.strictEqual(await text(ray, '#rolesMine'), 'Your role: Middle. Best roles: from everyone’s wins in each role lately.');
@@ -209,6 +209,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await toast(duo, 'Best roles: you’re Jungle.', 'Duo’s role');
     assert(await duo.locator('#bestBtn').isDisabled(), 'the host hands them out');
     await shot(ray, 'group-room');
+    await ray.click('#lolBtn'); // and off again, as the room was
     console.log('room: the goal board (110 and 410 LP to go) and Best roles, Rayan in the middle and Duo in the jungle');
 
     // ---- Friends: Rayan's League friends, Duo with Premade open and Sleepy without; Duo invited to Rayan's room and
@@ -306,6 +307,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     // ---- Discord: the link checked, a test post; then a ranked game pings the squad when it starts and when Rayan ranks
     // up after it, and posts the result in Discord
     await openPage(ray, 'settings');
+    await ray.click('#setList [data-sec="league"]'); // Settings, League, Your Discord server (What's new 207)
     await ray.fill('#optHook', 'https://example.com/hook');
     await ray.locator('#optHook').dispatchEvent('change');
     assert.match(await text(ray, '#hookNote'), /^That isn’t a Discord webhook link/);

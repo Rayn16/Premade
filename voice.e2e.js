@@ -144,7 +144,8 @@ function fakeSpeakers() {
 let pic = ''; // Data Dragon's picture of "Test Champ" (and every other champion): Ben's drawn icon
 // Data Dragon's champions: Test Champ and 21 more for the room games' draft, each with a story (blurb)
 const story = (n) => `${n} grew up far from the test servers. Every tale about ${n} starts with a long walk, and this one goes on a while.`;
-const toProx = async (p) => { await openPage(p, 'prox'); }; // League, Proximity voice: the map, modes, room games, tracking
+const toProx = (p) => openPage(p, 'voice'); // Proximity voice's parts (the map, modes, room games, tracking): under the room while its League mode is on (What's new 207)
+const openSet = async (p, sec) => { await openPage(p, 'settings'); await p.click(`#setList [data-sec="${sec}"]`); }; // a section of Settings
 const toRooms = (p) => openPage(p, 'voice');
 // the room chat is off the page since What's new 152, but the overlay, the phone remote and Send to my room still use it
 const say = (p, t) => p.evaluate((t) => { document.getElementById('chatText').value = t; document.getElementById('chatForm').requestSubmit(); }, t);
@@ -260,7 +261,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ana.isVisible('#wCreate') && await ana.isVisible('#wLeague'), 'it ends with a room with friends, and how League finds you one');
     await ana.click('#wNext');
     assert(!(await ana.evaluate(() => document.getElementById('setup').open)) && await ana.evaluate(() => localStorage.getItem('lpc-setup') === '1' && localStorage.getItem('lpc-name') === 'Ana' && localStorage.getItem('lpc-plays') === 'league'), 'wizard done and remembered');
-    assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id === 'micHome' && el.closest('main > .view').dataset.view === 'voice'), 'mic settings back in Voice settings');
+    assert(await ana.isVisible('#micTest') === false && await ana.locator('#micBox').evaluate((el) => el.parentElement.id === 'micHome' && el.closest('main > .view').dataset.view === 'settings'), 'mic settings back in Settings, Voice');
     console.log('setup wizard: name, mic test and screen check (found Ana\'s minimap)');
     // who has Premade: Ana's page told our server when it opened, and again with the name she picked
     const hi = ana.context().hellos;
@@ -309,7 +310,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isVisible('#premadeList') && await ana.isHidden('#leagueList'), 'Rooms first');
     assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Settings', 'League'], 'the menu in a browser: hangout pages, then League (no Aion 2: Ana ticked only League, What’s new 184)');
     await ana.click('#leagueNav');
-    assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
+    assert(await ana.isVisible('.view[data-view="profile"]'), 'League opens on Profile (What’s new 207: no Proximity voice page)');
     await openPage(ana, 'profile');
     assert.match(await ana.textContent('#proNote'), /^Your League profile shows up here in the desktop app while League is open/);
     assert.deepStrictEqual(await Promise.all(['#proApp', '#proFindBox', '#proRanks', '#proStatus'].map((s) => ana.isVisible(s))), [true, false, false, false], 'the app link and nothing else');
@@ -474,11 +475,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // screen share: Ana shares again (her real minimap through the browser's video pipeline)
     await ana.selectOption('#optShareQ', '720');
     await ben.selectOption('#optShareQ', '720'); // keep the test's reciprocal room shares light on the headless browser
-    await toProx(ana); await toProx(ben);
+    await toRooms(ana); await toRooms(ben);
+    await ana.click('#lolBtn'); // League mode on for now: Share League screen is under the room in it (What's new 207)
     await ana.click('#shareBtn');
     await ben.evaluate(() => setBox(0.4, 0.6));
     await ben.click('#shareBtn');
-    await toRooms(ana); await toRooms(ben);
+    await ana.click('#lolBtn'); // and off again, as a new room's is
     await waitFor(ana, () => lpc.seen().some((s) => s.name === 'Ben' && s.video > 0), null, 'Ben’s screen shown in Ana’s Voice page');
     await waitFor(ben, () => lpc.seen().some((s) => s.name === 'Ana' && s.video > 0), null, 'Ana’s screen shown in Ben’s Voice page');
     await ana.evaluate(() => lpc.screenStall('Ben'));
@@ -510,11 +512,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     await hears(ana, ['Ben'], 1, 'Ben close by: full volume');
     await hears(ben, ['Ana'], 1, 'Ana close by: full volume');
-    await toProx(ana);
-    await waitFor(ana, () => lpc.map().some((m) => m.name === 'You') && lpc.map().some((m) => m.name === 'Ben'), null, 'Ana and Ben on the live map'); // it's drawn once a second
-    const marks = await ana.evaluate(() => lpc.map());
-    assert(marks.some((m) => m.name === 'You' && Math.abs(m.x - me.x) < 0.01) && marks.some((m) => m.name === 'Ben'), `live map shows Ana and Ben: ${JSON.stringify(marks)}`);
-    console.log('live map: Ana and Ben on it');
 
     await ben.evaluate(() => setBox(0.85, 0.15)); // Ben's camera jumps onto Ben's champion: the page learns that icon
     await waitFor(ben, () => lpc.me().by === 'icon', null, 'Ben followed by the champion icon');
@@ -529,6 +526,11 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
       && document.getElementById('roomView').hasAttribute('data-game'), null, 'League mode on for Ben, with a notice and the game layout');
     console.log('League mode: off in a new room (full volume across the map, normal layout), only the host flips it, on for everyone with a notice');
     await toProx(ana);
+    await waitFor(ana, () => lpc.map().some((m) => m.name === 'You') && lpc.map().some((m) => m.name === 'Ben'), null, 'Ana and Ben on the live map'); // it's drawn once a second
+    const marks = await ana.evaluate(() => lpc.map());
+    assert(marks.some((m) => m.name === 'You' && Math.abs(m.x - me.x) < 0.01) && marks.some((m) => m.name === 'Ben'), `live map shows Ana and Ben: ${JSON.stringify(marks)}`);
+    assert(await ana.isVisible('#proxRoom') && await ana.isVisible('#map'), 'the live map under the room in League mode');
+    console.log('live map: Ana and Ben on it, under the room');
     await hears(ana, ['Ben'], 0, 'Ben across the map: silent');
     await hears(ben, ['Ana'], 0, 'Ana across the map: silent');
     assert.strictEqual((await volOf(ana, 'Ben')).volume, 0, 'audio element muted by distance');
@@ -626,8 +628,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ben.keyboard.press('Control+Shift+M');
     assert(await ben.evaluate(() => lpc.micOn()), 'and unmutes');
     assert.deepStrictEqual((await ben.evaluate(() => lpc.played())).slice(-2), ['mute', 'unmute'], 'a beep down for mute, up for unmute');
-    await openPage(ben, 'voice');
-    await ben.click('#voiceSet > summary'); // Voice settings, under the room
+    await openSet(ben, 'voice'); // Settings, Voice (What's new 207)
     assert.strictEqual(await ben.textContent('#talkNote'), 'In a browser these work while this page is in front.');
     await ben.click('[data-key="mute"]');
     await ben.keyboard.press('KeyR');
@@ -644,7 +645,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(!(await ben.evaluate(() => lpc.micOn())), 'push to talk: off when let go');
     await ben.click('#pttOff');
     assert(await ben.evaluate(() => lpc.micOn()), 'open mic again');
-    await ben.click('#voiceSet > summary');
     console.log('shortcuts: mute toggle and push to talk');
 
     // Ben stops sharing: Ana is in a game (her minimap is tracked), so Ben, whose spot isn't known now, is silent both ways
@@ -1039,7 +1039,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // light theme and a help tip
     await ana.context().route('**/riot/summary*', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
-    await openPage(ana, 'settings');
+    await openSet(ana, 'app'); // Our server, at the foot of Settings, App
     await ana.waitForSelector('#serverBox', { state: 'visible' });
     assert.strictEqual(await ana.textContent('#serverToday'), 'Today: 3 players in 2 rooms. Busiest day of the last two weeks: 7 players.');
     await ana.waitForSelector('#serverRiot', { state: 'visible' });
@@ -1103,6 +1103,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await op.context().close();
     console.log('who has Premade: a wrong key turned away, then the list with each device\'s accounts, name and app, the key kept and only sent to our server, on who.html and in Settings');
     // themes: red and black by default, Light, your own main colour, Custom, Light with the computer's light mode
+    await openSet(ana, 'look');
     const look = (...ks) => ana.evaluate((ks) => { const c = getComputedStyle(document.documentElement); return ks.map((k) => c.getPropertyValue('--' + k).trim()); }, ks);
     assert.deepStrictEqual([await ana.evaluate(() => document.documentElement.dataset.theme), ...await look('bg', 'accent')], ['red', '#0b0809', '#d9202d'], 'red and black at first');
     assert.strictEqual(await ana.$$eval('.sw', (l) => l.map((e) => getComputedStyle(e).backgroundColor).join(' ')), 'rgb(11, 8, 9) rgb(1, 10, 19) rgb(242, 238, 228) rgb(12, 9, 19) rgb(7, 16, 13) rgb(0, 0, 0) rgb(11, 8, 9)', 'each theme’s card in its own colours');
@@ -1138,14 +1139,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ana.check('input[name="theme"][value="light"]');
     assert.strictEqual(await ana.evaluate(() => document.documentElement.dataset.theme), 'light');
     await shot(ana, 'ana-settings-light');
-    await openPage(ana, 'voice');
-    await ana.click('#voiceSet > summary');
+    await openSet(ana, 'voice');
     await ana.click('.tip[popovertarget="t-gate"]');
     assert(await ana.evaluate(() => document.getElementById('t-gate').matches(':popover-open')), 'help tip opens');
     await ana.keyboard.press('Escape');
     await shot(ana, 'ana-voice-light');
-    await ana.click('#voiceSet > summary');
-    await openPage(ana, 'settings');
+    await openSet(ana, 'look');
     await ana.check('input[name="theme"][value="red"]');
     await openPage(ana, 'voice');
     console.log('themes and help tips');
@@ -1180,8 +1179,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await ivy.context().addInitScript(fakeVoice, 1.2);
     await ivy.context().addInitScript(() => Object.defineProperty(MediaStreamTrack.prototype, 'label', { get: () => 'Headset (WH-1000XM4 Hands-Free AG Audio)' }));
     await ivy.goto(URL_);
-    await openPage(ivy, 'voice');
-    await ivy.click('#voiceSet > summary'); // the mic stays open while its meter is in sight
+    await openSet(ivy, 'voice'); // the mic stays open while its meter is in sight
     await ivy.click('#micTest');
     await waitFor(ivy, () => lpc.checks().bt && lpc.checks().btNote && lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')), null, 'Ivy’s Bluetooth mic spotted');
     await waitFor(ivy, () => lpc.checks().clip && /^Your mic is too loud/.test(lpc.checks().coach), null, 'Ivy’s mic clipping');
@@ -1191,8 +1189,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(ivy, () => /^Noise gate set to 2%/.test(lpc.checks().coach), null, 'the gate set from a quiet room');
     assert.strictEqual(await ivy.inputValue('#gate'), '0.02');
     await ivy.reload();
-    await openPage(ivy, 'voice');
-    await ivy.click('#voiceSet > summary');
+    await openSet(ivy, 'voice');
     await ivy.click('#micTest');
     await waitFor(ivy, () => lpc.checks().btNote, null, 'the note by Ivy’s mic again');
     assert(!(await ivy.evaluate(() => lpc.toasts().some((t) => t.startsWith('Your mic is in phone quality')))) && (await ivy.inputValue('#gate')) === '0.02', 'the popup only once for that mic; the gate kept');
@@ -1209,19 +1206,18 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
       navigator.mediaDevices.enumerateDevices = async () => (await list()).map((d) => (d.kind === 'audioinput' && d.deviceId === 'default' ? { kind: d.kind, deviceId: d.deviceId, groupId: d.groupId, label: 'Default - Headset (WH-1000XM4)' } : d));
     });
     await bo.goto(URL_);
-    await openPage(bo, 'voice');
-    await bo.click('#voiceSet > summary');
+    await openSet(bo, 'voice');
     await bo.click('#micTest');
     await waitFor(bo, () => lpc.raw() && lpc.toasts().some((t) => /^Premade now uses Fake Audio Input 1 as your mic: your Bluetooth headset’s own mic/.test(t)), null, 'Bo’s other mic used');
     assert(await bo.evaluate(() => { const t = lpc.raw().getAudioTracks()[0]; return t.label === 'Fake Audio Input 1' && localStorage.getItem('lpc-mic') === t.getSettings().deviceId && !lpc.checks().bt; }), 'Bo’s mic is the other one, kept as Bo’s pick');
-    await waitFor(bo, () => lpc.toasts().includes('Windows is set to turn every other sound down by 80% while you’re in voice chat, your game too, and it can make your friends’ voices quiet as well. Voice settings, Microphone can turn that off.') && !document.getElementById('duckNote').hidden, null, 'Bo told about Windows turning sounds down');
+    await waitFor(bo, () => lpc.toasts().includes('Windows is set to turn every other sound down by 80% while you’re in voice chat, your game too, and it can make your friends’ voices quiet as well. Settings, Voice, Microphone can turn that off.') && !document.getElementById('duckNote').hidden, null, 'Bo told about Windows turning sounds down');
     await bo.click('#duckFix');
     assert(await bo.evaluate(() => lpcClient.calls.some((c) => c[0] === 'sound-settings')), 'Open opens Windows’ Communications setting');
     await bo.evaluate(() => { window.duck = 3; window.dispatchEvent(new Event('focus')); }); // Bo picked Do nothing
     await waitFor(bo, () => document.getElementById('duckNote').hidden, null, 'the note gone once Windows does nothing');
     await bo.evaluate(() => { window.boMic = lpc.raw().getAudioTracks()[0]; });
-    await bo.click('#voiceSet > summary');
-    await waitFor(bo, () => !lpc.raw() && window.boMic.readyState === 'ended' && !document.getElementById('micTest').hidden, null, 'Bo’s mic closed with Voice settings');
+    await openPage(bo, 'voice'); // Settings, Voice out of sight
+    await waitFor(bo, () => !lpc.raw() && window.boMic.readyState === 'ended' && !document.getElementById('micTest').hidden, null, 'Bo’s mic closed with Settings, Voice');
     await bo.context().close();
     console.log('Bluetooth headset mic: another mic used instead; the mic closed once out of sight');
 
@@ -1427,7 +1423,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await hal.goto(URL_);
     const navH = () => hal.$eval('.nav', (n) => n.getBoundingClientRect().height);
     const fills = () => hal.evaluate(() => document.querySelector('.app').getBoundingClientRect().height === innerHeight && document.documentElement.scrollHeight === innerHeight);
-    await openPage(hal, 'settings');
+    await openSet(hal, 'look');
     const h100 = await navH();
     await hal.fill('#optZoom', '1.5');
     assert.strictEqual(await hal.textContent('#zoomOut'), '150%');

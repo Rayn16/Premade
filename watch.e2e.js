@@ -165,8 +165,10 @@ const box = (page) => page.evaluate(() => { const b = document.getElementById('w
     assert(c.x < 640 && c.y < 450 && await ana.evaluate(() => localStorage.getItem('lpc-wt-corner')) === 'tl', `dragged to the top left: ${JSON.stringify(c)}`);
     await ana.click('#wtBack');
     await waitFor(ana, () => !document.getElementById('wtBox').classList.contains('corner'), null, 'docked again on Back to the room');
+    await ana.setViewportSize({ width: 1280, height: 640 }); // a window short enough to scroll the player away (the room lost its settings in What's new 207)
     await ana.evaluate(() => { document.querySelector('main').scrollTop = 1e5; });
     await waitFor(ana, () => document.getElementById('wtBox').classList.contains('corner'), null, 'the corner player when scrolled away');
+    await ana.setViewportSize({ width: 1280, height: 900 });
     await ana.evaluate(() => { document.querySelector('main').scrollTop = 0; });
     await waitFor(ana, () => !document.getElementById('wtBox').classList.contains('corner'), null, 'docked when scrolled back');
     assert.strictEqual(await ana.evaluate(() => ytFake.made), made, 'the YouTube frame was never made again');

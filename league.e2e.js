@@ -37,6 +37,7 @@ const http = require('http');
 const assert = require('assert');
 const { PeerServer } = require('peer');
 const { chromium } = require('playwright');
+const openSet = async (p, sec) => { await openPage(p, 'settings'); await p.click(`#setList [data-sec="${sec}"]`); }; // a section of Settings (What's new 207)
 const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}"]`))) await p.click('#leagueNav'); await p.click(`.nav[data-view="${v}"]`); }; // the sidebar shows Premade's or League's list (What's new 178): swap it if the page isn't on it
 
 const SITE = path.join(__dirname, 'site');
@@ -820,7 +821,7 @@ const leagueData = (over = {}) => ({
       return name;
     });
     const league = (d) => pc.evaluate((d) => lpcClient.emit('league', d), d);
-    const preSettings = async () => { await openPage(pc, 'pregame'); if (!(await pc.$eval('#preSet', (d) => d.open))) await pc.click('#preSet summary'); }; // Pregame settings, opened
+    const preSettings = () => openSet(pc, 'champ'); // Settings, Champ select (Pregame settings until What's new 207)
     await pc.goto(URL_);
     await wait(pc, () => window.lpc, null, 'the page');
     lcu.phase = 'None';
@@ -978,7 +979,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo and Flex tabs (no TFT tab: What’s new 203)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Clips', 'Premade'], 'League’s pages in the sidebar on Profile, in the app');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Pregame', 'Game', 'Stats', 'TFT', 'Clips', 'Premade'], 'League’s pages in the sidebar on Profile, in the app (no Proximity voice or Overlay: What’s new 207)');
     // RE4 co-op: the helper's checks drawn as rows, and Play's answer
     await openPage(pc, 're4');
     await wait(pc, () => document.getElementById('re4Role').textContent === 'Host · Tailscale 100.101.102.103' && !document.getElementById('re4SignIn').hidden && document.querySelectorAll('#re4Conn .re4row .dot[data-h="good"]').length === 1
@@ -1127,18 +1128,54 @@ const leagueData = (over = {}) => ({
     await pc.click('#tdClear');
     await wait(pc, () => document.querySelectorAll('#tdBans .bq.none').length === 5 && !document.querySelector('#tdUs img.tart') && document.getElementById('tdClear').disabled, null, 'Clear empties the bans too');
     console.log('ban ideas: 3 from the team you build, a ban greys out everywhere, its x takes it back, 5 in stops the ideas, Clear; slots as splash cards');
+    // Settings (What's new 207): its sections down the left, one shown at a time, opening on the one used last; a
+    // setting flipped in each, saved and doing what it says
     await openPage(pc, 'settings');
-    // its boxes stack with no holes: each is at the top or 16px under the one above it in its column
-    // (measured once the page's ResizeObserver has given every box its rows for the height it has now, not mid-layout)
-    const holes = await pc.$$eval('.view[data-view="settings"] .settings > *', async (l) => {
-      l = l.filter((p) => p.offsetParent);
-      const laidOut = () => l.every((p) => p.style.gridRowEnd === `span ${Math.ceil(p.getBoundingClientRect().height) + 16}`);
-      for (let i = 0; i < 120 && !laidOut(); i++) await new Promise(requestAnimationFrame);
-      if (!laidOut()) return 'never laid out';
-      const r = l.map((p) => p.getBoundingClientRect()), top = Math.min(...r.map((b) => b.top));
-      return r.filter((b) => b.top > top && !r.some((a) => a.left === b.left && b.top - a.bottom >= 16 && b.top - a.bottom < 17.5)).length;
-    });
-    assert.strictEqual(holes, 0, 'Settings boxes with a hole above them');
+    const secShown = () => pc.$$eval('.setsec', (l) => l.filter((x) => !x.hidden).map((x) => x.dataset.sec)), optNow = (k) => pc.evaluate((k) => JSON.parse(localStorage.getItem('lpc-opts'))[k], k);
+    assert.deepStrictEqual(await pc.$$eval('#setList [data-sec]', (b) => b.filter((x) => x.checkVisibility()).map((x) => x.textContent.trim())), ['Overlay', 'Callouts', 'Champ select', 'Clips', 'Voice', 'League', 'Look', 'App'], 'every section in the app with League’s client');
+    assert.deepStrictEqual(await secShown(), ['overlay'], 'Overlay the first time');
+    await pc.check('#optMayhemAugs');
+    assert(await optNow('mayhemAugs') === true && await pc.isVisible('#optMayhemRating'), 'Overlay: Mayhem augment ratings on, saved, its choice showing');
+    await pc.uncheck('#optMayhemAugs');
+    await pc.click('#setList [data-sec="callouts"]');
+    assert.deepStrictEqual(await secShown(), ['callouts'], 'one section at a time');
+    await pc.check('#optSpeakCalls');
+    assert(await optNow('speakCalls') === true && await pc.isVisible('#optCallVoice'), 'Callouts: Read them out loud on, saved, its voice showing');
+    await pc.uncheck('#optSpeakCalls');
+    await pc.click('#setList [data-sec="champ"]');
+    await pc.uncheck('#optRunes');
+    assert(await optNow('runes') === false && await pc.isHidden('#optRuneSrc'), 'Champ select: runes off, saved, their choices hidden');
+    await pc.check('#optRunes');
+    await pc.click('#setList [data-sec="clips"]');
+    const [qWas, qNote] = [await pc.inputValue('#optClipQ'), await pc.textContent('#clipQNote')];
+    await pc.selectOption('#optClipQ', '720');
+    assert(await optNow('clipQ') === '720' && await pc.textContent('#clipQNote') !== qNote, 'Clips: 720p saved, and the size of 30 minutes follows');
+    await pc.selectOption('#optClipQ', qWas);
+    await pc.click('#setList [data-sec="voice"]');
+    await pc.uncheck('#optSurround');
+    assert.strictEqual(await optNow('surround'), false, 'Voice: 3D sound off, saved');
+    await pc.check('#optSurround');
+    const rangeWas = await pc.inputValue('#range'), setRange = (v) => pc.$eval('#range', (el, v) => { el.value = v; el.dispatchEvent(new Event('input')); }, v);
+    await setRange('1500');
+    assert(await pc.textContent('#rangeOut') === '1,500 units' && await pc.evaluate(() => localStorage.getItem('lpc-range')) === '1500', 'Voice: the hearing range kept, and shown');
+    await setRange(rangeWas);
+    await pc.click('#setList [data-sec="league"]');
+    await pc.check('#optRecord');
+    assert(await optNow('record') === true && await pc.evaluate(() => lpcClient.calls.includes('record true')), 'League: test recordings on, saved, and the app told');
+    await pc.uncheck('#optRecord');
+    await pc.click('#setList [data-sec="look"]');
+    await pc.fill('#optZoom', '1.25');
+    assert(await optNow('zoom') === 1.25 && await pc.evaluate(() => document.documentElement.style.getPropertyValue('--zoom')) === '1.25', 'Look: the app at 125%, saved');
+    await pc.fill('#optZoom', '1');
+    await pc.click('#setList [data-sec="app"]');
+    await pc.check('#optJustLeague');
+    assert(await optNow('justLeague') === true && await pc.evaluate(() => document.documentElement.classList.contains('just-league')) && await pc.isHidden('#setList [data-sec="voice"]'), 'App: Just League on, saved, and no Voice section');
+    await pc.uncheck('#optJustLeague');
+    assert(await pc.isVisible('#setList [data-sec="voice"]'), 'Voice back with rooms');
+    await openPage(pc, 'profile');
+    await openPage(pc, 'settings');
+    assert.deepStrictEqual(await secShown(), ['app'], 'Settings opens on the section used last');
+    console.log('Settings: 8 sections, one at a time, opening on the last; a setting in each saved and working');
     await preSettings();
     await pc.check('#optRemote');
     await openPage(pc, 'voice');
@@ -1785,7 +1822,7 @@ const leagueData = (over = {}) => ({
     await pc.evaluate(() => dispatchEvent(new Event('blur')));
     await wait(pc, () => !!(lpcClient.lastOverlay.board || {}).us, null, 'everyone’s rank back once you go back to League');
     await pc.click('#proBack');
-    await openPage(pc, 'overlay');
+    await openSet(pc, 'overlay');
     await wait(pc, () => lpcClient.lastOverlay.board && lpcClient.lastOverlay.prog === true, null, 'the mouse reaches the overlay for the stats’ boxes');
     assert.strictEqual(await pc.locator('#optBoardLook').count(), 0, 'What’s new 205: no Look picker, one look');
     await pc.uncheck('#optOverlayBoard');
@@ -1845,7 +1882,7 @@ const leagueData = (over = {}) => ({
       && document.querySelectorAll('#gTeam li').length === 5 && document.querySelectorAll('#gThem li').length === 5 && /LP/.test(document.getElementById('gThem').textContent), null, 'the game on the phone');
     assert(await phone.evaluate(() => /^You/.test(document.querySelector('#gTeam li[data-me]').textContent)), 'you are marked on the phone');
     // the overlay picker, see-through slider and key
-    await openPage(pc, 'overlay');
+    await openSet(pc, 'overlay');
     await pc.uncheck('#optOverlayCs');
     await wait(pc, () => lpcClient.lastOverlay.cs === '' && !!lpcClient.lastOverlay.game, null, 'the CS counter off the overlay');
     await pc.check('#optOverlayCs');
@@ -1969,8 +2006,8 @@ const leagueData = (over = {}) => ({
     assert(look.art.endsWith('/cdn/img/champion/splash/Ahri_20.jpg') && look.s === 20 && look.pics === 4 && look.day === 'Today 1', `the row's look: ${JSON.stringify(look)}`);
     await pc.$eval('#clipGrid .cgart', (i) => i.dispatchEvent(new Event('error')));
     assert.match(await pc.getAttribute('#clipGrid .cgart', 'src'), /\/splash\/Ahri_0\.jpg$/, 'no art for that skin: the base splash');
-    // the strip: Record every match, Keep only the highlights and the clip key at the top, All settings for the rest
-    assert(await pc.evaluate(() => ['optGameVideo', 'optGameHigh', 'kClip'].every((id) => document.getElementById(id).closest('.clipstrip') && !document.getElementById(id).closest('#clipSet'))), 'the key switches in the strip');
+    // the strip: Record every match, Keep only the highlights and the clip key at the top, Settings, Clips for the rest
+    assert(await pc.evaluate(() => ['optGameVideo', 'optGameHigh', 'kClip'].every((id) => document.getElementById(id).closest('.clipstrip'))), 'the key switches in the strip');
     await pc.click('#clipGrid .cghead'); // the game's row, clicked open
     const card = (n) => `#clipGrid .clip:has(.cname:text-is("${n}"))`, menu = async (n, b) => { await pc.click(`${card(n)} .cmore > summary`); await pc.click(`${card(n)} .${b}`); };
     await wait(pc, () => document.querySelector('#clipGrid .clip .kda img'), null, 'the champion on each card');
@@ -2099,11 +2136,11 @@ const leagueData = (over = {}) => ({
     }
     await shot(pc, 'clips');
     console.log(`clip gallery: pictures, kept, renamed, dragged out, a ${cutLen.toFixed(1)} s cut from the trimmer, binned`);
-    // Clip settings, under the gallery; clips by voice: Record my phrase writes down what the mic says, and then saying it
+    // Settings, Clips (What's new 207); clips by voice: Record my phrase writes down what the mic says, and then saying it
     // saves a clip. (Vosk, in a worker, slow on a busy container.)
     assert.strictEqual(await text(pc, '#kClip'), 'Ctrl+Shift+K');
-    await pc.click('#clipSet > summary'); // All settings
-    assert(await pc.isVisible('#optClipLen') && await pc.isVisible('#optClipVoice'), 'All settings opens the rest');
+    await openSet(pc, 'clips');
+    assert(await pc.isVisible('#optClipLen') && await pc.isVisible('#optClipVoice'), 'Settings, Clips has the rest');
     await pc.click('#phraseRec');
     await wait(pc, () => document.getElementById('voiceNote').textContent === 'Your phrase is “that was sick”. Press Test to try it.', null, 'your phrase recorded', 90000);
     assert.strictEqual(await pc.inputValue('#optClipPhrase'), 'that was sick');
@@ -2396,7 +2433,8 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(callsTo(/^\/lol-spectator\/v1\/spectate\/launch$/, 'POST')[0][2], { allowObserveMode: 'ALL', dropInSpectateGameId: 'Friend', gameQueueType: '', puuid: 'ally1', spectatorKey: '' });
     // room games with League's ranks: the balanced teams show everyone's Solo/Duo rank, and role roulette's role goes
     // into League's lobby in one click
-    await openPage(pc, 'prox'); // Balance teams and Role roulette are on Proximity voice
+    await openPage(pc, 'voice');
+    await pc.click('#lolBtn'); // League mode on: Balance teams and Role roulette are under the room in it (What's new 207)
     await pc.click('#teamsBtn');
     await wait(pc, () => { const t = document.getElementById('teamsBox').textContent; return /Rayan \(you\): Gold II · 63 LP/.test(t) && /Fren: Platinum IV · 12 LP/.test(t) && /about Gold II/.test(t) && /about Platinum IV/.test(t); }, null, 'the teams with ranks');
     await wait(fr, () => /Rayan: Gold II · 63 LP/.test(document.getElementById('teamsBox').textContent), null, 'the teams on the friend’s page');
@@ -2414,12 +2452,14 @@ const leagueData = (over = {}) => ({
     await wait(pc, (r) => lpc.toasts().includes(`League: ${r} first, Fill second.`), ROLE, 'the role toast');
     console.log(`room games: teams with ranks, and ${ROLE} set in League’s lobby`);
     await shot(pc, 'room-friend');
+    await pc.click('#lolBtn'); // League mode off again, as the room was
     await fctx.close();
     console.log('a friend in the room: Platinum IV, 13W 7L together, and Watch opens their game');
 
     // ---- another champ select: over the app's own rune page, Flash on F
     await preSettings();
     await pc.selectOption('#optFlash', 'F');
+    await openPage(pc, 'pregame');
     lcu.lpNote = null;
     const cs2 = lcu.calls.length;
     champSelect(778, { championId: 99 });
@@ -2522,9 +2562,9 @@ const leagueData = (over = {}) => ({
     await pc.uncheck('#optClipsAll');
     await wait(pc, () => !lpc.clips().on, null, 'Clip anywhere off lets the screen go');
     console.log('clip anywhere: the clip key outside League saved a Screen clip, listed on the Recording page');
-    await openPage(pc, 'settings');
+    await openSet(pc, 'league');
     await shot(pc, 'settings');
-    // the patch check, the performance meter and test recordings
+    // the patch check, the performance meter (Settings, App) and test recordings (Settings, League)
     await wait(pc, () => /^Patch check for League 14\.20: League’s game data ✓, champ select ✓, match history ✓/.test(document.getElementById('patchNote').textContent), null, 'the patch check');
     await wait(pc, () => /^Right now the app uses 3\.2% of your CPU and 412 MB of memory\. Recording for clips: (on|only during a game)\. Smart noise removal: off\.$/.test(document.getElementById('perf').textContent), null, 'the performance meter');
     await pc.check('#optRecord');
@@ -2583,7 +2623,7 @@ const leagueData = (over = {}) => ({
     await p3ctx.close();
     console.log('phone remote: from the home screen with its kept code, and from a pasted link');
     // backup and restore: everything but the phone remote's code, back in after a reload
-    await openPage(pc, 'settings');
+    await openSet(pc, 'app');
     const [bk] = await Promise.all([pc.waitForEvent('download'), pc.click('#backupBtn')]);
     const backup = JSON.parse(fs.readFileSync(await bk.path(), 'utf8'));
     assert(backup.app === 'league-proxchat' && backup.data['lpc-name'] === 'Rayan' && backup.data['lpc-lp'] && backup.data['lpc-clip-favs'] && backup.data['lpc-notes'] && !('lpc-remote' in backup.data) && !('lpc-device' in backup.data), `the backup: ${Object.keys(backup.data)}`);
@@ -2740,7 +2780,7 @@ const leagueData = (over = {}) => ({
       await openPage(hp, 'voice');
       await hp.click('#createBtn');
       await wait(hp, () => lpc.slot() >= 0, null, 'a room');
-      await openPage(hp, 'prox');
+      await hp.click('#lolBtn'); // League mode on: the ready check is under the room in it (What's new 207)
       await hp.click('#readyBtn');
       await wait(hp, () => (document.querySelector('#readyRows tr td:last-child') || {}).textContent === 'Fullscreen: no overlay Switch to Borderless', null, 'Fullscreen in the ready check, with its button');
       await hp.click('#readyRows tr td:last-child button');
@@ -2835,8 +2875,9 @@ const leagueData = (over = {}) => ({
       lcu.phase = 'None';
       await el({ inGame: false, phase: 'None' });
       console.log('builds at your rank: Arcane Comet, Teleport and the build from Emerald and Diamond’s games in champ select');
-      // Pregame settings: Challenger and Grandmaster's games instead
-      assert(await ep.isVisible('#eloBox') || (await ep.click('#preSet summary'), await ep.isVisible('#eloBox')), 'Most popular in, in Pregame settings');
+      // Settings, Champ select: Challenger and Grandmaster's games instead
+      await openSet(ep, 'champ');
+      assert(await ep.isVisible('#eloBox'), 'Most popular in, in Settings, Champ select');
       assert.strictEqual(await ep.inputValue('#optElo'), 'auto');
       // Stats: when to stop (champions to try are on each champion's page, not Stats: What's new 203)
       await openPage(ep, 'stats');

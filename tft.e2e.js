@@ -393,8 +393,9 @@ const traitRows = (page) => page.$$eval('#tftTraits .tfttrait', (l) => l.map((b)
     await pc.locator('#tftItemsBox').scrollIntoViewIfNeeded();
     await shot(pc, 'tft-recipes');
     await pool(pc, 'Xayah').click(); // for the overlay's gold rings: Xayah's items in your games
-    // the recipes over a TFT game, when the Overlay page says so: the Layout's sample, then a game from League's client
-    await openPage(pc, 'overlay');
+    // the recipes over a TFT game, when Settings, Overlay says so: the Layout's sample, then a game from League's client
+    await openPage(pc, 'settings');
+    await pc.click('#setList [data-sec="overlay"]');
     await pc.check('#optOverlayTft');
     await wait(pc, () => [...document.querySelectorAll('#ovHandles .ovhandle')].some((b) => b.textContent === 'TFT items'), null, 'TFT items on the Layout');
     assert.strictEqual(await pc.frameLocator('#ovFrame').locator('.rec img.want').count(), 3, 'drawn by overlay.html');

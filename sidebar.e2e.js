@@ -91,9 +91,9 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.evaluate(() => { document.documentElement.dataset.motion = 'on'; });
     await page.click('.nav[data-view="friends"]');
     await page.click('#leagueNav');
-    const sw = await page.evaluate(() => ({ list: !document.getElementById('leagueList').hidden, premade: document.getElementById('premadeList').hidden, top: document.getElementById('brandL').checkVisibility() && document.getElementById('brandL').textContent, bottom: document.querySelector('#leagueNav span').textContent, page: !document.querySelector('.view[data-view="prox"]').hidden, slide: document.getElementById('leagueList').getAnimations().map((a) => a.animationName), fade: document.querySelector('.view[data-view="prox"]').getAnimations().length }));
-    assert.deepStrictEqual(sw, { list: true, premade: true, top: 'League', bottom: 'Premade', page: true, slide: ['rail-in'], fade: 0 }, 'League’s list slides in, the page doesn’t also fade');
-    assert.deepStrictEqual(await visibleNames(page), ['Proximity voice', 'Profile', 'Pregame', 'Game', 'Overlay', 'Stats', 'TFT', 'Premade'], 'League’s pages in the sidebar');
+    const sw = await page.evaluate(() => ({ list: !document.getElementById('leagueList').hidden, premade: document.getElementById('premadeList').hidden, top: document.getElementById('brandL').checkVisibility() && document.getElementById('brandL').textContent, bottom: document.querySelector('#leagueNav span').textContent, page: !document.querySelector('.view[data-view="profile"]').hidden, slide: document.getElementById('leagueList').getAnimations().map((a) => a.animationName), fade: document.querySelector('.view[data-view="profile"]').getAnimations().length }));
+    assert.deepStrictEqual(sw, { list: true, premade: true, top: 'League', bottom: 'Premade', page: true, slide: ['rail-in'], fade: 0 }, 'League’s list slides in on Profile (What’s new 207), the page doesn’t also fade');
+    assert.deepStrictEqual(await visibleNames(page), ['Profile', 'Pregame', 'Game', 'Stats', 'TFT', 'Premade'], 'League’s pages in the sidebar, no Proximity voice or Overlay');
     assert.strictEqual(await page.getAttribute('#leagueNav', 'aria-current'), null, 'the bottom button isn’t lit');
     await page.waitForTimeout(300);
     await page.click('.nav[data-view="stats"]');
@@ -177,7 +177,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     assert.deepStrictEqual(await visibleNames(pp), ['Rooms', 'Friends', 'Aion 2', 'Settings', 'League'], 'phone: Premade’s bar');
     await shot(pp, '8-phone-premade');
     await pp.click('#leagueNav');
-    assert.deepStrictEqual(await visibleNames(pp), ['Proximity voice', 'Profile', 'Stats', 'TFT', 'Premade'], 'phone: League’s bar');
+    assert.deepStrictEqual(await visibleNames(pp), ['Profile', 'Stats', 'TFT', 'Premade'], 'phone: League’s bar');
     await pp.waitForTimeout(300);
     await shot(pp, '9-phone-league');
     console.log('sidebar e2e: all checks passed');
