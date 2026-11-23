@@ -1044,23 +1044,23 @@ const leagueData = (over = {}) => ({
     const tryCalls = lcu.calls.length;
     await wait(pc, () => !document.getElementById('tdBox').hidden && document.querySelectorAll('#tdUs .slot').length === 5 && document.querySelectorAll('#tdThem .slot').length === 5 && !document.getElementById('dTop').hidden, null, 'the draft board');
     assert(await pc.locator('#tdBtn, #mxBox').count() === 0, 'no Try a draft button, no Matchup explorer');
-    assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .stext small'), ['Middle'], 'your usual role picked');
+    assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .tctext small'), ['Middle'], 'your usual role picked');
     const boardFaces = (team) => pc.$$eval(`${team} .slot`, (l) => l.map((s) => [...s.querySelectorAll('.face')].map((f) => `${f.querySelector('img').alt} ${f.textContent}`).join(', ')));
     assert.deepStrictEqual(await boardFaces('#tdUs'), ['Garen Great, Lee Sin Risky, Darius Risky', 'Vi Risky', 'Ahri Great, Vi Great, Zed Great', '', 'Lux Great, Sona Good'], 'each of your roles: its best (up to 3) as faces');
     assert.deepStrictEqual(await boardFaces('#tdThem'), ['Garen Great, Lee Sin OK, Darius Risky', 'Vi Good', 'Vi Great, Zed Good, Ahri OK', '', 'Lux OK'], 'and theirs, from their side');
     const tryPick = async (slot, name) => {
-      await pc.click(`${slot} .sbtn`);
+      await pc.click(`${slot} .tcard`);
       await pc.fill('#dFind', name);
       await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 1, null, `${name} found`);
       await pc.click('#dGrid .dchamp');
       await pc.fill('#dFind', '');
     };
     await tryPick('#tdThem .slot:nth-child(3)', 'zed');
-    await pc.click('#tdUs .slot:nth-child(1) .sbtn');
+    await pc.click('#tdUs .slot:nth-child(1) .tcard');
     await pc.click('#tdUs .slot:nth-child(1) .face:has(img[alt="Garen"])');
-    await wait(pc, () => document.querySelector('#tdThem .slot:nth-child(3) .sq')?.title === 'Zed' && document.querySelector('#tdUs .slot:nth-child(1) .sq')?.title === 'Garen', null, 'their Zed, and your Garen from a face');
-    assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .stext small'), ['Top'], 'the slot stays picked');
-    await pc.click('#tdUs .slot:nth-child(3) .sbtn');
+    await wait(pc, () => document.querySelector('#tdThem .slot:nth-child(3) .tcard')?.dataset.c === '238' && document.querySelector('#tdUs .slot:nth-child(1) .tcard')?.dataset.c === '86', null, 'their Zed, and your Garen from a face');
+    assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .tctext small'), ['Top'], 'the slot stays picked');
+    await pc.click('#tdUs .slot:nth-child(3) .tcard');
     await wait(pc, () => document.getElementById('dTopHead').textContent === 'Middle for your team' && document.querySelectorAll('#dTopRows .bigrow').length === 3, null, 'your middle');
     assert.strictEqual(await text(pc, '#dSub'), 'Best picks');
     assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lux Great Lane Even gold at 10 With You 3W 2L', 'Vi Great Lane With You Not played', 'Ahri Great Lane Even gold at 10 With You 6W 2L']);
@@ -1068,18 +1068,63 @@ const leagueData = (over = {}) => ({
       ['Lux', 'Vi', 'Ahri', 'Zed (off)', 'Caitlyn (no score)', 'Darius (no score)'], 'ranked first, then every other champion A to Z; their Zed taken');
     assert.strictEqual(await text(pc, '#dNote'), 'Ranked by their high elo win rate and how each does with your team and against theirs. No score: few high elo games as middle.');
     assert(await pc.locator('#draft').isHidden(), 'the slots stand in for the draft rows');
-    await pc.click('#tdThem .slot:nth-child(1) .sbtn');
+    await pc.click('#tdThem .slot:nth-child(1) .tcard');
     await wait(pc, () => document.getElementById('dTopHead').textContent === 'Top for their team' && document.querySelectorAll('#dTopRows .bigrow').length === 2, null, 'their top: your Garen taken');
     assert.strictEqual(await text(pc, '#dSub'), 'What beats your team here');
     assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lee Sin OK Lane With Tier C', 'Darius Risky Lane With Tier D'], 'their side: Tier, not your games');
     await shot(pc, 'pregame-draft-board');
     if (process.env.SHOTS) { const vp = pc.viewportSize(); await pc.setViewportSize({ width: 390, height: 844 }); await shot(pc, 'pregame-draft-board-phone'); await pc.setViewportSize(vp); }
-    await pc.click('#tdUs .slot:nth-child(1) .sx');
-    await wait(pc, () => !document.querySelector('#tdUs .slot:nth-child(1) img.sq') && document.querySelector('#tdUs .slot[data-on]') === document.querySelector('#tdUs .slot:nth-child(1)'), null, 'the x took Garen out');
+    await pc.click('#tdUs .slot:nth-child(1) .tcx');
+    await wait(pc, () => !document.querySelector('#tdUs .slot:nth-child(1) img.tart') && document.querySelector('#tdUs .slot[data-on]') === document.querySelector('#tdUs .slot:nth-child(1)'), null, 'the x took Garen out');
     assert(!lcu.calls.slice(tryCalls).some(([m, p]) => m !== 'GET' && /champ-select/.test(p)), 'nothing sent to League');
     await pc.click('#tdClear');
-    await wait(pc, () => !document.querySelector('#tdUs img.sq, #tdThem img.sq') && document.getElementById('tdClear').disabled, null, 'cleared');
+    await wait(pc, () => !document.querySelector('#tdUs img.tart, #tdThem img.tart, #tdBans .bq img') && document.getElementById('tdClear').disabled, null, 'cleared');
     console.log('draft board: 5 slots a side with their faces, a face and a search fill slots, your middle and their bottom ranked, x and Clear, nothing sent to League');
+    // What's new 210: every slot a splash card, and your bans at the top with ideas from the team you build
+    assert.strictEqual(await pc.locator('#tdUs .slot:nth-child(1) .tcard.none').count(), 1, 'an empty slot is a dashed card');
+    assert.deepStrictEqual(await texts(pc, '#tdUs .slot:nth-child(1) .tctext small'), ['Top'], 'with its role');
+    const ideaNames = () => pc.$$eval('#tdBans .bideas .face img', (l) => l.map((i) => i.alt));
+    await wait(pc, () => document.querySelectorAll('#tdBans .bideas .face').length === 3 && document.querySelectorAll('#tdBans .bq.none').length === 5, null, 'your bans: 5 empty squares, 3 ideas');
+    const emptyIdeas = await ideaNames();
+    await tryPick('#tdUs .slot:nth-child(1)', 'garen');
+    await wait(pc, () => document.querySelector('#tdUs .slot:nth-child(1) img.tart')?.src.endsWith('/cdn/img/champion/splash/Garen_0.jpg'), null, 'a filled slot shows its splash');
+    assert.strictEqual(await pc.$eval('#tdUs .slot[data-on] .tcard', (b) => getComputedStyle(b).borderTopColor === getComputedStyle(document.body).color), true, 'the picked slot’s card has a white border');
+    await pc.click('#tdBans .bansbtn');
+    await wait(pc, () => document.getElementById('dTopHead').textContent === 'Bans for your team' && document.getElementById('dSub').textContent === 'Ban ideas' && document.querySelectorAll('#dTopRows .bigrow').length === 3, null, 'the bans in the middle');
+    assert(await pc.locator('#tdBans[data-on]').count() === 1 && await pc.locator('#tdUs .slot[data-on]').count() === 0, 'the bans row picked, no slot');
+    await shot(pc, 'pregame-draft-board-bans-picked');
+    const withGaren = await ideaNames();
+    assert(!withGaren.includes('Garen'), 'no idea on the board');
+    assert.notDeepStrictEqual(withGaren, emptyIdeas, 'your Garen changed the ideas');
+    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.querySelector('.bighead b').textContent)), withGaren, 'the big rows are the same 3');
+    assert(await pc.$eval('#dTopRows .bigrow', (b) => /Picked/.test(b.textContent) && /^as (top|jungle|middle|bottom|support)$/.test(b.querySelector('.as').textContent)), 'its role and how often it’s picked');
+    assert.match(await text(pc, '#dNote'), /^Ranked by win rate, how much each beats your team, how often it’s picked and your own games against it\./);
+    const firstBan = withGaren[0];
+    await pc.click('#tdBans .bideas .face');
+    await wait(pc, (n) => document.querySelector('#tdBans .bq img') && document.querySelector('#tdBans .bq').title === `Take back the ${n} ban` && document.getElementById('dSub').textContent === 'Next ban ideas'
+      && document.querySelector(`#dGrid .dchamp img[alt="${n}"]`)?.parentElement.getAttribute('aria-disabled') === 'true' && ![...document.querySelectorAll('#tdBox .face img')].some((i) => i.alt === n), firstBan, 'a ban fills a square and greys that champion out everywhere');
+    assert(!(await ideaNames()).includes(firstBan), 'the next idea moves up');
+    await shot(pc, 'pregame-draft-board-one-ban');
+    await pc.click('#tdUs .slot:nth-child(3) .tcard');
+    await wait(pc, (n) => document.getElementById('dTopHead').textContent === 'Middle for your team' && document.querySelector(`#dGrid .dchamp img[alt="${n}"]`)?.parentElement.getAttribute('aria-disabled') === 'true', firstBan, 'banned in the slot’s grid too');
+    await pc.click('#tdBans .bq:not(.none)');
+    await wait(pc, () => document.querySelectorAll('#tdBans .bq.none').length === 5, null, 'the x took the ban back');
+    for (let i = 0; i < 5; i++) {
+      const before = await pc.locator('#tdBans .bq:not(.none)').count();
+      await pc.click('#tdBans .bideas .face');
+      await wait(pc, (n) => document.querySelectorAll('#tdBans .bq:not(.none)').length === n, before + 1, `ban ${before + 1}`);
+    }
+    await pc.click('#tdBans .bansbtn');
+    await wait(pc, () => !document.querySelector('#tdBans .bideas .face') && document.querySelector('#dTopRows .bempty')?.textContent === 'All 5 bans are in. Take one back with its x to try another.'
+      && [...document.querySelectorAll('#dGrid .dchamp')].every((b) => b.getAttribute('aria-disabled') === 'true') && document.querySelector('#tdBans .bansbtn small').textContent === 'All 5 in', null, 'all 5 bans are in');
+    await shot(pc, 'pregame-draft-board-all-bans');
+    if (process.env.SHOTS) { const vp = pc.viewportSize(); await pc.setViewportSize({ width: 390, height: 844 }); await shot(pc, 'pregame-draft-board-all-bans-phone'); await pc.setViewportSize(vp); }
+    await pc.click('#dModes [data-mode="meta"]');
+    await wait(pc, () => /^Ranked by their high elo win rate and how often they’re picked\./.test(document.getElementById('dNote').textContent), null, 'Meta ban ideas');
+    await pc.click('#dModes [data-mode="balanced"]');
+    await pc.click('#tdClear');
+    await wait(pc, () => document.querySelectorAll('#tdBans .bq.none').length === 5 && !document.querySelector('#tdUs img.tart') && document.getElementById('tdClear').disabled, null, 'Clear empties the bans too');
+    console.log('ban ideas: 3 from the team you build, a ban greys out everywhere, its x takes it back, 5 in stops the ideas, Clear; slots as splash cards');
     await openPage(pc, 'settings');
     // its boxes stack with no holes: each is at the top or 16px under the one above it in its column
     // (measured once the page's ResizeObserver has given every box its rows for the height it has now, not mid-layout)
@@ -2572,13 +2617,15 @@ const leagueData = (over = {}) => ({
       console.log('tier list 2.0: Ahri rising, Zed falling, ban rates, and a row opens the champion’s page');
       // the matchup on the draft board (the Matchup explorer before What's new 202): your Ahri against their Zed in the middle
       for (const [slot, name] of [['#tdThem .slot:nth-child(3)', 'zed'], ['#tdUs .slot:nth-child(3)', 'ahri']]) {
-        await hp.click(`${slot} .sbtn`);
+        await hp.click(`${slot} .tcard`);
         await hp.fill('#dFind', name);
         await wait(hp, () => document.querySelectorAll('#dGrid .dchamp').length === 1, null, `${name} found`);
         await hp.click('#dGrid .dchamp');
         await hp.fill('#dFind', '');
       }
       await wait(hp, () => !document.getElementById('dMu').hidden && /Riot’s tip for Ahri/.test(document.getElementById('dMu').textContent) && document.querySelectorAll('#dMu .wg').length === 2, null, 'the matchup on the board');
+      assert.deepStrictEqual(await hp.$$eval('#dMu .vscard img', (l) => l.map((i) => i.src.replace(/^.*\/splash\//, ''))), ['Ahri_0.jpg', 'Zed_0.jpg'], 'both laners side by side (What’s new 210)');
+      assert.deepStrictEqual(await texts(hp, '#dMu .vsname'), ['Ahri', 'Zed']);
       assert.deepStrictEqual(await texts(hp, '#dMu .mutext > *'), ['Ahri against Zed', 'High elo: Ahri won 6 of 20 games against Zed. A hard matchup for Ahri.']);
       assert.deepStrictEqual(await hp.$$eval('#dMu .wg img', (l) => l.map((i) => i.alt)), ['Arcane Comet', 'Domination', 'Luden’s Companion', 'Zhonya’s Hourglass'], 'keystone and second tree, first items in order');
       assert.strictEqual(await text(hp, '#dMu .wg .wcap'), 'in 20 of 20');

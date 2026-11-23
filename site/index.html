@@ -647,32 +647,70 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 @container app (max-width: 640px) { .board { grid-template-columns: minmax(0, 1fr); } }
 .bcol, .bmidc { display: grid; gap: 10px; min-width: 0; align-content: start; }
 .bcol > .ph { min-height: 28px; font-size: 14px; }
-.slots { display: grid; gap: 6px; }
-.slot { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 4px; padding: 8px; border: 1px solid transparent; border-radius: 12px; transition: background-color var(--t-press); }
+.slots { display: grid; gap: 4px; }
+/* What's new 210: each slot its champion's splash as a card (as champ select's), then its 3 best picks */
+.slot { position: relative; display: grid; gap: 8px; padding: 6px; border-radius: 14px; transition: background-color var(--t-press); }
 .slot:hover { background: var(--soft); }
-.slot[data-on] { background: var(--soft-2); border-color: var(--line); }
-.sbtn { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
-.sq { flex: none; display: grid; place-items: center; width: 48px; height: 48px; box-sizing: border-box; border: 2px solid #4aa8ff; border-radius: 8px; object-fit: cover; }
-.sq.them { border-color: #ff5c5c; }
-.sq.none { border: 2px dashed var(--line); color: var(--muted); font: 600 20px/1 var(--body); }
-.stext { display: grid; gap: 3px; min-width: 0; }
-.stext small { font-size: 12px; color: var(--muted); }
+.slot[data-on] { background: var(--soft-2); }
+.tcard { position: relative; display: block; width: 100%; height: 88px; padding: 0; overflow: hidden; box-sizing: border-box; border: 2px solid rgb(74 168 255 / .55); border-radius: 12px; background: var(--raised); color: #fff; font: inherit; text-align: left; cursor: pointer; transition: transform var(--t-press); }
+.tcard:active { transform: scale(0.985); }
+.tcard.them { border-color: rgb(255 92 92 / .55); }
+.slot[data-on] .tcard { border-color: var(--fg); }
+.tcard.none { border: 2px dashed var(--line); background: none; color: var(--muted); }
+.slot[data-on] .tcard.none { border-color: var(--gold); }
+.tart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; pointer-events: none; }
+.tctext { position: absolute; left: 12px; right: 44px; bottom: 9px; display: grid; gap: 3px; text-shadow: 0 1px 2px rgb(0 0 0 / .9), 0 0 8px rgb(0 0 0 / .7); }
+.tcard.none .tctext { bottom: auto; top: 50%; transform: translateY(-50%); text-shadow: none; }
+.tctext small { display: flex; align-items: center; gap: 5px; font-size: 12px; color: rgb(255 255 255 / .86); }
+.tcard.none .tctext small { color: var(--muted); }
+.ri { flex: none; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .sname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.sname b { font-size: 15px; font-weight: 600; }
+.sname b { font-size: 16px; font-weight: 600; }
 .sname b.dim { font-weight: 500; color: var(--muted); }
+.tcard .grade { background: rgb(11 8 9 / .72); text-shadow: none; }
+.tcx { position: absolute; top: 18px; right: 18px; z-index: 2; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgb(11 8 9 / .66); color: #fff; font-size: 16px; cursor: pointer; transition: transform var(--t-press); }
+.tcx:hover { background: rgb(11 8 9 / .9); }
+.tcx:active { transform: scale(0.94); }
+.sq { flex: none; display: grid; place-items: center; width: 48px; height: 48px; box-sizing: border-box; border: 2px solid #4aa8ff; border-radius: 8px; object-fit: cover; }
 .sx { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: 18px; cursor: pointer; transition: transform var(--t-press); }
 .sx:hover { color: var(--fg); background: var(--soft-2); }
 .sx:active { transform: scale(0.94); }
-.faces { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; padding-left: 56px; }
-.face { display: flex; align-items: center; gap: 5px; min-height: 32px; padding: 3px 7px 3px 3px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--fg); font: 600 12px/1 var(--body); cursor: pointer; transition: transform var(--t-press); }
+.faces { display: flex; flex-wrap: wrap; gap: 4px; }
+.face { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 3px 8px 3px 3px; border: 1px solid transparent; border-radius: 9px; background: none; color: var(--fg); font: 600 12px/1 var(--body); cursor: pointer; transition: transform var(--t-press); }
 .face:hover { background: var(--soft-2); }
 .face:active { transform: scale(0.97); }
-.face img { width: 24px; height: 24px; border-radius: 5px; }
+.face img { width: 30px; height: 30px; border-radius: 6px; }
 .face .grade { padding: 0; border: 0; }
+/* What's new 210: your bans, a row across the top of the board: 5 squares (a ban in grey with a red slash) and 3 ideas */
+.bansrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 10px 12px; border: 1px solid transparent; border-radius: 12px; transition: background-color var(--t-press); }
+.bansrow:hover { background: var(--soft); }
+.bansrow[data-on] { background: var(--soft-2); border-color: var(--gold-line); }
+.bansbtn { display: grid; gap: 2px; min-height: 44px; align-content: center; padding: 0 4px 0 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.bansbtn b { font-size: 14px; font-weight: 600; }
+.bansbtn small { font-size: 12px; color: var(--muted); }
+.bsq { display: flex; gap: 6px; }
+.bq { position: relative; width: 44px; height: 44px; flex: none; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: #fff; cursor: pointer; transition: transform var(--t-press); }
+.bq:active { transform: scale(0.95); }
+.bq img { display: block; width: 100%; height: 100%; filter: grayscale(1); opacity: 0.6; }
+.bq::before { content: ""; position: absolute; left: 50%; top: -6px; width: 2px; height: 56px; background: var(--bad); transform: rotate(45deg); }
+.bq .bx { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(11 8 9 / .72); font-size: 18px; opacity: 0; transition: opacity var(--t-press); }
+.bq:hover .bx, .bq:focus-visible .bx { opacity: 1; }
+.bq.none { border: 2px dashed var(--line); background: none; }
+.bq.none::before { content: none; }
+.bideas { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.bideas > small { margin-right: 4px; font-size: 12px; color: var(--muted); }
+.bigrow .as { font-size: 12px; color: var(--muted); }
+.wcap.big2 { display: flex; align-items: center; min-height: 22px; font-size: 13px; font-weight: 600; }
+.bempty { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--soft); font-size: 13px; color: var(--muted); }
 .mu { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.muhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
-.muhead > img { width: 40px; height: 40px; border-radius: 8px; }
-.muhead > .muvs { font-size: 12px; color: var(--muted); }
+.muhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+/* What's new 210: both laners side by side, each on its splash */
+.vscard { position: relative; display: grid; grid-template-columns: 1fr 1fr; height: 104px; overflow: hidden; border-radius: 12px; background: var(--raised); }
+.vscard > img { display: block; width: 100%; height: 104px; object-fit: cover; object-position: 50% 18%; }
+.vscard > img + img { border-left: 2px solid var(--panel); }
+.vsdot { position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; display: grid; place-items: center; border-radius: 50%; background: var(--panel); font-size: 12px; font-weight: 700; }
+.vsname { position: absolute; bottom: 8px; font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .9), 0 0 8px rgb(0 0 0 / .7); }
+.vsname.l { left: 12px; } .vsname.r { right: 12px; }
 .mutext { flex: 1 1 180px; display: grid; gap: 2px; min-width: 0; }
 .mutext small { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
 .mu .lbar.wide { width: 96px; height: 10px; }
@@ -2849,6 +2887,7 @@ dialog.wizard { transform: scale(var(--from)); }
       </section>
       <section id="tdBox" class="panel" aria-labelledby="h-try" hidden>
         <div class="tophead"><h2 id="h-try" class="ph">Draft board <button class="tip" type="button" popovertarget="t-try" aria-label="About the draft board">?</button></h2><button id="tdClear" class="btn small" type="button">Clear</button></div>
+        <div id="tdBans" class="bansrow"></div>
         <div class="board">
           <div class="bcol"><h3 class="ph">Your team <span id="tdUsG"></span></h3><ul id="tdUs" class="plain slots"></ul></div>
           <div id="tdHelp" class="bmidc"></div>
@@ -3686,7 +3725,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself, or out of a room someone else is in.</div>
 
 <div id="t-tier" class="tipbox" popover><span id="tierTipNote"></span> The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. It starts with S tier (the top 3 when a role has fewer): See more shows every tier. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
-<div id="t-try" class="tipbox" popover>Try any draft before you queue. Click a slot, then one of its faces or any champion. Each role’s 3 faces are its best picks with everything else on the board, and on their side what beats your team. Fill both laners of a lane for that matchup: the high elo record, runes, first items and tips. Nothing goes to League, and the board hides during a game, as Riot’s rules ask.</div>
+<div id="t-try" class="tipbox" popover>Try any draft before you queue. Click a slot or Your bans, then one of its faces or any champion. Each role’s 3 faces are its best picks with everything else on the board, and on their side what beats your team. Your bans start with what beats your team most. Fill both laners of a lane for that matchup: the high elo record, runes, first items and tips. Nothing goes to League, and the board hides during a game, as Riot’s rules ask.</div>
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, plus what your team lacks and your games with your duo, and Balanced by both, plus your own games and mastery on it. For an ADC or a support, Bot lane first counts your lane 4 times the rest of the draft. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
@@ -9693,16 +9732,16 @@ dialog.wizard { transform: scale(var(--from)); }
   // Pregame. Each slot ranks its role with the rest of the board, from its own team's side (theirs: what beats your
   // team, none of your own games), and shows its first 3 as faces; the picked slot gets the whole helper in the middle.
   // Kept while Premade runs, not saved. Nothing goes to League.
-  const tryD = { us: {}, them: {}, at: null }; // role -> champion for each team, and at: [team, role] picked (null: your usual role on your team)
+  const tryD = { us: {}, them: {}, bans: [], at: null }; // role -> champion for each team, your bans (What's new 210), and at: [team, role] picked (['us', 'BANS']: your bans; null: your usual role on your team)
   const tryOn = () => $('csBox').hidden && !$('tdBox').hidden;
   const tryAt = () => tryD.at || ['us', usualRole()];
   function tryNow(t, r) { // the board for team t's role r, from t's side, with that slot left empty
     const [a, b] = t === 'us' ? [tryD.us, tryD.them] : [tryD.them, tryD.us], side = (m, ally) => Object.keys(POS).map((x) => ({ c: (ally && x === r ? 0 : m[x]) | 0, pos: x, role: x, me: ally && x === r, hover: false, pal: '' }));
-    return advFill({ try: true, foe: t === 'them', us: side(a, true), them: side(b, false), bans: [] });
+    return advFill({ try: true, foe: t === 'them', us: side(a, true), them: side(b, false), bans: tryD.bans });
   }
   let tryMemo = {}, topsVer = 0; // topsVer: one more for each answer from /riot/champ
   function tryRanks() { // the ten rankings, worked out again only when something they go by changed
-    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs]]);
+    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, tryD.bans, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs]]);
     if (tryMemo.key !== key || tryMemo.t !== t) {
       tryMemo = { key, t, r: {} };
       for (const s of ['us', 'them']) for (const r of Object.keys(POS)) { const d = tryNow(s, r); tryMemo.r[s + r] = { d, pool: advPool(r, d, '') }; }
@@ -9711,9 +9750,85 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function tryPut(c) { // into the picked slot, which stays picked
     const [t, r] = tryAt();
+    if (r === 'BANS') return tryBan(c);
     tryD[t][r] = c;
     tryD.at = [t, r];
     renderGame();
+  }
+  // What's new 210: your bans on the board (5, kept with the draft). A banned champion can't go in a slot, and one on the
+  // board can't be banned.
+  function tryBan(c) {
+    if (tryD.bans.length < 5 && !tryD.bans.includes(c) && ![...Object.values(tryD.us), ...Object.values(tryD.them)].includes(c)) tryD.bans.push(c);
+    renderGame();
+  }
+  // ban ideas for the team you build: for each of their roles still empty, its their-side ranking (what beats your team
+  // there; Meta: the strongest) weighed by how often high elo picks it there, each champion in its best role. Balanced
+  // adds the champions you lose to in your own games. Your team empty: the strongest and most picked.
+  function tryBanIdeas(R) {
+    const t = tiers(), mine = Object.keys(tryD.us).length > 0, best = new Map(), nem = advOpts.mode === 'balanced' ? new Map(nemeses().map((n) => [n.c, n])) : new Map();
+    for (const r of Object.keys(POS)) if (!tryD.them[r]) for (const x of R['them' + r].pool) {
+      if (x.off) continue;
+      const sh = (((t && t.by[r] && t.by[r].get(x.id)) || [0])[0] | 0) / ((t && t.n) || 1);
+      const n = nem.get(x.id), v = (mine ? x.s : x.m) * Math.sqrt(sh / 0.1) + (n ? Math.min(6, n.l) : 0); // ponytail: picked 1 game in 10 counts as is, a lost game of yours against it 1 point (6 at most); tune with real drafts
+      if (!best.has(x.id) || best.get(x.id).v < v) best.set(x.id, { id: x.id, r, x, sh, v, nem: n });
+    }
+    return [...best.values()].sort((a, b) => b.v - a.v);
+  }
+  const ROLE_D = { TOP: 'M5 15V5h10', JUNGLE: 'M5 15l3-7 3 5 4-8', MIDDLE: 'M5 15 15 5', BOTTOM: 'M5 15h10V5', UTILITY: 'M10 15.5c-4-2.6-5.5-5.2-4.4-7.4 1-2 3.4-1.8 4.4.1 1-1.9 3.4-2.1 4.4-.1 1.1 2.2-.4 4.8-4.4 7.4z' }; // as the overlay's
+  function roleIcon(r) {
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), p = document.createElementNS(ns, 'path');
+    svg.setAttribute('viewBox', '0 0 20 20');
+    svg.setAttribute('class', 'ri');
+    svg.setAttribute('aria-hidden', 'true');
+    p.setAttribute('d', ROLE_D[r] || '');
+    svg.append(p);
+    return svg;
+  }
+  const tryArt = (c, cls = 'tart') => { const i = Object.assign(new Image(), { className: cls, alt: '', decoding: 'async', src: splashOf(c, 0) }); i.addEventListener('error', () => { i.hidden = true; }); return i; };
+  const oneIn = (f) => (f < 0.02 ? 'Rarely' : Math.round(1 / f) <= 1 ? 'Most games' : `1 in ${Math.round(1 / f)} games`);
+  // a ban idea in a big row: your lane (orange: it beats yours), your team (a mark on each), how often high elo picks and
+  // bans it, and in Balanced your own games against it. b.x is its score from their side, where your team is theirs.
+  function banRow(b) {
+    const t = tiers(), x = b.x, bot = !!DUO[b.r], why = elm('span', 'why'), btn = mkBtn('bigrow', [], () => tryBan(b.id));
+    const g = (label, title, ...kids) => { const w = elm('span', 'wg', elm('small', '', label), ...kids); w.title = title; why.append(w); };
+    btn.title = [`Ban ${champName(b.id)}`, ...x.why].join('\n');
+    btn.append(elm('span', 'bigpic', champFace(b.id)), elm('span', 'bighead', elm('b', '', champName(b.id)), grade(b.v), elm('small', 'as', `as ${POS[b.r].toLowerCase()}`)), why);
+    const inLane = (r) => r === b.r || (bot && !!DUO[r]), mine = Object.keys(POS).filter((r) => tryD.us[r]), part = (c) => x.parts.find((p) => (p.k === 'lane' || p.k === 'foe') && p.c === c);
+    const lane = mine.filter(inLane), rest = mine.filter((r) => !inLane(r)), said = (r) => { const p = part(tryD.us[r]); return `${champName(b.id)} against ${champName(tryD.us[r])}: ${p ? `won ${p.w} of ${p.n}` : 'few high elo games'}`; };
+    if (lane.length) g('Your lane', lane.map(said).join('\n'), elm('span', 'wp', ...lane.map((r) => champFace(tryD.us[r])), laneBar(-lane.reduce((n, r) => n + ((part(tryD.us[r]) || {}).d || 0), 0))));
+    if (rest.length) g('Your team', rest.map(said).join('\n'), elm('span', 'wp', ...rest.map((r) => { const p = part(tryD.us[r]); return elm('span', 'fm', champFace(tryD.us[r]), elm('i', !p ? '' : p.d >= 1 ? 'down' : p.d <= -1 ? 'up' : '')); })));
+    const n = ((t && t.by[b.r] && t.by[b.r].get(b.id)) || [0])[0] | 0;
+    g('Picked', `Picked as ${POS[b.r].toLowerCase()} in ${n} of ${(t && t.n) || 0} high elo games`, elm('small', 'wcap big2', oneIn(b.sh)));
+    if (t && t.bn >= 100) { const k = t.ban.get(b.id) || 0; g('Banned', `Banned in ${k} of ${t.bn} high elo games`, elm('small', 'wcap big2', oneIn(k / t.bn))); }
+    if (b.nem) g('You against it', 'Your own games against it', elm('span', 'blk sm', ...[...Array(Math.min(10, b.nem.n))].map((_, i) => elm('i', i < b.nem.n - b.nem.l ? 'w' : ''))), elm('small', 'wcap', `Lost ${b.nem.l} of ${b.nem.n}`));
+    return btn;
+  }
+  // the middle for Your bans: the 3 best ideas in big rows, then every idea in the grid and every other champion A to Z
+  function renderBanHelp(ideas) {
+    const full = tryD.bans.length >= 5, q = advQ.trim().toLowerCase(), on = new Set([...Object.values(tryD.us), ...Object.values(tryD.them), ...tryD.bans]);
+    $('draft').hidden = $('dMu').hidden = $('dBotBox').hidden = $('dBotNote').hidden = true;
+    $('dPool').hidden = $('dTop').hidden = $('dSub').hidden = false;
+    $('draft').dataset.key = $('dMu').dataset.key = ''; // the slot's helper draws again when a slot is picked
+    const key = JSON.stringify([tryD.bans, tryD.us, tryD.them, advOpts.mode, advQ, ddVersion, ideas.map((b) => [b.id, b.v.toFixed(1)])]);
+    if ($('dPool').dataset.bkey === key) return;
+    $('dPool').dataset.bkey = key;
+    $('dTopHead').textContent = 'Bans for your team';
+    $('dSub').textContent = tryD.bans.length ? 'Next ban ideas' : 'Ban ideas';
+    $('dTopRows').replaceChildren(...(full ? [elm('p', 'bempty', 'All 5 bans are in. Take one back with its x to try another.')]
+      : ideas.length ? ideas.slice(0, 3).map(banRow) : [elm('p', 'hint', 'Nothing to go by yet: search for a champion below.')]));
+    for (const b of $('dModes').children) b.setAttribute('aria-selected', String(b.dataset.mode === advOpts.mode));
+    const has = new Set(ideas.map((b) => b.id)), list = [...ideas.map((b) => [b.id, b]), ...[...new Set(Object.values(ddChamp).map((c) => +c.key))].filter((id) => !has.has(id) && champOf(id))
+      .sort((x, y) => champName(x).localeCompare(champName(y))).map((id) => [id, null])].filter(([id]) => !q || champName(id).toLowerCase().includes(q));
+    const by = { meta: 'their high elo win rate and how often they’re picked', matchups: 'how much each beats your team and how often it’s picked', balanced: 'win rate, how much each beats your team, how often it’s picked and your own games against it' }[advOpts.mode];
+    $('dNote').textContent = list.length ? `Ranked by ${by}. No score: few high elo games.` : 'No champion by that name.';
+    $('dGrid').replaceChildren(...list.map(([id, b]) => {
+      const e = mkBtn('dchamp', [Object.assign(new Image(), { src: champImg(id), alt: champName(id) }), ...(b ? [advBadge(b.v)] : [])], () => {});
+      e.dataset.c = id;
+      if (b) e.dataset.s = advBand(b.v);
+      e.setAttribute('aria-disabled', String(full || on.has(id)));
+      e.title = [`${champName(id)}${tryD.bans.includes(id) ? ': banned' : on.has(id) ? ': on the board' : full ? ': all 5 bans are in' : ''}`, ...(b ? b.x.why : [])].join('\n');
+      return e;
+    }));
   }
   function renderTryDraft() {
     const t = tiers();
@@ -9721,20 +9836,23 @@ dialog.wizard { transform: scale(var(--from)); }
     if ($('tdBox').hidden) { if ($('advBox').parentElement !== $('bansHead').parentElement) $('bansHead').before($('advBox')); return; } // back in champ select's Picks tab
     if ($('advBox').parentElement !== $('tdHelp')) $('tdHelp').append($('advBox'));
     const R = tryRanks(), [at, ar] = tryAt(), pick = (s, r, c) => { if (c) tryD[s][r] = c; tryD.at = [s, r]; renderGame(); };
-    $('tdClear').disabled = !Object.keys(tryD.us).length && !Object.keys(tryD.them).length;
+    $('tdClear').disabled = !Object.keys(tryD.us).length && !Object.keys(tryD.them).length && !tryD.bans.length;
+    const ideas = tryBanIdeas(R), full = tryD.bans.length >= 5, bansOn = ar === 'BANS';
     const rows = (s) => Object.keys(POS).map((r) => {
       const c = tryD[s][r] | 0, pool = R[s + r].pool, x = pool.find((y) => y.id === c);
       return { s, r, c, g: x ? x.s : null, faces: pool.filter((y) => !y.off && y.id !== c).slice(0, 3).map((y) => [y.id, y.s, y.why]) };
-    }), us = rows('us'), them = rows('them'), key = JSON.stringify([at, ar, ddVersion, us, them]);
+    }), us = rows('us'), them = rows('them'), key = JSON.stringify([at, ar, ddVersion, us, them, tryD.bans, ideas.slice(0, 3).map((b) => [b.id, b.v.toFixed(1)])]);
     if ($('tdBox').dataset.key !== key) {
       $('tdBox').dataset.key = key;
       const word = (l) => { const k = l.filter((x) => x.g != null); return k.length ? [grade(k.reduce((n, x) => n + x.g, 0) / k.length)] : []; }; // the team's picks so far
-      const slot = (x) => {
+      const slot = (x) => { // What's new 210: a card with the champion's splash (empty: dashed, with its role)
         const on = x.s === at && x.r === ar, el = elm('li', 'slot'), team = x.s === 'us' ? 'your' : 'their';
         el.toggleAttribute('data-on', on);
-        el.append(mkBtn('sbtn', [x.c ? Object.assign(champFace(x.c, `sq${x.s === 'us' ? '' : ' them'}`), { alt: '' }) : Object.assign(elm('span', 'sq none', '+'), { ariaHidden: 'true' }),
-          elm('span', 'stext', elm('small', '', POS[x.r]), elm('span', 'sname', elm('b', x.c ? '' : 'dim', x.c ? champName(x.c) : 'Empty'), ...(x.g == null ? [] : [grade(x.g)])))], () => pick(x.s, x.r), on));
-        if (x.c) { const b = mkBtn('sx', ['×'], () => { delete tryD[x.s][x.r]; tryD.at = [x.s, x.r]; renderGame(); }); b.ariaLabel = b.title = `Take ${champName(x.c)} out`; el.append(b); }
+        const card = mkBtn(`tcard${x.s === 'us' ? '' : ' them'}${x.c ? '' : ' none'}`, [...(x.c ? [tryArt(x.c)] : []),
+          elm('span', 'tctext', elm('small', '', roleIcon(x.r), POS[x.r]), elm('span', 'sname', elm('b', x.c ? '' : 'dim', x.c ? champName(x.c) : 'Empty'), ...(x.g == null ? [] : [grade(x.g)])))], () => pick(x.s, x.r), on);
+        card.dataset.c = x.c || '';
+        el.append(card);
+        if (x.c) { const b = mkBtn('tcx', ['×'], () => { delete tryD[x.s][x.r]; tryD.at = [x.s, x.r]; renderGame(); }); b.ariaLabel = b.title = `Take ${champName(x.c)} out`; el.append(b); }
         const f = elm('div', 'faces', ...x.faces.map(([c, sc, why]) => { const b = mkBtn('face', [champFace(c), grade(sc)], () => pick(x.s, x.r, c)); b.title = why.join('\n'); return b; }));
         f.setAttribute('role', 'group');
         f.ariaLabel = `Best for ${team} ${POS[x.r].toLowerCase()}`;
@@ -9745,10 +9863,26 @@ dialog.wizard { transform: scale(var(--from)); }
       $('tdThem').replaceChildren(...them.map(slot));
       $('tdUsG').replaceChildren(...word(us));
       $('tdThemG').replaceChildren(...word(them));
+      // your bans: 5 squares (a ban in grey; its x takes it back), then the first 3 ideas (a click bans it)
+      const pickBans = () => { tryD.at = ['us', 'BANS']; renderGame(); }, head = mkBtn('bansbtn', [elm('b', '', 'Your bans'), elm('small', '', full ? 'All 5 in' : 'What beats your team')], pickBans, bansOn);
+      const sq = elm('div', 'bsq', ...[0, 1, 2, 3, 4].map((i) => {
+        const c = tryD.bans[i], b = c ? mkBtn('bq', [Object.assign(new Image(), { src: champImg(c), alt: '' }), Object.assign(elm('span', 'bx', '×'), { ariaHidden: 'true' })], () => { tryD.bans = tryD.bans.filter((y) => y !== c); renderGame(); }) : mkBtn('bq none', [], pickBans);
+        b.ariaLabel = b.title = c ? `Take back the ${champName(c)} ban` : 'Empty ban';
+        if (c) b.dataset.c = c;
+        return b;
+      })), f = elm('div', 'bideas', ...(full ? [] : [elm('small', '', 'Ideas'), ...ideas.slice(0, 3).map((b) => { const e = mkBtn('face', [champFace(b.id), grade(b.v)], () => tryBan(b.id)); e.title = [`Ban ${champName(b.id)}`, ...b.x.why].join('\n'); return e; })]));
+      sq.setAttribute('role', 'group');
+      sq.ariaLabel = 'Your 5 bans';
+      f.setAttribute('role', 'group');
+      f.ariaLabel = 'Ban ideas';
+      $('tdBans').toggleAttribute('data-on', bansOn);
+      $('tdBans').replaceChildren(head, sq, f);
     }
+    if (bansOn) return renderBanHelp(ideas);
+    $('dPool').dataset.bkey = '';
     renderAdv(R[at + ar].d, ar);
   }
-  $('tdClear').addEventListener('click', () => { tryD.us = {}; tryD.them = {}; renderGame(); });
+  $('tdClear').addEventListener('click', () => { tryD.us = {}; tryD.them = {}; tryD.bans = []; renderGame(); });
   // the matchup on the board (What's new 202, the Matchup explorer before it): the picked slot's champion (A) against
   // the other team's in that role (B), from the high elo games our server counts: the record, gold at 10 and how hard,
   // the lane bar (x: A in the picked slot's ranking), the runes and first items most of those games had, and the tips
@@ -9768,7 +9902,8 @@ dialog.wizard { transform: scale(var(--from)); }
     const why = elm('span', 'why');
     if (pg) why.append(elm('span', 'wg', elm('small', '', 'Runes'), elm('span', 'wp', ...[[pg.perks[2], 'rk'], [pg.perks[1], '']].filter(([id]) => runeIcon(id)).map(([id, c]) => Object.assign(new Image(), { src: runeIcon(id), alt: runeName(id), title: runeName(id), className: c }))), elm('small', 'wcap', `in ${pg.k} of ${pg.n}`)));
     if (bu && bu.core.length) why.append(elm('span', 'wg', elm('small', '', 'First items, in order'), elm('span', 'wp', ...bu.core.slice(0, 3).map((id) => Object.assign(new Image(), { src: itemPic(id), alt: itemName(id), title: itemName(id), className: 'it' })))));
-    el.replaceChildren(elm('div', 'muhead', champFace(A), elm('span', 'muvs', 'vs'), champFace(B), elm('span', 'mutext', elm('b', '', `${a} against ${b}`),
+    el.replaceChildren(elm('div', 'vscard', tryArt(A, ''), tryArt(B, ''), Object.assign(elm('span', 'vsdot', 'vs'), { ariaHidden: 'true' }), elm('span', 'vsname l', a), elm('span', 'vsname r', b)), // What's new 210: both laners on their splash
+      elm('div', 'muhead', elm('span', 'mutext', elm('b', '', `${a} against ${b}`),
       elm('small', '', !top ? 'Loading…' : n < 5 ? `Not enough Challenger and Grandmaster games of ${a} against ${b} yet: our server adds some every few minutes.` : rec || '')), ...(bar ? [bar] : [])),
     ...(why.children.length ? [why] : []), ...(tips ? [elm('div', 'tipsbox', elm('ul', '', ...tips.lines.filter((l) => l !== rec).map((l) => elm('li', '', l))))] : []));
   }
@@ -20060,6 +20195,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [210, 'November 23: ban ideas for your team', [
+      'Your bans at the top of the draft board: its 3 ideas are what beats the team you’re building.',
+      'Click an idea to ban it: it greys out everywhere and the next one moves up.',
+      'Every slot is now a card with the champion’s art.',
+      'Both laners filled: the matchup shows both champions side by side.',
+    ]],
     [209, 'November 23: a cleaner Clips page', [
       'Game rows on the Clips page no longer show a line of highlight marks, and an opened game no longer lists a button for each highlight. They’re still on the timeline when you watch the match.',
     ]],
@@ -21207,7 +21348,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Bot lane first', 'For an ADC or a support, your lane with your partner and against their bot lane counts 4 times the rest of the draft.', 'On unless you turn it off: the switch beside the top 3, for Bottom and Support.', '#dBotBox', 'app'],
       ['Your duo’s picks', 'The teammate you play the most with gets a Your duo tag, and your games together (your own match history, up to 1,000 games back) count in the picks. Before either of you picks, the top 3 shows your best pairs.', 'Nothing to set up: Premade reads your games while League is open and you’re idle.', '#dTopRows', 'app'],
       ['Who is picking', 'The card of whoever is picking or banning lights up with the time left on it, counting down with League’s own clock.', 'In champ select, on Pregame.', '#csRows', 'app'],
-      ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup: the high elo record, runes, first items and tips. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
+      ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame, each slot a card with its champion’s art: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup, both champions side by side: the high elo record, runes, first items and tips. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
+      ['Ban ideas', 'Your bans at the top of the draft board: 5 squares and 3 ideas, what beats the team you’re building, how often high elo picks and bans it, and in Balanced the champions you lose to. Click an idea to ban it: it greys out everywhere, and its x takes it back.', 'Outside champ select, on Pregame: Your bans on the draft board.', '#tdBans', 'app'],
       ['Mock draft helper', 'In a room’s Mock draft, each player on a side sees the top 3 for their side and a score on every champion.', 'Rooms: start a Mock draft and join a side.', '#mdHelp'],
       ['The draft', 'Both teams by role with a score for each champion and each team, and every champion ranked for the role you pick by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
         'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
