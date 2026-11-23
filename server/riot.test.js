@@ -5,7 +5,7 @@
 // never gets our key), keeps Europe West's Emerald and Diamond games apart, says which champions the same ladder
 // players play from their mastery, passes only the lookup calls on its list through, with our key and its limits,
 // keeping the ranks they get for each season, says how much of the free plan it used (requests by route), keeps a
-// champion's answer until its next game, and counts the rune pages each laner of yesterday's games took against their
+// champion's answer for the next ask, and counts the rune pages each laner of yesterday's games took against their
 // lane opponent (the rune count). Then, restarted with the
 // sweep going 8 days back, it carries on with the day it was on and counts the older games a day at a time, newer
 // days first, takes the pro players' games with its ladder's, and finishes counting each server's ladder for the
@@ -137,7 +137,6 @@ const counted = async (n) => { // the summary once n games are counted and nothi
 
 (async () => {
   await up('SWEEP_DAYS:3'); // the sweep waits for now: it has no day older than 3 days to count
-  await get('/riot/champ?c=103&r=MIDDLE'); // asked before Ahri's games come in: her kept answer has to go as each comes
   // the counting starts by itself once the Riot object wakes up
   let sum = await counted(5);
   assert.equal(sum.total, 5, 'KR_1004 (ARAM) and KR_1005 (a remake) are not counted');

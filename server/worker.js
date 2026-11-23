@@ -913,20 +913,20 @@ export class Riot extends DurableObject {
     const s = this.sumOf(t), mine = s.c[c] || (s.old && s.old.c[c]) || {}, y = { n: 0, w: 0, vs: {} };
     if (!ROLES.has(role)) role = Object.keys(mine).sort((a, b) => mine[b][0] - mine[a][0])[0] || 'MIDDLE';
     const k = `${c} ${role} ${t}`, hit = this.memo.get(k);
-    if (hit && Date.now() - hit.at < 600000) return hit.v;
+    if (hit && Date.now() - hit.at < 1800000) return hit.v;
     if (!t) for (const { v } of this.sql.exec('SELECT v FROM matchups WHERE b = ?', c % 16)) for (const [o, [n, w]] of Object.entries((JSON.parse(v)[c] || {})[role] || {})) { const x = (y.vs[o] ||= [0, 0]); x[0] += n; x[1] += w; y.n += n; y.w += w; }
-    const rows = this.sql.exec('SELECT patch, at, win, opp, gd, d FROM games WHERE champ = ? AND role = ? AND slot >= ? AND slot < ? ORDER BY at DESC', c, role, t ? KEEP : 0, t ? 2 * KEEP : KEEP).toArray();
+    // sorted here, not by SQL's ORDER BY, which the free plan counts as reading every row twice
+    const rows = this.sql.exec('SELECT patch, at, win, opp, gd, d FROM games WHERE champ = ? AND role = ? AND slot >= ? AND slot < ?', c, role, t ? KEEP : 0, t ? 2 * KEEP : KEEP).toArray().sort((a, b) => b.at - a.at);
     return this.remember(k, `{"t":"${t}","patch":${JSON.stringify(s.p)},"role":"${role}","roles":${JSON.stringify(s.c[c] || {})},"y":${JSON.stringify(y)},"games":[${rows.map((x) => `{"p":${JSON.stringify(x.patch)},"t":${x.at},"w":${x.win},"o":${x.opp},"g":${x.gd ?? 'null'},${x.d.slice(1)}`).join(',')}]}`);
   }
-  // an ask reads up to 1,000 rows, so its answer is kept 10 minutes, or until a game of that champion is kept
-  // (forget) or the sweep adds a day (memo.clear()): the last 40 asked (up to about 450 KB each), the oldest leaving first
+  // an ask reads up to 500 rows, so its answer is kept 30 minutes, the crawl's new games waiting that long, or until
+  // the sweep adds a day (memo.clear()): the last 40 asked (up to about 450 KB each), the oldest leaving first
   remember(k, v) {
     this.memo.delete(k);
     this.memo.set(k, { at: Date.now(), v });
     if (this.memo.size > 40) this.memo.delete(this.memo.keys().next().value);
     return v;
   }
-  forget(c) { for (const k of this.memo.keys()) if (k.startsWith(`${c} `)) this.memo.delete(k); }
   // the champions the same high elo players play (pool()): of the n players (of all those asked) with c among their 8
   // champions with the most mastery points, how many have each other one, 3 or more, the closest first (the most of
   // them for how many players have it at all: cosine similarity). Every pools row (about 3,000) is read at most once an
@@ -1055,7 +1055,6 @@ export class Riot extends DurableObject {
       this.sql.exec('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (champ, role, slot) DO UPDATE SET patch = excluded.patch, at = excluded.at, win = excluded.win, opp = excluded.opp, gd = excluded.gd, d = excluded.d',
         x.c, x.r, slot, g.patch, g.at, x.w, o.c, f10 ? gx - go : null, d);
       this.count(g.patch, x.c, x.r, x.w, g.t);
-      this.forget(x.c);
     }
     this.ban(g.patch, g.b, g.t);
     this.sumOf(g.t).at = g.at;
