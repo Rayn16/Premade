@@ -500,6 +500,8 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
 const text = (page, sel) => page.locator(sel).innerText();
 // the text of everything a selector finds, read in one go: champ select and the game redraw their rows every second, and
 // a row read after a redraw replaced it has no layout, so its text runs together
+// the Runes tab's rows in a group (What's new 213): name and sub · its numbers · on when League uses that page
+const ruRows = (page, sel) => page.$$eval(`${sel} .rurow`, (l) => l.map((b) => `${b.querySelector('.runame').innerText.replace(/\s+/g, ' ').trim()} · ${b.querySelector('.rustat').innerText.replace(/\s+/g, ' ').trim()}${b.getAttribute('aria-pressed') === 'true' ? ' · on' : ''}`.trim()));
 const texts = (page, sel) => page.evaluate((sel) => [...document.querySelectorAll(sel)].map((e) => e.innerText.replace(/\s+/g, ' ').trim()), sel);
 // a report fits its box: nothing wider than the report, each player's row inside it (What's new 186: the scoreboard's
 // rows had slid off to the right)
@@ -528,7 +530,6 @@ const TIPS_AHRI_ZED = ['High elo: Ahri won 12 of 30 games against Zed, −200 go
   'You: 9 of 13 games won against Zed in your lane, 6 of 8 on Ahri.',
   'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
   'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
-  'Against Zed, high elo Ahri players take Electrocute (10 of 10 games) and Flash + Ignite (10 of 10 games).',
   'Against Ahri, high elo Zed players take Flash + Ignite (10 of 10 games).', 'Riot’s tip for Ahri: Use Charm to set up your combos.'];
 const POS_N = ['Top', 'Jungle', 'Middle', 'Bottom', 'Support'];
 const tipsIn = (page, sel) => page.$$eval(`${sel} li`, (l) => l.map((e) => e.textContent));
@@ -1517,8 +1518,8 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => /hovering Ahri/.test(document.getElementById('csTurn').textContent), null, 'Ahri hovered from the phone');
     await wait(pc, () => document.querySelector('#dGrid .dchamp[aria-pressed="true"] img').alt === 'Ahri', null, 'Ahri hovered in the grid');
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])');
-    await wait(pc, () => /Runes: the most popular page/.test(document.getElementById('runesNote').textContent), null, 'the runes');
-    assert.strictEqual(await text(pc, '#runesNote'), 'Runes: the most popular page for Ahri, middle, in high elo (Electrocute: 63% won in 30 games). Spells: Flash on D, Ignite on F.');
+    await wait(pc, () => /Runes: the most popular page/.test(lpc.lcu().runesNote), null, 'the runes');
+    assert.strictEqual(await pc.evaluate(() => lpc.lcu().runesNote), 'Runes: the most popular page for Ahri, middle, in high elo (Electrocute: 63% won in 30 games). Spells: Flash on D, Ignite on F.');
     const page1 = callsTo(/^\/lol-perks\/v1\/pages$/, 'POST');
     assert.strictEqual(page1.length, 1);
     assert.deepStrictEqual(page1[0][2], { name: 'LPC Ahri', primaryStyleId: 8100, subStyleId: 8200, selectedPerkIds: [8112, 8139, 8138, 8135, 8226, 8237, 5008, 5008, 5011], current: true });
@@ -1543,7 +1544,14 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual([lpcSet.uid, lpcSet.associatedChampions, lpcSet.associatedMaps, set.accountId], ['lpc-103', [103], [11], 77]);
     assert.strictEqual(await text(pc, '#skillNote'), 'Your skill order on Ahri (from 8 games): start Q, W, E, then max Q, then W, then E. In high elo: start Q, E, W, then max Q, then E, then W.');
     assert.strictEqual(await text(pc, '#topNote'), 'In high elo, Ahri middle won 55% of 40 games. Against their picks: Zed, 40% won in 30 games (−200 gold at 10).');
-    assert.strictEqual(await text(pc, '#runesOther'), 'Use my own usual runes instead');
+    // What's new 213: the Runes tab. Against Zed from the games our server keeps (no rune count yet: it answers 404), then
+    // for Ahri: high elo's most taken (the page that went on, with the check), your usual and Riot's; and your pages
+    await wait(pc, () => document.querySelectorAll('#ruVsList .rurow').length === 1 && document.querySelectorAll('#ruForList .rurow').length === 3 && !!document.querySelector('#ruForList .rurow[aria-pressed="true"]'), null, 'the Runes tab’s rows', 8000);
+    assert.strictEqual(await text(pc, '#ruVsHead'), 'Against Zed');
+    assert.strictEqual(await text(pc, '#ruVsNote'), 'Most taken first, from 10 high elo games against Zed');
+    assert.deepStrictEqual(await ruRows(pc, '#ruVsList'), ['Electrocute + Sorcery · 10 of 10 games 4 won · on']);
+    assert.deepStrictEqual(await ruRows(pc, '#ruForList'), ['Most taken in high elo Electrocute + Sorcery · 30 of 40 games 19 won · on', 'Your usual Electrocute + Sorcery · From your games', 'Riot’s pick Electrocute + Sorcery ·']);
+    assert.deepStrictEqual(await pc.$$eval('#ruFaces button', (l) => l.map((b) => b.getAttribute('aria-label') + (b.getAttribute('aria-pressed') === 'true' ? ' (on)' : ''))), ['Zed (on)']);
     // the tips for your lane: how Ahri does against Zed in high elo and in your games, the two champions, what high elo
     // players take in the matchup, and Riot's own tips
     await wait(pc, () => !document.getElementById('csTips').hidden && /Riot’s tip for Ahri/.test(document.getElementById('csTips').textContent), null, 'the tips for your lane');
@@ -1622,18 +1630,28 @@ const leagueData = (over = {}) => ({
     assert.match(await pc.getAttribute('#csRows .cscard:first-child .csart', 'src'), /splash\/Garen_0\.jpg$/, 'a teammate hovering Garen: Garen’s card');
     await wait(pc, () => document.querySelector('#csRows .cscard[data-me] .csline').textContent === 'Dynasty Ahri · Ruby', null, 'your skin and chroma on your card');
     await pc.click('#csTabs [data-cs="runes"]');
-    await wait(pc, () => document.getElementById('csPage').selectedOptions[0].textContent === 'My page' && document.querySelectorAll('#csRecs button').length === 2, null, 'your rune page on the PC');
-    assert.deepStrictEqual(await texts(pc, '#csRecs button'), ['High elo Ahri', 'Riot’s Electrocute']);
+    await wait(pc, () => (document.querySelector('#ruMineList .rurow[aria-pressed="true"] .runame') || {}).firstChild?.textContent === 'My page' && document.getElementById('csPageName').value === 'My page', null, 'your rune page on the PC');
     assert(await pc.isDisabled('#csPageSave'), 'an empty page can’t be saved');
-    const csPressed = () => pc.$$eval('#csEditor [aria-pressed="true"]', (l) => l.map((b) => b.textContent || b.getAttribute('aria-label')));
-    await pc.click('#csRecs button:has-text("Riot’s Electrocute")');
-    assert.deepStrictEqual(await csPressed(), ['Domination', 'Electrocute', 'Cheap Shot', 'Eyeball Collection', 'Treasure Hunter', 'Sorcery', 'Manaflow Band', 'Transcendence', 'Adaptive force', 'Adaptive force']);
-    await pc.locator('#csEditor .shards').nth(2).locator('button', { hasText: 'Health scaling' }).click();
-    await pc.click('#csEditor button[aria-label="Dark Harvest"]');
+    // What's new 213's editor: trees and keystones with names, each row's pick named with what it does, a card on a
+    // rune you rest on; the page built rune by rune, then saved over yours
+    const csPressed = () => pc.$$eval('#csEditor [aria-pressed="true"]', (l) => l.map((b) => b.getAttribute('aria-label') || b.textContent));
+    await pc.click('#csEditor .rucol:first-child .rutree:text-is("Domination")');
+    for (const name of ['Dark Harvest', 'Cheap Shot', 'Eyeball Collection', 'Treasure Hunter']) await pc.click(`#csEditor button[aria-label="${name}"]`);
+    await pc.click('#csEditor .rucol:last-child .rutree:text-is("Sorcery")');
+    for (const name of ['Manaflow Band', 'Transcendence']) await pc.click(`#csEditor button[aria-label="${name}"]`);
+    assert.deepStrictEqual(await texts(pc, '#csEditor .rucol:first-child .rutext b'), ['Cheap Shot', 'Eyeball Collection', 'Treasure Hunter']);
+    assert(await pc.isVisible('#csDirty') && await pc.isDisabled('#csPageSave'), 'not saved yet, and no shards yet');
+    for (let i = 0; i < 3; i++) await pc.locator('#csEditor .rucol:last-child .rubrow').nth(3 + i).locator('button').nth(i === 2 ? 2 : 0).click();
+    assert.deepStrictEqual(await csPressed(), ['Domination', 'Dark Harvest', 'Cheap Shot', 'Eyeball Collection', 'Treasure Hunter', 'Sorcery', 'Manaflow Band', 'Transcendence', 'Adaptive force', 'Adaptive force', 'Health scaling']);
+    assert.deepStrictEqual(await texts(pc, '#csEditor .rucol:last-child .rutext b'), ['Manaflow Band', 'Transcendence', 'Pick one', 'Adaptive force', 'Adaptive force', 'Health scaling']);
+    await pc.hover('#csEditor button[aria-label="Electrocute"]');
+    await wait(pc, () => getComputedStyle(document.querySelector('#csEditor button[aria-label="Electrocute"] .rucard')).opacity === '1', null, 'the card on Electrocute');
+    assert.strictEqual(await text(pc, '#csEditor button[aria-label="Electrocute"] .rucard b'), 'Electrocute');
+    await pc.mouse.move(2, 2);
     await pc.fill('#csPageName', 'PC page');
     const fromPc = lcu.calls.length;
     await pc.click('#csPageSave');
-    await wait(pc, () => document.getElementById('csRunesNote').textContent === 'Saved “PC page”, and it’s your rune page now.', null, 'the page saved from the PC');
+    await wait(pc, () => /Saved to League/.test((document.querySelector('.rutoast') || {}).textContent), null, 'the page saved from the PC');
     assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages\/1$/, 'PUT', fromPc).map((c) => [c[2].name, c[2].selectedPerkIds]), [['PC page', [8128, 8126, 8138, 8135, 8226, 8210, 5008, 5008, 5001]]]);
     lcu.full = true;
     await pc.click('#csPageNew');
@@ -1718,7 +1736,7 @@ const leagueData = (over = {}) => ({
     lcu.cs = null;
     lcu.phase = 'InProgress';
     await league({ inGame: false, phase: 'InProgress' });
-    await wait(pc, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && [...b.us, ...b.them].every((p) => /LP|Unranked/.test(p.rank)) && !!b.tips && b.tips.lines.length === 9; }, null, 'everyone’s rank on the loading screen');
+    await wait(pc, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && [...b.us, ...b.them].every((p) => /LP|Unranked/.test(p.rank)) && !!b.tips && b.tips.lines.length === 8; }, null, 'everyone’s rank on the loading screen');
     // What's new 194: League's client gave Shadow 30 wins and no losses (100%); the record is Riot's, never League's 30W 0L
     assert(await pc.evaluate(() => !/100%/.test(lpcClient.lastOverlay.board.them[2].rank)), 'no 100% from League’s client');
     await wait(pc, () => / · 55% of 55$/.test(lpcClient.lastOverlay.board.them[2].rank), null, 'Shadow’s record from Riot');
@@ -2406,18 +2424,18 @@ const leagueData = (over = {}) => ({
     champSelect(778, { championId: 99 });
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
-    await wait(pc, () => /Runes: Riot’s page for Lux/.test(document.getElementById('runesNote').textContent), null, 'the second runes', 20000);
+    await wait(pc, () => /Runes: Riot’s page for Lux/.test(lpc.lcu().runesNote), null, 'the second runes', 20000);
     assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', cs2).length, 0, 'no second page');
     assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT', cs2).length, 1);
     assert.strictEqual(callsTo(/currentpage$/, 'PUT', cs2)[0][2], 50);
     assert.strictEqual(lcu.pages.find((x) => x.id === 50).name, 'LPC Lux');
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH').pop()[2], { spell1Id: 14, spell2Id: 4 });
-    // your own usual rune page for Lux instead of Riot's, from its button
-    await wait(pc, () => !document.getElementById('runesOther').hidden, null, 'the button for your own runes');
-    await pc.click('#runesOther');
-    await wait(pc, () => document.getElementById('runesNote').textContent === 'Runes: your own page for Lux from 5 of your games (Arcane Comet). Spells: Ignite on D, Flash on F.', null, 'your own runes');
+    // your own usual rune page for Lux instead of Riot's, from its row (What's new 213)
+    await pc.click('#csTabs [data-cs="runes"]');
+    await wait(pc, () => [...document.querySelectorAll('#ruForList .rurow')].some((b) => /^Your usual/.test(b.innerText)), null, 'the row for your own runes');
+    await pc.click('#ruForList .rurow:has-text("Your usual")');
+    await wait(pc, () => document.querySelector('#ruForList .rurow[aria-pressed="true"]')?.innerText.startsWith('Your usual'), null, 'your own runes');
     assert.deepStrictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT').pop()[2].selectedPerkIds, [8229, 8226, 8210, 8237, 8139, 8135, 5008, 5008, 5002]);
-    assert.strictEqual(await text(pc, '#runesOther'), 'Use Riot’s recommended runes instead');
     console.log('second champ select: the app’s rune page reused for Lux, Flash on F, then your own usual page');
     // ---- a third: your rune page and spells picked by hand before you lock in stay, and your favorite skin goes on
     const cs3 = lcu.calls.length;
@@ -2429,12 +2447,12 @@ const leagueData = (over = {}) => ({
     await pc.click('#csSlotF');
     await pc.click('#csSpellGrid button:has-text("Heal")');
     await pc.click('#csTabs [data-cs="runes"]');
-    await wait(pc, () => document.getElementById('csPage').options.length > 1, null, 'the pages');
-    await pc.selectOption('#csPage', { label: 'LPC Lux' });
+    await wait(pc, () => document.querySelectorAll('#ruMineList .rurow').length >= 1, null, 'the pages');
+    await pc.click('#ruMineList .rurow:has-text("PC page")');
     await until(() => callsTo(/currentpage$/, 'PUT', cs3).length === 1, 'your page picked by hand');
     await pc.fill('#anyChamp', 'Ahri');
     await pc.click('#pickLock');
-    await wait(pc, () => document.getElementById('runesNote').textContent === 'Runes and spells: your own picks, so Premade left them as they are.', null, 'the hand picks kept', 20000);
+    await wait(pc, () => document.getElementById('csRunesNote').textContent === 'Runes and spells: your own picks, so Premade left them as they are.', null, 'the hand picks kept', 20000);
     await until(() => callsTo(/my-selection$/, 'PATCH', cs3).some((c) => c[2].selectedSkinId === 103001), 'your favorite skin on lock in');
     assert.deepStrictEqual(callsTo(/my-selection$/, 'PATCH', cs3).map((c) => c[2]), [{ spell1Id: 4, spell2Id: 7 }, { selectedSkinId: 103001 }], 'no automatic spells');
     assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages/, 'PUT', cs3).length + callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', cs3).length, 0, 'no automatic rune page');
@@ -2602,9 +2620,11 @@ const leagueData = (over = {}) => ({
     {
       const [hctx, hp] = await context(browser, { version: '1.13.0' });
       await hctx.exposeFunction('fakeLcu', fakeLcu);
-      await hctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past)/, (r) => {
+      let runeCount = null; // our server's rune count (What's new 213), 404 until it's deployed
+      await hctx.route(/127\.0\.0\.1:9001\/riot\/(summary|champ|api|past|runes)/, (r) => {
         const u = new URL(r.request().url()), cors = { 'access-control-allow-origin': '*' }, role = u.searchParams.get('r') || 'MIDDLE';
         if (u.pathname.endsWith('/summary')) return r.fulfill({ json: HSUM, headers: cors });
+        if (u.pathname.endsWith('/runes')) return runeCount && u.searchParams.get('c') === '103' ? r.fulfill({ json: { p: ['15.20', '15.19'], n: 400, r: runeCount }, headers: cors }) : r.fulfill({ status: 404, json: {}, headers: cors });
         if (!u.pathname.endsWith('/champ')) return r.fulfill({ status: 404, json: {}, headers: cors });
         const c = +u.searchParams.get('c'), games = H_CHAMP[`${c}/${role}`] || [];
         r.fulfill({ json: { patch: '15.20', role, roles: games.length ? { [role]: [games.length, games.filter((g) => g.w).length] } : {}, games }, headers: cors });
@@ -2648,7 +2668,7 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await text(hp, '#dMu .wg .wcap'), 'in 20 of 20');
       assert.deepStrictEqual((await texts(hp, '#dMu li')).filter((t) => !t.startsWith('You:')), ['Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.',
         'Riot’s tip against Zed: Zed’s shadows copy his abilities: stand away from them.', 'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.',
-        'Against Zed, high elo Ahri players take Arcane Comet (20 of 20 games; usually Electrocute) and Flash + Teleport (20 of 20 games; usually Flash + Ignite).', 'Riot’s tip for Ahri: Use Charm to set up your combos.']);
+        'Riot’s tip for Ahri: Use Charm to set up your combos.']);
       await shot(hp, 'pregame-draft-board-matchup');
       console.log('draft board matchup: Ahri against Zed, with the record, runes, first items and tips');
       // champ select, middle, before their laner is known: Ahri, whom Zed beats in high elo, ranks below the safe picks
@@ -2667,16 +2687,39 @@ const leagueData = (over = {}) => ({
       Object.assign(flatActions().find((a) => a.id === 8), { completed: true, isInProgress: false, championId: 103 });
       lcu.cs.myTeam[2].championId = 103;
       lcu.cs.theirTeam[2].championId = 238;
-      await wait(hp, () => /^Runes: the most popular page for Ahri, middle, in high elo \(Electrocute: 55% won in 40 games\)\./.test(document.getElementById('runesNote').textContent) && !document.getElementById('runesVs').hidden, null, 'the matchup runes button');
-      assert.strictEqual(await text(hp, '#runesVs'), 'Use what high elo players take against Zed: Arcane Comet (20 of 20 games)');
+      await wait(hp, () => /^Runes: the most popular page for Ahri, middle, in high elo \(Electrocute: 55% won in 40 games\)\./.test(lpc.lcu().runesNote) && document.querySelectorAll('#ruVsList .rurow').length === 1, null, 'the Runes tab against Zed');
+      // What's new 213, before our server counts runes (404): Against Zed from the 20 games it keeps, with their spells
+      assert.strictEqual(await text(hp, '#ruVsNote'), 'Most taken first, from 20 high elo games against Zed');
+      assert.deepStrictEqual(await ruRows(hp, '#ruVsList'), ['Arcane Comet + Domination · 20 of 20 games 6 won']);
+      assert.deepStrictEqual(await hp.$$eval('#ruVsList .ruspell', (l) => l.map((i) => i.alt)), ['Flash', 'Teleport']);
       assert.deepStrictEqual(await hGrid(), ['Lux +6.0', 'Vi +0.0', 'Zed +0.0', 'Ahri −16.3'], 'Zed known: the lane matchup counts instead of the blind pick');
+      // a tap puts it on as Premade's page with its spells, and the check moves to it
       const since = lcu.calls.length;
-      await hp.click('#runesVs');
-      await wait(hp, () => document.getElementById('runesNote').textContent === 'Runes: the page high elo players take on Ahri against Zed (Arcane Comet in 20 of 20 games, 6 won). Spells: Flash on D, Teleport on F.', null, 'the page against Zed');
+      await hp.click('#ruVsList .rurow');
+      await wait(hp, () => document.querySelector('#ruVsList .rurow').getAttribute('aria-pressed') === 'true' && !document.querySelector('#ruForList .rurow[aria-pressed="true"]'), null, 'the page against Zed');
       const pg = callsTo(/^\/lol-perks\/v1\/pages(\/\d+)?$/, null, since).filter(([m]) => m !== 'GET').pop();
       assert(pg && pg[2].primaryStyleId === 8200 && pg[2].subStyleId === 8100 && JSON.stringify(pg[2].selectedPerkIds) === JSON.stringify(COMET.slice(2)), `the page against Zed: ${JSON.stringify(pg)}`);
       assert.deepStrictEqual([lcu.cs.myTeam[2].spell1Id, lcu.cs.myTeam[2].spell2Id], [4, 12]);
-      assert(await hp.locator('#runesVs').isHidden() && (await text(hp, '#runesOther')) === 'Use the most popular runes instead', 'and back to the usual page');
+      assert.deepStrictEqual(await hp.$$eval('#csEditor [aria-pressed="true"]', (l) => l.map((b) => b.getAttribute('aria-label') || b.textContent)).then((l) => l.slice(0, 2)), ['Sorcery', 'Arcane Comet'], 'and in the editor');
+      // once our server counts runes: the most taken first, Electrocute's page Wins more (27 of 38 against 25 of 52),
+      // Aery left out (no page with it in the kept games)
+      runeCount = { MIDDLE: { 238: { '8229-8100': [52, 25], '8112-8200': [38, 27], '8214-8100': [15, 9] } } };
+      await hp.evaluate(() => lpc.runeCountsAgain());
+      await wait(hp, () => document.querySelectorAll('#ruVsList .rurow').length === 2, null, 'the rune count against Zed');
+      assert.strictEqual(await text(hp, '#ruVsNote'), 'Most taken first, from 105 high elo games against Zed');
+      assert.deepStrictEqual(await ruRows(hp, '#ruVsList'), ['Arcane Comet + Domination · 52 of 105 games 25 won · on', 'Electrocute + Sorcery Wins more · 38 of 105 games 27 won']);
+      assert.deepStrictEqual(await hp.evaluate(() => [lpc.winsMore([38, 27], [52, 25]), lpc.winsMore([15, 11], [15, 5]), lpc.winsMore([52, 25], [38, 27])]), [true, false, false], 'Wins more: 2 standard errors, 30 games each');
+      await shot(hp, 'runes-tab');
+      // their Darius at the top: his face, tapped, shows how few games there are against him
+      const top0 = lcu.cs.theirTeam[0].championId;
+      lcu.cs.theirTeam[0].championId = 122;
+      await wait(hp, () => !!document.querySelector('#ruFaces button[aria-label="Darius"]'), null, 'Darius’s face');
+      await hp.click('#ruFaces button[aria-label="Darius"]');
+      await wait(hp, () => /^Not enough games against Darius yet/.test(document.getElementById('ruVsList').innerText), null, 'not enough games against Darius');
+      assert.match(await text(hp, '#ruVsList .ruempty span'), /^(\d+ high elo games so far|No high elo games so far)\. Pages show here from 5\.$/);
+      assert(await hp.isHidden('#ruVsNote'));
+      await shot(hp, 'runes-tab-not-enough');
+      lcu.cs.theirTeam[0].championId = top0;
       console.log('safe blind picks: Ahri, beaten by Zed, lower until Zed is picked; matchup runes: Arcane Comet and Teleport against Zed in one click');
       // at the bottom on Jinx: tips against their Caitlyn and their Sona
       Object.assign(lcu.cs.myTeam[2], { assignedPosition: 'bottom', championId: 222 });
@@ -2780,8 +2823,8 @@ const leagueData = (over = {}) => ({
       Object.assign(flatActions().find((a) => a.id === 8), { completed: true, isInProgress: false, championId: 103 });
       lcu.cs.myTeam[2].championId = 103;
       lcu.cs.theirTeam[2].championId = 238;
-      await wait(ep, () => /^Runes: the most popular page for Ahri, middle, in Emerald and Diamond/.test(document.getElementById('runesNote').textContent), null, 'Emerald and Diamond’s runes');
-      assert.strictEqual(await text(ep, '#runesNote'), 'Runes: the most popular page for Ahri, middle, in Emerald and Diamond (Arcane Comet: 60% won in 30 games). Spells: Flash on D, Teleport on F.');
+      await wait(ep, () => /^Runes: the most popular page for Ahri, middle, in Emerald and Diamond/.test(lpc.lcu().runesNote), null, 'Emerald and Diamond’s runes');
+      assert.strictEqual(await ep.evaluate(() => lpc.lcu().runesNote), 'Runes: the most popular page for Ahri, middle, in Emerald and Diamond (Arcane Comet: 60% won in 30 games). Spells: Flash on D, Teleport on F.');
       await wait(ep, () => /^Items: the Emerald and Diamond build on Ahri \(from 30 games\)/.test(document.getElementById('buildNote').textContent), null, 'Emerald and Diamond’s build');
       assert.deepStrictEqual(lcu.itemSets.itemSets.find((s) => s.uid === 'lpc-103').blocks.slice(0, 3).map((b) => [b.type, b.items.map((i) => i.id).join()]),
         [['Emerald and Diamond start', '1056'], ['Emerald and Diamond first items, in order', '6655,3157'], ['Emerald and Diamond boots', '3020']]);
