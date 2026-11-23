@@ -128,8 +128,10 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .pk .emb, .rkc .emb { width: 3.2em; height: 3.2em; object-fit: contain; }
 .pk b { font-size: 1.35em; white-space: nowrap; }
 .hr { height: 1px; background: var(--line); }
-.rb .chips { display: flex; justify-content: center; gap: 0.4em; min-height: 1.8em; }
-.rb .chip { padding: 0.1em 0.75em; border: 1px solid #6b6a66; border-radius: 999px; font-size: 1.12em; white-space: nowrap; text-shadow: none; }
+/* the tags stay inside the card (What's new 217): side by side when they fit, else the second on a line under the
+   first. Every card keeps room for 2 lines so the cards still line up; a tag wider than the card ends in "…" */
+.rb .chips { display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 0.4em; width: 100%; min-height: 4em; }
+.rb .chip { max-width: 100%; box-sizing: border-box; padding: 0.1em 0.75em; border: 1px solid #6b6a66; border-radius: 999px; font-size: 1.12em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: none; }
 .rb .chip.good { border-color: var(--good); color: var(--goodL); }
 .rb .chip.bad { border-color: var(--bad); color: var(--badL); }
 /* the mini profile (What's new 205, planned as 201): while the mouse rests on a name, who they are; what the card
@@ -517,7 +519,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     who.append(b);
     const sea = p.stats && p.stats.sea, chips = el('chips');
-    for (const [k, t] of (Array.isArray(p.tags) ? p.tags : []).slice(0, 2)) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
+    for (const [k, t] of (Array.isArray(p.tags) ? p.tags : []).slice(0, 2)) chips.append(Object.assign(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)), { title: String(t) }));
     info.append(el('chn', String(p.ch || '')), kit, who, cell([rankLine(p)], sea && (rk(sea.peak) || champsOf(sea).length) ? () => seaBox(sea) : null), statsRow(p), chips);
     c.append(info);
     return c;
