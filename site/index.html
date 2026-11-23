@@ -1172,7 +1172,7 @@ output.vend { font-family: var(--mono); }
 .crest text { fill: var(--tc); font: 700 20px var(--display); text-anchor: middle; }
 .rtier { font: 600 20px/1.2 var(--body); }
 .prodash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
-@container app (max-width: 1000px) { .prodash { grid-template-columns: minmax(0, 1fr); } }
+@container pro (max-width: 788px) { .prodash { grid-template-columns: minmax(0, 1fr); } } /* Profile's own width, the friends column taken off (the app's 1,000 px before it) */
 .mixbar .w { background: var(--good); }
 .mixbar .l { background: var(--bad); flex: 1; }
 .games summary .pic0 { width: 30px; height: 30px; }
@@ -2032,8 +2032,9 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
    proTint sets from the skin's main hue (only here: the menu and every other page keep the theme's). A full-width hero
    with the splash at full strength under two fades into --bg (the only gradients), the lookup and Background at the
    top, you on the left, and Solo/Duo, Flex and mastery as pictures along the bottom; everything else below in panels */
-.view[data-view="profile"] { --hair: color-mix(in srgb, var(--line) 70%, transparent); max-width: none; min-height: 100%; margin: 0 calc(-1 * var(--pad)) -32px; padding-bottom: 32px; background: var(--bg); color: var(--fg); }
-.view[data-view="profile"] > :not(.prohead) { width: min(100% - 2 * var(--pad), 1180px); justify-self: center; }
+.view[data-view="profile"] { --hair: color-mix(in srgb, var(--line) 70%, transparent); max-width: none; height: calc(100% + 32px); margin: 0 calc(-1 * var(--pad)) -32px; grid-template-columns: minmax(0, 1fr) auto; gap: 0; background: var(--bg); color: var(--fg); }
+.promain { container: pro / inline-size; display: grid; gap: 18px; align-content: start; min-width: 0; min-height: 0; overflow: auto; padding-bottom: 32px; }
+.promain > :not(.prohead) { width: min(100% - 2 * var(--pad), 1180px); justify-self: center; }
 .prohead { position: relative; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 16px; min-height: 728px; padding: 20px 32px 32px; background: var(--bg); }
 .proback { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .proback::before, .proback::after { content: ""; position: absolute; inset: 0; }
@@ -2106,6 +2107,83 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 :root:is(.skin-page, .skin-app) .view[data-view="profile"] { background: none; }
 :root:is(.skin-page, .skin-app) .prohead { background: none; }
 :root:is(.skin-page, .skin-app) .proback { display: none; }
+/* Friends you play with (What's new 214, the FrMain board): Profile's right column, full height with its own scroll;
+   under 1,240 px only the faces, each in a thin win-rate ring (the name, games and win rate in its tooltip): the full
+   column there left the games and their reports too narrow */
+.frcol { position: relative; display: flex; flex-direction: column; width: 304px; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }
+.frhead { display: flex; flex-direction: column; gap: 2px; padding: 16px 16px 8px; }
+.frhead small, .frsqhead small { font-size: 13px; color: var(--muted); }
+#proFrNote { margin: 4px 16px; font-size: 13.5px; }
+.frlist { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 4px 8px 16px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.fr { position: relative; display: flex; align-items: center; gap: 4px; border-radius: 8px; }
+.fr:is(:hover, :focus-within), .fr:has(.frmore[open]) { background: var(--soft); }
+.fr[aria-current] { background: var(--soft-2); }
+.frgo { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 8px 4px 8px 8px; border: 0; border-radius: 8px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.frface { position: relative; flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--raised); font: 600 15px/1 var(--body); }
+.frface::before { content: attr(data-i); }
+.frface img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.frface:not([data-dot]) { opacity: 0.5; }
+.frface[data-dot]::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid var(--panel); background: var(--good); }
+.frface[data-dot="busy"]::after { background: #4ea3e0; }
+.frface[data-dot="away"]::after { background: var(--best); }
+.frtext { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.frtext > small { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frname { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.frname b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frname small { flex: none; font-size: 12.5px; color: var(--muted); }
+.frpm { flex: none; width: 14px; height: 14px; border-radius: 4px; }
+.frring { flex: none; width: 38px; height: 38px; margin-right: 8px; }
+.frring svg { display: block; width: 100%; height: 100%; }
+.frring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; }
+.frring circle:first-child { stroke: var(--soft-2); }
+.frring text { fill: var(--fg); font: 600 10.5px var(--body); }
+.fracts { display: none; flex: none; align-items: center; gap: 4px; padding-right: 6px; }
+.fr:is(:hover, :focus-within) .fracts, .fr:has(.frmore[open]) .fracts { display: flex; }
+.fr:is(:hover, :focus-within) .frring, .fr:has(.frmore[open]) .frring { display: none; }
+.frmore { position: relative; }
+.frmore > summary { display: grid; place-items: center; width: 28px; height: 28px; min-height: 0; padding: 0; }
+.frmore > summary circle { fill: currentColor; stroke: none; }
+.frmore .cmenu { top: calc(100% + 4px); bottom: auto; min-width: 180px; }
+.frmore .cmenu .btn { justify-content: flex-start; text-align: left; border-color: transparent; background: none; }
+.frinv { margin: 4px 16px 6px; padding: 10px 0 12px; border-block: 1px solid var(--line); display: grid; gap: 8px; }
+.frinv > div { display: grid; gap: 8px; }
+.frinv p { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 13.5px; line-height: 1.35; }
+.frinv .frface, .sqfaces .frface { width: 28px; height: 28px; font-size: 12px; }
+.frinv b { font-weight: 600; }
+.frjoin { border-color: var(--fg); background: var(--fg); color: var(--bg); font-weight: 600; }
+.frsq { position: relative; flex: none; margin: 0 16px; padding: 12px 0 16px; border-top: 1px solid var(--line); }
+.frsqcard { display: flex; flex-direction: column; gap: 10px; }
+.frsqcard > .hint { margin: 0; font-size: 13px; }
+.frsqhead { display: flex; align-items: center; gap: 8px; }
+.frsqhead .ph { font-size: 14px; }
+.frsqhead .frmore { margin-left: auto; }
+.frsqhead .frmore .cmenu { top: auto; bottom: calc(100% + 4px); width: 260px; }
+.sqfaces { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sqfaces .frface { width: 32px; height: 32px; }
+.sqfaces .frface[data-dot]::after { width: 12px; height: 12px; }
+.sqfaces:empty { display: none; }
+.frsqbtn { display: none; }
+#friendRows .frwho { display: flex; gap: 12px; }
+#friendRows td:nth-child(2) { width: 46px; }
+@container app (max-width: 1240px) {
+  .frcol { width: 64px; }
+  .frhead, .frtext, .frring, .fracts, #proFrNote { display: none !important; }
+  .frlist { padding: 12px 0; align-items: center; gap: 6px; }
+  .fr { background: none !important; }
+  .frgo { padding: 4px; border-radius: 50%; }
+  .fr .frface { width: 36px; height: 36px; outline: 2.5px solid var(--rc, var(--soft-2)); outline-offset: 3px; }
+  .frinv { position: absolute; z-index: 5; top: 8px; right: calc(100% + 8px); width: 260px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
+  .frsq { margin: 0; padding: 8px 10px 12px; display: grid; justify-items: center; }
+  .frsqbtn { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
+  .frsqcard { display: none; position: absolute; z-index: 5; right: 100%; bottom: 0; width: 280px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
+  .frsq:is(:hover, :focus-within) .frsqcard { display: flex; }
+}
+@container app (max-width: 560px) {
+  .view[data-view="profile"] { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .promain { overflow: visible; }
+  .frcol { width: auto; border-left: 0; border-top: 1px solid var(--line); }
+  .frlist { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; padding: 12px; }
+}
 .progh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 @container app (max-width: 760px) {
   .prohead { min-height: 560px; padding: 16px 16px 24px; }
@@ -2281,7 +2359,6 @@ dialog.wizard { transform: scale(var(--from)); }
     <p class="group">Premade</p>
     <div id="premadeList" class="rlist">
     <button class="nav" type="button" data-view="voice" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Rooms</span></button>
-    <button class="nav" type="button" data-view="friends"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg><span>Friends</span></button>
     <button class="nav pc-only" type="button" data-view="help"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8l4 3-2 .5-1 2z"/></svg><span>Remote help</span></button>
     <button class="nav lcu-only" type="button" data-view="record"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span>Recording</span></button>
     <button class="nav" type="button" data-view="aion"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M12 9C9 5 5 4 2 5c1 4 4 7 10 8M12 9c3-4 7-5 10-4-1 4-4 7-10 8"/></svg><span>Aion 2</span></button>
@@ -2313,6 +2390,7 @@ dialog.wizard { transform: scale(var(--from)); }
     <p id="msg" role="alert"></p>
 
     <section class="view" data-view="profile" aria-label="Profile" hidden>
+      <div class="promain">
       <header class="prohead" aria-label="Player">
         <div class="proback" aria-hidden="true"><img id="proArt" class="proart" alt="" hidden></div>
         <div class="protop">
@@ -2432,10 +2510,37 @@ dialog.wizard { transform: scale(var(--from)); }
           </section>
         </div>
       </div>
-      <section id="proFriends" class="panel" aria-labelledby="h-profr" hidden>
-        <h2 id="h-profr" class="ph">Friends</h2>
-        <div id="proFrList" class="toolbar"></div>
-      </section>
+      </div>
+      <aside id="proFriends" class="frcol" aria-labelledby="h-profr">
+        <div class="frhead"><h2 id="h-profr" class="ph">Friends you play with</h2><small>This season, most games first</small></div>
+        <div id="frInvBox" class="frinv" hidden></div>
+        <p id="proFrNote" class="hint" role="status" hidden></p>
+        <ul id="proFrList" class="frlist" aria-labelledby="h-profr"></ul>
+        <section id="sqBox" class="frsq" aria-labelledby="h-sq">
+          <button class="btn frsqbtn" type="button" aria-label="Squad"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg></button>
+          <div class="frsqcard">
+            <div class="frsqhead"><h3 id="h-sq" class="ph">Squad</h3><small id="sqCount"></small>
+              <details id="sqPings" class="cmore frmore" hidden>
+                <summary class="btn small" aria-label="Squad options"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
+                <div class="cmenu">
+                  <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
+                  <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
+                  <button id="sqLeave" class="btn small" type="button">Leave the squad</button>
+                </div>
+              </details>
+            </div>
+            <p id="sqNote" class="hint" role="status"></p>
+            <ul id="sqList" class="sqfaces" aria-label="In your squad"></ul>
+            <div id="sqCallBox" class="stack" hidden>
+              <p id="sqCall"></p>
+              <div class="toolbar"><button id="sqJoin" class="btn small frjoin" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
+            </div>
+            <button id="sqCallBtn" class="btn" type="button" hidden>Call the squad</button>
+            <button id="sqMake" class="btn" type="button">Make a squad</button>
+            <div id="sqJoins" class="stack"></div>
+          </div>
+        </section>
+      </aside>
     </section>
 
     <section class="view" data-view="voice" aria-label="Rooms">
@@ -2718,34 +2823,6 @@ dialog.wizard { transform: scale(var(--from)); }
           </section>
         </div>
       </details>
-    </section>
-    <section class="view" data-view="friends" aria-label="Friends" hidden>
-      <header class="pagehead"><div><h1 class="title">Friends</h1><p class="sub">Who is around, and who you can drop in on right now.</p></div></header>
-      <section id="groupBox" class="panel" aria-labelledby="h-group">
-        <h2 id="h-group" class="ph">Your group <button class="tip" type="button" popovertarget="t-group" aria-label="About your group">?</button></h2>
-        <div class="tabs" role="tablist" aria-label="Your group"><button class="tab" type="button" role="tab" data-gt="friends">Friends</button><button class="tab" type="button" role="tab" data-gt="squad">Squad</button></div>
-        <div class="stack" data-gt="friends">
-          <div id="frInvBox" class="stack" hidden></div>
-          <p id="frNote" class="hint" role="status"></p>
-          <div class="tablewrap"><table class="ready"><tbody id="frRows"></tbody></table></div>
-          <div class="toolbar"><button id="frOffBtn" class="btn small" type="button" hidden></button></div>
-          <form id="frAdd" class="toolbar"><label class="field">Add a friend <input id="frId" autocomplete="off" spellcheck="false" placeholder="Name#TAG or Name#P-abcdef"></label><button class="btn" type="submit">Add</button></form>
-          <p class="hint">Your Premade code, for friends without a League account: <b id="frCode"></b> <button id="frCodeCopy" class="btn small" type="button">Copy</button></p>
-        </div>
-        <div class="stack" data-gt="squad" hidden>
-          <p id="sqNote" class="hint" role="status"></p>
-          <ul id="sqList" class="plain"></ul>
-          <div id="sqCallBox" class="stack" hidden>
-            <p id="sqCall" class="phase" data-game="1"></p>
-            <div class="toolbar"><button id="sqJoin" class="btn small" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
-          </div>
-          <div class="toolbar"><button id="sqCallBtn" class="btn primary" type="button" hidden>Call the squad</button><button id="sqMake" class="btn" type="button">Make a squad</button><span id="sqJoins" class="toolbar"></span><button id="sqLeave" class="btn small" type="button" hidden>Leave the squad</button></div>
-          <div id="sqPings" class="stack" hidden>
-            <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
-            <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
-          </div>
-        </div>
-      </section>
     </section>
     <section class="view" data-view="prox" aria-label="Proximity voice" hidden>
       <header class="pagehead"><div><h1 class="title">Proximity voice</h1><p class="sub">Friends in your game only hear you when your champions are close. Walk apart and the voices fade out on their own.</p></div></header>
@@ -3515,7 +3592,7 @@ dialog.wizard { transform: scale(var(--from)); }
           <input id="helpCode" inputmode="numeric" maxlength="11" autocomplete="off" spellcheck="false" placeholder="Their code" aria-label="Your friend’s code">
           <button id="helpGo" class="btn primary">Connect</button>
         </form>
-        <p class="hint">Or press Control next to an online friend on the Friends page. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps.</p>
+        <p class="hint">Or, on League’s Profile, press … next to a friend you play with, then Control their PC. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps.</p>
         <figure id="helpTile" class="screentile" hidden>
           <figcaption><span id="helpName"></span><span><button id="helpFull" class="btn small" type="button" hidden>Full screen</button> <button id="helpStop" class="btn small" type="button">Cancel</button></span></figcaption>
           <p id="helpSt" class="hint" role="status"></p>
@@ -3857,7 +3934,6 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Clip settings, below), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Clips are .mp4, which phones, WhatsApp and Discord play; the first one is .webm while the app fetches FFmpeg to make them. Each game is a row with its clips. Here you can play, cut, rename and save your clips, copy one to paste into a chat, or drag one straight into Discord. Saved clips stay in their game (press Saved to see only them) and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
-<div id="t-group" class="tipbox" popover><b>Friends</b>: your League friends (in the desktop app) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (a green dot on their face); Show offline friends lists the rest, with when they were last online. Your League friends stay listed with League closed. Invite puts a popup in their Premade to join your voice room, no code needed; in the Windows app, it also sends a notification you can click to join. It lasts 10 minutes. Rooms you create appear under Open voice rooms while active and unlocked, for everyone to join. Friends see you have Premade, and can invite you, while “Let whoever runs Premade and my friends see I have it” is on in Settings > App. A squad is your group of friends, up to 12, kept by our server under a code only its members’ apps know. Call the squad tells everyone in it that you want to play, with your room’s code: in their Premade, and on their phone if they turned on the phone remote’s notifications (on Android with In 10 and Not tonight right on it). Pings tell your phone when someone in your squad starts a game or ranks up. Friends in your voice room join your squad from here.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
 <div id="t-hook" class="tipbox" popover>In Discord: Server Settings, Integrations, Webhooks, New Webhook. Pick the channel, press Copy Webhook URL and paste it here. Then after each game Premade posts your result there, with your LP and any rank-up, and each clip you save under 10 MB, straight from this PC. Anyone with the link can post in that channel, so keep it to yourself.</div>
@@ -4757,7 +4833,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const k = JSON.stringify([names, [...on]]);
     if (box.dataset.key === k) return;
     box.dataset.key = k;
-    $('hideNote').textContent = names.length ? 'Ticked friends see this room in their Open voice rooms and can join it. Nobody else sees it.' : 'Your friends with Premade show here to tick. Add friends on the Friends page.';
+    $('hideNote').textContent = names.length ? 'Ticked friends see this room in their Open voice rooms and can join it. Nobody else sees it.' : 'Your friends with Premade show here to tick.';
     $('hideList').replaceChildren(...names.map((n) => {
       const c = Object.assign(document.createElement('input'), { type: 'checkbox', checked: on.has(acctOf(n)) }), l = Object.assign(document.createElement('label'), { className: 'check' });
       c.addEventListener('change', () => hideTick(n, c.checked));
@@ -11263,15 +11339,17 @@ dialog.wizard { transform: scale(var(--from)); }
     const list = friends.filter((f) => !inLobby.has(f.puuid)).map((f) => ({ f, st: (f.lol && GAME_STATUS[f.lol.gameStatus]) || (f.availability === 'away' ? 'Away' : 'Online'), asked: asked.has(f.puuid) }))
       .sort((a, b) => (b.st === 'Online') - (a.st === 'Online') || String(a.f.gameName).localeCompare(String(b.f.gameName)));
     $('friendNote').textContent = list.length ? '' : 'None of your League friends are online.';
-    const fk = JSON.stringify(list.map((x) => [x.f.puuid, x.f.gameName, x.st, x.asked]));
+    const fk = JSON.stringify([list.map((x) => [x.f.puuid, x.f.gameName, x.f.icon, x.st, x.asked, frTog({ u: x.f.puuid })]), ddVersion]);
     if ($('friendRows').dataset.key === fk) return;
     $('friendRows').dataset.key = fk;
-    $('friendRows').replaceChildren(...list.map(({ f, st, asked }) => {
-      const tr = document.createElement('tr'), b = document.createElement('button');
-      tr.innerHTML = '<td><span class="frwho"><span class="ava sm"></span><b></b></span></td><td></td><td></td>';
-      tr.querySelector('b').textContent = f.gameName ? f.gameName + (f.gameTag ? '#' + f.gameTag : '') : 'A friend';
-      tr.querySelector('.ava').dataset.i = tr.querySelector('b').textContent[0].toUpperCase(); // a face: the letter is drawn by CSS
-      tr.children[1].textContent = st;
+    $('friendRows').replaceChildren(...list.map(({ f, st, asked }) => { // the Profile column's rows (What's new 214): face and dot, name, status, your win rate together
+      const tr = document.createElement('tr'), b = document.createElement('button'), x = { ...frLolOf(f), riot: f.gameName ? riotOf(f) : 'A friend' }, t = frTog(x);
+      tr.innerHTML = '<td><span class="frwho"><span class="frtext"><span class="frname"><b></b><small></small></span><small></small></span></span></td><td></td><td></td>';
+      tr.querySelector('.frwho').prepend(frFace(x));
+      tr.querySelector('b').textContent = x.riot.split('#')[0];
+      tr.querySelector('.frname small').textContent = f.gameTag ? '#' + f.gameTag : '';
+      tr.querySelector('.frtext > small').textContent = st;
+      if (t) tr.children[1].append(frRing(t));
       b.type = 'button';
       b.className = 'btn small';
       b.textContent = asked ? 'Invited' : 'Invite';
@@ -19833,7 +19911,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }));
   }
 
-  // ---- Your group (Friends page). A squad: friends who call each other to play, kept by our server (server/squad.js, up
+  // ---- Your squad (at the foot of Profile’s friends column). A squad: friends who call each other to play, kept by our server (server/squad.js, up
   // to 12) under a code only its members' apps know. Call the squad puts "<name> wants to play" with your room's code in
   // the others' Premade, which asks our server every minute (every 10 s for 10 minutes after a call), and on their
   // phones through the phone remote's notifications (remote-sw.js, with In 10 and Not tonight on Android). Members
@@ -19863,7 +19941,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (c && c.from !== squad.id && c.n > (squad.seen | 0)) { // a call you haven't seen yet
       squad.seen = c.n;
       saveSquad();
-      if (Date.now() - c.at < 1800000) { notify(`${sqName(c.from)} wants to play: room ${String(c.room).toUpperCase()}. Join from the Friends page, Squad.`, true); if (opts.chimes) chime('call'); }
+      if (Date.now() - c.at < 1800000) { notify(`${sqName(c.from)} wants to play: room ${String(c.room).toUpperCase()}. Join from your Profile, Squad.`, true); if (opts.chimes) chime('call'); }
     }
     if (c && c.from === squad.id && was && was.call && was.call.n === c.n) for (const [id, a] of Object.entries(c.ans)) if (!was.call.ans[id]) notify(`${sqName(id)}: ${a === 'in10' ? 'in 10' : 'not tonight'}.`, true);
     renderGroup();
@@ -19907,11 +19985,15 @@ dialog.wizard { transform: scale(var(--from)); }
   // the Riot IDs each device's hello gave). Invite leaves an invite to your room for that Riot ID's Premade (/invite,
   // kept 10 minutes); each page asks /friends every 60 s, which also brings its invites (our server's inbox says when to ask sooner). With Who has Premade off
   // (opts.hello) the page sends no device id, so it gets no invites and friends don't see it.
-  let frMine = load('lpc-friends', []), frLol = load('lpc-lolfriends', []), frHas = {}, frInv = [], frAt = -Infinity, frLolAt = -Infinity, frBusy = false, frShowOff = false; // frShowOff: offline friends listed too
+  let frMine = load('lpc-friends', []), frLol = load('lpc-lolfriends', []), frHas = {}, frInv = [], frAt = -Infinity, frLolAt = -Infinity, frBusy = false;
   if (!Array.isArray(frMine)) frMine = [];
   if (!Array.isArray(frLol)) frLol = []; // your League friends as League last listed them, so they show with League closed
   const frSeen = new Set(), RIOT_ID = /^[^#]{1,32}#[^#]{1,8}$/; // invites shown
   const riotOf = (x) => (x && x.gameName ? `${x.gameName}#${x.gameTag || ''}` : '');
+  function frLolOf(x) { // a League friend: Riot ID, status line, puuid, profile icon and the status dot (busy: in a game, champ select or queue)
+    const on = x.product === 'league_of_legends' && !['offline', 'mobile'].includes(x.availability), gs = on && x.lol ? GAME_STATUS[x.lol.gameStatus] : '', c = gs && x.lol.gameStatus === 'inGame' && +x.lol.championId > 0 ? champName(+x.lol.championId) : '';
+    return { riot: riotOf(x), st: !on ? '' : gs ? gs + (c ? ` as ${c}` : '') : x.availability === 'away' ? 'Away in League' : 'In League', u: String(x.puuid || ''), ic: x.icon | 0, dot: !on ? '' : gs ? 'busy' : x.availability === 'away' ? 'away' : 'on' };
+  }
   const mineIds = () => new Set([...Object.values(accounts).map((a) => acctOf(a && a.n)), acctOf(myCode)]);
   async function friendsLoop() {
     if (frBusy) return;
@@ -19920,8 +20002,8 @@ dialog.wizard { transform: scale(var(--from)); }
       if (client && performance.now() - frLolAt > 60000) {
         frLolAt = performance.now();
         const f = await lcuGet('/lol-chat/v1/friends');
-        if (Array.isArray(f)) frLol = f.map((x) => ({ riot: riotOf(x), st: x.product === 'league_of_legends' && !['offline', 'mobile'].includes(x.availability) ? (x.lol && GAME_STATUS[x.lol.gameStatus]) || (x.availability === 'away' ? 'Away in League' : 'In League') : '' })).filter((x) => RIOT_ID.test(x.riot));
-        if (Array.isArray(f)) store.set('lpc-lolfriends', JSON.stringify(frLol.map((x) => ({ riot: x.riot, st: '' }))));
+        if (Array.isArray(f)) frLol = f.map(frLolOf).filter((x) => RIOT_ID.test(x.riot));
+        if (Array.isArray(f)) store.set('lpc-lolfriends', JSON.stringify(frLol.map((x) => ({ riot: x.riot, st: '', u: x.u, ic: x.ic }))));
       }
       if (performance.now() - frAt < 60000) return;
       frAt = performance.now();
@@ -19936,7 +20018,7 @@ dialog.wizard { transform: scale(var(--from)); }
         frSeen.add(k);
         if (HELP_ROOM.test(v.room)) { helpInvite(v); continue; } // a friend's Control on Remote help, not a room
         const inviter = v.n || v.riot, body = `${inviter} invites you to their voice room, ${v.room.toUpperCase()}.`;
-        notify(`${body} Join from the Friends page.`, true);
+        notify(`${body} Join from your Profile.`, true);
         if (client && client.notify) client.notify('Voice room invite', body, { type: 'room-invite', room: v.room, key: v.key || '' });
         if (opts.chimes) chime('call');
       }
@@ -19972,10 +20054,11 @@ dialog.wizard { transform: scale(var(--from)); }
     $('frInvBox').dataset.key = k;
     $('frInvBox').hidden = !list.length;
     $('frInvBox').replaceChildren(...list.map((v) => {
-      const d = document.createElement('div'), p = Object.assign(document.createElement('p'), { className: 'phase', textContent: `${v.n || v.riot} invites you to their voice room, ${v.room.toUpperCase()}.` });
-      const yes = Object.assign(document.createElement('button'), { type: 'button', className: 'btn primary small', textContent: 'Join now', onclick: () => { if (peer) leaveRoom(); joinRoom(v.room, false, v.key); } });
+      const d = document.createElement('div'), p = document.createElement('p'), who = frRows().find((x) => acctOf(x.riot) === acctOf(v.riot)) || { riot: v.riot, dot: 'on' }; // Premade open, so online
+      p.append(frFace(who), document.createElement('span'));
+      p.lastChild.append(Object.assign(document.createElement('b'), { textContent: v.n || v.riot }), ' invites you to their voice room');
+      const yes = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small frjoin', textContent: 'Join', onclick: () => { if (peer) leaveRoom(); joinRoom(v.room, false, v.key); } });
       const no = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Not now', onclick: () => { frSeen.add('x' + v.riot + v.at); renderInvites(); } });
-      d.className = 'stack';
       d.append(p, Object.assign(document.createElement('div'), { className: 'toolbar' }));
       d.lastChild.append(yes, no);
       return d;
@@ -19983,77 +20066,112 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function frRows() { // [{ riot, st (League status), has (2 Premade open now, 1 has it, 0 not), mine (added by hand) }]
     const now = Date.now() / 1000, mine = mineIds(), byId = new Map();
-    for (const x of frLol) byId.set(acctOf(x.riot), { riot: x.riot, st: x.st, lol: true });
-    for (const n of frMine) if (!byId.has(acctOf(n))) byId.set(acctOf(n), { riot: n, st: '', lol: false });
-    return [...byId.values()].filter((x) => !mine.has(acctOf(x.riot))).map((x) => { const t = frHas[acctOf(x.riot)] || 0; return { ...x, has: t ? (now - t < 90 ? 2 : 1) : 0, ago: t ? now - t : 0, mine: frMine.some((n) => acctOf(n) === acctOf(x.riot)) }; })
+    for (const x of frLol) byId.set(acctOf(x.riot), { riot: x.riot, st: x.st, lol: true, u: x.u || '', ic: x.ic | 0, dot: x.dot || '' });
+    for (const n of frMine) if (!byId.has(acctOf(n))) byId.set(acctOf(n), { riot: n, st: '', lol: false, u: '', ic: 0, dot: '' });
+    return [...byId.values()].filter((x) => !mine.has(acctOf(x.riot))).map((x) => { const t = frHas[acctOf(x.riot)] || 0, has = t ? (now - t < 90 ? 2 : 1) : 0; return { ...x, has, ago: t ? now - t : 0, mine: frMine.some((n) => acctOf(n) === acctOf(x.riot)), dot: x.dot || (has === 2 ? 'on' : '') }; })
       .sort((a, b) => b.has - a.has || !!b.st - !!a.st || a.riot.localeCompare(b.riot));
   }
-  function renderProFriends() { // Profile's Friends: the same friends, each opening their profile (lookUp)
-    const rows = frRows().filter((x) => !PM_CODE.test(x.riot)), k = JSON.stringify(rows.map((x) => [x.riot, x.st])); // a Premade code has no League profile
-    $('proFriends').hidden = !rows.length || !!proOther || $('proFindBox').hidden; // lookups need League open or our Riot data
+  // ---- Friends you play with (What's new 214): Profile's right column, only friends you had on your team this season,
+  // most games together first. Games: Summoner's Rift up to 1,000 back (duoAll) and every mode in the newest ~150
+  // (deep); a League friend by puuid, a friend added by hand by Riot ID (deep games only, the duo store has no names)
+  const frTogMemo = { k: '', v: null };
+  function frTogether() { // puuid, or 'n:' + Riot ID -> { n: games together, w: your wins in them }
+    const all = duoAll(), y = seasonNow() || new Date().getFullYear(), k = [duoMemo.k, deepVer, Object.keys(deep).length, y].join('/');
+    if (frTogMemo.k === k) return frTogMemo.v;
+    const from = new Date(y, 0, 1).getTime(), by = new Map(), add = (key, w) => { const s = by.get(key) || { n: 0, w: 0 }; s.n++; s.w += w ? 1 : 0; by.set(key, s); };
+    for (const g of all) if (g.at >= from) for (const [u] of g.m) add(u, g.w);
+    for (const g of myGames()) {
+      if (g.at < from) continue;
+      const m = g.ps[g.me];
+      for (const p of g.ps) if (p !== m && p.t === m.t) { if (g.mode !== 'CLASSIC' && p.u) add(p.u, m.w); if (p.n) add('n:' + acctOf(p.n), m.w); }
+    }
+    frTogMemo.k = k;
+    frTogMemo.v = by;
+    return by;
+  }
+  const frTog = (x) => (x.u && frTogether().get(x.u)) || (!x.u && frTogether().get('n:' + acctOf(x.riot))) || null;
+  function frFace(x) { // League's profile icon, or the name's first letter, with League's status dot
+    const s = document.createElement('span');
+    s.className = 'frface';
+    if (x.dot) s.dataset.dot = x.dot;
+    if (x.ic > 0 && ddVersion) s.append(Object.assign(document.createElement('img'), { src: `${DD}/cdn/${ddVersion}/img/profileicon/${x.ic}.png`, alt: '', loading: 'lazy' }));
+    else s.dataset.i = (x.riot[0] || '?').toUpperCase();
+    return s;
+  }
+  function frRing(t) { // the win rate together, its number inside (the FrMain board), coloured like the rank cards'
+    const p = Math.round((100 * t.w) / t.n), s = document.createElement('span');
+    s.className = 'frring';
+    s.setAttribute('role', 'img');
+    s.setAttribute('aria-label', `Won ${t.w} of ${t.n} together`);
+    s.innerHTML = `<svg viewBox="0 0 38 38"><circle cx="19" cy="19" r="15.5"/><circle cx="19" cy="19" r="15.5" stroke-dasharray="${((p / 100) * 97.39).toFixed(1)} 97.39" transform="rotate(-90 19 19)" style="stroke: ${rateC(p)}"/><text x="19" y="23" text-anchor="middle">${p}%</text></svg>`;
+    return s;
+  }
+  function renderProFriends() {
+    const rows = client ? frRows().map((x) => ({ ...x, t: frTog(x) })).filter((x) => x.t).sort((a, b) => b.t.n - a.t.n || b.t.w - a.t.w || a.riot.localeCompare(b.riot)) : [];
+    renderInvites();
+    renderSquad();
+    $('proFrNote').hidden = !!rows.length;
+    $('proFrNote').textContent = client ? 'No friends on your team this season yet. Play a game with one and they show up here.' : 'The desktop app reads your games from League, so who you play with shows there.';
+    const cur = proOther ? acctOf(proOther.n || '') : '', k = JSON.stringify([rows.map((x) => [x.riot, x.st, x.dot, x.ic, x.has, x.t]), cur, ddVersion]);
     if ($('proFrList').dataset.key === k) return;
     $('proFrList').dataset.key = k;
-    $('proFrList').replaceChildren(...rows.map((x) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: x.riot, title: x.st || 'Open their profile', onclick: () => lookUp(x.riot) })));
-  }
-  function renderFriends() {
-    const all = frRows(), off = all.filter((x) => x.has !== 2).length, rows = frShowOff ? all : all.filter((x) => x.has === 2);
-    $('frOffBtn').hidden = !off;
-    $('frOffBtn').textContent = frShowOff ? 'Hide offline friends' : `Show offline friends (${off})`;
-    $('frNote').textContent = (!all.length ? (client ? 'Your League friends show here once League is open. Add other friends by their Riot ID.' : 'Add your friends by their Riot ID. In the desktop app, your League friends show here by themselves.') : !rows.length ? 'None of your friends are online in Premade right now.' : '')
-      + (opts.hello ? '' : ' “Let whoever runs Premade and my friends see I have it” is off in Settings > App, so friends can’t see you have Premade or invite you, and you can’t invite them.');
-    const k = JSON.stringify([rows.map((x) => ({ ...x, ago: x.has === 1 ? Math.round(x.ago / 60) : 0 })), !!peer && room]);
-    if ($('frRows').dataset.key === k) return;
-    $('frRows').dataset.key = k;
-    $('frRows').replaceChildren(...rows.map((x) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td><span class="frwho"><span class="ava"></span><b></b></span></td><td class="hint"></td><td></td>';
-      tr.querySelector('b').textContent = x.riot;
-      tr.querySelector('.ava').dataset.i = (x.riot[0] || '?').toUpperCase(); // drawn by CSS, so the row's text stays the Riot ID
-      if (x.has) tr.querySelector('.ava').dataset.on = x.has === 2 ? 'good' : 'off';
-      tr.children[1].textContent = [x.has === 2 ? 'Online' : x.has ? `Offline, last online ${x.ago < 3600 ? Math.max(2, Math.round(x.ago / 60)) + ' min' : x.ago < 86400 ? Math.round(x.ago / 3600) + ' h' : Math.round(x.ago / 86400) + ' days'} ago` : 'No Premade yet', x.st].filter(Boolean).join(' · ');
-      if (x.has) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: peer ? 'Invite' : 'Make a room and invite', onclick: () => frInvite(x.riot) }));
-      if (x.has === 2 && !PHONE) tr.children[2].append(' ', Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control', title: 'Ask to control their PC (Remote help)', onclick: () => helpFriend(x.riot) }));
-      if (x.mine) tr.children[2].append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Remove', onclick: () => { frMine = frMine.filter((n) => acctOf(n) !== acctOf(x.riot)); store.set('lpc-friends', JSON.stringify(frMine)); renderFriends(); } }));
-      return tr;
+    $('proFrList').replaceChildren(...rows.map((x) => {
+      const li = document.createElement('li'), go = document.createElement('button'), txt = document.createElement('span'), nm = document.createElement('span'), [name, tag] = x.riot.split('#');
+      const pc = Math.round((100 * x.t.w) / x.t.n), games = plural(x.t.n, 'game') + ' together';
+      li.className = 'fr';
+      li.style.setProperty('--rc', rateC(pc)); // the face's ring in a small window
+      if (cur && cur === acctOf(x.riot)) li.setAttribute('aria-current', 'true');
+      go.type = 'button';
+      go.className = 'frgo';
+      go.title = [x.riot, x.st || (x.has === 2 ? 'Online in Premade' : 'Offline'), `${games}, ${pc}% won`].join(' · ');
+      go.addEventListener('click', () => lookUp(x.riot));
+      nm.className = 'frname';
+      nm.append(Object.assign(document.createElement('b'), { textContent: name }), Object.assign(document.createElement('small'), { textContent: '#' + tag }));
+      if (x.has) nm.append(Object.assign(document.createElement('img'), { src: 'icon-192.png', alt: 'Has Premade', className: 'frpm' }));
+      txt.className = 'frtext';
+      txt.append(nm, Object.assign(document.createElement('small'), { textContent: games }));
+      go.append(frFace(x), txt);
+      const acts = document.createElement('span'), more = document.createElement('details'), menu = document.createElement('div');
+      acts.className = 'fracts';
+      if (x.has) acts.append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Invite', onclick: () => frInvite(x.riot) }));
+      more.className = 'cmore frmore';
+      more.innerHTML = '<summary class="btn small"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>';
+      more.firstChild.setAttribute('aria-label', `More for ${name}`);
+      menu.className = 'cmenu';
+      if (x.has === 2 && !PHONE) menu.append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Control their PC', title: 'Ask to control their PC (Remote help)', onclick: () => { more.open = false; helpFriend(x.riot); } }));
+      menu.append(Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Copy Riot ID', onclick: async () => { more.open = false; try { await navigator.clipboard.writeText(x.riot); notify(`Copied ${x.riot}.`, true); } catch { notify(x.riot, true); } } }));
+      more.append(menu);
+      acts.append(more);
+      li.append(go, frRing(x.t), acts);
+      return li;
     }));
   }
-  $('frOffBtn').addEventListener('click', () => { frShowOff = !frShowOff; renderFriends(); });
-  $('frCode').textContent = myCode;
-  $('frCodeCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(myCode); notify('Premade code copied. Friends add it under Add a friend.', true); } catch { notify(`Your Premade code is ${myCode}`, true); } });
-  $('frAdd').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const n = $('frId').value.trim().replace(/\s*#\s*/, '#');
-    if (!RIOT_ID.test(n)) return notify('Type their Riot ID with its tag, like Name#EUW, or their Premade code, like Sam#P-kdmwqr.', true);
-    if (!frMine.some((x) => acctOf(x) === acctOf(n))) { frMine.push(n); store.set('lpc-friends', JSON.stringify(frMine)); }
-    $('frId').value = '';
-    frAt = -Infinity;
-    frShowOff = true; // so the friend just added shows, online or not
-    renderFriends();
-  });
-
-  let gTab = ['squad'].includes(store.get('lpc-group-tab')) ? store.get('lpc-group-tab') : 'friends';
-  function renderGroup() {
-    if (document.hidden) return;
-    for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.setAttribute('aria-selected', String(b.dataset.gt === gTab));
-    for (const d of $('groupBox').querySelectorAll('div[data-gt]')) d.hidden = d.dataset.gt !== gTab;
-    renderInvites();
-    if (gTab === 'friends') renderFriends(); else renderSquad();
-  }
+  function renderGroup() { if (!document.hidden) renderProFriends(); }
   function renderSquad() {
     const c = squad && sq && sq.call, theirs = !!c && c.from !== squad.id, others = new Map(); // the squads friends in your room are in: code -> their names
     if (!squad) for (const p of peers.values()) if (p.sq) others.set(p.sq, [...(others.get(p.sq) || []), nameOf(p)]);
     $('sqMake').hidden = !!squad;
-    $('sqCallBtn').hidden = $('sqLeave').hidden = $('sqPings').hidden = !squad;
+    $('sqCallBtn').hidden = $('sqPings').hidden = !squad;
+    $('sqCount').textContent = squad && sq ? `${sq.m.length} of 12` : '';
     const jk = JSON.stringify([...others]);
     if ($('sqJoins').dataset.key !== jk) {
       $('sqJoins').dataset.key = jk;
       $('sqJoins').replaceChildren(...[...others].map(([code, names]) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: `Join ${names.join(' and ')}’s squad`, onclick: () => joinSquad(code) })));
     }
     $('sqNote').textContent = !squad ? (others.size ? 'Friends in your room have a squad: join theirs, or make your own.'
-      : 'A squad is your group of friends. Call the squad tells all of them you want to play, in Premade and on their phone, and they answer In 10 or Not tonight. Make one, then friends in your voice room join it here.')
+      : 'Your group of up to 12. Call the squad tells all of them you want to play, in Premade and on their phone.')
       : !sq ? 'Loading your squad…' : sq.m.length < 2 ? 'Just you so far: friends in your voice room join your squad here.' : '';
     const rows = squad && sq ? sq.m.map((x) => { const a = c && c.ans[x.id]; return `${x.n}${x.id === squad.id ? ' (you)' : ''}${x.phone ? ' · phone remote on' : ''}${c && x.id === c.from ? ' · called' : a ? ` · ${a === 'in10' ? 'in 10' : 'not tonight'}` : ''}`; }) : [];
-    if ($('sqList').dataset.key !== rows.join('\n')) { $('sqList').dataset.key = rows.join('\n'); $('sqList').replaceChildren(...rows.map((t) => Object.assign(document.createElement('li'), { textContent: t }))); }
+    if ($('sqList').dataset.key !== rows.join('\n')) {
+      $('sqList').dataset.key = rows.join('\n');
+      const fr = frRows();
+      $('sqList').replaceChildren(...rows.map((t, i) => { // a face each, its line as the tooltip and for screen readers
+        const n = sq.m[i].n || '', li = document.createElement('li');
+        li.title = t;
+        li.append(frFace(fr.find((x) => x.riot.split('#')[0].toLowerCase() === n.toLowerCase()) || { riot: n }), Object.assign(document.createElement('span'), { className: 'sr', textContent: t }));
+        return li;
+      }));
+    }
     $('sqCallBox').hidden = !c;
     if (!c) return;
     $('sqCall').textContent = `${theirs ? `${sqName(c.from)} wants to play` : 'You called the squad'} (${new Date(c.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}): room ${String(c.room).toUpperCase()}.`;
@@ -20066,14 +20184,11 @@ dialog.wizard { transform: scale(var(--from)); }
   $('sqIn10').addEventListener('click', () => sqAnswer('in10'));
   $('sqNo').addEventListener('click', () => sqAnswer('no'));
   $('sqJoin').addEventListener('click', () => { const c = sq && sq.call; if (!c) return; if (peer && room !== c.room) leaveRoom(); joinRoom(c.room); });
-  for (const b of $('groupBox').querySelectorAll('.tab[data-gt]')) b.addEventListener('click', () => { gTab = b.dataset.gt; store.set('lpc-group-tab', gTab); renderGroup(); });
 
   async function groupTick() { // once a second
     friendsLoop();
     renderHide();
     if (!profView.hidden) renderProFriends(); else profileData();
-    const shown = !!$('groupBox').offsetParent;
-    if (shown) renderGroup();
     if (!squad || sqBusy) return;
     sqBusy = true;
     try {
@@ -20560,6 +20675,12 @@ dialog.wizard { transform: scale(var(--from)); }
     [216, 'November 23: picks only for your role', [
       'The pick helper and Bans for you only suggest champions that play your role: the roles League lists for each champion (with League closed, a fifth of its high elo games or more). A few off-role games in high elo, like Katarina’s as an ADC, no longer count.',
       'The draft board and the tier list go by the same rule.',
+    ]],
+    [214, 'November 23: friends you play with', [
+      'Profile has a column on the right with the League friends you played with this season, most games first, with your games together and your win rate with each.',
+      'Click a friend for their profile. Point at one for Invite, Control their PC and Copy Riot ID. Room invites show at the top of it.',
+      'Your squad is at the foot of the column now. The Friends page, Add a friend and the Premade code are gone.',
+      'Pregame’s Invite friends rows look the same, with your win rate together.',
     ]],
     [213, 'November 23: a new Runes tab in champ select', [
       'The Runes tab is a list of pages to tap. Against your laner on top: what high elo players take on your champion against them, most taken first, with how many of those games won. Tap another enemy’s face to see theirs.',
@@ -21599,13 +21720,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Watch together', 'Watch YouTube with your room: every friend who presses Join plays the same video straight from YouTube, at the same spot, as sharp as YouTube gives them. Anyone in the room can play, pause, move along the bar, change the speed or skip, and the panel says who did it. A video picked while one plays waits in Up next, a YouTube playlist adds its videos, and anyone can play one now or remove it. A friend who gets an ad or a slow moment jumps back to the room’s spot, and whoever joins the room later lands there too. On another page, or with the panel scrolled away, a small player follows you in a corner; drag it to another corner. Volume and captions are yours only. Sign in to YouTube in the Find a video window and the player plays with your account, so YouTube Premium means no ads for you; otherwise YouTube shows its own ads, and videos whose owner turned off playing outside YouTube are skipped. The Find a video window closes after 10 minutes unused and opens again where it was.',
         'In your room’s Current room card: Watch together opens YouTube’s own site in a Premade window (desktop app); search, then click a video and it plays in the room. Friends press Join at the top of the room. On a phone or the website, join, watch and control what a friend on a PC starts.', '#wtBtn, #createBtn'],
       ['Remote help', 'Use a friend’s PC with your own mouse and keyboard, or let a friend use yours, like AnyDesk, without a room or a screen share. They allow each request first, in a box that waits until they open Premade, and only then is their screen sent to you. A red bar on their screen shows who’s in control, Pause on it holds your input until they Resume, and Stop or Ctrl+Alt+X ends it. It also ends after 10 minutes without use. Your Ctrl+V pastes what you copied on your PC into theirs.',
-        'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press Control next to an online friend in Friends. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
-    ]],
-    ['Friends', 'Your friends, who’s online, invites and your squad.', [
-      ['Friends and invites', 'Your League friends (kept, so they show with League closed) and friends you add by Riot ID or Premade code (for friends without a League account: yours is under Add a friend), with who has Premade and who is online in Premade (a green dot on their face); Show offline friends lists the rest, with when they were last online. Invite pops up in their Premade right away to join your voice room, no code needed; in the Windows app its notification has a Join button. They’re under your profile too: click one to see their profile, rank and games.',
-        'The Friends page. Your League friends show by themselves in the desktop app; add others by Riot ID, or by the Premade code under Add a friend (Copy, and send it to them).', '#groupBox, #frCode'],
-      ['Your squad', 'Your group of friends: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
-        'The Friends page, Squad: Make a squad, then friends in your voice room join it there. For phones, the phone remote with notifications on.', '#groupBox'],
+        'Open Remote help. Your friend presses Get a code and tells you the 9 digits; type them in and press Connect. Or press … next to a friend on League’s Profile, then Control their PC. The friend being controlled needs the desktop app. It doesn’t work inside games with anti-cheat or programs run as administrator: they ignore mouse and keys from other apps, and Remote help says when an admin window or a Windows prompt is in the way.', '#helpForm, #helpOffer'],
     ]],
     ['Aion 2', 'Your Aion 2 legion, from the characters’ public profiles, updated every 30 minutes.', [
       ['Aion 2 group tracker', 'A Profile with your characters and your friends’ characters, a Legion page with every player ranked with all their characters and what each one gained lately, a compare that picks a friend and then one of their characters, on each character its gear with a checkup (empty manastone and Theostone slots, Common manastones, items below max enchant), skills, Daevanion boards and a Next upgrade card, a Classes page with a guide for each of the 8 classes with three builds (Game8’s main build, a second one and Farming): skills to level, all six Daevanion boards with a numbered path and node priority in the same order, and the legion’s best gear. Aion 2’s patch notes and maintenance news are under Today.',
@@ -21719,9 +21834,13 @@ dialog.wizard { transform: scale(var(--from)); }
       ['More than one account', 'Each League account keeps its own profile, LP history and games.',
         'Sign in to each one in League once, then switch with Account here; Stats follows it. On someone else’s profile, Add to my accounts makes it one of yours.', '#proAcct'],
       ['Your week', 'Every Monday, a card about the week before: your games, LP, best champion and the stat you improved most.', 'Nothing to set up. Got it puts it away until next week.', '#weekBox'],
+      ['Friends you play with', 'A column on the right of Profile with the League friends you had on your team this season, most games first: their face and status, how many games you played together and your win rate with them. Click one for their profile; Invite and … (Control their PC, Copy Riot ID) show when you point at them. A friend’s room invite shows at the top of it.',
+        'Nothing to set up: play a game with a League friend. In a smaller window it keeps only their faces.', '#proFriends', 'app'],
+      ['Your squad', 'Your group of up to 12: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
+        'At the foot of Profile’s friends column: Make a squad, then friends in your voice room join it there; … has the pings and Leave. For phones, the phone remote with notifications on.', '#sqBox'],
     ]],
     ['League: Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
-      ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online, Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox', 'app'],
+      ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online (with your win rate together this season), Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox, #friendRows', 'app'],
       ['League chat', 'Your League friends’ messages and party invites: read and answer them here or on the phone remote, accept or decline an invite, and message any friend who’s online.', 'League chat, on Pregame, while League is open.', '#lolChatBox', 'app'],
       ['Your room in your League status', 'While you’re in a room, your League status says “Premade room KAYN”, so friends know where to join. Your old status comes back when you leave.', 'Off until you turn it on: League chat on Pregame, Show my Premade room.', '#optLolStatus', 'app'],
       ['Match found', 'Accept or decline right here, or let Premade accept every match for you. It can also come to the front and open Pregame when a match is found, and ring on your pick or ban turn.',

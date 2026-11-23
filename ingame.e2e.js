@@ -353,7 +353,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       // a screen Ben can't see is paused (What's new 196): on another page Ana's app stops making it for him and his stops
       // showing it, on the same call; back on his room it plays again
       const decoded = async () => (await ben.evaluate(() => lpc.seeFrames()))[0], call0 = await ben.evaluate(() => lpc.seen()[0].callAt);
-      await ben.evaluate(() => document.querySelector('.nav[data-view="friends"]').click()); // the sidebar may show League's pages in a game
+      await ben.evaluate(() => document.querySelector('.nav[data-view="settings"]').click()); // the sidebar may show League's pages in a game
       await wait(ana, () => lpc.lendActive()[lpc.lends().indexOf('Ben')] === false, null, 'Ana pauses the screen Ben can’t see');
       assert.strictEqual(await ben.evaluate(() => lpc.seen()[0].idle), true);
       const f0 = await decoded();
@@ -463,7 +463,11 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
           r.fulfill({ json: { ok: true }, headers: { 'access-control-allow-origin': '*' } });
         });
         await c.route(`http://127.0.0.1:${PEER}/friends`, (r) => r.fulfill({ json: { has: { 'ana#euw': Date.now() / 1000, 'ben#euw': Date.now() / 1000 }, inv: invites.filter((v) => v.to === `${name}#euw`.toLowerCase()) }, headers: { 'access-control-allow-origin': '*' } }));
-        await page.evaluate((n) => { localStorage.setItem('lpc-friends', JSON.stringify([n === 'Ana' ? 'Ben#EUW' : 'Ana#EUW'])); lpcClient.version = '1.28.0'; }, name);
+        await page.evaluate((n) => {
+          localStorage.setItem('lpc-friends', JSON.stringify([n === 'Ana' ? 'Ben#EUW' : 'Ana#EUW']));
+          if (n === 'Ben') localStorage.setItem('lpc-deep', JSON.stringify({ 501: { at: Date.now() - 36e5, len: 1200, q: 450, mode: 'ARAM', me: 0, ps: [['me-puuid', 'Ben#EUW'], ['', 'Ana#EUW']].map(([u, rid], i) => ({ u, n: rid, c: i + 1, t: 100, l: '', w: true, id: i + 1 })) } })); // an ARAM with Ana this season, for Profile's friends column
+          lpcClient.version = '1.28.0';
+        }, name);
         await page.reload();
         await page.evaluate(() => { lpcClient.version = '1.28.0'; });
         await openPage(page, 'help');
@@ -550,13 +554,13 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(ben, () => document.getElementById('helpTile').hidden && lpc.toasts().includes('Ana: Control ended after 10 minutes without use.') && !document.fullscreenElement, null, 'ended on Ben’s side, out of full screen');
       await wait(ana, () => !lpc.help() && lpc.toasts().includes('Ben is no longer controlling your PC.'), null, 'and on Ana’s, her code gone');
       assert.strictEqual(await ana.evaluate(() => lpcClient.stopped), stopped + 1, 'Ana’s app stopped it');
-      // Control in Friends, on the Voice page: Ana's page takes Ben's code by itself (she has Ben in her Friends)
-      await openPage(ben, 'voice');
-      await wait(ben, () => [...document.querySelectorAll('#frRows button')].some((b) => b.textContent === 'Control'), null, 'Control next to Ana in Ben’s Friends', 40000);
-      await ben.evaluate(() => [...document.querySelectorAll('#frRows button')].find((b) => b.textContent === 'Control').click());
+      // Control their PC under … next to Ana in Profile's friends column: Ana's page takes Ben's code by itself (she has Ben in her Friends)
+      await openPage(ben, 'profile');
+      await wait(ben, () => [...document.querySelectorAll('#proFrList .cmenu button')].some((b) => b.textContent === 'Control their PC'), null, 'Control their PC next to Ana on Ben’s Profile', 40000);
+      await ben.evaluate(() => [...document.querySelectorAll('#proFrList .cmenu button')].find((b) => b.textContent === 'Control their PC').click());
       await ana.evaluate(() => lpc.groupNow()); // our server's inbox tells her page at once; this stand-in server has none, and her next 60 s round could come after the asking ran out
       await wait(ben, () => !document.querySelector('.view[data-view="help"]').hidden && document.getElementById('helpName').textContent === 'Ana’s PC', null, 'Ben on Remote help, asking Ana');
-      await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control of Ana’s PC from Friends', 60000);
+      await wait(ben, () => document.getElementById('helpStop').textContent === 'Stop control' && document.getElementById('helpVid').videoWidth > 0, null, 'Ben in control of Ana’s PC from Profile', 60000);
       await ben.click('#helpStop');
       await wait(ana, (n) => !lpc.help() && lpcClient.stopped === n && lpc.toasts().filter((t) => t === 'Ben is no longer controlling your PC.').length === 2, stopped + 2, 'Ben’s Stop ends it at Ana’s');
       for (const [c] of ps) await c.close();

@@ -103,7 +103,7 @@ const cur = (p) => p.evaluate(() => document.querySelector('main > .view:not([hi
     await p.click('.rail [data-view="settings"]');
     await p.uncheck('#optJustLeague');
     assert.strictEqual(await cur(p), 'settings', 'still on Settings');
-    assert.deepStrictEqual(await shown(p), ['Rooms', 'Friends', 'Remote help', 'Recording', 'Settings', 'League'], 'Premade’s list back, Recording in its place (Aion 2 and RE4 co-op: League only was saved)');
+    assert.deepStrictEqual(await shown(p), ['Rooms', 'Remote help', 'Recording', 'Settings', 'League'], 'Premade’s list back, Recording in its place (Aion 2 and RE4 co-op: League only was saved)');
     assert(await p.isVisible('#optPlays'), 'What you play shows');
     await p.locator('#optJustLeague').scrollIntoViewIfNeeded();
     await shot(p, 'settings-app-rooms');
@@ -125,19 +125,19 @@ const cur = (p) => p.evaluate(() => document.querySelector('main > .view:not([hi
     await shot(r, 'setup-4-rooms');
     await r.click('#wNext');
     assert.strictEqual(await cur(r), 'voice', 'opens on Rooms');
-    assert.deepStrictEqual(await shown(r), ['Rooms', 'Friends', 'Remote help', 'Settings', 'League'], 'no Aion 2 or RE4 co-op');
+    assert.deepStrictEqual(await shown(r), ['Rooms', 'Remote help', 'Settings', 'League'], 'no Aion 2 or RE4 co-op');
     await r.click('.rail [data-view="settings"]');
     await r.check('#optPlays input[value="aion"]');
     assert((await shown(r)).includes('Aion 2'), 'ticking Aion 2 brings it back');
     const s = await fresh({});
     await s.goto(URL0);
-    assert.deepStrictEqual(await shown(s), ['Rooms', 'Friends', 'Remote help', 'Aion 2', 'RE4 co-op', 'Settings', 'League'], 'nothing saved: everything');
+    assert.deepStrictEqual(await shown(s), ['Rooms', 'Remote help', 'Aion 2', 'RE4 co-op', 'Settings', 'League'], 'nothing saved: everything');
     console.log('story 5: What you play');
 
     // 6: a list saved before 184 with only League: RE4 co-op stays, Aion 2 doesn't
     const o = await fresh({ 'lpc-plays': 'league' });
     await o.goto(URL0);
-    assert.deepStrictEqual(await shown(o), ['Rooms', 'Friends', 'Remote help', 'RE4 co-op', 'Settings', 'League'], 'an old list keeps RE4 co-op');
+    assert.deepStrictEqual(await shown(o), ['Rooms', 'Remote help', 'RE4 co-op', 'Settings', 'League'], 'an old list keeps RE4 co-op');
     await o.click('.rail [data-view="settings"]');
     assert(await o.isChecked('#optPlays input[value="re4"]') && !(await o.isChecked('#optPlays input[value="aion"]')), 'What you play says so');
     console.log('story 6: an old plays list');

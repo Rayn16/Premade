@@ -108,7 +108,7 @@ const shown = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].fi
 
     assert(await bo.isHidden('#chatText'), 'no room chat on the room page (What’s new 152)');
 
-    for (const v of ['Rooms', 'Friends', 'Settings']) { // by name: the bottom menu's icons keep theirs
+    for (const v of ['Rooms', 'Settings']) { // by name: the bottom menu's icons keep theirs
       await nav(bo, v).click();
       assert.strictEqual(await bo.evaluate(() => document.documentElement.scrollWidth), 390, `${v} fits the phone's width`);
     }

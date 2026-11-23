@@ -236,6 +236,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // our server's numbers for Settings > Our server: today and two days ago
     const ago = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
     await ana.context().route('**/stats', (r) => r.fulfill({ json: { days: [{ day: ago(2), rooms: 3, players: 7 }, { day: ago(0), rooms: 2, players: 3 }] }, headers: { 'access-control-allow-origin': '*' } }));
+    await ana.context().addInitScript(() => localStorage.setItem('lpc-friends', JSON.stringify(['Fay#P-faycod']))); // Fay, kept from before Add a friend went (What's new 214)
     await ana.goto(URL_);
     assert(await ana.evaluate(() => document.getElementById('setup').open), 'setup wizard on first launch');
     await shot(ana, 'wizard-1');
@@ -267,7 +268,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     const pmCode = await ana.evaluate(() => localStorage.getItem('lpc-code'));
     assert.match(pmCode, /^Friend#P-[a-z]{6}$/, 'a Premade code, made before she had a name');
     assert.deepStrictEqual(hi.map(({ id, ...h }) => h), [{ v: 'web', name: '', riot: [pmCode] }, { v: 'web', name: 'Ana', riot: [pmCode] }], 'a hello when Premade opens, and one with her name, with her Premade code (no day yet: her first)');
-    assert.equal(await ana.textContent('#frCode'), pmCode, 'shown under Add a friend');
     assert(/^[0-9a-f-]{36}$/.test(hi[0].id) && hi.every((h) => h.id === hi[0].id) && hi[0].id === await ana.evaluate(() => localStorage.getItem('lpc-device')), 'with this device\'s own id');
     // turned off in Settings > App, a new name sends nothing; turned on again, a hello at once
     const rename = (n) => ana.evaluate((n) => { const el = document.getElementById('name'); el.value = n; el.dispatchEvent(new Event('change')); }, n);
@@ -307,7 +307,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // the first page is Rooms; League's pages are under League. Its profile, in a browser with no League and no Riot data, says where it comes from
     assert(await ana.isVisible('.view[data-view="voice"]') && await ana.isVisible('#createBtn') && await ana.isVisible('#premadeList') && await ana.isHidden('#leagueList'), 'Rooms first');
-    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Friends', 'Remote help', 'Settings', 'League'], 'the menu in a browser: hangout pages, then League (no Aion 2: Ana ticked only League, What’s new 184)');
+    assert.deepStrictEqual(await ana.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Rooms', 'Remote help', 'Settings', 'League'], 'the menu in a browser: hangout pages, then League (no Aion 2: Ana ticked only League, What’s new 184)');
     await ana.click('#leagueNav');
     assert(await ana.isVisible('.view[data-view="prox"]') && await ana.isVisible('#proxNote'), 'League opens on Proximity voice, which asks for a room first');
     await openPage(ana, 'profile');
@@ -744,11 +744,12 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // hiding the room: Ana, the host, hides it, shared with Fay (ticked the last time she hid one); Fay, with only the
     // code, is turned away, but finds it at the top of her Open voice rooms and joins without typing the password
     const fay = await player(browser, 'Fay', [1920, 1080], { denoise: true });
+    await fay.context().addInitScript(() => localStorage.setItem('lpc-code', 'Fay#P-faycod'));
     await fay.goto(URL_);
     const FAY = await fay.evaluate(() => localStorage.getItem('lpc-code')); // her Premade code, which her page asks with
     await ana.evaluate((n) => localStorage.setItem('lpc-hide-allow', JSON.stringify([n])), FAY);
     await ana.context().route('**/friends', (r) => r.fulfill({ json: { has: { [FAY.toLowerCase()]: Math.round(Date.now() / 1000) }, inv: [] }, headers: { 'access-control-allow-origin': '*' } })); // Fay has Premade
-    await ana.evaluate((n) => { document.getElementById('frId').value = n; document.getElementById('frAdd').requestSubmit(); }, FAY); // Ana adds her on Friends
+    await ana.evaluate(() => lpc.groupNow()); // Ana's page asks /friends now: Fay has Premade
     assert(await ana.isVisible('#lockBtn') && await ben.isHidden('#lockBtn'), 'only the host can hide');
     assert.strictEqual(await ana.textContent('#lockBtn'), 'Hide room');
     await ana.click('#lockBtn');

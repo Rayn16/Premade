@@ -905,7 +905,7 @@ const leagueData = (over = {}) => ({
     await pc.keyboard.press('Escape');
     assert(await pc.evaluate(() => document.getElementById('proBgBox').hidden && document.activeElement.id === 'proBgBtn'), 'Esc closes it, focus back on Background');
     {
-      const count = () => pc.evaluate(() => [document.querySelectorAll('*').length, document.querySelectorAll('canvas').length]);
+      const count = () => pc.evaluate(() => [document.querySelectorAll('*:not(#proFriends *)').length, document.querySelectorAll('canvas').length]); // not the friends column, which fills in on its own
       const before = await count();
       for (let i = 0; i < 50; i++) { await pc.click('#proBgBtn'); await pc.click('#proBgX'); }
       const after = await count();
@@ -1244,7 +1244,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('pos1').value === 'TOP' && document.getElementById('pos2').value === 'MIDDLE', null, 'the roles swapped');
     // friends to invite: online on League and not in the lobby, free ones first; invite Duo
     await wait(pc, () => document.querySelectorAll('#friendRows tr').length === 2, null, 'friends to invite');
-    assert.deepStrictEqual(await texts(pc, '#friendRows tr'), ['Duo#EUW Online Invite', 'Gamer#EUW In a game Invite']);
+    assert.deepStrictEqual(await texts(pc, '#friendRows tr'), ['Duo #EUW Online Invite', 'Gamer #EUW In a game Invite'], 'name, #tag beside it, what they’re doing');
     await pc.click('#friendRows tr:first-child button');
     await until(() => callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST').length === 1, 'Duo invited');
     assert.deepStrictEqual(callsTo(/^\/lol-lobby\/v2\/lobby\/invitations$/, 'POST')[0][2], [{ toSummonerId: 31, toPuuid: 'duo1' }]);

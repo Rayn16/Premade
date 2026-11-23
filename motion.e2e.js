@@ -65,8 +65,8 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     assert.deepStrictEqual(await runes(page), { n: 1, from: 'translateY(6px)', ic: 'matrix(0.84, 0, 0, 0.84, 0, 0)' }, 'Runes: rows rise in, unpicked runes are smaller');
 
     // pages: a click fades in, a shortcut is instant
-    await page.click('.nav[data-view="friends"]');
-    assert.ok(await page.evaluate(() => { const v = document.querySelector('.view[data-view="friends"]'); return v.classList.contains('enter') && v.getAnimations().length > 0; }), 'a page picked in the menu fades in');
+    await page.click('.nav[data-view="voice"]');
+    assert.ok(await page.evaluate(() => { const v = document.querySelector('.view[data-view="voice"]'); return v.classList.contains('enter') && v.getAnimations().length > 0; }), 'a page picked in the menu fades in');
     await page.evaluate(() => window.lpcClient.emit('join', '')); // nothing; then the keyboard path:
     await page.evaluate(() => document.querySelector('.nav[data-view="settings"]').click());
     await page.waitForTimeout(400);
@@ -91,7 +91,7 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     await page.evaluate(() => window.lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'CLASSIC', t: 60, room: 'g0123456789a', result: '', events: [], me: { champName: 'Ahri' }, players: [] }));
     await waitFor(page, () => document.documentElement.dataset.motion === 'off', null, 'motion off in a game');
     assert.strictEqual((await runes(page)).n, 0, 'off: the Runes tab’s rows just show');
-    assert.strictEqual(await page.evaluate(() => { document.querySelector('.nav[data-view="friends"]').click(); return document.querySelector('.view[data-view="friends"]').getAnimations().length; }), 0, 'no page fade in a game');
+    assert.strictEqual(await page.evaluate(() => { document.querySelector('.nav[data-view="settings"]').click(); return document.querySelector('.view[data-view="settings"]').getAnimations().length; }), 0, 'no page fade in a game');
     await page.evaluate(() => window.lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await waitFor(page, () => document.documentElement.dataset.motion === 'on', null, 'motion back after the game');
 

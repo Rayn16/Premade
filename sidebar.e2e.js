@@ -58,13 +58,13 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     // 1. drag past halfway = icons only; the names stay in each button's accessible name
     await drag(page, 80);
     assert.strictEqual(await railW(page), 60, 'let go past halfway: icons only');
-    for (const n of ['Rooms', 'Friends', 'Settings', 'League']) assert(await page.getByRole('button', { name: n, exact: true }).isVisible(), `${n} keeps its name`);
+    for (const n of ['Rooms', 'Settings', 'League']) assert(await page.getByRole('button', { name: n, exact: true }).isVisible(), `${n} keeps its name`);
     assert.strictEqual(await page.getAttribute('#railGrip', 'aria-label'), 'Make the sidebar bigger');
     // 3. hover names beside the icon, inside the window
-    await page.hover('.nav[data-view="friends"]');
+    await page.hover('.nav[data-view="settings"]');
     await page.waitForTimeout(250);
-    const tip = await page.evaluate(() => { const t = document.getElementById('railTip'), r = t.getBoundingClientRect(), b = document.querySelector('.nav[data-view="friends"]').getBoundingClientRect(); return { on: t.classList.contains('on'), text: t.textContent, o: getComputedStyle(t).opacity, left: r.left, rail: document.querySelector('.rail').getBoundingClientRect().right, mid: r.top + r.height / 2, bmid: b.top + b.height / 2 }; });
-    assert(tip.on && tip.text === 'Friends' && tip.o === '1' && tip.left > tip.rail && Math.abs(tip.mid - tip.bmid) < 2, 'Friends beside its icon: ' + JSON.stringify(tip));
+    const tip = await page.evaluate(() => { const t = document.getElementById('railTip'), r = t.getBoundingClientRect(), b = document.querySelector('.nav[data-view="settings"]').getBoundingClientRect(); return { on: t.classList.contains('on'), text: t.textContent, o: getComputedStyle(t).opacity, left: r.left, rail: document.querySelector('.rail').getBoundingClientRect().right, mid: r.top + r.height / 2, bmid: b.top + b.height / 2 }; });
+    assert(tip.on && tip.text === 'Settings' && tip.o === '1' && tip.left > tip.rail && Math.abs(tip.mid - tip.bmid) < 2, 'Settings beside its icon: ' + JSON.stringify(tip));
     await shot(page, '2-icons-hover');
     await page.mouse.move(700, 400);
     // drag back = full
@@ -89,7 +89,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
 
     // 5. League: the list slides in from the right, the top says League, the bottom Premade; Premade goes back to the last Premade page
     await page.evaluate(() => { document.documentElement.dataset.motion = 'on'; });
-    await page.click('.nav[data-view="friends"]');
+    await page.click('.nav[data-view="settings"]');
     await page.click('#leagueNav');
     const sw = await page.evaluate(() => ({ list: !document.getElementById('leagueList').hidden, premade: document.getElementById('premadeList').hidden, top: document.getElementById('brandL').checkVisibility() && document.getElementById('brandL').textContent, bottom: document.querySelector('#leagueNav span').textContent, page: !document.querySelector('.view[data-view="prox"]').hidden, slide: document.getElementById('leagueList').getAnimations().map((a) => a.animationName), fade: document.querySelector('.view[data-view="prox"]').getAnimations().length }));
     assert.deepStrictEqual(sw, { list: true, premade: true, top: 'League', bottom: 'Premade', page: true, slide: ['rail-in'], fade: 0 }, 'League’s list slides in, the page doesn’t also fade');
@@ -99,7 +99,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.click('.nav[data-view="stats"]');
     await shot(page, '3-full-league');
     await page.click('#leagueNav');
-    assert(await page.isVisible('.view[data-view="friends"]') && await page.isVisible('#premadeList') && await page.textContent('#leagueNav span') === 'League', 'Premade: back to Friends');
+    assert(await page.isVisible('.view[data-view="settings"]') && await page.isVisible('#premadeList') && await page.textContent('#leagueNav span') === 'League', 'Premade: back to Settings');
     await page.click('#leagueNav');
     assert(await page.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden), 'League again: the last League page'); // shown, if empty with no League
     await page.click('#railGrip');
@@ -114,10 +114,10 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.click('#leagueNav');
     // 10. League pages' titles sit where other pages' titles sit
     const top = (v) => page.evaluate((v) => document.querySelector(`.view[data-view="${v}"]`).getBoundingClientRect().top, v);
-    const fTop = await top('friends');
+    const fTop = await top('settings');
     await page.click('#leagueNav');
     await page.click('.nav[data-view="stats"]');
-    assert.strictEqual(await top('stats'), fTop, 'Stats starts where Friends does');
+    assert.strictEqual(await top('stats'), fTop, 'Stats starts where Settings does');
     // 7. Reduced: a short fade; off: nothing
     await page.click('#leagueNav');
     await page.evaluate(() => { document.documentElement.dataset.motion = 'reduced'; });
@@ -163,7 +163,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.reload();
     await page.waitForSelector('#railGrip', { state: 'attached' });
     assert(await railW(page) === 60 && await page.isHidden('#railGrip'), 'narrow: icons only, no edge');
-    assert(await page.getByRole('button', { name: 'Friends', exact: true }).isVisible(), 'narrow: names kept for screen readers');
+    assert(await page.getByRole('button', { name: 'Settings', exact: true }).isVisible(), 'narrow: names kept for screen readers');
     await ctx.close();
 
     // 9. a phone: the bottom bar swaps the same way, no edge
@@ -174,7 +174,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await pp.goto(URL0);
     await pp.waitForSelector('#railGrip', { state: 'attached' });
     assert(await pp.evaluate(() => document.documentElement.classList.contains('phone')) && await pp.isHidden('#railGrip'), 'phone, no edge');
-    assert.deepStrictEqual(await visibleNames(pp), ['Rooms', 'Friends', 'Aion 2', 'Settings', 'League'], 'phone: Premade’s bar');
+    assert.deepStrictEqual(await visibleNames(pp), ['Rooms', 'Aion 2', 'Settings', 'League'], 'phone: Premade’s bar');
     await shot(pp, '8-phone-premade');
     await pp.click('#leagueNav');
     assert.deepStrictEqual(await visibleNames(pp), ['Proximity voice', 'Profile', 'Stats', 'TFT', 'Premade'], 'phone: League’s bar');

@@ -91,6 +91,8 @@ const DUO = 'duo@eu1.pvp.net', ME = 'rayan@eu1.pvp.net', iso = (ago) => new Date
 const chat = { me: { pid: ME, id: ME, statusMessage: 'ranked grind' }, puts: [], unread: 1, msgs: [{ body: 'gg wp', type: 'chat', fromPid: DUO, timestamp: iso(60e3) }], inv: [] };
 const FRIENDS = [['duo-puuid', DUO, 31, 'Duo', 'chat'], ['off-puuid', 'off@eu1.pvp.net', 32, 'Sleepy', 'offline']]
   .map(([puuid, pid, summonerId, gameName, availability]) => ({ puuid, pid, id: pid, summonerId, gameName, gameTag: 'EUW', availability, product: 'league_of_legends' }));
+// Rayan's Summoner's Rift games with Duo on his team this season (League's match history, kept as the duo store keeps them): 2 won of 3
+const TOGETHER = { u: 'rayan-puuid', g: Object.fromEntries([1, 0, 1].map((w, i) => [String(900 + i), { at: T - (i + 1) * H, q: 420, w, c: 103, l: 'MIDDLE', m: [['duo-puuid', 64, 'JUNGLE']] }])) };
 const L = { calls: [], refused: [], lp: null, lobby: null };
 const ok = (data) => ({ status: 200, data });
 function fakeLcu(who, method, p, body) {
@@ -183,7 +185,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 (async () => {
   const browser = await chromium.launch({ channel: 'chromium', args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] }); // the whole Chromium: the headless one always says no to notifications
   try {
-    const [, ray] = await context(browser, 'Rayan', '1.14.0', { 'lpc-remote': 'rayanremote2', 'lpc-goals': { 'rayan#euw RANKED_SOLO_5x5': 'GOLD I' }, 'lpc-goal-from': { 'rayan#euw RANKED_SOLO_5x5': ['GOLD I', 1200] } });
+    const [, ray] = await context(browser, 'Rayan', '1.14.0', { 'lpc-remote': 'rayanremote2', 'lpc-duo': TOGETHER, 'lpc-goals': { 'rayan#euw RANKED_SOLO_5x5': 'GOLD I' }, 'lpc-goal-from': { 'rayan#euw RANKED_SOLO_5x5': ['GOLD I', 1200] } });
     const [, duo] = await context(browser, 'Duo', '1.13.0', { 'lpc-remote': 'duophone2345', 'lpc-goals': { 'duo#euw RANKED_SOLO_5x5': 'PLATINUM IV' } });
 
     // ---- a voice room: the goal board, the closest first, each bar from where they were when they picked their goal;
@@ -211,35 +213,44 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await shot(ray, 'group-room');
     console.log('room: the goal board (110 and 410 LP to go) and Best roles, Rayan in the middle and Duo in the jungle');
 
-    // ---- Friends: Rayan's League friends, Duo with Premade open and Sleepy without; Duo invited to Rayan's room and
-    // joining from the invite; then both in one League lobby, with nobody joining a room by itself
+    // ---- Friends you play with (What's new 214): Profile's column lists only League friends on Rayan's team this season,
+    // Duo (3 games, 2 won) and not Sleepy; a click opens Duo's profile; Invite on hover, Duo joining from the column
     await duo.click('#leaveBtn');
-    await openPage(ray, 'friends'); await openPage(duo, 'friends'); // Friends, its own page
-    const frRows = (page) => page.$$eval('#frRows tr', (l) => l.map((tr) => [...tr.children].map((td) => td.textContent).join(' | ')));
-    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frRows(ray)).join() === 'Duo#EUW | Online · In League | Invite Control'; }, 'Rayan’s friends online');
-    assert.strictEqual(await text(ray, '#frOffBtn'), 'Show offline friends (1)');
-    await ray.click('#frOffBtn');
-    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Online · In League | Invite Control', 'Sleepy#EUW | No Premade yet | '], 'and offline ones');
-    if (process.env.SHOTS) await ray.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-list.png') });
-    assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => x.riot).sort(), ['Duo#EUW', 'Sleepy#EUW'], 'League friends kept for when League is closed');
-    await openPage(ray, 'profile'); // Profile's friends, each opening their profile
-    await wait(ray, () => [...document.querySelectorAll('#proFrList button')].map((b) => b.textContent).join() === 'Duo#EUW,Sleepy#EUW', null, 'friends on Profile');
-    await ray.click('#proFrList button');
+    await openPage(ray, 'profile'); await openPage(duo, 'profile');
+    const frList = (page) => page.$$eval('#proFrList li', (l) => l.map((li) => [li.querySelector('.frgo').title, li.querySelector('.frring').getAttribute('aria-label')]));
+    await until(async () => { await ray.evaluate(() => lpc.groupNow()); return (await frList(ray)).length === 1; }, 'Rayan’s friends you play with');
+    assert.deepStrictEqual(await frList(ray), [['Duo#EUW · In League · 3 games together, 67% won', 'Won 2 of 3 together']], 'only Duo: Sleepy had no game with Rayan');
+    assert.strictEqual(await ray.isVisible('#proFrNote'), false);
+    assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => [x.riot, x.u]).sort(), [['Duo#EUW', 'duo-puuid'], ['Sleepy#EUW', 'off-puuid']], 'League friends kept for when League is closed, with their puuid');
+    await wait(ray, () => !!document.querySelector('#proFrList .frpm'), null, 'Duo has Premade');
+    await ray.hover('#proFrList li');
+    assert(await ray.isVisible('#proFrList li .fracts button') && await ray.isHidden('#proFrList li .frring'), 'Invite in place of the ring on hover');
+    await ray.click('#proFrList li .frmore summary');
+    assert.deepStrictEqual(await ray.$$eval('#proFrList li .cmenu button', (l) => l.map((b) => b.textContent)), ['Control their PC', 'Copy Riot ID']);
+    if (process.env.SHOTS) {
+      await ray.screenshot({ path: path.join(process.env.SHOTS, 'friends-column.png') });
+      const vp = ray.viewportSize();
+      await ray.setViewportSize({ width: 900, height: vp.height }); // under 1,240 px: faces only
+      await ray.mouse.move(400, 400);
+      await ray.screenshot({ path: path.join(process.env.SHOTS, 'friends-column-900.png') });
+      await ray.setViewportSize(vp);
+    }
+    await ray.click('#proFrList li .frmore summary');
+    await ray.click('#proFrList li .frgo');
     await wait(ray, () => /Duo#EUW/.test(document.getElementById('proFindNote').textContent) || document.getElementById('proName').textContent === 'Duo', null, 'Duo’s profile looked up');
-    await openPage(ray, 'friends');
-    await ray.fill('#frId', 'Kev # NA1');
-    await ray.click('#frAdd button');
-    assert.deepStrictEqual(await frRows(ray), ['Duo#EUW | Online · In League | Invite Control', 'Kev#NA1 | No Premade yet | Remove', 'Sleepy#EUW | No Premade yet | ']);
-    await ray.click('#frRows tr:nth-child(2) button');
-    assert.strictEqual((await frRows(ray)).length, 2, 'Kev removed');
-    await ray.click('#frRows tr:first-child button');
+    assert(await ray.isVisible('#proFriends'), 'the column stays');
+    if (await ray.isVisible('#proBack')) await ray.click('#proBack');
+    await ray.hover('#proFrList li');
+    await ray.click('#proFrList li .fracts button');
     await toast(ray, `Invited Duo#EUW to room ${CODE}: it pops up in their Premade.`, 'the invite sent');
-    await until(async () => (await duo.evaluate(() => lpc.toasts())).includes(`Rayan invites you to their voice room, ${CODE}. Join from the Friends page.`), 'the invite on Duo’s page at once (our server’s inbox), not on its next 30 s round', 3000);
-    assert.strictEqual(await text(duo, '#frInvBox p'), `Rayan invites you to their voice room, ${CODE}.`);
-    if (process.env.SHOTS) await duo.locator('#groupBox').screenshot({ path: path.join(process.env.SHOTS, 'friends-invite.png') });
-    await duo.click('#frInvBox .btn.primary');
+    await until(async () => (await duo.evaluate(() => lpc.toasts())).includes(`Rayan invites you to their voice room, ${CODE}. Join from your Profile.`), 'the invite on Duo’s page at once (our server’s inbox), not on its next 30 s round', 3000);
+    await duo.evaluate(() => lpc.groupNow());
+    await wait(duo, () => document.querySelector('#frInvBox p') && document.querySelector('#frInvBox p').textContent === 'Rayan invites you to their voice room', null, 'the invite at the top of Duo’s column');
+    if (process.env.SHOTS) await duo.locator('#proFriends').screenshot({ path: path.join(process.env.SHOTS, 'friends-invite.png') });
+    await duo.click('#frInvBox .frjoin');
     await wait(duo, (c) => lpc.room() === c && lpc.slot() >= 0, code, 'Duo in Rayan’s room from the invite');
-    await duo.evaluate(() => lpc.groupNow()); // Friends redraws on its next round while it's out of sight
+    await openPage(duo, 'profile');
+    await duo.evaluate(() => lpc.groupNow());
     await wait(duo, () => document.getElementById('frInvBox').hidden, null, 'the invite gone once in the room');
     await openPage(duo, 'voice');
     await duo.click('#leaveBtn');
@@ -256,12 +267,11 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await duo.fill('#code', code);
     await duo.click('#joinBtn');
     await wait(ray, () => lpc.peers().some((p) => p.name === 'Duo'), null, 'Duo back in Rayan’s room', 30000);
-    console.log('Friends: who has Premade, one added and removed, an invite joined, and no room joined from the lobby');
+    console.log('Friends you play with: only Duo (3 games, 67%), his profile, an invite joined from the column, and no room joined from the lobby');
 
     // ---- a squad: Rayan makes one, Duo joins it from the room and turns off pings for rank-ups
-    await openPage(ray, 'friends'); await openPage(duo, 'friends');
-    for (const pg of [ray, duo]) await pg.click('#groupBox .tab[data-gt="squad"]');
-    assert.match(await text(ray, '#sqNote'), /^A squad is your group of friends/);
+    await openPage(ray, 'profile'); await openPage(duo, 'profile'); // the squad, at the foot of Profile's friends column
+    assert.match(await text(ray, '#sqNote'), /^Your group of up to 12\./);
     await ray.click('#sqMake');
     await wait(ray, () => document.getElementById('sqList').textContent === 'Rayan (you) · phone remote on', null, 'Rayan’s squad');
     const sqCode = await ray.evaluate(() => JSON.parse(localStorage.getItem('lpc-squad')).code), rayId = await id(ray);
@@ -272,7 +282,9 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     const duoId = await id(duo);
     assert.deepStrictEqual(await texts(duo, '#sqList li'), ['Rayan · phone remote on', 'Duo (you) · phone remote on']);
     assert(await duo.locator('#optSqGame').isChecked() && await duo.locator('#optSqRank').isChecked(), 'both pings on at first');
+    await duo.click('#sqPings summary'); // its pings and Leave, under …
     await duo.uncheck('#optSqRank');
+    await duo.click('#sqPings summary');
     await until(() => S.squads[sqCode].m[duoId] && S.squads[sqCode].m[duoId].r === false, 'Duo’s pings for rank-ups off');
     assert.deepStrictEqual(S.squads[sqCode].m, { [rayId]: { n: 'Rayan', c: 'rayanremote2', g: true, r: true }, [duoId]: { n: 'Duo', c: 'duophone2345', g: true, r: false } });
     console.log('squad: made by Rayan, joined by Duo from the room, with their phones and pings');
@@ -288,10 +300,10 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await wait(ray, (c) => document.getElementById('sqCall').textContent.startsWith('You called the squad (') && document.getElementById('sqCall').textContent.endsWith(`): room ${c}.`), CODE, 'Rayan’s call');
     assert(await ray.locator('#sqIn10').isHidden() && await ray.locator('#sqJoin').isHidden(), 'nothing to answer to your own call');
     await duo.evaluate(() => lpc.groupNow());
-    await toast(duo, `Rayan wants to play: room ${CODE}. Join from the Friends page, Squad.`, 'the call on Duo’s page');
+    await toast(duo, `Rayan wants to play: room ${CODE}. Join from your Profile, Squad.`, 'the call on Duo’s page');
     assert(await duo.evaluate(() => lpc.played().includes('call')), 'with its ring');
     assert.match(await text(duo, '#sqCall'), new RegExp(`^Rayan wants to play \\([^)]+\\): room ${CODE}\\.$`));
-    await openPage(duo, 'friends');
+    await openPage(duo, 'profile');
     assert(await duo.locator('#sqJoin').isVisible(), 'Join now, Duo being in no room');
     await duo.click('#sqIn10');
     await until(() => S.squads[sqCode].call.ans[duoId] === 'in10', 'Duo’s answer');
@@ -405,8 +417,8 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await until(() => chat.puts.length === 2, 'the old status back');
     assert.strictEqual(chat.puts[1], 'ranked grind');
     assert.strictEqual(await ray.evaluate(() => localStorage.getItem('lpc-lol-status')), 'null');
-    await openPage(ray, 'friends');
-    await ray.click('#groupBox .tab[data-gt="squad"]');
+    await openPage(ray, 'profile');
+    await ray.click('#sqPings summary');
     ray.once('dialog', (d) => d.accept());
     await ray.click('#sqLeave');
     await until(() => !S.squads[sqCode].m[rayId], 'Rayan out of the squad');
