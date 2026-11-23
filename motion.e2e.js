@@ -32,6 +32,15 @@ const waitFor = async (page, fn, arg, what) => {
   for (let i = 0; i < 100; i++) { if (await page.evaluate(fn, arg)) return; await page.waitForTimeout(100); }
   throw new Error('timed out waiting for ' + what);
 };
+  // What's new 213's Runes tab: a row comes in (opacity and a 6 px rise), an unpicked rune sits at 84%
+  const runes = (page) => page.evaluate(() => {
+    const row = Object.assign(document.createElement('button'), { className: 'rurow ruanim' }), rn = Object.assign(document.createElement('button'), { className: 'rurn' }), ic = Object.assign(document.createElement('img'), { className: 'ruic' });
+    rn.append(ic);
+    document.body.append(row, rn);
+    const a = row.getAnimations().map((x) => x.effect.getKeyframes()[0]), out = { n: a.length, from: a[0] ? a[0].transform : '', ic: getComputedStyle(ic).transform };
+    row.remove(); rn.remove();
+    return out;
+  });
 const motion = (page) => page.evaluate(() => document.documentElement.dataset.motion);
 
 (async () => {
@@ -53,6 +62,7 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     assert.match(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--m').trim()), /^1$/);
     const scaleOn = await page.evaluate(() => { const d = document.createElement('div'); d.style.transform = 'scale(var(--press))'; document.body.append(d); const t = getComputedStyle(d).transform; d.remove(); return t; });
     assert.strictEqual(scaleOn, 'matrix(0.96, 0, 0, 0.96, 0, 0)', 'a pressed button goes to 96%');
+    assert.deepStrictEqual(await runes(page), { n: 1, from: 'translateY(6px)', ic: 'matrix(0.84, 0, 0, 0.84, 0, 0)' }, 'Runes: rows rise in, unpicked runes are smaller');
 
     // pages: a click fades in, a shortcut is instant
     await page.click('.nav[data-view="friends"]');
@@ -73,12 +83,14 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     await page.selectOption('#optMotion', 'reduced');
     assert.strictEqual(await motion(page), 'reduced');
     assert.strictEqual(await page.evaluate(() => { const d = document.createElement('div'); d.style.transform = 'scale(var(--press))'; document.body.append(d); const t = getComputedStyle(d).transform; d.remove(); return t; }), 'matrix(1, 0, 0, 1, 0, 0)', 'Reduced: no shrinking');
+    assert.deepStrictEqual((await runes(page)).ic, 'matrix(1, 0, 0, 1, 0, 0)', 'Reduced: Runes picks only fade');
 
     // Pause while a game runs
     await page.selectOption('#optMotion', 'on');
     await page.check('#optMotionGame');
     await page.evaluate(() => window.lpcClient.emit('league', { inGame: true, phase: 'InProgress', mode: 'CLASSIC', t: 60, room: 'g0123456789a', result: '', events: [], me: { champName: 'Ahri' }, players: [] }));
     await waitFor(page, () => document.documentElement.dataset.motion === 'off', null, 'motion off in a game');
+    assert.strictEqual((await runes(page)).n, 0, 'off: the Runes tab’s rows just show');
     assert.strictEqual(await page.evaluate(() => { document.querySelector('.nav[data-view="friends"]').click(); return document.querySelector('.view[data-view="friends"]').getAnimations().length; }), 0, 'no page fade in a game');
     await page.evaluate(() => window.lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await waitFor(page, () => document.documentElement.dataset.motion === 'on', null, 'motion back after the game');
