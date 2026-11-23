@@ -786,8 +786,9 @@ const leagueData = (over = {}) => ({
     const [ctx, pc] = await context(browser, { version: '1.11.0' });
     await ctx.exposeFunction('fakeLcu', fakeLcu);
     const highAsked = []; // our server's Riot data: the high elo games it counted, 50 this patch (each champion's games
-    // and wins in each role), and each champion's games
-    const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
+    // and wins in each role), and each champion's games. Zed's 10 at the bottom are off-role: League lists him for the
+    // middle only, so no bottom list shows him (What's new 216)
+    const SUM = { 103: { MIDDLE: [40, 22], TOP: [3, 1] }, 99: { MIDDLE: [12, 7], UTILITY: [20, 10] }, 238: { MIDDLE: [30, 16], BOTTOM: [10, 9] }, 254: { MIDDLE: [18, 13], JUNGLE: [40, 21] },
       86: { TOP: [30, 17] }, 122: { TOP: [20, 9] }, 64: { TOP: [47, 23] } };
     const riotAsked = [], pastAsked = []; // Riot through our server: your account and Sniper's, with Riot's kind of puuid, Sniper in a game, and Riot's copies of four of your games
     const asked = () => riotAsked.filter((k) => !/\/matches\/EUW1_\d+$/.test(k)); // without the copies
@@ -1046,7 +1047,7 @@ const leagueData = (over = {}) => ({
     assert(await pc.locator('#tdBtn, #mxBox').count() === 0, 'no Try a draft button, no Matchup explorer');
     assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .tctext small'), ['Middle'], 'your usual role picked');
     const boardFaces = (team) => pc.$$eval(`${team} .slot`, (l) => l.map((s) => [...s.querySelectorAll('.face')].map((f) => `${f.querySelector('img').alt} ${f.textContent}`).join(', ')));
-    assert.deepStrictEqual(await boardFaces('#tdUs'), ['Garen Great, Lee Sin Risky, Darius Risky', 'Vi Risky', 'Ahri Great, Vi Great, Zed Great', '', 'Lux Great, Sona Good'], 'each of your roles: its best (up to 3) as faces');
+    assert.deepStrictEqual(await boardFaces('#tdUs'), ['Garen Great, Lee Sin Risky, Darius Risky', 'Vi Risky', 'Ahri Great, Vi Great, Zed Great', '', 'Lux Great, Sona Good'], 'each of your roles: its best (up to 3) as faces, none off-role (no Zed at the bottom)');
     assert.deepStrictEqual(await boardFaces('#tdThem'), ['Garen Great, Lee Sin OK, Darius Risky', 'Vi Good', 'Vi Great, Zed Good, Ahri OK', '', 'Lux OK'], 'and theirs, from their side');
     const tryPick = async (slot, name) => {
       await pc.click(`${slot} .tcard`);
