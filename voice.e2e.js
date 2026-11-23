@@ -692,8 +692,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
 
     // talk time: the fake mics beep, so everyone talks; Ana sees the others' totals and the stats list
     await ana.waitForFunction(() => lpc.talk().peers.length === 2 && lpc.talk().peers.every((s) => s > 0) && lpc.talk().me > 0, null, { timeout: 15000 });
-    await openPage(ana, 'stats');
-    assert.strictEqual(await ana.$$eval('#talk li', (l) => l.length), 3, 'talk time for all three');
     await openPage(ana, 'voice');
     assert((await ana.textContent('#phase')).startsWith('In game'), 'Ana is in game: proximity on');
     assert((await cat.textContent('#phase')).startsWith('Lobby'), 'Cat has no minimap: lobby');
@@ -1162,20 +1160,16 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     // game history: the game Ana has been in since her minimap was tracked
     await ana.evaluate(() => lpc.endGame());
     const games = await ana.evaluate(() => lpc.games());
-    assert(games.length === 1 && games[0].me.name === 'Ana' && games[0].me.talk > 0 && games[0].map.startsWith('data:image/jpeg'), 'a game saved');
-    assert.deepStrictEqual(games[0].players.map((p) => p.name).sort(), ['Ben', 'Cat', 'Fay'], 'with who was in voice: ' + JSON.stringify({ ...games[0], map: 0 }));
+    assert(games.length === 1 && games[0].me.name === 'Ana' && games[0].me.talk > 0, 'the game kept for its awards');
+    assert.deepStrictEqual(games[0].players.map((p) => p.name).sort(), ['Ben', 'Cat', 'Fay'], 'with who was in voice: ' + JSON.stringify(games[0]));
     // room awards: who talked most and least (no scoreboard in a browser); the record's talk is rounded, so near ties go either way
     const ppl = [games[0].me, ...games[0].players], most = Math.max(...ppl.map((e) => e.talk)), least = Math.min(...ppl.map((e) => e.talk));
     const near = (v) => ppl.filter((e) => Math.abs(e.talk - v) <= 0.1).map((e) => e.name), want = [...(most >= 30 ? ['Chatterbox'] : []), 'Quiet one'], aw = games[0].awards;
     assert(aw.length === want.length && aw.every(([t, n], i) => t === want[i] && near(t === 'Chatterbox' ? most : least).includes(n)), `room awards: ${JSON.stringify(aw)}, talk ${JSON.stringify(ppl)}`);
     assert(await ana.$eval('#awardsBox', (el) => !el.hidden) && (await ana.$$eval('#awardsList li', (l) => l.length)) === aw.length, 'the awards on the Room page');
     assert((await ana.evaluate(() => lpc.toasts())).some((t) => t.startsWith('Room awards: ')), 'and a popup');
-    await openPage(ana, 'stats');
-    await ana.click('#games summary');
-    assert(await ana.isVisible('#games img'), 'game history lists it with its talk map');
-    assert.strictEqual(await ana.$$eval('#games > li:first-child .awards li', (l) => l.length), aw.length, 'with its awards');
-    await shot(ana, 'ana-stats');
-    console.log(`game history: ${JSON.stringify({ ...games[0], map: games[0].map.length + ' bytes' })}`);
+    assert(!(await ana.$('#games')) && !(await ana.$('#talkMap')), 'no voice game history or talk map (What’s new 203)');
+    console.log(`last game: ${JSON.stringify(games[0])}`);
 
     // Chromium's synthetic beep has no stable speech spectrum. It must not trigger a Bluetooth warning; classify only
     // the device label, which the headset-specific test below also checks through the real mic UI.

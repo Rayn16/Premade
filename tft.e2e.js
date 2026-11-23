@@ -605,15 +605,12 @@ const pool = (page, name) => page.locator('#tftPool .tftunit', { hasText: name }
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await wait(pc, () => !lpc.mayState() && window.workersEnded >= 1, null, 'the reader and its Tesseract worker ended with the game');
     assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');
-    // Stats, Games: a Mayhem game shows the augments you took, in order (League's match history), with the name and when on hover
-    await openPage(pc, 'stats'); await pc.click('.view[data-view="stats"] .tab[data-tab="games"]');
-    await wait(pc, () => document.querySelectorAll('#matches .gaugs .maug').length === 5, null, 'your Mayhem game’s augments in your history');
-    assert.deepStrictEqual(await pc.$$eval('#matches .gaugs .maug', (l) => l.map((e) => e.title)), ['Symphony of War, at the start', 'Escape Plan, at 7', 'Blunt Force, at 11', 'ADAPt, at 15', 'Witchful Thinking, at 21']);
-    await shot(pc, 'mayhem-board4-history');
-    // the same boards on Profile's TFT tab
+    // Profile, Recent games: a Mayhem game shows the augments you took, in order (League's match history), with the name and when on hover
     await openPage(pc, 'profile');
-    await pc.click('#proQueues .tab[data-q="tft"]');
-    await wait(pc, () => document.querySelectorAll('#proGames .gbody button').length === 3, null, 'Profile’s TFT boards with their codes');
+    await wait(pc, () => document.querySelectorAll('#proGames .gaugs .maug').length === 5, null, 'your Mayhem game’s augments in your history');
+    assert.deepStrictEqual(await pc.$$eval('#proGames .gaugs .maug', (l) => l.map((e) => e.title)), ['Symphony of War, at the start', 'Escape Plan, at 7', 'Blunt Force, at 11', 'ADAPt, at 15', 'Witchful Thinking, at 21']);
+    await shot(pc, 'mayhem-board4-history');
+    assert(!(await pc.$('#proQueues .tab[data-q="tft"]')), 'no TFT tab on Profile (What’s new 203)');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await pctx.close();
     console.log('desktop app: TFT ranks, your last games with your traits and augments, a team code for each Set 18 board (here and on Profile), none for Set 17, your items ringed in the recipes and over TFT games, ratings on TFT’s and ARAM: Mayhem’s augment cards (arammayhem.com’s for Mayhem), TFT games sent for them');
