@@ -825,7 +825,9 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }) : [];
     parts.replaceChildren(...own, ...cards);
     mayhemLayer.replaceChildren(...mayCards);
-    if (players) { const stack = el('stack'); stack.append(...out); main.replaceChildren(stack, board(s.board)); } else main.replaceChildren(...out);
+    // over everyone's rank only callouts, voices, room chat and popups: the game's own parts (the timers line with the win
+    // chance, CS, the enemy spell strip, what to buy...) covered the cards (What's new 208), so they wait until it goes
+    if (players) { const stack = el('stack'); stack.append(...out.filter((n) => !n.dataset.part || /^(me|talk|chat|toasts)$/.test(n.dataset.part))); main.replaceChildren(stack, board(s.board)); } else main.replaceChildren(...out);
     if (taking && !document.querySelector('[data-take]')) take(false);
   };
   api.on('overlay', (s) => { lastOverlayState = s; renderOverlay(s); });
