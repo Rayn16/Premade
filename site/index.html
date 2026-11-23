@@ -98,7 +98,7 @@ a { color: var(--link); }
    percent rather than 100vh and the few left are divided by --zoom; the layout's breakpoints are container queries on
    .app, whose width shrinks as the page zooms in */
 :root { zoom: var(--zoom, 1); }
-.app { display: grid; grid-template: "rail main" minmax(0, 1fr) "chips chips" auto "bar bar" auto / auto minmax(0, 1fr); height: 100%; container: app / inline-size; }
+.app { display: grid; grid-template: "rail main" minmax(0, 1fr) "bar bar" auto / auto minmax(0, 1fr); height: 100%; container: app / inline-size; }
 /* the rail: Premade's own sections, then League's, and you with your mic at its foot */
 .rail { grid-area: rail; display: flex; flex-direction: column; gap: 2px; width: 212px; padding: 0 10px; background: var(--panel); border-right: 1px solid var(--line); overflow: hidden auto; }
 .brand { display: flex; align-items: center; gap: 10px; flex: none; min-height: 64px; margin: 0 -10px 6px; padding: 0 18px; border-bottom: 1px solid var(--line); font: 700 17px/1 var(--display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-hi); }
@@ -157,7 +157,7 @@ a { color: var(--link); }
 .me-box:has([data-state="ptt"]) small { color: var(--muted); }
 /* a phone (no screen sharing, see the top): the sections along the bottom like a phone app, their names kept for
    screen readers, and popups at the top, clear of them */
-.phone .app { grid-template: "main" minmax(0, 1fr) "chips" auto "bar" auto "rail" auto / minmax(0, 1fr); }
+.phone .app { grid-template: "main" minmax(0, 1fr) "bar" auto "rail" auto / minmax(0, 1fr); }
 .phone .rail { flex-direction: row; justify-content: space-around; width: auto; padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--gold-line); overflow-x: auto; }
 .phone .rail :is(.brand, .group, .me-box) { display: none; }
 .phone .rail .nav { justify-content: center; padding: 10px; }
@@ -444,31 +444,19 @@ fieldset.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax
 .sw::before { content: ""; position: absolute; inset: 7px auto 7px 7px; width: 46%; border-top: 3px solid var(--gold); border-radius: 3px; background: var(--panel); }
 .sw::after { content: ""; position: absolute; right: 7px; bottom: 7px; width: 30%; height: 10px; border-radius: 3px; background: var(--accent); }
 
-/* status bar along the bottom, and the compact strip */
+/* status bar along the bottom */
 .statusbar { grid-area: bar; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); font-size: 12.5px; }
 .sb { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--fg); font: 500 12.5px/1.2 var(--body); white-space: nowrap; }
 button.sb { cursor: pointer; }
 button.sb:hover { background: var(--raised); border-color: var(--line); }
 .sb svg { width: 16px; height: 16px; }
-.sb b { font: 500 13px/1 var(--mono); letter-spacing: 0.1em; color: var(--fg); text-transform: uppercase; }
-#sbRoom, #sbTrack .muted { color: var(--muted); }
-#sbRoom b { margin-left: 2px; }
-.sb .muted { color: var(--muted); }
 .grow { flex: 1; }
-:root:not(.phone) body:not(.compact) #muteBtn { display: none; } /* the rail's foot has it */
+:root:not(.phone) #muteBtn { display: none; } /* the rail's foot has it */
 #muteBtn .slash { display: none; }
 #muteBtn[data-state="muted"] { color: var(--bad); border-color: var(--bad); }
 #muteBtn[data-state="muted"] .slash { display: inline; }
 #muteBtn[data-state="talk"] { color: var(--talk); border-color: var(--talk); }
 .sb.new { color: var(--gold-hi); border-color: var(--gold-line); text-decoration: none; }
-.chips { grid-area: chips; display: none; }
-body.compact .app { grid-template: "chips" auto "bar" auto / minmax(0, 1fr); height: auto; }
-body.compact :is(.rail, .grip, main, .toasts, #sbLeague) { display: none !important; }
-body.compact .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 2px; }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; }
-.chip[data-talking] { border-color: var(--talk); }
-.chip[data-talking] .dot { background: var(--talk); }
-.chips:empty::before { content: attr(data-empty); color: var(--muted); font-size: 13px; }
 
 /* popups */
 .toasts { position: fixed; right: 16px; bottom: 58px; z-index: 5; display: grid; gap: 8px; justify-items: end; max-width: min(380px, calc(100% - 32px)); pointer-events: none; }
@@ -3321,10 +3309,6 @@ dialog.wizard { transform: scale(var(--from)); }
             </div>
           </div>
         </section>
-        <section class="panel client-only">
-          <h2 class="ph">During a game</h2>
-          <label class="check"><input id="optCompact" type="checkbox"> Shrink this window to a strip <button class="tip" type="button" popovertarget="t-compact" aria-label="About the compact view">?</button></label>
-        </section>
         <section class="panel lcu-only">
           <h2 class="ph">League <button class="tip" type="button" popovertarget="t-league" aria-label="About League's client">?</button></h2>
           <label class="check"><input id="optScout" type="checkbox"> Look up players' ranks and recent games</label>
@@ -3506,18 +3490,11 @@ dialog.wizard { transform: scale(var(--from)); }
     </section>
   </main>
 
-  <div id="chips" class="chips" aria-label="Players in the room" data-empty="No one else in the room"></div>
   <footer class="statusbar">
     <button id="muteBtn" class="sb" type="button" aria-pressed="false" data-state="on" title="Mute or unmute your mic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path class="slash" d="M4 4l16 16"/></svg><span>Mic on</span></button>
-    <button id="sbRoom" class="sb" type="button" hidden title="Copy invite link">Room <b id="sbCode"></b></button>
-    <span class="sb"><span id="sbDot" class="dot"></span><span id="sbServer">Not in a room</span></span>
-    <button id="sbTrack" class="sb pc-only" type="button" title="Your tracking"><span class="muted">Tracking:</span><span id="sbTrackText"></span></button>
-    <span id="sbLeague" class="sb client-only"></span>
     <button id="sbVersion" class="sb pc-only" type="button" title="What's new"></button>
     <a id="sbTest" class="sb new test-only" href="../">Test version: back to normal</a>
     <a id="getNew" class="sb new" href="Premade-Setup.exe" download hidden>New app version: get the installer</a>
-    <span class="grow"></span>
-    <button id="compactBtn" class="sb pc-only" type="button" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg><span>Compact</span></button>
   </footer>
 </div>
 
@@ -3721,7 +3698,6 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read them out loud, under Sound, uses your computer’s own voice.</div>
 <div id="t-coach" class="tipbox" popover><b>Enemy timers</b>: during a game, say “Premade, mid flash”, “Premade, top ultimate” (top, jungle, mid, bot or support) or “Premade, their red” (or blue), or tap them on your phone remote, and the countdown shows with the objective timers on the overlay, the Game page and your phone, for everyone in your voice room in that game who has them on. Flash takes 5 minutes and an ultimate its cooldown at their level, less the haste in their items; a buff is back 5 minutes after it’s taken. Tap a running one on your phone to take it off. Premade listens for these phrases on your computer, as it does for clips by voice. <b>Power spikes</b>: “Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”. <b>Coach</b>: a tip now and then at the top of the screen: when you have the gold for the next item of your build (app 1.15), an objective in 60 seconds, 3 or more of them dead (app 1.15), or 2 levels down on your lane opponent. <b>I’m new</b> adds why, and what to do. <b>Jungle clock</b>: at 2:45, where their jungler likely is when their first clear ends, from their own last games and where your minimap first showed them. Enemy timers are in In game, the rest in Callouts, From the game. These show at the top of the screen (app 1.10), and Read them out loud reads them too.</div>
 <div id="t-customs" class="tipbox" popover><b>Inhouse ladder</b>: every custom game you play to the end with the desktop app counts, for everyone in it: a rating that goes up when you win and down when you lose, more against a stronger team. Everyone in the room shares the games they have, so the ladder is the same for all of you, and Balance teams uses it once two of the room are on it. <b>Fearless series</b> (Room games, the host starts it): in the custom games after it starts, nobody picks a champion already played in it; champ select shows the ones used up.</div>
-<div id="t-compact" class="tipbox" popover>While a game is on, this window shrinks to a strip with your mic and who's talking, and grows back when the game ends.</div>
 <div id="t-auto" class="tipbox" popover>When a game loads, the client joins a room made for that game, so everyone in it with the client hears each other without a code. It never moves you out of a room you joined yourself, or out of a room someone else is in.</div>
 
 <div id="t-tier" class="tipbox" popover><span id="tierTipNote"></span> The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. It starts with S tier (the top 3 when a role has fewer): See more shows every tier. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
@@ -3812,7 +3788,7 @@ dialog.wizard { transform: scale(var(--from)); }
 
   // Settings kept in this browser. keys: shortcuts as "Ctrl+Shift+M", push to talk as a KeyboardEvent code ("KeyV") or "Mouse4".
   const opts = {
-    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, compact: true, autoRoom: true, notify: true, zoom: 1,
+    overlay: true, overlayPos: 'tl', overlayScale: 1, overlayBox: null, overlayChat: true, autoRoom: true, notify: true, zoom: 1,
     chimes: true, beeps: true, echo: true, denoise: true, studio: false, hurt: true, discord: true,
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true,
@@ -4013,7 +3989,7 @@ dialog.wizard { transform: scale(var(--from)); }
     render();
   }
 
-  // ---- players: a card in the Players list and a chip in the compact strip
+  // ---- players: a card in the Players list
   const bySlot = (parent, el, s) => parent.insertBefore(el, [...parent.children].find((c) => +c.dataset.slot > s) || null);
   function rec(id) {
     let p = peers.get(id);
@@ -4067,12 +4043,7 @@ dialog.wizard { transform: scale(var(--from)); }
       savePlayerAudio(p);
       volumes();
     });
-    p.chip = document.createElement('span');
-    p.chip.className = 'chip';
-    p.chip.dataset.slot = p.slot;
-    p.chip.innerHTML = '<span class="dot"></span><span></span>';
     bySlot($('players'), li, p.slot);
-    bySlot($('chips'), p.chip, p.slot);
     p.row = li;
     peers.set(id, p);
     return p;
@@ -4092,7 +4063,6 @@ dialog.wizard { transform: scale(var(--from)); }
     fx.out.disconnect(p.echo);
     p.echo.port.onmessage = null;
     p.row.remove();
-    p.chip.remove();
     chDraw(); // Play with: who's left
     lcDraw();
     // the host's mute goes with them once they're gone for good, so whoever takes their slot next isn't muted
@@ -4206,12 +4176,8 @@ dialog.wizard { transform: scale(var(--from)); }
     r.toggleAttribute('data-talking', shownTalking(p));
     r.toggleAttribute('data-dead', p.dead);
     setPic(r.querySelector('.pic'), picOf(p), name);
-    p.chip.toggleAttribute('data-talking', shownTalking(p));
-    p.chip.lastChild.textContent = name;
     updateRoomListing();
   }
-  const trackText = () => (!share ? 'not sharing your screen' : share.mode === 'general' ? 'sharing a screen or app without League tracking' : !share.sq ? 'looking for your minimap'
-    : fresh(me) && me.by === 'icon' ? 'following your champion' : fresh(me) ? 'following your camera box' : 'looking for your champion');
   function render() {
     wakeTick();
     if (document.hidden) return;
@@ -4299,15 +4265,9 @@ dialog.wizard { transform: scale(var(--from)); }
     mb.dataset.state = muted || hostMuted(slot) ? 'muted' : !keys.ptt ? 'on' : pttDown ? 'talk' : 'ptt';
     mb.setAttribute('aria-pressed', String(muted));
     mb.lastChild.textContent = hostMuted(slot) ? 'Muted by the host' : muted ? 'Muted' : !keys.ptt ? 'Mic on' : pttDown ? 'Talking' : `Push to talk: ${keyName(keys.ptt)}`;
-    $('sbRoom').hidden = !peer;
-    $('sbCode').textContent = room;
     const [h, text] = !peer ? ['', 'Not in a room'] : peer.disconnected ? ['bad', 'Reconnecting to the server…'] : peer.open ? ['good', 'Connected'] : ['ok', 'Connecting…'];
-    $('sbDot').dataset.h = h;
-    $('sbServer').textContent = text;
     $('roomLink').textContent = text;
     $('roomLink').dataset.t = h === 'good' ? 'close' : 'near';
-    $('sbTrackText').textContent = trackText();
-    $('sbLeague').textContent = !league ? `League: ${lcu ? STATUS[PHASES[lcu] || 'client'][1].toLowerCase() : 'no game'}` : `League: ${(league.me && (league.me.champName || league.me.champ)) || 'in game'}${mine.dead ? ', dead' : ''}`;
     $('sbVersion').textContent = myVersion();
     const upd = appUpdate === 'ready' || (client && client.update && client.version && latest && newer(latest, client.version));
     for (const b of [$('restartBtn'), $('updateBtn')]) { b.hidden = !upd; b.textContent = appUpdate === 'ready' ? 'Update ready: restart' : appUpdate === 'getting' ? 'Downloading the update…' : `Update to ${latest}`; b.disabled = appUpdate === 'getting'; }
@@ -4404,7 +4364,7 @@ dialog.wizard { transform: scale(var(--from)); }
     g.restore();
   }
 
-  // ---- talking now: a glow on cards, chips, the map and the overlay. Their gate silences them between words,
+  // ---- talking now: a glow on cards, the map and the overlay. Their gate silences them between words,
   // so any sound means talking; it holds for 0.4 s after the last.
   const wave = new Float32Array(2048);
   setInterval(() => {
@@ -7099,7 +7059,7 @@ dialog.wizard { transform: scale(var(--from)); }
   });
 
   // ---- League's own data (Windows client only): your champion, team and deaths for everyone's cards, your icon
-  // found by champion, a room made for your game, and the compact strip while it's on.
+  // found by champion and a room made for your game.
   function refreshMine() {
     const m = league && league.me;
     const next = {
@@ -7121,8 +7081,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!phase && lcu && me0) loadMine(true); // League started again, maybe with another account
     if (lcu !== phase && !profView.hidden) renderProfile(); // League opened or closed: what Profile can show changes
     statusTick();
-    if (league && !was) { autoPickOff = false; checkWindow(); if (opts.compact && !document.body.classList.contains('compact')) setCompact(true, true); }
-    if (!league && was && compactAuto) setCompact(false);
+    if (league && !was) { autoPickOff = false; checkWindow(); }
     if (league && league.result && !(ended && ended.room === league.room)) { ended = { result: league.result, room: league.room, at: performance.now() }; customDone(); }
     refreshMine();
     jgTick();
@@ -8220,7 +8179,7 @@ dialog.wizard { transform: scale(var(--from)); }
     return cam && cam.call === v.call ? Math.max(720, h) : h; // the overlay reads the same call
   }
   // A screen nobody can see right now is paused (What's new 196): Premade minimized, in the tray or under a game that
-  // fills its screen (app 1.53's frontApp hid), or the room not on screen (another page, the compact strip in a game).
+  // fills its screen (app 1.53's frontApp hid), or the room not on screen (another page).
   // Their app stops making it for you ({t:'see', idle}: its encoding off), so neither PC spends anything on it, and
   // it's back the moment you look, on the same call. Never while it's popped out, full screen or the overlay's.
   const seeIdle = (v, p) => !(document.pictureInPictureElement === v.vid || document.fullscreenElement || (cam && cam.p === p)) && (!!(front && front.hid) || !v.vid.getBoundingClientRect().height);
@@ -8516,17 +8475,8 @@ dialog.wizard { transform: scale(var(--from)); }
     if (j !== discordWas) { discordWas = j; client.discord(s); }
   }
 
-  // ---- compact view: the window shrinks to a strip (the client resizes itself)
-  let compactAuto = false;
-  function setCompact(on, auto) {
-    compactAuto = on && !!auto;
-    document.body.classList.toggle('compact', on);
-    $('compactBtn').setAttribute('aria-pressed', String(on));
-    $('compactBtn').lastChild.textContent = on ? 'Full view' : 'Compact';
-    if (client) client.compact(on ? document.querySelector('.app').getBoundingClientRect().height : 0); // the strip's height (zoomed, as on screen), or 0 for full size
-    render();
-  }
-  $('compactBtn').addEventListener('click', () => setCompact(!document.body.classList.contains('compact')));
+  // ---- Compact went in What's new 212: a window an older page left as its strip (reloaded mid-game) gets its size back
+  if (client && client.compact) client.compact(0);
 
   // ---- the game being played with friends in voice: their talk time for Room awards, and the MVP vote after it
   const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -8931,7 +8881,6 @@ dialog.wizard { transform: scale(var(--from)); }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
   for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view, true));
   $('leagueNav').addEventListener('click', () => view(railLol ? premadePage : leaguePage, true));
-  $('sbTrack').addEventListener('click', () => view('prox'));
 
   // ---- League's own client (desktop app 1.6+): the ready check, champ select with everyone's rank and recent games,
   // your best champions for your role, Riot's recommended runes and spells, the loading screen's players, objective
@@ -11403,7 +11352,7 @@ dialog.wizard { transform: scale(var(--from)); }
         const was = phaseWas;
         phaseWas = ph;
         if (!playing(PHASES[ph])) checkWindow(); // League's window mode, changed in its settings since
-        if ((ph === 'ReadyCheck' || ph === 'ChampSelect') && was !== 'ReadyCheck' && was !== 'ChampSelect' && opts.gameView && !document.body.classList.contains('compact')) view('pregame');
+        if ((ph === 'ReadyCheck' || ph === 'ChampSelect') && was !== 'ReadyCheck' && was !== 'ChampSelect' && opts.gameView) view('pregame');
         if (ph === 'ReadyCheck' && opts.front && client.front) client.front(); // desktop app 1.9
         if (ph === 'ReadyCheck') ringPhone();
         if (/^(GameStart|InProgress|Reconnect)$/.test(ph) && !preViewEl.hidden && opts.gameView) view('game'); // from champ select to the game
@@ -19966,7 +19915,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const optDone = { motionGame: () => motionTick(), themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, shareFilter: () => { if (!share) return; const auto = share.auto; startShare(share.mode, share.src).then(() => { if (share) share.auto = auto; }); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
-  for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optCompact', 'compact'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
+  for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'], ['optClipSolo', 'clipSolo'], ['optClipFirst', 'clipFirst'], ['optClipTake', 'clipTake'], ['optClipWin', 'clipWin'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
@@ -20195,6 +20144,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [212, 'November 23: only your version along the bottom', [
+      'The status bar shows only your version. Your room’s connection is in your room, and your tracking on Proximity voice. On a phone it keeps your mic.',
+      'Compact is gone, so the window no longer shrinks to a strip during a game.',
+    ]],
     [210, 'November 23: ban ideas for your team', [
       'Your bans at the top of the draft board: its 3 ideas are what beats the team you’re building.',
       'Click an idea to ban it: it greys out everywhere and the next one moves up.',
@@ -21467,7 +21420,6 @@ dialog.wizard { transform: scale(var(--from)); }
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
         'On unless you turn it off: the Overlay page, While you’re dead. Each friend turns on Voice settings, In a game, Let teammates in my room watch my screen.', '#optWatchMates', 'app'],
       ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'The Overlay page, Where it sits, Edit layout: drag the rest, or Move it on my screen and drag it on the League screen. Size and See-through are there too.', '#moveBtn', 'app'],
-      ['Compact view', 'During a game this window shrinks to a strip with your mic and who’s talking, and grows back when the game ends.', 'On unless you turn it off: Settings, During a game. Compact, in the status bar, does it any time.', '#optCompact', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
         'Off until you turn it on: the Overlay page, Callouts, Minimap reminder.', '#optMapNudge', 'app'],
       ['Callouts', 'Faces and signs with 1 to 3 words at the top of the screen, read from your own minimap, up to 3 at once with the newest on top: “Vi at your red” when their jungler shows up after 10 seconds out of sight, named by the nearest camp, pit or scuttle (your red, their raptors, Dragon, Baron), else the area (top river, mid lane); “Lee Sin heading your way” when your minimap shows them walking straight at you; “Zed missing from mid” when a laner has been out of sight for 10 seconds; and “Vi and Zed at your blue” for an invade. They can be read out loud too, in the voice you pick.',
@@ -21511,7 +21463,6 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('copyBtn').addEventListener('click', copyInvite);
   if (PHONE && navigator.share) $('copyBtn').textContent = 'Share invite link';
-  $('sbRoom').addEventListener('click', copyInvite);
   $('shareBtn').addEventListener('click', () => { if (share && share.mode === 'league') { shareOff = league ? league.room : room; stopShare(); } else if (!share) startShare('league'); });
   $('generalShareBtn').addEventListener('click', () => { if (share && share.mode === 'general') { shareOff = league ? league.room : room; stopShare(); } else if (!share) startShare('general'); });
   $('changeShareBtn').addEventListener('click', () => {

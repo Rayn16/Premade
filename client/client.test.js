@@ -6,7 +6,7 @@
 // window mode from League's settings file and where you are in League's client, from a fake client API), the page's
 // calls to League's client (only those on the list, with League's password, and nothing else), saving clips in Videos,
 // the clip gallery (pictures, rename, the Recycle Bin, the clean-up), whole games on video (made a video you can skip
-// around in once the game is over), the compact strip, the overlay window (the game's
+// around in once the game is over), the overlay window (the game's
 // objective timers and kills from the page, moved and resized, with chat, who hears you, your voice effects and voice
 // swap's countdown, and everyone's rank over the whole screen), the shortcuts, coming to the front when a match is found, Discord status (against a fake Discord
 // pipe), the performance meter, app links, the window kept where you left it, test recordings with names hidden, the
@@ -324,14 +324,11 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await js('document.getElementById("optGameVideo").click()'); // and the whole game on video
     assert.strictEqual(await js('typeof lpcClient.combo'), 'function', 'the combo trainer’s keys (Windows only)');
 
-    // the fake game reaches the page, and the window shrinks to the strip for it
-    await until(() => js('document.getElementById("sbLeague").textContent === "League: Wukong, dead"'), 'League data on the page');
-    await until(() => win.getContentSize()[1] < 200, 'the compact strip');
+    // the fake game reaches the page
     await until(() => js('document.getElementById("statusRows").textContent.includes("(you)In game · 1 min")'), 'in game on the League status window');
-    console.log(`League data on the page; compact strip ${win.getContentSize().join('x')}`);
-    await js('document.getElementById("compactBtn").click()');
-    await until(() => win.getContentSize()[1] >= 480, 'full size again');
-    // the window is kept where you left it (not as the strip)
+    assert(win.getContentSize()[1] >= 480, 'the window keeps its size in a game (What’s new 212)');
+    console.log('League data on the page');
+    // the window is kept where you left it
     win.setBounds({ x: 40, y: 30, width: 1000, height: 700 });
     const winJson = path.join(tmp, 'profile', 'window.json');
     await until(() => { try { return JSON.parse(fs.readFileSync(winJson, 'utf8')).width === 1000; } catch { return false; } }, 'window.json'); // not mid-write
@@ -480,7 +477,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     // the game ends and you're picking champions for the next: League's client says so
     gameOn = false;
     lcuPhase = 'ChampSelect';
-    await until(() => js('document.getElementById("statusRows").textContent.includes("(you)In champ select") && document.getElementById("sbLeague").textContent === "League: in champ select"'), 'champ select from the League client');
+    await until(() => js('document.getElementById("statusRows").textContent.includes("(you)In champ select")'), 'champ select from the League client');
     fs.rmSync(path.join(tmp, 'lockfile'));
     await until(() => js('document.getElementById("statusRows").textContent.includes("(you)League isn’t running")'), 'League closed: no lockfile');
     onList(); // the page's own calls during the game and champ select too

@@ -51,6 +51,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.waitForSelector('#railGrip');
     await page.evaluate(() => { document.documentElement.dataset.motion = 'on'; });
     assert.strictEqual(await railW(page), 212, 'full at first');
+    assert.deepStrictEqual(await page.$$eval('.statusbar > *', (e) => e.filter((x) => x.checkVisibility()).map((x) => x.textContent)), ['App 1.50.0'], 'the status bar: only the version (What’s new 212)');
     assert(await page.isVisible('#premadeList') && await page.isHidden('#leagueList') && await page.isHidden('#leagueTabs'), 'Premade’s list, no tabs row');
     await shot(page, '1-full-premade');
 
@@ -100,15 +101,16 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.click('#leagueNav');
     assert(await page.isVisible('.view[data-view="friends"]') && await page.isVisible('#premadeList') && await page.textContent('#leagueNav span') === 'League', 'Premade: back to Friends');
     await page.click('#leagueNav');
-    assert(await page.isVisible('.view[data-view="stats"]'), 'League again: the last League page');
+    assert(await page.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden), 'League again: the last League page'); // shown, if empty with no League
     await page.click('#railGrip');
     await page.waitForTimeout(300);
     await shot(page, '4-icons-league');
     await page.click('#railGrip');
     await page.click('#leagueNav');
-    // 6. a League page opened another way swaps the list too (the status bar's Tracking)
-    await page.click('#sbTrack');
-    assert(await page.isVisible('.view[data-view="prox"]') && await page.isVisible('#leagueList'), 'Tracking opens League’s list');
+    // 6. a League page opened another way swaps the list too (the League patch pop-up's See Patch changes)
+    await page.evaluate(() => document.getElementById('patchDlg').showModal());
+    await page.click('#patchDlgGo');
+    assert(await page.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden) && await page.isVisible('#leagueList'), 'See Patch changes opens League’s list');
     await page.click('#leagueNav');
     // 10. League pages' titles sit where other pages' titles sit
     const top = (v) => page.evaluate((v) => document.querySelector(`.view[data-view="${v}"]`).getBoundingClientRect().top, v);

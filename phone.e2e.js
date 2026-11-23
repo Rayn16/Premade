@@ -68,7 +68,8 @@ const shown = (p, sel) => p.evaluate((s) => [...document.querySelectorAll(s)].fi
     await bo.click('#wBack');
     assert.strictEqual(await bo.textContent('#setup .step:not([hidden]) .eyebrow'), 'Step 2 of 3', 'and Back skips it too');
     await bo.click('#wNext'); await bo.click('#wNext');
-    assert.deepStrictEqual(await shown(bo, '#appLink, #sbTrack, #compactBtn, .nav[data-view="help"]'), [], 'no desktop app link, tracking, compact view or Remote help on a phone');
+    assert.deepStrictEqual(await shown(bo, '#appLink, .nav[data-view="help"]'), [], 'no desktop app link or Remote help on a phone');
+    assert.deepStrictEqual(await shown(bo, '.statusbar > *'), ['muteBtn'], 'a phone’s status bar: only the mic (What’s new 212)');
     const [railTop, railBottom, mainBottom, h] = await bo.evaluate(() => [document.querySelector('.rail').getBoundingClientRect().top, document.querySelector('.rail').getBoundingClientRect().bottom, document.querySelector('main').getBoundingClientRect().bottom, innerHeight]);
     assert(railBottom === h && railTop >= mainBottom, `the menu sits along the bottom: ${[railTop, railBottom, mainBottom, h]}`);
 

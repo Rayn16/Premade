@@ -13,7 +13,7 @@
 // Eve get a stand-in for the Windows client (window.lpcClient) to check what League's own data does: the League status
 // window (champ select, loading, in game), a room made for the game, your champion found by name, hurt voice, the
 // Legends and Immersive voices, the overlay (moved and resized, with chat, who hears you and voice swap's countdown),
-// the compact view, the ready check with the app's window mode, room awards from the scoreboard, app updates and
+// the ready check with the app's window mode, room awards from the scoreboard, app updates and
 // Discord status. And who has Premade: the hello Ana's page sends our server, and its list for whoever runs Premade,
 // on who.html and in Settings.
 const fs = require('fs');
@@ -353,13 +353,13 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(a2.bytes > a1.bytes && b2.bytes > 0 && outA > 0.05 && outB > 0.05, `audio must flow both ways and reach the speakers: ${JSON.stringify([a1, a2, b2, outA, outB])}`);
     console.log(`voice flows both ways (Ana received ${a2.bytes} bytes of Ben's mic)`);
 
-    // status bar, connection dot, and the "talking now" glow (the beeps count as talking)
+    // connected, the room's code, the health dot, and the "talking now" glow (the beeps count as talking)
     await waitFor(ana, () => lpc.peers()[0].health === 'good', null, 'Ben\'s health dot green');
     assert.strictEqual(await ana.getAttribute('.player .dot', 'data-h'), 'good');
-    assert.strictEqual(await ana.textContent('#sbServer'), 'Connected');
-    assert.strictEqual(await ana.textContent('#sbCode'), ROOM);
+    assert.strictEqual(await ana.textContent('#roomLink'), 'Connected');
+    assert.strictEqual(await ana.textContent('#curCode'), ROOM);
     await waitFor(ana, () => lpc.peers()[0].talking && document.querySelector('.player[data-talking]'), null, 'Ben glowing while talking');
-    console.log('status bar connected; Ben\'s card glows while Ben talks');
+    console.log('connected; Ben\'s card glows while Ben talks');
 
     // noise gate: Ben's mic meter moves; with the gate shut, Ana stops getting Ben's beeps
     await waitFor(ben, () => document.getElementById('micLevel').value > 0, null, 'Ben\'s mic meter moving');
@@ -561,7 +561,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(/units away: in range/.test(await ana.textContent('.player .pstate')), 'card says how far away Ben is');
 
     // the other team (League's own data says who's on which): not on Ana's map, and Ana's card for Ben doesn't say where
-    await ana.$eval('#optCompact', (el) => { el.checked = false; el.dispatchEvent(new Event('change')); }); // a client setting: no strip for this
     const team = (t) => ({ inGame: true, room: '', mode: 'CLASSIC', me: { champ: '', champName: '', team: t } });
     await ana.evaluate((g) => lpc.league(g), team('ORDER'));
     await ben.evaluate((g) => lpc.league(g), team('CHAOS'));
@@ -846,7 +845,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(cat, () => lpc.peers().find((p) => p.name === 'Ben').volume > 0, null, 'Cat hears Ben again');
     console.log('host only: modes, swaps, mutes and the crown; the host muted Ben\'s mic for everyone and unmuted it');
     // Gibberish: Ben on the other team comes out scrambled (speech inversion: a 500 Hz tone comes out at 2,900 Hz)
-    for (const p of [ben, cat]) await p.$eval('#optCompact', (el) => { el.checked = false; el.dispatchEvent(new Event('change')); });
     // Cat shares a minimap next to Ana, Ben one across the map
     await cat.evaluate(() => setBox(0.4, 0.6));
     await toProx(cat); await toProx(ben);
@@ -1039,12 +1037,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     for (const p of trio) { await p.click('#mvpClose'); assert(await p.isHidden('#mvpBox'), 'closed'); }
     console.log('MVP vote: Cat won with 2 votes and wears the crown');
 
-    // compact view, light theme and a help tip
-    await ana.click('#compactBtn');
-    assert(await ana.isVisible('#chips') && await ana.$$eval('#chips .chip', (c) => c.length) === 2 && await ana.isHidden('main'), 'compact strip with a chip per player');
-    await shot(ana, 'ana-compact');
-    await ana.click('#compactBtn');
-    assert(await ana.isVisible('main'), 'full view again');
+    // light theme and a help tip
     await ana.context().route('**/riot/summary*', (r) => r.fulfill({ json: { p: '15.20', c: {}, old: null, today: 12, total: 3456, at: 0, from: Date.UTC(2025, 9, 20) / 1000 }, headers: { 'access-control-allow-origin': '*' } })); // and the Riot games it counted
     await openPage(ana, 'settings');
     await ana.waitForSelector('#serverBox', { state: 'visible' });
@@ -1155,7 +1148,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await openPage(ana, 'settings');
     await ana.check('input[name="theme"][value="red"]');
     await openPage(ana, 'voice');
-    console.log('compact view, themes and help tips');
+    console.log('themes and help tips');
 
     // game history: the game Ana has been in since her minimap was tracked
     await ana.evaluate(() => lpc.endGame());
@@ -1266,7 +1259,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.evaluate(() => document.getElementById('shareBtn').click());
     // League status before the game: where Eve is in League's client
     await eve.evaluate(() => lpc.league({ inGame: false, phase: 'ChampSelect' }));
-    await waitFor(eve, () => document.getElementById('statusRows').textContent === 'Eve (you)In champ select' && document.getElementById('sbLeague').textContent === 'League: in champ select', null, 'champ select on Eve\'s status window');
+    await waitFor(eve, () => document.getElementById('statusRows').textContent === 'Eve (you)In champ select', null, 'champ select on Eve\'s status window');
     await eve.evaluate(() => lpc.league({ inGame: false, phase: 'InProgress' }));
     await waitFor(eve, () => /Loading into the game/.test(document.getElementById('statusRows').textContent), null, 'loading: the game has started for Eve');
     console.log('League status: champ select, then loading into the game');
@@ -1304,10 +1297,9 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await waitFor(dee, () => { const p = lpc.peers()[0]; return p && p.dead && p.team === 'ORDER'; }, null, 'Dee sees Eve is dead, on Dee\'s team');
     assert.strictEqual(await dee.getAttribute('.player', 'data-team'), 'ally');
     console.log('League data: champion found by name, team and deaths on the cards');
-    // the overlay shows who's talking, and the window went compact for the game
+    // the overlay shows who's talking
     await waitFor(dee, () => lpcClient.calls.some(([k, s]) => k === 'overlay' && s.visible && s.talkers.some((t) => t.name === 'Eve')), null, 'Eve on Dee\'s overlay while talking');
-    assert(await dee.evaluate(() => lpcClient.calls.some(([k, h]) => k === 'compact' && h > 0)), 'compact view when the game started');
-    await shot(dee, 'dee-compact');
+    assert(await dee.evaluate(() => { const c = lpcClient.calls.filter(([k]) => k === 'compact'); return c.length > 0 && c.every(([, h]) => h === 0); }), 'no strip for the game, and an old one undone at load (What’s new 212)');
     // the client's shortcuts arrive as key events
     await dee.evaluate(() => lpcClient.emit('key', 'mute'));
     assert(!(await dee.evaluate(() => lpc.micOn())), 'mute shortcut from the client');
@@ -1416,9 +1408,6 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert.strictEqual(await eve.evaluate(() => lpcClient.calls.filter(([k]) => k === 'discord').pop()[1]), null, 'turned off: cleared');
     console.log('app updates: installer link for the old app, restart for the new one; Discord status');
 
-    await dee.evaluate(() => lpc.league(null));
-    assert(await dee.evaluate(() => lpcClient.calls.filter(([k]) => k === 'compact').pop()[1] === 0 && !document.body.classList.contains('compact')), 'full view again when the game ended');
-
     // What's new: never by itself, not after an update and not on a first launch (What's new 185)
     const gus = await player(browser, 'Gus', [1280, 720], { setup: false });
     await gus.goto(URL_);
@@ -1453,7 +1442,7 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     assert(await hal.isVisible('.nav span') && await navH() === h100, 'back to 100%');
     await hal.context().close();
     console.log('App size: 150% and 200%, kept after a restart');
-    console.log('League data: overlay, compact view and client shortcuts');
+    console.log('League data: overlay and client shortcuts');
     console.log('ok');
   } finally {
     await browser.close();
