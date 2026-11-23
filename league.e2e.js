@@ -1957,7 +1957,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.querySelector('#clipGrid .clip .kda img'), null, 'the champion on each card');
     assert.strictEqual(await text(pc, `${card('Clip 3')} .kda`), 'Ahri 3/1/2', 'your champion and K/D/A on the card');
     await pc.click(`${card('Clip 1')} .star`);
-    assert(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-clip-favs')).includes('Clip 1.webm')) && (await text(pc, `${card('Clip 1')} .star`)) === '★ Saved', 'saved');
+    assert(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-clip-favs')).includes('Clip 1.webm')) && (await text(pc, `${card('Clip 1')} .star`)) === 'Saved', 'saved');
     await wait(pc, () => [...document.querySelectorAll('#clipGrid .clip[data-fav] .cname')].map((e) => e.textContent).join() === 'Clip 1' && [...document.querySelectorAll('#clipGrid .cname')].map((e) => e.textContent).join() === 'Clip 4,Clip 3,Clip 2,Clip 1', null, 'Clip 1 saved, still in its game');
     await pc.click('[data-cf="saved"]');
     assert.strictEqual(await pc.$$eval('#clipGrid .clip:not([hidden]) .cname', (l) => l.map((e) => e.textContent).join()), 'Clip 1', 'Saved: only the saved clip');
@@ -1983,14 +1983,26 @@ const leagueData = (over = {}) => ({
     const half = await pc.evaluate(() => [+document.getElementById('trimFrom').value, document.getElementById('clipVideo').duration]);
     assert(Math.abs(half[0] - half[1] / 2) <= 1, `the start handle dragged to the middle: ${half}`);
     await pc.click('#pPlay');
-    await wait(pc, () => !document.getElementById('clipVideo').paused && document.getElementById('pPlay').textContent === '❚❚', null, 'played from the bar');
+    await wait(pc, () => !document.getElementById('clipVideo').paused && document.getElementById('pPlay').getAttribute('aria-label') === 'Pause', null, 'played from the bar');
     await pc.click('#pPlay');
     await shot(pc, 'clip-player');
     await pc.$eval('#trimFrom', (el) => { el.value = 2; el.dispatchEvent(new Event('input')); });
     await pc.$eval('#trimTo', (el) => { el.value = 6; el.dispatchEvent(new Event('input')); });
-    assert.strictEqual(await text(pc, '#trimFromOut'), '0:02.0');
+    assert.deepStrictEqual(await pc.evaluate(() => ['trimFromOut', 'cutA', 'cutB', 'cutLen'].map((id) => document.getElementById(id).textContent || document.getElementById(id).value)), ['0:02.0', '0:02.0', '0:06.0', '4.0 s'], 'the cut’s times under the handles and in Cut’s options');
+    await pc.fill('#cutA', '0:01.5'); // typed, to the tenth of a second
+    await pc.press('#cutA', 'Enter');
+    assert.strictEqual(await pc.$eval('#trimFrom', (el) => +el.value), 1.5, 'Start typed');
+    await pc.$eval('#trimFrom', (el) => { el.value = 2; el.dispatchEvent(new Event('input')); });
+    // in Premade's smallest window, Save clip is in view without scrolling: the video gives way (What's new 211)
+    const size = pc.viewportSize();
+    for (const [w, h] of [[1180, 800], [1440, 900]]) {
+      await pc.setViewportSize({ width: w, height: h });
+      const fit = await pc.evaluate(() => { const r = document.getElementById('trimSave').getBoundingClientRect(), d = document.getElementById('clipDlg'); return r.bottom <= innerHeight && d.scrollHeight <= d.clientHeight + 1 && document.getElementById('clipVideo').getBoundingClientRect().height > 200; });
+      assert(fit, `Save clip in view at ${w} x ${h}`);
+    }
+    await pc.setViewportSize(size);
     await pc.click('#trimSave');
-    await wait(pc, () => document.getElementById('trimNote').textContent === 'Saved the cut as “Clip 1 cut”.', null, 'the cut saved');
+    await wait(pc, () => lpc.toasts().includes('Saved the cut as “Clip 1 cut”.'), null, 'the cut saved');
     const cutLen = await pc.evaluate(async () => {
       const v = document.createElement('video');
       v.muted = true;
@@ -2005,15 +2017,20 @@ const leagueData = (over = {}) => ({
     await pc.click('#pFull');
     await wait(pc, () => !document.fullscreenElement && !document.getElementById('player').hasAttribute('data-full'), null, 'out of full screen');
     // the editor, in Premade: 2× speed, phone-shaped, a caption, saved as a new clip
-    await pc.click('#clipEdit');
-    assert(await pc.locator('#edit').isVisible() && (await text(pc, '#clipEdit')) === 'Close the editor', 'the editor opens in Premade');
-    await pc.selectOption('#edSpeed', '2');
-    await pc.selectOption('#edCrop', '0.5625');
+    // the editor's tools under the video (What's new 211): Cut picked when it opens, one line of options for the picked one
+    assert.deepStrictEqual(await pc.$$eval('#clipDlg .vtool[data-tool]', (l) => l.map((b) => `${b.textContent}${b.getAttribute('aria-pressed') === 'true' ? '*' : ''}`)), ['Cut*', 'Speed', 'Shape', 'Text', 'Sound'], 'one row of tools, Cut picked');
+    assert(await pc.evaluate(() => [...document.querySelectorAll('#clipDlg button, #clipGrid button, #clipGrid summary')].every((b) => !/[▶❚🔊🔇⚙⛶☆★📁🗑⋯]/u.test(b.textContent))), 'line icons only, no emoji or text-glyph icons');
+    await pc.click('#clipDlg [data-tool="speed"]');
+    await pc.click('#clipDlg [data-speed="2"]');
+    await pc.click('#clipDlg [data-tool="shape"]');
+    await pc.click('#clipDlg [data-shape="0.5625"]');
+    await pc.click('#clipDlg [data-tool="text"]');
     await pc.fill('#edText', 'Outplayed');
-    await wait(pc, () => { const c = document.getElementById('edView'); return c.height > c.width && document.getElementById('clipVideo').playbackRate === 2; }, null, 'the preview at 9:16 and 2×');
+    assert(await pc.evaluate(() => document.querySelectorAll('#clipDlg .vopts:not([hidden])').length === 1 && document.getElementById('player').hasAttribute('data-drag')), 'Text’s options on one line, the caption draggable on the video');
+    await wait(pc, () => !document.getElementById('edView').hidden && document.getElementById('clipVideo').playbackRate === 2, null, 'the frame shown on the video, playing at 2×');
     await shot(pc, 'clip-editor');
     await pc.click('#trimSave');
-    await wait(pc, () => /^Saved the edit as “Clip 1 cut.*”\.$/.test(document.getElementById('trimNote').textContent), null, 'the edit saved', 30000);
+    await wait(pc, () => lpc.toasts().some((t) => /^Saved the edit as “Clip 1 cut.*”\.$/.test(t)), null, 'the edit saved', 30000);
     const edit = await pc.evaluate(async () => {
       const v = document.createElement('video');
       v.muted = true;
