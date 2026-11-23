@@ -4,7 +4,8 @@
 // gold, vision and damage, each player's code and the pro players' names and teams (from a fake Leaguepedia, which
 // never gets our key), keeps Europe West's Emerald and Diamond games apart, says which champions the same ladder
 // players play from their mastery, passes only the lookup calls on its list through, with our key and its limits,
-// keeping the ranks they get for each season, and says how much of the free plan it used. Then, restarted with the
+// keeping the ranks they get for each season, says how much of the free plan it used, and counts the rune pages each
+// laner of yesterday's games took against their lane opponent (the rune count). Then, restarted with the
 // sweep going 8 days back, it carries on with the day it was on and counts the older games a day at a time, newer
 // days first, takes the pro players' games with its ladder's, and finishes counting each server's ladder for the
 // ladder places.
@@ -24,7 +25,8 @@ const TEAM = [[266, 'TOP'], [64, 'JUNGLE'], [103, 'MIDDLE'], [222, 'BOTTOM'], [4
 // KR_2005 a remake
 const GAMES = { KR_1001: ['16.19.1.1', 420, 1800], KR_1002: ['16.20.3.4', 420, 1700], KR_1003: ['16.20.3.4', 420, 2000], KR_1004: ['16.20.3.4', 450, 1200], KR_1005: ['16.20.3.4', 420, 300], KR_1006: ['16.20.5.1', 420, 1500],
   EUW1_3001: ['16.20.3.4', 420, 1900], EUW1_3002: ['16.20.3.4', 420, 1900],
-  KR_2001: ['16.20.1.1', 420, 1900], KR_2002: ['16.19.2.1', 420, 1600], KR_2003: ['16.18.1.1', 420, 1750], KR_2004: ['16.20.1.1', 450, 1200], KR_2005: ['16.20.1.1', 420, 250], KR_2006: ['16.20.1.1', 420, 1800] };
+  KR_2001: ['16.20.1.1', 420, 1900], KR_2002: ['16.19.2.1', 420, 1600], KR_2003: ['16.18.1.1', 420, 1750], KR_2004: ['16.20.1.1', 450, 1200], KR_2005: ['16.20.1.1', 420, 250], KR_2006: ['16.20.1.1', 420, 1800],
+  KR_3001: ['16.20.3.4', 420, 1800] }; // yesterday's, only for the rune count
 // each server's Challenger and Grandmaster players; North America's one has no games
 const LADDERS = { kr: [[P(1), P(2)], [P(3)]], euw1: [[P(4)], []], na1: [[P(5)], []] };
 // each server's Solo/Duo ladder for the ladder places, by division, as each player's LP, 3 a page: Korea's Gold II has
@@ -43,7 +45,7 @@ const LEAGUEPEDIA = [{ Player: 'Faker', Team: 'T1', SoloqueueIds: "'''KR:''' Hid
   { Player: 1116, Team: 'X', SoloqueueIds: 'Gone#123' }];
 const PROS = { 'Hide%20on%20bush/KR1': [P(1), 'kr'], 'Fakeeer/EUW': [P(6), 'euw1'] };
 // the games played that many days ago, which every ladder player was in; KR_1001 (the crawl's) too, for the sweep
-const DAYS = { 4: ['KR_1001', 'KR_2004'], 5: ['KR_2002'], 6: ['KR_2001'], 7: ['KR_2003'], 8: ['KR_2005'], 9: ['KR_2006'] };
+const DAYS = { 1: ['KR_3001'], 4: ['KR_1001', 'KR_2004'], 5: ['KR_2002'], 6: ['KR_2001'], 7: ['KR_2003'], 8: ['KR_2005'], 9: ['KR_2006'] };
 const match = (id) => {
   const [v, q, len] = GAMES[id], blueWins = id !== 'KR_1003', ago = Object.keys(DAYS).find((k) => DAYS[k].includes(id)), eu = id === 'EUW1_3002' ? 2000 : id.startsWith('EUW') ? 1000 : 0;
   return { metadata: { matchId: id }, info: { gameVersion: v, queueId: q, mapId: q === 450 ? 12 : 11, gameDuration: len,
@@ -93,7 +95,7 @@ const riot = http.createServer((req, res) => {
     const end = u.searchParams.get('endTime'); // the sweep asks for one day
     return send(200, end ? DAYS[today - Math.floor(end / DAY)] || [] : IDS[m[1]] || []);
   }
-  if (host === 'europe' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/)) && [P(4), P(7)].includes(m[1])) return send(200, IDS[m[1]]);
+  if (host === 'europe' && (m = p.match(/^\/lol\/match\/v5\/matches\/by-puuid\/(\w+)\/ids$/)) && [P(4), P(7)].includes(m[1])) return send(200, u.searchParams.get('endTime') ? [] : IDS[m[1]]); // no games yesterday
   if ((m = p.match(/^\/lol\/match\/v5\/matches\/([A-Z0-9]+_\d+)(\/timeline)?$/)) && GAMES[m[1]] && host === (m[1].startsWith('KR') ? 'asia' : 'europe')) return send(200, m[2] ? timeline() : match(m[1]));
   // lookups
   if (host === 'europe' && p === '/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW') return send(200, { puuid: P('a'), gameName: 'Ana B', tagLine: 'EUW' });
@@ -155,7 +157,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   const crawl = calls.filter((c) => c.host === 'kr' || c.host === 'asia');
   for (const id of Object.keys(GAMES).filter((x) => x.startsWith('KR_1'))) assert.equal(crawl.filter((c) => c.p === `/lol/match/v5/matches/${id}`).length, 1, `${id} asked for once`);
   assert.deepEqual(crawl.filter((c) => c.p.endsWith('/timeline')).map((c) => c.p.split('/')[5]).sort(), ['KR_1001', 'KR_1002', 'KR_1003', 'KR_1006'], 'timelines only for games that count');
-  for (const c of crawl.filter((x) => x.p.endsWith('/ids'))) assert.match(c.q, /^\?queue=420&type=ranked&count=20&startTime=\d+$/);
+  for (const c of crawl.filter((x) => x.p.endsWith('/ids') && !x.q.includes('endTime'))) assert.match(c.q, /^\?queue=420&type=ranked&count=20&startTime=\d+$/);
   assert(calls.every((c) => c.key === (c.host === 'leaguepedia' ? undefined : KEY)), 'our key on every call to Riot, and never to Leaguepedia');
 
   // Emerald and Diamond: Europe West's Emerald I player's game, counted apart (each division's first players asked for)
@@ -169,6 +171,20 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.deepEqual([emerald.t, emerald.role, emerald.games.length, emerald.y], ['ed', 'MIDDLE', 1, { n: 0, w: 0, vs: {} }]);
   assert.equal((await (await get('/riot/champ?c=2103')).json()).games.length, 0, 'not among the high elo games');
   assert.equal((await (await get('/riot/champ?c=103&t=ed')).json()).games.length, 0, "and Korea's high elo games not among Emerald and Diamond's");
+
+  // the rune count: yesterday's games of every ladder (only Korea had one), each laner's keystone and second tree
+  // against their lane opponent, with wins
+  let runes;
+  for (let i = 0; !(runes = await (await get('/riot/runes?c=103')).json()).r.MIDDLE; i++) { assert(i < 60, `no rune pages counted: ${JSON.stringify(runes)}`); await sleep(500); }
+  assert.deepEqual(runes, { p: ['16.20'], n: 1, r: { MIDDLE: { 238: { '8112-8300': [1, 1] } } } }, 'Ahri against Zed: Electrocute with Sorcery second, won');
+  assert.deepEqual((await (await get('/riot/runes?c=238')).json()).r, { MIDDLE: { 103: { '8112-8300': [1, 0] } } }, 'and Zed against Ahri, lost');
+  assert.deepEqual(await (await get('/riot/runes?c=nope')).json(), { p: ['16.20'], n: 1, r: {} });
+  for (let i = 0; (sum = await (await get('/riot/summary')).json()).runes.k < 5; i++) { assert(i < 60, JSON.stringify(sum.runes)); await sleep(500); }
+  assert.deepEqual(sum.runes, { at: (today - 1) * DAY, k: 5, left: 0, n: 1, p: ['16.20'] }, 'every ladder done for yesterday');
+  const ran = calls.filter((c) => c.q.includes('endTime'));
+  assert(ran.every((c) => c.q === `?queue=420&type=ranked&startTime=${(today - 1) * DAY}&endTime=${today * DAY - 1}&count=100`), 'a whole UTC day, yesterday');
+  assert.deepEqual([...new Set(ran.map((c) => c.host))].sort(), ['americas', 'asia', 'europe'], 'on each ladder');
+  assert.equal(sum.total, 5, 'not among the games counted in full');
 
   // a champion's games for the page
   let r = await get('/riot/champ?c=103&r=MIDDLE');
@@ -278,7 +294,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.deepEqual(await (await get('/riot/alike?c=nope')).json(), { n: 0, of: 0, list: [] });
 
   // the key never comes back
-  for (const p of ['/riot/summary?more=1', '/riot/champ?c=103', '/riot/alike?c=103', '/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW']) {
+  for (const p of ['/riot/summary?more=1', '/riot/champ?c=103', '/riot/alike?c=103', '/riot/runes?c=103', '/riot/api/europe/riot/account/v1/accounts/by-riot-id/Ana%20B/EUW']) {
     const x = await get(p), text = await x.text();
     assert(!text.includes(KEY) && ![...x.headers.values()].some((v) => v.includes(KEY)), p);
   }
