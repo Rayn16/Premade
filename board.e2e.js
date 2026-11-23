@@ -251,6 +251,16 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
       assert.strictEqual(await page.evaluate(() => window.mouse), false, 'and given back');
     }
     await shot(page, 'board-name-link');
+    // What's new 208 (Rayan's screenshot): over everyone's rank only callouts, voices, room chat and popups; the timers
+    // line with the win chance and the enemy spell strip wait until the cards go, then come back
+    const more = { cs: 'CS 64', talkers: [{ name: 'Sam', pic: '', team: 'ally' }], chat: [{ name: 'Kai', text: 'gl' }], toasts: ['Everyone’s rank is on the overlay.'],
+      strip: [{ name: 'Zed', pic: `${DDV}/img/champion/Zed.png`, spells: [{ k: 'flash:Zed', icon: `${DDV}/img/spell/SummonerFlash.png`, name: 'Flash', left: 0, by: '' }] }] };
+    for (const load of [true, false]) {
+      await fire({ ...state(board({ load }), 'Win chance 50%'), ...more });
+      assert.deepStrictEqual(await page.$$eval('.stack > *', (l) => l.map((e) => e.dataset.part)), ['talk', 'chat', 'toasts'], `only voices, chat and popups over the cards (${load ? 'loading' : 'in game'})`);
+    }
+    await fire({ ...state(true, 'Win chance 50%'), ...more });
+    assert(await page.isVisible('.strip') && (await page.textContent('.toast.game')) === 'Win chance 50%', 'both back once the cards go');
     // a board off: nothing left over
     await fire({ visible: true, board: null, pos: 'tl', scale: 1, opacity: 1, game: 'Dragon 0:58' });
     assert.strictEqual(await page.locator('.rb').count(), 0);
