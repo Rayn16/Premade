@@ -2189,6 +2189,12 @@ const leagueData = (over = {}) => ({
     assert(await pc.$$eval('#postBox .sbrow[data-me] .sbit img', (l) => l.length) > 0, 'your items');
     assert.deepStrictEqual(await pc.$$eval('#postBox .sbvs .vs', (l) => l.map((v) => v.title)), ['Kills: yours 14, theirs 12', 'Gold: yours 54.0k, theirs 52.0k', 'Towers: yours 3, theirs 1', 'Dragons: yours 2, theirs 0', 'Barons: yours 1, theirs 0', 'Voidgrubs: yours 0, theirs 1'], 'the teams side by side, Voidgrubs from the timeline');
     await repShot(pc, '#postBox', 'report-overview-game-page');
+    // What's new 218: a player's name opens their profile, without opening their drawer
+    assert.strictEqual(await pc.locator('#postBox .sbrow .sbname b.plink').count(), 10, 'every name a link');
+    await pc.click('#postBox .plink:text-is("Sniper")');
+    await wait(pc, () => document.querySelector('.nav[data-view="profile"]').getAttribute('aria-current') === 'page' && document.getElementById('proName').textContent === 'Sniper', null, 'Sniper’s profile from his name after the game');
+    assert.strictEqual(await pc.getAttribute('#postBox .sbrow:has(.plink:text-is("Sniper"))', 'aria-expanded'), 'false', 'his drawer still closed');
+    await pc.click('#proBack');
     await openPage(pc, 'stats');
     await pc.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'after', go: 'scoreboard' } }));
     await wait(pc, () => document.querySelector('.nav[data-view="game"]').getAttribute('aria-current') === 'page', null, 'Scoreboard on the end-screen card opens the Game page');

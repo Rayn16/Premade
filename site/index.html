@@ -792,6 +792,7 @@ button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft)
 .sbsp img.rn { border-radius: 50%; background: var(--bg); }
 .sbname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
 .sbname b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbname b.plink { font-weight: 700; } /* a name that opens their profile (What's new 218): .plink resets the font, so it stays bold */
 .sbname .tag { font-size: 12px; } .sbname .tag[data-k=""] { border-color: var(--muted); }
 .sbrk { font-size: 12.5px; color: var(--muted); }
 .sbdmg { display: block; height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
@@ -10929,7 +10930,7 @@ dialog.wizard { transform: scale(var(--from)); }
         row.querySelector('img').alt = champName(p.champ);
         if (p.lvl) row.querySelector('.sbch').append(mk('i', '', p.lvl));
         row.querySelector('.sbsp').append(...(p.sp || []).map(spellPic).filter(Boolean).map((x) => img(x)), ...(p.rn ? [runeIcon(p.rn[2]), runeIcon(p.rn[1])].filter(Boolean).map((x) => img(x, 'rn')) : []));
-        row.querySelector('.sbname b').textContent = pname(p);
+        Object.assign(row.querySelector('.sbname b'), { textContent: pname(p) }, riotIdOk(p.name) && { className: 'plink', title: `Open ${pname(p)}’s profile` });
         row.querySelector('.sbname').append(...[i === r.me && ['you', 'You'], p === foe && ['', 'Your lane'], p.badge && [p.badge === 'MVP' ? 'good' : '', p.badge], ...gameTags(r, p)].filter(Boolean).map(([k, x]) => tag(k, x)));
         if (p.rk) row.querySelector('.sbrk').textContent = p.rk[1];
         row.querySelector('.c-kda b').textContent = `${p.k} / ${p.d} / ${p.a}`;
@@ -10944,7 +10945,7 @@ dialog.wizard { transform: scale(var(--from)); }
         dr.append(mk('div', 'sbx'), drawerActs(r, p, i));
         const open = (on) => { row.setAttribute('aria-expanded', String(on)); dr.hidden = !on; };
         open(i === r.me); // your own row starts open
-        row.addEventListener('click', () => open(dr.hidden));
+        row.addEventListener('click', (e) => { if (e.target.closest('.plink')) { view('profile', true); lookUp(p.name, r.plat); } else open(dr.hidden); }); // the name opens their profile (What's new 218)
         sec.append(row, dr);
       }
       out.push(sec);
@@ -20669,6 +20670,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [218, 'November 23: open a player’s profile from your game', [
+      'Click a player’s name in a game’s report, on the Game page after a game or wherever a game opens, for their profile. The rest of their row still opens their extra numbers, Copy runes and Avoid.',
+    ]],
     [217, 'November 23: tags stay inside the cards', [
       'On the loading screen and with Alt+X, a card’s 2 tags no longer spill past its edges. When they don’t fit side by side, the second goes under the first.',
     ]],
@@ -21889,7 +21893,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
       ['Jungle clear timer', 'In Practice Tool, your jungle clear timed camp by camp, from the gold each camp gives, against your best clear on that champion.',
         'Start a Practice Tool game from Pregame, buy a jungle pet and clear your camps. Pick how many camps make a clear on Game.', '#jgBox', 'app'],
-      ['Scoreboard', 'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, Watch the match, Your clips and the replay. Overview puts your team on top, a row for each player with level, spells, runes, rank, K/D/A, damage, CS, gold, items, this game’s tags and a score ring, and the teams’ kills, gold, towers, dragons, Barons and Voidgrubs side by side. Press a player for Riot’s extra numbers, how they compare with high elo, and Copy runes, Copy items or Avoid.',
+      ['Scoreboard', 'An opened game grows into a head with the skin you played behind Victory or Defeat, your LP, the queue, length and patch, Watch the match, Your clips and the replay. Overview puts your team on top, a row for each player with level, spells, runes, rank, K/D/A, damage, CS, gold, items, this game’s tags and a score ring, and the teams’ kills, gold, towers, dragons, Barons and Voidgrubs side by side. Click a name for that player’s profile, or the rest of their row for Riot’s extra numbers, how they compare with high elo, and Copy runes, Copy items or Avoid.',
         'Your last game, on Game, once a game ends; every game report; Scoreboard on each game on the Clips page and on the card after a game.', '#postBox', 'app'],
       ['How you played', 'After a game the Game page shows your game, opening on Overview. How you played has what stood out, each of your numbers as a bar against your usual games (a white line) and high elo players (a gold diamond), where you got kills and died, and the objectives each team took. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
         'Your last game, on Game, once a game ends. Every game report has it too.', '#postBox', 'app'],
