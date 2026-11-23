@@ -682,6 +682,7 @@ export class Riot extends DurableObject {
     this.calls = {}; // routing value -> times of our calls in the last 2 minutes
     this.until = {}; // routing value -> when Riot lets us call again
     this.ips = new Map(); // lookups each address made in the last 2 minutes
+    this.memo = new Map(); // the last /riot/champ answers (remember())
     ctx.blockConcurrencyWhile(() => this.kick());
   }
   // sets the alarm when there's none or it's a minute overdue: once an alarm's retries all fail, Cloudflare never runs it
@@ -710,16 +711,23 @@ export class Riot extends DurableObject {
     const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + u)));
     return Array.from(h.slice(0, 4), (b) => b.toString(16).padStart(2, '0')).join('');
   }
-  // what this object used of the free plan today (UTC), kept after each turn (an alarm or a call): its request, the
-  // rows its SQL read and wrote, w more written (an alarm's next alarm), this write, and how long it ran; with the
-  // day before as prev. Every turn has to keep it: the object leaves memory 10 s after its last one.
-  use(t, w = 0) {
-    const today = day(), u = this.get('use', { day: today, req: 0, read: 0, write: 0, ms: 0 });
-    if (u.day !== today) { const { day: d, req, read, write, ms } = u; Object.assign(u, { day: today, req: 0, read: 0, write: 0, ms: 0, prev: { day: d, req, read, write, ms } }); }
+  // what this object used of the free plan today (UTC), after each turn (an alarm, w = 1) or call (on route r): its
+  // requests (by: each route's), the rows its SQL read and wrote, w more written (an alarm's next alarm) and how long
+  // it ran, with the day before as prev. Kept in memory and saved (a row) by each alarm turn; by a call only when no
+  // turn saved it in the last 20 s (the counting off), as saving it every call was a tenth of a busy day's writes.
+  // Rows aren't split by route: a call can take in what an alarm turn read while it waited for Riot
+  // ponytail: the calls after the last turn go uncounted if the object leaves memory before the next one
+  use(t, w = 0, r = 'alarm') {
+    const today = day(), u = (this.u ||= this.get('use', { day: today, req: 0, read: 0, write: 0, ms: 0 }));
+    if (u.day !== today) { const { day: d, req, read, write, ms } = u; Object.assign(u, { day: today, req: 0, read: 0, write: 0, ms: 0, by: {}, prev: { day: d, req, read, write, ms } }); }
     for (const c of this.cur.splice(0)) { u.read += c.rowsRead; u.write += c.rowsWritten; }
     u.req++;
-    u.write += w + 1;
+    (u.by ||= {})[r] = (u.by[r] | 0) + 1;
+    u.write += w;
     u.ms += Date.now() - t;
+    if (!w && Date.now() - (this.saved || 0) < 20000) return;
+    if (w) this.saved = Date.now();
+    u.write++;
     this.db.exec('INSERT INTO kv VALUES (?, ?) ON CONFLICT (k) DO UPDATE SET v = excluded.v', 'use', JSON.stringify(u));
   }
 
@@ -746,7 +754,10 @@ export class Riot extends DurableObject {
     }
     return this.bud;
   }
-  async fetch(req) { const t = Date.now(); try { return await this.route(req); } finally { this.use(t); } }
+  async fetch(req) {
+    const t = Date.now(), r = new URL(req.url).pathname.split('/')[2];
+    try { return await this.route(req); } finally { this.use(t, 0, /^(summary|champ|runes|alike|past|places|mayhem|tftaug|api)$/.test(r) ? r : 'other'); }
+  }
   async route(req) {
     const url = new URL(req.url), o = req.headers.get('origin') || '', cors = ORIGIN.test(o) ? { 'access-control-allow-origin': o, vary: 'origin' } : {};
     const json = { ...cors, 'content-type': 'application/json' };
@@ -762,14 +773,14 @@ export class Riot extends DurableObject {
       const { p, c, b, bn, old, total, by, at } = this.sumOf(), sw = this.swOf(), w = sw.w, e = this.sumOf('ed'), n = (t) => this.sql.exec(`SELECT COUNT(*) AS n FROM ${t}`).one().n;
       const today = (s) => (s.day === day() ? s.today : 0), rc = this.rc || this.get('rc', null); // no games counted today when none were
       return new Response(JSON.stringify({ p, c, b, bn, old, today: today(this.sumOf()), total, by: by || { kr: total }, at, from: sw.lo < sw.hi ? sw.lo * DAY : undefined,
-        on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined, use: { ...this.get('use', {}), lim: FREE },
+        on: w ? [w.d * DAY, w.asked, w.found.length, w.q.length] : undefined, use: { ...(this.u || this.get('use', {})), lim: FREE },
         acct: this.bud ? { req: this.bud.req, at: this.bud.at, day: this.bud.day, paused: !!this.paused, lim: FREE.req } : undefined,
         runes: rc ? { at: rc.d * DAY, k: rc.k, left: (rc.q || []).length, n: rc.n, p: rc.ps } : undefined,
         ed: { p: e.p, c: e.c, b: e.b, bn: e.bn, old: e.old, today: today(e), total: e.total, by: e.by || {}, at: e.at },
         ...(url.searchParams.has('more') && { pros: n('pros'), lp: this.get('lp', {}), pools: n('pools') }) }), { headers: json });
     }
-    if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r'), url.searchParams.get('t')), { headers: json });
-    if (url.pathname === '/riot/runes') return new Response(this.vs(+url.searchParams.get('c')), { headers: json });
+    if (url.pathname === '/riot/champ') return new Response(this.champ(+url.searchParams.get('c'), url.searchParams.get('r'), url.searchParams.get('t')), { headers: { ...json, 'cache-control': 'public, max-age=300' } });
+    if (url.pathname === '/riot/runes') return new Response(this.vs(+url.searchParams.get('c')), { headers: { ...json, 'cache-control': 'public, max-age=600' } });
     if (url.pathname === '/riot/alike') return new Response(this.alike(+url.searchParams.get('c')), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); // it reads every pools row
     if (url.pathname === '/riot/past') return new Response(this.past(url.searchParams.get('u') || ''), { headers: json });
     if (url.pathname === '/riot/places') { const p = url.searchParams.get('p') || ''; return new Response(JSON.stringify(Object.hasOwn(REGION, p) ? this.get(`places:${p}`, {}) : {}), { headers: { ...json, 'cache-control': 'public, max-age=3600' } }); }
@@ -846,13 +857,14 @@ export class Riot extends DurableObject {
     return new Response(text, { headers });
   }
   // someone's Solo/Duo and Flex ranks from a lookup, kept for this season (its patch's year: 16.x is 2026): the
-  // highest seen and the last, with when
+  // highest seen and the last, with when (an unchanged rank is written again only after 6 hours)
   keep(u, list) {
     const a = parseInt(this.sumOf().p, 10), s = a >= 15 ? a + 2010 : new Date().getUTCFullYear(), at = Math.round(Date.now() / 1000);
     for (const e of Array.isArray(list) ? list : []) {
       if (!e || !['RANKED_SOLO_5x5', 'RANKED_FLEX_SR'].includes(e.queueType) || !TIERS.includes(e.tier)) continue;
-      const rk = [e.tier, String(e.rank || ''), e.leaguePoints | 0], [old] = this.sql.exec('SELECT peak FROM ranks WHERE u = ? AND s = ? AND q = ?', u, s, e.queueType).toArray();
+      const rk = [e.tier, String(e.rank || ''), e.leaguePoints | 0], [old] = this.sql.exec('SELECT peak, last, at FROM ranks WHERE u = ? AND s = ? AND q = ?', u, s, e.queueType).toArray();
       const peak = old && rkVal(JSON.parse(old.peak)) > rkVal(rk) ? old.peak : JSON.stringify(rk);
+      if (old && old.peak === peak && old.last === JSON.stringify(rk) && at - old.at < 6 * 3600) continue; // as kept in the last 6 hours: no row written
       this.sql.exec('INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (u, s, q) DO UPDATE SET peak = excluded.peak, last = excluded.last, at = excluded.at', u, s, e.queueType, peak, JSON.stringify(rk), at);
     }
   }
@@ -900,20 +912,31 @@ export class Riot extends DurableObject {
     t = t === 'ed' ? t : '';
     const s = this.sumOf(t), mine = s.c[c] || (s.old && s.old.c[c]) || {}, y = { n: 0, w: 0, vs: {} };
     if (!ROLES.has(role)) role = Object.keys(mine).sort((a, b) => mine[b][0] - mine[a][0])[0] || 'MIDDLE';
+    const k = `${c} ${role} ${t}`, hit = this.memo.get(k);
+    if (hit && Date.now() - hit.at < 600000) return hit.v;
     if (!t) for (const { v } of this.sql.exec('SELECT v FROM matchups WHERE b = ?', c % 16)) for (const [o, [n, w]] of Object.entries((JSON.parse(v)[c] || {})[role] || {})) { const x = (y.vs[o] ||= [0, 0]); x[0] += n; x[1] += w; y.n += n; y.w += w; }
     const rows = this.sql.exec('SELECT patch, at, win, opp, gd, d FROM games WHERE champ = ? AND role = ? AND slot >= ? AND slot < ? ORDER BY at DESC', c, role, t ? KEEP : 0, t ? 2 * KEEP : KEEP).toArray();
-    return `{"t":"${t}","patch":${JSON.stringify(s.p)},"role":"${role}","roles":${JSON.stringify(s.c[c] || {})},"y":${JSON.stringify(y)},"games":[${rows.map((x) => `{"p":${JSON.stringify(x.patch)},"t":${x.at},"w":${x.win},"o":${x.opp},"g":${x.gd ?? 'null'},${x.d.slice(1)}`).join(',')}]}`;
+    return this.remember(k, `{"t":"${t}","patch":${JSON.stringify(s.p)},"role":"${role}","roles":${JSON.stringify(s.c[c] || {})},"y":${JSON.stringify(y)},"games":[${rows.map((x) => `{"p":${JSON.stringify(x.patch)},"t":${x.at},"w":${x.win},"o":${x.opp},"g":${x.gd ?? 'null'},${x.d.slice(1)}`).join(',')}]}`);
   }
+  // an ask reads up to 1,000 rows, so its answer is kept 10 minutes, or until a game of that champion is kept
+  // (forget) or the sweep adds a day (memo.clear()): the last 40 asked (up to about 450 KB each), the oldest leaving first
+  remember(k, v) {
+    this.memo.delete(k);
+    this.memo.set(k, { at: Date.now(), v });
+    if (this.memo.size > 40) this.memo.delete(this.memo.keys().next().value);
+    return v;
+  }
+  forget(c) { for (const k of this.memo.keys()) if (k.startsWith(`${c} `)) this.memo.delete(k); }
   // the champions the same high elo players play (pool()): of the n players (of all those asked) with c among their 8
   // champions with the most mastery points, how many have each other one, 3 or more, the closest first (the most of
-  // them for how many players have it at all: cosine similarity)
-  // ponytail: reads every pools row (about 3,000) per ask, fine for friends; count each champion's list once a day if
-  // the free plan's reads ever run short
+  // them for how many players have it at all: cosine similarity). Every pools row (about 3,000) is read at most once an
+  // hour and kept in memory, as reading them each ask was the free plan's biggest read after /riot/champ
   alike(c) {
     const n = new Map(), both = new Map();
     let of = 0;
-    if (Number.isInteger(c) && c > 0) for (const { c: s } of this.sql.exec('SELECT c FROM pools')) {
-      const cs = s.split(',').map(Number), has = cs.includes(c);
+    if (Number.isInteger(c) && c > 0 && !(Date.now() - (this.pools || {}).at < 36e5)) this.pools = { at: Date.now(), v: this.sql.exec('SELECT c FROM pools').toArray().map((x) => x.c.split(',').map(Number)) };
+    if (Number.isInteger(c) && c > 0) for (const cs of this.pools.v) {
+      const has = cs.includes(c);
       of++;
       for (const x of cs) { n.set(x, (n.get(x) | 0) + 1); if (has && x !== c) both.set(x, (both.get(x) | 0) + 1); }
     }
@@ -1032,6 +1055,7 @@ export class Riot extends DurableObject {
       this.sql.exec('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (champ, role, slot) DO UPDATE SET patch = excluded.patch, at = excluded.at, win = excluded.win, opp = excluded.opp, gd = excluded.gd, d = excluded.d',
         x.c, x.r, slot, g.patch, g.at, x.w, o.c, f10 ? gx - go : null, d);
       this.count(g.patch, x.c, x.r, x.w, g.t);
+      this.forget(x.c);
     }
     this.ban(g.patch, g.b, g.t);
     this.sumOf(g.t).at = g.at;
@@ -1090,6 +1114,7 @@ export class Riot extends DurableObject {
     else sw.hi = w.d + 1;
     sw.lo = Math.max(sw.lo, Date.parse(keep + '-01') / 864e5);
     sw.w = null;
+    this.memo.clear(); // every champion's year of matchups (y) may have changed
     this.counted(w.g.length);
   }
 

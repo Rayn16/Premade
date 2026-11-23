@@ -4,8 +4,9 @@
 // gold, vision and damage, each player's code and the pro players' names and teams (from a fake Leaguepedia, which
 // never gets our key), keeps Europe West's Emerald and Diamond games apart, says which champions the same ladder
 // players play from their mastery, passes only the lookup calls on its list through, with our key and its limits,
-// keeping the ranks they get for each season, says how much of the free plan it used, and counts the rune pages each
-// laner of yesterday's games took against their lane opponent (the rune count). Then, restarted with the
+// keeping the ranks they get for each season, says how much of the free plan it used (requests by route), keeps a
+// champion's answer until its next game, and counts the rune pages each laner of yesterday's games took against their
+// lane opponent (the rune count). Then, restarted with the
 // sweep going 8 days back, it carries on with the day it was on and counts the older games a day at a time, newer
 // days first, takes the pro players' games with its ladder's, and finishes counting each server's ladder for the
 // ladder places.
@@ -136,6 +137,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
 
 (async () => {
   await up('SWEEP_DAYS:3'); // the sweep waits for now: it has no day older than 3 days to count
+  await get('/riot/champ?c=103&r=MIDDLE'); // asked before Ahri's games come in: her kept answer has to go as each comes
   // the counting starts by itself once the Riot object wakes up
   let sum = await counted(5);
   assert.equal(sum.total, 5, 'KR_1004 (ARAM) and KR_1005 (a remake) are not counted');
@@ -189,6 +191,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   // a champion's games for the page
   let r = await get('/riot/champ?c=103&r=MIDDLE');
   assert.equal(r.headers.get('access-control-allow-origin'), SITE);
+  assert.equal(r.headers.get('cache-control'), 'public, max-age=300', 'the app keeps it 5 minutes');
   const ahri = await r.json();
   assert.equal(ahri.patch, '16.20');
   assert.equal(ahri.role, 'MIDDLE');
@@ -214,6 +217,9 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   assert.equal((await get('/riot/champ?c=103', { origin: 'https://evil.example' })).headers.get('access-control-allow-origin'), null, 'other sites are not let in');
   for (const o of ['https://rayn16.github.io', 'https://league-proxchat.netlify.app']) assert.equal((await get('/riot/champ?c=103', { origin: o })).headers.get('access-control-allow-origin'), o, 'the site on GitHub Pages and on Netlify');
   assert.equal((await get('/riot/champ?c=103', { origin: 'https://someone.github.io' })).headers.get('access-control-allow-origin'), null, 'not every GitHub Pages site');
+  assert.deepEqual(await (await get('/riot/champ?c=103&r=MIDDLE')).json(), ahri, 'kept, the same answer');
+  const by = (await (await get('/riot/summary')).json()).use.by;
+  assert(by.champ >= 13 && by.alarm > 20 && by.summary > 5, `the requests by route: ${JSON.stringify(by)}`);
 
   // lookups: only the calls on the list, with their own query parameters, as Riot answers them (the counting goes on
   // meanwhile: Korea's on kr and asia, the others' ladders, game lists and EUW1_3001)
@@ -318,6 +324,7 @@ const counted = async (n) => { // the summary once n games are counted and nothi
   db.close();
   const mark = calls.length;
   await up('SWEEP_DAYS:8', 'SWEEP_ROOM:100', 'PLACES_ROOM:1000'); // room for the sweep beside this test's busy crawl, and for the ladder places
+  await get('/riot/champ?c=103&r=MIDDLE'); // asked before the sweep's days come in: each day it adds empties what was kept
   sum = await counted(9);
   assert.equal(sum.total, 9, 'KR_2001, KR_2002, KR_2003 and the game it had count; not the ARAM, the remake, KR_1001 again or KR_2006, 9 days old');
   assert.deepEqual(sum.by, { kr: 8, euw1: 1 });
