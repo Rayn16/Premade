@@ -26,6 +26,11 @@ contextBridge.exposeInMainWorld('lpcClient', {
   lcu: (method, path, body) => ipcRenderer.invoke('lcu', method, path, body),
   clip: (data, pic, like, stem) => ipcRenderer.invoke('clip', data, pic, like, stem),
   clipCut: (name, from, to) => ipcRenderer.invoke('clip-cut', String(name), +from, +to), // 1.48: .mp4 clips, Copy, a game's reel
+  clipEdit: (kind, name, from, to, edit, pic, onPct) => { // 1.54: the editor's Save clip through ffmpeg; onPct(0-99) as it goes
+    const id = Math.random(), f = (e, i, p) => { if (i === id && typeof onPct === 'function') onPct(+p); };
+    ipcRenderer.on('clip-edit-pct', f);
+    return ipcRenderer.invoke('clip-edit', kind === 'game' ? 'game' : 'clip', String(name), +from, +to, edit, pic, id).finally(() => ipcRenderer.removeListener('clip-edit-pct', f));
+  },
   clipReel: (names, stem) => ipcRenderer.invoke('clip-reel', Array.isArray(names) ? names.map(String) : [], String(stem)),
   clipCopy: (name) => ipcRenderer.invoke('clip-copy', String(name)),
   clipsFolder: () => ipcRenderer.send('clips-folder'),

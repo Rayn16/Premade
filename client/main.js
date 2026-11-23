@@ -1022,6 +1022,56 @@ ipcMain.handle('clip-cut', async (e, n, from, to) => {
   await fs.promises.copyFile(picAt(n), picAt(out)).catch(() => {});
   return out;
 });
+// App 1.54 (What's new 211): the editor's Save clip through ffmpeg, about 3 times faster than the page's real-time
+// recording, at full quality and on the times set. kind: 'clip' or 'game' (match videos have their own folder);
+// o: the page's edits in the video's own pixels (ffEdit): speed, crop [w, h, x, y] and size [w, h], a caption (text,
+// px, its middle at tx, ty), vol 0-2, mute. Saved as "... cut" with the page's picture; id: whose % the page is sent.
+const FF_SPEEDS = [0.25, 0.5, 1, 1.5, 2];
+function editArgs(from, to, o) { // ffmpeg's arguments after the input, or null when an edit is out of range
+  const n = (v, a, z) => (typeof v === 'number' && Number.isFinite(v) && v >= a && v <= z ? Math.round(v) : NaN), vf = [], af = [];
+  const speed = FF_SPEEDS.includes(o.speed) ? o.speed : 1, vol = typeof o.vol === 'number' && o.vol >= 0 && o.vol <= 2 ? o.vol : 1;
+  const text = typeof o.text === 'string' ? o.text.replace(/[\x00-\x1f]/g, ' ').trim().slice(0, 80) : '';
+  if (o.crop) {
+    const c = [...(Array.isArray(o.crop) ? o.crop : []), ...(Array.isArray(o.size) ? o.size : [])].map((v) => n(v, 0, 16384));
+    if (c.length !== 6 || c.some(Number.isNaN) || !c[0] || !c[1] || !c[4] || !c[5]) return null;
+    vf.push(`crop=${c[0]}:${c[1]}:${c[2]}:${c[3]}`, `scale=${c[4]}:${c[5]}`);
+  }
+  if (speed !== 1) { vf.push(`setpts=PTS/${speed}`); af.push(...(speed === 0.25 ? ['atempo=0.5', 'atempo=0.5'] : [`atempo=${speed}`])); }
+  if (text) { // from cap.txt beside ffmpeg (its cwd), so nothing in it needs escaping
+    const px = n(o.px, 4, 2000), tx = n(o.tx, 0, 16384), ty = n(o.ty, 0, 16384);
+    if ([px, tx, ty].some(Number.isNaN)) return null;
+    const font = process.platform === 'win32' ? "fontfile='C\\:/Windows/Fonts/segoeuib.ttf':" : '';
+    vf.push(`drawtext=${font}textfile=cap.txt:fontsize=${px}:fontcolor=white:borderw=${Math.max(1, Math.round(px / 12))}:bordercolor=black:x=${tx}-text_w/2:y=${ty}-text_h/2`);
+  }
+  if (vol !== 1) af.push(`volume=${vol}`);
+  return { text, args: [...(vf.length ? ['-vf', vf.join(',')] : []), ...(o.mute ? ['-an'] : af.length ? ['-af', af.join(',')] : []),
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', ...(o.mute ? [] : ['-c:a', 'aac', '-b:a', '160k']), '-movflags', '+faststart'], secs: (to - from) / speed };
+}
+ipcMain.handle('clip-edit', async (e, kind, n, from, to, o, pic, id) => {
+  const ffmpeg = ffmpegNow(), ed = fromSite(e) && clipOk(n) && ffmpeg && from >= 0 && to > from && o && typeof o === 'object' && editArgs(from, to, o);
+  if (!ed) return '';
+  const src = kind === 'game' ? vidAt(n) : clipAt(n), out = await freeName(n.replace(EXT, '').slice(0, 100) + ' cut', '.mp4', claim).catch(() => '');
+  if (!out) return '';
+  const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'premade-edit-'));
+  try {
+    if (ed.text) await fs.promises.writeFile(path.join(tmp, 'cap.txt'), ed.text);
+    await new Promise((res, rej) => {
+      const ch = spawn(ffmpeg, ['-hide_banner', '-v', 'error', '-nostats', '-progress', 'pipe:1', '-y', '-ss', String(from), '-t', String(to - from), '-i', src, ...ed.args, clipAt(out)], { cwd: tmp, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      let err = '', last = -1;
+      ch.stdout.on('data', (d) => {
+        const us = [...String(d).matchAll(/out_time_us=(\d+)/g)].pop(), p = us && Math.min(99, Math.floor(+us[1] / 1e4 / ed.secs));
+        if (us && p > last && !e.sender.isDestroyed()) e.sender.send('clip-edit-pct', id, (last = p));
+      });
+      ch.stderr.on('data', (d) => { err = (err + d).slice(-2000); });
+      ch.on('error', rej);
+      ch.on('close', (code) => (code === 0 ? res() : rej(new Error(err))));
+    });
+  } catch { await fs.promises.unlink(clipAt(out)).catch(() => {}); return ''; }
+  finally { await fs.promises.rm(tmp, { recursive: true, force: true }).catch(() => {}); }
+  const jpg = bytes(pic);
+  if (jpg && jpg.length < 2e6) await fs.promises.mkdir(picDir(), { recursive: true }).then(() => fs.promises.writeFile(picAt(out), jpg)).catch(() => {});
+  return out;
+});
 // A game's clips joined into one video, in the order given. As they are when they're all .mp4 from one recording;
 // otherwise (or when that fails) encoded again.
 // ponytail: clips of different sizes (the quality changed mid-game) or one without sound fail both ways and give ''; scale each first if it happens

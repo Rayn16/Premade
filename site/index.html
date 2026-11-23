@@ -954,6 +954,8 @@ button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft)
 .clip .shot { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; display: block; cursor: grab; }
 .clip .cname { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .cacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.cacts .btn, .cmenu .btn { display: inline-flex; align-items: center; gap: 6px; }
+.cacts .ico, .cmenu .ico { width: 14px; height: 14px; }
 .cgames { display: grid; gap: 14px; }
 .cgame { display: block; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-width: 0; }
 .cghead { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; cursor: pointer; }
@@ -982,23 +984,41 @@ button.sbrow:hover, button.sbrow[aria-expanded="true"] { background: var(--soft)
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 #clipKeyNote:empty { display: none; }
 dialog.viewer { width: min(980px, calc(100vw - 32px)); }
+/* the clip editor (What's new 211): the name and X, the video, the timeline, one row of tools, the picked tool's options.
+   The video's height gives way so Save clip stays in view (--vrest: everything but the video) */
+#clipDlg { --vrest: 400px; }
+#clipDlg:has(.tlmarks:not(:empty)) { --vrest: 432px; }
+#clipDlg:has(#tl[data-long]) { --vrest: 452px; }
+#clipDlg .wz { gap: 14px; padding: 20px 24px 22px; }
+.vhead { display: flex; align-items: center; gap: 12px; }
+.vhead .ph { flex: 1; min-width: 0; color: var(--fg); font-size: 16px; overflow-wrap: anywhere; }
+.vx { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--r-sm); background: none; color: var(--muted); cursor: pointer; }
+.vx:hover, .vx:focus-visible { color: var(--fg); background: var(--soft); }
+.ico { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ico.fill { fill: currentColor; stroke: none; }
+.vx .ico { width: 18px; height: 18px; }
 .vplayer { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
-#clipVideo { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: calc(62vh / var(--zoom, 1)); background: #000; cursor: pointer; }
+#clipVideo { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: max(160px, calc(100vh / var(--zoom, 1) - var(--vrest))); background: #000; cursor: pointer; }
 .vplayer:fullscreen { border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
 .vplayer:fullscreen #clipVideo { max-height: none; height: 100%; }
 .pbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); color: #fff; opacity: 0; transition: opacity .15s; }
 .vplayer:hover .pbar, .vplayer:focus-within .pbar, .vplayer[data-paused] .pbar { opacity: 1; }
-.pline { position: absolute; left: 0; right: 0; top: 0; height: 4px; background: rgba(255, 255, 255, .3); cursor: pointer; }
+.pline { display: none; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: rgba(255, 255, 255, .3); cursor: pointer; }
 .pline i { display: block; height: 100%; width: 0; background: #fff; }
-.pbtn { background: none; border: 0; color: #fff; font: 600 14px/1 var(--body); padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.vplayer:fullscreen .pline, .vplayer[data-full] .pline { display: block; }
+.pbtn { display: grid; place-items: center; background: none; border: 0; color: #fff; font: 600 14px/1 var(--body); padding: 7px; border-radius: 4px; cursor: pointer; }
+.pbtn .ico { width: 18px; height: 18px; }
+#pVol { width: 72px; accent-color: #fff; }
 .pbtn:hover, .pbtn:focus-visible { background: rgba(255, 255, 255, .15); }
-#pTime { font: 600 13px/1 var(--mono); }
+#pTime { margin-left: 4px; font: 600 13px/1 var(--mono); }
 .pbar .grow { flex: 1; }
-#pSpeed { margin: 0; inset: auto; position: fixed; padding: 6px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; }
-#pSpeed:popover-open, #pAudio:popover-open { display: grid; gap: 4px; }
-#pAudio { margin: 0; inset: auto; position: fixed; padding: 10px 12px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; color: var(--fg); font-size: 13px; }
-.tl { position: relative; user-select: none; touch-action: none; padding: 0 2px; }
+#tl { position: relative; user-select: none; touch-action: none; display: block; min-width: 0; padding: 0 2px; border: 0; border-radius: 0; font: inherit; text-align: left; } /* not the tier letter's .tl */
 .tlmarks { position: relative; height: 28px; }
+.tlmarks:empty { display: none; }
+.tlall { position: relative; height: 6px; margin: 6px 0 4px; border-radius: 3px; background: var(--soft); cursor: pointer; }
+.tlall i { position: absolute; top: -4px; bottom: -4px; border: 1.5px solid var(--muted); border-radius: 4px; pointer-events: none; }
+.tlall b { position: absolute; top: 0; bottom: 0; min-width: 2px; background: #fff; border-radius: 3px; pointer-events: none; }
+.tlview { position: relative; }
 .tlmarks .mk { --c: var(--best); position: absolute; top: 2px; width: 24px; height: 24px; margin-left: -12px; padding: 0; display: grid; place-items: center; border: 2px solid var(--c); border-radius: 50%; background: var(--panel); color: var(--c); cursor: pointer; }
 .tlmarks .mk svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tlmarks .mk b { position: absolute; right: -5px; bottom: -5px; min-width: 13px; height: 13px; border-radius: 7px; background: var(--c); color: #000; font: 700 10px/13px var(--body); }
@@ -1020,18 +1040,40 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .tlsel .h::after { content: ""; position: absolute; left: 5px; top: 35%; bottom: 35%; width: 2px; background: #444; border-radius: 1px; }
 .tlsel .h.a { left: -6px; }
 .tlsel .h.b { right: -6px; }
-.tlhead { position: absolute; top: 24px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.tlcut { position: relative; height: 18px; font: 500 12px/18px var(--mono); color: var(--muted); }
+.tlcut span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.tlhead { position: absolute; top: 20px; bottom: 18px; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
 .tlhead::before { content: ""; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
 #edView { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; pointer-events: none; }
-.edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 14px; align-items: end; padding: 14px 16px; border-radius: var(--r); background: var(--soft); }
-.edit .wide { grid-column: span 2; }
-@container app (max-width: 560px) { .edit .wide { grid-column: auto; } }
+#player[data-drag] #edView { pointer-events: auto; cursor: move; touch-action: none; }
+.vtools, .vopts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.vtools .grow { flex: 1; }
+.vtool { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--r-sm); background: none; color: var(--muted); font: 600 14px/1 var(--body); cursor: pointer; }
+.vtool:hover, .vtool:focus-visible { color: var(--fg); }
+.vtool[aria-pressed="true"] { color: var(--fg); background: var(--soft); }
+#trimSave { min-width: 168px; min-height: 40px; }
+.vopts { min-height: 36px; font-size: 13px; color: var(--muted); }
+.vopts .btn { display: inline-flex; align-items: center; gap: 8px; }
+.vopts .btn .ico { width: 14px; height: 14px; }
+.vf { display: inline-flex; align-items: center; gap: 8px; }
+.vf input:not([type="range"]) { font: 14px/1.2 var(--body); padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); color: var(--fg); min-width: 0; }
+.vtime { width: 92px; font-family: var(--mono) !important; }
+#edText { width: 240px; }
+.vf input[type="range"] { width: 120px; accent-color: var(--fg); }
+.vnum { font: 500 13px/1 var(--mono); color: var(--fg); min-width: 40px; }
+.vend { margin-left: auto; font: 500 13px/1.3 var(--body); color: var(--muted); }
+output.vend { font-family: var(--mono); }
+.vpills { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.vpill { min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--fg); font: 600 13px/1 var(--body); cursor: pointer; }
+.vpill[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.vshape { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: none; color: var(--fg); font: 600 13px/1 var(--body); cursor: pointer; }
+.vshape i { width: calc(14px * var(--a)); max-width: 22px; height: 14px; border: 1.5px solid currentColor; border-radius: 2px; }
+.vshape[aria-pressed="true"] { border-color: var(--fg); background: var(--soft); }
+@container app (max-width: 560px) { .vtool { padding: 0 10px; } .vend { margin-left: 0; flex-basis: 100%; } #trimSave { min-width: 0; } }
 .vplayer[data-full] { position: fixed; inset: 0; z-index: 10; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
 .vplayer[data-full] #clipVideo { max-height: none; height: 100%; }
 .clip .kda { display: flex; align-items: center; gap: 6px; font: 600 13px/1 var(--mono); }
 .clip .kda img { width: 22px; height: 22px; border-radius: 50%; }
-.pacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.pacts output { font: 500 13px/1 var(--mono); color: var(--muted); margin-left: auto; }
 .trim { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .trim:focus-within { position: static; width: auto; height: auto; clip-path: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; font-size: 14px; }
 .helplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 14px; }
@@ -1874,7 +1916,9 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 @container app (max-width: 900px) { .cgame > .cgbody:has(> .cgside) { grid-template-columns: minmax(0, 1fr); } .cgpics img:nth-child(n + 3) { display: none; } }
 @container app (max-width: 600px) { .cgpics { display: none; } #clipGrid .cgside > .clips { grid-template-columns: minmax(0, 1fr); } }
 .vcard .vfull { position: absolute; left: 8px; top: 8px; z-index: 1; padding: 3px 7px; border-radius: 5px; background: rgb(0 0 0 / .75); color: #fff; font: 600 12px/1.2 var(--body); }
-.clip .cacts .cmore { position: relative; margin-left: auto; }
+.clip .cacts .cmore { position: relative; }
+.clip .cmenu { left: 0; right: auto; min-width: 168px; }
+.clip .cmenu .btn { justify-content: flex-start; white-space: nowrap; }
 .cmore > summary { list-style: none; }
 .cmore > summary::-webkit-details-marker { display: none; }
 .cmenu { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: 3; display: grid; gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); box-shadow: 0 6px 18px rgb(0 0 0 / .35); }
@@ -2082,8 +2126,8 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 :root[data-motion="off"] :is(*, *::before, *::after, ::backdrop) { animation: none !important; transition: none !important; }
 :root { --press: calc(1 - 0.04 * var(--m)); --from: calc(1 - 0.05 * var(--m)); --rise: calc(12px * var(--m)); }
 /* press: buttons shrink a little; rows (.nav) change colour instead */
-:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip, .tab, .chseg button) { transition: transform var(--t-press) var(--ease-out), background-color var(--t-press), border-color var(--t-press), color var(--t-press); }
-:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip, .tab, .chseg button, .hcard):active:not(:disabled) { transform: scale(var(--press)); }
+:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip, .tab, .chseg button, .vtool, .vpill, .vshape, .vx) { transition: transform var(--t-press) var(--ease-out), background-color var(--t-press), border-color var(--t-press), color var(--t-press); }
+:is(.btn, .pills button, .micbtn, .tip, .pbtn, .chchip, .tab, .chseg button, .hcard, .vtool, .vpill, .vshape, .vx):active:not(:disabled) { transform: scale(var(--press)); }
 .nav { transition: background-color var(--t-press), color var(--t-press); }
 /* rows wider than a button change their background instead of shrinking */
 :is(.ready tbody tr, .games details) { transition: background-color var(--t-press); }
@@ -3612,46 +3656,61 @@ dialog.wizard { transform: scale(var(--from)); }
 </dialog>
 <dialog id="clipDlg" class="wizard viewer" aria-labelledby="clipTitle">
   <div class="wz">
-    <h2 id="clipTitle" class="ph"></h2>
+    <header class="vhead"><h2 id="clipTitle" class="ph"></h2><button id="clipClose" class="vx" type="button" aria-label="Close" data-i="x"></button></header>
     <div id="player" class="vplayer" data-paused>
       <video id="clipVideo" playsinline crossorigin="anonymous"></video><canvas id="edView" hidden></canvas>
       <div class="pbar">
         <div id="pLine" class="pline"><i id="pFill"></i></div>
-        <button id="pPlay" class="pbtn" type="button" aria-label="Play">▶</button><span id="pTime">00:00</span>
-        <button id="pMute" class="pbtn" type="button" aria-label="Mute">🔊</button>
+        <button id="pPlay" class="pbtn" type="button" aria-label="Play"></button><span id="pTime">0:00 / 0:00</span>
         <span class="grow"></span>
-        <button id="pSet" class="pbtn" type="button" popovertarget="pSpeed" aria-label="Playback speed">⚙</button>
-        <button id="pFull" class="pbtn" type="button" aria-label="Full screen">⛶</button>
+        <button id="pMute" class="pbtn" type="button" aria-label="Mute"></button><input id="pVol" type="range" min="0" max="1" step="0.05" value="1" aria-label="How loud you hear it">
+        <button id="pFull" class="pbtn" type="button" aria-label="Full screen" data-i="full"></button>
       </div>
-      <div id="pSpeed" popover><button class="pbtn" type="button" data-rate="0.25">0.25×</button><button class="pbtn" type="button" data-rate="0.5">0.5×</button><button class="pbtn" type="button" data-rate="1">Normal</button><button class="pbtn" type="button" data-rate="1.5">1.5×</button><button class="pbtn" type="button" data-rate="2">2×</button></div>
     </div>
     <div id="tl" class="tl" hidden>
       <div id="tlMarks" class="tlmarks"></div>
-      <div id="tlRuler" class="tlruler"></div>
-      <div id="tlStrip" class="tlstrip"><canvas id="tlShots" width="1280" height="72"></canvas><div id="tlSel" class="tlsel"><span class="h a" title="Drag: where the cut starts"></span><span class="h b" title="Drag: where the cut ends"></span></div></div>
-      <div id="tlHead" class="tlhead"></div>
+      <div id="tlAll" class="tlall" hidden><i id="tlAllWin"></i><b id="tlAllCut"></b></div>
+      <div id="tlView" class="tlview">
+        <div id="tlRuler" class="tlruler"></div>
+        <div id="tlStrip" class="tlstrip"><canvas id="tlShots" width="1280" height="72"></canvas><div id="tlSel" class="tlsel"><span class="h a" title="Drag: where the cut starts"></span><span class="h b" title="Drag: where the cut ends"></span></div></div>
+        <div class="tlcut"><span id="trimFromOut"></span><span id="trimToOut"></span></div>
+        <div id="tlHead" class="tlhead"></div>
+      </div>
     </div>
     <div class="trim">
-      <span>Start</span><input id="trimFrom" type="range" min="0" max="1" step="0.5" value="0" aria-label="Where the cut starts">
-      <span>End</span><input id="trimTo" type="range" min="0" max="1" step="0.5" value="1" aria-label="Where the cut ends">
+      <span>Start</span><input id="trimFrom" type="range" min="0" max="1" step="0.1" value="0" aria-label="Where the cut starts">
+      <span>End</span><input id="trimTo" type="range" min="0" max="1" step="0.1" value="1" aria-label="Where the cut ends">
     </div>
-    <div class="pacts">
-      <button id="clipEdit" class="btn small" type="button" aria-expanded="false" aria-controls="edit">Open in Editor</button><button id="clipAudio" class="btn small" type="button" popovertarget="pAudio">Audio</button>
-      <div id="pAudio" popover><label class="field">Volume <input id="pVol" type="range" min="0" max="1" step="0.05" value="1"></label></div>
-      <output>Cut <span id="trimFromOut"></span> to <span id="trimToOut"></span></output>
+    <div class="vtools">
+      <button class="vtool" type="button" data-tool="cut" data-i="cut" aria-pressed="true">Cut</button><button class="vtool" type="button" data-tool="speed" data-i="speed">Speed</button><button class="vtool" type="button" data-tool="shape" data-i="crop">Shape</button><button class="vtool" type="button" data-tool="text" data-i="text">Text</button><button class="vtool" type="button" data-tool="sound" data-i="wave">Sound</button>
+      <span class="grow"></span>
+      <button id="edReset" class="vtool" type="button" data-i="reset">Reset</button><button id="trimSave" class="btn primary" type="button">Save clip</button>
     </div>
-    <div id="edit" class="edit" hidden>
-      <label class="field">Speed <select id="edSpeed"><option value="0.5">0.5× slow motion</option><option value="1" selected>Normal</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
-      <label class="field">Shape <select id="edCrop"><option value="">As recorded</option><option value="1">Square 1:1</option><option value="0.5625">Phone 9:16 (TikTok, Shorts)</option><option value="1.25">Instagram 4:5</option></select></label>
-      <label class="field">Zoom <input id="edZoom" type="range" min="1" max="3" step="0.1" value="1"></label>
-      <label class="field">Left or right <input id="edX" type="range" min="0" max="1" step="0.01" value="0.5"></label>
-      <label class="field">Up or down <input id="edY" type="range" min="0" max="1" step="0.01" value="0.5"></label>
-      <label class="field wide">Text <input id="edText" maxlength="80" placeholder="A caption on the video"></label>
-      <label class="field">Text at <select id="edTextAt"><option value="top">Top</option><option value="bottom" selected>Bottom</option></select></label>
-      <button id="edReset" class="btn small" type="button">Undo all</button>
+    <div class="vopts" data-opt="cut">
+      <label class="vf">Start <input id="cutA" class="vtime" inputmode="decimal" aria-label="Start, in minutes and seconds"></label>
+      <label class="vf">End <input id="cutB" class="vtime" inputmode="decimal" aria-label="End, in minutes and seconds"></label>
+      <button id="cutHereA" class="btn small" type="button" data-i="from">Start here</button><button id="cutHereB" class="btn small" type="button" data-i="to">End here</button><button id="cutPlay" class="btn small" type="button" data-i="play">Play the cut</button>
+      <output id="cutLen" class="vend"></output>
     </div>
-    <p id="trimNote" class="hint" role="status">Move Start and End, then save the cut as a new clip. Cuts land on the nearest second or two.</p>
-    <footer><button id="trimSave" class="btn primary" type="button">Save the cut</button><button id="clipClose" class="btn" type="button">Close</button></footer>
+    <div class="vopts" data-opt="speed" hidden>
+      <span class="vpills"><button class="vpill" type="button" data-speed="0.25">0.25×</button><button class="vpill" type="button" data-speed="0.5">0.5×</button><button class="vpill" type="button" data-speed="1">1×</button><button class="vpill" type="button" data-speed="1.5">1.5×</button><button class="vpill" type="button" data-speed="2">2×</button></span>
+      <span class="vend">It plays at this speed now, and the clip is saved at it.</span>
+    </div>
+    <div class="vopts" data-opt="shape" hidden>
+      <button class="vshape" type="button" data-shape="0"><i style="--a: 1.78"></i>As recorded</button><button class="vshape" type="button" data-shape="1"><i style="--a: 1"></i>Square 1:1</button><button class="vshape" type="button" data-shape="0.5625"><i style="--a: .5625"></i>Phone 9:16</button><button class="vshape" type="button" data-shape="0.8"><i style="--a: .8"></i>Instagram 4:5</button>
+      <label class="vf">Zoom <input id="edZoom" type="range" min="1" max="3" step="0.1" value="1"> <output id="edZoomOut" class="vnum">1.0×</output></label>
+      <span class="vend">Drag to place it</span>
+    </div>
+    <div class="vopts" data-opt="text" hidden>
+      <label class="vf">Caption <input id="edText" maxlength="80" placeholder="A caption on the video"></label>
+      <span class="vf">Size <span class="vpills"><button class="vpill" type="button" data-size="0.05">Small</button><button class="vpill" type="button" data-size="0.08">Medium</button><button class="vpill" type="button" data-size="0.11">Big</button></span></span>
+      <span class="vend">Drag it on the video to place it</span>
+    </div>
+    <div class="vopts" data-opt="sound" hidden>
+      <label class="vf">Clip volume <input id="edVol" type="range" min="0" max="2" step="0.05" value="1"> <output id="edVolOut" class="vnum">100%</output></label>
+      <button id="edMute" class="vpill" type="button" aria-pressed="false">Mute the clip</button>
+      <span class="vend">Your mic and the game are one sound in a clip</span>
+    </div>
   </div>
 </dialog>
 
@@ -12454,6 +12513,36 @@ dialog.wizard { transform: scale(var(--from)); }
     if (client.clips) renderClips(); // its row
     nextPic();
   }
+  // line icons for the clip editor and the Clips page cards (What's new 211): ico(name) is the SVG; data-i="name" on a
+  // button in the page puts it before its text
+  const ICO = {
+    x: '<path d="M6 6l12 12M18 6 6 18"/>', play: '<path d="M7 4.5v15l12.5-7.5z"/>', pause: '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>',
+    vol: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>', mute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+    full: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>', cut: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+    speed: '<path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 13l3.5-4"/>', crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+    text: '<path d="M5 7V4h14v3M12 4v16M9 20h6"/>', wave: '<path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/>', reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+    from: '<path d="M4 5v14M20 12H9M13 8l-4 4 4 4"/>', to: '<path d="M20 5v14M4 12h11M11 8l4 4-4 4"/>', star: '<path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
+    dots: '<circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>', folder: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>',
+    bin: '<path d="M4 7h16M10 3h4M6 7l1 13h10l1-13M10 11v6M14 11v6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
+    pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  };
+  const ICO_FILL = new Set(['play', 'pause', 'dots']);
+  const ico = (k, fill) => `<svg class="ico${ICO_FILL.has(k) || fill ? ' fill' : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
+  for (const el of document.querySelectorAll('[data-i]')) el.insertAdjacentHTML('afterbegin', ico(el.dataset.i));
+  // a ⋯ menu of [icon, label, class, fn] under a card's buttons, like a clip's Rename and Bin
+  function moreMenu(items) {
+    const d = Object.assign(document.createElement('details'), { className: 'cmore' });
+    d.innerHTML = `<summary class="btn small" aria-label="More">${ico('dots')}</summary><div class="cmenu"></div>`;
+    for (const [k, text, cls, fn] of items) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: `btn small ${cls}` });
+      b.innerHTML = ico(k);
+      b.append(text);
+      b.addEventListener('click', () => { d.open = false; fn(); });
+      d.lastChild.append(b);
+    }
+    return d;
+  }
+  const starBtn = (b, on) => { b.innerHTML = ico('star', on); b.append(on ? 'Saved' : 'Save'); b.setAttribute('aria-pressed', String(on)); };
   // each match video as a card (Rayan's Medal screenshot, 2026-10-22): its picture with the length in the corner (click
   // to watch, highlights on the timeline), the name, then when, size and how many highlights, then the buttons
   function vidRow(v) {
@@ -12475,21 +12564,20 @@ dialog.wizard { transform: scale(var(--from)); }
     if (v.rec) return li;
     // a League game's (What's new 160): Full match on its picture. Its highlights show only in the player (What's new 209)
     if (!isRec(v.name)) li.querySelector('.thumb').prepend(Object.assign(document.createElement('span'), { className: 'vfull', textContent: 'Full match' }));
-    const btn = (text, cls, fn, aria) => { const b = Object.assign(document.createElement('button'), { className: `btn small ${cls}`, type: 'button', textContent: text }); if (aria) b.setAttribute('aria-label', aria); b.addEventListener('click', fn); acts.append(b); return b; };
+    const btn = (k, text, cls, fn, aria) => { const b = Object.assign(document.createElement('button'), { className: `btn small ${cls}`, type: 'button', innerHTML: ico(k) }); b.append(text); if (aria) b.setAttribute('aria-label', aria); b.addEventListener('click', fn); acts.append(b); return b; };
     const thumb = li.querySelector('.thumb'), watch = Object.assign(document.createElement('button'), { type: 'button', className: 'thumb' });
     watch.setAttribute('aria-label', `Watch ${label}`);
     watch.append(...thumb.childNodes);
     thumb.replaceWith(watch);
     watch.addEventListener('click', () => playGame(v.name));
-    if (!isRec(v.name)) btn(kept ? '★ Saved' : '☆ Save', 'star', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); }).setAttribute('aria-pressed', String(kept));
-    btn('▶ Watch the match', '', () => playGame(v.name), `Watch ${label}`);
-    if (marks.length) btn('▶ Highlights', 'primary', () => playGame(v.name, marks), `Play the highlights of ${label}`);
-    btn('📁', '', () => client.gameVideo('show', v.name), `Show ${label} in its folder`).title = 'Show in folder';
-    btn('🗑', '', async () => {
+    // What's new 211 (Rayan's card 3): line icons; its picture plays it (no Watch the match); Show in folder and Bin under ⋯
+    if (!isRec(v.name)) starBtn(btn('star', '', 'star', () => { if (!vidSaved.delete(v.name)) vidSaved.add(v.name); saveVidSaved(); renderVids(); }), kept);
+    if (marks.length) btn('play', 'Highlights', 'primary', () => playGame(v.name, marks), `Play the highlights of ${label}`);
+    acts.append(moreMenu([['folder', 'Show in folder', 'show', () => client.gameVideo('show', v.name)], ['bin', 'Bin', 'bin', async () => {
       if (!confirm(`Move “${label}” to the Recycle Bin?`)) return;
       if (!(await client.gameVideo('trash', v.name))) notify('Couldn’t move that video to the Recycle Bin.', true);
       vidSaved.delete(v.name); saveVidSaved(); loadVids();
-    }, `Bin ${label}`).title = 'Bin';
+    }]]));
     return li;
   }
   // a picture and the length of each match video, for its card: one at a time, from the middle third of the video,
@@ -12535,13 +12623,13 @@ dialog.wizard { transform: scale(var(--from)); }
     if (reel.length) vid.addEventListener('playerready', () => nextMark(), { once: true }); // after the trimmer takes the whole video
     else vid.play().catch(() => {});
     $('clipTitle').textContent = `${name.replace(/\.webm$/i, '')}${marks.length ? `: ${marks.length === 1 ? marks[0].text : 'highlights'}` : ''}`;
-    $('trimNote').textContent = marks.length ? 'Save the cut keeps this highlight as a clip. Drag the white handles to change it.' : 'Drag the white handles under the video, then save the cut as a clip. Click a highlight over the timestamps to jump to it.';
   }
   function nextMark() {
     const r = reel.shift(), d = Number.isFinite(vid.duration) ? vid.duration : 0;
     if (!r) return;
     $('trimFrom').value = Math.min(r[0], d);
     $('trimTo').value = Math.min(r[1], d);
+    setView((r[0] + r[1]) / 2);
     showTrim();
     vid.currentTime = +$('trimFrom').value;
     vid.play().catch(() => {});
@@ -13043,7 +13131,7 @@ dialog.wizard { transform: scale(var(--from)); }
     el.className = 'clip';
     el.dataset.name = c.name;
     el.toggleAttribute('data-fav', fav);
-    el.innerHTML = '<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small copy" type="button" hidden>Copy</button><button class="btn small star" type="button"></button><button class="btn small send" type="button" hidden>Send to room</button><details class="cmore"><summary class="btn small" aria-label="More">⋯</summary><div class="cmenu"><button class="btn small ren" type="button">Rename</button><button class="btn small bin" type="button">Bin</button></div></details></div>';
+    el.innerHTML = `<img class="shot" alt="" draggable="true"><span class="cname"></span><span class="sub"></span><div class="cacts"><button class="btn small copy" type="button" hidden>${ico('copy')}Copy</button><button class="btn small star" type="button"></button><button class="btn small send" type="button" hidden>Send to room</button><details class="cmore"><summary class="btn small" aria-label="More">${ico('dots')}</summary><div class="cmenu"><button class="btn small ren" type="button">${ico('pen')}Rename</button><button class="btn small bin" type="button">${ico('bin')}Bin</button></div></details></div>`;
     const img = el.querySelector('.shot'), star = el.querySelector('.star'), label = c.name.replace(EXT, ''), meta = clipMeta[c.name], copy = el.querySelector('.copy');
     img.src = c.pic || 'icon-192.png';
     if (!c.pic) img.style.objectFit = 'contain';
@@ -13063,8 +13151,7 @@ dialog.wizard { transform: scale(var(--from)); }
     copy.hidden = !client.clipCopy;
     copy.setAttribute('aria-label', `Copy ${label}`);
     copy.addEventListener('click', async () => notify((await client.clipCopy(c.name).catch(() => false)) ? `Copied “${label}”. Paste it with Ctrl+V in Discord, WhatsApp or a folder.` : 'Couldn’t copy that clip. Drag its picture into Discord instead.', true));
-    star.setAttribute('aria-pressed', String(fav));
-    star.textContent = fav ? '★ Saved' : '☆ Save';
+    starBtn(star, fav);
     star.setAttribute('aria-label', `${fav ? 'Stop saving' : 'Save'} ${label}`);
     star.addEventListener('click', () => { if (!favs.delete(c.name)) favs.add(c.name); saveFavs(); renderClips(); });
     el.querySelector('.send').addEventListener('click', async () => {
@@ -13104,20 +13191,22 @@ dialog.wizard { transform: scale(var(--from)); }
       loadClips();
     });
   }
-  // the player (Rayan's layout, 2026-10-21): the video with its own bar (play, time, sound, speed, full screen), then
-  // the timeline: the video's highlights over the timestamps, the playhead, and a strip of pictures whose white
-  // handles are the cut (Start and End, also the two sliders, for the keyboard). Save the cut makes a new clip
-  // ("... cut") next to it; Open in Editor shows the editor (speed, shape, zoom, a caption). App 1.19 streams the video
-  // (client.media, premade://); older apps hand the page the whole file (clipBytes).
+  // the player and editor (What's new 211, Rayan's approved mockup, 2026-11-23): the name and X, the video with its own
+  // bar (play, the time, how loud you hear it, full screen), the timeline (the highlights over the timestamps, a strip of
+  // pictures whose white handles are the cut, their times under them, the red playhead), then one row of tools (Cut,
+  // Speed, Shape, Text, Sound) with Reset and Save clip, and the picked tool's options on one line. Save clip makes a new
+  // clip ("... cut") next to it: app 1.54 through ffmpeg (client.clipEdit), older apps in the page. App 1.19 streams the
+  // video (client.media, premade://); older apps hand the page the whole file (clipBytes).
   const clipDlg = $('clipDlg'), vid = $('clipVideo');
   const secsText = (v) => `${Math.floor(v / 60)}:${(v % 60).toFixed(1).padStart(4, '0')}`;
   const two = (v) => String(Math.floor(v)).padStart(2, '0');
-  let shownMarks = [];
+  let shownMarks = [], viewKind = 'clip';
   async function openPlayer(kind, name, marks) {
     reel = [];
     viewing = name;
+    viewKind = kind;
     shownMarks = marks || [];
-    URL.revokeObjectURL(clipUrl);
+    if (!saving) URL.revokeObjectURL(clipUrl); // a save in the page may still read it
     clipUrl = '';
     clipBytes = null;
     const url = client.media && client.version !== '1.19.0' && client.media(kind, name); // 1.19's premade:// couldn't skip around
@@ -13130,7 +13219,7 @@ dialog.wizard { transform: scale(var(--from)); }
       vid.src = clipUrl;
     }
     edReset();
-    showEdit(false);
+    pickTool('cut');
     if (!clipDlg.open) clipDlg.showModal(); // the death reel's next video opens in it
     return true;
   }
@@ -13138,21 +13227,42 @@ dialog.wizard { transform: scale(var(--from)); }
     if (clipMeta[name] && !clipMeta[name].s) { clipMeta[name].s = 1; saveMeta(); } // played: the clean-up no longer takes it first
     if (!(await openPlayer('clip', name, []))) return notify('Couldn’t open that clip. It may have been moved or deleted.', true);
     $('clipTitle').textContent = name.replace(EXT, '');
-    $('trimNote').textContent = 'Drag the white handles under the video, then save the cut as a new clip. Cuts land on the nearest second or two.';
   }
-  vid.addEventListener('error', () => { if (clipDlg.open && vid.getAttribute('src')) $('trimNote').textContent = 'Couldn’t open that video. It may have been moved or deleted.'; });
-  const dur = () => (Number.isFinite(vid.duration) ? vid.duration : 0), atPct = (t) => `${(100 * Math.min(t, dur())) / (dur() || 1)}%`;
+  vid.addEventListener('error', () => { if (clipDlg.open && vid.getAttribute('src')) notify('Couldn’t open that video. It may have been moved or deleted.', true); });
+  // the timeline shows the whole video, or on a match video (over 5 min) about 2 min around the cut, with a thin
+  // whole-match line over it (call 9): allPct places on the whole video, atPct on the part in view
+  const LONG = 300, SPAN = 120;
+  let tlView = [0, 0];
+  const dur = () => (Number.isFinite(vid.duration) ? vid.duration : 0), allPct = (t) => `${(100 * Math.min(t, dur())) / (dur() || 1)}%`;
+  const atPct = (t) => `${(100 * (Math.min(Math.max(t, tlView[0]), tlView[1]) - tlView[0])) / (tlView[1] - tlView[0] || 1)}%`;
   const showTrim = () => {
-    $('trimFromOut').textContent = secsText(+$('trimFrom').value);
-    $('trimToOut').textContent = secsText(+$('trimTo').value);
-    Object.assign($('tlSel').style, { left: atPct(+$('trimFrom').value), right: `calc(100% - ${atPct(+$('trimTo').value)})` });
+    const a = +$('trimFrom').value, z = +$('trimTo').value;
+    Object.assign($('tlSel').style, { left: atPct(a), right: `calc(100% - ${atPct(z)})` });
+    for (const [id, t, box] of [['trimFromOut', a, 'cutA'], ['trimToOut', z, 'cutB']]) {
+      Object.assign($(id), { textContent: secsText(t) }).style.left = `clamp(26px, ${atPct(t)}, calc(100% - 26px))`; // inside the timeline at its ends
+      if (document.activeElement !== $(box)) $(box).value = secsText(t);
+    }
+    $('cutLen').textContent = `${(z - a).toFixed(1)} s`;
+    Object.assign($('tlAllCut').style, { left: allPct(a), width: `${(100 * (z - a)) / (dur() || 1)}%` });
   };
+  function setView(t) { // t: the time to keep in view
+    const d = dur(), long = d > LONG, a = long ? Math.min(Math.max(0, t - SPAN / 2), d - SPAN) : 0, z = long ? a + SPAN : d;
+    $('tl').toggleAttribute('data-long', long);
+    $('tlAll').hidden = !long;
+    if (a === tlView[0] && z === tlView[1]) return;
+    tlView = [a, z];
+    Object.assign($('tlAllWin').style, { left: allPct(a), width: `${(100 * (z - a)) / (d || 1)}%` });
+    drawRuler();
+    drawStrip();
+    showTrim();
+  }
   function playerReady() {
     const d = dur();
     for (const [id, v] of [['trimFrom', 0], ['trimTo', d]]) { $(id).max = d; $(id).value = v; }
-    showTrim();
-    drawRuler();
-    drawStrip();
+    tlView = [0, 0];
+    $('tl').hidden = !d;
+    drawMarks();
+    setView(0);
     vid.dispatchEvent(new Event('playerready'));
   }
   vid.addEventListener('loadedmetadata', () => {
@@ -13183,51 +13293,53 @@ dialog.wizard { transform: scale(var(--from)); }
       : /Herald/.test(t) ? ['herald'] : /Voidgrubs/.test(t) ? ['grubs'] : /Dragon/.test(t) ? ['dragon'] : /tower/.test(t) ? ['tower'] : /inhibitor/.test(t) ? ['inhib'] : ['kill'];
   };
   function drawRuler() {
-    const d = dur();
-    $('tl').hidden = !d;
+    const [a, z] = tlView, d = z - a;
     if (!d) return;
     const step = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800].find((x) => d / x <= 11) || 3600, ticks = [];
-    for (let k = 0; (k * step) / 2 <= d; k++) {
+    for (let k = Math.ceil((2 * a) / step); (k * step) / 2 <= z; k++) {
       const tk = Object.assign(document.createElement('span'), { className: k % 2 ? 'tk' : 'tk big' });
       tk.style.left = atPct((k * step) / 2);
       if (!(k % 2)) tk.dataset.t = mmss((k * step) / 2);
       ticks.push(tk);
     }
     $('tlRuler').replaceChildren(...ticks);
-    $('tlMarks').replaceChildren(...shownMarks.filter((m) => m.s <= d).map((m) => {
+    drawHead();
+  }
+  function drawMarks() { // over the whole video
+    $('tlMarks').replaceChildren(...shownMarks.filter((m) => m.s <= dur()).map((m) => {
       const [k, n] = markKind(m.text), b = Object.assign(document.createElement('button'), { type: 'button', className: `mk ${k}${/died|aced|Lost|enemy/.test(m.text) ? ' bad' : ''}`, title: `${mmss(m.s)} ${m.text}` });
       b.setAttribute('aria-label', b.title);
       b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${MARK_ICON[k]}</svg>${n ? `<b>${n}</b>` : ''}`;
-      b.style.left = atPct(m.s);
+      b.style.left = allPct(m.s);
       b.addEventListener('click', () => { vid.currentTime = Math.max(0, m.s - 5); vid.play().catch(() => {}); });
       return b;
     }));
-    drawHead();
   }
-  // ten pictures along the strip, from a second copy of the video
+  // ten pictures along the strip, of the part in view, from a second copy of the video
   const strip = Object.assign(document.createElement('video'), { muted: true, crossOrigin: 'anonymous', preload: 'auto' });
   let stripRun = 0;
   async function drawStrip() {
-    const run = ++stripRun, cv = $('tlShots'), g = cv.getContext('2d'), d = dur(), n = 10, src = vid.currentSrc;
+    const run = ++stripRun, cv = $('tlShots'), g = cv.getContext('2d'), [a, z] = tlView, n = 10, src = vid.currentSrc;
     g.clearRect(0, 0, cv.width, cv.height);
-    if (!d) return;
-    strip.src = src;
-    await new Promise((res) => { strip.addEventListener('loadeddata', res, { once: true }); strip.addEventListener('error', res, { once: true }); setTimeout(res, 5000); });
+    if (!(z > a)) return;
+    if (strip.src !== src) strip.src = src;
+    if (strip.readyState < 2) await new Promise((res) => { strip.addEventListener('loadeddata', res, { once: true }); strip.addEventListener('error', res, { once: true }); setTimeout(res, 5000); });
     for (let i = 0; i < n && run === stripRun && strip.readyState >= 1; i++) {
-      strip.currentTime = ((i + 0.5) * d) / n;
+      strip.currentTime = a + ((i + 0.5) * (z - a)) / n;
       await new Promise((res) => { strip.addEventListener('seeked', res, { once: true }); setTimeout(res, 3000); });
       if (run !== stripRun) return;
       try { g.drawImage(strip, (i * cv.width) / n, 0, cv.width / n, cv.height); } catch { break; }
     }
-    if (run === stripRun) { strip.removeAttribute('src'); strip.load(); }
   }
+  let dragging = false;
   function drawHead() {
-    const t = vid.currentTime || 0;
+    const t = vid.currentTime || 0, d = dur();
+    if (d > LONG && !dragging && (t < tlView[0] || t > tlView[1])) return setView(t); // played out of view: the view follows
     $('tlHead').style.left = atPct(t);
-    $('pFill').style.width = atPct(t);
-    $('pTime').textContent = `${two(t / 60)}:${two(t % 60)}`;
-    $('pPlay').textContent = vid.paused ? '▶' : '❚❚';
-    $('pPlay').setAttribute('aria-label', vid.paused ? 'Play' : 'Pause');
+    $('pFill').style.width = allPct(t);
+    $('pTime').textContent = `${mmss(t)} / ${mmss(d)}`;
+    const k = vid.paused ? 'play' : 'pause';
+    if ($('pPlay').dataset.k !== k) { $('pPlay').dataset.k = k; $('pPlay').innerHTML = ico(k); $('pPlay').setAttribute('aria-label', vid.paused ? 'Play' : 'Pause'); }
     $('player').toggleAttribute('data-paused', vid.paused);
   }
   let headLoop = 0;
@@ -13237,10 +13349,11 @@ dialog.wizard { transform: scale(var(--from)); }
   const playPause = () => (vid.paused ? vid.play().catch(() => {}) : vid.pause());
   $('pPlay').addEventListener('click', playPause);
   vid.addEventListener('click', playPause);
-  const showVol = () => { $('pMute').textContent = vid.muted || !vid.volume ? '🔇' : '🔊'; $('pMute').setAttribute('aria-label', vid.muted ? 'Unmute' : 'Mute'); };
+  // the speaker on the bar: only how loud you hear it (Sound changes the saved clip)
+  const showVol = () => { const off = vid.muted || !vid.volume; $('pMute').innerHTML = ico(off ? 'mute' : 'vol'); $('pMute').setAttribute('aria-label', vid.muted ? 'Unmute' : 'Mute'); };
+  showVol();
   $('pMute').addEventListener('click', () => { vid.muted = !vid.muted; showVol(); });
   $('pVol').addEventListener('input', (e) => { vid.volume = +e.target.value; vid.muted = false; showVol(); });
-  for (const b of document.querySelectorAll('#pSpeed [data-rate]')) b.addEventListener('click', () => { vid.playbackRate = +b.dataset.rate; $('pSpeed').hidePopover(); });
   // full screen: app 1.21 lets the page have it; older apps refuse it, so the player fills the window instead (Esc leaves)
   const fillWin = (on) => $('player').toggleAttribute('data-full', on);
   $('pFull').addEventListener('click', () => {
@@ -13249,52 +13362,105 @@ dialog.wizard { transform: scale(var(--from)); }
     else $('player').requestFullscreen().catch(() => fillWin(true));
   });
   clipDlg.addEventListener('cancel', (e) => { if ($('player').hasAttribute('data-full')) { e.preventDefault(); fillWin(false); } });
-  // the editor (Rayan, 2026-10-22: tools in the app, not Windows' player): the cut is the white handles, then speed, a
-  // shape (square, phone, 4:5) with zoom and where it sits, and a caption. The preview over the video is drawn by
-  // edDraw, as it's saved; Save the cut records it again when anything but the cut changed (reEncode).
-  const ED = { edSpeed: '1', edCrop: '', edZoom: '1', edX: '0.5', edY: '0.5', edText: '', edTextAt: 'bottom' };
-  const ed = () => ({ speed: +$('edSpeed').value, shape: +$('edCrop').value, zoom: +$('edZoom').value, x: +$('edX').value, y: +$('edY').value, text: $('edText').value.trim(), top: $('edTextAt').value === 'top' });
-  const edited = () => { const e = ed(); return e.speed !== 1 || !!e.shape || e.zoom > 1 || !!e.text; };
-  function edDraw(g, src) {
-    const W = src.videoWidth, H = src.videoHeight, e = ed();
-    if (!W || !H) return;
+  // the tools (Rayan, 2026-11-23: today's, made easier): one speed for the whole clip, a shape (square, phone, 4:5) with
+  // zoom and the picture dragged inside its frame, one caption dragged on the video, the clip's volume or none. Every
+  // change shows over the video (edDraw) as it's saved.
+  const E0 = { speed: 1, shape: 0, zoom: 1, x: 0.5, y: 0.5, text: '', size: 0.08, tx: 0.5, ty: 0.88, vol: 1, mute: false };
+  let E = { ...E0 }, tool = 'cut';
+  const edited = (e = E) => e.speed !== 1 || !!e.shape || e.zoom > 1 || !!e.text.trim() || e.vol !== 1 || e.mute;
+  const looks = (e = E) => !!e.shape || e.zoom > 1 || !!e.text.trim(); // what shows over the video
+  const edFrame = (W, H, e = E) => { // the part of the picture kept (w x h from sx, sy) and its size saved (cw x ch)
     const a = e.shape || W / H, cw = Math.round(Math.min(W, H * a) / 2) * 2, ch = Math.round(cw / a / 2) * 2, w = cw / e.zoom, h = ch / e.zoom; // zoomed in, it keeps the size
-    if (g.canvas.width !== cw || g.canvas.height !== ch) Object.assign(g.canvas, { width: cw, height: ch });
-    g.drawImage(src, (W - w) * e.x, (H - h) * e.y, w, h, 0, 0, cw, ch);
-    if (!e.text) return;
-    const px = Math.round(Math.min(cw, ch) * 0.08), y = e.top ? ch * 0.06 : ch * 0.94;
-    Object.assign(g, { font: `800 ${px}px system-ui, sans-serif`, textAlign: 'center', textBaseline: e.top ? 'top' : 'bottom', lineWidth: px / 6, lineJoin: 'round', strokeStyle: '#000', fillStyle: '#fff' });
-    g.strokeText(e.text, cw / 2, y, cw * 0.92);
-    g.fillText(e.text, cw / 2, y, cw * 0.92);
+    return { cw, ch, w, h, sx: (W - w) * e.x, sy: (H - h) * e.y };
+  };
+  // whole: the preview, the frame on the whole picture with the rest dimmed; else just the frame, as it's saved
+  function edDraw(g, src, whole, e = E) {
+    const W = src.videoWidth, H = src.videoHeight;
+    if (!W || !H) return;
+    const f = edFrame(W, H, e), [CW, CH] = whole ? [W, H] : [f.cw, f.ch], fx = (CW - f.cw) / 2, fy = (CH - f.ch) / 2, k = f.cw / f.w;
+    if (g.canvas.width !== CW || g.canvas.height !== CH) Object.assign(g.canvas, { width: CW, height: CH });
+    if (whole && (f.cw < W || f.ch < H)) {
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, CW, CH);
+      g.globalAlpha = 0.35;
+      g.drawImage(src, fx - f.sx * k, fy - f.sy * k, W * k, H * k);
+      g.globalAlpha = 1;
+    }
+    g.drawImage(src, f.sx, f.sy, f.w, f.h, fx, fy, f.cw, f.ch);
+    if (whole && (f.cw < W || f.ch < H)) Object.assign(g, { strokeStyle: '#fff', lineWidth: Math.max(2, W / 400) }).strokeRect(fx, fy, f.cw, f.ch);
+    const text = e.text.trim();
+    if (!text) return;
+    const px = Math.round(Math.min(f.cw, f.ch) * e.size);
+    Object.assign(g, { font: `800 ${px}px "Segoe UI", system-ui, sans-serif`, textAlign: 'center', textBaseline: 'middle', lineWidth: px / 6, lineJoin: 'round', strokeStyle: '#000', fillStyle: '#fff' });
+    g.strokeText(text, fx + f.cw * e.tx, fy + f.ch * e.ty, f.cw * 0.92);
+    g.fillText(text, fx + f.cw * e.tx, fy + f.ch * e.ty, f.cw * 0.92);
+  }
+  // what ffmpeg needs for the same picture (app 1.54's clip-edit): in the video's own pixels
+  function ffEdit(e, W, H) {
+    const f = edFrame(W, H, e), r = Math.round, even = (v) => r(v / 2) * 2;
+    return { speed: e.speed, crop: e.shape || e.zoom > 1 ? [even(f.w), even(f.h), r(f.sx), r(f.sy)] : null, size: [f.cw, f.ch], text: e.text.trim(), px: r(Math.min(f.cw, f.ch) * e.size), tx: r(f.cw * e.tx), ty: r(f.ch * e.ty), vol: e.vol, mute: e.mute };
   }
   let edLoop = 0;
-  const edTick = () => { edDraw($('edView').getContext('2d'), vid); edLoop = !$('edit').hidden && clipDlg.open ? requestAnimationFrame(edTick) : 0; };
-  function showEdit(on) {
-    $('edit').hidden = $('edView').hidden = !on;
-    $('clipEdit').setAttribute('aria-expanded', String(on));
-    $('clipEdit').textContent = on ? 'Close the editor' : 'Open in Editor';
-    vid.playbackRate = on ? ed().speed : 1;
-    if (on && !edLoop) edTick();
-    if (on) $('trimNote').textContent = 'Drag the white handles to cut it, pick a speed, a shape and a caption, then Save the cut. It’s saved as you see it.';
+  const edTick = () => { edDraw($('edView').getContext('2d'), vid, true); edLoop = !$('edView').hidden && clipDlg.open ? requestAnimationFrame(edTick) : 0; };
+  function edShow() {
+    $('edView').hidden = !looks();
+    if (looks() && !edLoop) edTick();
+    vid.playbackRate = E.speed;
+    $('player').toggleAttribute('data-drag', (tool === 'shape' && (!!E.shape || E.zoom > 1)) || (tool === 'text' && !!E.text.trim()));
+    for (const [sel, k] of [['[data-speed]', 'speed'], ['[data-shape]', 'shape'], ['[data-size]', 'size']]) for (const b of clipDlg.querySelectorAll(sel)) b.setAttribute('aria-pressed', String(+b.getAttribute(sel.slice(1, -1)) === E[k]));
+    $('edZoom').value = E.zoom;
+    $('edZoomOut').textContent = `${E.zoom.toFixed(1)}×`;
+    if (document.activeElement !== $('edText')) $('edText').value = E.text;
+    $('edVol').value = E.vol;
+    $('edVolOut').textContent = `${Math.round(E.vol * 100)}%`;
+    $('edMute').setAttribute('aria-pressed', String(E.mute));
   }
-  function edReset() { for (const [id, v] of Object.entries(ED)) $(id).value = v; vid.playbackRate = 1; }
-  $('clipEdit').addEventListener('click', () => showEdit($('edit').hidden));
-  $('edSpeed').addEventListener('input', () => { vid.playbackRate = ed().speed; });
+  function pickTool(t) {
+    tool = t;
+    for (const b of clipDlg.querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(b.dataset.tool === t));
+    for (const o of clipDlg.querySelectorAll('[data-opt]')) o.hidden = o.dataset.opt !== t;
+    edShow();
+  }
+  function edReset() { E = { ...E0 }; edShow(); }
+  for (const b of clipDlg.querySelectorAll('[data-tool]')) b.addEventListener('click', () => pickTool(b.dataset.tool));
+  for (const b of clipDlg.querySelectorAll('[data-speed]')) b.addEventListener('click', () => { E.speed = +b.dataset.speed; edShow(); });
+  for (const b of clipDlg.querySelectorAll('[data-shape]')) b.addEventListener('click', () => { Object.assign(E, { shape: +b.dataset.shape, x: 0.5, y: 0.5 }); edShow(); });
+  for (const b of clipDlg.querySelectorAll('[data-size]')) b.addEventListener('click', () => { E.size = +b.dataset.size; edShow(); });
+  $('edZoom').addEventListener('input', (e) => { E.zoom = +e.target.value; edShow(); });
+  $('edText').addEventListener('input', (e) => { E.text = e.target.value; edShow(); });
+  $('edVol').addEventListener('input', (e) => { E.vol = +e.target.value; edShow(); });
+  $('edMute').addEventListener('click', () => { E.mute = !E.mute; edShow(); });
   $('edReset').addEventListener('click', edReset);
-  // plays the cut once, hidden and silent, drawing each frame through edDraw into a recorder
-  // ponytail: takes as long as the cut plays (30 s at 2× is 15 s); WebCodecs could do it faster
-  let edStop = null;
-  async function reEncode(from, to) {
-    const e = ed(), ex = Object.assign(document.createElement('video'), { crossOrigin: 'anonymous', preload: 'auto', src: vid.currentSrc });
+  // dragging on the video: Shape moves the picture inside its frame, Text moves the caption
+  $('edView').addEventListener('pointerdown', (e) => {
+    if (e.button) return;
+    e.preventDefault();
+    const cv = $('edView'), W = vid.videoWidth, H = vid.videoHeight, r = cv.getBoundingClientRect(), s = Math.min(r.width / W, r.height / H), f = edFrame(W, H), k = f.cw / f.w, was = { ...E };
+    const in01 = (v, m = 0) => Math.min(1 - m, Math.max(m, v));
+    cv.setPointerCapture(e.pointerId);
+    const move = (m) => {
+      const dx = (m.clientX - e.clientX) / s, dy = (m.clientY - e.clientY) / s; // in the video's pixels
+      if (tool === 'text') Object.assign(E, { tx: in01(was.tx + dx / f.cw, 0.05), ty: in01(was.ty + dy / f.ch, 0.05) });
+      else Object.assign(E, { x: W > f.w ? in01(was.x - dx / k / (W - f.w)) : 0.5, y: H > f.h ? in01(was.y - dy / k / (H - f.h)) : 0.5 });
+    };
+    const up = () => { cv.removeEventListener('pointermove', move); cv.removeEventListener('pointerup', up); cv.removeEventListener('pointercancel', up); };
+    cv.addEventListener('pointermove', move);
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+  });
+  // apps before 1.54: plays the cut once, hidden and silent, drawing each frame through edDraw into a recorder
+  // ponytail: takes as long as the cut plays (30 s at 2× is 15 s); app 1.54 saves through ffmpeg instead
+  async function reEncode(src, from, to, e, pct) {
+    const ex = Object.assign(document.createElement('video'), { crossOrigin: 'anonymous', preload: 'auto', src });
     const on = (n) => new Promise((res, rej) => { ex.addEventListener(n, res, { once: true }); ex.addEventListener('error', rej, { once: true }); });
-    const cv = document.createElement('canvas'), g = cv.getContext('2d'), ac = new AudioContext(), dst = ac.createMediaStreamDestination(), parts = [];
-    let gone = false;
+    const cv = document.createElement('canvas'), g = cv.getContext('2d'), ac = new AudioContext(), dst = ac.createMediaStreamDestination(), gain = ac.createGain(), parts = [];
     try {
       await on('loadedmetadata');
       ex.currentTime = from;
       await on('seeked');
-      edDraw(g, ex);
-      ac.createMediaElementSource(ex).connect(dst);
+      edDraw(g, ex, false, e);
+      gain.gain.value = e.mute ? 0 : e.vol;
+      ac.createMediaElementSource(ex).connect(gain).connect(dst);
       const mr = new MediaRecorder(new MediaStream([...cv.captureStream(60).getVideoTracks(), ...dst.stream.getAudioTracks()]), { mimeType: MIME, videoBitsPerSecond: vRate(opts.clipQ, opts.clipFps) });
       const stopped = new Promise((res) => { mr.onstop = res; });
       mr.ondataavailable = (ev) => { if (ev.data.size) parts.push(ev.data); };
@@ -13302,12 +13468,11 @@ dialog.wizard { transform: scale(var(--from)); }
       mr.start(1000);
       await ex.play();
       await new Promise((res) => {
-        edStop = () => { gone = true; res(); };
         ex.addEventListener('ended', res, { once: true });
         const tick = () => {
-          if (gone || ex.currentTime >= to) return res();
-          edDraw(g, ex);
-          $('trimNote').textContent = `Saving your edit… ${Math.round((100 * (ex.currentTime - from)) / (to - from))}%`;
+          if (ex.currentTime >= to) return res();
+          edDraw(g, ex, false, e);
+          pct(Math.round((100 * (ex.currentTime - from)) / (to - from)));
           ex.requestVideoFrameCallback(tick);
         };
         ex.requestVideoFrameCallback(tick);
@@ -13316,22 +13481,15 @@ dialog.wizard { transform: scale(var(--from)); }
       mr.stop();
       await stopped;
     } finally {
-      edStop = null;
       ac.close();
       ex.removeAttribute('src');
       ex.load();
     }
-    if (gone) return null;
     const b = new Uint8Array(await new Blob(parts).arrayBuffer());
     return cutClip(b, b, 0, [0, 1e6]); // writes its length in
   }
-  for (const [pop, btn] of [['pSpeed', 'pSet'], ['pAudio', 'clipAudio']]) $(pop).addEventListener('toggle', (e) => { // over its button
-    if (e.newState !== 'open') return;
-    const r = $(btn).getBoundingClientRect(), el = $(pop);
-    Object.assign(el.style, { left: `${Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8))}px`, top: `${Math.max(8, r.top - el.offsetHeight - 6)}px` });
-  });
-  // dragging on the timeline moves the playhead; dragging a white handle moves that end of the cut
-  const timeAt = (e) => { const r = $('tlStrip').getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur(); };
+  // dragging on the timeline moves the playhead; dragging a white handle moves that end of the cut; the whole-match line jumps
+  const timeAt = (e) => { const r = $('tlStrip').getBoundingClientRect(); return tlView[0] + Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * (tlView[1] - tlView[0]); };
   const setEnd = (id, t) => { $(id).value = t; $(id).dispatchEvent(new Event('input')); };
   function drag(el, fn) {
     el.addEventListener('pointerdown', (e) => {
@@ -13339,52 +13497,74 @@ dialog.wizard { transform: scale(var(--from)); }
       e.preventDefault();
       e.stopPropagation();
       el.setPointerCapture(e.pointerId);
+      dragging = el !== $('tlAll');
       fn(e);
-      const move = (m) => fn(m), up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
+      const move = (m) => fn(m), up = () => { dragging = false; el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
       el.addEventListener('pointermove', move);
       el.addEventListener('pointerup', up);
       el.addEventListener('pointercancel', up);
     });
   }
-  drag($('tl'), (e) => { vid.currentTime = timeAt(e); drawHead(); });
+  drag($('tlView'), (e) => { vid.currentTime = timeAt(e); drawHead(); });
+  drag($('tlAll'), (e) => { const r = $('tlAll').getBoundingClientRect(); vid.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur(); drawHead(); });
   drag($('pLine'), (e) => { const r = $('pLine').getBoundingClientRect(); vid.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * dur(); drawHead(); });
   drag($('tlSel').querySelector('.a'), (e) => setEnd('trimFrom', timeAt(e)));
   drag($('tlSel').querySelector('.b'), (e) => setEnd('trimTo', timeAt(e)));
   $('trimFrom').addEventListener('input', () => { $('trimFrom').value = Math.min(+$('trimFrom').value, +$('trimTo').value - 1); vid.currentTime = +$('trimFrom').value; showTrim(); });
   $('trimTo').addEventListener('input', () => { $('trimTo').value = Math.max(+$('trimTo').value, +$('trimFrom').value + 1); vid.currentTime = +$('trimTo').value; showTrim(); });
+  // Cut's options: the times typed (1:02.5 or 62.5), Start here and End here at the playhead, Play the cut
+  const typedTime = (s) => { const m = /^\s*(?:(\d+):)?(\d+(?:\.\d*)?)\s*$/.exec(s); return m ? (+m[1] || 0) * 60 + +m[2] : NaN; };
+  for (const [box, id] of [['cutA', 'trimFrom'], ['cutB', 'trimTo']]) $(box).addEventListener('change', () => { const t = typedTime($(box).value); if (Number.isFinite(t)) setEnd(id, Math.min(t, dur())); $(box).blur(); showTrim(); });
+  $('cutHereA').addEventListener('click', () => { const t = vid.currentTime; setEnd('trimFrom', t); vid.currentTime = t; });
+  $('cutHereB').addEventListener('click', () => { const t = vid.currentTime; setEnd('trimTo', t); vid.currentTime = t; });
+  $('cutPlay').addEventListener('click', () => { vid.currentTime = +$('trimFrom').value; vid.play().catch(() => {}); });
   vid.addEventListener('timeupdate', () => { if (!vid.paused && +$('trimTo').value < vid.duration - 0.5 && vid.currentTime >= +$('trimTo').value) { vid.pause(); nextMark(); } });
   vid.addEventListener('ended', () => { if (reel.length) nextMark(); }); // a highlight running to the video's end
   // the cut, from the bytes in memory, or (streamed) from the video's first MB and the part around the cut
   // ponytail: guesses where the cut is in a streamed file from its share of the length (the bit rate barely moves),
   // with 20 s to spare on each side
-  async function cutNow(from, to) {
-    if (clipBytes) return cutClip(clipBytes, clipBytes, 0, [from, to]);
-    const part = async (a, z) => { const r = await fetch(vid.currentSrc, { headers: { Range: `bytes=${a}-${z}` } }); return [new Uint8Array(await r.arrayBuffer()), +((r.headers.get('content-range') || '').split('/')[1] || 0)]; };
-    const [head, size] = await part(0, 2 ** 20 - 1), d = dur();
+  async function cutNow(bytes, src, d, from, to) {
+    if (bytes) return cutClip(bytes, bytes, 0, [from, to]);
+    const part = async (a, z) => { const r = await fetch(src, { headers: { Range: `bytes=${a}-${z}` } }); return [new Uint8Array(await r.arrayBuffer()), +((r.headers.get('content-range') || '').split('/')[1] || 0)]; };
+    const [head, size] = await part(0, 2 ** 20 - 1);
     if (size <= head.length) return cutClip(head, head, 0, [from, to]);
     if (!d) return null;
     const a = Math.max(0, Math.floor((size * (from - 20)) / d)), [body] = await part(a, Math.min(size - 1, Math.ceil((size * (to + 20)) / d)));
     return cutClip(head, body, 0, [from, to], true);
   }
+  // Save clip: the cut with the edits as a new clip beside this one, its % on the button; it keeps going when the window
+  // closes. App 1.54 saves it through ffmpeg (full quality, on the times set); older apps (or no ffmpeg yet) in the page:
+  // an .mp4's plain cut through the app's clipCut, a .webm's cut here, an edit recorded again here
+  let saving = false;
+  const showSave = (p) => { $('trimSave').disabled = p != null; $('trimSave').textContent = p == null ? 'Save clip' : `Saving ${Math.max(0, Math.min(100, p | 0))}%`; };
   $('trimSave').addEventListener('click', async () => {
-    const from = +$('trimFrom').value, to = +$('trimTo').value, re = edited();
-    $('trimSave').disabled = true;
-    // an .mp4 clip's plain cut is the app's (ffmpeg); a .webm's is cut here, and an edit is recorded again here
-    const mp4 = !re && /\.mp4$/i.test(viewing) && client.clipCut, cutName = mp4 ? await client.clipCut(viewing, from, to).catch(() => '') : '';
-    const out = mp4 ? cutName : await (re ? reEncode(from, to) : cutNow(from, to)).catch(() => null);
-    $('trimSave').disabled = false;
-    if (!clipDlg.open) return;
-    if (!out) return void ($('trimNote').textContent = re ? 'Couldn’t save your edit.' : 'Couldn’t cut this clip.');
+    if (saving) return;
+    const from = +$('trimFrom').value, to = +$('trimTo').value, e = { ...E }, re = edited(e), like = viewing, kind = viewKind, src = vid.currentSrc, bytes = clipBytes, d = dur(), W = vid.videoWidth, H = vid.videoHeight;
+    saving = true;
+    showSave(0);
     vid.pause();
     vid.currentTime = from;
     await new Promise((res) => { vid.addEventListener('seeked', res, { once: true }); setTimeout(res, 1500); });
-    const pic = re && document.createElement('canvas').getContext('2d');
-    if (pic) edDraw(pic, vid);
-    const name = mp4 ? cutName : await client.clip(out, await shot(pic ? pic.canvas : vid), viewing);
-    if (name) keepKda(name, viewing);
-    if (name && clipMeta[viewing]) { clipMeta[name] = { ...clipMeta[viewing], s: 1 }; saveMeta(); } // in its game's row, and yours to keep
-    $('trimNote').textContent = name ? `Saved the ${re ? 'edit' : 'cut'} as “${name.replace(EXT, '')}”.` : 'Couldn’t save the cut.';
-    if (name) { await cleanClips(); loadClips(); }
+    const pic = looks(e) && document.createElement('canvas').getContext('2d');
+    if (pic) edDraw(pic, vid, false, e);
+    const jpg = await shot(pic ? pic.canvas : vid);
+    let name = client.clipEdit && W ? await client.clipEdit(kind, like, from, to, ffEdit(e, W, H), jpg, showSave).catch(() => '') : '';
+    if (!name) {
+      const mp4 = !re && /\.mp4$/i.test(like) && client.clipCut;
+      if (mp4) name = await client.clipCut(like, from, to).catch(() => '');
+      else {
+        const out = await (re ? reEncode(src, from, to, e, showSave) : cutNow(bytes, src, d, from, to)).catch(() => null);
+        name = out ? await client.clip(out, jpg, like) : '';
+      }
+    }
+    saving = false;
+    showSave(null);
+    if (!name) return notify(re ? 'Couldn’t save your edit.' : 'Couldn’t cut this clip.', true);
+    keepKda(name, like);
+    if (clipMeta[like]) { clipMeta[name] = { ...clipMeta[like], s: 1 }; saveMeta(); } // in its game's row, and yours to keep
+    notify(`Saved the ${re ? 'edit' : 'cut'} as “${name.replace(EXT, '')}”.`, true);
+    await cleanClips();
+    loadClips();
   });
   $('clipClose').addEventListener('click', () => clipDlg.close());
   clipDlg.addEventListener('close', () => {
@@ -13394,8 +13574,9 @@ dialog.wizard { transform: scale(var(--from)); }
     strip.load();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     fillWin(false);
-    if (edStop) edStop();
-    vid.pause(); vid.removeAttribute('src'); vid.load(); URL.revokeObjectURL(clipUrl); clipUrl = ''; clipBytes = null;
+    vid.pause(); vid.removeAttribute('src'); vid.load();
+    if (!saving) URL.revokeObjectURL(clipUrl); // a save in the page may still read it
+    clipUrl = ''; clipBytes = null;
   });
   $('clipsFolder').addEventListener('click', () => client && client.clipsFolder && client.clipsFolder());
 
@@ -20195,6 +20376,13 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [211, 'November 23: a new clip editor', [
+      'Opening a clip or a match video shows the editor straight away: the video, the timeline, then one row of tools (Cut, Speed, Shape, Text, Sound) with Reset and Save clip, and the picked tool’s options on one line under it.',
+      'Type the cut’s start and end, or set them at the playhead with Start here and End here. On a match video the pictures zoom in around the cut, with a thin line for the whole match over them.',
+      'Drag the picture inside its frame and drag your caption on the video. Speed plays at that speed right away, and Sound changes the saved clip’s volume.',
+      'With the app update (1.54.0), Save clip is about 3 times faster and keeps full quality. It shows its % and keeps going if you close the window.',
+      'The Clips page buttons have the same line icons. Watch the match is gone (click the match’s picture), and a match’s Show in folder and Bin are under ⋯.',
+    ]],
     [210, 'November 23: ban ideas for your team', [
       'Your bans at the top of the draft board: its 3 ideas are what beats the team you’re building.',
       'Click an idea to ban it: it greys out everywhere and the next one moves up.',
@@ -21428,10 +21616,10 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Clips by voice', 'Say “Premade, clip that”, or a phrase you record, and Premade saves a clip, even while you’re muted. The speech recognition runs on your computer, so nothing you say is sent anywhere.',
         'Clip settings, By voice: tick it, then Test. The first time, it downloads its 40 MB English speech model.', '#optClipVoice', 'app'],
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, a solo kill or first blood, for your team’s steals, Aces, Baron and Elder Dragon, your pentakills and the win. Moments close together make one clip, named after the biggest.', 'On unless you turn them off: Clip settings, Saving a clip has a box for each.', '#optClipMulti, #optClipSolo, #optClipFirst, #optClipTake, #optClipWin', 'app'],
-      ['Your clips', 'Each game is a row over your champion’s splash art, in the skin you played in champ select, under Today, Yesterday or its day: win or loss, your K/D/A, the queue, the time, the match’s length and up to 4 of its clips’ pictures. Click it to open its full match big (Watch the match, Highlights) beside its clips. Click a clip’s picture to play or cut it, Copy it to paste into Discord or WhatsApp with Ctrl+V, Save it, or drag it straight into Discord; Rename and Bin are under ⋯. Make a reel of this game joins a game’s clips into one video. A saved clip or match video stays in its game and is never moved to the Recycle Bin.',
+      ['Your clips', 'Each game is a row over your champion’s splash art, in the skin you played in champ select, under Today, Yesterday or its day: win or loss, your K/D/A, the queue, the time, the match’s length and up to 4 of its clips’ pictures. Click it to open its full match big beside its clips: its picture plays it, Highlights plays them one after another, and Show in folder and Bin are under ⋯. Click a clip’s picture to play or edit it, Copy it to paste into Discord or WhatsApp with Ctrl+V, Save it, or drag it straight into Discord; Rename and Bin are under ⋯. Make a reel of this game joins a game’s clips into one video. A saved clip or match video stays in its game and is never moved to the Recycle Bin.',
         'The Clips page: search the rows or show only today’s, this week’s or the Saved ones. Clip storage shows how full the folder is: past the limit in Clip settings (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, [data-cf="saved"], #optClipCap', 'app'],
-      ['The clip player and editor', 'Clips and match videos play in Premade’s own player: play, time, sound, speed and full screen, then a timeline with the highlights, each with an icon (kill, multikill, death, assist, Ace, objectives), and a strip of pictures whose white handles are the cut. Open in Editor to change the speed (0.5× to 2×), make it square, 9:16 for your phone or 4:5, zoom in and move the picture, and add a caption, then save it as a new clip.',
-        'Click a clip’s picture, or Watch the match on a game. Drag the handles, then Save the cut.', '#h-clips', 'app'],
+      ['The clip player and editor', 'Clips and match videos open in Premade’s own editor: the video with play, the time, how loud you hear it and full screen, then a timeline with the highlights, each with an icon, and a strip of pictures whose white handles are the cut, their times under them. On a match video a thin whole-match line sits over the pictures, which zoom in to about 2 minutes around the cut. Under it one row of tools: Cut (type the times, Start here, End here, Play the cut), Speed (0.25× to 2×), Shape (square, 9:16 for your phone or 4:5, zoom, drag the picture), Text (a caption you drag on the video) and Sound (the clip’s volume up to 200%, or mute it). Save clip saves it as a new clip beside the first; with app 1.54 it’s about 3 times faster, at full quality.',
+        'Click a clip’s picture, or a match’s. Pick a tool, then Save clip.', '#h-clips, #clipDlg .vtools', 'app'],
       ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick. The last seconds a clip is cut from wait in Windows’ temp folder, not in memory.',
         'Clip settings, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',

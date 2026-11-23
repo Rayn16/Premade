@@ -219,7 +219,7 @@ const game = (over = {}, me = {}) => ({
         `the highlights’ part and the marks in it: ${JSON.stringify([cutParts, cutMarks])}`);
       assert.deepStrictEqual(await page.$$eval('#clipGrid .vcard[data-fav] .cname', (l) => l.map((e) => e.textContent)), ['Game 2026-10-09 20-00-00 Lux'], 'the saved one kept in its row');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Moved 1 game video older than 7 days to the Recycle Bin.'), null, 'the old one binned');
-      await wait(page, (n) => document.querySelectorAll('#clipGrid .vcard:not([data-fav])').length === 1 && document.querySelector('#clipGrid .vcard').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#clipGrid .vcard:not([data-fav]) .cacts button').length === 5 && /^Ahri.*Full match$/.test(document.querySelector('#clipGrid .cghead').textContent), NAME, 'the game, ready to watch');
+      await wait(page, (n) => document.querySelectorAll('#clipGrid .vcard:not([data-fav])').length === 1 && document.querySelector('#clipGrid .vcard').textContent.includes(n.slice(0, -5)) && document.querySelectorAll('#clipGrid .vcard:not([data-fav]) .cacts button').length === 4 && /^Ahri.*Full match$/.test(document.querySelector('#clipGrid .cghead').textContent), NAME, 'the game, ready to watch');
       assert.deepStrictEqual(await page.evaluate((n) => JSON.parse(localStorage.getItem('lpc-vid-marks'))[n].map((m) => m.text), NAME),
         ['Double kill', 'You died', 'Your team took Dragon', 'The enemy stole Baron', 'Took a tower'], 'its highlights, a double kill’s kills in it');
       assert.match(await text(page, '#clipGrid .vcard .sub'), / · 5 highlights$/, 'a card: when, size and how many highlights');
@@ -230,7 +230,7 @@ const game = (over = {}, me = {}) => ({
       await page.click('#clipGrid .cghead');
       // its highlights only in the player (What's new 209, Rayan: "it appears annoying from outside"): no line of marks on the row, no button each under the match
       assert.deepStrictEqual(await page.$$eval('#clipGrid .cgame [title], #clipGrid .cgame button', (l) => l.map((e) => `${e.title} ${e.textContent}`).filter((x) => /You died|Double kill|Dragon|Baron|tower/.test(x))), [], 'no highlight outside the player');
-      await page.click('#clipGrid .vcard button:text-is("▶ Highlights")');
+      await page.click('#clipGrid .vcard button:text-is("Highlights")');
       await wait(page, () => document.getElementById('clipDlg').open && /: highlights$/.test(document.getElementById('clipTitle').textContent) && document.getElementById('clipVideo').src.startsWith('blob:'), null, 'the highlights in the player');
       await wait(page, () => !document.getElementById('tl').hidden && document.getElementById('clipVideo').duration > 1, null, 'the timeline, on a recording with no length in it');
       await wait(page, () => [...document.querySelectorAll('#tlMarks .mk')].length && [...document.querySelectorAll('#tlMarks .mk')].every((b) => b.querySelector('svg path, svg ellipse')), null, 'each highlight with its icon');
@@ -239,19 +239,21 @@ const game = (over = {}, me = {}) => ({
       await page.click('#vidBox button:text-is("Change folder")');
       await wait(page, () => document.querySelector('.whereAt').textContent === 'Clips are saved in D:\\Clips, games in its Games folder.', null, 'another folder');
       await page.evaluate(() => { lpcClient.gameVideo = ((f) => async (what, ...x) => (what === 'read' ? null : f.call(lpcClient, what, ...x)))(lpcClient.gameVideo); }); // an app before 1.18
-      await page.click('#clipGrid .vcard button:text-is("▶ Highlights")');
+      await page.click('#clipGrid .vcard button:text-is("Highlights")');
       await wait(page, () => document.getElementById('toasts').textContent.includes('Update the app to watch highlights here.'), null, 'older apps: the video player');
       assert.match(await text(page, '#vidNote'), /^Each one is kept for 7 days, then it goes to the Recycle Bin\. Save one to keep it\.$/);
       await shot(page, 'game-videos', '#clipGrid');
       await page.click('#clipGrid .vcard .thumb');
-      await page.click('#clipGrid .vcard button[title="Show in folder"]');
+      await page.click('#clipGrid .vcard .cmore > summary'); // Show in folder and Bin under ⋯ (What's new 211)
+      await page.click('#clipGrid .vcard .show');
       await page.click('#vidsFolder');
-      await page.click('#clipGrid .vcard button:text-is("☆ Save")');
+      await page.click('#clipGrid .vcard button.star:text-is("Save")');
       await wait(page, () => !document.querySelectorAll('#clipGrid .vcard:not([data-fav])').length && document.querySelectorAll('#clipGrid .vcard[data-fav]').length === 2 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 2, null, 'the game saved, still in its row');
       await page.click('[data-cf="saved"]');
       assert(await page.evaluate(() => [...document.querySelectorAll('#clipGrid .cgame')].every((r) => !r.hidden)), 'Saved shows both saved games');
       await page.click('[data-cf="all"]');
-      await page.click(`#clipGrid .vcard[data-fav]:has-text("${NAME.slice(0, -5)}") button[title="Bin"]`);
+      await page.click(`#clipGrid .vcard[data-fav]:has-text("${NAME.slice(0, -5)}") .cmore > summary`);
+      await page.click(`#clipGrid .vcard[data-fav]:has-text("${NAME.slice(0, -5)}") .bin`);
       await wait(page, () => document.querySelectorAll('#clipGrid .vcard[data-fav]').length === 1 && JSON.parse(localStorage.getItem('lpc-vid-saved')).length === 1, null, 'the saved game binned');
       await wait(page, () => !document.querySelectorAll('#clipGrid .vcard:not([data-fav])').length && /^No game videos yet/.test(document.getElementById('vidNote').textContent), null, 'binned');
       const acts = await page.evaluate(() => lpcClient.calls.filter((x) => /^video (open|show|folder|trash)/.test(x)));

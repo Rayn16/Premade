@@ -280,6 +280,17 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
       assert(cut2 === 'Yasuo triple kill 21-04 cut.mp4' && Math.abs(secs(cut2) - 1.5) < 0.3, `a cut of an .mp4: ${cut2}, ${secs(cut2)} s`);
       assert(reel === 'Yasuo reel 21-04.mp4' && Math.abs(secs(reel) - 9) < 0.6, `a reel of three clips, one still .webm: ${reel}, ${secs(reel)} s`);
       assert.strictEqual(await js(`lpcClient.clipReel(${JSON.stringify([m1, '../x.mp4'])}, 'x')`), '', 'a reel of anything but clips is refused');
+      // app 1.54: the editor's Save clip through ffmpeg: 2 s at 2x, cropped square, a caption, louder; its % as it goes; muted has no sound
+      const probe = (n) => execFileSync(ff.replace(/ffmpeg$/, 'ffprobe'), ['-v', 'error', '-show_entries', 'stream=codec_type,width,height', '-of', 'csv=p=0', path.join(dir, n)]).toString().trim().split('\n').sort().join(' ');
+      const edit = (o, kind = 'clip', n = m1) => js(`(async () => { const p = []; const n = await lpcClient.clipEdit(${JSON.stringify(kind)}, ${JSON.stringify(n)}, 0.5, 2.5, ${JSON.stringify(o)}, new Uint8Array([255, 216, 255, 217]).buffer, (x) => p.push(x)); return [n, p]; })()`);
+      const [ed1, pcts] = await edit({ speed: 2, crop: [180, 180, 70, 0], size: [180, 180], text: 'Outplayed: it\'s "50%"', px: 14, tx: 90, ty: 158, vol: 1.5, mute: false });
+      assert(ed1 === 'Yasuo triple kill 21-04 cut (2).mp4' && Math.abs(secs(ed1) - 1) < 0.3 && probe(ed1) === 'audio video,180,180', `an edit: ${ed1}, ${secs(ed1)} s, ${probe(ed1)}`);
+      assert(pcts.length && pcts.every((x, i) => x >= 0 && x <= 99 && (!i || x > pcts[i - 1])), `its % as it saved: ${pcts}`);
+      assert(fs.existsSync(path.join(tmp, 'profile', 'Clip pictures', ed1 + '.jpg')), 'with the page’s picture');
+      const [ed2] = await edit({ speed: 0.25, crop: null, text: '', vol: 1, mute: true });
+      assert(Math.abs(secs(ed2) - 8) < 0.5 && probe(ed2) === 'video,320,180', `0.25x and muted: ${secs(ed2)} s, ${probe(ed2)}`);
+      for (const [o, kind, n] of [[{ speed: 1, crop: [180, NaN, 0, 0], size: [180, 180] }], [{ speed: 1, text: 'x', px: 'big' }], [{ speed: 1 }, 'game', '../x.webm']]) assert.strictEqual((await edit(o, kind, n))[0], '', `refused: ${JSON.stringify([o, kind, n])}`);
+      for (const n of [ed1, ed2]) await js(`lpcClient.clipTrash(${JSON.stringify(n)})`);
       assert.strictEqual(await js(`lpcClient.clipRename(${JSON.stringify(m2)}, 'Best one')`), 'Best one.mp4');
       const media = await js(`fetch(lpcClient.media('clip', ${JSON.stringify(m1)})).then((r) => r.headers.get('content-type'))`);
       assert.strictEqual(media, 'video/mp4');
@@ -552,7 +563,7 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     assert(copied.whole && Number.isFinite(cpLen) && cpLen > 2, `copied, and plays: ${cpLen} s`);
     assert.strictEqual(await js(`lpcClient.gameVideo('trash', ${JSON.stringify(cp)})`), true);
     await js('document.querySelector(\'.nav[data-view="clips"]\').click()');
-    await until(() => js(`[...document.querySelectorAll('#clipGrid li[data-vid]')].some((li) => li.dataset.vid === ${JSON.stringify(gv.name)} && li.querySelector('.cacts').childElementCount === 4)`), 'the game on the Clips page');
+    await until(() => js(`[...document.querySelectorAll('#clipGrid li[data-vid]')].some((li) => li.dataset.vid === ${JSON.stringify(gv.name)} && li.querySelector('.cacts').childElementCount === 2)`), 'the game on the Clips page');
     assert.strictEqual(await js(`lpcClient.gameVideo('open', ${JSON.stringify(gv.name)})`), true);
     assert.strictEqual(await js(`lpcClient.gameVideo('show', ${JSON.stringify(gv.name)})`), true);
     assert.strictEqual(await js('lpcClient.gameVideo("folder")'), true);
