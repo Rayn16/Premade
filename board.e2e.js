@@ -79,6 +79,18 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
     assert.deepStrictEqual(await page.$eval('.tm:not(.foes) .pc:nth-child(5)', (c) => [c.querySelector('.rkl').textContent, c.querySelectorAll('.ru img').length, c.querySelectorAll('.ru i').length, c.querySelectorAll('.sp img').length, c.querySelector('.srow').childElementCount]),
       ['Looking up…', 0, 2, 2, 0], 'looking up: art, champion, empty rune spots, spells, name');
     await shot(page, 'board-red');
+    // What's new 217: long tags stay inside the card, the second under the first, and the cards still line up; a tag
+    // wider than the card ends in "…", whole on hover
+    const LONG = 'Pro player: ' + 'Team Liquid Honda Academy '.repeat(2);
+    await fire(state(board({ us: board().us.map((p) => (p.name === 'B' ? { ...p, tags: [['bad', 'Autofill: usually support'], ['', 'Premade with Rayan1000RR']] } : p.name === 'D' ? { ...p, tags: [['', LONG]] } : p)) })));
+    const tg = await page.$$eval('.pc', (l) => l.map((c) => { const k = c.getBoundingClientRect(), r = [...c.querySelectorAll('.chip')].map((e) => [e.getBoundingClientRect(), e.scrollWidth > e.clientWidth, e.title]);
+      return { inside: r.every(([q]) => q.left >= k.left && q.right <= k.right && q.bottom <= k.bottom), lines: new Set(r.map(([q]) => Math.round(q.top))).size, cut: r.map((x) => x[1]), title: r.map((x) => x[2]), who: Math.round(c.querySelector('.who').getBoundingClientRect().top) }; }));
+    assert(tg.every((c) => c.inside), 'every tag inside its card');
+    assert.deepStrictEqual([tg[1].lines, tg[1].cut, tg[1].title], [2, [false, false], ['Autofill: usually support', 'Premade with Rayan1000RR']], 'two long tags: whole, one under the other');
+    assert.deepStrictEqual([tg[0].lines, tg[3].cut, tg[3].title], [1, [true], [LONG]], 'short ones side by side; one wider than the card cut, whole on hover');
+    const even = (l) => Math.max(...l) - Math.min(...l) <= 1; // your own card's 2 px line moves its inside by 1 px
+    assert(even(tg.slice(0, 5).map((c) => c.who)) && even(tg.slice(5).map((c) => c.who)), `the names still line up: ${tg.map((c) => c.who)}`);
+    await shot(page, 'board-long-tags');
     await fire(state(board({ side: 'blue' })));
     assert.deepStrictEqual(await lines(), ['Their team · Gold III average', 'Your team · Gold II average · favored']);
     assert.deepStrictEqual(await page.$$eval('.rb > *', (l) => l.map((e) => e.className)), ['tm foes', 'tip', 'tm']);
