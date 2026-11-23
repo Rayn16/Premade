@@ -1,7 +1,7 @@
 // Test of Profile and Stats' extras in site/index.html, in headless Chromium, with a stand-in for the desktop app 1.12
 // and a fake League client behind it: the patch day popup, the champion pool, duo and party picks, a rank goal,
 // match history filters, League's warnings on rank cards, the weekly recap, Compare with me, the Champions table on a
-// player's profile, the rank watch feed, and a second League account kept apart from the first.
+// player's profile, and a second League account kept apart from the first.
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node profile.e2e.js
 const fs = require('fs');
@@ -123,7 +123,6 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
 });
 const text = (page, sel) => page.locator(sel).textContent();
 const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.join(process.env.SHOTS, name + '.png'), fullPage: true }); // SHOTS=folder saves screenshots
-const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `${e.querySelector('b').textContent}: ${e.querySelector('.sub').textContent}`));
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
@@ -189,36 +188,36 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
 
     // ---- your games in detail, read now; then the champion pool and duo and party picks
     assert.strictEqual(await pc.evaluate(() => lpc.crawlAll()), 28);
-    await pc.click('.tab[data-tab="champs"]');
-    await wait(pc, () => document.querySelectorAll('#poolKeep .champ').length === 2 && document.querySelectorAll('#duos > div').length === 3, null, 'the pool and duo picks');
-    assert.deepStrictEqual(await tiles(pc, '#poolKeep'), ['Ahri: 15 games, 60% won · Middle, B tier in high elo', 'Lux: 3 games, 67% won · Middle']);
-    assert.deepStrictEqual(await tiles(pc, '#poolPractice'), ['Zed: 2 games, 0% won · Middle, S tier in high elo']);
-    assert.deepStrictEqual(await tiles(pc, '#poolDrop'), ['Garen: 8 games, 38% won · Top, D tier in high elo']);
-    assert.deepStrictEqual(await pc.$$eval('#duos > div', (l) => l.map((d) => [...d.children].map((e) => e.textContent))), [
-      ['With Duo: 7W 3L', 'Ahri with their Thresh: 4W 1L', 'Lux with their Thresh: 2W 1L', 'Garen with their Thresh: 1W 1L', 'You middle, them support: 6W 2L', 'You top, them support: 1W 1L'],
-      ['With Trio: 3W 1L', 'Ahri with their Lee Sin: 3W 0L', 'You middle, them jungle: 3W 1L'],
-      ['Duo, Trio and you: 3W 1L', 'You on Ahri: 3W 0L']]);
+    await pc.click('.view[data-view="stats"] .tab[data-tab="champs"]');
+    await wait(pc, () => document.querySelectorAll('#champRows .tag').length === 4 && document.querySelectorAll('#duos .nrow').length === 2, null, 'the pool and duo picks');
+    assert.deepStrictEqual(await pc.$$eval('#champRows .crow', (l) => l.map((r) => `${r.querySelector('b').textContent}: ${r.querySelector('.tag').textContent}`)), ['Ahri: Keep', 'Garen: Drop', 'Lux: Keep', 'Zed: Practice']);
+    assert.deepStrictEqual(await pc.$$eval('#duos .nrow', (l) => l.map((d) => d.innerText.replace(/\s+/g, ' ').trim())), [
+      'D Duo 10 games together · 70% Best together + 4W 1L', 'T Trio 4 games together · 75% Best together + 3W 0L']);
+    assert.deepStrictEqual(await pc.$$eval('#duos .nrow:first-child .pair img', (l) => l.map((i) => i.alt)), ['Thresh', 'Ahri'], 'their champion, then yours');
     await shot(pc, 'pool-and-duos');
-    console.log('champion pool: keep Ahri and Lux, practice Zed, drop Garen; duo picks with Duo and Trio, and the three of you');
+    console.log('champion pool: keep Ahri and Lux, practice Zed, drop Garen, in the one table; Duo and Trio with their best pairs');
 
     // ---- a rank goal: Diamond I from Diamond II at 10 LP
-    await pc.click('.tab[data-tab="you"]');
+    await pc.click('.view[data-view="stats"] .tab[data-tab="you"]');
     await pc.selectOption('#lpGoal', 'DIAMOND I');
-    await wait(pc, () => /^Diamond I is/.test(document.getElementById('lpGoalNote').textContent), null, 'the goal');
-    assert.strictEqual(await text(pc, '#lpGoalNote'), 'Diamond I is 90 LP away: about 5 wins at your usual +22 LP a win, or about 18 games at your 60% win rate this season.');
+    await wait(pc, () => document.getElementById('lpGoalNote').textContent === '90 LP to go', null, 'the goal');
+    assert.strictEqual(await text(pc, '#lpGoalWins'), 'About 5 wins at your usual +22');
+    assert.strictEqual(await text(pc, '#lpRank'), 'Diamond II · 10 LP · goal Diamond I');
+    assert(await pc.locator('#lpChart line.goal').count() === 1, 'the goal on the LP line');
     assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-goals'))), { 'rayan#euw RANKED_SOLO_5x5': 'DIAMOND I' });
-    console.log('rank goal: Diamond I is 90 LP away, about 5 wins or 18 games');
+    console.log('rank goal: Diamond I is 90 LP away, about 5 wins');
 
-    // ---- match history filters
-    await pc.click('.tab[data-tab="games"]');
-    const games = async () => [await pc.$$eval('#matches > li', (l) => l.length), await text(pc, '#matchNote')];
+    // ---- match history filters, on Profile's Recent games (What's new 203)
+    await openPage(pc, 'profile');
+    const games = async () => [await pc.$$eval('#proGames > li', (l) => l.length), (await pc.isVisible('#matchNote')) ? await text(pc, '#matchNote') : ''];
+    await wait(pc, () => document.querySelectorAll('#proGames > li').length === 20, null, 'your games on Profile');
     assert.deepStrictEqual(await games(), [20, '']);
     const filter = async ({ mfFind = '', ...o }) => {
       for (const [id, v] of Object.entries({ mfChamp: '', mfRole: '', mfRes: '', mfWith: '', mfWhen: '', ...o })) await pc.selectOption('#' + id, v);
       await pc.fill('#mfFind', mfFind);
       return games();
     };
-    const of = (n) => [n, `${n} of your last 28 games match.`];
+    const of = (n) => [n, `${n} of 28 games ${n === 1 ? 'matches' : 'match'}.`];
     assert.deepStrictEqual(await filter({ mfChamp: '99' }), of(3), 'Lux');
     assert.deepStrictEqual(await filter({ mfRole: 'TOP' }), of(8), 'top');
     assert.deepStrictEqual(await filter({ mfChamp: '103', mfRes: 'w' }), of(9), 'Ahri wins');
@@ -230,7 +229,8 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     assert.deepStrictEqual(await filter({ mfFind: 'LUX' }), of(3), 'Lux by name');
     assert.deepStrictEqual(await filter({ mfRole: 'JUNGLE' }), [0, 'No games match.']);
     assert.deepStrictEqual(await filter({}), [20, '']);
-    console.log('match history filters: champion, role, result, friend, today and search');
+    assert(!(await pc.$('#proQueues .tab[data-q="tft"]')), 'no TFT tab');
+    console.log('match history filters on Profile: champion, role, result, friend, today and search');
 
     // ---- Profile: League's warnings and the goal on your rank cards, and last week's recap
     await openPage(pc, 'profile');
@@ -276,28 +276,8 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     await wait(pc, () => document.getElementById('proName').textContent === 'Rayan' && document.getElementById('proCmpBox').hidden, null, 'your profile again');
     console.log('compare with me: Duo side by side, 7W 3L together; Duo’s champions, 20 games then 30');
 
-    // ---- the rank watch feed: Duo's latest 3 games the first time; then a new game with a pentakill, and a rank-up
-    await openPage(pc, 'stats');
-    await pc.click('.tab[data-tab="players"]');
-    await pc.fill('#watchId', 'Duo#EUW');
-    await pc.press('#watchId', 'Enter');
-    await wait(pc, () => document.querySelectorAll('#watchFeed li').length === 3, null, 'Duo in the feed');
-    const feed = () => pc.$$eval('#watchFeed li > span', (l) => l.map((s) => s.childNodes[0].textContent + s.childNodes[1].textContent).sort());
-    const won = 'Duo won as Thresh, 1/5/14 · Ranked Solo/Duo';
-    assert.deepStrictEqual(await feed(), ['Duo lost as Thresh, 1/5/14 · Ranked Solo/Duo', won, won]);
-    assert(await pc.isVisible('#h-feed'));
-    L.duoRank = ['PLATINUM', 'IV', 10];
-    L.duoNew = true;
-    await pc.evaluate(() => lpc.watchNow());
-    assert.deepStrictEqual(await feed(), ['Duo got a pentakill as Thresh', 'Duo lost as Thresh, 1/5/14 · Ranked Solo/Duo', 'Duo ranked up to Platinum IV', won, won, won]);
-    const toasts = await pc.evaluate(() => lpc.toasts());
-    await shot(pc, 'feed');
-    assert(toasts.includes('Duo got a pentakill as Thresh!') && toasts.includes('Duo ranked up to Platinum IV!') && !toasts.some((t) => t.startsWith('Duo: ')), `a popup for each, and none for the LP: ${toasts}`);
-    console.log('rank watch feed: Duo’s games, a pentakill and a rank-up to Platinum IV, with popups');
-
     // ---- a second account: League signs in to Smurf; Rayan's profile, LP and goal stay apart and come back in Account
     assert.deepStrictEqual(await pc.evaluate(() => lpc.lpLog().map((e) => e.a)), Array(7).fill('rayan#euw'), 'the LP kept before accounts is Rayan’s');
-    assert(await pc.evaluate(() => document.getElementById('lpAcctBox').hidden), 'one account: no Account box');
     await openPage(pc, 'profile');
     L.acct = 'B';
     await league(null); // League closed, and started again on the other account
@@ -306,15 +286,18 @@ const tiles = (page, sel) => page.$$eval(`${sel} .champ`, (l) => l.map((e) => `$
     assert.deepStrictEqual(await pc.evaluate(() => Object.keys(lpc.accounts()).sort()), ['rayan#euw', 'smurf#euw']);
     assert.deepStrictEqual(await pc.$$eval('#proAcct option', (l) => l.map((o) => o.textContent)), ['Rayan#EUW', 'Smurf#EUW']);
     assert(await pc.isVisible('#proAcct') && (await pc.inputValue('#proAcct')) === 'smurf#euw', 'Account on Profile');
-    await openPage(pc, 'stats');
-    await pc.click('.tab[data-tab="you"]');
-    await wait(pc, () => /Silver I · 50 LP/.test(document.getElementById('rankNow').textContent), null, 'Smurf’s rank in Stats');
-    assert(await pc.isVisible('#lpAcctBox') && (await pc.inputValue('#lpAcct')) === 'smurf#euw');
-    assert.strictEqual(await pc.$$eval('#lpList li', (l) => l.length), 0, 'none of Rayan’s LP');
-    assert.strictEqual(await text(pc, '#lpToday'), 'Your LP shows up here after each ranked game you play with the app open.');
+    await openPage(pc, 'stats'); // Stats follows Profile's account
+    await pc.click('.view[data-view="stats"] .tab[data-tab="you"]');
+    await wait(pc, () => /^Silver I · 50 LP/.test(document.getElementById('lpRank').textContent), null, 'Smurf’s rank in Stats');
+    assert(await pc.evaluate(() => document.getElementById('lpChart').hasAttribute('hidden')), 'none of Rayan’s LP');
+    assert.strictEqual(await text(pc, '#lpTodayText'), 'No ranked games yet');
     assert.strictEqual(await pc.inputValue('#lpGoal'), '', 'Smurf has no goal');
-    await pc.selectOption('#lpAcct', 'rayan#euw');
-    await wait(pc, () => document.querySelectorAll('#lpList li').length === 6 && /Diamond II · 10 LP/.test(document.getElementById('rankNow').textContent), null, 'Rayan’s LP and rank');
+    assert.strictEqual(await text(pc, '#statsWho'), 'Smurf#EUW · last 6 games');
+    await openPage(pc, 'profile');
+    await pc.selectOption('#proAcct', 'rayan#euw');
+    await openPage(pc, 'stats');
+    await wait(pc, () => /^Diamond II · 10 LP/.test(document.getElementById('lpRank').textContent) && !document.getElementById('lpChart').hasAttribute('hidden'), null, 'Rayan’s LP and rank');
+    assert.strictEqual(await text(pc, '#statsWho'), 'Rayan#EUW · last 28 games', 'Rayan’s games, saved, with League on Smurf');
     await shot(pc, 'ranked-accounts');
     assert.strictEqual(await pc.inputValue('#lpGoal'), 'DIAMOND I');
     await openPage(pc, 'profile');
