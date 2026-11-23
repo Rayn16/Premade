@@ -223,7 +223,7 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     assert.match(await page.locator('#liveRows tr', { hasText: 'Bully#EUW' }).textContent(), /On your avoid list/);
     await wait(page, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return b && b.heads && b.them.every((c) => c.rank !== 'Looking up…'); }, null, 'the overlay caught up'); // it's pushed on the page's next tick
     const board = await page.evaluate(() => lpcClient.lastOverlay.board);
-    assert.deepStrictEqual(board.heads, ['Your team · Gold III · favored', 'Their team · Silver I']);
+    assert.deepStrictEqual(board.heads, [['Gold III', '#d9ad55', true], ['Silver I', '#a9b9c4', false]], 'What’s new 205: each row’s average in its tier’s color, and the favored one');
     assert.deepStrictEqual(board.them.find((c) => c.name === 'Bully').tags[0], ['bad', 'On your avoid list']);
     await shot(page, 'game-lobby-rank');
     console.log('loading screen: each team’s average rank and the favored team on Game and the overlay, an enemy on the avoid list flagged');

@@ -27,58 +27,65 @@ svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width:
 /* Move it: a frame you can drag anywhere, with a sample of what shows in it */
 body.edit { outline: 2px dashed var(--gold); outline-offset: -2px; background: color-mix(in srgb, var(--bg) 40%, transparent); -webkit-app-region: drag; cursor: move; }
 .edit .toast { border-color: var(--gold); }
-/* Everyone's rank (board, What's new 166-168): Premade's own loading screen over all of League's (load), or the same
-   smaller in the middle in a game (Alt+V), clear of the score, abilities and minimap. Your team on top on the red side,
-   at the bottom on the blue side. Sized by the screen's height (1em = 1vh), like League's own screens. Cards (A), rows
-   (B) or your lane first (D). A stat's box (.pop) shows while the mouse is over it (CSS alone). */
+/* Everyone's rank (board, What's new 205: League's loading screen cards in Premade's look): Premade's own loading
+   screen over all of League's (load), or the same cards at half size in the middle in a game (Alt+X), clear of the
+   score, abilities and minimap. Your team on top on the red side, at the bottom on the blue side. Sized by the screen's
+   height (1em = 1vh), like League's own screens; sizes in em as the mockup drew them. A stat's box (.pop) shows while
+   the mouse is over it (CSS alone). */
 body.board { font-size: calc(1vh * var(--k, 1)); }
 .team { font-size: 0.8em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); } /* the toasts' heads */
 .sub { overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 0.9em; }
 .board #main { display: block; padding: 0; }
 .board .stack { position: absolute; z-index: 2; top: 1vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; }
-.rb { position: absolute; left: 50%; top: 9vh; transform: translateX(-50%) scale(0.62); transform-origin: 50% 0; display: flex; flex-direction: column; gap: 1.6em; width: 172em; }
-.rb.load { inset: 0; top: 0; transform: none; width: auto; padding: 6em 6.7em 2em; box-sizing: border-box; background: radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--raised) 70%, var(--bg)), var(--bg) 72%); gap: 2.2em; }
-.rhead { display: flex; justify-content: space-between; font-size: 1.5em; color: var(--muted); }
-.rhead b { color: var(--fg); }
-.rb:not(.load) { padding: 1.6em; border-radius: 1.6em; background: color-mix(in srgb, var(--bg) 72%, transparent); }
-.rb:not(.load) .rhead span:first-child { display: none; }
-.rb .team { font-size: 1.5em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg); margin-bottom: 0.6em; }
-.rb .foes .team { color: var(--bad); }
-.crow { display: flex; gap: 2.2em; }
-.pc { position: relative; flex: 1; min-width: 0; height: 35em; box-sizing: border-box; border-radius: 1.3em; border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent); background: var(--raised); font-weight: 500; }
-.pc.foe { border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
-.pc.me { border: 2px solid var(--fg); box-shadow: 0 0 2em color-mix(in srgb, var(--fg) 45%, transparent); }
-.pc > .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 10%; border-radius: inherit; }
-.pc .chipx { position: absolute; top: 0.9em; left: 0.9em; padding: 0.25em 0.9em; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: 1.2em; font-weight: 700; text-shadow: none; }
-.pc .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 2.8em 1.3em 1.3em; border-radius: 0 0 1.3em 1.3em; display: grid; gap: 0.45em; text-shadow: 0 1px 3px #000, 0 0 0.8em #000; } /* What's new 179: no dark band, a shadow keeps it readable */
-.rb .who { display: flex; align-items: baseline; gap: 0.7em; white-space: nowrap; min-width: 0; }
-.rb .who b { font-size: 1.75em; overflow: hidden; text-overflow: ellipsis; }
-.rb .who .pn { all: unset; font-weight: 700; font-size: 1.75em; overflow: hidden; text-overflow: ellipsis; cursor: pointer; } /* a name with a Riot ID opens their profile in Premade (What's new 195) */
+.rb { --line: color-mix(in srgb, var(--fg) 13%, var(--bg)); --line2: color-mix(in srgb, var(--fg) 22%, var(--bg)); --goodL: color-mix(in srgb, var(--good) 60%, var(--fg)); --badL: color-mix(in srgb, var(--bad) 55%, var(--fg)); --blue: #4ea3e0;
+  position: absolute; left: 50%; top: 9vh; transform: translateX(-50%) scale(0.5); transform-origin: 50% 0; width: max-content; display: flex; flex-direction: column; gap: 0.8em; padding: 1.4em; border-radius: 1.4em; background: color-mix(in srgb, var(--bg) 78%, transparent); }
+.rb.load { inset: 0; transform: none; width: auto; padding: 3.4em 0 0; border-radius: 0; gap: 0; align-items: center; background: var(--bg); font-size: min(1em, 0.74vw, 1vh); } /* fits 4:3 and any overlay size */
+.rb .team { font-size: 1.7em; line-height: 1.5; margin-bottom: 0.47em; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
+.rb.load .team { font-size: 1.3em; margin-bottom: 0.46em; }
+.rb .team b { color: var(--fg); font-weight: 700; }
+.crow { display: flex; gap: 2.6em; }
+.tip { height: 5.2em; display: grid; place-items: center; }
+.tip > span { max-width: 86em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.5em; color: color-mix(in srgb, var(--fg) 82%, var(--bg)); }
+.tip b { color: var(--fg); }
+.pc { position: relative; flex: none; width: 24em; height: 42em; box-sizing: border-box; border-radius: 1.2em; border: 1px solid color-mix(in srgb, var(--fg) 16%, transparent); background: var(--raised); font-weight: 500; text-align: center; }
+.pc.me { border: 2px solid var(--fg); }
+.pc > .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; border-radius: inherit; }
+.pc .chipx { position: absolute; top: 0.8em; left: 0.8em; padding: 0.15em 0.75em; border: 1px solid var(--fg); border-radius: 999px; background: color-mix(in srgb, var(--bg) 72%, transparent); font-size: 1.15em; font-weight: 600; text-shadow: none; white-space: nowrap; }
+/* the art fades into the panel at the card's foot (the one gradient), under its seven parts */
+.pc .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 3.2em 1.2em 1.3em; border-radius: 0 0 1.1em 1.1em; background: linear-gradient(transparent, color-mix(in srgb, var(--panel) 94%, transparent) 9em); display: flex; flex-direction: column; align-items: center; gap: 0.5em; text-shadow: 0 1px 3px #000; }
+.chn { font-size: 1.4em; font-weight: 600; }
+.kit { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; height: 5.8em; }
+.ru { justify-self: start; display: flex; align-items: flex-end; gap: 0.25em; }
+.ru > * { display: block; width: 1.9em; height: 1.9em; box-sizing: border-box; padding: 0.2em; border-radius: 50%; }
+.ru > img { background: color-mix(in srgb, var(--bg) 75%, transparent); }
+.ru > :first-child { width: 3.1em; height: 3.1em; padding: 0; }
+.kit .emb { display: block; width: 5.8em; height: 5.8em; object-fit: contain; }
+.kit i.emb { width: 4.6em; height: 4.6em; box-sizing: border-box; border-radius: 50%; border: 1px dashed var(--line2); } /* unranked */
+.sp { justify-self: end; display: flex; gap: 0.3em; }
+.sp img { display: block; width: 2.6em; height: 2.6em; border-radius: 0.35em; }
+.rb .who { position: relative; display: flex; justify-content: center; width: 100%; min-width: 0; white-space: nowrap; }
+.rb .who > b, .rb .who .pn { font-size: 1.75em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.rb .who .pn { all: unset; font-size: 1.75em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; cursor: pointer; } /* a name with a Riot ID opens their profile in Premade (What's new 195) */
 .rb .who .pn:hover, .rb .who .pn:focus-visible { text-decoration: underline; }
-.rb .sub { overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 1.3em; }
-.rb .rk { display: flex; align-items: center; gap: 0.6em; font-size: 1.45em; font-weight: 600; }
-/* What's new 179: the three rings close together and the rank beside them (tier big, LP and record under it) */
-.rline { display: flex; align-items: center; gap: 0.8em; margin-top: 0.35em; }
-.rline .rk { flex: 1; min-width: 0; font-size: 1.4em; }
-.rk span { display: block; font-size: 0.85em; font-weight: 500; }
-.rb .rk img { width: 1.7em; height: 1.7em; object-fit: contain; }
-.rb .ch { font-size: 1.3em; }
-/* the three rings (What's new 174, like Porofessor's): Last 20 and Season with the win % inside, green from 55%, red at
-   45% or less, W and L under; the main role's icon in the middle, red when they play another role this game. Each
-   ring's box (.pop) opens on hover: below on the top half of the screen, above on the bottom half (.dn), lined up to
-   the right where it would go off the screen (.rt). Sizes in em (1vh), as the mockup drew them. */
-.rb { --line: color-mix(in srgb, var(--fg) 13%, var(--bg)); --line2: color-mix(in srgb, var(--fg) 22%, var(--bg)); --goodL: color-mix(in srgb, var(--good) 60%, var(--fg)); --badL: color-mix(in srgb, var(--bad) 55%, var(--fg)); --blue: #4ea3e0; }
-.st3 { display: grid; grid-template-columns: repeat(3, auto); gap: 0.25em; }
-.st { position: relative; display: grid; justify-items: center; gap: 0.15em; }
-.st > svg { display: block; width: 5.2em; height: 5.2em; }
-.vl { font-size: 1.1em; font-weight: 700; white-space: nowrap; }
-.w { color: var(--goodL); } .l { color: var(--badL); } .mu { color: var(--muted); } .vl.off { color: var(--badL); }
-.pop { display: none; position: absolute; z-index: 5; left: -1em; bottom: calc(100% + 0.6em); width: max-content; box-sizing: border-box; padding: 1em 1.1em; border: 1px solid var(--line2); border-radius: 0.9em; background: color-mix(in srgb, var(--panel) 97%, transparent); box-shadow: 0 1.2em 3em rgb(0 0 0 / 0.6); text-shadow: none; color: var(--fg); font-size: 1em; font-weight: 500; justify-items: stretch; }
-.rb:not(.load) .pop { font-size: calc(1em / var(--bk, 0.62)); } /* in a game the board is at 0.62 (or its own size), the boxes at the loading screen's size */
+.rkl { display: block; min-height: 1.2em; font-size: 1.2em; white-space: nowrap; color: color-mix(in srgb, var(--fg) 90%, var(--bg)); }
+.srow { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 2.6em; }
+.srow > .mu { flex: 1; font-size: 1.1em; }
+.srow > .st > .blk { gap: 0.18em; }
+.srow > .st > .blk i { width: 0.72em; height: 1.7em; border-radius: 0.15em; }
+.chs { display: flex; align-items: center; gap: 0.6em; }
+.chs > span:first-child { position: relative; flex: none; }
+.chs img, .chs i { display: block; width: 2.6em; height: 2.6em; border-radius: 0.4em; }
+.chs b.lv { position: absolute; right: -0.55em; bottom: -0.45em; width: 1.6em; height: 1.6em; box-sizing: border-box; border-radius: 50%; background: var(--bg); border: 1px solid var(--fg); display: grid; place-items: center; font-size: 0.85em; text-shadow: none; }
+.chs > span:last-child { display: grid; line-height: 1.15; font-size: 1.1em; white-space: nowrap; text-align: left; }
+.srow > .st > svg { display: block; width: 2.6em; height: 2.6em; }
+.w { color: var(--goodL); } .l { color: var(--badL); } .mu { color: var(--muted); }
+.st { position: relative; display: grid; justify-items: center; }
+.pop { display: none; position: absolute; z-index: 5; left: -1em; bottom: calc(100% + 0.6em); width: max-content; box-sizing: border-box; padding: 1em 1.1em; border: 1px solid var(--line2); border-radius: 0.9em; background: var(--panel); box-shadow: 0 1.2em 3em rgb(0 0 0 / 0.6); text-shadow: none; color: var(--fg); font-size: 1em; font-weight: 500; text-align: left; justify-items: stretch; }
+.rb:not(.load) .pop, .rb:not(.load) .mini { font-size: calc(1em / var(--bk, 0.5)); } /* in a game the board is at 0.5 (or its own size), the boxes at the loading screen's size */
 /* What's new 179: in a game, drag the board by its top line anywhere and resize it by its corner; it stays there
-   (ovBoard in this page's storage: left and top as shares of the screen, k its size). A double-click on the line puts it back. */
-.rb:not(.load) .rhead { cursor: move; }
-.rb .rsz { position: absolute; right: 0; bottom: 0; width: 3.2em; height: 3.2em; cursor: nwse-resize; border-radius: 0 0 1.6em 0; background: linear-gradient(135deg, transparent 55%, color-mix(in srgb, var(--fg) 45%, transparent) 55% 63%, transparent 63% 75%, color-mix(in srgb, var(--fg) 45%, transparent) 75% 83%, transparent 83%); }
+   (ovCards in this page's storage: left and top as shares of the screen, k its size). A double-click on the line puts it back. */
+.rb:not(.load) > :first-child > .team { cursor: move; }
+.rb .rsz { position: absolute; right: 0; bottom: 0; width: 3.2em; height: 3.2em; cursor: nwse-resize; border-radius: 0 0 1.4em 0; background: linear-gradient(135deg, transparent 55%, color-mix(in srgb, var(--fg) 45%, transparent) 55% 63%, transparent 63% 75%, color-mix(in srgb, var(--fg) 45%, transparent) 75% 83%, transparent 83%); }
 .rb.load .rsz { display: none; }
 .pop.dn { bottom: auto; top: calc(100% + 0.6em); }
 .pop.rt { left: auto; right: -1em; }
@@ -115,46 +122,47 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .bar > span { font-size: 1.15em; font-weight: 600; }
 .now { justify-self: start; padding: 0.15em 0.6em; border-radius: 999px; border: 1px solid var(--line2); color: var(--fg); font-size: 0.95em; font-weight: 600; white-space: nowrap; }
 .now.off { border-color: var(--bad); color: var(--badL); }
-.ranks { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 1em; align-items: center; }
-.ranks > .emb { width: 4.4em; height: 4.4em; object-fit: contain; }
-.rn { display: grid; line-height: 1.25; }
-.rn b { font-size: 1.35em; white-space: nowrap; }
-.rn span { font-size: 1.05em; color: var(--muted); }
-.rn .vl { font-size: 1.1em; color: var(--fg); }
-.sm { display: grid; justify-items: center; gap: 0.2em; }
-.sm > span { font-size: 0.95em; color: var(--muted); }
-.sm .emb { width: 2.6em; height: 2.6em; object-fit: contain; }
-.sm b { font-size: 1em; font-weight: 600; white-space: nowrap; }
 .sec { display: grid; gap: 0.35em; }
-.sec.ms { gap: 0.45em; }
 .sec > span { font-size: 1em; color: var(--muted); }
-.mrw { display: flex; gap: 1.2em; }
-.mrw > span { position: relative; display: grid; justify-items: center; gap: 0.3em; }
-.mrw img { width: 3.2em; height: 3.2em; border-radius: 0.45em; }
-.mrw b { position: absolute; top: 2.15em; right: -0.5em; width: 1.6em; height: 1.6em; box-sizing: border-box; border-radius: 50%; background: var(--bg); border: 1px solid var(--fg); display: grid; place-items: center; font-size: 0.9em; font-weight: 700; }
-.mrw > span > span { font-size: 1em; color: var(--muted); }
+.pk { display: flex; align-items: center; gap: 0.8em; }
+.pk .emb, .rkc .emb { width: 3.2em; height: 3.2em; object-fit: contain; }
+.pk b { font-size: 1.35em; white-space: nowrap; }
 .hr { height: 1px; background: var(--line); }
-.rows .st > svg, .lane .st > svg { width: 3.6em; height: 3.6em; } /* B and D: the same rings, smaller */
-.rb .chips { display: flex; flex-wrap: wrap; gap: 0.4em; }
-.rb .chip { padding: 0.1em 0.8em; border: 1px solid #6b6a66; border-radius: 999px; font-size: 1.2em; white-space: nowrap; }
-.rb .chip.good { border-color: var(--good); color: color-mix(in srgb, var(--good) 60%, var(--fg)); }
-.rb .chip.bad { border-color: var(--bad); color: color-mix(in srgb, var(--bad) 55%, var(--fg)); }
-.tipband { display: flex; align-items: center; gap: 2.6em; padding: 0.9em 1.9em; border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); border-radius: 1.1em; background: color-mix(in srgb, var(--panel) 88%, transparent); font-size: 1.4em; }
-.tipband b { flex: none; text-transform: uppercase; letter-spacing: 0.06em; }
-.tipband span { flex: 1; }
-/* B, rows: a row per player */
-.rows .pc { flex: none; height: auto; display: grid; grid-template-columns: 6em 20em 19em minmax(0, 1fr) 44em 26em; align-items: center; gap: 1.2em; padding: 0.6em 1em; background: color-mix(in srgb, var(--panel) 92%, transparent); }
-.rows .crow { flex-direction: column; gap: 0.6em; }
-.rows .pc > .art { position: static; width: 6em; height: 6em; border-radius: 0.7em; object-position: 50% 15%; }
-.rows .pc .chipx { top: -0.5em; left: -0.5em; font-size: 1em; }
-.rows .pc .info, .rows .rline { display: contents; }
-.rows .who { grid-column: 2; } .rows .rk { grid-column: 3; grid-row: 1; } .rows .ch { grid-column: 4; } .rows .st3 { grid-column: 5; grid-row: 1; } .rows .chips { grid-column: 6; }
-/* D, your lane first: you and your lane opponent big in the middle with the tips, the others small above and below */
-.lane .small .pc { height: 18em; }
-.lane .small .ch { display: none; }
-.lane .mid { display: flex; gap: 2.2em; align-items: stretch; }
-.lane .mid .pc { flex: none; width: 40em; height: 38em; }
-.lane .mid .tipband { flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1em; }
+.rb .chips { display: flex; justify-content: center; gap: 0.4em; min-height: 1.8em; }
+.rb .chip { padding: 0.1em 0.75em; border: 1px solid #6b6a66; border-radius: 999px; font-size: 1.12em; white-space: nowrap; text-shadow: none; }
+.rb .chip.good { border-color: var(--good); color: var(--goodL); }
+.rb .chip.bad { border-color: var(--bad); color: var(--badL); }
+/* the mini profile (What's new 205, planned as 201): while the mouse rests on a name, who they are; what the card
+   shows isn't in it. Under the card on the top half of the screen, above the name on the bottom half; look only. */
+.mini { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); width: 34em; box-sizing: border-box; border: 1px solid var(--line2); border-radius: 0.9em; overflow: hidden; background: var(--panel); box-shadow: 0 1.2em 3em rgb(0 0 0 / 0.6); text-shadow: none; color: var(--fg); font-size: 1em; font-weight: 500; line-height: 1.2; text-align: left; white-space: normal; pointer-events: none; visibility: hidden; }
+.mini.on { visibility: visible; }
+.mini.up { bottom: calc(100% + 0.6em); }
+.mini.dn { top: calc(100% + 0.6em); }
+.mini.rt { left: auto; right: 0; transform: none; }
+.mini.lf { left: 0; transform: none; }
+.ban { height: 11em; }
+.ban img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; -webkit-mask-image: linear-gradient(#000 30%, transparent); mask-image: linear-gradient(#000 30%, transparent); } /* the splash fading into the panel */
+.mh { position: relative; display: flex; align-items: flex-end; gap: 1em; margin: -3.4em 1.2em 0; }
+.mh .ico { display: block; flex: none; width: 6.4em; height: 6.4em; box-sizing: border-box; border-radius: 50%; border: 0.2em solid var(--fg); background: var(--raised); }
+.mn { display: grid; gap: 0.15em; min-width: 0; padding-bottom: 0.3em; }
+.mn > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn b { font-size: 2em; }
+.mn .mu { font-size: 1.3em; }
+.mn .lv { font-size: 1.15em; color: color-mix(in srgb, var(--fg) 85%, var(--bg)); }
+.mb { display: grid; gap: 1.1em; padding: 1.3em 1.2em 1.2em; }
+.cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1em; }
+.rkc { display: grid; gap: 0.35em; min-width: 0; }
+.rkc > span { color: var(--muted); }
+.rkc > div { display: flex; align-items: center; gap: 0.6em; min-width: 0; }
+.rkc > div > span { display: grid; line-height: 1.25; min-width: 0; }
+.rkc b { font-size: 1.25em; white-space: nowrap; }
+.rkc div .mu { white-space: nowrap; }
+.mrw { display: flex; gap: 1.5em; }
+.mrw > span { position: relative; display: grid; justify-items: center; gap: 0.3em; }
+.mrw img, .mrw i { display: block; width: 3.6em; height: 3.6em; border-radius: 0.45em; }
+.mrw b { position: absolute; top: 2.45em; right: -0.55em; width: 1.6em; height: 1.6em; box-sizing: border-box; border-radius: 50%; background: var(--bg); border: 1px solid var(--fg); display: grid; place-items: center; font-size: 0.9em; font-weight: 700; }
+.mrw > span > span { color: var(--muted); }
+.mb > .dim { color: color-mix(in srgb, var(--muted) 80%, var(--bg)); }
 /* The whole screen (full): the rest sits where the small window would be (place), and a part with a place of its own
    (part: the Overlay page's layout) where it was put, growing away from the screen's nearest edges */
 .full #main { position: absolute; width: 300px; height: 360px; overflow: hidden; transform-origin: 0 0; }
@@ -333,10 +341,11 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     p.append(face, n);
     return p;
   }
-  // ---- Everyone's rank (board): see the CSS above. A card: champion art in their skin (the base art when League
-  // has no picture of it), You or Your lane, name, champion and role, rank with Riot's emblem, record on
-  // the champion, the three stats and up to 2 tags (1 in a game). It's drawn again only when the board changes, so a
-  // stat's box stays open while the rest of the overlay updates.
+  // ---- Everyone's rank (board, What's new 205): see the CSS above. A card, as League's loading screen draws one in
+  // Premade's look: champion art in their skin (the base art when League has no picture of it), You or Your lane,
+  // champion, League's row (keystone and second tree, rank emblem, the two spells), name, rank line, the stats row (the
+  // last 10 games as blocks, this champion, the main role) and up to 2 tags. It's drawn again only when the board
+  // changes, so a stat's box stays open while the rest of the overlay updates.
   const NS = 'http://www.w3.org/2000/svg';
   const ROLE_D = { TOP: 'M5 15V5h10', JUNGLE: 'M5 15l3-7 3 5 4-8', MIDDLE: 'M5 15 15 5', BOTTOM: 'M5 15h10V5', UTILITY: 'M10 15.5c-4-2.6-5.5-5.2-4.4-7.4 1-2 3.4-1.8 4.4.1 1-1.9 3.4-2.1 4.4-.1 1.1 2.2-.4 4.8-4.4 7.4z' };
   function svg(box, kids) {
@@ -346,27 +355,22 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     for (const [tag, at, text] of kids) { const k = document.createElementNS(NS, tag); for (const [n, v] of Object.entries(at)) k.setAttribute(n, v); if (text) k.textContent = text; s.append(k); }
     return s;
   }
-  // The three rings and their boxes (What's new 174). A box is built on the first hover of its ring, by a listener on
-  // that ring alone (gone with the board), and placed once then: below or above by the half of the screen the ring is
-  // in, to the right when it would go off the screen. CSS :hover shows it after that, so nothing runs as the mouse moves.
+  // Each stat's box (What's new 174). A box is built on the first hover of its stat, by a listener on that stat alone
+  // (gone with the board), and placed once then: below or above by the half of the screen the stat is in, to the right
+  // when it would go off the screen. CSS :hover shows it after that, so nothing runs as the mouse moves.
   let dd = ''; // Data Dragon's folder for this patch (index.html), for champion and item pictures
   const tx = (cls, text) => { const e = document.createElement('span'); e.className = cls; if (text !== undefined) e.textContent = String(text); return e; };
   const ie = (cls) => { const e = document.createElement('i'); if (cls) e.className = cls; return e; };
+  const pic = (src, cls) => (/^https:\/\//.test(src || '') ? Object.assign(new Image(), { src: String(src), alt: '', className: cls || '' }) : ie(cls));
   const ddPic = (kind, id, cls) => (dd && id ? Object.assign(new Image(), { src: `${dd}/img/${kind}/${encodeURIComponent(String(id))}.png`, alt: '', className: cls || '' }) : ie(cls));
+  const hex = (c) => /^#[0-9a-f]{6}$/i.test(c || '');
+  const tint = (e, c) => { if (hex(c)) e.style.color = c; return e; };
+  const bold = (text) => { const b = document.createElement('b'); b.textContent = String(text); return b; };
   const pcOf = (w, n) => (n > 0 ? Math.round((100 * w) / n) : 0);
   const rate = (p, light) => (p >= 55 ? (light ? 'var(--goodL)' : 'var(--good)') : p <= 45 ? (light ? 'var(--badL)' : 'var(--bad)') : 'var(--fg)');
-  function ring(pc, label, role, off) { // pc null: empty (hidden or unranked); role: the main role's icon instead of the %
-    const L = 97.39, kids = [['circle', { cx: 18, cy: 18, r: 15.5, style: `fill: color-mix(in srgb, var(--bg) 60%, transparent); stroke: ${role && off ? 'var(--bad)' : 'var(--line)'}; stroke-width: 3` }]];
-    if (role) kids.push(['path', { d: ROLE_D[role] || '', transform: 'translate(9.5 9.5) scale(0.85)', style: `fill: none; stroke: ${off ? 'var(--bad)' : 'var(--fg)'}; stroke-width: 2.2` }]);
-    else if (pc !== null) kids.push(['circle', { cx: 18, cy: 18, r: 15.5, 'stroke-dasharray': `${((pc / 100) * L).toFixed(1)} ${L}`, transform: 'rotate(-90 18 18)', style: `fill: none; stroke: ${rate(pc)}; stroke-width: 3` }],
-      ['text', { x: 18, y: 19.6, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 700, style: 'fill: var(--fg); stroke: none' }, pc + '%'],
-      ['text', { x: 18, y: 26.4, 'text-anchor': 'middle', 'font-size': 5.6, 'font-weight': 600, style: 'fill: var(--muted); stroke: none' }, label]);
-    return svg('0 0 36 36', kids);
-  }
-  const roleIcon = (pos, off) => svg('0 0 20 20', [['rect', { x: 1.5, y: 1.5, width: 17, height: 17, rx: 3, style: 'fill: none; stroke: var(--line2); stroke-width: 1' }],
+  const roleIcon = (pos, off) => svg('0 0 20 20', [['rect', { x: 1.5, y: 1.5, width: 17, height: 17, rx: 3, style: `fill: color-mix(in srgb, var(--bg) 50%, transparent); stroke: ${off ? 'var(--bad)' : 'var(--line2)'}; stroke-width: 1` }],
     ['path', { d: ROLE_D[pos] || '', style: `fill: none; stroke: ${off ? 'var(--bad)' : 'var(--fg)'}; stroke-width: 2` }]]);
-  const wlOf = (w, l) => { const v = tx('vl'); v.append(tx('w', `${w | 0}W`), ' ', tx('l', `${l | 0}L`)); return v; };
-  function bars(n, max, w) { // Played (blue, against the most played) and Winrate (by the ring's colors)
+  function bars(n, max, w) { // Played (blue, against the most played) and Winrate (green from 55%, red at 45% or less)
     const p = pcOf(w, n), bar = (fill, color, text, tc) => { const b = tx('bar'), t = ie(), f = ie(); f.style.cssText = `width: ${fill}%; background: ${color}`; t.append(f); const v = tx('', text); if (tc) v.style.color = tc; b.append(t, v); return b; };
     return [bar(Math.max(4, pcOf(n, max)), 'var(--blue)', n | 0), bar(Math.max(2, p), rate(p), p + '%', rate(p, true))];
   }
@@ -397,33 +401,23 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     return box;
   }
-  function seaBox(x) { // rank now, peak and last season; champions in the last 20; most mastery
-    const box = el('pop sea'), ranks = el('ranks'), rn = tx('rn'), nm = document.createElement('b'), rk = (r) => (Array.isArray(r) ? r : null);
-    const emb = (r, cls) => (r && /^https:\/\//.test(r[1] || '') ? Object.assign(new Image(), { src: String(r[1]), alt: '', className: cls }) : ie(cls));
-    const tint = (e, r) => { if (r && /^#[0-9a-f]{6}$/i.test(r[2] || '')) e.style.color = r[2]; return e; };
-    const now = rk(x.now);
-    nm.textContent = now ? String(now[0]) : 'Unranked';
-    rn.append(tint(nm, now), ...(now ? [tx('', `${x.lp | 0} LP`), ...((x.w | 0) + (x.l | 0) ? [wlOf(x.w, x.l)] : [])] : []));
-    const small = (label, r) => { const s = tx('sm'), b = document.createElement('b'); b.textContent = String(r[0]); s.append(tx('', label), emb(r, 'emb'), tint(b, r)); return s; };
-    ranks.append(emb(now, 'emb'), rn, ...(rk(x.peak) ? [small('Peak', x.peak)] : [tx('')]), ...(rk(x.end) ? [small('Last season', x.end)] : [tx('')]));
-    const parts = [ranks], champs = (Array.isArray(x.champs) ? x.champs : []).slice(0, 5), ms = (Array.isArray(x.mastery) ? x.mastery : []).slice(0, 4);
+  // a rank as [name, emblem, color]: its emblem, then the tier in its color (and a line under it)
+  const rk = (r) => (Array.isArray(r) ? r : null);
+  const rkPic = (r) => (r && /^https:\/\//.test(r[1] || '') ? Object.assign(new Image(), { src: String(r[1]), alt: '', className: 'emb' }) : ie('emb'));
+  const champsOf = (x) => (Array.isArray(x.champs) ? x.champs : []).slice(0, 5);
+  function seaBox(x) { // What's new 205: the peak this season and the champions in the last 20 (the rank is on the card, last season and mastery in the mini)
+    const box = el('pop sea'), peak = rk(x.peak), champs = champsOf(x);
+    if (peak) { const sec = el('sec'), r = el('pk'); r.append(rkPic(peak), tint(bold(peak[0]), peak[2])); sec.append(tx('', 'Peak this season'), r); box.append(sec); }
     if (champs.length) {
       const sec = el('sec'), max = champs[0][1] | 0;
       sec.append(tx('', 'Champions in the last 20'), heads(), ...champs.map(([c, n, w]) => { const r = el('br'); r.append(ddPic('champion', c), ...bars(n, max, w), tx('')); return r; }));
-      parts.push(el('hr'), sec);
+      box.append(...(peak ? [el('hr')] : []), sec);
     }
-    if (ms.length) {
-      const sec = el('sec ms'), row = el('mrw');
-      row.append(...ms.map(([c, lv, pts]) => { const s = tx(''), b = document.createElement('b'); b.textContent = lv | 0; s.append(ddPic('champion', c), b, tx('', `${Math.round((pts | 0) / 1000)}k`)); return s; }));
-      sec.append(tx('', 'Mastery'), row);
-      parts.push(el('hr'), sec);
-    }
-    box.append(...parts);
     return box;
   }
-  function cell(pic, under, make) { // a ring, what's under it, and its box from make() on the first hover
+  function cell(kids, make) { // a stat, and its box from make() on the first hover
     const c = el('st');
-    c.append(pic, under);
+    c.append(...kids);
     if (make) c.addEventListener('mouseenter', () => {
       const box = make(), r = c.getBoundingClientRect();
       if (r.top + r.bottom < innerHeight) box.classList.add('dn'); // the top half: open below
@@ -432,94 +426,144 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }, { once: true });
     return c;
   }
-  function rings(x) { // { l20, role, sea }: each null when hidden or unranked
-    const row = el('st3'), { l20, role, sea } = x, n = (v) => (v.w | 0) + (v.l | 0);
-    row.append(l20 ? cell(ring(pcOf(l20.w, n(l20)), 'last 20'), wlOf(l20.w, l20.l), () => l20Box(l20)) : cell(ring(null), tx('vl mu', 'Hidden')),
-      role ? cell(ring(null, '', role.pos, role.off), tx('vl' + (role.off ? ' off' : ''), role.name), () => roleBox(role)) : cell(ring(null), tx('vl mu', 'Hidden')),
-      sea ? cell(n(sea) ? ring(pcOf(sea.w, n(sea)), 'season') : ring(null), n(sea) ? wlOf(sea.w, sea.l) : tx('vl mu', Array.isArray(sea.now) ? String(sea.now[0]) : 'Unranked'), () => seaBox(sea)) : cell(ring(null), tx('vl mu', 'Unranked'))); // ranked with no record yet: its rank (What's new 194)
+  function rankLine(p) { // "Emerald II · 45 LP · 54% of 120": the tier in its color, the % green from 55%, red at 45% or less
+    const s = tx('rkl'), [tier, lp, rec] = String(p.rank || '').split(' · '), m = /^(\d+)% of (\d+)$/.exec(rec || '');
+    if (!lp) { s.classList.add('mu'); s.textContent = tier; return s; } // Unranked, Looking up…
+    s.append(tint(bold(tier), p.tc), ` · ${lp}`);
+    if (m) s.append(' · ', Object.assign(bold(m[1] + '%'), { style: `color: ${rate(+m[1], true)}` }), tx('mu', ` of ${m[2]}`));
+    return s;
+  }
+  function statsRow(p) { // the last 10 games as blocks, newest left; this champion; the main role, red when they play another
+    const row = el('srow'), st = p.stats && typeof p.stats === 'object' ? p.stats : null;
+    if (!st) return row; // looking up
+    if (!st.l20) { row.append(tx('mu', 'Match history hidden')); return row; }
+    const blk = el('blk'), [n, w, lv] = Array.isArray(p.on) ? p.on : [0, 0, 0], ch = tx('chs'), face = tx(''), say = tx('');
+    blk.append(...(Array.isArray(st.l20.games) ? st.l20.games : []).slice(0, 10).map((y) => ie(y && y.win ? 'w' : '')));
+    face.append(pic(p.pic), ...(lv ? [Object.assign(bold(lv | 0), { className: 'lv' })] : []));
+    say.append(bold(n ? `${n | 0} game${n === 1 ? '' : 's'}` : 'No games'), n ? Object.assign(tx('', pcOf(w, n) + '%'), { style: `color: ${rate(pcOf(w, n), true)}` }) : tx('mu', 'in the last 20'));
+    ch.append(face, say);
+    row.append(cell([blk], () => l20Box(st.l20)), ch, st.role ? cell([roleIcon(st.role.pos, st.role.off)], () => roleBox(st.role)) : tx(''));
     return row;
   }
-  function card(p, n) { // n: how many tags
-    const c = el('pc' + (p.ally ? '' : ' foe') + (p.me ? ' me' : '')), info = el('info'), who = el('who'), link = !!p.id && !!api.overlayProg, b = document.createElement(link ? 'button' : 'b');
+  const kilo = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M` : `${Math.round(n / 1000)}k`);
+  function rkCell(label, r, sub) {
+    const c = el('rkc'), row = el(''), t = tx('');
+    t.append(tint(bold(r[0]), r[2]), ...(sub ? [tx('mu', sub)] : []));
+    row.append(rkPic(r), t);
+    c.append(tx('', label), row);
+    return c;
+  }
+  function miniBox(p) { // banner, icon, Name #TAG, level, Flex and last season, top 3 mastery, one line
+    const m = p.mp, box = el('mini'), ban = el('ban'), head = el('mh'), nm = el('mn'), line = tx(''), body = el('mb'), cells = [];
+    if (/^https:\/\//.test(m.ban || '')) { const i = pic(m.ban); i.onerror = () => { if (/_[1-9]\d*\.jpg$/.test(i.src)) i.src = i.src.replace(/_\d+\.jpg$/, '_0.jpg'); }; ban.append(i); }
+    line.append(bold(p.name || ''), ...(m.tag ? [tx('mu', ` #${m.tag}`)] : []));
+    nm.append(line, ...(m.lvl ? [tx('lv', `Level ${m.lvl | 0}`)] : []));
+    head.append(pic(m.icon, 'ico'), nm);
+    const o = rk(m.other), last = Array.isArray(m.last) && rk(m.last[0]);
+    if (o) cells.push(rkCell('Flex', o, `${o[3] | 0} LP${(o[4] | 0) + (o[5] | 0) ? ` · ${o[4] | 0}W ${o[5] | 0}L` : ''}`));
+    if (last) cells.push(rkCell('Last season', last, rk(m.last[1]) ? `peak ${m.last[1][0]}` : ''));
+    if (cells.length) { const g = el('cells'); g.append(...cells); body.append(g, el('hr')); }
+    const ms = (Array.isArray(m.mastery) ? m.mastery : []).slice(0, 3);
+    if (ms.length) {
+      const sec = el('sec'), row = el('mrw');
+      row.append(...ms.map(([c, lv, pts]) => { const s = tx(''); s.append(ddPic('champion', c), bold(lv | 0), tx('', kilo(pts | 0))); return s; }));
+      sec.append(tx('', 'Top mastery'), row);
+      body.append(sec);
+    }
+    body.append(tx('dim', 'Click the name for the full profile'));
+    box.append(ban, head, body);
+    return box;
+  }
+  // the mini profile (What's new 205, planned as 201): opens once the mouse rests 0.3 s on the name, closes as soon as it
+  // leaves; built on the first rest, then under the card on the top half of the screen and above the name on the bottom
+  // half, lined up to a side where it would leave the screen. Look only (no pointer, no data-take): a click on the name
+  // still opens their Profile, and in a game a click anywhere else still goes to League.
+  function mini(name, who, c, p) {
+    let t = 0, box = null;
+    name.addEventListener('mouseenter', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (!box) {
+          box = miniBox(p);
+          const r = name.getBoundingClientRect(), up = r.top + r.bottom >= innerHeight;
+          box.classList.add(up ? 'up' : 'dn');
+          (up ? who : c).append(box);
+          const q = box.getBoundingClientRect();
+          if (q.right > innerWidth - 4) box.classList.add('rt'); else if (q.left < 4) box.classList.add('lf');
+        }
+        box.classList.add('on');
+      }, 300);
+    });
+    name.addEventListener('mouseleave', () => { clearTimeout(t); if (box) box.classList.remove('on'); });
+  }
+  function card(p) {
+    const c = el('pc' + (p.me ? ' me' : '')), info = el('info'), who = el('who'), link = !!p.id && !!api.overlayProg, b = document.createElement(link ? 'button' : 'b');
     if (p.art || p.pic) {
       const art = Object.assign(new Image(), { className: 'art', alt: '', src: String(p.art || p.pic) });
       art.onerror = () => { if (/_[1-9]\d*\.jpg$/.test(art.src)) art.src = art.src.replace(/_\d+\.jpg$/, '_0.jpg'); else if (p.pic && art.src !== p.pic) art.src = String(p.pic); };
       c.append(art);
     }
     if (p.me || p.lane) c.append(el('chipx', p.me ? 'You' : 'Your lane'));
+    const kit = el('kit'), ru = tx('ru'), sp = tx('sp'), runes = Array.isArray(p.runes) ? p.runes : [];
+    ru.append(pic(runes[0]), pic(runes[1])); // empty until Riot lists the game
+    sp.append(...(Array.isArray(p.spells) ? p.spells : []).slice(0, 2).map((x) => pic(x)));
+    kit.append(ru, pic(p.emb, 'emb'), sp);
     b.textContent = String(p.name || '');
     if (link) { // takes the mouse while over it, like the strip's buttons
       Object.assign(b, { type: 'button', className: 'pn', title: 'Open their profile in Premade' });
       b.dataset.take = '';
       b.onclick = () => api.overlayProg({ id: 'player', go: String(p.id) });
+      if (p.mp && typeof p.mp === 'object') mini(b, who, c, p);
     }
-    who.append(b, el('sub', String(p.sub || '')));
-    const rk = el('rk');
-    if (p.emb) rk.append(Object.assign(new Image(), { src: String(p.emb), alt: '' }));
-    const [tier, ...rest] = String(p.rank || '').split(' · '), r = el('', tier); // the tier, then LP and record under it
-    if (rest.length) r.append(tx('', rest.join(' · ')));
-    if (/^#[0-9a-f]{6}$/i.test(p.tc || '')) r.style.color = p.tc;
-    rk.append(r);
-    const chips = el('chips');
-    for (const [k, t] of (Array.isArray(p.tags) ? p.tags : []).slice(0, n)) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
-    const line = el('rline');
-    line.append(...(p.stats && typeof p.stats === 'object' ? [rings(p.stats)] : []), rk);
-    info.append(who, ...(p.rec ? [el('ch', String(p.rec))] : []), line, chips);
+    who.append(b);
+    const sea = p.stats && p.stats.sea, chips = el('chips');
+    for (const [k, t] of (Array.isArray(p.tags) ? p.tags : []).slice(0, 2)) chips.append(el('chip' + (k === 'good' || k === 'bad' ? ' ' + k : ''), String(t)));
+    info.append(el('chn', String(p.ch || '')), kit, who, cell([rankLine(p)], sea && (rk(sea.peak) || champsOf(sea).length) ? () => seaBox(sea) : null), statsRow(p), chips);
     c.append(info);
     return c;
   }
-  function team(head, list, ally, n) {
-    const t = el(ally ? 'tm' : 'tm foes'), row = el('crow');
-    row.append(...list.map((p) => card(p, n)));
-    t.append(el('team', head), row);
+  function team(h, ally, list) { // "Your team · Emerald III average · favored", then the five cards
+    const t = el(ally ? 'tm' : 'tm foes'), line = el('team'), row = el('crow'), [avg, color, fav] = Array.isArray(h) ? h : [];
+    line.append(bold(ally ? 'Your team' : 'Their team'), ...(avg ? [' · ', tint(tx('', `${avg} average`), color)] : []), ...(fav ? [' · favored'] : []));
+    row.append(...list.map(card));
+    t.append(line, row);
     return t;
   }
-  function tipband(t) {
-    const band = el('tipband'), b = document.createElement('b');
-    b.textContent = `Tips: ${t.title}`;
-    band.append(b, ...t.lines.slice(0, 3).map((x) => el('', String(x))));
-    return band;
+  function tipLine(t) { // between the rows, like League's tip: "Ahri against Zed: tip · tip"
+    const box = el('tip'), s = tx('');
+    s.append(bold(`${t.title}:`), ' ' + t.lines.slice(0, 3).map(String).join(' · '));
+    box.append(s);
+    return box;
   }
   let boardKey = '', boardEl = null;
   function board(b) {
     const k = JSON.stringify(b);
     if (k === boardKey && boardEl) return boardEl;
-    const look = b.look === 'rows' || b.look === 'lane' ? b.look : 'cards', red = b.side === 'red', n = b.load ? 2 : 1;
+    const red = b.side === 'red', hs = Array.isArray(b.heads) ? b.heads : [];
     dd = /^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/[\w.]+$/.test(b.dd || '') ? b.dd : '';
-    const us = Array.isArray(b.us) ? b.us : [], them = Array.isArray(b.them) ? b.them : [], heads = Array.isArray(b.heads) ? b.heads.map(String) : ['Your team', 'Their team'];
-    const tips = b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length ? tipband(b.tips) : null;
-    const box = el(`rb ${look}${b.load ? ' load' : ''}`), head = el('rhead'), side = document.createElement('b');
-    side.textContent = red ? 'Red side: your team is on top' : 'Blue side: your team is at the bottom';
-    head.append(el('', String(b.title || '')), side);
-    box.append(head);
-    if (look === 'lane') { // you and your lane opponent(s) in the middle, the rest above and below
-      const big = (p) => p.me || p.lane, mid = el('mid');
-      mid.append(...[...us, ...them].filter(big).map((p) => card(p, n)), ...(tips ? [tips] : []));
-      const top = red ? [heads[0], us.filter((p) => !big(p)), true] : [heads[1], them.filter((p) => !big(p)), false], bot = red ? [heads[1], them.filter((p) => !big(p)), false] : [heads[0], us.filter((p) => !big(p)), true];
-      const small = (t) => { const x = team(t[0], t[1], t[2], 1); x.classList.add('small'); return x; };
-      box.append(small(top), mid, small(bot));
-    } else {
-      const a = team(heads[0], us, true, n), z = team(heads[1], them, false, n);
-      box.append(...(red ? [a] : [z]), ...(tips ? [tips] : []), ...(red ? [z] : [a]));
-    }
-    if (!b.load) { // What's new 179: move and resize it
-      const grip = el('rsz');
+    const a = team(hs[0], true, Array.isArray(b.us) ? b.us : []), z = team(hs[1], false, Array.isArray(b.them) ? b.them : []);
+    const tips = b.load && b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length ? [tipLine(b.tips)] : [];
+    const box = el(`rb${b.load ? ' load' : ''}`);
+    box.append(...(red ? [a] : [z]), ...tips, ...(red ? [z] : [a]));
+    if (!b.load) { // What's new 179: move it by its top line and resize it by its corner
+      const head = box.firstChild.firstChild, grip = el('rsz');
       head.dataset.take = grip.dataset.take = '';
       head.title = 'Drag to move, double-click to put it back';
       grip.title = 'Drag to resize';
       head.addEventListener('pointerdown', (e) => drag(e, box, false));
       grip.addEventListener('pointerdown', (e) => drag(e, box, true));
-      head.addEventListener('dblclick', () => { try { localStorage.removeItem('ovBoard'); } catch {} setBox(box, null); });
+      head.addEventListener('dblclick', () => { try { localStorage.removeItem('ovCards'); } catch {} setBox(box, null); });
       box.append(grip);
       setBox(box, savedBox());
     }
     boardKey = k;
     return (boardEl = box);
   }
-  const savedBox = () => { try { const v = JSON.parse(localStorage.getItem('ovBoard')); return v && [v.x, v.y, v.k].every(Number.isFinite) ? v : null; } catch { return null; } };
-  function setBox(box, v) { // null: the usual place, in the middle at 0.62
+  // What's new 205: a new key, so the old board's place and size (ovBoard) don't carry over to the cards
+  const savedBox = () => { try { const v = JSON.parse(localStorage.getItem('ovCards')); return v && [v.x, v.y, v.k].every(Number.isFinite) ? v : null; } catch { return null; } };
+  function setBox(box, v) { // null: the usual place, in the middle at half size
     box.style.cssText = v ? `left: ${v.x * 100}%; top: ${v.y * 100}%; transform: scale(${v.k}); transform-origin: 0 0` : '';
-    box.style.setProperty('--bk', v ? v.k : 0.62);
+    box.style.setProperty('--bk', v ? v.k : 0.5);
   }
   let dragging = false;
   function drag(e, box, resize) {
@@ -541,7 +585,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       dragging = false;
       removeEventListener('pointermove', move);
       removeEventListener('pointerup', up);
-      try { localStorage.setItem('ovBoard', JSON.stringify(v)); } catch {}
+      try { localStorage.setItem('ovCards', JSON.stringify(v)); } catch {}
     };
     addEventListener('pointermove', move);
     addEventListener('pointerup', up);

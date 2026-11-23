@@ -586,9 +586,8 @@ const game = (over = {}) => ({
       assert(await page.isChecked('#ovMapCalls') && await shown('#ovMapList'), 'Full: Minimap callouts on, its five showing');
       assert(await page.isHidden('#ovMix'), 'Full matches: no Your own mix');
       await page.uncheck('#optOverlayBoard');
-      assert(!(await shown('#optBoardLook')) && await page.isVisible('#ovMix'), 'Everyone’s rank off: its look hides, and it’s your own mix');
+      assert(await page.isVisible('#ovMix'), 'Everyone’s rank off: it’s your own mix');
       await page.check('#optOverlayBoard');
-      assert(await shown('#optBoardLook'), 'on again: the look shows');
       assert(!(await shown('#optCallVoice')) && !(await shown('#optCoachNew')), 'Read them out loud and Coach off: their extras hidden');
       await page.check('#optSpeakCalls');
       assert(await shown('#optCallVoice'), 'Read them out loud on: the voice shows');

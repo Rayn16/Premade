@@ -377,16 +377,16 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.y === d.y + Math.round(0.5 * d.height); }, 'the overlay back in its place after a screen change');
     console.log(`overlay moved and resized: ${JSON.stringify(ov.getBounds())}`);
     // everyone's rank (board, app 1.10): over the whole screen, still click-through, then back where it was
-    await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: {
-      us: [{ name: 'Rayan', sub: 'Ahri · Middle', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', emb: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png', rec: 'Ahri: 8 of the last 20, 75% won', tags: [['good', '3 wins in a row']] }],
-      them: [{ name: 'Shadow', sub: 'Zed · Middle', lane: true, rank: 'Unranked', tc: 'red;x', tags: [['bad', 'First time on this champion'], ['', 'Seen before']] }],
+    await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: { load: true,
+      us: [{ name: 'Rayan', ch: 'Ahri', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', emb: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png', tags: [['good', '3 wins in a row']] }],
+      them: [{ name: 'Shadow', ch: 'Zed', lane: true, rank: 'Silver I · 10 LP', tc: 'red;x', tags: [['bad', 'First time on this champion'], ['', 'Seen before']] }],
       tips: { title: 'Ahri against Zed', lines: ['High elo: Ahri won 4 of 10 games against Zed.'] } } })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x && o.y === d.y && o.width === d.width && o.height === d.height && !ov.isFocusable(); }, 'the overlay over the whole screen');
     const boardText = await ov.webContents.executeJavaScript('document.body.innerText');
-    for (const t of ['Overlay back on.', 'Your team', 'Rayan', 'Gold II\n45 LP', 'Ahri: 8 of the last 20, 75% won', '3 wins in a row', 'Their team', 'Shadow', 'Your lane', 'First time on this champion', 'Tips: Ahri against Zed', 'High elo: Ahri won 4 of 10'])
+    for (const t of ['Overlay back on.', 'Your team', 'Rayan', 'Ahri', 'Gold II · 45 LP', '3 wins in a row', 'Their team', 'Shadow', 'Your lane', 'First time on this champion', 'Ahri against Zed:', 'High elo: Ahri won 4 of 10'])
       assert(boardText.toLowerCase().includes(t.toLowerCase()), `the board shows ${JSON.stringify(t)}: ${JSON.stringify(boardText)}`);
-    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".rk > div")].map((e) => e.style.color)'), ['', 'rgb(217, 173, 85)'], 'nothing that isn’t a color (their team first on the blue side), and the tier’s color');
-    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".rk img")].map((e) => e.src)'), ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png'], 'the rank’s emblem');
+    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".rkl > b")].map((e) => e.style.color)'), ['', 'rgb(217, 173, 85)'], 'nothing that isn’t a color (their team first on the blue side), and the tier’s color');
+    assert.deepStrictEqual(await ov.webContents.executeJavaScript('[...document.querySelectorAll(".kit img.emb")].map((e) => e.src)'), ['https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png'], 'the rank’s emblem');
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, muted: true })`);
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.width === 300 && o.height === 360; }, 'the overlay back in its box');
     console.log(`everyone's rank over the whole screen: ${JSON.stringify(boardText.slice(0, 120))}`);

@@ -1677,14 +1677,17 @@ const leagueData = (over = {}) => ({
     assert(await pc.evaluate(() => !/100%/.test(lpcClient.lastOverlay.board.them[2].rank)), 'no 100% from League’s client');
     await wait(pc, () => / · 55% of 55$/.test(lpcClient.lastOverlay.board.them[2].rank), null, 'Shadow’s record from Riot');
     const board = await pc.evaluate(() => lpcClient.lastOverlay.board);
-    const cardOf = ({ art, spells, stats, ...p }) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
-    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', id: 'Shadow#EUW', sub: 'Zed · Middle', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
-      rec: 'Zed: not in the last 20', tags: [['bad', 'First time on Zed'], ['', 'One-trick: Ahri']] });
-    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', id: 'Friend#EUW', sub: 'Garen · Top', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
-      rec: 'Garen: 8 of the last 20, 75% won · mastery 3', tags: [['good', '6 wins in a row']] });
-    // What's new 166-168: your side (blue: your team at the bottom), the look, everyone's skin and spells, the three
-    // stats with their boxes' lines, and only the key tags, 2 at most on the loading screen
-    assert.deepStrictEqual([board.side, board.look, board.load, board.title], ['blue', 'cards', true, 'Ranked Solo/Duo']);
+    const cardOf = ({ art, spells, stats, runes, mp, ...p }) => ({ ...p, pic: /\/img\/champion\/\w+\.png$/.test(p.pic), emb: p.emb.replace(/^.*\//, '') });
+    assert.deepStrictEqual(cardOf(board.them[2]), { name: 'Shadow', id: 'Shadow#EUW', ch: 'Zed', pic: true, me: false, ally: false, lane: true, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
+      on: [0, 0, 0], tags: [['bad', 'First time on Zed'], ['', 'One-trick: Ahri']] });
+    assert.deepStrictEqual(cardOf(board.us[0]), { name: 'Friend', id: 'Friend#EUW', ch: 'Garen', pic: true, me: false, ally: true, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: 'TFT_Regalia_Gold.png',
+      on: [8, 6, 3], tags: [['good', '6 wins in a row']] });
+    // What's new 166-168: your side (blue: your team at the bottom), everyone's skin and spells, the three stats with
+    // their boxes' lines, and only the key tags, 2 at most; What's new 205: one look, no queue line, the mini profile
+    assert.deepStrictEqual([board.side, board.load, 'look' in board, 'title' in board], ['blue', true, false, false]);
+    const mp = (x) => x && [x.tag, x.lvl, x.ban.replace(/^.*\//, ''), x.other && x.other.map((v) => (typeof v === 'string' ? v.replace(/^.*\//, '') : v)), x.last, x.mastery];
+    assert.deepStrictEqual([mp(board.them[2].mp), mp(board.us[0].mp)], [['EUW', 200, 'Ahri_0.jpg', null, null, [['Ahri', 5, 30000]]], ['EUW', 200, 'Garen_0.jpg', ['Silver I', 'TFT_Regalia_Silver.png', '#a9b9c4', 10, 3, 1], null, [['Garen', 3, 5000]]]],
+      'the mini: no Premade skin pick, so the top mastery splash; Flex beside Solo/Duo');
     const me = board.us.find((p) => p.me), sniper = board.them.find((p) => p.name === 'Sniper');
     assert.deepStrictEqual([me.art.replace(/^.*\//, ''), me.spells.map((x) => x.replace(/^.*\//, '')), sniper.art.replace(/^.*\//, ''), sniper.spells], [`Ahri_7.jpg`, ['SummonerFlash.png', 'SummonerDot.png'], 'Caitlyn_0.jpg', []]);
     const st = board.them[2].stats;
@@ -1695,7 +1698,7 @@ const leagueData = (over = {}) => ({
     const g0 = st.l20.games[0];
     assert(/^\w+$/.test(g0.c) && g0.it.length === 6 && typeof g0.win === 'boolean' && /^\d+[hdw]$/.test(g0.ago) && g0.q && [g0.k, g0.d, g0.a].every(Number.isInteger), JSON.stringify(g0));
     assert(/^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/[\d.]+$/.test(board.dd), board.dd);
-    assert(st.sea.now && /^Gold/.test(st.sea.now[0]) && /TFT_Regalia_Gold\.png$/.test(st.sea.now[1]) && st.sea.now[2] === '#d9ad55' && st.sea.champs.length <= 5 && st.sea.mastery.length <= 4, JSON.stringify(st.sea));
+    assert(st.sea.now && /^Gold/.test(st.sea.now[0]) && /TFT_Regalia_Gold\.png$/.test(st.sea.now[1]) && st.sea.now[2] === '#d9ad55' && st.sea.champs.length <= 5 && !('end' in st.sea) && !('mastery' in st.sea), JSON.stringify(st.sea));
     assert(board.us.concat(board.them).every((p) => p.tags.length <= 2), 'two tags at most');
     assert.deepStrictEqual([board.us.map((p) => p.me), board.them.map((p) => p.lane)], [[false, false, true, false, false], [false, false, true, false, false]], 'you, and who’s in your lane');
     assert.deepStrictEqual([...board.us, ...board.them].map((p) => p.tags.map(([, t]) => t).filter((t) => /Premade|smurf|Autofill/.test(t)).join()),
@@ -1718,10 +1721,8 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => !!(lpcClient.lastOverlay.board || {}).us, null, 'everyone’s rank back once you go back to League');
     await pc.click('#proBack');
     await openPage(pc, 'overlay');
-    await pc.check('#optBoardLook input[value="lane"]');
-    await wait(pc, () => lpcClient.lastOverlay.board && lpcClient.lastOverlay.board.look === 'lane' && JSON.parse(localStorage.getItem('lpc-opts')).boardLook === 'lane', null, 'Your lane first, picked on the Overlay page');
-    await pc.check('#optBoardLook input[value="cards"]');
-    await wait(pc, () => lpcClient.lastOverlay.board.look === 'cards' && lpcClient.lastOverlay.prog === true, null, 'back to cards; the mouse reaches the overlay for the stats’ boxes');
+    await wait(pc, () => lpcClient.lastOverlay.board && lpcClient.lastOverlay.prog === true, null, 'the mouse reaches the overlay for the stats’ boxes');
+    assert.strictEqual(await pc.locator('#optBoardLook').count(), 0, 'What’s new 205: no Look picker, one look');
     await pc.uncheck('#optOverlayBoard');
     await wait(pc, () => !lpcClient.lastOverlay.board, null, 'no ranks on the loading screen when Settings says so');
     await pc.check('#optOverlayBoard');
