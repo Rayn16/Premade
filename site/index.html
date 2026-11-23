@@ -1718,7 +1718,6 @@ select.pillsel { position: absolute; width: 1px; height: 1px; padding: 0; border
    foot (champion and role, one line, spells), one tag in the corner; a teammate's opens under it on a click */
 .csface, .csthemlist .csfoe { position: relative; display: block; width: 100%; height: 104px; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
 .cscard[data-me] .csface { height: 156px; }
-.csthemlist .csfoe { height: 84px; }
 .csthemlist .csfoe:disabled { cursor: default; }
 .cscard[data-me] .csface, .csface[aria-expanded="true"], .csthemlist .csfoe[aria-pressed="true"] { border: 2px solid var(--fg); }
 .csart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; pointer-events: none; }
@@ -20091,6 +20090,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [206, 'November 23: enemy cards as tall as your team’s', [
+      'In champ select, the enemy team’s cards are now as tall as your teammates’ cards, so both sides match.',
+    ]],
     [205, 'November 23: everyone’s rank as loading screen cards', [
       'Premade’s loading screen looks like League’s: a tall card for each player with their skin, runes, rank emblem and spells, then their rank, last 10 games, champion and role, and 2 tags. Smaller than before, with one tip line between the teams.',
       'Alt+X in a game shows the same cards at half size, about 720 by 510 pixels on a 1080p screen (the old board was 1173 by 600). Drag and resize it as before.',

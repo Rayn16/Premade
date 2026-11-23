@@ -1454,6 +1454,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => document.getElementById('dTopHead').textContent === 'Top 3 for Middle', null, 'middle again');
     assert.deepStrictEqual(await texts(pc, '#csBans span'), ['a champion', 'Darius'], 'bans as grey pictures in the Picks tab');
     assert.match((await texts(pc, '#csThem .csfoe'))[2], /^Zed Middle Shown below$/, 'their Zed, likely in your lane, with the abilities open');
+    assert.deepStrictEqual(await pc.$$eval('#csThem .csfoe', (l) => l.map((b) => b.offsetHeight)), Array(5).fill(await pc.$eval('#csRows .cscard:not([data-me]) .csface', (b) => b.offsetHeight)), 'enemy cards as tall as your teammates’ (What’s new 206)');
     assert.match(await text(pc, '#mixNote'), /^Your team so far: 1 physical, 2 magic damage\. Theirs: 1 physical, 0 magic\.$/); // Garen, Thresh and your Lux hovered
     assert.strictEqual(await tierTab(), 'Middle', 'the tier list on your role');
     await pc.evaluate(() => { document.querySelector('main').scrollTop = 0; });
