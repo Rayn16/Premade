@@ -54,6 +54,7 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     await waitFor(page, () => document.documentElement.dataset.motion, null, 'data-motion');
     assert.strictEqual(await motion(page), 'reduced', 'Follow Windows with Show animations off is Reduced');
     await page.click('.nav[data-view="settings"]');
+    await page.click('#setList [data-sec="look"]'); // Settings, Look (What's new 207)
     await page.selectOption('#optMotion', 'on');
     assert.strictEqual(await motion(page), 'on', 'On overrides Windows');
     assert.strictEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('lpc-opts'))).motion, 'on', 'the pick is kept');
@@ -71,6 +72,7 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     await page.evaluate(() => document.querySelector('.nav[data-view="settings"]').click());
     await page.waitForTimeout(400);
     // a dialog fades in from 95%
+    await page.click('#setList [data-sec="app"]');
     await page.click('#newsBtn');
     const d0 = await page.evaluate(() => { const d = document.getElementById('newsDlg'); return { o: +getComputedStyle(d).opacity, open: d.open }; });
     assert.ok(d0.open && d0.o < 1, 'What’s new starts see-through: ' + JSON.stringify(d0));
@@ -80,6 +82,7 @@ const motion = (page) => page.evaluate(() => document.documentElement.dataset.mo
     await waitFor(page, () => !document.getElementById('newsDlg').open, null, 'Esc closing What’s new');
 
     // Reduced: nothing moves (--m 0), a page still fades
+    await page.click('#setList [data-sec="look"]');
     await page.selectOption('#optMotion', 'reduced');
     assert.strictEqual(await motion(page), 'reduced');
     assert.strictEqual(await page.evaluate(() => { const d = document.createElement('div'); d.style.transform = 'scale(var(--press))'; document.body.append(d); const t = getComputedStyle(d).transform; d.remove(); return t; }), 'matrix(1, 0, 0, 1, 0, 0)', 'Reduced: no shrinking');

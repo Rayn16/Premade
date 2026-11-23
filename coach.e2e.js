@@ -7,7 +7,7 @@
 // the other team's red, read by the app by itself in the game ("Jungler on botside" for 3 s, not again while they stay
 // in sight, "Jungler on topside" when they show up again after 10 s); the other callouts and the list of who's off your
 // minimap, with made-up champions drawn on the same minimap (a missing laner, an invade, a gank, a death, read out
-// loud); the Overlay page's Layout (drag a part, the arrow keys, its size, the rest, put back); and the game report's
+// loud); Settings, Overlay's Layout (drag a part, the arrow keys, its size, the rest, put back); and the game report's
 // look at their jungler.
 // Needs playwright; run with NODE_PATH listing its node_modules:
 //   NODE_PATH=$(npm root -g) node coach.e2e.js        (SHOTS=folder saves screenshots)
@@ -23,6 +23,7 @@ const openPage = async (p, v) => { if (!(await p.isVisible(`.nav[data-view="${v}
 const SITE = path.join(__dirname, 'site');
 const PORT = 8083, URL_ = `http://127.0.0.1:${PORT}/index.html?debug`;
 const shot = (pg, name, sel) => process.env.SHOTS && (sel ? pg.locator(sel) : pg).screenshot({ path: path.join(process.env.SHOTS, name + '.png') });
+const openSet = async (p, sec) => { await openPage(p, 'settings'); await p.click(`#setList [data-sec="${sec}"]`); }; // a section of Settings (What's new 207)
 
 // ---- the shared screen: the bottom-right corner of Rayan's screen (646 px, his minimap 279 px), with his Yasuo icon
 // copied to a spot of the minimap, its blue ring turned the other team's red (as in camera-box.test.js)
@@ -232,7 +233,7 @@ const game = (over = {}) => ({
       const card = (name) => ({ name, sub: 'Ahri · Middle', pic: '', rank: 'Gold II', tags: [] });
       o = await fire({ ...base, board: { us: [card('A')], them: [card('B')] }, call: 'Check your minimap' });
       assert(!o.full && !o.shown && o.items[0] === 'Check your minimap' && (await p.evaluate(() => document.querySelector('.stack').firstChild.className)) === 'pill nudge', `first in the stack over everyone's rank: ${JSON.stringify(o)}`);
-      // parts in places of their own (the Overlay page's Layout): chat from its bottom right corner, the line at the top
+      // parts in places of their own (Settings, Overlay's Layout): chat from its bottom right corner, the line at the top
       // at the bottom middle and bigger, who's off your minimap and the card after a game; your lane with your CS
       const box = (sel) => p.evaluate((sel) => { const e = document.querySelector(sel), r = e && e.getBoundingClientRect(); return r && [r.left, r.top, r.right, r.bottom].map(Math.round); }, sel);
       const parts = { chat: { x: 0.99, y: 0.95, ax: 'r', ay: 'b' }, call: { x: 0.5, y: 0.9, ax: 'c', ay: 'b', k: 1.5 }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' } };
@@ -282,7 +283,7 @@ const game = (over = {}) => ({
       }
       await emit(game({ room: 'g00000000r21' }));
       await wait(page, () => !JSON.parse(localStorage.getItem('lpc-opts')).mapNudge && !document.getElementById('optMapNudge').checked, null, 'off after 20 games');
-      await wait(page, () => lpc.toasts().includes('That was 20 games with the minimap reminder, so it’s off now. The Overlay page turns it back on.'), null, 'and says so');
+      await wait(page, () => lpc.toasts().includes('That was 20 games with the minimap reminder, so it’s off now. Settings, Callouts turns it back on.'), null, 'and says so');
       await wait(page, () => !lpcClient.lastOverlay.board, null, 'the overlay back to its small window');
       await c.close();
       console.log('minimap reminder: every 10 s from 1:00, a game counted per room, off by itself after 20 games');
@@ -488,7 +489,7 @@ const game = (over = {}) => ({
         Object.assign(speechSynthesis, { getVoices: () => voices, speak: (u) => spoken.push([u.text, u.voice ? u.voice.name : '', u.pitch || 1]), cancel: () => {} });
         speechSynthesis.dispatchEvent(new Event('voiceschanged'));
       });
-      await openPage(page, 'overlay');
+      await openSet(page, 'callouts');
       assert.deepStrictEqual(await page.$$eval('#optCallVoice option', (l) => l.map((o) => o.textContent)), ['My computer’s usual voice', 'A girl’s voice', 'David', 'Zira (woman)']);
       assert.strictEqual(await page.inputValue('#optCallVoice'), 'girl');
       await page.click('#callVoiceTry');
@@ -502,12 +503,12 @@ const game = (over = {}) => ({
       console.log('callout voice: Zira for a girl’s voice, David by name, the usual voice higher with no woman’s voice');
     }
 
-    // ---- the Overlay page's Layout: Room chat dragged to the top right, nudged down with the arrow keys and made
+    // ---- Settings, Overlay's Layout: Room chat dragged to the top right, nudged down with the arrow keys and made
     // bigger; the rest dragged; each put back. The overlay in the game gets the places.
     {
       const [c, page] = await context(browser, {});
       await page.evaluate((d) => lpcClient.emit('league', d), game());
-      await openPage(page, 'overlay');
+      await openSet(page, 'overlay');
       await page.click('#ovEdit > summary'); // Edit layout: the big picture, and the boxes take the mouse
       const handles = () => page.$$eval('#ovHandles .ovhandle', (l) => l.map((b) => b.dataset.part));
       await wait(page, () => document.querySelectorAll('#ovHandles .ovhandle').length === 11, null, 'a box over each part');
@@ -537,14 +538,16 @@ const game = (over = {}) => ({
       o = await saved();
       assert(o.overlayPos === 'custom' && Math.abs(o.overlayBox.x - (rest.x - stage.x + 200) / stage.w) < 0.01 && Math.abs(o.overlayBox.y - (rest.y - stage.y + 100) / stage.h) < 0.01 && (await page.inputValue('#optPos')) === 'custom', `the rest moved: ${JSON.stringify(o.overlayBox)}`);
       await page.click('#ovEdit > summary'); // Done: the cards are back
+      await openSet(page, 'callouts');
       await page.check('#ovMapCalls');
       await page.uncheck('#optJgCall'); await page.uncheck('#optGankCall'); await page.uncheck('#optInvadeCall');
+      await openSet(page, 'overlay');
       await page.click('#ovEdit > summary');
       await wait(page, () => [...document.querySelectorAll('#ovHandles .ovhandle')].map((b) => b.dataset.part).join() === ',game,cs,me,talk,toasts,buy,chat,after,tips,screen,call', null, 'the callouts on the Layout');
       if (process.env.SHOTS) await page.waitForTimeout(500); // the line at the top fades in
-      await shot(page, 'overlay-editor', '.view[data-view="overlay"]');
+      await shot(page, 'overlay-editor', '.view[data-view="settings"]');
       await page.click('#ovEdit > summary');
-      await shot(page, 'overlay-page', '.view[data-view="overlay"]');
+      await shot(page, 'overlay-page', '.view[data-view="settings"]');
       await page.click('#ovEdit > summary');
       await page.click('#ovHandles .ovhandle[data-part="chat"]');
       await page.click('#ovBack');
@@ -553,10 +556,10 @@ const game = (over = {}) => ({
       o = await saved();
       assert(JSON.stringify(o.overlayParts) === '{}' && o.overlayPos === 'tl' && o.overlayBox === null && o.overlayScale === 1, 'everything put back');
       await c.close();
-      console.log('Overlay page: a part dragged, nudged and sized, the rest dragged, then put back; the overlay in a game gets the places');
+      console.log('Settings, Overlay: a part dragged, nudged and sized, the rest dragged, then put back; the overlay in a game gets the places');
     }
 
-    // ---- What's new 165: Light, Full and Learning at the top of the Overlay page, each pressed while the boxes match it;
+    // ---- What's new 165: Light, Full and Learning at the top of Settings, Overlay, each pressed while the boxes match it;
     // and the HUD check: the score, abilities and minimap as League's HUD settings have them (bigger HUD, a bigger
     // minimap on the left here), and a part dragged over the minimap in red with a line saying so
     {
@@ -564,7 +567,7 @@ const game = (over = {}) => ({
       await c.addInitScript(() => { lpcClient.lcu = async (m, p) => (p === '/lol-game-settings/v1/game-settings' ? { status: 200, data: { General: {}, HUD: { GlobalScale: 1, MinimapScale: 1.5, FlipMiniMap: true } } } : { status: 404, data: null }); }); // League's client, for its HUD settings
       await page.reload();
       await page.evaluate((d) => lpcClient.emit('league', d), game());
-      await openPage(page, 'overlay');
+      await openSet(page, 'overlay');
       const pressed = () => page.$$eval('#ovPresets [aria-pressed="true"]', (l) => l.map((b) => b.querySelector('b').textContent));
       const on = (...ids) => page.evaluate((ids) => ids.map((id) => document.getElementById(id).checked), ids);
       const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')));
@@ -583,11 +586,14 @@ const game = (over = {}) => ({
       // What's new 171: the extra choices show only while their switch is on, and one Minimap callouts switch
       // follows its five (Full turned them on)
       const shown = (q) => page.evaluate((q) => document.querySelector(q).checkVisibility(), q);
+      await openSet(page, 'callouts'); // the callouts have a section of their own (What's new 207)
       assert(await page.isChecked('#ovMapCalls') && await shown('#ovMapList'), 'Full: Minimap callouts on, its five showing');
-      assert(await page.isHidden('#ovMix'), 'Full matches: no Your own mix');
+      await openSet(page, 'overlay');
+      assert(await page.isVisible('#ovPresets') && await page.isHidden('#ovMix'), 'Full matches: no Your own mix');
       await page.uncheck('#optOverlayBoard');
       assert(await page.isVisible('#ovMix'), 'Everyone’s rank off: it’s your own mix');
       await page.check('#optOverlayBoard');
+      await openSet(page, 'callouts');
       assert(!(await shown('#optCallVoice')) && !(await shown('#optCoachNew')), 'Read them out loud and Coach off: their extras hidden');
       await page.check('#optSpeakCalls');
       assert(await shown('#optCallVoice'), 'Read them out loud on: the voice shows');
@@ -604,12 +610,14 @@ const game = (over = {}) => ({
       assert.deepStrictEqual(await on(...MAP5), [true, true, true, true, true]);
       o = await saved();
       assert(o.jgCall && o.gankCall && o.missCall && o.invadeCall && o.laneCall, 'all five saved on');
-      assert.match(await page.textContent('.ovcard:has(#h-ovcalls) .ovn'), /^\d+ of \d+ on$/);
+      await openSet(page, 'overlay');
       await page.click('#ovPresets [data-preset="light"]');
-      assert(!(await page.isChecked('#ovMapCalls')) && !(await shown('#ovMapList')), 'Light: Minimap callouts off');
+      await openSet(page, 'callouts');
+      assert(!(await page.isChecked('#ovMapCalls')) && await page.isVisible('#ovMapCalls') && !(await shown('#ovMapList')), 'Light: Minimap callouts off');
+      await openSet(page, 'overlay');
       await page.click('#ovPresets [data-preset="full"]');
       assert(await page.isChecked('#ovMapCalls'), 'Full: Minimap callouts on');
-      console.log('Overlay page: extra choices follow their switches; Minimap callouts ticks and unticks its five, saving nothing of its own');
+      console.log('Settings, Overlay and Callouts: extra choices follow their switches; Minimap callouts ticks and unticks its five, saving nothing of its own');
       await page.click('#ovEdit > summary'); // Edit layout, for the HUD check's drag
       await wait(page, () => document.querySelector('#ovStage .ovmap').style.left === '0.4%', null, 'League’s HUD read: the minimap on the left');
       assert.deepStrictEqual(await page.evaluate(() => ['.ovscore', '.ovhud', '.ovmap'].map((q) => { const st = document.querySelector('#ovStage ' + q).style; return [st.width, st.height]; })), [['33.6%', '5.6%'], ['', '18.2%'], ['', '39%']]);
@@ -620,9 +628,9 @@ const game = (over = {}) => ({
       await page.mouse.move(chat.x + chat.width / 2, chat.y + chat.height - 4); await page.mouse.down(); await page.mouse.move(stage.x + 40 + chat.width / 2, stage.y + stage.h - 20, { steps: 8 }); await page.mouse.up();
       await wait(page, () => document.querySelector('#ovHandles .ovhandle[data-part="chat"]').hasAttribute('data-covers') && /Room chat covers the minimap\./.test(document.getElementById('ovHudNote').textContent), null, 'Room chat over the minimap, in red');
       assert(!/Couldn’t read/.test(await page.textContent('#ovHudNote')));
-      await shot(page, 'overlay-hud-check', '.view[data-view="overlay"]');
+      await shot(page, 'overlay-hud-check', '.view[data-view="settings"]');
       await c.close();
-      console.log('Overlay page: Light, Full and Learning tick their boxes and stay pressed until one changes; the HUD check reads League’s HUD (bigger, minimap left) and turns Room chat red over the minimap');
+      console.log('Settings, Overlay: Light, Full and Learning tick their boxes and stay pressed until one changes; the HUD check reads League’s HUD (bigger, minimap left) and turns Room chat red over the minimap');
     }
 
     // ---- after the game: their jungler's first 14 minutes on the report
@@ -652,7 +660,7 @@ const game = (over = {}) => ({
       assert.match(says.lines[0], /^At 1:00, Lee Sin was in their jungle on the top side\.$/);
       assert.strictEqual(says.lines[1], 'Lee Sin was in on 1 of your 2 deaths before 14 minutes.');
       assert.match(says.lines[2], /^5:30: Lee Sin killed you in the middle lane\. At 5:00 they were in their jungle on the top side\.$/);
-      assert.strictEqual(says.lines[3], 'Next game, glance at your minimap every few seconds, and play safe when their jungler shows up near your lane until you see them again. The Overlay page can remind you, or call out their jungler when they show up.');
+      assert.strictEqual(says.lines[3], 'Next game, glance at your minimap every few seconds, and play safe when their jungler shows up near your lane until you see them again. Settings, Callouts can remind you, or call out their jungler when they show up.');
       assert.strictEqual(says.map, 'Where Lee Sin was each minute for the first 14 minutes, and where you died');
       await shot(page, 'jungler-review', '#jgShot');
       assert.strictEqual(await page.evaluate(([r, tl]) => lpc.jungler({ ...r, mode: 'ARAM' }, tl), [r, tl]), null, 'not in ARAM');

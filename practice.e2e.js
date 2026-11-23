@@ -271,6 +271,7 @@ const game = (over = {}, me = {}) => ({
       const pink = (h) => /^#[0-9a-f]{6}$/.test(h) && [1, 3, 5].every((i, k) => Math.abs(parseInt(h.slice(i, i + 2), 16) - [0xc0, 0x40, 0xa0][k]) <= 4); // the splash's pink, give or take its edges
       const was = await accent();
       await openPage(page, 'settings');
+      await page.click('#setList [data-sec="look"]'); // Settings, Look (What's new 207)
       await page.check('#optChampLook');
       await page.evaluate((d) => lpcClient.emit('league', d), game({ mode: 'CLASSIC' }));
       await wait(page, () => (JSON.parse(localStorage.getItem('lpc-opts')).champMain || {}).c === 'Ahri', null, 'Ahri’s colour');
