@@ -226,9 +226,10 @@ const game = (over = {}, me = {}) => ({
       // the game's row, clicked open: its full match (Rayan, 2026-11-17: "when i click on a match i get its clips and the full game")
       assert(!(await page.isVisible('#clipGrid .vcard')), 'the row closed until you click it');
       await page.evaluate((n) => lpc.vidLen(n, 600), NAME); // its length, which the app reads from the video
-      await wait(page, () => /^Ahri.*Full match 10:00$/.test(document.querySelector('#clipGrid .cghead').textContent) && document.querySelectorAll('#clipGrid .cgtl i').length === 5, null, 'the length and the highlights on the row');
-      assert.deepStrictEqual(await page.$$eval('#clipGrid .cgtl i', (l) => l.map((e) => e.className)), ['k', 'd', 'o', 'o', 'o'], 'its highlights on the row’s line: your kill, your death, objectives');
+      await wait(page, () => /^Ahri.*Full match 10:00$/.test(document.querySelector('#clipGrid .cghead').textContent), null, 'the length on the row');
       await page.click('#clipGrid .cghead');
+      // its highlights only in the player (What's new 209, Rayan: "it appears annoying from outside"): no line of marks on the row, no button each under the match
+      assert.deepStrictEqual(await page.$$eval('#clipGrid .cgame [title], #clipGrid .cgame button', (l) => l.map((e) => `${e.title} ${e.textContent}`).filter((x) => /You died|Double kill|Dragon|Baron|tower/.test(x))), [], 'no highlight outside the player');
       await page.click('#clipGrid .vcard button:text-is("▶ Highlights")');
       await wait(page, () => document.getElementById('clipDlg').open && /: highlights$/.test(document.getElementById('clipTitle').textContent) && document.getElementById('clipVideo').src.startsWith('blob:'), null, 'the highlights in the player');
       await wait(page, () => !document.getElementById('tl').hidden && document.getElementById('clipVideo').duration > 1, null, 'the timeline, on a recording with no length in it');
