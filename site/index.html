@@ -17,6 +17,7 @@
   if (/\/test\/[^/]*$/.test(location.pathname)) document.documentElement.classList.add('test-version'); // Test version first (Settings > App)
   try { document.documentElement.style.setProperty('--zoom', Math.min(2, Math.max(0.7, +JSON.parse(localStorage.getItem('lpc-opts')).zoom || 1))); } catch {} // App size (Settings > Look)
   try { document.documentElement.classList.toggle('slim-rail', !!JSON.parse(localStorage.getItem('lpc-opts')).slimRail); } catch {} // the sidebar's size (What's new 178)
+  try { document.documentElement.classList.toggle('fr-slim', JSON.parse(localStorage.getItem('lpc-opts')).frSlim !== false); } catch {} // Profile's friends column: faces only (What's new 220)
   // What's new 184, at first paint and again when they change: Just League (Settings, App), and Aion 2 / RE4 co-op only
   // for whoever ticked them in What you play (nothing saved: both show; a list saved before RE4 co-op was a choice keeps it)
   window.lpcRoot = () => {
@@ -2149,7 +2150,8 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
    under 1,240 px only the faces, each in a thin win-rate ring (the name, games and win rate in its tooltip): the full
    column there left the games and their reports too narrow */
 .frcol { position: relative; display: flex; flex-direction: column; width: 304px; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }
-.frhead { display: flex; flex-direction: column; gap: 2px; padding: 16px 16px 8px; }
+.frhead { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 16px 16px 8px; }
+.frhead .frfold { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 28px; height: 28px; min-height: 0; padding: 0; }
 .frhead small, .frsqhead small { font-size: 13px; color: var(--muted); }
 #proFrNote { margin: 4px 16px; font-size: 13.5px; }
 .frlist { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 4px 8px 16px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
@@ -2203,6 +2205,22 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 .frsqbtn { display: none; }
 #friendRows .frwho { display: flex; gap: 12px; }
 #friendRows td:nth-child(2) { width: 46px; }
+/* faces only, picked with the arrow at its top (What's new 220; the same as a smaller window, below, which hides the
+   arrow). :where() keeps these as weak as the window-size rules, so a phone-sized window still stacks the column */
+:where(.fr-slim) .frcol { width: 64px; }
+:where(.fr-slim) :is(.frhead > :not(.frfold), .frtext, .frring, .fracts, #proFrNote) { display: none !important; }
+:where(.fr-slim) .frhead { padding: 12px 0 0; align-items: center; }
+:where(.fr-slim) .frhead .frfold { position: static; }
+:where(.fr-slim) .frfold svg { transform: scaleX(-1); }
+:where(.fr-slim) .frlist { padding: 12px 0; align-items: center; gap: 6px; }
+:where(.fr-slim) .fr { background: none !important; }
+:where(.fr-slim) .frgo { padding: 4px; border-radius: 50%; }
+:where(.fr-slim) .fr .frface { width: 36px; height: 36px; outline: 2.5px solid var(--rc, var(--soft-2)); outline-offset: 3px; }
+:where(.fr-slim) .frinv { position: absolute; z-index: 5; top: 8px; right: calc(100% + 8px); width: 260px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
+:where(.fr-slim) .frsq { margin: 0; padding: 8px 10px 12px; display: grid; justify-items: center; }
+:where(.fr-slim) .frsqbtn { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
+:where(.fr-slim) .frsqcard { display: none; position: absolute; z-index: 5; right: 100%; bottom: 0; width: 280px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
+:where(.fr-slim) .frsq:is(:hover, :focus-within) .frsqcard { display: flex; }
 @container app (max-width: 1240px) {
   .frcol { width: 64px; }
   .frhead, .frtext, .frring, .fracts, #proFrNote { display: none !important; }
@@ -2548,7 +2566,8 @@ dialog.wizard { transform: scale(var(--from)); }
       </div>
       </div>
       <aside id="proFriends" class="frcol" aria-labelledby="h-profr">
-        <div class="frhead"><h2 id="h-profr" class="ph">Friends you play with</h2><small>This season, most games first</small></div>
+        <div class="frhead"><h2 id="h-profr" class="ph">Friends you play with</h2><small>This season, most games first</small>
+          <button id="proFrFold" class="btn small frfold" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
         <div id="frInvBox" class="frinv" hidden></div>
         <p id="proFrNote" class="hint" role="status" hidden></p>
         <ul id="proFrList" class="frlist" aria-labelledby="h-profr"></ul>
@@ -4074,7 +4093,7 @@ dialog.wizard { transform: scale(var(--from)); }
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
-    motion: 'auto', motionGame: false, slimRail: false,
+    motion: 'auto', motionGame: false, slimRail: false, frSlim: true,
     sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
     attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
@@ -20471,6 +20490,16 @@ dialog.wizard { transform: scale(var(--from)); }
       return li;
     }));
   }
+  // the column's size (What's new 220; Rayan, 24 Nov: "a click to show and a click to hide"): faces only, as in a smaller
+  // window, or the whole list; the arrow at its top switches and Premade remembers it
+  function frSlim(slim) {
+    document.documentElement.classList.toggle('fr-slim', slim);
+    $('proFrFold').title = slim ? 'Make the friends list bigger' : 'Make the friends list smaller';
+    $('proFrFold').setAttribute('aria-label', $('proFrFold').title);
+    if (opts.frSlim !== slim) { opts.frSlim = slim; saveOpts(); }
+  }
+  frSlim(opts.frSlim);
+  $('proFrFold').addEventListener('click', () => frSlim(!opts.frSlim));
   function renderGroup() { if (!document.hidden) renderProFriends(); }
   function renderSquad() {
     const c = squad && sq && sq.call, theirs = !!c && c.from !== squad.id, others = new Map(); // the squads friends in your room are in: code -> their names
@@ -20999,6 +21028,9 @@ dialog.wizard { transform: scale(var(--from)); }
   const NEWS = [
     [221, 'November 24: your games with a friend', [
       'Profile’s Recent games has a Friend filter: pick one of your Friends you play with and only your games with them on your team show.',
+    ]],
+    [220, 'November 24: a smaller friends list', [
+      'Friends you play with on Profile is smaller now: just their faces, each in a ring coloured by your win rate together. Click the arrow at its top for the whole list, and again to make it small. Premade remembers which you left it on.',
     ]],
     [219, 'November 23: a new look at how you played', [
       'After a game the scoreboard is lane against lane: your laner facing theirs, one tag each, and an arrow to who won the lane. The gold difference is on top, with dragons, Barons, towers and big fights above it and your deaths on its line.',
@@ -22191,7 +22223,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Sign in to each one in League once, then switch with Account here; Stats follows it. On someone else’s profile, Add to my accounts makes it one of yours.', '#proAcct'],
       ['Your week', 'Every Monday, a card about the week before: your games, LP, best champion and the stat you improved most.', 'Nothing to set up. Got it puts it away until next week.', '#weekBox'],
       ['Friends you play with', 'A column on the right of Profile with the League friends you had on your team this season, most games first: their face and status, how many games you played together and your win rate with them. Click one for their profile; Invite and … (Control their PC, Copy Riot ID) show when you point at them. A friend’s room invite shows at the top of it.',
-        'Nothing to set up: play a game with a League friend. In a smaller window it keeps only their faces.', '#proFriends', 'app'],
+        'Nothing to set up: play a game with a League friend. It shows only their faces until you click the arrow at its top for the whole list; click it again to make it small. In a smaller window it keeps only their faces.', '#proFriends', 'app'],
       ['Your squad', 'Your group of up to 12: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
         'At the foot of Profile’s friends column: Make a squad, then friends in your voice room join it there; … has the pings and Leave. For phones, the phone remote with notifications on.', '#sqBox'],
     ]],
