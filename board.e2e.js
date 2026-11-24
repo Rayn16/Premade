@@ -286,7 +286,28 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
     assert.strictEqual(await page.evaluate(() => window.mouse), false, 'and given back');
     await fire({ visible: true, pos: 'tl', scale: 1, opacity: 1, after: { title: 'Victory', win: true, lines: [] } });
     assert.strictEqual(await page.locator('.after button').count(), 0, 'no button without a report');
-    console.log('Board tests passed: League-style cards on both sides, the loading screen and half size in game, 2 tags, stat boxes inside the screen, the mini profile, kept through updates, 4:3 and 1440p, names that open profiles');
+    // What's new 225: Move it's own corner sizes the rest on the League screen, along the window's diagonal in 5% steps
+    // from 70% to 200%, sent to the page (overlayProg) as the app grows the window under the mouse; the window at 100%
+    await page.setViewportSize({ width: 300, height: 360 });
+    await fire({ visible: true, pos: 'custom', box: { x: 0.1, y: 0.1 }, scale: 1, edit: true, opacity: 1, talkers: [], toasts: [] });
+    assert.deepStrictEqual(await page.$eval('#grip', (e) => { const r = e.getBoundingClientRect(); return [r.right, r.bottom, r.width, getComputedStyle(e).cursor]; }), [300, 360, 28, 'nwse-resize'], 'in the window’s corner');
+    assert((await page.textContent('.toast')).startsWith('Drag this to move it, or its corner to size it'));
+    await page.mouse.move(288, 348);
+    await page.mouse.down();
+    await page.mouse.move(288 + 150, 348 + 180, { steps: 5 }); // past the window's edge
+    assert.deepStrictEqual(await page.evaluate(() => window.prog), { id: 'size', x: 1.5 }, 'half as big again');
+    await page.mouse.move(288 + 1000, 348, { steps: 2 });
+    assert.strictEqual(await page.evaluate(() => window.prog.x), 2, 'at most 200%');
+    await page.mouse.move(0, 0, { steps: 2 });
+    assert.strictEqual(await page.evaluate(() => window.prog.x), 0.7, 'at least 70%');
+    await page.mouse.up();
+    await page.evaluate(() => (window.prog = null));
+    await page.mouse.move(100, 100);
+    assert.strictEqual(await page.evaluate(() => window.prog), null, 'nothing once you let go');
+    await shot(page, 'move-it-corner');
+    await fire({ visible: true, pos: 'custom', box: { x: 0.1, y: 0.1 }, scale: 1, opacity: 1, game: 'Dragon 0:57' });
+    assert(await page.$eval('#grip', (e) => e.hidden), 'only while you move it');
+    console.log('Board tests passed: League-style cards on both sides, the loading screen and half size in game, 2 tags, stat boxes inside the screen, the mini profile, kept through updates, 4:3 and 1440p, names that open profiles; Move it’s corner');
   } finally {
     await browser.close();
     srv.close();

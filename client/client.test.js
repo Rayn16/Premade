@@ -384,6 +384,23 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     screen.emit('display-metrics-changed', {}, screen.getPrimaryDisplay(), ['bounds']); // and once the screens settle, it goes back
     await until(() => { const o = ov.getBounds(); return o.x === d.x + Math.round(0.25 * d.width) && o.y === d.y + Math.round(0.5 * d.height); }, 'the overlay back in its place after a screen change');
     console.log(`overlay moved and resized: ${JSON.stringify(ov.getBounds())}`);
+    // What's new 225: Move it's own corner, dragged on the overlay, sizes it through the page (Settings' Size, kept) while
+    // the window grows under the mouse: 150 x 180 px out is half as big again (at the page's place for it, which here
+    // isn't where the calls above left the window)
+    await js(`document.getElementById('moveBtn').click()`);
+    await until(async () => ov.isFocusable() && !(await ov.webContents.executeJavaScript('document.getElementById("grip").hidden')), 'the corner in Move it');
+    await new Promise((r) => setTimeout(r, 500));
+    const g0 = ov.getBounds(), corner = (type, dx, dy, more) => ov.webContents.sendInputEvent({ type, x: g0.width - 6 + dx, y: g0.height - 6 + dy, globalX: g0.x + g0.width - 6 + dx, globalY: g0.y + g0.height - 6 + dy, button: 'left', clickCount: 1, ...more });
+    corner('mouseDown', 0, 0);
+    for (let i = 1; i <= 5; i++) { corner('mouseMove', 30 * i, 36 * i, { modifiers: ['leftButtonDown'] }); await new Promise((r) => setTimeout(r, 60)); }
+    corner('mouseUp', 150, 180);
+    const big = Math.min(1.5, d.width / 300, d.height / 360);
+    await until(() => { const o = ov.getBounds(); return o.width === Math.round(300 * big) && o.height === Math.round(360 * big); }, 'the overlay sized from its corner');
+    assert.strictEqual(await js(`document.getElementById('scaleOut').textContent`), '150%', 'Settings’ Size follows');
+    await ov.webContents.executeJavaScript('document.querySelector("button").click()');
+    await until(() => js(`document.getElementById('moveBtn').textContent === 'Move it on my screen'`), 'Done after sizing');
+    await js(`document.getElementById('ovReset').click()`);
+    console.log(`overlay sized from its corner: ${g0.width} x ${g0.height} to ${JSON.stringify(ov.getBounds())}`);
     // everyone's rank (board, app 1.10): over the whole screen, still click-through, then back where it was
     await js(`lpcClient.overlay({ visible: true, pos: 'custom', box: { x: 0.25, y: 0.5 }, scale: 1, toasts: ['Overlay back on.'], board: { load: true,
       us: [{ name: 'Rayan', ch: 'Ahri', me: true, ally: true, rank: 'Gold II · 45 LP', tc: '#d9ad55', emb: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/tft-regalia/TFT_Regalia_Gold.png', tags: [['good', '3 wins in a row']] }],
