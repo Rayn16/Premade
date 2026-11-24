@@ -30,7 +30,7 @@ const P = (name, ally, extra = {}) => ({ name, id: name + '#EUW', ch: 'Zed', pic
   me: false, ally, lane: false, rank: 'Gold II · 45 LP · 55% of 55', tc: '#d9ad55', emb: '', on: [9, 6, 7], stats: STATS, tags: [['good', 'Millionaire'], ['', 'One-trick: Ahri']], mp: MP, ...extra });
 const board = (over) => ({ load: true, dd: DDV, side: 'red', heads: [['Gold II', '#d9ad55', true], ['Gold III', '#d9ad55', false]], tips: { title: 'Ahri against Zed', lines: ['Respect level 6', 'Ward the river'] },
   us: ['A', 'B', 'Me', 'D', 'E'].map((n) => P(n, true, n === 'Me' ? { me: true } : n === 'E' ? { rank: 'Looking up…', tc: '', stats: null, on: null, tags: [], mp: null, runes: [] } : {})),
-  them: ['F', 'G', 'Lane', 'I', 'J'].map((n) => P(n, false, n === 'Lane' ? { lane: true, on: [0, 0, 0] } : n === 'J' ? { id: '', stats: { l20: null, role: null, sea: null }, rank: 'Unranked', tc: '', on: null, tags: [], mp: null }
+  them: ['F', 'G', 'Lane', 'I', 'J'].map((n) => P(n, false, n === 'Lane' ? { lane: true, on: [0, 0, 0] } : n === 'J' ? { id: '', stats: { l20: null, role: null, sea: null, why: 'Match history didn’t load' }, rank: 'Unranked', tc: '', on: null, tags: [], mp: null }
     : n === 'I' ? { stats: { ...STATS, role: { ...STATS.role, off: true, now: 'TOP' }, sea: { ...STATS.sea, w: 0, l: 0, now: null, peak: null } }, mp: { ...MP, other: null, last: null } } : {})), ...over });
 const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl', scale, opacity: 1, game, prog: true });
 
@@ -73,9 +73,9 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
     assert.strictEqual(await page.$eval('.pc.me .chs > span:last-child > span', (e) => getComputedStyle(e).color), gL, '67% green');
     assert.strictEqual(await page.$eval('.foes .pc:nth-child(4) .srow svg rect', (e) => getComputedStyle(e).stroke), bad, 'off-role red');
     assert.strictEqual(await page.$eval('.foes .pc:nth-child(3) .chs', (e) => e.textContent), 'No gamesin the last 20');
-    // J: unranked, history hidden; E: still looking up
+    // J: unranked, League never gave their games (What's new 224); E: still looking up
     assert.deepStrictEqual(await page.$eval('.foes .pc:nth-child(5)', (c) => [c.querySelector('.rkl').textContent, c.querySelector('.rkl').classList.contains('mu'), !!c.querySelector('.kit i.emb'), c.querySelector('.srow').textContent, c.querySelectorAll('.chip').length]),
-      ['Unranked', true, true, 'Match history hidden', 0]);
+      ['Unranked', true, true, 'Match history didn’t load', 0]);
     assert.deepStrictEqual(await page.$eval('.tm:not(.foes) .pc:nth-child(5)', (c) => [c.querySelector('.rkl').textContent, c.querySelectorAll('.ru img').length, c.querySelectorAll('.ru i').length, c.querySelectorAll('.sp img').length, c.querySelector('.srow').childElementCount]),
       ['Looking up…', 0, 2, 2, 0], 'looking up: art, champion, empty rune spots, spells, name');
     await shot(page, 'board-red');

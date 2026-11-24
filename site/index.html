@@ -7612,12 +7612,13 @@ dialog.wizard { transform: scale(var(--from)); }
   // from: the last 20 games (l20: each game's champion by Data Dragon id, result, queue, K/D/A, 6 item slots with 0 for
   // empty, how long ago), the roles in them (role: [position, games, wins], most played first; off when this game's
   // isn't the main one) and this season (sea: rank now and peak as [name, emblem, color], champions in the last 20 as
-  // [id, games, wins]; last season and mastery are in the mini profile, What's new 205). null: hidden history (l20, role), or no ranked
-  // games and no history (sea). League gives no per-champion record for a whole season, and Premade reads only other
-  // players' last 20 games, so the season's champions come from those.
+  // [id, games, wins]; last season and mastery are in the mini profile, What's new 205). null: no games (l20, role; why
+  // says why: '' while League is still asked, What's new 224), or no ranked games and no history (sea). League gives no
+  // per-champion record for a whole season, and Premade reads only other players' last 20 games, so the season's
+  // champions come from those.
   const agoOf = (at) => { const h = Math.max(0, (Date.now() - at) / 36e5); return h < 24 ? `${Math.max(1, Math.round(h))}h` : h < 168 ? `${Math.round(h / 24)}d` : `${Math.round(h / 168)}w`; };
   function cardStats(s, p) {
-    const g = s.games, out = { l20: null, role: null, sea: null }, id = (c) => (champOf(c) || {}).id || '';
+    const g = s.games, out = { l20: null, role: null, sea: null, why: g === null ? 'Match history didn’t load' : g && !g.length ? 'No recent games' : '' }, id = (c) => (champOf(c) || {}).id || '';
     if (g && g.length) {
       const w = g.filter((x) => x.win).length, by = {};
       out.l20 = { w, l: g.length - w, games: g.map((x) => ({ c: id(x.champ), win: x.win, q: QUEUES[x.queue] || '', k: x.k, d: x.d, a: x.a, it: [...x.items, 0, 0, 0, 0, 0, 0].slice(0, 6), ago: agoOf(x.at) })) };
@@ -9282,7 +9283,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function scoutOf(puuid) {
     if (!opts.scout || !puuid || scouting.has(puuid)) return;
     scouting.add(puuid);
-    scoutFetch(puuid).then((d) => { scoutData.set(puuid, d); renderGame(); });
+    scoutFetch(puuid, (d) => { scoutData.set(puuid, d); renderGame(); }).then(() => renderGame()); // the rank first, the games when League gives them
   }
   function rankCell(td, solo, flex) {
     const t = document.createElement('span');
@@ -9370,7 +9371,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!p.me && p.name && !p.best) tags.append(avoidBtn(p)); // in champ select and a game, not a lookup or Clash (best)
     if (!s) { rank.textContent = p.puuid && opts.scout ? 'Looking up…' : ''; return tr; }
     rankCell(rank, s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR);
-    if (!s.games) recent.textContent = 'Match history hidden';
+    if (!s.games) recent.textContent = s.games === null ? 'Match history didn’t load' : 'Looking up…';
     else {
       const g = s.games, w = g.filter((x) => x.win).length, on = g.filter((x) => x.champ === k), m = s.mastery.find((x) => x.championId === k);
       recent.textContent = g.length ? `Last ${g.length}: ${w}W ${g.length - w}L · KDA ${kda(...['k', 'd', 'a'].map((k) => g.reduce((t, x) => t + x[k], 0)))}` : 'No recent games';
@@ -15192,15 +15193,30 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     return out;
   }
-  async function scoutFetch(puuid) { // someone's rank, last 20 games, mastery and summoner level
-    const [ranked, hist, mastery, who] = await Promise.all([
+  // League's client reads match histories one at a time, and as a game starts someone's last 20 take it about 10 s
+  // (its own log on Rayan's PC, 2026-11-24: 10, 21, 31 and 40 s for 4 asked at once), while the app gives up on a
+  // League call after 8 s: every card past the first said "Match history hidden" (What's new 224). League still
+  // finishes and keeps the answer, so the same ask again gets it at once: one player at a time, asked again until League
+  // answers, 5 tries. null: it never did.
+  let histLine = Promise.resolve();
+  function histOf(puuid) {
+    const ask = histLine.then(async () => {
+      for (let i = 0; i < 5; i++) { const h = await lcuGet(`/lol-match-history/v1/products/lol/${puuid}/matches?begIndex=0&endIndex=19`); if (h) return gamesOf(h); }
+      return null;
+    });
+    histLine = ask.catch(() => {});
+    return ask;
+  }
+  async function scoutFetch(puuid, first) { // someone's rank, mastery and summoner level (to first(), when given), then their last 20 games
+    const games = histOf(puuid), [ranked, mastery, who] = await Promise.all([
       lcuGet(`/lol-ranked/v1/ranked-stats/${puuid}`),
-      lcuGet(`/lol-match-history/v1/products/lol/${puuid}/matches?begIndex=0&endIndex=19`),
       lcuGet(`/lol-champion-mastery/v1/${puuid}/champion-mastery`),
       lcuGet(`/lol-summoner/v2/summoners/puuid/${puuid}`),
     ]);
-    const d = { ranked: ranked && ranked.queueMap ? ranked.queueMap : {}, games: hist ? gamesOf(hist) : null, mastery: Array.isArray(mastery) ? mastery : [], level: (who && who.summonerLevel) | 0, icon: (who && who.profileIconId) | 0 };
+    const d = { ranked: ranked && ranked.queueMap ? ranked.queueMap : {}, games: undefined, mastery: Array.isArray(mastery) ? mastery : [], level: (who && who.summonerLevel) | 0, icon: (who && who.profileIconId) | 0 };
     riotRecord(d.ranked, who);
+    if (first) first(d);
+    d.games = await games;
     return d;
   }
   // League's client gives someone else's ranked wins but never their losses (always 0), which made every win rate on
@@ -21334,6 +21350,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [224, 'November 24: everyone’s last games on the loading screen', [
+      'The loading screen cards, Alt+X and the Game page no longer say “Match history hidden” for players whose games League has. League’s client reads one player’s games at a time, about 10 seconds each as a game starts, and Premade gave up after 8. Now Premade asks one player at a time and again until League answers, so ranks show at once and each player’s last games fill in after.',
+      'A player with no games says “No recent games”, and one League never answers for says “Match history didn’t load”.',
+    ]],
     [223, 'November 24: your squad’s best comp', [
       'Squad has its own page, right after Profile: add up to 4 friends you play with, and Premade works out the best team comp you can play together from your games together, with 2 other comps.',
       'Plan it on the draft board puts the comp on Your team, each card showing who plays it. Click a friend’s card for their swaps that keep the comp; a ban or their pick moves them to their next best.',

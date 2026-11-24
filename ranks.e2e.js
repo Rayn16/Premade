@@ -4,7 +4,8 @@
 // flagged with a popup, Avoid on another, the list in Pregame settings, a Riot ID added there), the hovered champion
 // locked in when time is almost up, and Dodge (twice to be sure, a note on an app without it, none in a custom game); on
 // the loading screen, each team's average rank and which is favored on the Game page and the overlay, an enemy on the
-// avoid list flagged there; and only calls the desktop app lets through (client/main.js LCU_OK).
+// avoid list flagged there, everyone's last games with League's client slower than the app waits (What's new 224); and
+// only calls the desktop app lets through (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node ranks.e2e.js        (SHOTS=folder saves screenshots)
 const fs = require('fs');
@@ -47,7 +48,7 @@ const game = (id, all) => ({ gameId: id, platformId: 'EUW1', gameCreation: Date.
   participantIdentities: (all ? [...Array(10).keys()] : [0]).map((i) => ({ participantId: i + 1, player: i ? { puuid: `m${id}-${i}`, gameName: `P${i}`, tagLine: 'EUW' } : { puuid: ME, gameName: 'Rayan', tagLine: 'EUW' } })) });
 const TEAM1 = [[ME, 'Rayan', 103, 'MIDDLE'], ['ally1', 'Friend', 86, 'TOP'], ['ally3', 'Toxic', 64, 'JUNGLE'], ['ally4', 'Hooks', 412, 'UTILITY'], ['ally5', 'Shooter', 222, 'BOTTOM']];
 const TEAM2 = [['enemy1', 'Axe', 122, 'TOP'], ['enemy2', 'Bully', 238, 'MIDDLE'], ['enemy3', 'Punch', 254, 'JUNGLE'], ['enemy4', 'Sniper', 51, 'BOTTOM'], ['enemy5', 'Singer', 37, 'UTILITY']];
-const L = { phase: 'None', cs: null, calls: [], refused: [], oldApp: false };
+const L = { phase: 'None', cs: null, calls: [], refused: [], oldApp: false, slow: false, histWait: 0, histMax: 0 };
 const ok = (data) => ({ status: 200, data });
 function champSelect() {
   const cell = (cellId, puuid, gameName, pos) => ({ cellId, puuid, gameName, tagLine: gameName ? 'EUW' : '', nameVisibilityType: gameName ? 'VISIBLE' : 'HIDDEN', assignedPosition: pos, championId: 0, championPickIntent: 0 });
@@ -56,6 +57,22 @@ function champSelect() {
     theirTeam: [5, 6, 7, 8, 9].map((cellId) => ({ cellId, championId: 0 })),
     actions: [[{ id: 8, actorCellId: 2, type: 'pick', completed: false, isInProgress: true, championId: 103 }]], trades: [], positionSwaps: [], pickOrderSwaps: [] };
 }
+// League's client reads match histories one at a time, and someone's last 20 take it a while when it hasn't read them yet
+// (about 10 s as a game starts on Rayan's PC, 2026-11-24); it keeps each answer, so the same ask again gets it at once.
+// L.slow: so for everyone else, with a game each, 0.4 s, while the app gives up on League after 0.25 s (8 s really)
+let histLine = Promise.resolve();
+const histKept = new Set();
+function slowHist(u) {
+  const i = [...TEAM1, ...TEAM2].findIndex(([x]) => x === u);
+  L.histMax = Math.max(L.histMax, ++L.histWait);
+  const go = histLine.then(async () => {
+    if (!histKept.has(u)) { await new Promise((r) => setTimeout(r, 400)); histKept.add(u); }
+    L.histWait--;
+    return ok({ games: { games: [game(9200 + i)] } });
+  });
+  histLine = go;
+  return go;
+}
 function fakeLcu(method, p) {
   L.calls.push(`${method} ${p}`);
   if (!allowed(method, p)) { L.refused.push(`${method} ${p}`); return { status: 0, data: null }; }
@@ -63,7 +80,10 @@ function fakeLcu(method, p) {
   if (p === '/lol-summoner/v1/current-summoner') return ok({ puuid: ME, gameName: 'Rayan', tagLine: 'EUW', summonerId: 1, summonerLevel: 300, profileIconId: 1 });
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: { RANKED_SOLO_5x5: rankOf(ME) } });
   if ((m = /^\/lol-ranked\/v1\/ranked-stats\/(.+)$/.exec(p))) return ok({ queueMap: { RANKED_SOLO_5x5: rankOf(m[1]) } });
-  if ((m = /^\/lol-match-history\/v1\/products\/lol\/([\w-]+)\/matches\?begIndex=(\d+)&endIndex=(\d+)$/.exec(p))) return ok({ games: { games: m[1] === 'current-summoner' && +m[2] === 0 ? GAMES.map((id) => game(id)) : [] } });
+  if ((m = /^\/lol-match-history\/v1\/products\/lol\/([\w-]+)\/matches\?begIndex=(\d+)&endIndex=(\d+)$/.exec(p))) {
+    if (L.slow && m[1] !== 'current-summoner' && m[1] !== ME) return slowHist(m[1]);
+    return ok({ games: { games: m[1] === 'current-summoner' && +m[2] === 0 ? GAMES.map((id) => game(id)) : [] } });
+  }
   if ((m = /^\/lol-match-history\/v1\/games\/(\d+)$/.exec(p))) return GAMES.includes(+m[1]) ? ok(game(+m[1], true)) : { status: 404, data: null };
   if (p === '/lol-gameflow/v1/session') return ok({ map: { id: 11 }, gameData: { gameId: L.phase === 'ChampSelect' ? 77 : 88, queue: { id: 420, isRanked: true, mapId: 11 },
     teamOne: TEAM1.map(([puuid, gameName, championId, selectedPosition]) => ({ puuid, gameName, tagLine: 'EUW', championId, selectedPosition })),
@@ -80,7 +100,11 @@ function fakeApp() { // the desktop app 1.13 (client/preload.js), with League's 
   const on = {};
   window.lpcClient = { version: '1.13.0', screens: async () => [], useScreen() {}, keys: async () => ({}), windowMode: async () => 'borderless', compact() {}, update() {}, front() {},
     overlay(s) { this.lastOverlay = s; },
-    on(name, fn) { (on[name] = on[name] || []).push(fn); }, emit(name, v) { for (const fn of on[name] || []) fn(v); }, lcu: (m, p, b) => window.fakeLcu(m, p, b === undefined ? null : b) };
+    on(name, fn) { (on[name] = on[name] || []).push(fn); }, emit(name, v) { for (const fn of on[name] || []) fn(v); },
+    lcu: (m, p, b) => { // the app gives up on League after a while (client/main.js: 8 s), here on a match history after window.giveUp ms
+      const a = window.fakeLcu(m, p, b === undefined ? null : b);
+      return window.giveUp && /\/matches\?/.test(p) ? Promise.race([a, new Promise((r) => setTimeout(() => r({ status: 0, data: null }), window.giveUp))]) : a;
+    } };
 }
 
 // our server's count of Europe West's ladder: 100 players from Master up (all 0-9 LP) and 1,000 in each division below
@@ -213,7 +237,10 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     await wait(page, () => document.getElementById('dodgeBtn').hidden, null, 'no Dodge in a custom game');
     console.log('champ select: a teammate on the avoid list flagged with a popup, Avoid and the list in Pregame settings, locked in with 2.5 s left, Dodge twice, a note on an older app, none in a custom game');
 
-    // ---- the loading screen: each team's average rank and which is favored; an enemy on the avoid list
+    // ---- the loading screen: each team's average rank and which is favored; an enemy on the avoid list. League's client
+    // is slow on the six asked from here on (L.slow, What's new 224)
+    L.slow = true;
+    await page.evaluate(() => { window.giveUp = 250; });
     L.phase = 'InProgress';
     await league(page, 'InProgress');
     await wait(page, () => !document.getElementById('liveAvg').hidden && document.querySelectorAll('#liveRows tr').length === 10, null, 'the lobby rank on Game');
@@ -229,6 +256,15 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     assert.deepStrictEqual(board.them.find((c) => c.name === 'Bully').tags[0], ['bad', 'On your avoid list']);
     await shot(page, 'game-lobby-rank');
     console.log('loading screen: each team’s average rank and the favored team on Game and the overlay, an enemy on the avoid list flagged');
+    // What's new 224: League slower than the app waits, yet every card gets its last games (one player at a time, asked
+    // again until League answers); none for the four looked up in champ select with no games
+    await wait(page, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && [...b.us, ...b.them].filter((c) => c.stats && c.stats.l20).length === 6; }, null, 'everyone’s last games');
+    const b2 = await page.evaluate(() => lpcClient.lastOverlay.board);
+    assert.deepStrictEqual([...b2.us, ...b2.them].map((c) => [c.name, c.stats.l20 ? c.stats.l20.games.length : c.stats.why]), [['Friend', 'No recent games'], ['Toxic', 'No recent games'],
+      ['Rayan', 'No recent games'], ['Shooter', 1], ['Hooks', 'No recent games'], ['Axe', 1], ['Punch', 1], ['Bully', 1], ['Sniper', 1], ['Singer', 1]]);
+    assert(L.histMax <= 2, `one player at a time: ${L.histMax} waiting at once`);
+    await wait(page, () => [...document.querySelectorAll('#liveRows tr')].filter((tr) => /Last 1: 1W 0L/.test(tr.textContent)).length === 6, null, 'the Game page too');
+    console.log('loading screen: League slower than the app waits, and every card still gets its last games');
 
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await ctx.close();

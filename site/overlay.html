@@ -438,7 +438,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   function statsRow(p) { // the last 10 games as blocks, newest left; this champion; the main role, red when they play another
     const row = el('srow'), st = p.stats && typeof p.stats === 'object' ? p.stats : null;
     if (!st) return row; // looking up
-    if (!st.l20) { row.append(tx('mu', 'Match history hidden')); return row; }
+    if (!st.l20) { if (st.why) row.append(tx('mu', String(st.why))); return row; } // none, or League didn't answer; nothing while it's asked
     const blk = el('blk'), [n, w, lv] = Array.isArray(p.on) ? p.on : [0, 0, 0], ch = tx('chs'), face = tx(''), say = tx('');
     blk.append(...(Array.isArray(st.l20.games) ? st.l20.games : []).slice(0, 10).map((y) => ie(y && y.win ? 'w' : '')));
     face.append(pic(p.pic), ...(lv ? [Object.assign(bold(lv | 0), { className: 'lv' })] : []));
