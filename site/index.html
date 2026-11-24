@@ -9367,17 +9367,24 @@ dialog.wizard { transform: scale(var(--from)); }
   // champions for your role, the damage mix of your team, and Riot's runes and spells once you lock in
   const myCell = () => (cs && Array.isArray(cs.myTeam) ? cs.myTeam.find((p) => p.cellId === cs.localPlayerCellId) : null);
   const csActions = () => (cs && Array.isArray(cs.actions) ? cs.actions.flat() : []).filter((a) => a && typeof a === 'object');
+  // each team's bans so far, yours then theirs: League's own ban lists and the bans finished in the draft, as League can
+  // list a ban in only one of them (What's new 222)
+  function csBans() {
+    const b = (cs && cs.bans) || {}, ours = new Set(((cs && cs.myTeam) || []).map((p) => p.cellId)), done = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId > 0);
+    return [[b.myTeamBans, true], [b.theirTeamBans, false]].map(([l, us]) => [...new Set([...(Array.isArray(l) ? l : []), ...done.filter((x) => ours.has(x.actorCellId) === us).map((x) => x.championId)])].filter((c) => c > 0));
+  }
   // yours now (pick or ban), else your pick to come, which you can already hover
   const myAction = () => { const mine = csActions().filter((a) => a.actorCellId === cs.localPlayerCellId && !a.completed && (a.type === 'pick' || a.type === 'ban')); return mine.find((a) => a.isInProgress) || mine.find((a) => a.type === 'pick') || null; };
   const myPos = () => { const c = myCell(); return c && c.assignedPosition ? String(c.assignedPosition).toUpperCase() : ''; };
   async function champTick() {
     const next = await lcuGet('/lol-champ-select/v1/session');
     if (!next || !Array.isArray(next.myTeam)) return;
+    const done = (s) => (Array.isArray(s.actions) ? s.actions.flat() : []).filter((x) => x && x.completed).length; // the bans and picks made so far
     if (!cs || cs.gameId !== next.gameId || !pickable) {
       if (!cs || cs.gameId !== next.gameId) csReset(); // a new champ select: no hand picks yet
       [pickable, bannable, gfs] = await Promise.all([lcuGet('/lol-champ-select/v1/pickable-champion-ids'), lcuGet('/lol-champ-select/v1/bannable-champion-ids'), lcuGet('/lol-gameflow/v1/session')]);
       loadMine();
-    }
+    } else if (done(next) !== done(cs)) [pickable, bannable] = await Promise.all([lcuGet('/lol-champ-select/v1/pickable-champion-ids'), lcuGet('/lol-champ-select/v1/bannable-champion-ids')]); // a ban or pick went in: what League lets you pick and ban now, not what it did at the start (What's new 222)
     cs = next;
     csAt = performance.now();
     const locked = csActions().filter((a) => a.type === 'pick' && a.completed && a.championId > 0).map((a) => a.championId);
@@ -9570,7 +9577,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function suggestions() {
     if (!cs) return [];
     const pos = myPos(), can = new Set(Array.isArray(pickable) ? pickable : []), taken = new Set([...cs.myTeam, ...(cs.theirTeam || [])].map((p) => p.championId).filter(Boolean));
-    for (const a of csActions()) if (a.type === 'ban' && a.completed) taken.add(a.championId);
+    for (const c of csBans().flat()) taken.add(c);
     const st = new Map();
     for (const g of myHist || []) { const s = st.get(g.champ) || { n: 0, w: 0, here: 0 }; s.n++; s.w += g.win; s.here += !!pos && g.lane === pos; st.set(g.champ, s); }
     const foe = laneFoe(pos), fv = foe ? topNow(foe, pos, renderGame) : null; // their pick's high elo games in your lane, with who it met
@@ -9691,7 +9698,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   const advBase = (x, r) => { const [n, w] = recIn(x, r); return adj(w, n); }; // a champion's high elo win rate in a role, pulled toward 50% while games are few
   // the champions nobody can pick any more: picked (a teammate's hover isn't) or banned
-  const advGone = (d) => new Set([...[...d.us, ...d.them].filter((p) => p.c > 0 && !p.hover).map((p) => p.c), ...(d.try ? d.bans || [] : csActions().filter((x) => x.type === 'ban' && x.completed).map((x) => x.championId))]);
+  const advGone = (d) => new Set([...[...d.us, ...d.them].filter((p) => p.c > 0 && !p.hover).map((p) => p.c), ...(d.try ? d.bans || [] : csBans().flat())]);
   // a blind pick, before their laner is known: how the 10 champions picked most in that lane in high elo (those still
   // free) do against it there, from their own games, so 10 answers from our server cover every champion. Each one that
   // goes 4 points or more better than the two champions' own win rates give (10 games or more) counts as often as it's
@@ -11342,7 +11349,7 @@ dialog.wizard { transform: scale(var(--from)); }
       }
       return li;
     }));
-    const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csActions().filter((x) => x.type === 'ban' && x.completed && x.championId).map((x) => x.championId), foe = laneFoe(myPos());
+    const theirs = (cs.theirTeam || []).map((p) => p.championId).filter(Boolean), bans = csBans().flat(), foe = laneFoe(myPos());
     const them = (cs.theirTeam || []).map((p) => [p.championId | 0, p.championId && p.championId === foe, p.cellId]), at = foeAt === null ? them.findIndex(([, lane]) => lane) : foeAt;
     const roleOf = new Map(); // their roles as League gives them, else as the high elo games guess (laneFoe)
     for (const r of Object.keys(POS)) { const c = laneFoe(r); if (c && !roleOf.has(c)) roleOf.set(c, r); }
@@ -11880,14 +11887,14 @@ dialog.wizard { transform: scale(var(--from)); }
     // locked: a champion and no pick still to make (ARAM has no picks at all; their hovers never show)
     const seat = (p) => ({ champ: p.championId || p.championPickIntent || 0, skin: p.selectedSkinId | 0, locked: p.championId > 0 && !acts.some((x) => x.type === 'pick' && !x.completed && x.actorCellId === p.cellId), pos: String(p.assignedPosition || '').toUpperCase(),
       name: hidden(p) && p.cellId !== cs.localPlayerCellId ? '' : String(p.gameName || ''), now: (acts.find((x) => x.isInProgress && x.actorCellId === p.cellId) || {}).type || '' });
-    const ours = new Set(cs.myTeam.map((p) => p.cellId)), bans = acts.filter((x) => x.type === 'ban' && x.completed && x.championId > 0), ban = !!a && a.type === 'ban', can = (ban ? bannable : pickable) || [];
+    const ban = !!a && a.type === 'ban', can = (ban ? bannable : pickable) || [];
     const ru = ruRows(me.championId | 0), rows = (l) => l.map(({ use, ...r }) => r); // the rows as data: a tap comes back as runerow
     return {
       action: a ? { id: a.id, type: a.type, now: !!a.isInProgress, champ: a.championId || 0 } : null,
       stage: csStage(), ends: csEnds(),
       team: cs.myTeam.map((p) => ({ ...seat(p), spells: [p.spell1Id | 0, p.spell2Id | 0], me: p.cellId === cs.localPlayerCellId, trades: p.cellId === cs.localPlayerCellId ? [] : tradesWith(p.cellId) })),
       them: (cs.theirTeam || []).filter(Boolean).map(seat),
-      bans: [bans.filter((x) => ours.has(x.actorCellId)), bans.filter((x) => !ours.has(x.actorCellId))].map((l) => l.map((x) => x.championId)),
+      bans: csBans(),
       picks: ban ? banIdeas().slice(0, 4).map((x) => [x.c, '']) : advIds(), can, roles: can.map((id) => ((champPos && champPos[id] && champPos[id].recommendedPositions) || []).map((r) => ROLE_KEY[r] || '').join('')),
       mode: (gfs && gfs.gameData && gfs.gameData.queue && gfs.gameData.queue.gameMode) || '', spells: [me.spell1Id | 0, me.spell2Id | 0], skin: me.selectedSkinId | 0,
       skins: me.championId ? csx.skins : [], pages: csx.pages,
@@ -14663,7 +14670,7 @@ dialog.wizard { transform: scale(var(--from)); }
   async function autoHover() {
     const left = csActions().filter((a) => a.actorCellId === cs.localPlayerCellId && !a.completed && !a.championId && !autoDone.has(a.id) && (a.type === 'pick' || (a.type === 'ban' && a.isInProgress)));
     if (!left.length) return;
-    const banned = new Set(csActions().filter((a) => a.type === 'ban' && a.completed).map((a) => a.championId));
+    const banned = new Set(csBans().flat());
     const taken = new Set([...cs.myTeam.filter((p) => p.cellId !== cs.localPlayerCellId).flatMap((p) => [p.championId, p.championPickIntent]), ...(cs.theirTeam || []).map((p) => p.championId)].filter(Boolean));
     const pos = myPos(), fits = (id) => !pos || !champPos || !champPos[id] || (champPos[id].recommendedPositions || []).includes(pos);
     for (const a of left) {
@@ -14714,7 +14721,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // bans you may make now that nobody on your team wants: your nemeses, then the strongest in your role in high elo,
   // leaving out champions you play yourself (3 of your last 100 games or more)
   function banIdeas() {
-    const banned = new Set(csActions().filter((a) => a.type === 'ban' && a.completed).map((a) => a.championId));
+    const banned = new Set(csBans().flat());
     const team = new Set(cs.myTeam.flatMap((p) => [p.championId, p.championPickIntent]).filter(Boolean)), mine = new Map();
     for (const g of myHist || []) mine.set(g.champ, (mine.get(g.champ) || 0) + 1);
     const ok = (c) => !!champOf(c) && !banned.has(c) && !team.has(c) && !((mine.get(c) || 0) >= 3) && (!Array.isArray(bannable) || bannable.includes(c));
@@ -21026,6 +21033,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [222, 'November 24: no banned champions in your picks', [
+      'In champ select a banned champion is never suggested or shown as one you can pick. The pick helper, Bans for you, auto hover and the phone remote read both teams’ bans from League’s own ban lists too, and Premade asks League again what you can pick after every ban and pick.',
+    ]],
     [221, 'November 24: your games with a friend', [
       'Profile’s Recent games has a Friend filter: pick one of your Friends you play with and only your games with them on your team show.',
     ]],

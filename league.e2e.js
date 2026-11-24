@@ -1560,10 +1560,13 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpc.toasts().includes('League didn’t ban Darius: Invalid action.'), null, 'League’s reason for no ban');
     await wait(phone, () => document.getElementById('toast').textContent === 'League didn’t ban Darius: Invalid action.', null, 'the reason on the phone');
     lcu.noLock = false;
+    const asksAt = lcu.calls.length;
     await pc.click('#bans button:has-text("Darius")');
     await wait(pc, () => /Your turn to pick/.test(document.getElementById('csTurn').textContent), null, 'my pick');
     assert.deepStrictEqual(callsTo(/^\/lol-champ-select\/v1\/session\/actions\/3$/, 'PATCH').pop()[2], { championId: 122, completed: true }, 'banned in one call: the champion and done together');
     assert.deepStrictEqual(flatActions().find((a) => a.id === 3), { id: 3, actorCellId: 2, type: 'ban', completed: true, isInProgress: false, championId: 122 });
+    // What's new 222: once a ban goes in, League is asked again what you can pick and ban
+    await until(() => callsTo(/pickable-champion-ids$/, 'GET', asksAt).length > 0 && callsTo(/bannable-champion-ids$/, 'GET', asksAt).length > 0, 'what you can pick and ban asked again after the ban');
     // the best picks for you, with why: Lux beat Zed (their middle now) in high elo, Ahri's your best, Vi's strong in
     // high elo but new to you. Garen and Sona aren't middle, Zed is taken
     // What's new 189: the top 3 first, above the draft rows, a word each and no numbers, why as pictures
@@ -1676,15 +1679,23 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await tierTab(), 'Middle', 'the tier list on your role');
     await pc.evaluate(() => { document.querySelector('main').scrollTop = 0; });
     await shot(pc, 'pregame-picks');
-    // on the phone: their Zed, and Darius banned, so neither can be picked; your role's champions first (Middle), then all
+    // What's new 222: their ban of Vi in League's ban lists only (no finished ban of theirs in the draft): greyed out,
+    // out of the top 3, with the bans in the Picks tab; and League's lists asked once since your ban, not every second
+    lcu.cs.bans = { myTeamBans: [], theirTeamBans: [254], numBans: 10 };
+    await wait(pc, () => document.querySelector('#dGrid .dchamp:has(img[alt="Vi"])')?.getAttribute('aria-disabled') === 'true', null, 'their ban of Vi greyed out');
+    assert.deepStrictEqual(await texts(pc, '#dTopRows .bighead b'), ['Lux', 'Ahri'], 'no Vi in the top 3');
+    assert.deepStrictEqual(await texts(pc, '#csBans span'), ['a champion', 'Darius', 'Vi'], 'their ban with yours in the Picks tab');
+    assert.strictEqual(callsTo(/pickable-champion-ids$/, 'GET', asksAt).length, 1, 'what you can pick asked once since your ban');
+    // on the phone: their Zed, Darius and their Vi banned, so none can be picked; your role's champions first (Middle), then all
     await wait(phone, () => document.getElementById('turn').textContent === 'Your turn to pick' && /Zed/.test(document.getElementById('them').innerHTML), null, 'their Zed on the phone');
     assert.deepStrictEqual(await seats('them'), ['Nobody yet', 'Nobody yet', 'Zed', 'Nobody yet', 'Nobody yet']);
     assert(await phone.evaluate(() => [...document.querySelectorAll('#ourBans img')].some((i) => i.alt === 'Darius')), 'Darius banned');
+    await wait(phone, () => [...document.querySelectorAll('#theirBans img')].map((i) => i.alt).join() === 'Vi', null, 'their Vi ban on the phone');
     await wait(phone, () => /Zed \(off\)/.test([...document.querySelectorAll('#grid button')].map((b) => b.textContent + (b.disabled ? ' (off)' : '')).join()), null, 'Zed off on the phone');
     assert.deepStrictEqual([await text(phone, '#mine'), await phone.getAttribute('#mine', 'aria-pressed'), await grid()], ['Middle', 'true', ['Ahri', 'Lux', 'Zed (off)']]);
     await phone.click('#mine');
     await wait(phone, () => document.querySelectorAll('#grid button').length === 11, null, 'every champion');
-    assert.deepStrictEqual(await grid(), ['Ahri', 'Caitlyn', 'Darius (off)', 'Garen', 'Jinx', 'Lee Sin', 'Lux', 'Sona', 'Thresh', 'Vi', 'Zed (off)']);
+    assert.deepStrictEqual(await grid(), ['Ahri', 'Caitlyn', 'Darius (off)', 'Garen', 'Jinx', 'Lee Sin', 'Lux', 'Sona', 'Thresh', 'Vi (off)', 'Zed (off)']);
     await phone.click('#mine');
     // the picks for you with the pick helper's word (What's new 189's colours)
     await wait(phone, () => [...document.querySelectorAll('#picks .pick b')].some((b) => b.textContent === 'Ahri'), null, 'the picks on the phone');
