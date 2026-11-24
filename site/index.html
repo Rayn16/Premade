@@ -3142,16 +3142,9 @@ dialog.wizard { transform: scale(var(--from)); }
     </section>
 
     <section class="view" data-view="game" aria-label="Game" hidden>
-      <section id="liveBox" class="panel" aria-labelledby="h-live" hidden>
-        <h2 id="h-live" class="ph">In game <button class="tip" type="button" popovertarget="t-live" aria-label="About the game">?</button></h2>
-        <div id="timers" class="timers"></div>
-        <p id="laneStats" class="phase" role="status" hidden></p>
-        <p id="augTips" class="phase" hidden></p>
+      <section id="liveBox" class="panel" aria-label="In game" hidden>
         <div id="mayBox" class="maybox" hidden></div>
-        <div id="gameTips" class="tipsbox" hidden><h3 class="ph"></h3><ul></ul></div>
         <div id="liveBuild" class="buildbox" hidden><h3 class="ph"></h3><p class="hint bwhy"></p><ol class="blist"></ol><form class="pick badd"><label>Add an item <input list="itemList" autocomplete="off" spellcheck="false" placeholder="Item name"></label><button class="btn small" type="submit">Add</button><button class="btn small breset" type="button" hidden>Back to Premade’s build</button></form></div>
-        <p id="liveAvg" class="hint" hidden></p>
-        <div class="tablewrap"><table class="ready scout"><thead><tr><th>Player</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="liveRows"></tbody></table></div>
         <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
       </section>
       <section id="comboBox" class="panel" aria-labelledby="h-combo" hidden>
@@ -3496,7 +3489,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="check"><input id="optItemSet" type="checkbox"><span><span>Builds in League’s shop</span><span>The most popular build and my usual one for my champion</span></span></label>
           </section>
           <section class="ovcard" aria-labelledby="h-setavoid">
-            <h3 id="h-setavoid">Avoid list</h3><p class="ovsub">Players you never want to play with again. Premade flags them in champ select when League shows their name, on the loading screen and in a game. Add them with Avoid beside their name in champ select, on Game or in a game report, or by Riot ID here.</p>
+            <h3 id="h-setavoid">Avoid list</h3><p class="ovsub">Players you never want to play with again. Premade flags them in champ select when League shows their name, on the loading screen and in a game. Add them with Avoid beside their name in champ select or in a game report, or by Riot ID here.</p>
             <form id="avoidForm" class="pick"><label>Riot ID <input id="avoidId" autocomplete="off" spellcheck="false" placeholder="Name#TAG"></label><button class="btn small" type="submit">Avoid</button></form>
             <p id="avoidNote" class="hint" role="status"></p>
             <ul id="avoidList" class="watchlist avoids"></ul>
@@ -4057,7 +4050,6 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Settings, Clips, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, League, Screen) with what you hear and your mic, like clips.</div>
-<div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
 <div id="t-remote" class="tipbox" popover>Your phone as a remote for League, on any network, while this app is open on your PC: scan the code with your phone’s camera, or Copy link and open it there. It follows League one screen at a time, in your colours: pick the game and your roles, invite friends and find a match; accept it; go through champ select (picks for you, trades, runes, spells, skins and dodge); and in a game see the score, the objectives and your lane, time their Flash and ultimates and call them missing. Chat has your room’s chat and League chat. It buzzes and rings when a match is found or it’s your turn while the page is open; turn on “Tell me when a match is found” in its Settings for a notification even with its screen off (on an iPhone, open the remote from its home screen icon first). Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
@@ -10670,10 +10662,6 @@ dialog.wizard { transform: scale(var(--from)); }
   const meIn = () => (league && league.me && Array.isArray(league.players) ? league.players.find((q) => q.team === mine.team && q.champ === league.me.champ) || null : null);
   const posIn = (q) => q.pos || (livePlayers.find((p) => p.team === q.team && champOf(q.champ) && p.champ === +champOf(q.champ).key) || {}).pos || '';
   const laneFoeIn = (m) => { const pos = m && posIn(m); return (pos && league.players.find((q) => q.team !== m.team && posIn(q) === pos)) || null; };
-  function laneText() {
-    const m = meIn(), o = laneFoeIn(m);
-    return o ? `Your lane against ${champName(o.champ)}: level ${m.lvl} vs ${o.lvl} · CS ${m.cs} vs ${o.cs} · kills ${m.k} vs ${o.k}` : '';
-  }
   function laneLine() { // for the overlay: your CS and the gold in your items against theirs
     const m = meIn(), o = laneFoeIn(m), d = o && m.cs - o.cs, g = o && itemGold ? goldOf(m) - goldOf(o) : null;
     if (o) itemsSoon();
@@ -10813,7 +10801,7 @@ dialog.wizard { transform: scale(var(--from)); }
   $('optJgCamps').value = String(opts.jgCamps);
   $('optJgCamps').addEventListener('change', (e) => { opts.jgCamps = +e.target.value; saveOpts(); renderJg(); });
   // ARAM: Mayhem's augments: your champion's best on DeepARAM (mayBox), else what kind suits it, from its class in Data
-  // Dragon. On the overlay at the start, for a minute after levels 7, 11, 15 and 21 and while you're dead; on the Game page.
+  // Dragon. On the overlay at the start, for a minute after levels 7, 11, 15 and 21 and while you're dead; Game has Mayhem's part (renderMay).
   const AUG_TIPS = { // a class (AP: one that deals magic damage) -> [look for, skip]
     Marksman: ['attack speed, critical strikes, attack damage and on-hit', 'ability power and tank stats'],
     Mage: ['ability power, ability haste, magic penetration and mana', 'attack speed and critical strikes'],
@@ -11279,7 +11267,7 @@ dialog.wizard { transform: scale(var(--from)); }
     renderChat();
     const old = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.' : lcu === null ? 'Looking for League…' : '';
     $('winFix').hidden = !winFixable();
-    $('preNote').textContent = old || (inGame ? 'In game: timers, gold and everyone’s rank are on the Game page.' : ''); // What's new 202: the draft board and tier list are the idle page
+    $('preNote').textContent = old || (inGame ? 'In game: your build and matchup notes are on the Game page.' : ''); // What's new 202: the draft board and tier list are the idle page
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
     $('csBox').hidden = !(ph === 'ChampSelect' && cs);
@@ -11290,27 +11278,13 @@ dialog.wizard { transform: scale(var(--from)); }
     renderPost(live);
     renderCombo();
     renderJg();
-    if (live) {
-      const lane = laneText(), csLine = csText();
-      $('laneStats').hidden = !lane && !csLine;
-      $('laneStats').textContent = [lane, csLine].filter(Boolean).join('. ');
-      const m = mayhem() && meIn(), tip = m && !renderMay() ? augTip(m.champ) : '';
-      $('augTips').hidden = !tip;
-      $('augTips').textContent = tip;
-      const rows = liveList(), ln = loadingNow() || (opts.deadTips && !!league && mine.dead) ? myLane(rows) : null; // the tips before the game starts, and while you're dead
-      renderTips($('gameTips'), ln && (ln.foe || ln.duo) ? tipsFor(ln.me.champ, ln.foe, ln.me.pos, ln.duo) : null);
-      premade = findPremades(rows);
-      $('liveRows').replaceChildren(...rows.map(scoutRow));
-      const lb = lobbyNow(rows);
-      $('liveAvg').hidden = !lb;
-      $('liveAvg').textContent = lb ? lb.text : '';
+    if (live) { // What's new 227: only what the overlay doesn't show (Mayhem's part, your build, matchup notes)
+      if (mayhem() && meIn()) renderMay();
+      const rows = liveList();
       renderNotes($('liveNotes'), myChampNow(), rows.filter((p) => !p.ally).map((p) => p.champ).filter(Boolean));
       const mi = meIn();
       renderBuild($('liveBuild'), myChampNow(), mi ? posIn(mi) : (livePlayers.find((p) => me0 && p.puuid === me0.puuid) || {}).pos || '');
       if (!$('mayBox').hidden && mayBuild()) $('liveBuild').hidden = true; // Mayhem's builds are in its own part
-      const g = teamGold(), tm = timers();
-      $('timers').replaceChildren(...[...tm.map(([n, s]) => [n, clock(s)]), ...(g ? [['Kills', `${g.kills[0]}–${g.kills[1]}`], ['Towers', `${g.towers[0]}–${g.towers[1]}`], ...(g.gold != null ? [['Gold', goldText(g.gold)]] : [])] : [])]
-        .map(([n, v]) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = n; s.append(b, v); return s; }));
     }
     renderClash(ph);
     renderTier();
@@ -21428,6 +21402,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [227, 'November 24: Game shows only what the overlay doesn’t', [
+      'In a game, the Game page keeps your build to edit, your matchup notes and Mayhem’s augments. Everyone’s rank, the timers, the gold difference, your lane and the tips are gone from it: the overlay shows them.',
+    ]],
     [226, 'November 24: your own loading screen background', [
       'Settings, Overlay, Loading screen has Background: keep it plain, pick any champion’s skin, or choose a picture of your own. It shows darkened behind everyone’s rank cards, on the loading screen and with Alt+X in a game. Your picture stays on your PC.',
     ]],
@@ -22685,18 +22662,18 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Enemy abilities', 'Your lane opponent’s show by themselves in champ select; click another enemy for theirs: their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
       ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, bottom left of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
-        'Avoid beside a player in champ select, on Game or in a game report, or type their Riot ID in Settings, Champ select.', '#avoidForm', 'app'],
+        'Avoid beside a player in champ select or in a game report, or type their Riot ID in Settings, Champ select.', '#avoidForm', 'app'],
       ['ARAM bench', 'In ARAM and ARAM: Mayhem, which bench champion suits you best, with Reroll.', 'In ARAM champ select: click one to take it.', '#bench', 'app'],
       ['Tier list', 'The strongest champions in each role in high elo (or Emerald and Diamond) this patch, S tier first with See more for the rest, with arrows for the ones rising or falling and how often each is banned. Click a champion for its page.', 'Tier list, on Pregame.', '#tierMore', 'app'],
       ['Clash', 'Your next Clash match’s other team: their ranks, recent games and tags.', 'On Pregame while you’re in Clash, once the bracket is out.', '#clashBox', 'app'],
       ['Borderless in one click', 'When League is in Fullscreen, where the overlay can’t show, one button switches it to Borderless through League’s own settings.', 'Switch to Borderless, on Pregame or in your ready check, outside a game.', '#winFix', 'app'],
     ]],
     ['League: Game', 'What’s going on in your game, and how you played once it’s over.', [
-      ['In game', 'From the loading screen on: everyone’s rank and last 20 games, when the next Dragon, Elder and Baron come, inhibitors coming back, the gold difference, and your CS and lane against your opponent.',
+      ['In game', 'From the loading screen on, Game has your build to edit and your matchup notes. Everyone’s rank, the timers, the gold difference and your lane are on the overlay.',
         'Nothing to set up: Game opens by itself when a game loads (Settings, Champ select).', '#liveBox', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, Callouts, Sound.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'On each augment card (3, or 4 with Maestro) its tier and a strength bar (DeepScore) for your champion, with its pick rate and Boost: Best pick on the strongest (by Boost when the cards differ in rarity) and Reroll? on a weak C or D card; Goes with when it makes one of DeepARAM’s best pairs with an augment you clicked (app 1.51), Fits your build, and New in 26.23 for an augment with no numbers yet. The overlay shows your champion’s best augments as pictures and your picks. Game shows your picks, the best augments, DeepARAM’s top 5 pairs, both core builds (What to buy follows yours) and your champion’s Mayhem changes; Stats, Games shows the augments of each Mayhem game. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
-        'Tick “Show each augment’s rating” in Settings, Overlay. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs, #mayBox, #augTips', 'app'],
+        'Tick “Show each augment’s rating” in Settings, Overlay. The desktop app reads the cards off your screen (English game text), with League in Borderless mode.', '#optMayhemAugs, #mayBox', 'app'],
       ['Combo trainer', 'In Practice Tool, your key presses on the overlay with the time between them, and each combo timed from its first key to its last, with your best for each combo on each champion.',
         'Start a Practice Tool game from Pregame, then tick Combo trainer on Game.', '#comboBox', 'app'],
       ['Jungle clear timer', 'In Practice Tool, your jungle clear timed camp by camp, from the gold each camp gives, against your best clear on that champion.',
@@ -22776,7 +22753,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Loading screen background', 'Behind everyone’s rank cards, on the loading screen and with Alt+X in a game: plain, any champion’s skin, or a picture of your own, darkened so the cards stay easy to read. Your picture stays on your PC.',
         'Settings, Overlay, Loading screen, Background: Plain, A skin (find a champion, then click a skin) or Your picture.', '#boardBg', 'app'],
       ['Three stats a player', 'Under each name, like Porofessor: the rank line with the win % (from Riot, as League’s client gives other players’ wins only), the last 10 games as win and loss blocks, their games and win % on this champion with its mastery level, and their main role’s icon, red when they play another. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; this season’s peak and the champions in the last 20 with Played and Winrate bars; the same bars a role.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
-      ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
+      ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on a player’s card in champ select.', 'Nothing to set up.', '#csRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
         'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: Settings, Overlay, While you’re dead, What to buy.', '#csBuild', 'app'],
       ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',

@@ -245,19 +245,16 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     await page.evaluate(() => { window.giveUp = 250; });
     L.phase = 'InProgress';
     await league(page, 'InProgress');
-    await wait(page, () => !document.getElementById('liveAvg').hidden && document.querySelectorAll('#liveRows tr').length === 10, null, 'the lobby rank on Game');
-    await wait(page, () => lpc.lcu().scouted.length >= 10 && /theirs Silver I\./.test(document.getElementById('liveAvg').textContent), null, 'everyone scouted');
+    await wait(page, () => lpc.lcu().scouted.length >= 10, null, 'everyone scouted');
     // yours: four Gold II 50 LP and you, Silver II 40 LP, so Gold III; theirs Silver I 50 LP, 218 points lower
-    assert.strictEqual(await text(page, '#liveAvg'), 'Average rank: your team Gold III, theirs Silver I. Your team is favored, by about 2 divisions.');
     await wait(page, () => lpc.toasts().includes('Bully is on your avoid list, on their team.'), null, 'the popup for Bully');
     assert(!(await page.evaluate(() => lpc.toasts().filter((t) => /^Toxic is on/.test(t)).length > 1)), 'Toxic named once a game');
-    assert.match(await page.locator('#liveRows tr', { hasText: 'Bully#EUW' }).textContent(), /On your avoid list/);
     await wait(page, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return b && b.heads && b.them.every((c) => c.rank !== 'Looking up…'); }, null, 'the overlay caught up'); // it's pushed on the page's next tick
     const board = await page.evaluate(() => lpcClient.lastOverlay.board);
     assert.deepStrictEqual(board.heads, [['Gold III', '#d9ad55', true], ['Silver I', '#a9b9c4', false]], 'What’s new 205: each row’s average in its tier’s color, and the favored one');
     assert.deepStrictEqual(board.them.find((c) => c.name === 'Bully').tags[0], ['bad', 'On your avoid list']);
     await shot(page, 'game-lobby-rank');
-    console.log('loading screen: each team’s average rank and the favored team on Game and the overlay, an enemy on the avoid list flagged');
+    console.log('loading screen: each team’s average rank and the favored team on the overlay, an enemy on the avoid list flagged');
     // What's new 224: League slower than the app waits, yet every card gets its last games (one player at a time, asked
     // again until League answers); none for the four looked up in champ select with no games
     await wait(page, () => { const b = lpcClient.lastOverlay && lpcClient.lastOverlay.board; return !!b && [...b.us, ...b.them].filter((c) => c.stats && c.stats.l20).length === 6; }, null, 'everyone’s last games');
@@ -265,7 +262,6 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     assert.deepStrictEqual([...b2.us, ...b2.them].map((c) => [c.name, c.stats.l20 ? c.stats.l20.games.length : c.stats.why]), [['Friend', 'No recent games'], ['Toxic', 'No recent games'],
       ['Rayan', 'No recent games'], ['Shooter', 1], ['Hooks', 'No recent games'], ['Axe', 1], ['Punch', 1], ['Bully', 1], ['Sniper', 1], ['Singer', 1]]);
     assert(L.histMax <= 2, `one player at a time: ${L.histMax} waiting at once`);
-    await wait(page, () => [...document.querySelectorAll('#liveRows tr')].filter((tr) => /Last 1: 1W 0L/.test(tr.textContent)).length === 6, null, 'the Game page too');
     console.log('loading screen: League slower than the app waits, and every card still gets its last games');
 
     // ---- What's new 226: the background behind everyone's rank, from Settings > Overlay > Loading screen: Plain at
