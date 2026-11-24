@@ -194,7 +194,6 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
         'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.', 'Riot’s tip against Zed: Stay away from the shadows.',
         'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.', 'Riot’s tip for Ahri: Use Charm to set up your combos.']);
       assert(o.board === true && o.parts.tips && o.parts.buy && o.parts.screen, `the whole screen, with their places: ${JSON.stringify(o.parts)}`);
-      await wait(page, () => { const e = document.getElementById('gameTips'); return !e.hidden && /Your note: stay out of the shadow’s range/.test(e.innerText); }, null, 'the tips on the Game page too');
       await wait(page, () => !!lpcClient.lastOverlay.buy, null, 'what to buy');
       assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.buy), { name: 'Zhonya’s Hourglass', pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/item/3157.png', why: 'armor against Zed and Talon' });
       const buyVs = async (them, items) => { await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, them, items)); return page.evaluate(() => { const b = lpc.buyNext(); return b && `${b.name}: ${b.why}`; }); };
@@ -225,8 +224,8 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(page, () => document.querySelector('#liveBuild h3').textContent === 'Premade’s build on Ahri', null, 'back to Premade’s build');
       console.log('your build: tier 3 boots count; Premade’s build with why, which you have and next; moved, taken out and added, and what to buy goes by it; back to Premade’s');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
-      await wait(page, () => !lpcClient.lastOverlay.tips && !lpcClient.lastOverlay.buy && document.getElementById('gameTips').hidden, null, 'all gone when you’re back');
-      console.log('while dead: the tips for your lane on the overlay and the Game page; what to buy: Zhonya’s against Zed and Talon, Banshee’s against magic, Morellonomicon against healers');
+      await wait(page, () => !lpcClient.lastOverlay.tips && !lpcClient.lastOverlay.buy, null, 'all gone when you’re back');
+      console.log('while dead: the tips for your lane on the overlay; what to buy: Zhonya’s against Zed and Talon, Banshee’s against magic, Morellonomicon against healers');
 
       // ---- your chance to win: even at 10:00, 2,000 gold up, 8,000 up at 20:00, an Elder each way, Baron gone
       const chance = (over, ours = [], theirs = []) => page.evaluate((g) => { lpcClient.emit('league', g); return lpc.winChance(); },

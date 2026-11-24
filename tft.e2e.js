@@ -522,12 +522,12 @@ const traitRows = (page) => page.$$eval('#tftTraits .tfttrait', (l) => l.map((b)
       q('.mayone', (e) => `${e.querySelector('.maug').title} ${e.querySelector('.maug b').textContent}`),
       q('.maypair', (e) => [...e.querySelectorAll('b, i, .tag')].map(t).join(' | ')),
       q('.maybld', (e) => [e.classList.contains('sel'), [...e.querySelectorAll('.mayit')].map((i) => i.title + (i.classList.contains('have') ? ' (have)' : '')).join(', '), t(e.querySelector('.maywr'))]),
-      q('.maychg span', t), document.getElementById('liveBuild').hidden, document.getElementById('augTips').hidden]; }), [
+      q('.maychg span', t), document.getElementById('liveBuild').hidden]; }), [
       ['Mystic Punch Start', 'Next Level 7', 'Next Level 11', 'Next Level 15'],
       ['Symphony of War S', 'Witchful Thinking A', 'Escape Plan B', 'One Hit Wonder C', 'Blunt Force C', 'ADAPt D'],
       ['Symphony of War + Escape Plan | Both hit harder in fights.', 'Mystic Punch + One Hit Wonder | More casts, more hits. | You have Mystic Punch', 'ADAPt + Bad Gold'],
       [[true, 'Sorcerer’s Shoes (have), Luden’s Echo, Zhonya’s Hourglass', '48.2%5.1% picked · +1.2 pts'], [false, 'Berserker’s Greaves, Infinity Edge, Phantom Dancer, Zhonya’s Hourglass', '49.5%1.4% picked · −0.8 pts']],
-      ['Change', 'Summoner’s Rift', 'Mayhem', 'Q Orb of Deception Damage', '40/65/90', '50/75/100'], true, true], 'Game as mockup board 3');
+      ['Change', 'Summoner’s Rift', 'Mayhem', 'Q Orb of Deception Damage', '40/65/90', '50/75/100'], true], 'Game as mockup board 3');
     assert(await pc.evaluate(() => /You’re on this one/.test(document.querySelector('#mayBox .maybld.sel').textContent)), 'the build you’re on marked');
     await shot(pc, 'mayhem-board3-game');
     await pc.evaluate(drawMayhem, SET_A);
@@ -621,7 +621,7 @@ const traitRows = (page) => page.$$eval('#tftTraits .tfttrait', (l) => l.map((b)
     await wait(pc, () => document.getElementById('mayBox').textContent.includes('Best for Miss Fortune'), null, 'Game on Miss Fortune');
     assert.deepStrictEqual(await pc.evaluate(() => [document.getElementById('mayBox').hidden, document.querySelectorAll('#mayBox .mayone').length, document.querySelectorAll('#mayBox .maypair, #mayBox .maybld, #mayBox .maychg').length]), [false, 1, 0], 'the old server on Game: the best augments only, no pairs, builds or changes');
     await mayhemAt(810, true, 15, 'Yasuo');
-    await wait(pc, () => document.getElementById('mayBox').hidden && !document.getElementById('augTips').hidden, null, 'DeepARAM down (502): the class tip on Game, no Mayhem part');
+    await wait(pc, () => document.getElementById('mayBox').hidden && /^Augments for Yasuo: /.test(window.lastOverlay.aug), null, 'DeepARAM down (502): the class tip on the overlay, no Mayhem part on Game');
     await pc.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await wait(pc, () => !lpc.mayState() && window.workersEnded >= 1, null, 'the reader and its Tesseract worker ended with the game');
     assert.deepStrictEqual(SENT.filter(([q]) => q === 'mayhem'), [], 'no Mayhem games sent to our server');

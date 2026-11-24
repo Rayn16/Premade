@@ -1980,9 +1980,7 @@ const leagueData = (over = {}) => ({
       ['', 'Premade with Shooter', '', 'Premade with Jungler', 'Autofill: usually middle', '', '', '', 'Maybe a smurf', '']);
     assert.deepStrictEqual([board.us.map((p) => p.name), board.them.map((p) => p.name)], [['Friend', 'Jungler', 'Rayan', 'Shooter', 'Hooks'], ['Axe', 'Puncher', 'Shadow', 'Sniper', 'Singer']]);
     assert.deepStrictEqual(board.tips, { title: 'Ahri against Zed', lines: ['Your note: Respect his level 6. Ward the side bushes.', ...TIPS_AHRI_ZED] });
-    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('gameTips').hidden, null, 'the tips on the Game page');
-    assert.strictEqual(await pc.textContent('#gameTips h3'), 'Tips: Ahri against Zed');
-    assert.deepStrictEqual(await tipsIn(pc, '#gameTips'), board.tips.lines);
+    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden, null, 'Game opens by itself on the loading screen');
     await shot(pc, 'loading-screen');
     // What's new 195: a name clicked on the overlay opens that player's profile, with Premade in front
     const fronts = await pc.evaluate(() => lpcClient.calls.filter((c) => c === 'front').length);
@@ -2021,37 +2019,24 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(await tagsBy({ ranked: gold(60, 'GOLD'), games: top10, mastery: [{ championId: 103, championPoints: 500, lastPlayTime: Date.now() }] }, 103, { pos: 'TOP' }), ['10 losses in a row', 'First time on Ahri', 'One-trick: Garen'], 'not almost, same tier last season, not rusty');
     assert.deepStrictEqual(await pc.evaluate(() => [2, 1].map((n) => lpc.keyTags([['', 'Seen before: 2 against you'], ['bad', '3 losses in a row'], ['', 'One-trick: Zed'], ['good', 'Comfort pick'], ['bad', 'Autofill: usually top (mid in 1 of 12)'], ['', 'Maybe a smurf: level 30, 80% won']], n))),
       [[['bad', 'Autofill: usually top'], ['', 'One-trick: Zed']], [['bad', 'Autofill: usually top']]], 'the key tags in order, 2 on the loading screen and 1 in a game');
-    console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane, also on the Game page; off on the Overlay page, hidden by the key');
+    console.log('loading screen: everyone’s rank, record and tags on the overlay with the tips for your lane; off on the Overlay page, hidden by the key');
     console.log('loading screen (What’s new 166-168): your side, the look picked on the Overlay page, skins and spells, the three stats and their boxes, the key tags only, and the new tags’ rules');
 
     // ---- in game: everyone scouted, timers, gold, the overlay and the phone
     await league(leagueData());
-    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('liveBox').hidden && document.querySelectorAll('#liveRows tr').length === 10 && /Dragon/i.test(document.getElementById('timers').textContent), null, 'the Game page in game');
-    await wait(pc, () => lpc.lcu().scouted.includes('enemy5') && [...document.querySelectorAll('#liveRows tr')].every((tr) => /LP|Unranked/.test(tr.textContent)), null, 'all ten scouted');
+    await wait(pc, () => !document.querySelector('.view[data-view="game"]').hidden && !document.getElementById('liveBox').hidden, null, 'the Game page in game');
+    await wait(pc, () => lpc.lcu().scouted.includes('enemy5'), null, 'all ten scouted');
     assert.strictEqual(callsTo(/alias\/lookup\?gameName=Singer&tagLine=EUW/).length, 1, 'the player League gave no puuid is found by Riot ID');
-    const live = await pc.evaluate(() => [...document.querySelectorAll('#liveRows tr')].map((tr) => [tr.dataset.team, tr.hasAttribute('data-me'), tr.innerText.replace(/\s+/g, ' ')]));
-    assert.deepStrictEqual(live.map(([t]) => t), [...Array(5).fill('ally'), ...Array(5).fill('enemy')]);
-    assert(live[0][1] && /Rayan#EUW/.test(live[0][2]), 'you are marked');
-    const row = (n) => live.find(([, , t]) => t.startsWith(`${n}#`))[2];
-    assert.match(row('Shadow'), /First time on Zed/);
-    assert.match(row('Jungler'), /One-trick: Lee Sin.*Premade with Shooter \(3 recent games\)/);
-    assert.match(row('Shooter'), /Premade with Jungler \(3 recent games\)/);
-    assert.match(row('Shadow'), /Seen before: 20 against you \(you won 13\)/);
-    assert.match(row('Sniper'), /Maybe a smurf: level 30, 80% won/);
-    assert.match(row('Hooks'), /Autofill: usually \w+ \(support in 0 of 20\)/);
-    assert.strictEqual(live.filter(([, , t]) => /Premade|smurf/.test(t)).length, 3, 'nobody else premade or a smurf');
     assert.strictEqual(await pc.evaluate(() => document.querySelector('#liveNotes .notelist').textContent), 'Ahri against Zed: Respect his level 6. Ward the side bushes.');
-    const timers = await text(pc, '#timers');
-    assert.match(timers.replace(/\s+/g, ' '), /DRAGON 1:[0-4]\d VOIDGRUBS UP HERALD [45]:\d\d BARON (10:00|9:[1-5]\d) THEIR MID INHIBITOR (4:[01]\d|3:[3-5]\d) KILLS 5–3 TOWERS 1–0 GOLD \+15\.5k/i); // counting down since the game data came: up to 50 s on a busy container
+    assert(await pc.locator('#liveRows, #timers, #laneStats, #gameTips, #liveAvg, #augTips, #liveBox h2').count() === 0, 'Game in a game: no ranks, timers, lane or tips, the overlay has them (What’s new 227)');
     await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Voidgrubs up · Herald \d+:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k · Win chance 9\d%$/.test(lpcClient.lastOverlay.game), null, 'the overlay line, ending with the chance to win');
-    assert(await pc.evaluate(() => !lpcClient.lastOverlay.board && document.getElementById('gameTips').hidden), 'no ranks on the overlay and no tips once the game is on');
+    assert(await pc.evaluate(() => !lpcClient.lastOverlay.board && !lpcClient.lastOverlay.tips), 'no ranks on the overlay and no tips once the game is on');
     // the phone as a second screen (What's new 215): the clock, the score, the objectives' timers
     await wait(phone, () => !document.getElementById('game').hidden && [...document.querySelectorAll('#objs .obj > span')].map((e) => e.textContent).join() === 'Dragon,Voidgrubs,Herald,Baron,Their mid inhibitor', null, 'the timers on the phone');
     assert.match(await text(phone, '#gClock'), /^1\d:\d\d$/);
     assert.deepStrictEqual(await phone.$$eval('#stats > span', (l) => l.map((e) => `${e.querySelector('b').textContent} ${e.querySelector('small').textContent}`)), ['5 – 3 Kills', '1 – 0 Towers', '+15.5k Gold']);
     assert.match(await phone.$eval('#objs .obj:first-child b', (b) => b.textContent), /^1:\d\d$/, 'Dragon’s time left');
-    // your lane and CS a minute: on the Game page and the overlay, against your usual on Ahri
-    await wait(pc, () => /^Your lane against Zed: level 11 vs 10 · CS 100 vs 90 · kills 3 vs 2\. CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(document.getElementById('laneStats').textContent) && !document.getElementById('laneStats').hidden, null, 'lane stats');
+    // your lane and CS a minute on the overlay, against your usual on Ahri
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
     await wait(pc, () => lpcClient.lastOverlay.lane === 'vs Zed: CS +10 · gold +3.1k', null, 'your lane on the overlay: CS and item gold against Zed');
     // and the chance to win, your CS and gold against Zed, and all ten players with their rank, folded away
@@ -2100,14 +2085,13 @@ const leagueData = (over = {}) => ({
     // the sound 30 seconds before Dragon (the last one was at 6:40, so the next at 11:40)
     await league(leagueData({ t: 672 }));
     await wait(pc, () => lpc.toasts().includes('Dragon in 30 seconds') && lpc.played().includes('spawn'), null, 'the Dragon warning');
-    // ARAM: Mayhem: what kind of augment suits Ahri, on the overlay at the start and while dead, on the Game page all game
-    await openPage(pc, 'game');
-    assert(await pc.evaluate(() => !lpcClient.lastOverlay.aug && document.getElementById('augTips').hidden), 'no augment tips in a ranked game');
+    // ARAM: Mayhem: what kind of augment suits Ahri, on the overlay at the start and while dead
+    assert(await pc.evaluate(() => !lpcClient.lastOverlay.aug), 'no augment tips in a ranked game');
     const AHRI_AUG = 'Augments for Ahri: look for ability power, ability haste, magic penetration and mana; skip attack speed and critical strikes.';
     await league(leagueData({ mode: 'KIWI', t: 30 }));
-    await wait(pc, (a) => lpcClient.lastOverlay.aug === a && document.getElementById('augTips').textContent === a, AHRI_AUG, 'augment tips in Mayhem');
+    await wait(pc, (a) => lpcClient.lastOverlay.aug === a, AHRI_AUG, 'augment tips in Mayhem');
     await league(leagueData({ mode: 'KIWI', t: 300 }));
-    await wait(pc, () => lpcClient.lastOverlay.aug === '' && !document.getElementById('augTips').hidden, null, 'off the overlay between augments');
+    await wait(pc, () => lpcClient.lastOverlay.aug === '', null, 'off the overlay between augments');
     await league(leagueData({ mode: 'KIWI', t: 300, me: { ...leagueData().me, dead: true } }));
     await wait(pc, (a) => lpcClient.lastOverlay.aug === a, AHRI_AUG, 'back on the overlay while dead');
     await league(leagueData());
