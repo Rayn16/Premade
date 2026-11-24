@@ -9255,10 +9255,10 @@ dialog.wizard { transform: scale(var(--from)); }
   rail.addEventListener('focusin', (e) => railTip(e.target.matches('.nav:focus-visible') ? e.target : null));
   rail.addEventListener('focusout', () => railTip(null));
   rail.addEventListener('scroll', () => railTip(null));
-  function view(name, fade) { // fade: picked in the menu, so the page fades in (a shortcut's page is just there)
+  function view(name, fade, list) { // fade: picked in the menu, so the page fades in (a shortcut's page is just there); list: true for League's list, false for Premade's, else the page's own
     bump('u', '#' + name);
     if (name === 'voice' || name === 'profile') store.set('lpc-start', name); // Premade opens on the one of these two you used last
-    const btn = document.querySelector(`.nav[data-view="${name}"]`), inL = $('leagueList').contains(btn), lol = !!opts.justLeague || inL; // a League page (or Just League): the sidebar shows League's list
+    const btn = document.querySelector(`.nav[data-view="${name}"]`), inL = $('leagueList').contains(btn), lol = !!opts.justLeague || (list ?? inL); // a League page (or Just League): the sidebar shows League's list
     const swap = railLol !== null && lol !== railLol; // the list slides, so the page doesn't also fade in (never at startup)
     for (const v of document.querySelectorAll('main > .view')) { v.hidden = v.dataset.view !== name; v.classList.toggle('enter', !!fade && !swap); }
     for (const b of document.querySelectorAll('.rail .nav')) if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -9269,6 +9269,7 @@ dialog.wizard { transform: scale(var(--from)); }
       $('premadeList').hidden = $('brandP').hidden = lol;
       $('leagueList').hidden = $('brandL').hidden = !lol;
       $('leagueNav').querySelector('span').textContent = lol ? 'Premade' : 'League';
+      (lol ? $('leagueFoot') : $('premadeList')).append(document.querySelector('.rail [data-view="settings"]')); // What's new 229: Settings ends whichever list shows, so it opens without a swap
       if (swap) for (const el of lol ? [$('leagueList'), $('brandL')] : [$('premadeList'), $('brandP')]) el.classList.add(lol ? 'from-right' : 'from-left'); // shown again, so it plays again
     }
     railTip(null);
@@ -9292,7 +9293,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   const main = document.querySelector('main'), statsView = main.querySelector('.view[data-view="stats"]');
   for (const b of document.querySelectorAll('.nav[data-view]')) b.addEventListener('click', () => view(b.dataset.view, true));
-  $('leagueNav').addEventListener('click', () => view(railLol ? premadePage : leaguePage, true));
+  $('leagueNav').addEventListener('click', () => view(railLol ? premadePage : leaguePage, true, !railLol)); // the other list, Settings included (it sits in whichever list shows)
   // Settings (What's new 207): one section at a time, the last one picked (Overlay the first time); one this device
   // doesn't show (Overlay in a browser, Voice in Just League outside a room) gives way to the first one it does
   function setSec(want) {
@@ -21478,6 +21479,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [229, 'November 24: Settings on League’s pages too', [
+      'Settings is at the bottom of League’s list in the sidebar now as well, one click away on Profile, Pregame or Game, and the sidebar stays on League’s pages.',
+    ]],
     [228, 'November 24: your next items on the overlay', [
       'All game, your next 3 items show as pictures under League’s score, the first with a bar your gold fills and a white ring once you can buy it. Two pills switch the build: Best win rate, where every game starts, and Vs their team, with the faces of the enemies an item is for. Yours shows up once you change your build. Hover an item for why.',
       'With Alt+X in a game, a panel beside everyone’s rank shows the whole build, your first levels and skill order, and Their team and Your team from their last 20 games: win rate, kills, deaths, assists, damage and front line.',
@@ -22631,7 +22635,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Each key sits with its feature: the overlay’s two in Settings, Overlay, Keys, the window’s in Settings, App, Keys, mute and push to talk in Settings, Voice, Talking, the clip key at the top of Clips. Press Change, then the new keys, with Ctrl, Alt or Shift. Keys another app uses as its shortcut work too (app 1.45.1), and so do PageUp, PageDown and Insert (app 1.46.0).', '#kShow, #kOverlay, #kBoard', 'app'],
       ['Your screen', 'The screen Premade reads your minimap from, and where the overlay shows.', 'Settings, League, Screen: pick the one League is on.', '#screens', 'app'],
       ['Themes and app size', 'Seven themes, Custom with your own background and text among them, your own main colour, Light while your computer is in light mode, and App size from 70% to 200%.', 'Settings, Look.', '#optZoom'],
-      ['Sidebar', 'Full or icons only, with each name beside its icon when you hover it. League’s pages swap into it when you press League, and Premade swaps back.', 'Drag the sidebar’s right edge to the left, or click it. Premade remembers the size.', '#railGrip'],
+      ['Sidebar', 'Full or icons only, with each name beside its icon when you hover it. League’s pages swap into it when you press League, and Premade swaps back. Settings ends both lists.', 'Drag the sidebar’s right edge to the left, or click it. Premade remembers the size.', '#railGrip'],
       ['Animations', 'Calm motion: buttons give a little when pressed, popups and pages ease in, and a win, a checkmate or a Last Card win lands with a short flourish. Reduced turns movement into short fades; it can pause by itself while League or Aion 2 runs. The in-game overlay never animates.', 'Settings, Look: Animations (Follow Windows unless you pick On or Reduced) and Pause animations while a game runs (off until you tick it).', '#optMotion'],
       ['Champion colours', 'Premade’s main colour follows the champion you’re playing, taken from its splash art.', 'Off until you tick it: Settings, Look, Main colour from the champion I’m playing.', '#optChampLook', 'app'],
       ['Sharing with your room', 'Your rank on your card in the room, your record with friends, and letting friends Watch your games.', 'On unless you turn it off: Settings, League.', '#optShareLol', 'app'],
