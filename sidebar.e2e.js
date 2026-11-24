@@ -2,7 +2,7 @@
 // Checks: dragging the edge past halfway settles on icons only (names kept for screen readers), dragging back on full,
 // a click or Enter switches, hover names beside the icons, the size kept after a reload, the edge following the mouse
 // at App size 150%; League swaps the list (League's from the right, Premade's back to the last Premade page), a League
-// page opened another way swaps it too, no slide at startup, Reduced = a short fade, off = none; a narrow window is
+// page opened another way swaps it too, Settings at the end of both lists and opening without a swap (What's new 229), no slide at startup, Reduced = a short fade, off = none; a narrow window is
 // icons only with no edge; a phone's bottom bar swaps the same way. SHOTS=<folder> saves pictures.
 //   NODE_PATH=/path/to/node_modules node sidebar.e2e.js
 const fs = require('fs');
@@ -93,13 +93,16 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.click('#leagueNav');
     const sw = await page.evaluate(() => ({ list: !document.getElementById('leagueList').hidden, premade: document.getElementById('premadeList').hidden, top: document.getElementById('brandL').checkVisibility() && document.getElementById('brandL').textContent, bottom: document.querySelector('#leagueNav span').textContent, page: !document.querySelector('.view[data-view="profile"]').hidden, slide: document.getElementById('leagueList').getAnimations().map((a) => a.animationName), fade: document.querySelector('.view[data-view="profile"]').getAnimations().length }));
     assert.deepStrictEqual(sw, { list: true, premade: true, top: 'League', bottom: 'Premade', page: true, slide: ['rail-in'], fade: 0 }, 'League’s list slides in on Profile (What’s new 207), the page doesn’t also fade');
-    assert.deepStrictEqual(await visibleNames(page), ['Profile', 'Squad', 'Pregame', 'Game', 'Stats', 'TFT', 'Premade'], 'League’s pages in the sidebar, no Proximity voice or Overlay');
+    assert.deepStrictEqual(await visibleNames(page), ['Profile', 'Squad', 'Pregame', 'Game', 'Stats', 'TFT', 'Settings', 'Premade'], 'League’s pages in the sidebar and Settings, no Proximity voice or Overlay');
     assert.strictEqual(await page.getAttribute('#leagueNav', 'aria-current'), null, 'the bottom button isn’t lit');
     await page.waitForTimeout(300);
     await page.click('.nav[data-view="stats"]');
     await shot(page, '3-full-league');
+    await page.click('#leagueFoot [data-view="settings"]');
+    assert(await page.isVisible('.view[data-view="settings"]') && await page.isVisible('#leagueList') && await page.textContent('#leagueNav span') === 'Premade', 'Settings from League’s list keeps it');
+    await page.click('.nav[data-view="stats"]');
     await page.click('#leagueNav');
-    assert(await page.isVisible('.view[data-view="settings"]') && await page.isVisible('#premadeList') && await page.textContent('#leagueNav span') === 'League', 'Premade: back to Settings');
+    assert(await page.isVisible('.view[data-view="settings"]') && await page.isVisible('#premadeList [data-view="settings"]') && await page.textContent('#leagueNav span') === 'League', 'Premade: back to Settings');
     await page.click('#leagueNav');
     assert(await page.evaluate(() => !document.querySelector('.view[data-view="stats"]').hidden), 'League again: the last League page'); // shown, if empty with no League
     await page.click('#railGrip');
@@ -177,7 +180,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     assert.deepStrictEqual(await visibleNames(pp), ['Rooms', 'Aion 2', 'Settings', 'League'], 'phone: Premade’s bar');
     await shot(pp, '8-phone-premade');
     await pp.click('#leagueNav');
-    assert.deepStrictEqual(await visibleNames(pp), ['Profile', 'Stats', 'TFT', 'Premade'], 'phone: League’s bar');
+    assert.deepStrictEqual(await visibleNames(pp), ['Profile', 'Stats', 'TFT', 'Settings', 'Premade'], 'phone: League’s bar');
     await pp.waitForTimeout(300);
     await shot(pp, '9-phone-league');
     console.log('sidebar e2e: all checks passed');
