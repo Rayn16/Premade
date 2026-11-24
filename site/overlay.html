@@ -24,9 +24,10 @@ body { font: 600 14px/1.2 'Segoe UI', system-ui, sans-serif; color: var(--fg); t
 .note { padding: 4px 12px; font-weight: 500; font-size: 13px; }
 .game { border-color: var(--gold); font-variant-numeric: tabular-nums; }
 svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-/* Move it: a frame you can drag anywhere, with a sample of what shows in it */
+/* Move it: a frame you can drag anywhere, with a sample of what shows in it, and its corner to size it (What's new 225) */
 body.edit { outline: 2px dashed var(--gold); outline-offset: -2px; background: color-mix(in srgb, var(--bg) 40%, transparent); -webkit-app-region: drag; cursor: move; }
 .edit .toast { border-color: var(--gold); }
+#grip { --rszc: var(--gold); width: 28px; height: 28px; border-radius: 0; -webkit-app-region: no-drag; } /* the window's own corner: everyone's rank's lines (.rsz) in the frame's gold */
 /* Everyone's rank (board, What's new 205: League's loading screen cards in Premade's look): Premade's own loading
    screen over all of League's (load), or the same cards at half size in the middle in a game (Alt+X), clear of the
    score, abilities and minimap. Your team on top on the red side, at the bottom on the blue side. Sized by the screen's
@@ -85,7 +86,7 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 /* What's new 179: in a game, drag the board by its top line anywhere and resize it by its corner; it stays there
    (ovCards in this page's storage: left and top as shares of the screen, k its size). A double-click on the line puts it back. */
 .rb:not(.load) > :first-child > .team { cursor: move; }
-.rb .rsz { position: absolute; right: 0; bottom: 0; width: 3.2em; height: 3.2em; cursor: nwse-resize; border-radius: 0 0 1.4em 0; background: linear-gradient(135deg, transparent 55%, color-mix(in srgb, var(--fg) 45%, transparent) 55% 63%, transparent 63% 75%, color-mix(in srgb, var(--fg) 45%, transparent) 75% 83%, transparent 83%); }
+.rsz { --rszc: color-mix(in srgb, var(--fg) 45%, transparent); position: absolute; right: 0; bottom: 0; width: 3.2em; height: 3.2em; cursor: nwse-resize; border-radius: 0 0 1.4em 0; background: linear-gradient(135deg, transparent 55%, var(--rszc) 55% 63%, transparent 63% 75%, var(--rszc) 75% 83%, transparent 83%); }
 .rb.load .rsz { display: none; }
 .pop.dn { bottom: auto; top: calc(100% + 0.6em); }
 .pop.rt { left: auto; right: -1em; }
@@ -282,6 +283,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
 <div id="mayhem" aria-hidden="true"></div>
 <div id="ghosts" aria-hidden="true"></div>
 <div id="call" data-part="call" role="status"></div>
+<div id="grip" class="rsz" title="Drag to size it" hidden></div>
 <script>
   // The Windows client's in-game overlay: a see-through window you can click through, over League in Borderless mode.
   // index.html fills it through the client with what the Overlay page picks: the objective timers, kills and gold
@@ -713,6 +715,22 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     return e;
   }
   let lastOverlayState = null;
+  // What's new 225: in Move it, its corner sizes it on the League screen, as Settings' Size does: the page keeps the size
+  // (overlayScale) and the app makes the window that size while you drag, along its diagonal in steps of 5%. Not in
+  // Settings' picture, or with an app before 1.46, which can't send it.
+  const grip = document.getElementById('grip');
+  grip.onpointerdown = (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    const x0 = e.screenX, y0 = e.screenY, k0 = Math.min(2, Math.max(0.7, +lastOverlayState.scale || 1));
+    let k = k0;
+    grip.onpointermove = (m) => {
+      const v = Math.round(Math.min(2, Math.max(0.7, k0 + ((m.screenX - x0) * 300 + (m.screenY - y0) * 360) / (300 * 300 + 360 * 360))) * 20) / 20;
+      if (v !== k) api.overlayProg({ id: 'size', x: (k = v) });
+    };
+    grip.onlostpointercapture = () => { grip.onpointermove = grip.onlostpointercapture = null; };
+  };
   const renderOverlay = (s) => {
     if (!s.visible) { call.classList.remove('on'); ghostLayer.replaceChildren(); parts.replaceChildren(); mayhemLayer.replaceChildren(); main.replaceChildren(); take(false); return; }
     const t = s.theme || {}; // a colour for each, or League's (an empty value takes the page's own back)
@@ -727,6 +745,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     document.body.style.setProperty('--k', k);
     document.body.style.opacity = s.edit ? 1 : Math.min(1, Math.max(0.2, +s.opacity || 1));
     document.body.classList.toggle('edit', !!s.edit);
+    grip.hidden = !(s.edit && api.overlayProg);
     document.body.classList.toggle('fade', !!s.fade);
     main.style.cssText = full ? place(s, k) : '';
     call.style.cssText = full && ok(spots.call) ? spot(spots.call, k) : '';
@@ -739,7 +758,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     const out = [], groups = {}, add = (g, e) => { (groups[g] = groups[g] || []).push(e); };
     if (s.call && !full) for (const n of call.children) out.push(n.cloneNode(true));
     if (s.edit) {
-      const hint = el('toast', 'Drag this where you want it');
+      const hint = el('toast', 'Drag this to move it, or its corner to size it');
       const done = document.createElement('button');
       done.textContent = 'Done';
       done.onclick = () => api.overlayDone();

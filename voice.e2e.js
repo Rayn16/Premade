@@ -1318,10 +1318,15 @@ const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a),
     await dee.evaluate(() => lpcClient.emit('overlay-moved', { x: 0.5, y: 0.25 }));
     let ov = await lastOverlay();
     assert(ov.pos === 'custom' && ov.box.x === 0.5 && ov.box.y === 0.25 && (await dee.inputValue('#optPos')) === 'custom', `dragged: ${JSON.stringify(ov)}`);
+    await dee.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'size', x: 1.35 } })); // its corner on the League screen (What's new 225)
+    ov = await lastOverlay();
+    assert(ov.scale === 1.35 && ov.edit && (await dee.textContent('#scaleOut')) === '135%' && (await dee.inputValue('#optScale')) === '1.35', `sized from its corner: ${JSON.stringify(ov)}`);
     await dee.$eval('#optScale', (el) => { el.value = 1.5; el.dispatchEvent(new Event('input')); });
     await dee.evaluate(() => lpcClient.emit('overlay-moved', { done: true }));
     ov = await lastOverlay();
     assert(ov.scale === 1.5 && !ov.edit && (await dee.textContent('#moveBtn')) === 'Move it on my screen', `bigger, and done from the overlay's own button: ${JSON.stringify(ov)}`);
+    await dee.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'size', x: 0.8 } }));
+    assert.strictEqual((await lastOverlay()).scale, 1.5, 'its corner only while you move it');
     console.log('hurt voice; the overlay moved and resized');
 
     // Chaos (Legends, Immersive and Gibberish) from League's game data: Dee's own voice changes for everyone
