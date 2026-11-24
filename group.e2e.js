@@ -1,12 +1,10 @@
 // Test of Your group and the rest of the October 20 batch in site/index.html, in Chromium: two players with League
-// open, Rayan (desktop app 1.14) and Duo (app 1.13), each with a fake League client, and our server's /squad and
-// /friends faked here (server/squad.test.js tests the real ones): the goal board and Best roles in a voice room, a squad
-// made and joined from the room, which pings each one wants, a call answered In 10 and joined from Duo's Premade, the
-// pings for a game and a rank-up, a Discord test post and the game's result there,
-// League chat on Pregame (a message sent, a new one and an invite popping up, the invite accepted, the room in
-// your League status and the old status back after), the note for Duo's old app, League chat on the phone remote, a
-// squad call's notification with In 10 and Not tonight (remote-sw.js), the call opened on the remote, and only calls
-// the desktop app lets through (client/main.js LCU_OK).
+// open, Rayan (desktop app 1.14) and Duo (app 1.13), each with a fake League client, and our server's /friends faked
+// here: the goal board and Best roles in a voice room, Friends you play with, no squad on Profile and never a /squad
+// request (What's new 223: the squad lives on the Squad page, squad.e2e.js), a Discord test post and the game's result
+// there, League chat on Pregame (a message sent, a new one and an invite popping up, the invite accepted, the room in
+// your League status and the old status back after), the note for Duo's old app, League chat on the phone remote, the
+// match found notification (remote-sw.js), and only calls the desktop app lets through (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node group.e2e.js        (SHOTS=folder saves screenshots)
 const fs = require('fs');
@@ -33,18 +31,12 @@ http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': { '.js': 'text/javascript', '.png': 'image/png', '.wasm': 'application/wasm', '.json': 'application/json' }[path.extname(file)] || 'text/html' });
   fs.createReadStream(file).pipe(res);
 }).listen(8086, '127.0.0.1');
-const answered = []; // what a notification's In 10 sent (remote-sw.js), to a server of its own: [path, body]
-http.createServer((req, res) => {
-  let b = '';
-  req.on('data', (c) => { b += c; });
-  req.on('end', () => { answered.push([req.url, b]); res.writeHead(200, cors); res.end('{}'); });
-}).listen(9106, '127.0.0.1');
 
-// ---- our server, faked: squads as server/squad.js keeps them
+// ---- our server, faked: who has Premade and Friends; any /squad request is counted (none should come, What's new 223)
 const H = 36e5, T = Date.now();
-const S = { squads: {}, pings: [], apps: {}, inv: [], inbox: [] }; // inbox: the pages' /inbox sockets, [device id, socket]
+const S = { squadAsks: 0, apps: {}, inv: [], inbox: [] }; // inbox: the pages' /inbox sockets, [device id, socket]
 function fakeServer(r) {
-  const q = r.request(), [, what, code, act = ''] = new URL(q.url()).pathname.split('/'), reply = (json, status = 200) => r.fulfill({ status, json, headers: cors });
+  const q = r.request(), [, what] = new URL(q.url()).pathname.split('/'), reply = (json, status = 200) => r.fulfill({ status, json, headers: cors });
   // who has Premade and Friends, as server/worker.js's Stats object keeps them (server/stats.test.js tests the real ones)
   const now = Math.round(Date.now() / 1000), low = (n) => n.toLowerCase();
   if (what === 'hello') { const b = JSON.parse(q.postData()); S.apps[b.id] = { name: b.name, riot: b.riot, last: now }; return r.fulfill({ status: 204, headers: cors }); }
@@ -60,16 +52,7 @@ function fakeServer(r) {
     for (const [id, ws] of S.inbox) if (S.apps[id] && S.apps[id].riot.map(low).includes(low(b.to))) ws.send('inv');
     return reply({ ok: true });
   }
-  const s = (S.squads[code] ||= { m: {}, call: null });
-  if (q.method() === 'GET') {
-    return reply({ m: Object.entries(s.m).map(([id, x]) => ({ id, n: x.n, phone: !!x.c, g: x.g, r: x.r })), call: s.call });
-  }
-  const b = JSON.parse(q.postData());
-  if (!act) { if (b.leave) delete s.m[b.id]; else s.m[b.id] = { n: b.n, c: b.c, g: b.g, r: b.r }; return reply({ ok: true }); }
-  if (!s.m[b.id]) return reply({ error: 'Not in this squad' }, 403);
-  if (act === 'call') { s.call = { n: (s.call ? s.call.n : 0) + 1, from: b.id, room: b.room, at: Date.now(), ans: {} }; return reply({ call: s.call.n, sent: Object.entries(s.m).filter(([id, x]) => id !== b.id && x.c).length }); }
-  if (act === 'answer') { s.call.ans[b.id] = b.a; return reply({ ok: true }); }
-  if (act === 'ping') { S.pings.push([s.m[b.id].n, b]); return reply({ sent: 1 }); }
+  if (what === 'squad') { S.squadAsks++; return reply({ error: 'gone' }, 404); }
 }
 
 // ---- the fake League clients: Rayan is Gold III with 90 LP, going for Gold I since Gold IV, and won 5 of 6 games in
@@ -180,7 +163,6 @@ const text = (page, sel) => page.locator(sel).textContent();
 const texts = (page, sel) => page.$$eval(sel, (l) => l.map((e) => e.textContent));
 const said = (page) => page.$$eval('#lolLog li', (l) => l.map((li) => `${li.querySelector('b').textContent}: ${li.lastChild.textContent}`)); // League chat's messages
 const toast = (page, t, what) => wait(page, (t) => lpc.toasts().includes(t), t, what);
-const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-squad')).id); // you in your squad
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chromium', args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] }); // the whole Chromium: the headless one always says no to notifications
@@ -276,55 +258,16 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await wait(ray, () => lpc.peers().some((p) => p.name === 'Duo'), null, 'Duo back in Rayan’s room', 30000);
     console.log('Friends you play with: only Duo (3 games, 67%), his profile, an invite joined from the column, and no room joined from the lobby');
 
-    // ---- a squad: Rayan makes one, Duo joins it from the room and turns off pings for rank-ups
-    await openPage(ray, 'profile'); await openPage(duo, 'profile'); // the squad, at the foot of Profile's friends column
-    await duo.click('#proFrFold'); // Duo's whole list too (the invite above was joined from faces only)
-    assert.match(await text(ray, '#sqNote'), /^Your group of up to 12\./);
-    await ray.click('#sqMake');
-    await wait(ray, () => document.getElementById('sqList').textContent === 'Rayan (you) · phone remote on', null, 'Rayan’s squad');
-    const sqCode = await ray.evaluate(() => JSON.parse(localStorage.getItem('lpc-squad')).code), rayId = await id(ray);
-    await wait(duo, () => (document.querySelector('#sqJoins button') || {}).textContent === 'Join Rayan’s squad', null, 'Rayan’s squad on Duo’s page');
-    assert.strictEqual(await text(duo, '#sqNote'), 'Friends in your room have a squad: join theirs, or make your own.');
-    await duo.click('#sqJoins button');
-    await wait(duo, () => document.querySelectorAll('#sqList li').length === 2, null, 'Duo in the squad');
-    const duoId = await id(duo);
-    assert.deepStrictEqual(await texts(duo, '#sqList li'), ['Rayan · phone remote on', 'Duo (you) · phone remote on']);
-    assert(await duo.locator('#optSqGame').isChecked() && await duo.locator('#optSqRank').isChecked(), 'both pings on at first');
-    await duo.click('#sqPings summary'); // its pings and Leave, under …
-    await duo.uncheck('#optSqRank');
-    await duo.click('#sqPings summary');
-    await until(() => S.squads[sqCode].m[duoId] && S.squads[sqCode].m[duoId].r === false, 'Duo’s pings for rank-ups off');
-    assert.deepStrictEqual(S.squads[sqCode].m, { [rayId]: { n: 'Rayan', c: 'rayanremote2', g: true, r: true }, [duoId]: { n: 'Duo', c: 'duophone2345', g: true, r: false } });
-    console.log('squad: made by Rayan, joined by Duo from the room, with their phones and pings');
+    // ---- What's new 223: no Squad at the foot of the friends column (faces only or the whole list), no Call the squad,
+    // and never a /squad request
+    await openPage(ray, 'profile');
+    assert.strictEqual(await ray.locator('#sqBox, #sqMake, #sqCallBtn, #sqIn10').count(), 0, 'no squad in the friends column');
+    await ray.click('#proFrFold');
+    assert.strictEqual(await ray.locator('#proFriends .frsq').count(), 0, 'nor in faces only');
+    await ray.click('#proFrFold');
+    console.log('squad: none on Profile’s friends column, and no /squad request');
 
-    // Duo leaves the room; Rayan calls the squad; Duo's Premade rings, Duo answers In 10 and joins from the call
-    await openPage(duo, 'voice');
-    await duo.click('#leaveBtn');
-    await wait(duo, () => lpc.slot() < 0, null, 'Duo out of the room');
-    await ray.evaluate(() => lpc.groupNow());
-    await wait(ray, () => document.querySelectorAll('#sqList li').length === 2, null, 'Duo in Rayan’s squad');
-    await ray.click('#sqCallBtn');
-    await toast(ray, `Called your squad to room ${CODE}: 1 phone got it.`, 'the call');
-    await wait(ray, (c) => document.getElementById('sqCall').textContent.startsWith('You called the squad (') && document.getElementById('sqCall').textContent.endsWith(`): room ${c}.`), CODE, 'Rayan’s call');
-    assert(await ray.locator('#sqIn10').isHidden() && await ray.locator('#sqJoin').isHidden(), 'nothing to answer to your own call');
-    await duo.evaluate(() => lpc.groupNow());
-    await toast(duo, `Rayan wants to play: room ${CODE}. Join from your Profile, Squad.`, 'the call on Duo’s page');
-    assert(await duo.evaluate(() => lpc.played().includes('call')), 'with its ring');
-    assert.match(await text(duo, '#sqCall'), new RegExp(`^Rayan wants to play \\([^)]+\\): room ${CODE}\\.$`));
-    await openPage(duo, 'profile');
-    assert(await duo.locator('#sqJoin').isVisible(), 'Join now, Duo being in no room');
-    await duo.click('#sqIn10');
-    await until(() => S.squads[sqCode].call.ans[duoId] === 'in10', 'Duo’s answer');
-    await ray.evaluate(() => lpc.groupNow());
-    await toast(ray, 'Duo: in 10.', 'Duo’s answer on Rayan’s page');
-    assert.deepStrictEqual(await texts(ray, '#sqList li'), ['Rayan (you) · phone remote on · called', 'Duo · phone remote on · in 10']);
-    await duo.click('#sqJoin');
-    await wait(duo, (c) => lpc.room() === c && lpc.slot() >= 0, code, 'Duo in Rayan’s room from the call');
-    await wait(duo, () => document.getElementById('sqJoin').hidden, null, 'no Join now in the room');
-    console.log('call: Rayan called, Duo’s Premade rang, Duo answered In 10 and joined from it');
-
-    // ---- Discord: the link checked, a test post; then a ranked game pings the squad when it starts and when Rayan ranks
-    // up after it, and posts the result in Discord
+    // ---- Discord: the link checked, a test post; then a ranked game's result, with the rank-up, posted in Discord
     await openPage(ray, 'settings');
     await ray.click('#setList [data-sec="league"]'); // Settings, League, Your Discord server (What's new 207)
     await ray.fill('#optHook', 'https://example.com/hook');
@@ -336,15 +279,13 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await wait(ray, () => document.getElementById('hookNote').textContent === 'Sent: have a look in your Discord channel.', null, 'the test post');
     assert.deepStrictEqual(discord, [{ content: 'Rayan’s games and clips will post here.', username: 'Premade', allowed_mentions: { parse: [] } }]);
     await ray.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'InProgress' }));
-    await until(() => S.pings.length === 1, 'the ping for a game');
-    assert.deepStrictEqual(S.pings, [['Rayan', { id: rayId, k: 'game', q: 'Ranked Solo/Duo', c: 'Ahri' }]]);
+    await wait(ray, () => lpc.lcu().curGame && lpc.lcu().curGame.id === 77, null, 'the game started');
     L.lp = { gameId: 77, queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', division: 'II', leaguePoints: 15, leaguePointsDelta: 25 };
     await ray.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'EndOfGame' }));
     await until(() => discord.length === 2, 'the game on Discord');
-    assert.deepStrictEqual(S.pings[1], ['Rayan', { id: rayId, k: 'rank', r: 'Gold II in Solo/Duo' }]);
     assert.strictEqual(discord[1].content, '**Rayan** won Ranked Solo/Duo as Ahri · 8/2/6 · score 100 (MVP)\n+25 LP: Gold II · 15 LP\nRanked up to Gold II in Solo/Duo!');
     await ray.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
-    console.log('Discord and pings: a test post; a game pinged when it started and for the rank-up after, and its result posted');
+    console.log('Discord: a test post, and the game’s result with the rank-up posted');
 
 
     // ---- League chat on Pregame: chats with friends, Duo#EUW's opened and answered, a new message and an invite pop up,
@@ -380,8 +321,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert(!L.calls.some(([who, , p]) => who === 'Duo' && /^\/lol-(chat|lobby\/v2\/received)/.test(p) && p !== '/lol-chat/v1/friends'), 'and doesn’t try'); // Friends reads the friends list (app 1.11)
     console.log('League chat: a message answered, a new one and an invite popped up, accepted, the room in the status; app 1.13 told to update');
 
-    // ---- the phone remote: League chat, answered from the phone; a squad call's notification with In 10 and Not tonight
-    // (In 10 answers our server), a ping's without; the call opened on the remote, as tapping it does, and Not tonight
+    // ---- the phone remote: League chat, answered from the phone; the match found notification, whatever a push carries
     const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: process.env.SHOTS ? 2 : 1 });
     await routes(pctx);
     await pctx.grantPermissions(['notifications']);
@@ -409,40 +349,23 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     await until(() => regs.some((g) => g.scopeURL.endsWith('/remote.html')), 'the remote’s service worker');
     const push = (data) => cdp.send('ServiceWorker.deliverPushMessage', { origin: 'http://127.0.0.1:8086', registrationId: regs.find((g) => g.scopeURL.endsWith('/remote.html')).registrationId, data: JSON.stringify(data) });
     const shown = () => phone.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => [n.tag, n.title, n.body, n.actions.map((a) => a.title).join(', ')]));
-    await push({ t: 'call', title: 'Duo wants to play', body: 'Room KAYN', sq: sqCode, call: 2, api: 'http://127.0.0.1:9106', to: rayId }); // as server/squad.js sends it
-    await until(async () => (await shown()).length === 1, 'the call’s notification');
-    assert.deepStrictEqual(await shown(), [['call', 'Duo wants to play', 'Room KAYN', 'In 10, Not tonight']]);
-    const sw = pctx.serviceWorkers().find((w) => w.url().endsWith('/remote-sw.js'));
-    await sw.evaluate(async () => { const [n] = await self.registration.getNotifications({ tag: 'call' }); self.dispatchEvent(new NotificationEvent('notificationclick', { notification: n, action: 'in10' })); });
-    await until(() => answered.length === 1, 'In 10 from the notification');
-    assert.deepStrictEqual(answered, [[`/squad/${sqCode}/answer`, JSON.stringify({ id: rayId, call: 2, a: 'in10' })]]);
-    await push({ t: 'ping', title: 'Duo started a game', body: 'Ranked Solo/Duo as Ahri', sq: sqCode, api: 'http://127.0.0.1:9106', to: rayId });
-    await until(async () => (await shown()).length === 1 && (await shown())[0][0] === 'ping', 'the ping’s notification');
-    assert.deepStrictEqual(await shown(), [['ping', 'Duo started a game', 'Ranked Solo/Duo as Ahri', '']]);
-    await phone.goto(`http://127.0.0.1:8086/remote.html?peer=127.0.0.1:9006&sq=${sqCode}&call=1&to=${duoId}`); // Duo's phone, from the notification
-    await wait(phone, () => !document.getElementById('call').hidden, null, 'the call on the remote');
-    assert.strictEqual(await text(phone, '#callText'), `Rayan wants to play: room ${CODE}. You said In 10.`);
-    await phone.click('#callNo');
-    await wait(phone, () => document.getElementById('callText').textContent === 'Sent: Not tonight.', null, 'Not tonight sent');
-    assert.strictEqual(S.squads[sqCode].call.ans[duoId], 'no');
+    await push({ t: 'call', title: 'Duo wants to play', body: 'Room KAYN' }); // what the old squad sent: shown as a match found now (What's new 223)
+    await until(async () => (await shown()).length === 1, 'the notification');
+    assert.deepStrictEqual(await shown(), [['match', 'Match found!', 'Tap to open the phone remote.', '']]);
+    await phone.goto('http://127.0.0.1:8086/remote.html?peer=127.0.0.1:9006&sq=abcdefghijkm&call=1&to=abcdefghijkm');
+    assert.strictEqual(await phone.locator('#call').count(), 0, 'no squad call on the remote');
     await pctx.close();
-    console.log('phone remote: League chat answered from the phone; a call’s notification with In 10 and Not tonight, a ping’s, the call on the remote');
+    console.log('phone remote: League chat answered from the phone; the match found notification, and no squad call');
 
-    // ---- Rayan leaves the room, and the old League status is back; then the squad
+    // ---- Rayan leaves the room, and the old League status is back
     await openPage(ray, 'voice');
     await ray.click('#leaveBtn');
     await until(() => chat.puts.length === 2, 'the old status back');
     assert.strictEqual(chat.puts[1], 'ranked grind');
     assert.strictEqual(await ray.evaluate(() => localStorage.getItem('lpc-lol-status')), 'null');
-    await openPage(ray, 'profile');
-    await ray.click('#sqPings summary');
-    ray.once('dialog', (d) => d.accept());
-    await ray.click('#sqLeave');
-    await until(() => !S.squads[sqCode].m[rayId], 'Rayan out of the squad');
-    assert.strictEqual(await ray.evaluate(() => localStorage.getItem('lpc-squad')), 'null');
-    assert(await ray.locator('#sqMake').isVisible(), 'Make a squad again');
+    assert.strictEqual(S.squadAsks, 0, 'never a /squad request');
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
-    console.log(`leaving: the old League status back, out of the squad; all ${L.calls.length} calls to League's client are on the desktop app's list`);
+    console.log(`leaving: the old League status back; all ${L.calls.length} calls to League's client are on the desktop app's list`);
   } finally {
     await browser.close();
   }

@@ -684,6 +684,62 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .bigrow .as { font-size: 12px; color: var(--muted); }
 .wcap.big2 { display: flex; align-items: center; min-height: 22px; font-size: 13px; font-weight: 600; }
 .bempty { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--soft); font-size: 13px; color: var(--muted); }
+/* What's new 223: your squad: its page, its comp on the draft board and in champ select */
+.sqtitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; }
+.sqtitle small { font: 500 14px/1 var(--body); color: var(--muted); }
+#sqPlan { flex: 1 1 260px; max-width: 360px; }
+.sqbest { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+@container app (max-width: 900px) { .sqbest { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container app (max-width: 480px) { .sqbest { grid-template-columns: minmax(0, 1fr); } }
+.sqpick { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.sqcard { height: 116px; cursor: default; }
+.sqcard:active { transform: none; }
+.sqwho { position: absolute; top: 8px; left: 8px; z-index: 1; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 52px); padding: 2px 10px 2px 2px; border-radius: 999px; background: rgb(11 8 9 / .78); color: #fff; font-size: 12.5px; text-shadow: none; }
+.sqwho .frface { width: 22px; height: 22px; font-size: 11px; }
+.sqwho .frface::after { content: none; }
+.sqwho b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.tcard .sqwho + .tctext { bottom: 9px; }
+.blk.dmg i.ad { background: var(--best); } .blk.dmg i.ap { background: var(--g-great); }
+.sqfaces { display: flex; gap: 6px; }
+.sqf { position: relative; display: block; }
+.sqf img { display: block; width: 36px; height: 36px; border-radius: 7px; }
+.sqf i { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; display: grid; place-items: center; border: 2px solid var(--panel); border-radius: 50%; background: var(--fg); color: var(--bg); font: 700 9px/1 var(--body); font-style: normal; }
+.sqcomp { grid-template-columns: minmax(0, 1fr); }
+.sqlist { display: grid; gap: 8px; }
+.sqrow { display: grid; grid-template-columns: auto minmax(120px, 200px) 44px minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--soft); }
+@container app (max-width: 760px) { .sqrow { grid-template-columns: auto minmax(0, 1fr) 44px auto; } .sqroles { grid-column: 1 / -1; order: 5; } }
+.sqrow > .frface { width: 40px; height: 40px; }
+.sqrow > .sx { grid-column: -2; }
+.sqroles { display: flex; flex-wrap: wrap; gap: 8px 24px; min-width: 0; }
+.sqrole { display: flex; align-items: flex-start; gap: 10px; }
+.sqrole > small { display: flex; align-items: center; gap: 5px; min-height: 30px; font-size: 12.5px; color: var(--muted); }
+.sqchamps { display: flex; flex-wrap: wrap; gap: 6px; }
+.sqc { display: grid; justify-items: center; gap: 2px; }
+.sqc img { width: 30px; height: 30px; border-radius: 6px; }
+.sqc small { font: 500 11px/1.2 var(--mono); color: var(--muted); }
+.sqaddrow { display: grid; gap: 8px; margin-top: 12px; }
+.sqaddrow > small { font-size: 12.5px; color: var(--muted); }
+.sqaddfaces { display: flex; flex-wrap: wrap; gap: 6px; }
+.sqadd { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 3px 12px 3px 3px; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--fg); font: 600 13px/1 var(--body); cursor: pointer; transition: transform var(--t-press); }
+.sqadd:hover { background: var(--soft-2); }
+.sqadd:active { transform: scale(0.97); }
+.sqadd .frface { width: 32px; height: 32px; }
+.sqcomps { display: grid; gap: 6px; }
+.sqcomps > .ph { margin: 0; font-size: 14px; }
+.sqline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: var(--soft); color: var(--fg); font: inherit; text-align: left; cursor: pointer; transition: transform var(--t-press); }
+.sqline:hover { background: var(--soft-2); }
+.sqline:active { transform: scale(0.99); }
+.sqline[aria-pressed="true"] { border-color: var(--gold-line); }
+.sqline > b { font-size: 14px; font-weight: 600; }
+.sqline > small { font-size: 12px; color: var(--muted); }
+.sqroleswap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.sqwhy { margin: 0; font-size: 13px; color: var(--muted); }
+.cssq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; }
+.cssq > b { font-size: 14px; font-weight: 600; }
+.cssq > small { font-size: 12.5px; color: var(--muted); }
+.csplan { position: absolute; top: 40px; left: 8px; z-index: 2; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px); padding: 2px 10px 2px 2px; border-radius: 999px; background: rgb(11 8 9 / .8); color: #fff; font-size: 12.5px; }
+.csplan img { width: 22px; height: 22px; border-radius: 50%; }
+.csplan b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .mu { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .muhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 /* What's new 210: both laners side by side, each on its splash */
@@ -2152,7 +2208,7 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 .frcol { position: relative; display: flex; flex-direction: column; width: 304px; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }
 .frhead { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 16px 16px 8px; }
 .frhead .frfold { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 28px; height: 28px; min-height: 0; padding: 0; }
-.frhead small, .frsqhead small { font-size: 13px; color: var(--muted); }
+.frhead small { font-size: 13px; color: var(--muted); }
 #proFrNote { margin: 4px 16px; font-size: 13.5px; }
 .frlist { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 4px 8px 16px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .fr { position: relative; display: flex; align-items: center; gap: 4px; border-radius: 8px; }
@@ -2188,21 +2244,9 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 .frinv { margin: 4px 16px 6px; padding: 10px 0 12px; border-block: 1px solid var(--line); display: grid; gap: 8px; }
 .frinv > div { display: grid; gap: 8px; }
 .frinv p { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 13.5px; line-height: 1.35; }
-.frinv .frface, .sqfaces .frface { width: 28px; height: 28px; font-size: 12px; }
+.frinv .frface { width: 28px; height: 28px; font-size: 12px; }
 .frinv b { font-weight: 600; }
 .frjoin { border-color: var(--fg); background: var(--fg); color: var(--bg); font-weight: 600; }
-.frsq { position: relative; flex: none; margin: 0 16px; padding: 12px 0 16px; border-top: 1px solid var(--line); }
-.frsqcard { display: flex; flex-direction: column; gap: 10px; }
-.frsqcard > .hint { margin: 0; font-size: 13px; }
-.frsqhead { display: flex; align-items: center; gap: 8px; }
-.frsqhead .ph { font-size: 14px; }
-.frsqhead .frmore { margin-left: auto; }
-.frsqhead .frmore .cmenu { top: auto; bottom: calc(100% + 4px); width: 260px; }
-.sqfaces { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.sqfaces .frface { width: 32px; height: 32px; }
-.sqfaces .frface[data-dot]::after { width: 12px; height: 12px; }
-.sqfaces:empty { display: none; }
-.frsqbtn { display: none; }
 #friendRows .frwho { display: flex; gap: 12px; }
 #friendRows td:nth-child(2) { width: 46px; }
 /* faces only, picked with the arrow at its top (What's new 220; the same as a smaller window, below, which hides the
@@ -2217,10 +2261,6 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 :where(.fr-slim) .frgo { padding: 4px; border-radius: 50%; }
 :where(.fr-slim) .fr .frface { width: 36px; height: 36px; outline: 2.5px solid var(--rc, var(--soft-2)); outline-offset: 3px; }
 :where(.fr-slim) .frinv { position: absolute; z-index: 5; top: 8px; right: calc(100% + 8px); width: 260px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
-:where(.fr-slim) .frsq { margin: 0; padding: 8px 10px 12px; display: grid; justify-items: center; }
-:where(.fr-slim) .frsqbtn { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
-:where(.fr-slim) .frsqcard { display: none; position: absolute; z-index: 5; right: 100%; bottom: 0; width: 280px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
-:where(.fr-slim) .frsq:is(:hover, :focus-within) .frsqcard { display: flex; }
 @container app (max-width: 1240px) {
   .frcol { width: 64px; }
   .frcol :is(.frhead, .frtext, .frring, .fracts, #proFrNote) { display: none !important; } /* not Pregame's invite rows, which share the row look */
@@ -2229,10 +2269,6 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
   .frgo { padding: 4px; border-radius: 50%; }
   .fr .frface { width: 36px; height: 36px; outline: 2.5px solid var(--rc, var(--soft-2)); outline-offset: 3px; }
   .frinv { position: absolute; z-index: 5; top: 8px; right: calc(100% + 8px); width: 260px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
-  .frsq { margin: 0; padding: 8px 10px 12px; display: grid; justify-items: center; }
-  .frsqbtn { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
-  .frsqcard { display: none; position: absolute; z-index: 5; right: 100%; bottom: 0; width: 280px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); box-shadow: 0 12px 32px rgb(0 0 0 / 0.5); }
-  .frsq:is(:hover, :focus-within) .frsqcard { display: flex; }
 }
 @container app (max-width: 560px) {
   .view[data-view="profile"] { height: auto; grid-template-columns: minmax(0, 1fr); }
@@ -2423,6 +2459,7 @@ dialog.wizard { transform: scale(var(--from)); }
     </div>
     <div id="leagueList" class="rlist" hidden>
       <button class="nav" type="button" data-view="profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-4.3 4.1-6.5 8-6.5s7.1 2.2 8 6.5"/></svg><span>Profile</span></button>
+      <button class="nav client-only" type="button" data-view="squad"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg><span>Squad</span></button>
       <button class="nav client-only" type="button" data-view="pregame"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/></svg><span>Pregame</span></button>
       <button class="nav client-only" type="button" data-view="game"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg><span>Game</span></button>
       <button class="nav" type="button" data-view="stats"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M6 17v-6M11 17V6M16 17v-4M21 17V9"/></svg><span>Stats</span></button>
@@ -2571,31 +2608,26 @@ dialog.wizard { transform: scale(var(--from)); }
         <div id="frInvBox" class="frinv" hidden></div>
         <p id="proFrNote" class="hint" role="status" hidden></p>
         <ul id="proFrList" class="frlist" aria-labelledby="h-profr"></ul>
-        <section id="sqBox" class="frsq" aria-labelledby="h-sq">
-          <button class="btn frsqbtn" type="button" aria-label="Squad"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg></button>
-          <div class="frsqcard">
-            <div class="frsqhead"><h3 id="h-sq" class="ph">Squad</h3><small id="sqCount"></small>
-              <details id="sqPings" class="cmore frmore" hidden>
-                <summary class="btn small" aria-label="Squad options"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
-                <div class="cmenu">
-                  <label class="check"><input id="optSqGame" type="checkbox"> Ping my phone when someone in my squad starts a game</label>
-                  <label class="check"><input id="optSqRank" type="checkbox"> Ping my phone when someone in my squad ranks up</label>
-                  <button id="sqLeave" class="btn small" type="button">Leave the squad</button>
-                </div>
-              </details>
-            </div>
-            <p id="sqNote" class="hint" role="status"></p>
-            <ul id="sqList" class="sqfaces" aria-label="In your squad"></ul>
-            <div id="sqCallBox" class="stack" hidden>
-              <p id="sqCall"></p>
-              <div class="toolbar"><button id="sqJoin" class="btn small frjoin" type="button">Join now</button><button id="sqIn10" class="btn small" type="button">In 10</button><button id="sqNo" class="btn small" type="button">Not tonight</button></div>
-            </div>
-            <button id="sqCallBtn" class="btn" type="button" hidden>Call the squad</button>
-            <button id="sqMake" class="btn" type="button">Make a squad</button>
-            <div id="sqJoins" class="stack"></div>
-          </div>
-        </section>
       </aside>
+    </section>
+
+    <section class="view" data-view="squad" aria-label="Squad" hidden>
+      <section class="panel" aria-labelledby="h-sqc">
+        <div class="tophead"><h1 id="h-sqc" class="title sqtitle">Squad <small id="sqCount"></small> <span id="sqWord"></span></h1><button id="sqPlan" class="btn primary" type="button" hidden>Plan it on the draft board</button></div>
+        <p id="sqNote" class="hint" role="status" hidden></p>
+        <div id="sqBestBox" class="stack" hidden>
+          <h2 id="sqBestHead" class="ph">Your best comp</h2>
+          <div id="sqBest" class="sqbest"></div>
+          <div id="sqWhy"></div>
+          <h3 id="sqOtherHead" class="ph">Other comps: click one to show it on top</h3>
+          <div id="sqOthers" class="big"></div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="h-sqin">
+        <h2 id="h-sqin" class="ph">Who’s in</h2>
+        <ul id="sqList" class="plain sqlist"></ul>
+        <div id="sqAdd" class="sqaddrow" hidden><small>Add a friend: Friends you play with, most games first</small><div id="sqAddFaces" class="sqaddfaces"></div></div>
+      </section>
     </section>
 
     <section class="view" data-view="voice" aria-label="Rooms">
@@ -2953,7 +2985,7 @@ dialog.wizard { transform: scale(var(--from)); }
         <div class="toolbar"><button id="queueBtn" class="btn primary" type="button">Find match</button><button id="practiceBtn" class="btn" type="button">Practice Tool</button><button id="lobbyLeave" class="btn" type="button" hidden>Leave lobby</button></div>
         <p id="lobbyNote" class="hint" hidden>Update the app (1.11) to pick the game and your roles and invite friends here.</p>
         <div id="inviteBox" hidden>
-          <h3 class="ph">Invite friends</h3>
+          <div class="tophead"><h3 class="ph">Invite friends</h3><button id="sqInvite" class="btn small" type="button" hidden></button></div>
           <p id="friendNote" class="hint" role="status"></p>
           <div class="tablewrap"><table class="ready"><tbody id="friendRows"></tbody></table></div>
         </div>
@@ -2967,6 +2999,7 @@ dialog.wizard { transform: scale(var(--from)); }
         <p id="csTurn" class="sr" data-game="1" role="status"></p>
         <p id="csVerdict" class="csverdict" role="status" hidden></p>
         <p id="fsLine" class="phase" hidden></p>
+        <div id="csSq" class="cssq" hidden></div>
         <div class="cscols">
         <div class="cscol csus"><h3 class="ph">Your team</h3>
         <p class="hint">Click one for everything about them.</p>
@@ -3065,11 +3098,11 @@ dialog.wizard { transform: scale(var(--from)); }
         <div class="tablewrap"><table class="ready scout"><thead><tr><th>Their team</th><th>Rank</th><th>Last 20 games</th><th>Tags</th></tr></thead><tbody id="clashRows"></tbody></table></div>
       </section>
       <section id="tdBox" class="panel" aria-labelledby="h-try" hidden>
-        <div class="tophead"><h2 id="h-try" class="ph">Draft board <button class="tip" type="button" popovertarget="t-try" aria-label="About the draft board">?</button></h2><button id="tdClear" class="btn small" type="button">Clear</button></div>
+        <div class="tophead"><h2 id="h-try" class="ph">Draft board <button class="tip" type="button" popovertarget="t-try" aria-label="About the draft board">?</button></h2><div class="toolbar"><button id="tdSqBtn" class="btn small" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.6 3.3-5.5 6.5-5.5s5.8 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg>Squad comp</button><button id="tdClear" class="btn small" type="button">Clear</button></div></div>
         <div id="tdBans" class="bansrow"></div>
         <div class="board">
           <div class="bcol"><h3 class="ph">Your team <span id="tdUsG"></span></h3><ul id="tdUs" class="plain slots"></ul></div>
-          <div id="tdHelp" class="bmidc"></div>
+          <div id="tdHelp" class="bmidc"><div id="tdSq" class="sqcomps" hidden></div></div>
           <div class="bcol"><h3 class="ph">Their team <span id="tdThemG"></span></h3><ul id="tdThem" class="plain slots"></ul></div>
         </div>
       </section>
@@ -4008,7 +4041,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Settings, Clips, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, League, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-live" class="tipbox" popover>From the loading screen on: everyone's rank and last 20 games, when the next Dragon (or Elder) and Baron come, inhibitors coming back, and the gold difference from everyone's items, as Tab shows them. Riot doesn't allow timers for enemy abilities or summoner spells, so there are none.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
-<div id="t-remote" class="tipbox" popover>Your phone as a remote for League, on any network, while this app is open on your PC: scan the code with your phone’s camera, or Copy link and open it there. It follows League one screen at a time, in your colours: pick the game and your roles, invite friends and find a match; accept it; go through champ select (picks for you, trades, runes, spells, skins and dodge); and in a game see the score, the objectives and your lane, time their Flash and ultimates and call them missing. Chat has your room’s chat and League chat. It buzzes and rings when a match is found or it’s your turn while the page is open; turn on “Tell me when a match is found” in its Settings for a notification even with its screen off, also for your squad’s calls and pings (on an iPhone, open the remote from its home screen icon first). Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
+<div id="t-remote" class="tipbox" popover>Your phone as a remote for League, on any network, while this app is open on your PC: scan the code with your phone’s camera, or Copy link and open it there. It follows League one screen at a time, in your colours: pick the game and your roles, invite friends and find a match; accept it; go through champ select (picks for you, trades, runes, spells, skins and dodge); and in a game see the score, the objectives and your lane, time their Flash and ultimates and call them missing. Chat has your room’s chat and League chat. It buzzes and rings when a match is found or it’s your turn while the page is open; turn on “Tell me when a match is found” in its Settings for a notification even with its screen off (on an iPhone, open the remote from its home screen icon first). Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
 <div id="t-tags" class="tipbox" popover>Tags come from the last 20 games, mastery, level and Riot's ranked flags. Green and red ones are good to know, gold ones are just for fun. A few (kill participation, solo kills, steals, pings) are only in Riot's own match data, so they don't show for games from League's client. Past ranks: League's client tells the desktop app where last season ended and its peak, and this season's peak, for players on your server, and the app keeps yours for when League is closed. Riot doesn't give older seasons, so our server keeps every rank it gets from Riot, season by season, and shows those seasons once they're over. Nothing from other sites.</div>
@@ -4094,7 +4127,7 @@ dialog.wizard { transform: scale(var(--from)); }
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false, frSlim: true,
-    sqGame: true, sqRank: true, hook: '', hookGames: true, hookClips: true, lolStatus: false,
+    hook: '', hookGames: true, hookClips: true, lolStatus: false,
     attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
   };
@@ -4696,7 +4729,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // when the name changes and every 5 s; then {t:'me', champ, team, dead, respawn, fx, range, ready, rm} on being
   // let in, when it changes and every 5 s (fx: the effects on your voice; range: your hearing range; ready: your setup
   // for the ready check; rm: the room's game mode as you have it, which counts only from the host, see takeMode),
-  // vq: your voice connection setting, Normal, Faster or Less data (see callPeer), sq: the squad you're in (Your group),
+  // vq: your voice connection setting, Normal, Faster or Less data (see callPeer),
   // {t:'face', img} when it changes, {t:'pos', x, y} on every tracked frame, {t:'talk', s, g} every 5 s,
   // {t:'chat', id, text, re, att} and the rest of the room chat's (below), {t:'ready?'} for a ready check, {t:'guess'} to the host for Guess the voice, {t:'echo'} when your
   // speakers send their voice back (echo check), {t:'timer'} for an enemy timer, {t:'cg'} for custom games
@@ -4706,7 +4739,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // (room games, below).
   const posMsg = () => ({ t: 'pos', x: +me.x.toFixed(4), y: +me.y.toFixed(4) });
   const meMsg = () => ({
-    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share, see: opts.roomScreen && !!share, sq: squad ? squad.code : '',
+    t: 'me', ...mine, fx: fxNow, range, ready: readyNow(), rm, st: myStatus(), min: league ? Math.floor(gameNow() / 60) : 0, vq: opts.voice, lol: lolShare(), lend: opts.lendScreen && !!share, see: opts.roomScreen && !!share,
     ...(sw.n && slot === hostSlot() && { sw: { n: sw.n, map: sw.map, pitch: sw.pitch, sc: sw.sc, left: Math.max(0, Math.round(sw.next - performance.now())) } }),
     ...(teams.n && slot === hostSlot() && { tm: teams }), ...(roles.n && slot === hostSlot() && { ro: roles }),
     ...(hm.n && slot === hostSlot() && { hm }), ...(roomKey && slot === hostSlot() && { hide: hideTo }), ...(mv.n && slot === hostSlot() && { mv }), ...(fs.n && slot === hostSlot() && { fs }),
@@ -4761,7 +4794,6 @@ dialog.wizard { transform: scale(var(--from)); }
       p.lol = lolOf(m.lol);
       p.lend = m.lend === true;
       p.see = m.see === true;
-      p.sq = typeof m.sq === 'string' && /^[a-z0-9]{12}$/.test(m.sq) ? m.sq : '';
       takeMode(m.rm, p.slot);
       takeSwap(m.sw, p.slot);
       if (p.slot === hostSlot()) { takeTeams(m.tm); takeRoles(m.ro); takeHostMute(m.hm, p.slot); takeHide(m.hide); takeMvp(m.mv, p.slot); takeFs(m.fs); }
@@ -9159,6 +9191,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (name === 'record') loadVids();
     if (name === 'settings') { loadScreens(); serverStats(); setSec(store.get('lpc-setsec') || 'overlay'); }
     if (name === 'tft') renderTft();
+    if (name === 'squad') renderSquadPage();
     if (name === 'help') renderRemoteHelp();
     if (name === 're4') re4();
     if (name === 'aion' && !$('aionFrame').getAttribute('src')) $('aionFrame').src = AION_URL;
@@ -9923,7 +9956,8 @@ dialog.wizard { transform: scale(var(--from)); }
     $('dBotBox').hidden = $('dBotNote').hidden = !bot;
     $('dBot').checked = botFirst(role);
     $('dBotNote').textContent = botFirst(role) ? `${d.foe ? 'Their' : 'Your'} lane${partner ? ` with ${champName(partner.c)}` : ''}${foes.length ? `, against ${foes.map((p) => champName(p.c)).join(' and ')},` : ''} counts 4 times the rest of the draft.` : 'Every part of the draft counts the same.';
-    const me = d.us.find((p) => p.me), dp = duo && d.us.find((p) => p.cell === duo.cell), own = d.try ? tryD[tryAt()[0]][role] | 0 : 0, free = pool.filter((x) => !x.off && x.id !== own), on = (c) => !!a && a.championId === c;
+    const me = d.us.find((p) => p.me), dp = duo && d.us.find((p) => p.cell === duo.cell), own = d.try ? tryD[tryAt()[0]][role] | 0 : 0, on = (c) => !!a && a.championId === c;
+    const plan = d.try ? null : ((sqCsPlan() || { picks: [] }).picks.find((p) => p.k === 'me' && p.plan && p.r === role) || null), free = pool.filter((x) => !x.off && x.id !== own).sort((x, y) => !!plan && (y.id === plan.c) - (x.id === plan.c)); // your squad's plan for you first (What's new 223)
     $('dSub').hidden = !d.try;
     $('dSub').textContent = d.foe ? (own ? 'Other picks for them' : 'What beats your team here') : own ? 'Other picks' : 'Best picks';
     const click = (c) => () => (d.try ? tryPut(c) : a && a.isInProgress && a.championId === c ? lockIn(c) : hover(c)); // as a square in the grid
@@ -9950,6 +9984,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const pals = {};
   const palBox = (host, parent) => pals[host.id] || (pals[host.id] = parent.appendChild(Object.assign(elm('div', 'hbox'), { ariaHidden: 'true' })));
   function palFill(box, p) {
+    if (sqCsSwaps(box, p)) return; // a squad friend still choosing: their swaps (What's new 223)
     const L = advLast, on = !!L && !!p && p.c > 0 && !p.me;
     box.toggleAttribute('data-on', on);
     if (!on) return;
@@ -9992,7 +10027,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // Pregame. Each slot ranks its role with the rest of the board, from its own team's side (theirs: what beats your
   // team, none of your own games), and shows its first 3 as faces; the picked slot gets the whole helper in the middle.
   // Kept while Premade runs, not saved. Nothing goes to League.
-  const tryD = { us: {}, them: {}, bans: [], at: null }; // role -> champion for each team, your bans (What's new 210), and at: [team, role] picked (['us', 'BANS']: your bans; null: your usual role on your team)
+  const tryD = { us: {}, them: {}, bans: [], at: null, who: {}, why: {}, sq: false }; // role -> champion for each team, your bans (What's new 210), who: your squad's player in a role and why: why the engine changed it (What's new 223), and at: [team, role] picked (['us', 'BANS']: your bans; null: your usual role on your team)
   const tryOn = () => $('csBox').hidden && !$('tdBox').hidden;
   const tryAt = () => tryD.at || ['us', usualRole()];
   function tryNow(t, r) { // the board for team t's role r, from t's side, with that slot left empty
@@ -10018,7 +10053,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // What's new 210: your bans on the board (5, kept with the draft). A banned champion can't go in a slot, and one on the
   // board can't be banned.
   function tryBan(c) {
-    if (tryD.bans.length < 5 && !tryD.bans.includes(c) && ![...Object.values(tryD.us), ...Object.values(tryD.them)].includes(c)) tryD.bans.push(c);
+    if (tryD.bans.length < 5 && !tryD.bans.includes(c) && ![...Object.entries(tryD.us).filter(([r]) => !tryD.who[r]).map(([, x]) => x), ...Object.values(tryD.them)].includes(c)) tryD.bans.push(c); // a squad slot's champion can be banned: it gets the next best (What's new 223)
     renderGame();
   }
   // ban ideas for the team you build: for each of their roles still empty, its their-side ranking (what beats your team
@@ -10095,13 +10130,18 @@ dialog.wizard { transform: scale(var(--from)); }
     $('tdBox').hidden = !$('csBox').hidden || !t || !t.n || (inGameNow() && !loadingNow()); // no advice during a game (Riot's rules)
     if ($('tdBox').hidden) { if ($('advBox').parentElement !== $('bansHead').parentElement) $('bansHead').before($('advBox')); return; } // back in champ select's Picks tab
     if ($('advBox').parentElement !== $('tdHelp')) $('tdHelp').append($('advBox'));
+    sqBoardTick();
     const R = tryRanks(), [at, ar] = tryAt(), pick = (s, r, c) => { if (c) tryD[s][r] = c; tryD.at = [s, r]; renderGame(); };
     $('tdClear').disabled = !Object.keys(tryD.us).length && !Object.keys(tryD.them).length && !tryD.bans.length;
     const ideas = tryBanIdeas(R), full = tryD.bans.length >= 5, bansOn = ar === 'BANS';
+    const sqS = new Map(), sqP = sqBoardPicks().filter((p) => p.c > 0); // a squad card's word: its pick in the comp (What's new 223)
+    sqScore(sqP).s.forEach((v, i) => sqS.set(sqP[i].r, v));
     const rows = (s) => Object.keys(POS).map((r) => {
       const c = tryD[s][r] | 0, pool = R[s + r].pool, x = pool.find((y) => y.id === c);
-      return { s, r, c, g: x ? x.s : null, faces: pool.filter((y) => !y.off && y.id !== c).slice(0, 3).map((y) => [y.id, y.s, y.why]) };
-    }), us = rows('us'), them = rows('them'), key = JSON.stringify([at, ar, ddVersion, us, them, tryD.bans, ideas.slice(0, 3).map((b) => [b.id, b.v.toFixed(1)])]);
+      const k = s === 'us' && tryD.who[r]; // a squad slot: its faces are that player's swaps (What's new 223)
+      return { s, r, c, k, g: k && sqS.has(r) ? sqS.get(r) : x ? x.s : null, faces: k ? sqSwaps(sqBoardPicks(), k, sqBoardGone(), advOpts.mode, sqBoardFoes()).slice(0, 3).map((o) => [o.c, o.t, [sqOn({ ...o, k })]])
+        : pool.filter((y) => !y.off && y.id !== c).slice(0, 3).map((y) => [y.id, y.s, y.why]) };
+    }), us = rows('us'), them = rows('them'), key = JSON.stringify([at, ar, ddVersion, us, them, tryD.bans, tryD.why, ideas.slice(0, 3).map((b) => [b.id, b.v.toFixed(1)])]);
     if ($('tdBox').dataset.key !== key) {
       $('tdBox').dataset.key = key;
       const word = (l) => { const k = l.filter((x) => x.g != null); return k.length ? [grade(k.reduce((n, x) => n + x.g, 0) / k.length)] : []; }; // the team's picks so far
@@ -10109,8 +10149,9 @@ dialog.wizard { transform: scale(var(--from)); }
         const on = x.s === at && x.r === ar, el = elm('li', 'slot'), team = x.s === 'us' ? 'your' : 'their';
         el.toggleAttribute('data-on', on);
         const card = mkBtn(`tcard${x.s === 'us' ? '' : ' them'}${x.c ? '' : ' none'}`, [...(x.c ? [tryArt(x.c)] : []),
-          elm('span', 'tctext', elm('small', '', roleIcon(x.r), POS[x.r]), elm('span', 'sname', elm('b', x.c ? '' : 'dim', x.c ? champName(x.c) : 'Empty'), ...(x.g == null ? [] : [grade(x.g)])))], () => pick(x.s, x.r), on);
+          ...(x.k ? [sqWho(x.k)] : []), elm('span', 'tctext', elm('small', '', roleIcon(x.r), POS[x.r]), elm('span', 'sname', elm('b', x.c ? '' : 'dim', x.c ? champName(x.c) : 'Empty'), ...(x.g == null ? [] : [grade(x.g)])))], () => pick(x.s, x.r), on);
         card.dataset.c = x.c || '';
+        if (x.k) card.title = `${sqName(x.k)}${x.c ? ` on ${champName(x.c)}` : ''}${tryD.why[x.r] ? `: ${tryD.why[x.r]}` : ''}`;
         el.append(card);
         if (x.c) { const b = mkBtn('tcx', ['×'], () => { delete tryD[x.s][x.r]; tryD.at = [x.s, x.r]; renderGame(); }); b.ariaLabel = b.title = `Take ${champName(x.c)} out`; el.append(b); }
         const f = elm('div', 'faces', ...x.faces.map(([c, sc, why]) => { const b = mkBtn('face', [champFace(c), grade(sc)], () => pick(x.s, x.r, c)); b.title = why.join('\n'); return b; }));
@@ -10138,11 +10179,15 @@ dialog.wizard { transform: scale(var(--from)); }
       $('tdBans').toggleAttribute('data-on', bansOn);
       $('tdBans').replaceChildren(head, sq, f);
     }
-    if (bansOn) return renderBanHelp(ideas);
+    renderSqComps();
+    const planned = new Set(Object.keys(tryD.who).map((r) => tryD.us[r]).filter(Boolean)), free = () => { if (at !== 'us' || bansOn) for (const b of $('dGrid').querySelectorAll('.dchamp')) if (planned.has(+b.dataset.c)) b.setAttribute('aria-disabled', 'false'); }; // their pick or your ban can take a squad slot's champion
+    if (bansOn) { renderBanHelp(ideas); return free(); }
     $('dPool').dataset.bkey = '';
     renderAdv(R[at + ar].d, ar);
+    free();
+    if (at === 'us' && tryD.who[ar]) renderSqSwaps(ar);
   }
-  $('tdClear').addEventListener('click', () => { tryD.us = {}; tryD.them = {}; tryD.bans = []; renderGame(); });
+  $('tdClear').addEventListener('click', () => { tryD.us = {}; tryD.them = {}; tryD.bans = []; tryD.who = {}; tryD.why = {}; tryD.sq = true; renderGame(); });
   // the matchup on the board (What's new 202, the Matchup explorer before it): the picked slot's champion (A) against
   // the other team's in that role (B), from the high elo games our server counts: the record, gold at 10 and how hard,
   // the lane bar (x: A in the picked slot's ranking), the runes and first items most of those games had, and the tips
@@ -10269,8 +10314,6 @@ dialog.wizard { transform: scale(var(--from)); }
       .filter(([p]) => p && typeof p === 'object').map(([p, team]) => ({ puuid: typeof p.puuid === 'string' ? p.puuid : '', name: nameOf_(p), champ: +p.championId || 0, team, pos: String(p.selectedPosition || '').toUpperCase() }));
     for (const p of livePlayers) scoutOf(p.puuid);
     if (!me0) loadMine(true);
-    const c = me0 && (livePlayers.find((p) => p.puuid === me0.puuid) || {}).champ;
-    if (curGame && curGame.queue > 0) sqPing({ k: 'game', q: QUEUES[curGame.queue] || 'A game', c: champOf(c) ? champName(c) : '' }); // your squad's phones (Your group)
   }
   const sameName = (a, b) => !!a && !!b && a.toLowerCase().split('#')[0] === b.toLowerCase().split('#')[0];
   // Lobby rank: each team's average rank in the queue being played (Flex in Flex, else Solo/Duo), from the players
@@ -10827,7 +10870,6 @@ dialog.wizard { transform: scale(var(--from)); }
         const prev = lpOf(myAcct()).filter((e) => e.q === n.queueType).pop(), was = prev ? { tier: prev.tier, division: prev.div } : rankNow && rankNow[n.queueType];
         if (was && TIERS.includes(was.tier) && rkVal({ tier: n.tier, division: n.division }) > rkVal(was)) {
           up = `${rkName({ tier: n.tier, division: n.division })} in ${QN[n.queueType] || 'ranked'}`;
-          sqPing({ k: 'rank', r: up });
         }
         lp = { id: g.id, at: Date.now(), q: n.queueType, tier: n.tier, div: n.division, lp: n.leaguePoints | 0, delta: n.leaguePointsDelta | 0, win: g.result ? g.result === 'Win' : n.leaguePointsDelta > 0, a: myAcct() };
         lpLog = [...lpLog, lp].slice(-300);
@@ -11296,6 +11338,8 @@ dialog.wizard { transform: scale(var(--from)); }
     $('fsLine').textContent = !fs.on ? '' : `Fearless series, game ${fsGames().length + 1}: ${used.length ? `nobody picks ${used.map(champName).join(', ')}.` : 'no champions used up yet.'}${fsC && used.includes(fsC.id) ? ` ${fsC.name} was played earlier in the series: pick another.` : ''}`;
     renderAdv();
     renderVerdict();
+    const sqPlan = sqCsPlan();
+    renderSqCs(sqPlan);
     const bench = cs.benchEnabled ? benchIdeas() : [];
     $('benchHead').hidden = $('bench').hidden = !bench.length;
     $('bench').replaceChildren(...bench.map((x) => {
@@ -11331,7 +11375,7 @@ dialog.wizard { transform: scale(var(--from)); }
         Object.assign(document.createElement('span'), { className: 'csline', textContent: line }));
       bar.append(who, ...(p.me && ks ? [pic(`${DD}/cdn/img/${ks.icon}`, ks.name, 'cskey')] : []), ...[seat.spell1Id, seat.spell2Id].filter((x) => spellPic(x)).map((x) => pic(spellPic(x), SPELLS[x], 'csspell')));
       const tn = turns.get(p.cell), bn = !tn && banOf.get(p.cell), turn = tn ? turnPill(tn, p.me) : bn ? [Object.assign(champFace(bn, 'csbanned'), { title: `Banned ${champName(bn)}` })] : [];
-      const art = artFor(p.cell, splashOf(k, p.champ ? p.skin : 0)), face_ = mkBtn('csface', [...(art ? [art] : []), ...(chip ? [Object.assign(tag(chip[0], chip[1]), { className: 'tag cschip' })] : []), ...turn, bar], () => { allyAt = open ? -1 : p.cell; renderGame(); });
+      const art = artFor(p.cell, splashOf(k, p.champ ? p.skin : 0)), face_ = mkBtn('csface', [...(art ? [art] : []), ...(chip ? [Object.assign(tag(chip[0], chip[1]), { className: 'tag cschip' })] : []), ...turn, ...sqPlanPill(sqPlan, p.cell), bar], () => { allyAt = open ? -1 : p.cell; renderGame(); });
       face_.setAttribute('aria-expanded', String(open));
       face_.title = p.name; // their Riot ID on a hover, when Riot shows it
       li.className = 'cscard';
@@ -11513,6 +11557,13 @@ dialog.wizard { transform: scale(var(--from)); }
     if ($('inviteBox').hidden) return;
     // friends to invite: your League friends who are online and not in your lobby, the ones free to play first
     const inLobby = new Set((lobby.members || []).map((m) => m && m.puuid)), asked = new Set((lobby.invitations || []).filter((i) => i && ['Pending', 'Requested', 'OnHold'].includes(i.state)).map((i) => i.toPuuid));
+    const sqOut = friends.filter((f) => squadM.some((x) => x.u === f.puuid) && !inLobby.has(f.puuid) && !asked.has(f.puuid)); // Invite your squad (What's new 223, C9)
+    $('sqInvite').hidden = !sqOut.length;
+    $('sqInvite').textContent = `Invite your squad (${sqOut.length} online)`;
+    $('sqInvite').onclick = async () => {
+      if (!okStatus(await lcuAsk('POST', '/lol-lobby/v2/lobby/invitations', sqOut.map((f) => ({ toSummonerId: f.summonerId, toPuuid: f.puuid }))))) notify('League didn’t invite your squad.', true);
+      await lobbyAgain();
+    };
     const list = friends.filter((f) => !inLobby.has(f.puuid)).map((f) => ({ f, st: (f.lol && GAME_STATUS[f.lol.gameStatus]) || (f.availability === 'away' ? 'Away' : 'Online'), asked: asked.has(f.puuid) }))
       .sort((a, b) => (b.st === 'Online') - (a.st === 'Online') || String(a.f.gameName).localeCompare(String(b.f.gameName)));
     $('friendNote').textContent = list.length ? '' : 'None of your League friends are online.';
@@ -14360,6 +14411,364 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!duo) return null;
     const l = duo.games.filter((g) => g.c === c && (!dc || g.dc === dc)), n = l.length, w = l.filter((g) => g.w).length;
     return { n, w, l, s: n ? Math.min(3, 1 + n / 2) + (n >= 5 ? 10 * (w / n - 0.5) : 0) : 0 };
+  }
+  // ---- Your squad (What's new 223; Rayan, 24 Nov: "i just add friends to a squad and then ... calcalute the best possible
+  // team comp we can play togather"): you and up to 4 Friends you play with, kept on this PC (lpc-squad: [{ riot, u, ic }]).
+  // A friend's champions and roles are what they played on your team in your Summoner's Rift games (duoAll), yours your
+  // own games there: no mastery, nobody else's match history. A comp: every way to share out the roles among you (each
+  // in a role they play, a tenth of their games or more, 3 at most; nobody fits: any role, its strongest high elo picks,
+  // new to them), each player's top 5 there, scored on the pick helper's scale: high elo strength in the role (Meta),
+  // the player's games on it (Balanced), how each two go together in high elo and in your games together, and what the
+  // team lacks (Matchups). The 3 best that differ in 2 picks or more. Banned and taken champions are out.
+  let squadM = load('lpc-squad', []);
+  if (!Array.isArray(squadM)) squadM = []; // the server squad before 223 (one object, voice names only): the new one starts empty
+  squadM = squadM.filter((x) => x && typeof x.u === 'string' && x.u && typeof x.riot === 'string').slice(0, 4);
+  const saveSquad = () => store.set('lpc-squad', JSON.stringify(squadM));
+  const sqName = (k) => (k === 'me' ? 'You' : ((squadM.find((x) => x.u === k) || {}).riot || 'A friend').split('#')[0]);
+  const sqComfort = (l) => { const n = l.length, w = l.filter((g) => g.w).length; return n ? Math.min(6, 1 + n / 2) + (n >= 5 ? 10 * (w / n - 0.5) : 0) : -5; }; // mineScore's numbers
+  const sqMemo = { k: '', pools: null, tog: null };
+  function sqData() { // each player's champions by role (best first, with their games: c, r, w) and your games where two of you played together
+    const all = duoAll(), k = [duoMemo.k, squadM.map((x) => x.u)].join('/');
+    if (sqMemo.k === k) return sqMemo;
+    const keys = ['me', ...squadM.map((x) => x.u)], pools = {}, tog = new Map();
+    for (const key of keys) {
+      const by = {}, n = {};
+      let all_ = 0;
+      for (const g of all) {
+        const x = key === 'me' ? [key, g.c, g.l] : g.m.find((y) => y[0] === key);
+        if (!x) continue;
+        all_++;
+        if (!POS[x[2]] || !(x[1] > 0)) continue;
+        n[x[2]] = (n[x[2]] || 0) + 1;
+        const m = (by[x[2]] ||= new Map());
+        m.set(x[1], [...(m.get(x[1]) || []), g]);
+      }
+      pools[key] = { n: all_, roles: Object.keys(n).filter((r) => n[r] >= all_ / 10).sort((a, b) => n[b] - n[a]).slice(0, 3),
+        by: Object.fromEntries(Object.entries(by).map(([r, m]) => [r, [...m].map(([c, l]) => ({ c, l })).sort((a, b) => sqComfort(b.l) - sqComfort(a.l) || b.l.length - a.l.length)])) };
+    }
+    for (const g of all) {
+      const on = [['me', g.c], ...g.m.filter((x) => keys.includes(x[0])).map((x) => [x[0], x[1]])];
+      for (let i = 0; i < on.length; i++) for (let j = i + 1; j < on.length; j++) { const id = sqTogKey(on[i], on[j]); tog.set(id, [...(tog.get(id) || []), g]); }
+    }
+    Object.assign(sqMemo, { k, pools, tog });
+    return sqMemo;
+  }
+  const sqTogKey = (x, y) => [x.join(':'), y.join(':')].sort().join('|');
+  const sqTog = (a, b) => (a.k && b.k && sqData().tog.get(sqTogKey([a.k, a.c], [b.k, b.c]))) || []; // your games with these two on these two champions, newest first
+  const sqPool = (k) => sqData().pools[k] || { n: 0, roles: [], by: {} };
+  function sqPlayers() { // you and the squad friends in your League lobby when you're in one, else the whole squad
+    const inL = lobby && Array.isArray(lobby.members) && lobby.members.length ? new Set(lobby.members.map((m) => m && m.puuid)) : null;
+    return ['me', ...squadM.filter((x) => !inL || inL.has(x.u)).map((x) => x.u)];
+  }
+  function sqOpts(k, r, gone, n = 5) { // a player's picks in a role: their own, else the role's strongest in high elo, new to them (C8)
+    const P = sqPool(k), own = P.roles.includes(r) ? (P.by[r] || []).filter((x) => !gone.has(x.c)).slice(0, n) : [];
+    if (own.length) return own;
+    const t = tiers(), by = (t && t.by[r]) || new Map();
+    return [...by].filter(([c, [g]]) => g >= 10 && !gone.has(c) && playsIn(c, r, t)).sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0])).slice(0, 3).map(([c]) => ({ c, l: [], fresh: true }));
+  }
+  const sqFront = (c) => !!c && (c.tags || []).some((t) => t === 'Tank' || t === 'Fighter');
+  // one pick's own part: its high elo strength, the player's games on it (-5 new to them) and -5 off their roles
+  function sqOwn(p, mode) {
+    const P = p.k ? sqPool(p.k) : null, off = P && !P.roles.includes(p.r) ? -5 : 0;
+    return off + (mode === 'matchups' ? 0 : 100 * (advBase(p.c, p.r) - 0.5)) + (mode === 'balanced' && P ? sqComfort(p.l || []) : 0);
+  }
+  function sqPair(a, b, mode) { // two picks together: high elo games with both on one team (as advScore's With), and your games together (as duoPart's)
+    if (mode === 'meta') return 0;
+    const p = (pairsIn(b.c, b.r) || { a: new Map() }).a.get(a.c), e = clamp(advBase(a.c, a.r) + advBase(b.c, b.r) - 0.5), l = sqTog(a, b), n = l.length, w = l.filter((g) => g.w).length;
+    return (p ? 100 * ((p[1] + 20 * e) / (p[0] + 20) - e) : 0) + (n ? Math.min(3, 1 + n / 2) + (n >= 5 ? 10 * (w / n - 0.5) : 0) : 0);
+  }
+  const sqFoe = (p, foes, mode) => (mode === 'meta' || !foes.length ? 0 : advScore(p.c, p.r, [], foes).v); // against their team on the board
+  function sqNeed(cs) { // what the team lacks once 4 have champions: magic or physical damage, a front line
+    const ch = cs.map(champOf).filter(Boolean), ap = ch.filter(isMagic).length;
+    return ch.length < 4 ? 0 : (!ap || ap === ch.length ? -2 : 0) + (ch.some(sqFront) ? 0 : -1.5);
+  }
+  // a comp's score: each pick's (its own part, each pair it's in, its lane) and their mean, on the pick helper's scale
+  function sqScore(picks, mode = advOpts.mode, foes = []) {
+    const s = picks.map((p) => sqOwn(p, mode) + sqFoe(p, foes, mode));
+    for (let i = 0; i < picks.length; i++) for (let j = i + 1; j < picks.length; j++) { const v = sqPair(picks[i], picks[j], mode); s[i] += v; s[j] += v; }
+    const nd = mode === 'meta' ? 0 : sqNeed(picks.map((p) => p.c));
+    return { s, t: (picks.length ? s.reduce((n, x) => n + x, 0) / picks.length : 0) + nd };
+  }
+  const sqPerms = (n, rs) => (!n ? [[]] : rs.flatMap((r) => sqPerms(n - 1, rs.filter((x) => x !== r)).map((l) => [r, ...l])));
+  let sqBestMemo = { k: '' };
+  function sqBest(keys = sqPlayers(), gone = new Set(), mode = advOpts.mode, foes = []) { // the 3 best comps: [{ picks: [{ k, r, c, l, fresh }], t }]
+    const t0 = tiers(), k = JSON.stringify([keys, [...gone], mode, foes.map((f) => [f.c, f.role]), sqData().k, topsVer, t0 && t0.n, !!champPos]);
+    if (sqBestMemo.k === k) return sqBestMemo.v;
+    const rs = Object.keys(POS), fits = (sp) => keys.every((x, i) => sqPool(x).roles.includes(sp[i]));
+    let splits = sqPerms(keys.length, rs).filter(fits);
+    const loose = !splits.length; // nobody's roles fit together: any role (C8), fewer picks each
+    if (loose) splits = sqPerms(keys.length, rs);
+    const all = [];
+    for (const sp of splits) {
+      const opts = keys.map((x, i) => sqOpts(x, sp[i], gone, loose ? 3 : 5).map((o) => ({ ...o, k: x, r: sp[i] })));
+      if (opts.some((o) => !o.length)) continue;
+      const own = opts.map((os) => os.map((p) => sqOwn(p, mode) + sqFoe(p, foes, mode))), pv = {};
+      for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) pv[i + '/' + j] = opts[i].map((a) => opts[j].map((b) => sqPair(a, b, mode)));
+      const at = [], go = (i, sum) => { // sum: each pick's own part and each pair twice (both picks have it), as sqScore adds them
+        if (i === keys.length) { const picks = at.map((a, x) => opts[x][a]); all.push({ picks, t: sum / keys.length + (mode === 'meta' ? 0 : sqNeed(picks.map((p) => p.c))) }); return; }
+        for (let a = 0; a < opts[i].length; a++) {
+          if (at.some((b, x) => opts[x][b].c === opts[i][a].c)) continue;
+          let v = own[i][a];
+          for (let x = 0; x < i; x++) v += 2 * pv[x + '/' + i][at[x]][a];
+          at.push(a);
+          go(i + 1, sum + v);
+          at.pop();
+        }
+      };
+      go(0, 0);
+    }
+    all.sort((a, b) => b.t - a.t);
+    const same = (a, b) => a.picks.filter((p) => b.picks.some((q) => q.k === p.k && q.r === p.r && q.c === p.c)).length, keep = [];
+    for (const c of all) { if (keep.every((x) => keys.length - same(x, c) >= Math.min(2, keys.length))) keep.push(c); if (keep.length === 3) break; }
+    sqBestMemo = { k, v: keep };
+    return keep;
+  }
+  // a player's other champions in their slot, the rest of the comp kept: each with the comp's mean after it, best first
+  function sqSwaps(picks, key, gone, mode = advOpts.mode, foes = []) {
+    const i = picks.findIndex((p) => p.k === key);
+    if (i < 0) return [];
+    const p = picks[i], used = new Set([...gone, ...picks.filter((q) => q !== p).map((q) => q.c)]);
+    return sqOpts(key, p.r, used, 6).filter((o) => o.c !== p.c).map((o) => ({ ...o, t: sqScore(picks.map((q, j) => (j === i ? { ...q, c: o.c, l: o.l, fresh: o.fresh } : q)), mode, foes).t })).sort((a, b) => b.t - a.t);
+  }
+  // the best role swap for a player with another of the squad that keeps the comp's word (Swap with Noor)
+  function sqRoleSwap(picks, key, gone, mode = advOpts.mode, foes = []) {
+    const i = picks.findIndex((p) => p.k === key), now = sqScore(picks, mode, foes).t, word = GRADES.findIndex(([m]) => now >= m);
+    if (i < 0) return null;
+    let best = null;
+    for (let j = 0; j < picks.length; j++) {
+      const a = picks[i], b = picks[j];
+      if (j === i || !b.k || !sqPool(a.k).roles.includes(b.r) || !sqPool(b.k).roles.includes(a.r)) continue;
+      const used = new Set([...gone, ...picks.filter((q) => q !== a && q !== b).map((q) => q.c)]);
+      for (const x of sqOpts(a.k, b.r, used, 3)) for (const y of sqOpts(b.k, a.r, used, 3)) {
+        if (x.c === y.c) continue;
+        const np = picks.map((q, z) => (z === i ? { ...a, r: b.r, c: x.c, l: x.l } : z === j ? { ...b, r: a.r, c: y.c, l: y.l } : q)), t = sqScore(np, mode, foes).t;
+        if (GRADES.findIndex(([m]) => t >= m) <= word && (!best || t > best.t)) best = { with: b.k, picks: np, t, a: np[i], b: np[j] };
+      }
+    }
+    return best;
+  }
+  // ---- the Squad page (What's new 223, card 4): your best comp on top, 2 other comps (a click puts one on top), who's in
+  // with their champions by role from your games together, Add a friend, and Plan it on the draft board
+  let sqTop = 0; // which comp is on top
+  const sqFace = (k) => { // a player's face: League's icon (yours: your own), else their first letter
+    const x = k === 'me' ? { riot: (me0 && me0.gameName) || 'You', ic: (me0 && me0.profileIconId) | 0 } : squadM.find((y) => y.u === k) || { riot: '?' };
+    return frFace({ riot: x.riot, ic: x.ic | 0 });
+  };
+  const sqWho = (k) => elm('span', 'sqwho', sqFace(k), elm('b', '', sqName(k))); // the dark pill on a card's art
+  const sqRec = (l) => { const w = l.filter((g) => g.w).length; return `${w}W ${l.length - w}L`; };
+  const sqDamage = (cs) => { const ch = cs.map(champOf).filter(Boolean), ap = ch.filter(isMagic).length; return [elm('span', 'blk sm dmg', ...ch.map((c) => elm('i', isMagic(c) ? 'ap' : 'ad'))), elm('small', 'wcap', `${ch.length - ap} physical, ${ap} magic`)]; };
+  function sqWhyRow(picks) { // Damage, Front line and Together (the pair of you with the most games together) as pictures
+    const why = elm('span', 'why'), g = (label, title, ...kids) => { const w = elm('span', 'wg', elm('small', '', label), ...kids); w.title = title; why.append(w); };
+    g('Damage', 'Physical (gold) and magic (blue) damage', ...sqDamage(picks.map((p) => p.c)));
+    const fr = picks.filter((p) => sqFront(champOf(p.c)));
+    g('Front line', 'Tanks and fighters', ...(fr.length ? [elm('span', 'wp', ...fr.map((p) => champFace(p.c)))] : [elm('small', 'wcap none', 'None')]));
+    let best = null;
+    for (let i = 0; i < picks.length; i++) for (let j = i + 1; j < picks.length; j++) { const l = sqTog(picks[i], picks[j]); if (l.length && (!best || l.length > best.l.length)) best = { a: picks[i], b: picks[j], l }; }
+    if (best) g('Together', `${champName(best.a.c)} and ${champName(best.b.c)} in your games together`, blocks(best.l), elm('small', 'wcap', `${best.a.k === 'me' ? 'You' : sqName(best.a.k)} and ${sqName(best.b.k)}: won ${best.l.filter((x) => x.w).length} of ${best.l.length}`));
+    return why;
+  }
+  const sqOrder = (picks) => Object.keys(POS).map((r) => picks.find((p) => p.r === r)).filter(Boolean);
+  function sqCard(p, s) { // a pick as the board's card: its art, who plays it, its role, champion and word
+    const card = elm('div', 'tcard sqcard', tryArt(p.c), sqWho(p.k), elm('span', 'tctext', elm('small', '', roleIcon(p.r), POS[p.r]), elm('span', 'sname', elm('b', '', champName(p.c)), grade(s))));
+    card.title = `${sqName(p.k)} on ${champName(p.c)}`;
+    return card;
+  }
+  const sqOn = (p) => { const l = p.l || []; return p.fresh || !l.length ? `New to ${p.k === 'me' ? 'you' : sqName(p.k)}` : `Won ${l.filter((g) => g.w).length} of ${l.length}${p.k === 'me' ? '' : ' with you'}`; };
+  function sqCompName(c, best) { // "With Garen and Vi": what it has that the best comp doesn't
+    const n = c.picks.filter((p) => !best.picks.some((q) => q.c === p.c));
+    return `With ${n.map((p) => champName(p.c)).join(' and ')}`;
+  }
+  function renderSquadPage() {
+    const v = main.querySelector('.view[data-view="squad"]');
+    if (!v || v.hidden) return;
+    const fr = client ? frRows().map((x) => ({ ...x, t: frTog(x) })).filter((x) => x.t && x.u).sort((a, b) => b.t.n - a.t.n || a.riot.localeCompare(b.riot)) : [];
+    const P = sqData().pools, none = squadM.length && squadM.every((x) => !(P[x.u] && P[x.u].n)), keys = sqPlayers(), comps = squadM.length && me0 && !none ? sqBest(keys) : [], top = comps[sqTop] || comps[0];
+    const note = !client ? 'The desktop app reads your games from League, so your squad’s comps show there.' : !me0 ? 'League is closed: open it and your squad’s comps show here. Your squad stays.'
+      : !squadM.length ? (fr.length ? 'Add up to 4 friends you play with below. Premade works out the best comp you can play together.' : 'No games with friends yet: play one with a League friend and they show up here to add.')
+      : none ? 'No games with your squad yet: play one together and Premade works out your comps. Your squad stays.' : !comps.length ? 'Working out your comps…' : keys.length < squadM.length + 1 ? `Only the ones in your League lobby count: ${keys.slice(1).map(sqName).join(', ') || 'just you'}.` : '';
+    const key = JSON.stringify([note, squadM, sqTop, comps.map((c) => [c.t.toFixed(2), c.picks.map((p) => [p.k, p.r, p.c])]), fr.map((x) => [x.u, x.riot, x.ic, x.dot, x.t]), sqData().k, ddVersion, advOpts.mode]);
+    if (v.dataset.key === key) return;
+    v.dataset.key = key;
+    $('sqNote').textContent = note;
+    $('sqNote').hidden = !note;
+    $('sqCount').textContent = squadM.length ? `You + ${squadM.length}` : '';
+    $('sqWord').replaceChildren(...(top ? [grade(top.t)] : []));
+    $('sqPlan').hidden = !top;
+    $('sqBestBox').hidden = !top;
+    if (top) {
+      const sc = sqScore(top.picks), order = sqOrder(top.picks);
+      $('sqBestHead').textContent = sqTop && comps[sqTop] ? sqCompName(top, comps[0]) : 'Your best comp';
+      $('sqBest').replaceChildren(...order.map((p) => elm('div', 'sqpick', sqCard(p, sc.s[top.picks.indexOf(p)]), ...((p.l || []).length ? [blocks(p.l)] : []), elm('small', 'wcap', sqOn(p)))));
+      $('sqWhy').replaceChildren(sqWhyRow(top.picks));
+      const others = comps.map((c, i) => [c, i]).filter(([, i]) => i !== (comps[sqTop] ? sqTop : 0));
+      $('sqOtherHead').hidden = !others.length;
+      $('sqOthers').replaceChildren(...others.map(([c, i]) => {
+        const b = mkBtn('bigrow sqcomp', [elm('span', 'sqfaces', ...sqOrder(c.picks).map((p) => elm('span', 'sqf', champFace(p.c), elm('i', '', sqName(p.k)[0])))),
+          elm('span', 'bighead', elm('b', '', i ? sqCompName(c, comps[0]) : 'Best comp'), grade(c.t)), sqWhyRow(c.picks)], () => { sqTop = i; renderSquadPage(); });
+        b.title = sqOrder(c.picks).map((p) => `${sqName(p.k)}: ${champName(p.c)}`).join('\n');
+        return b;
+      }));
+    }
+    // who's in: you, then each friend: their face, name, games together and win rate, their champions by role, an x
+    const row = (k, x) => {
+      const li = elm('li', 'sqrow'), pool = P[k] || { roles: [], by: {} }, t = x && frTog(x), [name, tag] = k === 'me' ? ['You', ''] : x.riot.split('#');
+      li.append(k === 'me' ? sqFace(k) : frFace(x), elm('span', 'frtext', elm('span', 'frname', elm('b', '', name), ...(tag ? [elm('small', '', '#' + tag)] : [])), elm('small', '', k === 'me' ? 'Your own games' : t ? `${plural(t.n, 'game')} together` : 'No games together yet')));
+      li.append(t ? frRing(t) : elm('span', 'frring'));
+      li.append(elm('span', 'sqroles', ...pool.roles.map((r) => elm('span', 'sqrole', elm('small', '', roleIcon(r), POS[r]), elm('span', 'sqchamps', ...(pool.by[r] || []).slice(0, 4).map((e) => {
+        const f = elm('span', 'sqc', champFace(e.c), elm('small', '', sqRec(e.l)));
+        f.title = `${champName(e.c)}: won ${e.l.filter((g) => g.w).length} of ${e.l.length}`;
+        return f;
+      }))))));
+      if (!pool.roles.length) li.lastChild.append(elm('small', 'wcap none', k === 'me' ? 'No Summoner’s Rift games read yet' : 'No Summoner’s Rift games together yet'));
+      if (k !== 'me') { const b = mkBtn('sx', ['×'], () => { squadM = squadM.filter((y) => y.u !== k); sqTop = 0; saveSquad(); renderSquadPage(); }); b.ariaLabel = b.title = `Take ${name} out`; li.append(b); }
+      return li;
+    };
+    $('sqList').replaceChildren(row('me'), ...squadM.map((x) => row(x.u, fr.find((y) => y.u === x.u) || x)));
+    const add = fr.filter((x) => !squadM.some((y) => y.u === x.u)).slice(0, 12);
+    $('sqAdd').hidden = squadM.length >= 4 || !add.length;
+    $('sqAddFaces').replaceChildren(...add.map((x) => {
+      const b = mkBtn('sqadd', [frFace(x), elm('span', '', x.riot.split('#')[0])], () => { if (squadM.length < 4) { squadM.push({ riot: x.riot, u: x.u, ic: x.ic | 0 }); sqTop = 0; saveSquad(); renderSquadPage(); } });
+      b.title = `Add ${x.riot}: ${plural(x.t.n, 'game')} together`;
+      return b;
+    }));
+  }
+  $('sqPlan').addEventListener('click', () => { const c = (sqBest(sqPlayers()) || [])[sqTop]; if (c) sqFill(c); view('pregame', true); });
+  // ---- your squad on the draft board (What's new 223, C3-C7): Your team starts with the squad's best comp, each card
+  // showing who plays it (tryD.who: role -> 'me' or a friend's puuid); a squad slot's faces are that player's swaps, and
+  // picked, the middle shows them as big rows with a role swap. A ban or their pick that takes a planned champion
+  // gives that slot the player's next best at once (tryD.why says why). Edits stay; Squad comp fills it all again.
+  const sqL = (k, r, c) => ((sqPool(k).by[r] || []).find((e) => e.c === c) || { l: [] }).l;
+  const sqBoardPicks = () => Object.entries(tryD.who).map(([r, k]) => ({ k, r, c: tryD.us[r] | 0, l: sqL(k, r, tryD.us[r] | 0), fresh: !sqL(k, r, tryD.us[r] | 0).length }));
+  const sqBoardGone = () => new Set([...tryD.bans, ...Object.values(tryD.them)]);
+  const sqBoardFoes = () => Object.entries(tryD.them).map(([role, c]) => ({ c, role }));
+  function sqFill(c) { // a comp onto Your team, the rest of it empty
+    tryD.us = {};
+    tryD.who = {};
+    tryD.why = {};
+    for (const p of c.picks) { tryD.us[p.r] = p.c; tryD.who[p.r] = p.k; }
+    tryD.at = ['us', (c.picks.find((p) => p.k === 'me') || c.picks[0]).r];
+    tryD.sq = true;
+  }
+  function sqBoardTick() { // before the board draws: the squad's comp the first time, and a planned champion banned or taken
+    if (!squadM.length || !me0) return;
+    if (!tryD.sq && !Object.keys(tryD.us).length) { const c = sqBest(sqPlayers(), sqBoardGone())[0]; if (c) sqFill(c); }
+    const gone = sqBoardGone();
+    for (const [r, k] of Object.entries(tryD.who)) {
+      const c = tryD.us[r] | 0;
+      if (!c || !gone.has(c)) continue;
+      const next = sqSwaps(sqBoardPicks(), k, gone, advOpts.mode, sqBoardFoes())[0];
+      tryD.why[r] = `${champName(c)} ${tryD.bans.includes(c) ? 'banned' : 'taken'}`;
+      if (next) tryD.us[r] = next.c; else delete tryD.us[r];
+    }
+  }
+  // the middle's top while a squad slot is picked: Swaps for Ali, 3 big rows, then the role swap that keeps the comp's word
+  function sqSwapRow(p, o, now) {
+    const picks = sqBoardPicks().filter((q) => q.c > 0 || q.r === p.r).map((q) => (q.r === p.r ? { ...q, c: o.c, l: o.l } : q)), was = GRADES.find(([m]) => now >= m)[2], is = GRADES.find(([m]) => o.t >= m)[2];
+    const why = elm('span', 'why'), g = (label, title, ...kids) => { const w = elm('span', 'wg', elm('small', '', label), ...kids); w.title = title; why.append(w); };
+    const who = p.k === 'me' ? 'You' : sqName(p.k);
+    g(`${who} on it`, `${who === 'You' ? 'Your' : `${who}’s`} games on it${who === 'You' ? '' : ' with you'}, newest first`, ...((o.l || []).length ? [blocks(o.l), elm('small', 'wcap', sqOn({ ...o, k: p.k }))] : [elm('small', 'wcap none', sqOn({ ...o, k: p.k, fresh: true }))]));
+    g('Team damage', 'Physical (gold) and magic (blue) damage', ...sqDamage(picks.map((q) => q.c)));
+    const fr = picks.filter((q) => sqFront(champOf(q.c)));
+    g('Front line', 'Tanks and fighters', ...(fr.length ? [elm('span', 'wp', ...fr.map((q) => champFace(q.c)))] : [elm('small', 'wcap none', 'None')]));
+    const b = mkBtn('bigrow', [elm('span', 'bigpic', champFace(o.c)), elm('span', 'bighead', elm('b', '', champName(o.c)), grade(o.t), elm('small', 'as', was === is ? `comp stays ${is}` : `comp ${is}, was ${was}`)), why], () => { tryD.us[p.r] = o.c; delete tryD.why[p.r]; renderGame(); });
+    b.classList.add('sqswap');
+    b.title = `${champName(o.c)} for ${who}: the rest of your comp stays`;
+    return b;
+  }
+  function renderSqSwaps(r) {
+    const k = tryD.who[r], all = sqBoardPicks().filter((q) => q.c > 0 || q.r === r), gone = sqBoardGone(), foes = sqBoardFoes(), cur = all.filter((q) => q.c > 0);
+    const now = sqScore(cur, advOpts.mode, foes).t, sw = sqSwaps(all, k, gone, advOpts.mode, foes).slice(0, 3), rs = sqRoleSwap(cur, k, gone, advOpts.mode, foes);
+    const key = JSON.stringify([r, k, tryD.us, tryD.why[r], sw.map((o) => [o.c, o.t.toFixed(2)]), rs && [rs.with, rs.a.c, rs.b.c], ddVersion]);
+    if ($('dTopRows').dataset.sq === key && $('dTopRows').querySelector('.sqswap, .sqnone')) return;
+    $('dTopRows').dataset.sq = key;
+    const who = k === 'me' ? 'you' : sqName(k);
+    $('dTopHead').textContent = `Swaps for ${who}`;
+    $('dSub').hidden = false;
+    $('dSub').textContent = 'Other picks';
+    $('dBotBox').hidden = $('dBotNote').hidden = true;
+    const p = all.find((q) => q.r === r);
+    $('dTopRows').replaceChildren(...(tryD.why[r] ? [elm('p', 'sqwhy', `${champName(tryD.us[r])} now: ${tryD.why[r]}.`)] : []),
+      ...(sw.length ? sw.map((o) => sqSwapRow(p, o, now)) : [elm('p', 'bempty sqnone', `No other champions for ${who} in this role yet: search below.`)]));
+    if (rs) {
+      const line = elm('p', 'sqroleswap', `${who === 'you' ? 'You' : who} also play${who === 'you' ? '' : 's'} ${POS[rs.a.r].toLowerCase()}: ${who === 'you' ? 'you' : who} on ${champName(rs.a.c)}, ${sqName(rs.with)} on ${champName(rs.b.c)}. Your comp `, grade(rs.t), ' ');
+      line.append(mkBtn('btn small', [`Swap with ${sqName(rs.with)}`], () => { for (const q of [rs.a, rs.b]) { tryD.us[q.r] = q.c; tryD.who[q.r] = q.k; } tryD.at = ['us', rs.a.r]; renderGame(); }));
+      $('dTopRows').append(line);
+    }
+  }
+  // Best comps for your squad, in the middle above the helper: 3 rows, a click puts one on Your team
+  function renderSqComps() {
+    const comps = squadM.length && me0 ? sqBest(sqPlayers(), sqBoardGone(), advOpts.mode, sqBoardFoes()) : [];
+    $('tdSqBtn').hidden = $('tdSq').hidden = !comps.length;
+    const on = (c) => c.picks.every((p) => tryD.us[p.r] === p.c && tryD.who[p.r] === p.k);
+    const key = JSON.stringify([comps.map((c) => [c.t.toFixed(2), c.picks.map((p) => [p.k, p.r, p.c]), on(c)]), ddVersion]);
+    if ($('tdSq').dataset.key === key) return;
+    $('tdSq').dataset.key = key;
+    $('tdSq').replaceChildren(elm('h3', 'ph', 'Best comps for your squad'), ...comps.map((c, i) => {
+      const b = mkBtn('sqline', [elm('span', 'sqfaces', ...sqOrder(c.picks).map((p) => elm('span', 'sqf', champFace(p.c), elm('i', '', sqName(p.k)[0])))), elm('b', '', i ? sqCompName(c, comps[0]) : 'Best comp'), grade(c.t),
+        ...(on(c) ? [elm('small', '', 'On your team')] : [])], () => { sqFill(c); renderGame(); }, on(c));
+      b.title = sqOrder(c.picks).map((p) => `${sqName(p.k)}: ${champName(p.c)}`).join('\n');
+      return b;
+    }));
+  }
+  $('tdSqBtn').addEventListener('click', () => { const c = sqBest(sqPlayers(), sqBoardGone(), advOpts.mode, sqBoardFoes())[0]; if (c) { sqFill(c); renderGame(); } });
+  // ---- your squad in champ select (What's new 223, C13-C14): with squad friends on your team, the comp is worked out in
+  // the roles League gave you. Each of you still choosing gets a plan: your board champion when League gave you your
+  // board role (the board's comp, else the best comp), else your best there that fits the rest. A planned champion
+  // banned or taken moves to the next best at once, and says why. Teammates outside the squad count with their picks.
+  const sqCsGone = () => new Set([...csBans().flat(), ...(cs.theirTeam || []).map((p) => p.championId | 0).filter(Boolean)]); // the pick helper's banned list (What's new 222), and their picks
+  let sqCsMemo = { k: '' };
+  function sqCsPlan() { // null, or { picks: [{ k, r, c, cell, l, plan, why }], t }
+    if (!cs || !squadM.length || !me0 || mapNow() !== 11 || cs.benchEnabled) return null;
+    const team = cs.myTeam.filter(Boolean), keyOf = (p) => (p.cellId === cs.localPlayerCellId ? 'me' : squadM.some((x) => x.u === p.puuid) ? p.puuid : '');
+    if (team.filter(keyOf).length < 2) return null; // just you
+    const done = new Set(csActions().filter((a) => a.type === 'pick' && a.completed).map((a) => a.actorCellId)), gone = sqCsGone(), theirs = new Set((cs.theirTeam || []).map((p) => p.championId | 0));
+    const k = JSON.stringify([team.map((p) => [p.cellId, p.puuid, p.championId, p.championPickIntent, p.assignedPosition, done.has(p.cellId)]), [...gone], tryD.us, tryD.who, sqData().k, topsVer, advOpts.mode, ddVersion]);
+    if (sqCsMemo.k === k) return sqCsMemo.v;
+    const board = Object.keys(tryD.who).length ? sqBoardPicks().filter((p) => p.c > 0) : ((sqBest(['me', ...squadM.map((x) => x.u)])[0] || { picks: [] }).picks);
+    const picks = [], open = [];
+    for (const p of team) {
+      const r = String(p.assignedPosition || '').toUpperCase(), k2 = keyOf(p), c = (p.championId || (k2 ? 0 : p.championPickIntent)) | 0;
+      if (!POS[r]) continue;
+      if (done.has(p.cellId) || (!k2 && c)) { if (c) picks.push({ k: k2, r, c, cell: p.cellId, l: k2 ? sqL(k2, r, c) : [] }); continue; } // locked, or outside the squad with a champion: counts, no plan
+      if (!k2) continue;
+      const want = (board.find((b) => b.k === k2 && b.r === r) || {}).c | 0, q = { k: k2, r, c: 0, cell: p.cellId, l: [], plan: true, why: '' };
+      if (want && !gone.has(want)) Object.assign(q, { c: want, l: sqL(k2, r, want) });
+      else if (want) q.why = `${champName(want)} ${theirs.has(want) ? 'taken' : 'banned'}`;
+      picks.push(q);
+      if (!q.c) open.push(q);
+    }
+    for (const q of open) { // the best fit with the rest so far
+      const used = new Set([...gone, ...picks.filter((x) => x.c).map((x) => x.c)]), rest = picks.filter((x) => x.c), best = sqOpts(q.k, q.r, used, 6).map((o) => ({ o, t: sqScore([...rest, { ...q, c: o.c, l: o.l }]).t })).sort((a, b) => b.t - a.t)[0];
+      if (best) Object.assign(q, { c: best.o.c, l: best.o.l, fresh: best.o.fresh });
+    }
+    const ok = picks.filter((x) => x.c);
+    sqCsMemo = { k, v: { picks: ok, t: sqScore(ok).t } };
+    return sqCsMemo.v;
+  }
+  function renderSqCs(plan) { // the strip over champ select: your squad's comp, its word
+    $('csSq').hidden = !plan;
+    if (!plan) return;
+    const n = plan.picks.filter((p) => p.k).length, key = JSON.stringify([plan.picks.map((p) => [p.k, p.r, p.c, p.why]), plan.t.toFixed(2), ddVersion]);
+    if ($('csSq').dataset.key === key) return;
+    $('csSq').dataset.key = key;
+    $('csSq').replaceChildren(elm('b', '', 'Your squad’s comp'), elm('span', 'sqfaces', ...sqOrder(plan.picks).map((p) => { const e = elm('span', 'sqf', champFace(p.c), ...(p.k ? [elm('i', '', sqName(p.k)[0])] : [])); e.title = `${p.k ? sqName(p.k) : 'Teammate'}: ${champName(p.c)}${p.plan ? ' (plan)' : ''}`; return e; })),
+      grade(plan.t), elm('small', '', `${n} of your squad ${n === 1 ? 'is' : 'are'} in this game. The comp plans around the roles League gave you.`));
+  }
+  function sqPlanPill(plan, cell) { // on a squad friend's card while they choose: "Plan: Thresh, Lulu banned"
+    const p = plan && plan.picks.find((x) => x.cell === cell && x.plan);
+    return p ? [elm('span', 'csplan', champFace(p.c), elm('b', '', `Plan: ${champName(p.c)}${p.why ? `, ${p.why}` : ''}`))] : [];
+  }
+  function sqCsSwaps(box, p) { // the box beside a squad friend's card: their swaps that keep the comp, best first
+    const plan = sqCsPlan(), q = plan && p && plan.picks.find((x) => x.cell === p.cell && x.plan && x.k !== 'me');
+    if (!q) return false;
+    const now = plan.t, sw = sqSwaps(plan.picks, q.k, sqCsGone()).slice(0, 3), was = GRADES.find(([m]) => now >= m)[2], who = sqName(q.k);
+    const kids = [elm('p', 'hhead', elm('b', '', `Swaps for ${who}`), elm('span', '', 'The rest of your comp stays as planned')),
+      ...sw.map((o) => { const is = GRADES.find(([m]) => o.t >= m)[2]; return elm('div', 'hrow', champFace(o.c), elm('span', 'hname', champName(o.c), grade(o.t)), elm('span', 'hpic', ...((o.l || []).length ? [blocks(o.l)] : []), elm('small', 'wcap', was === is ? `comp stays ${is}` : `comp ${is}, was ${was}`))); }),
+      elm('p', 'hfoot', sw.length ? `Blocks: ${who}’s games on it with you.` : `No other champions for ${who} in this role yet.`)];
+    box.toggleAttribute('data-on', true);
+    const html = kids.map((e) => e.outerHTML).join('');
+    if (box.dataset.html !== html) { box.dataset.html = html; box.replaceChildren(...kids); }
+    return true;
   }
   // under your Solo/Duo rank on Profile: the average rank in those games against yours, and the LP you win against the
   // LP you lose (League gives more for a win than it takes for a loss when your hidden MMR is above your rank)
@@ -20262,75 +20671,6 @@ dialog.wizard { transform: scale(var(--from)); }
     }));
   }
 
-  // ---- Your squad (at the foot of Profile’s friends column). A squad: friends who call each other to play, kept by our server (server/squad.js, up
-  // to 12) under a code only its members' apps know. Call the squad puts "<name> wants to play" with your room's code in
-  // the others' Premade, which asks our server every minute (every 10 s for 10 minutes after a call), and on their
-  // phones through the phone remote's notifications (remote-sw.js, with In 10 and Not tonight on Android). Members
-  // also ping the phones of those who want it when they start a game or rank up. Friends in your voice room see your
-  // squad on your 'me' message (sq) and join it from there. lpc-squad: { code, id (you in it), seen (the last call shown) }.
-  let squad = load('lpc-squad', null), sq = null, sqAt = -Infinity, sqSent = '', sqBusy = false; // sq: our server's { m: members, call, picks }
-  if (!squad || typeof squad !== 'object' || !/^[a-z0-9]{12}$/.test(squad.code) || !/^[a-z0-9]{12}$/.test(squad.id)) squad = null;
-  const saveSquad = () => store.set('lpc-squad', JSON.stringify(squad));
-  const sqPost = (act, b) => fetch(`${serverUrl}/squad/${squad.code}${act ? '/' + act : ''}`, { method: 'POST', body: JSON.stringify({ id: squad.id, ...b }) })
-    .then((r) => r.json()).catch(() => ({ error: 'Our server didn’t answer' }));
-  const sqName = (id) => (squad && id === squad.id ? 'You' : ((sq && sq.m.find((x) => x.id === id)) || {}).n || 'Someone');
-  const sqPing = (b) => squad && sqPost('ping', b);
-  async function sqHello() { // joins, or tells our server your new name, phone or pings: only when one of them changed
-    const b = { n: myName || 'Player', c: opts.remote ? remoteCode() : '', g: opts.sqGame, r: opts.sqRank }, j = JSON.stringify([squad.code, b]);
-    if (j === sqSent) return;
-    sqSent = j; // again once something changes, or sqLoad finds you aren't in the squad
-    const r = await sqPost('', b);
-    if (r.error === 'This squad is full') { notify('That squad is full: 12 friends at most.', true); leaveSquad(); }
-  }
-  async function sqLoad() {
-    sqAt = performance.now();
-    const code = squad.code, s = await fetch(`${serverUrl}/squad/${code}`).then((r) => r.json()).catch(() => null);
-    if (!squad || squad.code !== code || !s || !Array.isArray(s.m)) return;
-    const was = sq, c = s.call;
-    sq = s;
-    if (!s.m.some((x) => x.id === squad.id)) sqSent = ''; // our server lost you, or hasn't got you yet: again on the next tick
-    if (c && c.from !== squad.id && c.n > (squad.seen | 0)) { // a call you haven't seen yet
-      squad.seen = c.n;
-      saveSquad();
-      if (Date.now() - c.at < 1800000) { notify(`${sqName(c.from)} wants to play: room ${String(c.room).toUpperCase()}. Join from your Profile, Squad.`, true); if (opts.chimes) chime('call'); }
-    }
-    if (c && c.from === squad.id && was && was.call && was.call.n === c.n) for (const [id, a] of Object.entries(c.ans)) if (!was.call.ans[id]) notify(`${sqName(id)}: ${a === 'in10' ? 'in 10' : 'not tonight'}.`, true);
-    renderGroup();
-  }
-  function joinSquad(code) {
-    squad = { code, id: id12(), seen: 0 };
-    saveSquad();
-    sq = null;
-    sqSent = '';
-    sqAt = -Infinity;
-    renderGroup();
-    send(meMsg());
-  }
-  function leaveSquad() {
-    if (!squad) return;
-    sqPost('', { leave: true });
-    squad = sq = null;
-    sqSent = '';
-    saveSquad();
-    renderGroup();
-    send(meMsg());
-  }
-  async function callSquad() {
-    $('sqCallBtn').disabled = true;
-    try {
-      if (!peer) await joinRoom(newCode());
-      if (!peer || !squad) return;
-      const r = await sqPost('call', { room });
-      notify(r.error ? `Couldn’t call your squad: ${r.error.toLowerCase()}.` : `Called your squad to room ${room.toUpperCase()}: ${r.sent ? `${plural(r.sent, 'phone')} got it` : 'no phone has notifications on, so they see it in Premade'}.`, true);
-      sqAt = -Infinity; // shows the call
-    } finally { $('sqCallBtn').disabled = false; }
-  }
-  async function sqAnswer(a) {
-    if (!sq || !sq.call) return;
-    const r = await sqPost('answer', { call: sq.call.n, a });
-    if (r.error) notify(`Couldn’t answer: ${r.error.toLowerCase()}.`, true);
-    sqAt = -Infinity;
-  }
   // ---- Friends (Your group's first tab): your League friends (desktop app, from League's client) and friends added by
   // Riot ID (lpc-friends), with who has Premade and who has it open now, from our server (server/worker.js /friends:
   // the Riot IDs each device's hello gave). Invite leaves an invite to your room for that Riot ID's Premade (/invite,
@@ -20460,7 +20800,6 @@ dialog.wizard { transform: scale(var(--from)); }
   function renderProFriends() {
     const rows = client ? frRows().map((x) => ({ ...x, t: frTog(x) })).filter((x) => x.t).sort((a, b) => b.t.n - a.t.n || b.t.w - a.t.w || a.riot.localeCompare(b.riot)) : [];
     renderInvites();
-    renderSquad();
     $('proFrNote').hidden = !!rows.length;
     $('proFrNote').textContent = client ? 'No friends on your team this season yet. Play a game with one and they show up here.' : 'The desktop app reads your games from League, so who you play with shows there.';
     const cur = proOther ? acctOf(proOther.n || '') : '', k = JSON.stringify([rows.map((x) => [x.riot, x.st, x.dot, x.ic, x.has, x.t]), cur, ddVersion]);
@@ -20508,54 +20847,11 @@ dialog.wizard { transform: scale(var(--from)); }
   frSlim(opts.frSlim);
   $('proFrFold').addEventListener('click', () => frSlim(!opts.frSlim));
   function renderGroup() { if (!document.hidden) renderProFriends(); }
-  function renderSquad() {
-    const c = squad && sq && sq.call, theirs = !!c && c.from !== squad.id, others = new Map(); // the squads friends in your room are in: code -> their names
-    if (!squad) for (const p of peers.values()) if (p.sq) others.set(p.sq, [...(others.get(p.sq) || []), nameOf(p)]);
-    $('sqMake').hidden = !!squad;
-    $('sqCallBtn').hidden = $('sqPings').hidden = !squad;
-    $('sqCount').textContent = squad && sq ? `${sq.m.length} of 12` : '';
-    const jk = JSON.stringify([...others]);
-    if ($('sqJoins').dataset.key !== jk) {
-      $('sqJoins').dataset.key = jk;
-      $('sqJoins').replaceChildren(...[...others].map(([code, names]) => Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: `Join ${names.join(' and ')}’s squad`, onclick: () => joinSquad(code) })));
-    }
-    $('sqNote').textContent = !squad ? (others.size ? 'Friends in your room have a squad: join theirs, or make your own.'
-      : 'Your group of up to 12. Call the squad tells all of them you want to play, in Premade and on their phone.')
-      : !sq ? 'Loading your squad…' : sq.m.length < 2 ? 'Just you so far: friends in your voice room join your squad here.' : '';
-    const rows = squad && sq ? sq.m.map((x) => { const a = c && c.ans[x.id]; return `${x.n}${x.id === squad.id ? ' (you)' : ''}${x.phone ? ' · phone remote on' : ''}${c && x.id === c.from ? ' · called' : a ? ` · ${a === 'in10' ? 'in 10' : 'not tonight'}` : ''}`; }) : [];
-    if ($('sqList').dataset.key !== rows.join('\n')) {
-      $('sqList').dataset.key = rows.join('\n');
-      const fr = frRows();
-      $('sqList').replaceChildren(...rows.map((t, i) => { // a face each, its line as the tooltip and for screen readers
-        const n = sq.m[i].n || '', li = document.createElement('li');
-        li.title = t;
-        li.append(frFace(fr.find((x) => x.riot.split('#')[0].toLowerCase() === n.toLowerCase()) || { riot: n }), Object.assign(document.createElement('span'), { className: 'sr', textContent: t }));
-        return li;
-      }));
-    }
-    $('sqCallBox').hidden = !c;
-    if (!c) return;
-    $('sqCall').textContent = `${theirs ? `${sqName(c.from)} wants to play` : 'You called the squad'} (${new Date(c.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}): room ${String(c.room).toUpperCase()}.`;
-    $('sqJoin').hidden = !theirs || (!!peer && room === c.room);
-    $('sqIn10').hidden = $('sqNo').hidden = !theirs;
-  }
-  $('sqMake').addEventListener('click', () => joinSquad(id12()));
-  $('sqLeave').addEventListener('click', () => { if (confirm('Leave your squad? Its calls and pings stop.')) leaveSquad(); });
-  $('sqCallBtn').addEventListener('click', callSquad);
-  $('sqIn10').addEventListener('click', () => sqAnswer('in10'));
-  $('sqNo').addEventListener('click', () => sqAnswer('no'));
-  $('sqJoin').addEventListener('click', () => { const c = sq && sq.call; if (!c) return; if (peer && room !== c.room) leaveRoom(); joinRoom(c.room); });
-
   async function groupTick() { // once a second
     friendsLoop();
     renderHide();
     if (!profView.hidden) renderProFriends(); else profileData();
-    if (!squad || sqBusy) return;
-    sqBusy = true;
-    try {
-      await sqHello();
-      if (squad && performance.now() - sqAt > (sq && sq.call && Date.now() - sq.call.at < 600000 ? 10000 : 60000)) await sqLoad();
-    } finally { sqBusy = false; }
+    renderSquadPage();
   }
 
   // ---- your Discord server (Settings): with a webhook link (Discord's own way for an app to post in a channel), your
@@ -20812,7 +21108,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optSqGame', 'sqGame'], ['optSqRank', 'sqRank'], ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
+    ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
@@ -21033,6 +21329,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [223, 'November 24: your squad’s best comp', [
+      'Squad has its own page, right after Profile: add up to 4 friends you play with, and Premade works out the best team comp you can play together from your games together, with 2 other comps.',
+      'Plan it on the draft board puts the comp on Your team, each card showing who plays it. Click a friend’s card for their swaps that keep the comp; a ban or their pick moves them to their next best.',
+      'In champ select each squad friend still choosing gets a plan in the role League gave them. Invite your squad in Pregame’s Invite friends asks the ones who are online.',
+      'The old squad’s Call the squad, In 10 and Not tonight and its phone pings are gone, and so is the Squad at the foot of Profile’s friends column.',
+    ]],
     [222, 'November 24: no banned champions in your picks', [
       'In champ select a banned champion is never suggested or shown as one you can pick. The pick helper, Bans for you, auto hover and the phone remote read both teams’ bans from League’s own ban lists too, and Premade asks League again what you can pick after every ban and pick.',
     ]],
@@ -22235,8 +22537,10 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Your week', 'Every Monday, a card about the week before: your games, LP, best champion and the stat you improved most.', 'Nothing to set up. Got it puts it away until next week.', '#weekBox'],
       ['Friends you play with', 'A column on the right of Profile with the League friends you had on your team this season, most games first: their face and status, how many games you played together and your win rate with them. Click one for their profile; Invite and … (Control their PC, Copy Riot ID) show when you point at them. A friend’s room invite shows at the top of it.',
         'Nothing to set up: play a game with a League friend. It shows only their faces until you click the arrow at its top for the whole list; click it again to make it small. In a smaller window it keeps only their faces.', '#proFriends', 'app'],
-      ['Your squad', 'Your group of up to 12: Call the squad tells all of them you want to play, with your room’s code, in their Premade and on their phone, and they answer In 10 or Not tonight. Their phones can ping too when one of you starts a game or ranks up.',
-        'At the foot of Profile’s friends column: Make a squad, then friends in your voice room join it there; … has the pings and Leave. For phones, the phone remote with notifications on.', '#sqBox'],
+      ['Your squad', 'You and up to 4 friends you play with, kept on this PC. Its own page shows each one’s champions by role from your games together, with the record on each.',
+        'Squad, right after Profile in League’s list: click a face under Add a friend, and the x on a row takes them out. Invite your squad, in Pregame’s Invite friends, invites the ones who are online.', '.nav[data-view="squad"], #sqList, #sqInvite', 'app'],
+      ['Squad comp', 'Premade works out the best team comp your squad can play together from your games together, high elo and how your picks go together, with 2 other comps. On the draft board each friend’s card shows their swaps that keep the comp, and a ban or their pick moves that friend to their next best. In champ select each squad friend still choosing gets a plan in the role League gave them.',
+        'Add friends on the Squad page, then Plan it on the draft board. In a League lobby only the squad friends in it count.', '#sqBest, #tdSq, #tdSqBtn, #csSq', 'app'],
     ]],
     ['League: Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online (with your win rate together this season), Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox, #friendRows', 'app'],
@@ -22250,7 +22554,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Bot lane first', 'For an ADC or a support, your lane with your partner and against their bot lane counts 4 times the rest of the draft.', 'On unless you turn it off: the switch beside the top 3, for Bottom and Support.', '#dBotBox', 'app'],
       ['Your duo’s picks', 'The teammate you play the most with gets a Your duo tag, and your games together (your own match history, up to 1,000 games back) count in the picks. Before either of you picks, the top 3 shows your best pairs.', 'Nothing to set up: Premade reads your games while League is open and you’re idle.', '#dTopRows', 'app'],
       ['Who is picking', 'The card of whoever is picking or banning lights up with the time left on it, counting down with League’s own clock.', 'In champ select, on Pregame.', '#csRows', 'app'],
-      ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame, each slot a card with its champion’s art: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup, both champions side by side: the high elo record, runes, first items and tips. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
+      ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame, each slot a card with its champion’s art: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup, both champions side by side: the high elo record, runes, first items and tips. With a squad, Your team starts with your squad’s best comp, each card showing who plays it. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
       ['Ban ideas', 'Your bans at the top of the draft board: 5 squares and 3 ideas, what beats the team you’re building, how often high elo picks and bans it, and in Balanced the champions you lose to. Click an idea to ban it: it greys out everywhere, and its x takes it back.', 'Outside champ select, on Pregame: Your bans on the draft board.', '#tdBans', 'app'],
       ['Mock draft helper', 'In a room’s Mock draft, each player on a side sees the top 3 for their side and a score on every champion.', 'Rooms: start a Mock draft and join a side.', '#mdHelp'],
       ['The draft', 'Both teams by role with a score for each champion and each team, and the champions that play the role you pick (the roles League lists for each) ranked by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
@@ -22556,7 +22860,7 @@ dialog.wizard { transform: scale(var(--from)); }
     crawlAll: async () => { for (let i = 0; i < 400; i++) { if (crawling) { await sleep(20); continue; } crawlAt = -Infinity; if (!(await crawl())) break; } return Object.keys(deep).length; },
     patchNow: () => { patchAt = -Infinity; return patchTick(); }, extras: () => extras, // League's version asked now, not in a minute
     teams: () => teams, roles: () => roles, split, rating, roomAwards, dv: () => dv,
-    groupNow: () => { sqAt = frAt = -Infinity; }, // your squad asked for now, not in a minute
+    groupNow: () => { frAt = -Infinity; }, // your friends asked for now, not in a minute
     draftNow: () => draftTimeout(), // the host's clock runs out on this turn now
     send, // a message to everyone, as a changed page could send it
     sendOnce, // the same on one link each (send uses every link, so twice to a player with two)

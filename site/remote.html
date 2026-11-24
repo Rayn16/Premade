@@ -18,7 +18,7 @@
    Finding a match, Match found over everything, champ select, the game) and a menu along the bottom (League, Chat,
    Settings), in your colours from the app (look in its state; lpc-remote-look keeps them for the next open).
    index.html's Pregame settings show the QR code that opens it. It can live on the home screen (remote-manifest.json)
-   and show a notification when a match is found or your squad calls (remote-sw.js). */
+   and show a notification when a match is found (remote-sw.js). */
 :root {
   --bg: #0b0809; --panel: #151012; --raised: #1f181a; --fg: #f4eeee; --muted: #ab9c9e; --line: #33262a;
   --accent: #d9202d; --accent-fg: #ffffff; --good: #3ccf8e; --bad: #ff6b6b; --g-great: #7cb3ff; --g-good: #5fd4c4; --g-risky: #f59e5b;
@@ -71,7 +71,6 @@ main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; d
 .two .yes { font-weight: 600; }
 .no { border: 1px solid var(--line); }
 .two button:disabled { opacity: 0.5; }
-#call { margin: 16px 16px 0; }
 /* Play */
 .rrow { display: flex; align-items: center; gap: 6px; }
 .lab { flex: none; width: 52px; font-size: 13px; color: var(--muted); }
@@ -337,10 +336,6 @@ body[data-bar] #toast { bottom: 164px; }
 <body>
 <p id="conn" class="sr" role="status">Connecting…</p>
 <main id="main">
-  <section id="call" class="card" aria-label="Your squad" hidden>
-    <p id="callText" role="status"></p>
-    <div class="two"><button id="callIn" class="yes" type="button">In 10</button><button id="callNo" class="no" type="button">Not tonight</button></div>
-  </section>
   <form id="linkForm" class="scr" hidden>
     <h1>Connect your phone</h1>
     <p class="note">Scan the QR code under Phone remote in Premade on your PC, or paste its link here.</p>
@@ -1205,8 +1200,7 @@ body[data-bar] #toast { bottom: 164px; }
 
   // ---- a notification when a match is found, even with the screen off or this page closed: when no phone has the
   // remote on its screen, the PC has our server push one (server/push.js) to the phones that turned them on, and
-  // remote-sw.js shows it. Your squad's calls and pings come the same way (server/squad.js), with their words
-  // encrypted with the keys this phone sends. lpc-remote-push: the code they were turned on for. On an iPhone, only from
+  // remote-sw.js shows it. lpc-remote-push: the code they were turned on for. On an iPhone, only from
   // the home screen icon.
   const server = local ? `http://${local}` : `https://${peerOpts.host}`;
   let pushKey = ''; // our server's key for this code, once it has answered (so nothing shows before it has notifications)
@@ -1233,7 +1227,7 @@ body[data-bar] #toast { bottom: 164px; }
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64(pushKey) });
         await pushTo(code, { add: sub.endpoint, keys: sub.toJSON().keys });
         store.set('lpc-remote-push', code);
-        note = 'On: your phone tells you when a match is found or your squad calls, even with its screen off.';
+        note = 'On: your phone tells you when a match is found, even with its screen off.';
       } else if (!on) {
         store.set('lpc-remote-push', '');
         const sub = await (await sw).pushManager.getSubscription();
@@ -1252,19 +1246,6 @@ body[data-bar] #toast { bottom: 164px; }
   }).catch((err) => console.warn('remote push:', err));
   pushShow();
 
-  // a squad's call: remote-sw.js opens this page with ?sq=<squad>&call=<its number>&to=<you in the squad> when its
-  // notification is tapped. Who's calling and the room, and In 10 or Not tonight (on Android, also on the notification)
-  const ask = new URLSearchParams(location.search), sq = ask.get('sq'), to = ask.get('to'), callN = +ask.get('call');
-  if (valid(sq) && valid(to) && callN > 0) fetch(`${server}/squad/${sq}`).then((r) => r.json()).then((s) => {
-    const c = s.call;
-    if (!c || c.n !== callN) return;
-    $('call').hidden = false;
-    $('callText').textContent = `${(s.m.find((x) => x.id === c.from) || {}).n || 'A friend'} wants to play: room ${String(c.room).toUpperCase()}.${c.ans[to] ? ` You said ${c.ans[to] === 'in10' ? 'In 10' : 'Not tonight'}.` : ''}`;
-  }).catch(() => {});
-  const answer = (a) => fetch(`${server}/squad/${sq}/answer`, { method: 'POST', body: JSON.stringify({ id: to, call: callN, a }) })
-    .then((r) => { $('callText').textContent = r.ok ? `Sent: ${a === 'in10' ? 'In 10' : 'Not tonight'}.` : 'That call is over.'; }, () => { $('callText').textContent = 'That didn’t send. Check your connection.'; });
-  $('callIn').addEventListener('click', () => answer('in10'));
-  $('callNo').addEventListener('click', () => answer('no'));
   render();
   claim(1);
 })();
