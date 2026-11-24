@@ -698,7 +698,7 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .sqwho .frface { width: 22px; height: 22px; font-size: 11px; }
 .sqwho .frface::after { content: none; }
 .sqwho b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.tcard .sqwho + .tctext { bottom: 9px; }
+.tcard:has(.sqwho) { height: 112px; }
 .blk.dmg i.ad { background: var(--best); } .blk.dmg i.ap { background: var(--g-great); }
 .sqfaces { display: flex; gap: 6px; }
 .sqf { position: relative; display: block; }
@@ -9809,7 +9809,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const meta = advOpts.mode === 'meta', need = needIn(d), duo = d.try || meta ? null : duoNow(), bot = botFirst(role);
     return ids.filter((id) => champOf(id)).map((id) => {
       const x = advScore(id, role, mates, foes, !meta && taken), w = bot ? x.parts.reduce((n, p) => n + p.d * (botTerm(p, role) ? 1 : 0.25), 0) : x.v, why = [...x.why];
-      const me = advOpts.mode === 'balanced' && !d.foe ? mineScore(id, why) : 0, nd = meta ? 0 : needFor(champOf(id), need, why), du = duoPart(id, duo, duo && duo.c);
+      const me = advOpts.mode === 'balanced' && !d.foe ? (d.sqk ? sqMine(d.sqk, role, id, why) : mineScore(id, why)) : 0, nd = meta ? 0 : needFor(champOf(id), need, why), du = duoPart(id, duo, duo && duo.c);
       if (du && du.n) why.push(`With ${duo.name}: won ${du.w} of ${du.n}`);
       return { id, ...x, why, w, du, s: meta ? x.m : w + nd + (du ? du.s : 0) + (advOpts.mode === 'balanced' ? x.m + me : 0), off: taken.has(id) || (can.size > 0 && !can.has(id)), fav: !d.foe && advFavs.has(id) };
     }).sort((x, y) => y.fav - x.fav || y.s - x.s || y.m - x.m);
@@ -10032,11 +10032,11 @@ dialog.wizard { transform: scale(var(--from)); }
   const tryAt = () => tryD.at || ['us', usualRole()];
   function tryNow(t, r) { // the board for team t's role r, from t's side, with that slot left empty
     const [a, b] = t === 'us' ? [tryD.us, tryD.them] : [tryD.them, tryD.us], side = (m, ally) => Object.keys(POS).map((x) => ({ c: (ally && x === r ? 0 : m[x]) | 0, pos: x, role: x, me: ally && x === r, hover: false, pal: '' }));
-    return advFill({ try: true, foe: t === 'them', us: side(a, true), them: side(b, false), bans: tryD.bans });
+    return advFill({ try: true, foe: t === 'them', sqk: t === 'us' && tryD.who[r] !== 'me' ? tryD.who[r] || '' : '', us: side(a, true), them: side(b, false), bans: tryD.bans }); // sqk: a squad friend's slot, ranked by their games, not yours
   }
   let tryMemo = {}, topsVer = 0; // topsVer: one more for each answer from /riot/champ
   function tryRanks() { // the ten rankings, worked out again only when something they go by changed
-    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, tryD.bans, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs], !!champPos]);
+    const t = tiers(), key = JSON.stringify([tryD.us, tryD.them, tryD.bans, tryD.who, sqData().k, advOpts, ddVersion, topsVer, (myHist || []).length, [...advFavs], !!champPos]);
     if (tryMemo.key !== key || tryMemo.t !== t) {
       tryMemo = { key, t, r: {} };
       for (const s of ['us', 'them']) for (const r of Object.keys(POS)) { const d = tryNow(s, r); tryMemo.r[s + r] = { d, pool: advPool(r, d, '') }; }
@@ -14466,6 +14466,11 @@ dialog.wizard { transform: scale(var(--from)); }
     const t = tiers(), by = (t && t.by[r]) || new Map();
     return [...by].filter(([c, [g]]) => g >= 10 && !gone.has(c) && playsIn(c, r, t)).sort((a, b) => adj(b[1][1], b[1][0]) - adj(a[1][1], a[1][0])).slice(0, 3).map(([c]) => ({ c, l: [], fresh: true }));
   }
+  function sqMine(k, r, c, why) { // a squad friend's own part on the draft board, as mineScore is yours
+    const l = sqL(k, r, c), w = l.filter((g) => g.w).length;
+    why.push(l.length ? `${sqName(k)}: won ${w} of ${l.length} with you` : `New to ${sqName(k)}`);
+    return sqComfort(l);
+  }
   const sqFront = (c) => !!c && (c.tags || []).some((t) => t === 'Tank' || t === 'Fighter');
   // one pick's own part: its high elo strength, the player's games on it (-5 new to them) and -5 off their roles
   function sqOwn(p, mode) {
@@ -14755,7 +14760,7 @@ dialog.wizard { transform: scale(var(--from)); }
       grade(plan.t), elm('small', '', `${n} of your squad ${n === 1 ? 'is' : 'are'} in this game. The comp plans around the roles League gave you.`));
   }
   function sqPlanPill(plan, cell) { // on a squad friend's card while they choose: "Plan: Thresh, Lulu banned"
-    const p = plan && plan.picks.find((x) => x.cell === cell && x.plan);
+    const p = plan && plan.picks.find((x) => x.cell === cell && x.plan && x.k !== 'me'); // yours: the pick helper's first row
     return p ? [elm('span', 'csplan', champFace(p.c), elm('b', '', `Plan: ${champName(p.c)}${p.why ? `, ${p.why}` : ''}`))] : [];
   }
   function sqCsSwaps(box, p) { // the box beside a squad friend's card: their swaps that keep the comp, best first
