@@ -508,11 +508,11 @@ const traitRows = (page) => page.$$eval('#tftTraits .tfttrait', (l) => l.map((b)
     // What to buy follows the build you're on: no items yet, the higher win rate (crit); with Sorcerer's Shoes (ARAM's own
     // copy, 223020), the AP build
     await mayhemAt(415, true, 11);
-    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.name === 'Berserker’s Greaves', null, 'no items: the build with the higher win rate');
+    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.items[0].name === 'Berserker’s Greaves', null, 'no items: the build with the higher win rate');
     await mayhemAt(420, true, 11, 'Ahri', 'Ahri', [[223020, 1]]);
     await wait(pc, (b) => { const a = window.lastOverlay.aug; return a && JSON.stringify([a.champ, (a.mine || []).map((x) => x.n).join(), a.due]) === b; }, JSON.stringify(['Ahri', 'Mystic Punch', 3]), 'the best augments while dead, with your pick');
-    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.name === 'Luden’s Echo', null, 'the next item of the build you’re on while dead');
-    assert.deepStrictEqual(await pc.evaluate(() => window.lastOverlay.buy), { name: 'Luden’s Echo', pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/item/6655.png', why: 'DeepARAM’s Mayhem build' });
+    await wait(pc, () => window.lastOverlay.buy && window.lastOverlay.buy.items[0].name === 'Luden’s Echo', null, 'the next item of the build you’re on while dead');
+    assert.deepStrictEqual(await pc.evaluate(() => { const b = window.lastOverlay.buy; return [b.items[0].pic, b.items[0].why, b.items[0].faces, b.vers]; }), ['https://ddragon.leagueoflegends.com/cdn/1.1/img/item/6655.png', 'DeepARAM’s Mayhem build', [], []], 'DeepARAM’s build, no faces and no pills (What’s new 228)');
     // Game: your picks, the best augments as icons with tiers, the top pairs with why (yours marked), both builds (yours
     // marked) and Ahri's Mayhem changes, in place of the one line and the item list
     await openPage(pc, 'game');

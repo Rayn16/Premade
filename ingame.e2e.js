@@ -144,6 +144,10 @@ const game = (me, players, over = {}) => ({
   ...over,
 });
 const US = (items = [[6655, 1], [3020, 1]]) => [['Rayan', 'ORDER', 'Ahri', 'MIDDLE', items], ['Friend', 'ORDER', 'Garen', 'TOP'], ['Jungler', 'ORDER', 'Lux', 'JUNGLE'], ['Shooter', 'ORDER', 'Jinx', 'BOTTOM'], ['Hooks', 'ORDER', 'Soraka', 'UTILITY']];
+// What to buy's strip as the page sends it (What's new 228): Vs their team, 1,180 gold of 1,650
+const DDI = (id) => `https://ddragon.leagueoflegends.com/cdn/1.1/img/item/${id}.png`, DDC = (c) => `https://ddragon.leagueoflegends.com/cdn/1.1/img/champion/${c}.png`;
+const STRIP = () => ({ items: [{ name: 'Zhonya’s Hourglass', pic: DDI(3157), why: 'Moved up: armor against Zed and Talon', of: 'High elo Ahri players buy it in 46% of games', faces: [DDC('Zed'), DDC('Talon')] },
+  { name: 'Shadowflame', pic: DDI(4645), why: 'Usual next on Ahri', of: '', faces: [] }, { name: 'Rabadon’s Deathcap', pic: DDI(3089), why: 'Usual next on Ahri', of: '', faces: [] }], gold: 1180, left: 1650, ver: 'team', vers: ['wr', 'team'] });
 const ahri = (dead, them, items, over) => game({ champ: 'Ahri', team: 'ORDER', dead, respawn: dead ? 30 : 0 }, [...US(items), ...them], over);
 // their teams: physical burst with Zed and Talon fed, even, mostly magic, and healers
 const BURST = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE', [[3142, 1], [6691, 1]], 5], ['Claws', 'CHAOS', 'Talon', 'JUNGLE', [[3142, 1]], 3], ['Axe', 'CHAOS', 'Garen', 'TOP'], ['Sniper', 'CHAOS', 'Jinx', 'BOTTOM'], ['Light', 'CHAOS', 'Lux', 'UTILITY']];
@@ -158,34 +162,132 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
     // right, your chance to win at the end of the timers line
     {
       const p = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-      await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
+      await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {}, overlayProg(m) { (window.progs = window.progs || []).push(m); } }; });
+      await p.route(/ddragon\.leagueoflegends\.com/, (r) => r.fulfill({ body: PNG, contentType: 'image/png' }));
       await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
       const red = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 64; c.height = 36; const g = c.getContext('2d'); g.fillStyle = '#c33'; g.fillRect(0, 0, 64, 36); return c.toDataURL('image/jpeg'); });
       const spots = { buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' }, vote: { x: 0.881, y: 0.5017, ax: 'r', ay: 't' } };
-      await p.evaluate(([red, parts]) => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, parts, game: 'Dragon 1:23 · Baron 12:00 · Kills 5–3 · Gold +1.2k · Win chance 62%',
-        buy: { name: 'Zhonya’s Hourglass', pic: red, why: 'armor against Zed and Talon' }, tips: { title: 'Ahri against Zed', lines: ['Your note: stay away at 6', 'Zhonya’s Hourglass stops Death Mark.'] },
-        screen: { name: 'Ana', img: red }, vote: { title: 'Win chance 6%', win: false, lines: ['Gold −4.5k · Kills 0–8 · Towers 0–0'] } }), [red, spots]);
+      await p.evaluate(([red, parts, buy]) => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, parts, game: 'Dragon 1:23 · Baron 12:00 · Kills 5–3 · Gold +1.2k · Win chance 62%',
+        buy, tips: { title: 'Ahri against Zed', lines: ['Your note: stay away at 6', 'Zhonya’s Hourglass stops Death Mark.'] },
+        screen: { name: 'Ana', img: red }, vote: { title: 'Win chance 6%', win: false, lines: ['Gold −4.5k · Kills 0–8 · Towers 0–0'] } }), [red, spots, STRIP()]);
       const box = (k) => p.evaluate((k) => { const e = document.querySelector(`#parts [data-part="${k}"]`); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, text: e.innerText.replace(/\s+/g, ' ').trim(), imgs: [...e.querySelectorAll('img')].map((i) => i.naturalWidth), loss: !!e.querySelector('.after.loss') }; }, k);
       await p.waitForFunction(() => [...document.querySelectorAll('#parts img')].every((i) => i.complete && i.naturalWidth));
       const [tips, buy, screen, vote] = [await box('tips'), await box('buy'), await box('screen'), await box('vote')];
       assert(vote && vote.text === 'WIN CHANCE 6% Gold −4.5k · Kills 0–8 · Towers 0–0' && vote.loss && Math.abs(vote.r - 1127.7) < 2 && Math.abs(vote.t - 361.2) < 2, `the chance to win left of League’s vote box: ${JSON.stringify(vote)}`);
       assert(tips && tips.text === 'TIPS: AHRI AGAINST ZED Your note: stay away at 6 Zhonya’s Hourglass stops Death Mark.' && Math.abs(tips.l - 12.8) < 2 && Math.abs(tips.t - 360) < 2, `the tips on the left: ${JSON.stringify(tips)}`);
-      assert(buy && buy.text === 'Next: Zhonya’s Hourglass · armor against Zed and Talon' && buy.imgs.length === 1 && Math.abs(buy.r - 1267.2) < 2 && Math.abs(buy.t - 43.2) < 2, `what to buy at the top right: ${JSON.stringify(buy)}`);
+      assert(buy && buy.text === 'Best win rate Vs their team' && buy.imgs.length === 5 && Math.abs(buy.r - 1267.2) < 2 && Math.abs(buy.t - 43.2) < 2, `what to buy at the top right: ${JSON.stringify(buy)}`);
       assert(screen && screen.text === 'ANA’S SCREEN' && screen.imgs[0] === 64 && Math.abs(screen.r - 1267.2) < 2 && Math.abs(screen.t - 216) < 2, `Ana’s screen on the right: ${JSON.stringify(screen)}`);
       assert.match(await p.innerText('#main'), /Gold \+1\.2k · Win chance 62%/);
       await shot(p, 'ingame-overlay');
+      // ---- What to buy (What's new 228): 3 pictures, the first 40 px with a bar 1,180 of 1,650 full and Zed and Talon's
+      // faces, the 2 after at 32 px; the pills with Vs their team lit; hover for why; a click asks for the other version
+      const strip = () => p.evaluate(() => { const b = document.querySelector('[data-part="buy"] .buy'), r = (e) => e.getBoundingClientRect(); return { take: b.dataset.take === '', sizes: [...b.querySelectorAll('.bpic > img')].map((i) => Math.round(r(i).width)),
+        bar: Math.round(r(b.querySelector('.bbar > div')).width * 10) / 10, faces: [...b.querySelectorAll('.bit')].map((x) => x.querySelectorAll('.bfaces img').length), ring: !!b.querySelector('.bit.first.can'),
+        pills: [...b.querySelectorAll('.vers button')].map((x) => `${x.textContent}:${x.getAttribute('aria-pressed')}`), pop: [...b.querySelectorAll('.bpop')].filter((x) => getComputedStyle(x).display !== 'none').map((x) => x.innerText.replace(/\s+/g, ' ')) }; });
+      let st = await strip();
+      assert.deepStrictEqual(st, { take: true, sizes: [40, 32, 32], bar: 28.6, faces: [2, 0, 0], ring: false, pills: ['Best win rate:false', 'Vs their team:true'], pop: [] }, JSON.stringify(st));
+      await p.hover('[data-part="buy"] .bit.first');
+      st = await strip();
+      assert.deepStrictEqual(st.pop, ['Zhonya’s Hourglass 470 gold to go Moved up: armor against Zed and Talon High elo Ahri players buy it in 46% of games'], JSON.stringify(st.pop));
+      await p.click('[data-part="buy"] .vers button');
+      assert.deepStrictEqual(await p.evaluate(() => window.progs), [{ id: 'buy', go: 'wr' }], 'Best win rate asked for');
+      await p.evaluate(([parts, buy]) => window.fire({ visible: true, board: true, pos: 'tl', scale: 1, opacity: 1, parts, buy }), [spots, { ...STRIP(), gold: 1650 }]);
+      st = await strip();
+      assert(st.ring && st.bar === 40, `enough gold: a full bar and a white ring: ${JSON.stringify(st)}`);
       await p.close();
       console.log('overlay: the tips on the left, what to buy at the top right, a teammate’s screen on the right, the chance to win after the timers and beside League’s vote box');
     }
 
-    // ---- while you're dead: your lane's tips, and what to buy next against their team
+    // ---- the panel beside the rank board in a game (What's new 228): Item build, Their team and Your team, the pills
+    // asking for the other version; it moves with the dragged board; none on the loading screen's board
+    {
+      const p = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {}, overlayProg(m) { (window.progs = window.progs || []).push(m); } }; });
+      await p.route(/ddragon\.leagueoflegends\.com/, (r) => r.fulfill({ body: PNG, contentType: 'image/png' }));
+      await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
+      const it = (id, name, have = false, faces = []) => ({ pic: DDI(id), name, have, faces });
+      const items = { build: { ver: 'team', vers: ['wr', 'team'], picked: 0.12, won: 0.52, vs: DDC('Zed'), start: [it(1056, 'Doran’s Ring', true)], pots: 2, core: [it(6655, 'Luden’s Companion', true), it(3157, 'Zhonya’s Hourglass', false, [DDC('Zed'), DDC('Vi')]), it(4645, 'Shadowflame')],
+        boots: it(3020, 'Sorcerer’s Shoes', true), later: [it(3089, 'Rabadon’s Deathcap')], lv: ['Q', 'W', 'E'], max: ['Q', 'W', 'E'] },
+      them: { n: 5, wr: 0.48, k: 7.2, d: 6.7, a: 9.5, magic: 0.26, front: [DDC('Darius'), DDC('Vi')], tags: ['Mostly physical: armor helps'] }, us: { n: 4, wr: 0.51, k: 7.8, d: 6.3, a: 7.5, magic: 0.6, front: [], tags: ['No frontline'] } };
+      const card = (name, ally, me) => ({ name, ch: 'Ahri', pic: DDC('Ahri'), me, ally, rank: 'Gold II', spells: [], runes: [], tags: [] });
+      const fire = (load) => p.evaluate(([b]) => window.fire({ visible: true, board: b, pos: 'tl', scale: 1, opacity: 1 }), [{ load, side: 'blue', us: [card('Rayan', true, true)], them: [card('Shadow', false, false)], items }]);
+      await fire(false);
+      await p.waitForSelector('.rb .ipan');
+      await p.waitForFunction(() => [...document.querySelectorAll('.ipan img')].every((i) => i.complete));
+      const pan = () => p.evaluate(() => { const e = document.querySelector('.ipan'), b = document.querySelector('.rb').getBoundingClientRect(), r = e.getBoundingClientRect(); return { left: Math.round(r.left), gap: Math.round(r.left - b.right), top: Math.round(r.top - b.top), w: Math.round(r.width),
+        text: e.innerText.replace(/\s+/g, ' ').trim(), dim: e.querySelectorAll('.ipic.have').length, faces: e.querySelectorAll('.bfaces img').length, marks: [...e.querySelectorAll('.inums .up, .inums .dn')].map((x) => x.className.split(' ').pop()) }; });
+      let x = await pan();
+      assert(x.gap >= 0 && x.gap < 10 && x.top === 0 && Math.abs(x.w - 23 * 2.4 * 7.2 * 0.5) < 3, `on the board's right, its top: ${JSON.stringify(x)}`);
+      assert.strictEqual(x.text, 'Item build Their team Your team Best win rate Vs their team 12% picked 52% won vs Start +2 potions Core, in order › › Boots Later Levels 1 to 3 Q W E Skill order Q › W › E');
+      assert(x.dim === 3 && x.faces === 2, `the items you have dimmed, Zed and Vi on Zhonya's: ${JSON.stringify(x)}`);
+      await shot(p, 'ingame-panel');
+      await p.click('.ipan .vers button');
+      assert.deepStrictEqual(await p.evaluate(() => window.progs), [{ id: 'buy', go: 'wr' }], 'Best win rate asked for from the panel');
+      await p.click('.ipan .itabs button:nth-child(2)');
+      x = await pan();
+      assert.strictEqual(x.text, 'Item build Their team Your team Each player’s last 20 games, against your team Win rate 48% ▼3 Kills 7.2 ▼0.6 Deaths 6.7 ▲0.4 Assists 9.5 ▲2.0 Damage Physical 74% Magic 26% Front line Mostly physical: armor helps');
+      assert.deepStrictEqual(x.marks, ['bad', 'bad', 'bad', 'good'], 'red when worse for their team, green when better (fewer deaths is better)');
+      await shot(p, 'ingame-panel-their-team');
+      await p.click('.ipan .itabs button:nth-child(3)');
+      x = await pan();
+      assert.strictEqual(x.text, 'Item build Their team Your team Each player’s last 20 games, against their team Win rate 51% ▲3 Kills 7.8 ▲0.6 Deaths 6.3 ▼0.4 Assists 7.5 ▼2.0 Damage Physical 40% Magic 60% No frontline');
+      // dragged by its top line: the panel goes along
+      const h = await p.evaluate(() => { const r = document.querySelector('.rb > :first-child > .team').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; });
+      await p.mouse.move(h[0], h[1]);
+      await p.mouse.down();
+      await p.mouse.move(h[0] - 100, h[1] + 50, { steps: 4 });
+      await p.mouse.up();
+      const y = await pan();
+      assert(Math.abs(y.left - (x.left - 100)) < 2 && y.gap === x.gap, `moved with the board: ${JSON.stringify([x, y])}`);
+      await fire(true);
+      await p.waitForSelector('.rb.load');
+      assert.strictEqual(await p.$('.ipan'), null, 'no panel on the loading screen');
+      await p.close();
+      console.log('the panel beside the rank board: the build in full with the pills, their team and yours with green and red differences, moving with the board, none on the loading screen');
+    }
+
+    // ---- while you're dead: your lane's tips; all game: what to buy next, Best win rate or against their team (What's new 228)
     {
       const [c, page] = await context(browser, 'Rayan', { lcu: true, notes: { '103|238': 'stay out of the shadow’s range at level 6' } });
       await openPage(page, 'game');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
       await wait(page, () => !!lpc.lcu().me0, null, 'you, from League’s client');
       await wait(page, () => lpc.winChance() != null, null, 'the items, for the gold');
-      assert.strictEqual(await page.evaluate(() => [lpc.deadTips(), lpc.buyNext(), lpcClient.lastOverlay.tips, lpcClient.lastOverlay.buy]).then((l) => l.every((x) => x == null)), true, 'nothing while alive outside your base');
+      assert.strictEqual(await page.evaluate(() => [lpc.deadTips(), lpcClient.lastOverlay.tips]).then((l) => l.every((x) => x == null)), true, 'no tips while alive outside your base');
+      // alive: the strip on Best win rate (all 40 games have the same first 3 items: 20 won), Rabadon's first
+      await wait(page, () => { const b = lpcClient.lastOverlay.buy; return !!b && b.items.length === 3; }, null, 'what to buy while alive');
+      const strip = () => page.evaluate(() => { const b = lpc.buyNext(); return b && { ...b, items: b.items.map((x) => `${x.name}: ${x.why}${x.faces.length ? ` (${x.faces.length} faces)` : ''}`) }; });
+      let b0 = await strip();
+      assert.deepStrictEqual(b0, { items: ['Rabadon’s Deathcap: Best win rate build: its first 3 items won 50% of 40 games', 'Zhonya’s Hourglass: Best win rate build: its first 3 items won 50% of 40 games', 'Morellonomicon: Usual next in that build'],
+        gold: null, left: 3600, ver: 'wr', vers: ['wr', 'team'] }, JSON.stringify(b0));
+      assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.buy.items[0].of), 'High elo Ahri players buy it in 100% of games');
+      // a click on Vs their team: Zhonya's against Zed and Talon, with their faces; the coach's next item follows it
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'buy', go: 'team' } }));
+      await wait(page, () => lpcClient.lastOverlay.buy.ver === 'team', null, 'Vs their team');
+      b0 = await strip();
+      assert.deepStrictEqual(b0.items, ['Zhonya’s Hourglass: Moved up: armor against Zed and Talon (2 faces)', 'Rabadon’s Deathcap: Usual next on Ahri', 'Morellonomicon: Usual next on Ahri'], JSON.stringify(b0.items));
+      assert.strictEqual(await page.evaluate(() => lpc.nextBuy().name), 'Zhonya’s Hourglass', 'the coach names the version you picked');
+      // your gold fills the bar: 1,180 of Zhonya's 3,250
+      await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST, undefined, { me: { champName: 'Ahri', champ: 'Ahri', team: 'ORDER', hp: 1, speed: 330, dead: false, respawn: 0, gold: 1180.6 } }));
+      await wait(page, () => lpcClient.lastOverlay.buy.gold === 1180, null, 'your gold');
+      assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.buy.left), 3250);
+      // the panel beside the rank board: the whole Vs their team build, Luden's and Sorcerer's dimmed, Zed's face
+      const pan = await page.evaluate(() => { const b = lpc.boardItems().build, n = (x) => `${x.name}${x.have ? ' (have)' : ''}${x.faces.length ? ` (${x.faces.length} faces)` : ''}`; return { ...b, start: b.start.map(n), core: b.core.map(n), boots: n(b.boots), later: b.later.map(n), vs: !!b.vs }; });
+      assert.deepStrictEqual(pan, { ver: 'team', vers: ['wr', 'team'], picked: 1, won: 0.5, vs: true, start: ['Doran’s Ring'], pots: 1, core: ['Luden’s Companion (have)', 'Zhonya’s Hourglass (2 faces)', 'Rabadon’s Deathcap'],
+        boots: 'Sorcerer’s Shoes (have)', later: ['Morellonomicon'], lv: [], max: [] }, JSON.stringify(pan));
+      const them = await page.evaluate(() => lpc.boardItems().them);
+      assert.deepStrictEqual(them, { n: 0, magic: them.magic, front: [them.front[0]], tags: ['Mostly physical: armor helps', 'No engage'] }, JSON.stringify(them));
+      assert(them.magic > 0 && them.magic < 0.3 && /Garen/.test(them.front[0]), JSON.stringify(them));
+      // the next game starts on Best win rate again
+      await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST, undefined, { room: 'g0123456789b' }));
+      await wait(page, () => lpcClient.lastOverlay.buy && lpcClient.lastOverlay.buy.ver === 'wr', null, 'Best win rate in the next game');
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'buy', go: 'team' } }));
+      // the most bought build when no first 3 items have 20 games, and the set that won the most over the most bought
+      assert.deepStrictEqual(await page.evaluate(() => {
+        const g = (ids, n, w) => Array.from({ length: n }, (_, i) => [ids.map((id, k) => [600 + k * 300, id]), +(i < w)]), l = [...g([6655, 3089, 3157], 30, 12), ...g([6655, 3157, 3102], 20, 14), ...g([6655, 3165, 3102], 19, 19)];
+        const set = (t) => { const x = lpc.bestSet(t); return x && [x.n, x.w, x.buys[0].map(([, id]) => id).join()]; };
+        return [set({ buys: l.map((x) => x[0]), bw: l.map((x) => x[1]) }), set({ buys: l.slice(50).map((x) => x[0]), bw: l.slice(50).map((x) => x[1]) })];
+      }), [[20, 14, '6655,3157,3102'], null], 'Best win rate: 14 of 20 over 12 of 30, and 19 of 19 is too few games');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, BURST));
       await wait(page, () => { const t = lpcClient.lastOverlay.tips; return !!t && t.lines.length === 6; }, null, 'the tips while dead');
       const o = await page.evaluate(() => lpcClient.lastOverlay);
@@ -194,19 +296,18 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
         'Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125.', 'Riot’s tip against Zed: Stay away from the shadows.',
         'Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark.', 'Riot’s tip for Ahri: Use Charm to set up your combos.']);
       assert(o.board === true && o.parts.tips && o.parts.buy && o.parts.screen, `the whole screen, with their places: ${JSON.stringify(o.parts)}`);
-      await wait(page, () => !!lpcClient.lastOverlay.buy, null, 'what to buy');
-      assert.deepStrictEqual(await page.evaluate(() => lpcClient.lastOverlay.buy), { name: 'Zhonya’s Hourglass', pic: 'https://ddragon.leagueoflegends.com/cdn/1.1/img/item/3157.png', why: 'armor against Zed and Talon' });
-      const buyVs = async (them, items) => { await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, them, items)); return page.evaluate(() => { const b = lpc.buyNext(); return b && `${b.name}: ${b.why}`; }); };
-      assert.strictEqual(await buyVs(EVEN), 'Rabadon’s Deathcap: usual next on Ahri', 'an even team: what high elo players buy next');
+      assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.buy.items[0].name), 'Rabadon’s Deathcap', 'while dead too, on Best win rate in that game');
+      const buyVs = async (them, items) => { await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, them, items, { room: 'g0123456789b' })); return page.evaluate(() => { const b = lpc.buyNext(); return b && `${b.ver} ${b.items[0].name}: ${b.items[0].why}`; }); };
+      assert.strictEqual(await buyVs(EVEN), 'team Rabadon’s Deathcap: Usual next on Ahri', 'an even team: what high elo players buy next');
       const four = [[6655, 1], [3020, 1], [3089, 1], [3157, 1]];
-      assert.strictEqual(await buyVs(MAGIC, four), 'Banshee’s Veil: magic resist against Syndra and Lux');
-      assert.strictEqual(await buyVs(HEAL, four), 'Morellonomicon: Grievous Wounds against Vladimir and Aatrox');
-      assert.strictEqual(await buyVs(EVEN, [...four, [3102, 1], [3165, 1]]), null, 'nothing left that high elo players build');
-      assert.strictEqual(await buyVs(EVEN, [[6655, 1], [3175, 1]]), 'Rabadon’s Deathcap: usual next on Ahri', 'tier 3 boots count as your boots: no Sorcerer’s Shoes again');
+      assert.strictEqual(await buyVs(MAGIC, four), 'team Banshee’s Veil: Moved up: magic resist against Syndra and Lux');
+      assert.strictEqual(await buyVs(HEAL, four), 'team Morellonomicon: Moved up: Grievous Wounds against Vladimir and Aatrox');
+      assert.strictEqual(await buyVs(EVEN, [...four, [3102, 1], [3165, 1]]), null, 'nothing left that high elo players build: the strip goes');
+      assert.strictEqual(await buyVs(EVEN, [[6655, 1], [3175, 1]]), 'team Rabadon’s Deathcap: Usual next on Ahri', 'tier 3 boots count as your boots: no Sorcerer’s Shoes again');
       // ---- your build on the Game page: Premade's, why, which you have and which is next; then changed, and back
       const build = () => page.evaluate(() => { const b = document.getElementById('liveBuild'); return { hidden: b.hidden, head: b.querySelector('h3').textContent, why: b.querySelector('.bwhy').textContent, rows: [...b.querySelectorAll('li')].map((l) => `${l.dataset.k}:${l.innerText.split('\n')[0]}`) }; });
-      await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, EVEN));
-      await wait(page, () => !document.getElementById('liveBuild').hidden, null, 'your build on the Game page');
+      await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, EVEN, undefined, { room: 'g0123456789b' }));
+      await wait(page, () => !document.getElementById('liveBuild').hidden && document.querySelectorAll('#liveBuild li[data-k="have"]').length === 2, null, 'your build on the Game page');
       let b = await build();
       assert.strictEqual(b.head, 'Premade’s build on Ahri');
       assert(/high elo players buy on Ahri middle \(40 games this patch.*Games with all three first items: won 50% of 40\./.test(b.why), b.why);
@@ -218,13 +319,20 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       await wait(page, () => document.querySelectorAll('#liveBuild li').length === 6 && /^Your build/.test(document.querySelector('#liveBuild h3').textContent), null, 'your changed build');
       b = await build();
       assert.deepStrictEqual(b.rows, ['have:Luden’s Companion', 'next:Zhonya’s Hourglass', ':Morellonomicon', 'have:Sorcerer’s Shoes', ':Banshee’s Veil', ':Youmuu’s Ghostblade'], JSON.stringify(b.rows));
-      assert.strictEqual(await page.evaluate(() => { const x = lpc.buyNext(); return `${x.name}: ${x.why}`; }), 'Zhonya’s Hourglass: next in your build', 'what to buy next goes by your build');
+      assert.deepStrictEqual(await page.evaluate(() => lpc.buyNext().vers), ['wr', 'team', 'mine'], 'Yours once you changed your build');
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'buy', go: 'mine' } }));
+      assert.strictEqual(await page.evaluate(() => { const x = lpc.buyNext(); return `${x.items[0].name}: ${x.items[0].why} ${x.items[0].faces.length}`; }), 'Zhonya’s Hourglass: Next in your build 0', 'Yours goes by your build, no faces');
       assert.strictEqual(await page.evaluate(() => localStorage.getItem('lpc-builds')), '{"103/MIDDLE":[6655,3157,3165,3020,3102,3142]}');
       await page.click('#liveBuild .breset');
       await wait(page, () => document.querySelector('#liveBuild h3').textContent === 'Premade’s build on Ahri', null, 'back to Premade’s build');
       console.log('your build: tier 3 boots count; Premade’s build with why, which you have and next; moved, taken out and added, and what to buy goes by it; back to Premade’s');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
-      await wait(page, () => !lpcClient.lastOverlay.tips && !lpcClient.lastOverlay.buy, null, 'all gone when you’re back');
+      await wait(page, () => !lpcClient.lastOverlay.tips && !!lpcClient.lastOverlay.buy, null, 'the tips gone when you’re back, what to buy stays');
+      // What to buy off: gone, the coach's next item stays
+      await page.evaluate(() => { const x = document.getElementById('optOverlayBuy'); x.click(); });
+      await wait(page, () => !lpcClient.lastOverlay.buy, null, 'What to buy off');
+      assert.strictEqual(await page.evaluate(() => !!lpc.nextBuy()), true, 'the coach still has your next item');
+      await page.evaluate(() => document.getElementById('optOverlayBuy').click());
       console.log('while dead: the tips for your lane on the overlay; what to buy: Zhonya’s against Zed and Talon, Banshee’s against magic, Morellonomicon against healers');
 
       // ---- your chance to win: even at 10:00, 2,000 gold up, 8,000 up at 20:00, an Elder each way, Baron gone

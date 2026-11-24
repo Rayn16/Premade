@@ -272,12 +272,74 @@ body:not(.full) #call, body:not(.full) #ghosts { display: none; }
 .ghost img { display: block; width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%; border: 2px solid #9aa0a6; object-fit: cover; filter: grayscale(1); opacity: 0.33; }
 .ghost span { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); color: #c4c4c4; font: 700 10px/1 'Segoe UI', system-ui, sans-serif; white-space: nowrap; }
 .cpics .lvl { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: #010a13; display: grid; place-items: center; font-size: 19px; font-weight: 700; }
-/* while you're dead: the tips for your lane (tips) and a teammate's screen (cam); and the next item to buy (buy) */
+/* while you're dead: the tips for your lane (tips) and a teammate's screen (cam) */
 .tips { font-size: 13px; }
 .tips ul { margin: 4px 0 0; padding-left: 18px; }
 .tips li { margin: 3px 0; }
-.buy { display: flex; align-items: center; gap: 8px; }
-.buy img { flex: none; width: 22px; height: 22px; border-radius: 3px; }
+.buy { position: relative; display: grid; gap: 8px; padding: 6px; border-color: #463a3d; background: rgb(21 16 18 / 0.9); white-space: normal; }
+.bitems { display: flex; align-items: flex-start; gap: 8px; }
+.bpic { position: relative; display: block; }
+.bpic > img { display: block; width: 32px; height: 32px; border-radius: 4px; }
+.bit.first .bpic > img { width: 40px; height: 40px; }
+.bit.can .bpic > img { outline: 2px solid #f4eeee; outline-offset: 1px; }
+.bbar { width: 40px; height: 4px; margin-top: 4px; border-radius: 2px; background: #33262a; overflow: hidden; }
+.bbar > div { height: 100%; background: var(--gold); }
+.bfaces { position: absolute; top: -7px; right: -9px; display: flex; }
+.bfaces img { display: block; width: 16px; height: 16px; box-sizing: border-box; border: 2px solid #ff5c5c; border-radius: 50%; background: #1f181a; object-fit: cover; }
+.bfaces img + img { margin-left: -5px; }
+.bpop { display: none; position: absolute; top: calc(100% + 6px); right: 0; width: 250px; box-sizing: border-box; gap: 4px; padding: 8px 12px; border: 1px solid #463a3d; border-radius: 6px; background: rgb(21 16 18 / 0.97); font-weight: 500; line-height: 1.35; text-shadow: none; }
+.bit:hover .bpop { display: grid; }
+.bpop b { font-size: 15px; }
+.bpop .gold { color: var(--gold); font-variant-numeric: tabular-nums; }
+.bpop .sub { font-size: 1em; }
+.vers { display: flex; gap: 4px; }
+.vers button { width: 96px; margin: 0; padding: 3px 0; border: 1px solid #6b5a5e; border-radius: 10px; background: transparent; color: #e9e1e2; font: 600 12px/14px 'Segoe UI', system-ui, sans-serif; text-shadow: none; text-align: center; }
+.vers button.mine { width: 60px; }
+.vers button[aria-pressed="true"] { border-color: #f4eeee; background: #f4eeee; color: #151012; }
+/* What's new 228: the panel beside the rank board in a game (Alt+X), moving and sizing with it; 1em is 13 px at the
+   board's usual size */
+.ipan { position: absolute; left: calc(100% + 0.6em); top: 0; width: 23em; box-sizing: border-box; display: grid; gap: 0.92em; padding: 0.92em; border-radius: 0.54em; background: color-mix(in srgb, var(--bg) 78%, transparent); font: 500 2.4em/1.3 'Segoe UI', system-ui, sans-serif; text-shadow: none; }
+.ipan .vers button { width: 7.4em; font-size: 0.92em; line-height: 1.17; padding: 0.25em 0; border-radius: 0.77em; }
+.ipan .vers button.mine { width: 4.6em; }
+.itabs { display: flex; gap: 0.3em; }
+.itabs button { margin: 0; padding: 0.38em 0.77em; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--muted); font: 600 1em/1.23 'Segoe UI', system-ui, sans-serif; }
+.itabs button[aria-pressed="true"] { border-color: #f4eeee; background: #f4eeee; color: #151012; }
+.ibody { display: grid; gap: 0.92em; }
+.ilab { font-size: 0.92em; color: var(--muted); }
+.irate { display: flex; align-items: flex-end; gap: 0.92em; }
+.irate > div { display: grid; gap: 0.3em; width: 6.15em; }
+.irate b { font-size: 1.15em; }
+.itrack { height: 0.3em; border-radius: 0.15em; background: #33262a; overflow: hidden; }
+.itrack > div { height: 100%; background: var(--gold); }
+.itrack.won > div { background: var(--good); }
+.ivs { margin-left: auto; display: flex; align-items: center; gap: 0.46em; font-size: 0.92em; color: var(--muted); }
+.ivs img { width: 2em; height: 2em; border-radius: 50%; object-fit: cover; }
+.igrid { display: grid; grid-template-columns: 7.4em 1fr; gap: 0.92em 1.23em; }
+.igrid > div { display: grid; gap: 0.46em; align-content: start; }
+.irow { display: flex; align-items: center; gap: 0.3em; }
+.irow .gt { color: #6b5a5e; }
+.irow .ipic { position: relative; }
+.irow .ipic > img { display: block; width: 2.15em; height: 2.15em; border-radius: 0.3em; }
+.irow .ipic.have > img { opacity: 0.35; }
+.irow .bfaces { top: -0.46em; right: -0.62em; }
+.irow .bfaces img { width: 1.08em; height: 1.08em; }
+.irow .bfaces img + img { margin-left: -0.3em; }
+.ikey { display: grid; place-items: center; width: 1.7em; height: 1.7em; box-sizing: border-box; border: 1px solid #6b5a5e; border-radius: 0.3em; font-size: 0.92em; font-weight: 700; }
+.inums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6em 1.23em; }
+.inums > div { display: flex; align-items: baseline; gap: 0.46em; }
+.inums .ilab { width: 4em; }
+.inums b { font-size: 1.15em; }
+.inums .up, .inums .dn { font-size: 0.92em; font-weight: 600; }
+.inums .good { color: var(--good); }
+.inums .bad { color: var(--bad); }
+.idmg { display: flex; height: 0.6em; border-radius: 0.3em; overflow: hidden; background: var(--blue); }
+.idmg > div { background: var(--gold); }
+.idmgw { display: flex; justify-content: space-between; font-size: 0.92em; font-weight: 600; color: var(--blue); }
+.idmgw > :first-child { color: var(--gold); }
+.ifront { display: flex; align-items: center; gap: 0.6em; }
+.ifront img { width: 1.7em; height: 1.7em; border-radius: 50%; object-fit: cover; }
+.itags { display: flex; flex-wrap: wrap; gap: 0.46em; }
+.itags span { padding: 0.15em 0.6em; border: 1px solid var(--gold); border-radius: 999px; color: var(--gold); font-size: 0.92em; font-weight: 600; }
 .cam { display: grid; gap: 4px; padding: 6px; }
 .cam img, .cam .ph { display: block; width: 320px; aspect-ratio: 16 / 9; object-fit: contain; border-radius: 4px; background: #000; }
 button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; border: 1px solid var(--gold); border-radius: 4px; background: var(--accent); color: var(--accent-fg); font: 600 13px/1.2 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
@@ -566,6 +628,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       head.addEventListener('dblclick', () => { try { localStorage.removeItem('ovCards'); } catch {} setBox(box, null); });
       box.append(grip);
       setBox(box, savedBox());
+      if (b.items && typeof b.items === 'object') box.append(panel(b.items)); // What's new 228
     }
     boardKey = k;
     return (boardEl = box);
@@ -654,11 +717,108 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     t.g.forEach((row, i) => box.append(pic(t.c[i]), ...(Array.isArray(row) ? row : []).map(pic)));
     return box;
   }
-  function buy(b) { // the next item, with its picture
-    const t = el('toast buy');
-    if (b.pic) t.append(Object.assign(new Image(), { src: String(b.pic), alt: '' }));
-    t.append(`Next: ${b.name}${b.why ? ` · ${b.why}` : ''}`);
-    return t;
+  // What to buy (What's new 228): the next 3 items, the first big with a bar your gold fills (a white ring once you can
+  // buy it), enemies' faces on an item moved up for them, and the version pills under them; hover an item for why. The
+  // strip takes the mouse only while it's over it.
+  const VERS = { wr: 'Best win rate', team: 'Vs their team', mine: 'Yours' }, gp = (n) => Math.round(n).toLocaleString('en-US');
+  function pills(b) { // the build versions: a click changes the strip and the panel beside the rank board
+    const row = el('vers');
+    for (const v of (Array.isArray(b.vers) ? b.vers : []).filter((v) => VERS[v])) {
+      const x = Object.assign(document.createElement('button'), { type: 'button', className: v === 'mine' ? 'mine' : '', textContent: VERS[v] });
+      x.dataset.take = '';
+      x.setAttribute('aria-pressed', String(v === b.ver));
+      x.onclick = () => api.overlayProg && api.overlayProg({ id: 'buy', go: v });
+      row.append(x);
+    }
+    return row.childElementCount > 1 ? row : null;
+  }
+  function itemPic(x, cls) { // an item's picture, with the faces of the enemies it moved up for
+    const box = el(cls), f = el('bfaces');
+    box.append(Object.assign(new Image(), { src: /^https:\/\//.test(x.pic) ? x.pic : '', alt: String(x.name || '') }));
+    f.append(...(Array.isArray(x.faces) ? x.faces : []).slice(0, 2).filter((p) => /^https:\/\//.test(p)).map((src) => Object.assign(new Image(), { src, alt: '' })));
+    if (f.childElementCount) box.append(f);
+    return box;
+  }
+  function buy(b) {
+    const box = el('toast buy'), row = el('bitems'), gold = Number.isFinite(b.gold) ? b.gold : null, left = Math.max(0, +b.left || 0), can = gold !== null && gold >= left;
+    box.dataset.take = '';
+    b.items.slice(0, 3).forEach((x, i) => {
+      if (!x || typeof x !== 'object') return;
+      const cell = el('bit' + (i ? '' : ' first') + (!i && can ? ' can' : '')), pop = el('bpop');
+      cell.append(itemPic(x, 'bpic'));
+      if (!i) { const bar = el('bbar'), fill = el(''); fill.style.width = `${(left ? Math.min(1, (gold || 0) / left) : 1) * 100}%`; bar.append(fill); cell.append(bar); }
+      pop.append(bold(String(x.name || '')), ...(!i && gold !== null ? [tx('gold', can ? 'You can buy it now' : `${gp(left - gold)} gold to go`)] : []), ...(x.why ? [tx('', x.why)] : []), ...(x.of ? [tx('sub', x.of)] : []));
+      cell.append(pop);
+      row.append(cell);
+    });
+    const p = pills(b);
+    box.append(row, ...(p ? [p] : []));
+    return box;
+  }
+  // the panel beside the rank board in a game: Item build (the build you're on in full), Their team and Your team
+  let panTab = 'build';
+  function panel(d) {
+    const box = el('ipan'), tabs = el('itabs'), body = el('ibody');
+    box.dataset.take = '';
+    const show = () => {
+      for (const t of tabs.children) t.setAttribute('aria-pressed', String(t.dataset.k === panTab));
+      body.replaceChildren(...(panTab === 'build' ? pBuild(d.build) : pTeam(d[panTab], d[panTab === 'us' ? 'them' : 'us'], panTab === 'us')));
+    };
+    for (const [k, t] of [['build', 'Item build'], ['them', 'Their team'], ['us', 'Your team']]) {
+      const x = Object.assign(document.createElement('button'), { type: 'button', textContent: t });
+      x.dataset.k = k;
+      x.onclick = () => { panTab = k; show(); };
+      tabs.append(x);
+    }
+    show();
+    box.append(tabs, body);
+    return box;
+  }
+  const lab = (t) => tx('ilab', t), fix1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
+  function sect(name, parts) { const d = el(''); d.append(lab(name)); const r = el('irow'); r.append(...parts); d.append(r); return d; }
+  function pBuild(b) {
+    if (!b || typeof b !== 'object') return [el('ilab', 'No build for your champion here yet')];
+    const pic = (x) => { const e = itemPic(x, 'ipic' + (x.have ? ' have' : '')); e.title = String(x.name || ''); return e; }, list = (l) => (Array.isArray(l) ? l : []).filter((x) => x && typeof x === 'object');
+    const order = (l, f) => l.flatMap((x, i) => (i ? [tx('gt', '›'), f(x)] : [f(x)])), key = (k) => el('ikey', String(k).slice(0, 1));
+    const rate = el('irate'), bar = (v, cls) => { const t = el('itrack' + cls), f = el(''); f.style.width = `${Math.min(1, Math.max(0, v)) * 100}%`; t.append(f); return t; };
+    for (const [v, w, cls] of [[b.picked, 'picked', ''], [b.won, 'won', ' won']]) if (Number.isFinite(v)) { const d = el(''), t = tx(''); t.append(bold(`${Math.round(v * 100)}%`), ' ', tx('ilab', w)); d.append(t, bar(v, cls)); rate.append(d); }
+    if (/^https:\/\//.test(b.vs)) { const d = el('ivs'); d.append('vs', Object.assign(new Image(), { src: b.vs, alt: '' })); rate.append(d); }
+    const grid = el('igrid'), start = list(b.start).map(pic);
+    if (start.length || b.pots) grid.append(sect('Start', [...start, ...(b.pots ? [tx('ilab', `+${b.pots} potion${b.pots === 1 ? '' : 's'}`)] : [])]));
+    if (list(b.core).length) grid.append(sect('Core, in order', order(list(b.core), pic)));
+    if (b.boots && typeof b.boots === 'object') grid.append(sect('Boots', [pic(b.boots)]));
+    if (list(b.later).length) grid.append(sect('Later', list(b.later).map(pic)));
+    if (Array.isArray(b.lv) && b.lv.length) grid.append(sect('Levels 1 to 3', b.lv.slice(0, 3).map(key)));
+    if (Array.isArray(b.max) && b.max.length) grid.append(sect('Skill order', order(b.max.slice(0, 3), key)));
+    return [...[pills(b)].filter(Boolean), ...(rate.childElementCount ? [rate] : []), grid];
+  }
+  function pTeam(t, o, ally) {
+    if (!t || typeof t !== 'object') return [];
+    const out = [lab(`Each player’s last 20 games, against ${ally ? 'their' : 'your'} team`)];
+    if (t.n > 0) {
+      const nums = el('inums');
+      for (const [k, name] of [['wr', 'Win rate'], ['k', 'Kills'], ['d', 'Deaths'], ['a', 'Assists']]) {
+        const v = +t[k], d = o && o.n > 0 ? v - +o[k] : 0, show = (x) => (k === 'wr' ? String(Math.round(x * 100)) : fix1(x)), row = el('');
+        row.append(tx('ilab', name), bold(k === 'wr' ? `${show(v)}%` : show(v)));
+        if (show(Math.abs(d)) !== show(0)) row.append(tx((d > 0 ? 'up' : 'dn') + ((d > 0) === (k !== 'd') ? ' good' : ' bad'), `${d > 0 ? '▲' : '▼'}${show(Math.abs(d))}`));
+        nums.append(row);
+      }
+      out.push(nums);
+    } else out.push(lab('No games read yet'));
+    if (Number.isFinite(t.magic)) {
+      const d = el(''), bar = el('idmg'), f = el(''), w = el('idmgw'), ph = Math.round((1 - t.magic) * 100);
+      d.style.cssText = 'display: grid; gap: 0.46em';
+      f.style.width = `${ph}%`;
+      bar.append(f);
+      w.append(tx('', `Physical ${ph}%`), tx('', `Magic ${100 - ph}%`));
+      d.append(lab('Damage'), bar, w);
+      out.push(d);
+    }
+    const front = (Array.isArray(t.front) ? t.front : []).filter((p) => /^https:\/\//.test(p));
+    if (front.length) { const f = el('ifront'); f.append(lab('Front line'), ...front.map((src) => Object.assign(new Image(), { src, alt: '' }))); out.push(f); }
+    const tags = (Array.isArray(t.tags) ? t.tags : []).slice(0, 2);
+    if (tags.length) { const g = el('itags'); g.append(...tags.map((x) => tx('', String(x)))); out.push(g); }
+    return out;
   }
   function tips(t) {
     const box = el('toast tips'), ul = document.createElement('ul');
@@ -799,7 +959,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if (s.cs) add('cs', el('toast game', String(s.cs)));
     if (s.lane) add('cs', el('toast game', String(s.lane)));
     if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
-    if (s.buy && typeof s.buy === 'object') add('buy', buy(s.buy));
+    if (s.buy && Array.isArray(s.buy.items) && s.buy.items.length) add('buy', buy(s.buy));
     for (const t of Array.isArray(s.practice) ? s.practice : []) add('practice', el('toast game', String(t)));
     if (s.muted) {
       const m = el('pill muted');

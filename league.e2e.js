@@ -2030,7 +2030,7 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await pc.evaluate(() => document.querySelector('#liveNotes .notelist').textContent), 'Ahri against Zed: Respect his level 6. Ward the side bushes.');
     assert(await pc.locator('#liveRows, #timers, #laneStats, #gameTips, #liveAvg, #augTips, #liveBox h2').count() === 0, 'Game in a game: no ranks, timers, lane or tips, the overlay has them (What’s new 227)');
     await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Voidgrubs up · Herald \d+:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k · Win chance 9\d%$/.test(lpcClient.lastOverlay.game), null, 'the overlay line, ending with the chance to win');
-    assert(await pc.evaluate(() => !lpcClient.lastOverlay.board && !lpcClient.lastOverlay.tips), 'no ranks on the overlay and no tips once the game is on');
+    assert(await pc.evaluate(() => typeof lpcClient.lastOverlay.board !== 'object' && !lpcClient.lastOverlay.tips), 'no ranks on the overlay and no tips once the game is on');
     // the phone as a second screen (What's new 215): the clock, the score, the objectives' timers
     await wait(phone, () => !document.getElementById('game').hidden && [...document.querySelectorAll('#objs .obj > span')].map((e) => e.textContent).join() === 'Dragon,Voidgrubs,Herald,Baron,Their mid inhibitor', null, 'the timers on the phone');
     assert.match(await text(phone, '#gClock'), /^1\d:\d\d$/);
@@ -2076,12 +2076,12 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => { const b = lpcClient.lastOverlay.board; return !!b && b.us.length === 5 && b.them.length === 5 && !b.tips && !!lpcClient.lastOverlay.cs && lpc.toasts().includes('Everyone’s rank is on the overlay. Alt+X again hides it.'); }, null, 'everyone’s rank on the overlay by its key');
     await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'board'));
-    await wait(pc, () => lpcClient.lastOverlay.visible && !lpcClient.lastOverlay.board && lpc.toasts().slice(-1)[0] === 'Everyone’s rank hidden. Alt+X brings it back.', null, 'and hidden by it, the rest still on');
+    await wait(pc, () => lpcClient.lastOverlay.visible && typeof lpcClient.lastOverlay.board !== 'object' && lpc.toasts().slice(-1)[0] === 'Everyone’s rank hidden. Alt+X brings it back.', null, 'and hidden by it, the rest still on');
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
     await wait(pc, () => lpcClient.lastOverlay.visible === false && lpc.toasts().slice(-1)[0] === 'Overlay hidden. Alt+V brings it back.', null, 'the overlay hidden by its key');
     await pc.waitForTimeout(650); // apart, as a held key's repeats within 0.6 s count as one press
     await pc.evaluate(() => lpcClient.emit('key', 'overlay'));
-    await wait(pc, () => lpcClient.lastOverlay.visible && lpcClient.lastOverlay.cs && !lpcClient.lastOverlay.board, null, 'the overlay back');
+    await wait(pc, () => lpcClient.lastOverlay.visible && lpcClient.lastOverlay.cs && typeof lpcClient.lastOverlay.board !== 'object', null, 'the overlay back');
     // the sound 30 seconds before Dragon (the last one was at 6:40, so the next at 11:40)
     await league(leagueData({ t: 672 }));
     await wait(pc, () => lpc.toasts().includes('Dragon in 30 seconds') && lpc.played().includes('spawn'), null, 'the Dragon warning');

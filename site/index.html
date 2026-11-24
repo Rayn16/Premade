@@ -3400,9 +3400,10 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="field ovmore client-only" data-when="optOverlay optOverlayChat">In other games, in Borderless or Windowed mode <select id="optOverlayAny"><option value="full">Full-screen games</option><option value="always">Whenever Premade is behind</option><option value="off">Off</option></select></label>
           </section>
           <section class="ovcard" aria-labelledby="h-ovgame">
-            <h3 id="h-ovgame">In game <button class="tip" type="button" popovertarget="t-coach" aria-label="About enemy timers, power spikes and the coach">?</button></h3><p class="ovsub">Top left, out of League’s way</p>
+            <h3 id="h-ovgame">In game <button class="tip" type="button" popovertarget="t-coach" aria-label="About enemy timers, power spikes and the coach">?</button></h3><p class="ovsub">Out of League’s way</p>
             <label class="check lcu-only"><input id="optOverlayGame" type="checkbox"><span><span>Timers and gold</span><span>Dragon, Baron, kills and the gold lead</span></span></label>
             <label class="check lcu-only"><input id="optOverlayWin" type="checkbox"><span><span>Win chance</span><span>Your team’s chance to win, as the game goes</span></span></label>
+            <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"><span><span>What to buy</span><span>Your next 3 items, Best win rate or Vs their team. In Mayhem, DeepARAM’s build</span></span></label>
             <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"><span><span>CS counter</span><span>CS a minute against your usual</span></span></label>
             <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"><span><span>My lane</span><span>CS and gold against your lane opponent</span></span></label>
             <label class="check"><input id="optFoeTimers" type="checkbox"><span><span>Enemy spell strip</span><span>Click their spells and ultimates above your minimap, or say “Premade, mid flash”. Every Premade teammate gets the timer</span></span></label>
@@ -3411,7 +3412,6 @@ dialog.wizard { transform: scale(var(--from)); }
           <section class="ovcard" aria-labelledby="h-ovdead">
             <h3 id="h-ovdead">While you’re dead</h3><p class="ovsub">Gone when you respawn</p>
             <label class="check lcu-only"><input id="optDeadTips" type="checkbox"><span><span>Lane tips</span><span>Your notes and high elo’s tips for this matchup</span></span></label>
-            <label class="check lcu-only"><input id="optOverlayBuy" type="checkbox"><span><span>What to buy</span><span>Your next item, also in your base. In Mayhem, DeepARAM’s build</span></span></label>
             <label class="check lcu-only rooms-only"><input id="optWatchMates" type="checkbox"><span><span>A teammate’s screen</span><span>If they let you watch</span></span></label>
           </section>
           <section class="ovcard" aria-labelledby="h-ovafter">
@@ -7478,14 +7478,14 @@ dialog.wizard { transform: scale(var(--from)); }
     const strip = overlayHide ? null : stripRows();
     const mayCards = overlayEdit || overlayHide ? null : mayhemAugCards();
     const screen = overlayEdit || overlayHide || !cam || !cam.img || now - cam.at > 2000 ? null : { name: nameOf(cam.p), img: cam.img }; // a teammate's, while it keeps coming
-    // the whole screen also for the other team off your minimap, the card after a game, the tips, what to buy and a
+    // the whole screen also for the other team off your minimap, the card after a game, what to buy, the tips and a
     // teammate's screen while you're dead, the chance to win in a surrender vote (left of League's box, the same top),
     // TFT ratings and Mayhem's independent full-screen card layer, and parts with places of their own
     const full = !overlayEdit && boardOk() && (call !== null || !!ghosts || !!strip || !!after || !!tips || !!buy || !!screen || !!vote || !!cards || !!mayCards || (visible && Object.keys(opts.overlayParts).length > 0));
     const V = CameraBox.VOTE, voteAt = vote && { vote: { x: 0.995 - (1600 - V.x) / 1200 / share.wide, y: V.y / 1200, ax: 'r', ay: 't' } };
     let s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, calls: call && callCur && callCur.text === call ? callUp.map((c) => ({ text: c.text, pics: c.pics })) : null, theme: look.dark ? look : null,
-      prog: !!(board && typeof board === 'object') || !!(after && after.board) || !!strip, // the mouse reaches the overlay for the stats' boxes, the Scoreboard button (app 1.46) and the enemy spell strip (What's new 188)
+      prog: !!(board && typeof board === 'object') || !!(after && after.board) || !!strip || !!buy, // the mouse reaches the overlay for the stats' boxes, the Scoreboard button (app 1.46) and the enemy spell strip (What's new 188)
       parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, ghosts, strip, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
@@ -7569,7 +7569,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const avg = (t, fav) => [t, TIER_C[TIERS.findIndex((x) => t.toUpperCase().startsWith(x))] || '', fav];
     return { load: !!loading, dd: ddVersion ? `${DD}/cdn/${ddVersion}` : '', side: mineT === 'CHAOS' ? 'red' : 'blue',
       us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
-      heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null, bg: boardBgNow(),
+      heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null, bg: boardBgNow(), items: loading ? null : boardItems(rows),
       tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null };
   }
   // the mini profile on a name (What's new 205, planned as 201): who they are, without what the card shows. other: the
@@ -7924,59 +7924,133 @@ dialog.wizard { transform: scale(var(--from)); }
     const lane = myLane(liveList()), t = lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null;
     return t && { title: t.title, lines: t.lines.filter((x) => !/ players take /.test(x)).slice(0, 6) };
   }
-  // What to buy next, while you're dead or in your base on Summoner's Rift: of the finished items and boots high elo
-  // players (or Emerald and Diamond's, as in champ select) build on your champion in your role (our server's games),
-  // the one bought soonest after builds most like yours, weighed up for what the other team needs answering: armor
-  // against mostly physical damage (by their items, else their champion), magic resist against magic damage, Grievous
-  // Wounds against healers and penetration against two or more stacking armor or magic resist, each of them counted by
-  // their item gold and kills. Never an item high elo players never build with one you have (two of a kind, like two
-  // Lifeline items).
-  // Worked out again only when your items, the other team's items or kills, or the high elo games change (buyWas).
+  // What to buy (What's new 228): all game on Summoner's Rift and in ARAM: Mayhem, your next 3 items as pictures under
+  // League's score (the strip), and with the rank board up in a game the whole build in the panel beside it, in the
+  // version picked on either (buyVer, kept for that game only, every game starting on Best win rate):
+  // - Best win rate: the build whose first 3 finished items, as a set, won the most in the games champ select reads
+  //   (topMineNow: your rank's while there are enough, else high elo), in its usual order (bestSet, buildFrom);
+  // - Vs their team: of the finished items and boots those players build on your champion in your role, the one bought
+  //   soonest after builds most like yours, weighed up for what the other team needs answering: armor against mostly
+  //   physical damage (by their items, else their champion), magic resist against magic damage, Grievous Wounds against
+  //   healers and penetration against two or more stacking armor or magic resist, each of them counted by their item gold
+  //   and kills; never an item those players never build with one you have (vsNext), run again on what you'd have then;
+  // - Yours, once you changed your build for this champion and role (myBuild), in your order;
+  // - in Mayhem only DeepARAM's build (mayItems).
+  // Worked out again only when your items, the other team's items or kills, or the games change (planWas); gold only
+  // moves the strip's bar.
   // ponytail: hand-set weights and a hand list of healers; tune them once real games say otherwise
   const HEALERS = new Set(['Aatrox', 'Briar', 'DrMundo', 'Fiddlesticks', 'Illaoi', 'Maokai', 'Milio', 'Nami', 'Nasus', 'Olaf', 'Renata', 'Seraphine', 'Sona', 'Soraka', 'Swain', 'Sylas', 'Vladimir', 'Volibear', 'Warwick', 'Yuumi']);
-  let buyWas = { top: null, key: '', out: null };
-  function buyNext() {
-    const mm = opts.overlayBuy && mine.dead && mayhem() && meIn(), may = mm && mayItems(mm.champ); // ARAM: Mayhem: DeepARAM's build, while you're dead
-    if (may) { itemsSoon(); const id = ddItems && nextOf(may, owned(mm.items)); return id ? { name: ddItems[id].name, pic: itemPic(id), why: 'DeepARAM’s Mayhem build' } : null; }
-    const m = opts.overlayBuy && league && SR.test(league.mode) && (mine.dead || (fresh(me) && zoneOf(me) === 'your base')) ? meIn() : null, c = m && champOf(m.champ), role = m && posIn(m);
-    if (!c || !POS[role]) return null;
-    itemsSoon();
-    const top = topMineNow(+c.key, role, renderGame), it = (id) => (ddItems && ddItems[id]) || {}, fin = (id) => !!(it(id).done || it(id).boots);
-    if (!ddItems || !(topOk(top) || myBuild(+c.key, role))) return null;
-    const mb = myBuild(+c.key, role), key = JSON.stringify([c.key, role, m.items, mb, league.players.filter((p) => p.team !== m.team).map((p) => [p.champ, p.items, p.k])]);
-    if (buyWas.top === top && buyWas.key === key) return buyWas.out;
-    buyWas = { top, key, out: null };
-    const have = new Set([...owned(m.items)].filter(fin)), shod = [...have].some((id) => it(id).boots), n = new Map(), paired = new Set(), score = new Map();
-    if (mb) { const id = nextOf(mb, have); return (buyWas.out = id ? { name: it(id).name, pic: itemPic(id), why: 'next in your build' } : null); } // the build you changed, in your order
-    const up = (x) => !(shod && it(x).boots && !it(x).from.some((f) => have.has(f))); // boots only as an upgrade of yours
+  let planWas = { top: null, key: '', out: null }, buyVer = { room: null, v: 'wr' };
+  const buyVerNow = () => (league && buyVer.room === league.room ? buyVer.v : 'wr');
+  const leftOf = (id, have) => ddItems[id].gold - ddItems[id].from.filter((f) => have.has(f)).reduce((n, f) => n + ((ddItems[f] || {}).gold || 0), 0); // its gold less the parts you have
+  function weighOf(p) { // a player in this game, for what their team needs answering: by their items, else their champion
+    const it = (id) => (ddItems && ddItems[id]) || {}, f = champOf(p.champ), st = (k) => (p.items || []).reduce((v, [id, k2]) => v + ((it(id).st || {})[k] || 0) * (k2 || 1), 0), ad = st('ad'), ap = st('ap');
+    return f && { name: f.name, pic: champImg(p.champ), w: 1 + goldOf(p) / 3000 + (p.k || 0) / 4, magic: ad || ap ? ap > ad : isMagic(f), heal: HEALERS.has(f.id), ar: st('ar') >= 80, mr: st('mr') >= 80 };
+  }
+  function vsNext(top, have, foes, champ) { // Vs their team's next item: { id, why, faces } or null
+    const it = (id) => ddItems[id] || {}, fin = (id) => !!(it(id).done || it(id).boots), n = new Map(), paired = new Set(), score = new Map();
+    const mine = new Set([...have].filter(fin)), shod = [...mine].some((id) => it(id).boots);
+    const up = (x) => !(shod && it(x).boots && !it(x).from.some((f) => mine.has(f))); // boots only as an upgrade of yours
     for (const s of top.buys.map((b) => [...new Set(b.map(([, id]) => id).filter(fin))])) {
-      for (const x of s) { n.set(x, (n.get(x) || 0) + 1); for (const y of s) if (have.has(y)) paired.add(`${x},${y}`); }
-      const like = (s.filter((x) => have.has(x)).length + 1) / (have.size + 1); // how much of your build this game's has
+      for (const x of s) { n.set(x, (n.get(x) || 0) + 1); for (const y of s) if (mine.has(y)) paired.add(`${x},${y}`); }
+      const like = (s.filter((x) => mine.has(x)).length + 1) / (mine.size + 1); // how much of your build this game's has
       s.filter((x) => !have.has(x) && up(x)).forEach((x, i) => score.set(x, (score.get(x) || 0) + like / (i + 1)));
     }
-    for (const x of score.keys()) if (n.get(x) >= 3 && [...have].some((y) => n.get(y) >= 3 && !paired.has(`${x},${y}`))) score.delete(x);
+    for (const x of score.keys()) if (n.get(x) >= 3 && [...mine].some((y) => n.get(y) >= 3 && !paired.has(`${x},${y}`))) score.delete(x);
     if (!score.size) return null;
-    const foes = league.players.filter((p) => p.team !== m.team && champOf(p.champ)).map((p) => {
-      const f = champOf(p.champ), st = (k) => (p.items || []).reduce((v, [id, k2]) => v + ((it(id).st || {})[k] || 0) * (k2 || 1), 0), ad = st('ad'), ap = st('ap');
-      return { name: f.name, w: 1 + goldOf(p) / 3000 + (p.k || 0) / 4, magic: ad || ap ? ap > ad : isMagic(f), heal: HEALERS.has(f.id), ar: st('ar') >= 80, mr: st('mr') >= 80 };
-    });
     const all = foes.reduce((v, f) => v + f.w, 0) || 1, of = (k, on) => foes.filter((f) => f[k] === on), part = (k, on = true) => of(k, on).reduce((v, f) => v + f.w, 0) / all;
-    const names = (k, on = true) => of(k, on).sort((a, b) => b.w - a.w).slice(0, 2).map((f) => f.name).join(' and ');
-    const needs = { // an item's answer: [how much the other team needs it, why]
-      ar: [Math.max(0, part('magic', false) - 0.55) * 2.5, () => `armor against ${names('magic', false)}`],
-      mr: [Math.max(0, part('magic') - 0.55) * 2.5, () => `magic resist against ${names('magic')}`],
-      gw: [part('heal') >= 0.2 ? 2 * part('heal') : 0, () => `Grievous Wounds against ${names('heal')}`],
-      pa: [Math.min(1, of('ar', true).length / 2), () => `armor penetration against ${names('ar')}`],
-      pm: [Math.min(1, of('mr', true).length / 2), () => `magic penetration against ${names('mr')}`],
+    const two = (k, on = true) => of(k, on).sort((a, b) => b.w - a.w).slice(0, 2), names = (k, on) => two(k, on).map((f) => f.name).join(' and ');
+    const needs = { // an item's answer: [how much the other team needs it, why, who]
+      ar: [Math.max(0, part('magic', false) - 0.55) * 2.5, () => `armor against ${names('magic', false)}`, () => two('magic', false)],
+      mr: [Math.max(0, part('magic') - 0.55) * 2.5, () => `magic resist against ${names('magic')}`, () => two('magic')],
+      gw: [part('heal') >= 0.2 ? 2 * part('heal') : 0, () => `Grievous Wounds against ${names('heal')}`, () => two('heal')],
+      pa: [Math.min(1, of('ar', true).length / 2), () => `armor penetration against ${names('ar')}`, () => two('ar')],
+      pm: [Math.min(1, of('mr', true).length / 2), () => `magic penetration against ${names('mr')}`, () => two('mr')],
     };
     const most = Math.max(...score.values());
     let best = null;
     for (const [id, s] of score) {
-      const i = it(id), st = i.st || {}, [need, why] = [st.ar > 0 && 'ar', st.mr > 0 && 'mr', i.gw && 'gw', i.pen === 'ar' && 'pa', i.pen === 'mr' && 'pm'].filter(Boolean).map((k) => needs[k]).sort((a, b) => b[0] - a[0])[0] || [0];
+      const i = it(id), st = i.st || {}, [need, why, who] = [st.ar > 0 && 'ar', st.mr > 0 && 'mr', i.gw && 'gw', i.pen === 'ar' && 'pa', i.pen === 'mr' && 'pm'].filter(Boolean).map((k) => needs[k]).sort((a, b) => b[0] - a[0])[0] || [0];
       const v = Math.sqrt(s / most) * (1 + need);
-      if (!best || v > best.v) best = { id, v, why: need >= 0.3 ? why() : `usual next on ${c.name}` };
+      if (!best || v > best.v) best = { id, v, up: need >= 0.3, why, who };
     }
-    return (buyWas.out = { name: it(best.id).name, pic: itemPic(best.id), why: best.why });
+    return { id: best.id, why: best.up ? `Moved up: ${best.why()}` : `Usual next on ${champ}`, faces: best.up ? best.who().map((f) => f.pic) : [] };
+  }
+  function bestSet(top) { // the first 3 finished items (as a set) that won the most, of 20 games or more, with 5 wins and 5 losses added: { buys, n, w } or null
+    const it = (id) => (ddItems && ddItems[id]) || {}, sets = new Map();
+    top.buys.forEach((b, i) => {
+      const s = [...new Set(b.filter(([, id]) => it(id).done).map(([, id]) => id))].slice(0, 3);
+      if (s.length < 3) return;
+      const k = s.sort((x, y) => x - y).join(), v = sets.get(k) || { buys: [], n: 0, w: 0 };
+      v.buys.push(b); v.n++; v.w += top.bw[i] ? 1 : 0;
+      sets.set(k, v);
+    });
+    return [...sets.values()].filter((v) => v.n >= 20).sort((a, b) => (b.w + 5) / (b.n + 10) - (a.w + 5) / (a.n + 10))[0] || null;
+  }
+  function pathOf(ids, have, n) { // a build's next n items you haven't got
+    const h = new Set(have), out = [];
+    for (let id; out.length < n && (id = nextOf(ids, h));) { out.push(id); for (const x of owned([[id]])) h.add(x); }
+    return out;
+  }
+  function planFor(m, c, top, may, mb) { // each version: { path: [{ id, why, faces, of }] (the next 6), start, boots }
+    const have = owned(m.items), vers = {}, of = new Map(), ok = topOk(top);
+    if (ok) for (const b of top.buys) for (const id of new Set(b.map(([, x]) => x))) of.set(id, (of.get(id) || 0) + 1);
+    const entry = (id, why, faces = []) => ({ id, why, faces, of: of.get(id) ? `${eloIn(top.elo, true)} ${c.name} players buy it in ${pct(of.get(id) / top.buys.length)} of games` : '' });
+    if (may) vers.may = { path: pathOf(may, have, 6).map((id) => entry(id, 'DeepARAM’s Mayhem build')), start: [], boots: 0 };
+    const all = ok ? buildFrom(top.buys) : null;
+    if (ok) {
+      const set = bestSet(top), b = set ? buildFrom(set.buys) : all, why = set ? `Best win rate build: its first 3 items won ${pct(set.w / set.n)} of ${set.n} games` : 'Most bought: too few games for win rates';
+      vers.wr = { path: pathOf([...b.core, b.boots, ...b.more].filter(Boolean), have, 6).map((id) => entry(id, b.core.includes(id) ? why : 'Usual next in that build')), start: b.start, boots: b.boots };
+      const foes = league.players.filter((p) => p.team !== m.team).map(weighOf).filter(Boolean), h = new Set(have), path = [];
+      for (let x; path.length < 6 && (x = vsNext(top, h, foes, c.name));) { path.push(entry(x.id, x.why, x.faces)); for (const y of owned([[x.id]])) h.add(y); }
+      vers.team = { path, start: all.start, boots: all.boots };
+    }
+    if (mb) vers.mine = { path: pathOf(mb, have, 6).map((id) => entry(id, 'Next in your build')), start: all ? all.start : [], boots: 0 };
+    return { top: ok ? top : null, vers };
+  }
+  function buyPlan() { // the version you're on: { top, vers, ver, v: that version } or null
+    const m = league && meIn(), c = m && champOf(m.champ);
+    if (!c) return null;
+    itemsSoon();
+    const may = mayhem() && mayItems(m.champ), role = posIn(m);
+    if (!ddItems || !(may || (SR.test(league.mode) && POS[role]))) return null;
+    const top = may ? null : topMineNow(+c.key, role, renderGame), mb = may ? null : myBuild(+c.key, role);
+    if (!may && !topOk(top) && !mb) return null;
+    const key = JSON.stringify([c.key, role, m.items, may, mb, league.players.filter((p) => p.team !== m.team).map((p) => [p.champ, p.items, p.k])]);
+    if (planWas.top !== top || planWas.key !== key) planWas = { top, key, out: planFor(m, c, top, may, mb) };
+    const p = planWas.out, has = Object.keys(p.vers).filter((k) => p.vers[k].path.length), ver = has.includes(buyVerNow()) ? buyVerNow() : has[0]; // a version all bought: the next one
+    return ver ? { ...p, ver, v: p.vers[ver], has: has.filter((k) => k !== 'may') } : null;
+  }
+  function buyNext() { // the strip: { items: [{ name, pic, why, of, faces }], gold, left (the first's gold less the parts you have), ver, vers }
+    const p = opts.overlayBuy ? buyPlan() : null;
+    if (!p) return null;
+    const g = league.me && league.me.gold, l = p.v.path.slice(0, 3);
+    return { items: l.map((x) => ({ name: ddItems[x.id].name, pic: itemPic(x.id), why: x.why, of: x.of, faces: x.faces })), gold: Number.isFinite(g) ? Math.floor(g) : null,
+      left: leftOf(l[0].id, owned(meIn().items)), ver: p.ver, vers: p.has };
+  }
+  // the panel beside the rank board in a game (What's new 228): the build you're on in full (Item build), and each
+  // team's averages from the rank cards' last 20 games, damage, front line and tags (Their team, Your team)
+  function boardItems(rows) {
+    const p = buyPlan(), m = meIn(), it = (id) => (ddItems && ddItems[id]) || {};
+    let build = null;
+    if (p) {
+      const have = owned(m.items), path = p.v.path, faces = new Map(path.map((x) => [x.id, x.faces])), item = (id) => ({ pic: itemPic(id), name: it(id).name || '', have: have.has(id), faces: faces.get(id) || [] });
+      const ids = (m.items || []).map(([id]) => (+id > 99999 ? +id % 10000 : +id)), done = [...new Set([...ids, ...path.map((x) => x.id)].filter((id) => it(id).done))];
+      const boots = ids.filter((id) => it(id).boots && !it(id).done).pop() || (path.find((x) => it(x.id).boots) || {}).id || p.v.boots, core = done.slice(0, 3);
+      const t = p.top, with3 = t && core.length ? t.buys.map((b, i) => (core.every((x) => b.some(([, y]) => y === x)) ? i : -1)).filter((i) => i >= 0) : [], sk = t && skillsFrom(t.skills), o = laneFoeIn(m);
+      build = { ver: p.ver, vers: p.has, picked: t ? with3.length / t.buys.length : null, won: with3.length ? with3.filter((i) => t.bw[i]).length / with3.length : null,
+        vs: o ? champImg(o.champ) : '', start: p.v.start.filter((id) => id !== 2003).map(item), pots: p.v.start.filter((id) => id === 2003).length, core: core.map(item), boots: boots ? item(boots) : null,
+        later: done.slice(3, 6).map(item), lv: sk ? sk.first.split(', ') : [], max: sk ? sk.max.split(', then ') : [] };
+    }
+    const team = (ally) => {
+      const ps = rows.filter((x) => x.ally === ally), gs = ps.map((x) => x.puuid && (scoutData.get(x.puuid) || {}).games).filter((g) => Array.isArray(g) && g.length);
+      const avg = (f) => gs.reduce((v, g) => v + g.reduce((a, x) => a + f(x), 0) / g.length, 0) / gs.length;
+      const live = league ? league.players.filter((q) => ps.some((x) => x.team === q.team)).map(weighOf).filter(Boolean) : [], all = live.reduce((v, f) => v + f.w, 0), magic = all ? live.filter((f) => f.magic).reduce((v, f) => v + f.w, 0) / all : null;
+      const lean = magic == null ? [] : magic <= 0.3 ? [ally ? 'Mostly physical' : 'Mostly physical: armor helps'] : magic >= 0.7 ? [ally ? 'Mostly magic' : 'Mostly magic: magic resist helps'] : [];
+      return { n: gs.length, ...(gs.length && { wr: avg((x) => +!!x.win), k: avg((x) => x.k), d: avg((x) => x.d), a: avg((x) => x.a) }), magic,
+        front: ps.filter((x) => sqFront(champOf(x.champ))).map((x) => champImg(x.champ)), tags: [...lean, ...lacksOf(ps.map((x) => x.champ)).map((l) => `No ${l.replace(/^a /, '')}`)].slice(0, 2) };
+    };
+    return { build, us: team(true), them: team(false) };
   }
   // Your team's chance to win on Summoner's Rift: from the gold in everyone's items, kills, towers, dragons and the soul,
   // Baron and Elder while their buffs last (3:00 and 2:30) and inhibitors down, gold counting for less as the game goes
@@ -8593,7 +8667,7 @@ dialog.wizard { transform: scale(var(--from)); }
       strip: opts.foeTimers ? ['Zed', 'Caitlyn'].map((c) => ({ name: c, pic: champImg(c), spells: [{ k: 'flash:' + c, icon: spellPic(4), name: 'Flash', left: c === 'Caitlyn' ? 254 : 0, by: '' }] })) : null, toasts: opts.overlayToasts ? ['Popups show here'] : [],
       after: opts.overlayAfter ? { title: 'Victory · Ahri', win: true, lines: ['+21 LP: Gold II · 45 LP', 'Score 82 · MVP', '2 clips saved'] } : null,
       tft: opts.overlayTft ? tftSheet() : null,
-      buy: opts.overlayBuy ? { name: 'Zhonya’s Hourglass', pic: itemPic(3157), why: 'armor against Zed and Talon' } : null,
+      buy: opts.overlayBuy ? { items: [[3157, ['Zed', 'Talon']], [4645, []], [3089, []]].map(([id, f]) => ({ name: itemName(id), pic: itemPic(id), why: '', of: '', faces: f.map(champImg) })), gold: 1180, left: 1650, ver: 'team', vers: ['wr', 'team'] } : null,
       tips: opts.deadTips ? { title: 'Ahri against Zed', lines: ['Your note: stay out of his shadow’s range at level 6', 'High elo: Ahri won 8 of 20 games against Zed. A hard matchup for Ahri.', 'Zed is a melee assassin with mostly physical damage, so armor helps against them.'] } : null,
       screen: opts.watchMates ? { name: 'Sam', img: '' } : null,
     };
@@ -8778,6 +8852,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (m && m.prog) { // the Scoreboard button on the card over League's end screen: Premade in front, on the Game page
       if (m.prog.go === 'scoreboard') { if (client.front) client.front(); view('game', true); }
       if (m.prog.id === 'strip' && TIMER_K.test(m.prog.go)) startTimer(m.prog.go, true); // a click on the enemy strip (What's new 183)
+      if (m.prog.id === 'buy' && league && /^(wr|team|mine)$/.test(m.prog.go)) { buyVer = { room: league.room, v: m.prog.go }; pushOverlay(); } // a version pill, on the strip or the panel (What's new 228)
       if (m.prog.id === 'player' && riotIdOk(m.prog.go)) { boardAway = true; pushOverlay(); if (client.front) client.front(); view('profile', true); lookUp(m.prog.go); } // a name on everyone's rank (What's new 195)
       if (m.prog.id === 'size' && overlayEdit && Number.isFinite(m.prog.x)) { opts.overlayScale = Math.min(2, Math.max(0.7, m.prog.x)); saveOpts(); showScale(); pushOverlay(); ovDraw(); } // Move it's corner on the League screen (What's new 225)
       return;
@@ -10592,12 +10667,13 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const [id] of items || []) add(+id > 99999 ? +id % 10000 : +id); // a map's own copy of an item (ARAM's 223158 for 3158) as the item
     return out;
   }
-  function nextBuy() { // the next item of your build (yours as you changed it, else champ select's, else your own) you haven't got: { id, name, left (its gold less the parts you have) }
-    const m = meIn(), c = m && champOf(m.champ);
+  function nextBuy() { // the next item of the build you're on (What to buy's version, What's new 228), else champ select's or your own, you haven't got: { id, name, left (its gold less the parts you have) }
+    const m = meIn(), c = m && champOf(m.champ), p = buyPlan();
+    if (p) return { id: p.v.path[0].id, name: ddItems[p.v.path[0].id].name, left: leftOf(p.v.path[0].id, owned(m.items)) };
     if (!c || !ddItems) return null;
     const pos = posIn(m), mb = myBuild(+c.key, pos), t = mb ? null : topMineNow(+c.key, pos, () => {}), b = mb ? null : topOk(t) ? buildFrom(t.buys) : buildOf(+c.key, pos), have = owned(m.items);
     const id = nextOf(mb || (b ? [...b.core, b.boots, ...b.more].filter(Boolean) : []), have);
-    return id ? { id, name: ddItems[id].name, left: ddItems[id].gold - ddItems[id].from.filter((f) => have.has(f)).reduce((n, f) => n + ((ddItems[f] || {}).gold || 0), 0) } : null;
+    return id ? { id, name: ddItems[id].name, left: leftOf(id, have) } : null;
   }
   function coachTick() {
     if (!opts.coach || !callsOn() || !SR.test(league.mode)) return;
@@ -11901,13 +11977,13 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   // the phone as a second screen in a game: the clock, the objective timers (with their buffs' and their Flash and
   // ultimates' with enemy timers on), kills, towers, gold and your team's win chance, your CS and gold against your
-  // laner, what to buy next (while you're dead or in base, as on the overlay), their five to time and call missing
+  // laner, what to buy next (the first item of the version picked on the overlay, What's new 228), their five to time and call missing
   // (as the overlay's enemy strip), and all ten players with their Solo/Duo rank (looked up as on the Game page)
   function gameRemote() {
-    const w = winChance(), b = buyNext(), m = meIn(), o = laneFoeIn(m), min = gameNow() / 60, strip = stripRows() || [];
+    const w = winChance(), bp = buyPlan(), b = bp && bp.v.path[0], m = meIn(), o = laneFoeIn(m), min = gameNow() / 60, strip = stripRows() || [];
     return {
       clock: Math.round(gameNow()), timers: timers().map(([n, s, k]) => [n, Math.round(s), ...(k ? [k] : [])]), ...teamGold(), ft: !!opts.foeTimers && SR.test(league.mode),
-      win: w == null ? null : Math.round(100 * Math.min(0.99, Math.max(0.01, w))), buy: b ? { name: b.name, why: b.why, pic: b.pic } : null,
+      win: w == null ? null : Math.round(100 * Math.min(0.99, Math.max(0.01, w))), buy: b ? { name: ddItems[b.id].name, why: b.why, pic: itemPic(b.id) } : null,
       lane: o ? { me: m.cs, foe: o.cs, champ: +(champOf(o.champ) || {}).key || 0, rate: min >= 1 ? +(m.cs / min).toFixed(1) : 0, usual: +csUsual(m).toFixed(1), gold: itemGold ? goldOf(m) - goldOf(o) : null } : null,
       foes: opts.foeTimers || opts.teamCall ? liveList().filter((p) => !p.ally && champOf(p.champ)).slice(0, 5).map((p) => {
         const r = strip.find((x) => x.name === champName(p.champ));
@@ -21402,6 +21478,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [228, 'November 24: your next items on the overlay', [
+      'All game, your next 3 items show as pictures under League’s score, the first with a bar your gold fills and a white ring once you can buy it. Two pills switch the build: Best win rate, where every game starts, and Vs their team, with the faces of the enemies an item is for. Yours shows up once you change your build. Hover an item for why.',
+      'With Alt+X in a game, a panel beside everyone’s rank shows the whole build, your first levels and skill order, and Their team and Your team from their last 20 games: win rate, kills, deaths, assists, damage and front line.',
+      'What to buy moved to Settings, Overlay, In game.',
+    ]],
     [227, 'November 24: Game shows only what the overlay doesn’t', [
       'In a game, the Game page keeps your build to edit, your matchup notes and Mayhem’s augments. Everyone’s rank, the timers, the gold difference, your lane and the tips are gone from it: the overlay shows them.',
     ]],
@@ -22754,8 +22835,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Settings, Overlay, Loading screen, Background: Plain, A skin (find a champion, then click a skin) or Your picture.', '#boardBg', 'app'],
       ['Three stats a player', 'Under each name, like Porofessor: the rank line with the win % (from Riot, as League’s client gives other players’ wins only), the last 10 games as win and loss blocks, their games and win % on this champion with its mastery level, and their main role’s icon, red when they play another. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; this season’s peak and the champions in the last 20 with Played and Winrate bars; the same bars a role.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on a player’s card in champ select.', 'Nothing to set up.', '#csRows', 'app'],
-      ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',
-        'In champ select once you have a champion, and on the Game page in a game. The overlay’s next item is on unless you turn it off: Settings, Overlay, While you’re dead, What to buy.', '#csBuild', 'app'],
+      ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion and what those games won. Move items, take them out or add others; it’s kept for that champion and role. In a game the overlay shows your next 3 items under League’s score, the first with a bar your gold fills, and two pills switch the build: Best win rate (the first 3 items that won the most, where every game starts) and Vs their team (moved up against their damage, healing, armor and magic resist, with those enemies’ faces), plus Yours once you changed it. Hover an item for why. With Alt+X a panel beside the rank board shows the whole build (start, core, boots, later, skills), and Their team and Your team: win rate, kills, deaths and assists from their last 20 games, damage split, front line and what they lack. In ARAM: Mayhem, DeepARAM’s build.',
+        'In champ select once you have a champion, and on the Game page in a game. On the overlay unless you turn it off: Settings, Overlay, In game, What to buy.', '#csBuild', 'app'],
       ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',
         'On unless you turn it off: Settings, Overlay, In game, Win chance. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
@@ -22930,7 +23011,7 @@ dialog.wizard { transform: scale(var(--from)); }
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
-    deadTips, buyNext, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), lendSound: async () => { // the screen's sound to the first watcher
+    deadTips, buyNext, buyPlan, bestSet, boardItems: () => boardItems(boardRows()), nextBuy, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), lendSound: async () => { // the screen's sound to the first watcher
       const l = [...lends.values()][0], st = l && l.call.peerConnection && await l.call.peerConnection.getStats(), o = st && [...st.values()].find((r) => r.type === 'outbound-rtp' && r.kind === 'audio');
       return o ? { target: o.targetBitrate || 0, fmtp: (st.get(o.codecId) || {}).sdpFmtpLine || '' } : null;
     }, seen: () => [...seen].map(([p, v]) => ({ name: nameOf(p), call: !!v.call, video: v.vid.videoWidth, h: v.h, callAt: v.callAt, sound: v.vid.srcObject ? v.vid.srcObject.getAudioTracks().length : 0, restarts: v.restarts, idle: !!v.idle })),
