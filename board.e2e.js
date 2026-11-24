@@ -79,6 +79,38 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
     assert.deepStrictEqual(await page.$eval('.tm:not(.foes) .pc:nth-child(5)', (c) => [c.querySelector('.rkl').textContent, c.querySelectorAll('.ru img').length, c.querySelectorAll('.ru i').length, c.querySelectorAll('.sp img').length, c.querySelector('.srow').childElementCount]),
       ['Looking up…', 0, 2, 2, 0], 'looking up: art, champion, empty rune spots, spells, name');
     await shot(page, 'board-red');
+    // What's new 226: a picture behind the cards (Settings > Overlay > Loading screen > Background): a skin's splash over
+    // the whole screen, darkened and softened, under the cards; your own read from the site's Cache Storage; in a game
+    // inside the half-size box, which still moves by its top line; any other address shows nothing
+    const SPLASH = 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Ahri_15.jpg';
+    const bgOf = () => page.evaluate(() => {
+      const b = document.querySelector('.rb'), i = b.querySelector('.rbg'), me = document.querySelector('.pc.me').getBoundingClientRect(), r = i && i.getBoundingClientRect(), k = b.getBoundingClientRect();
+      return i && { src: i.src, at: [r.left, r.top, r.width, r.height].map(Math.round), box: [k.left, k.top, k.width, k.height].map(Math.round), filter: getComputedStyle(i).filter, pic: b.classList.contains('hasbg'),
+        under: !!document.elementFromPoint(me.left + me.width / 2, me.top + me.height / 2).closest('.pc.me'), line: !!document.elementFromPoint(k.left + 40, k.top + 14).closest('.rb > :first-child'), kids: [...b.children].map((e) => e.className) };
+    });
+    await fire(state(board({ bg: SPLASH })));
+    let bg = await bgOf();
+    assert.deepStrictEqual([bg.src, bg.at, bg.pic, bg.under], [SPLASH, [0, 0, 1920, 1080], true, true], 'the splash over the whole screen, under the cards');
+    assert.match(bg.filter, /^brightness\(0\.4\d*\) blur\(/, 'darkened and softened');
+    assert.deepStrictEqual(bg.kids, ['tm', 'tip', 'tm foes', 'rbg'], 'the rows as they were, the picture last');
+    await page.waitForFunction(() => document.querySelector('.rbg').complete);
+    await shot(page, 'board-bg-skin');
+    await page.evaluate(async () => (await caches.open('premade')).put('board-bg', new Response(new Blob(['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="#2a8a6a"/><circle cx="8" cy="4" r="3" fill="#e8c46a"/></svg>'], { type: 'image/svg+xml' }))));
+    await fire(state(board({ bg: 'own:1700000000000' })));
+    await page.waitForFunction(() => /^blob:/.test(document.querySelector('.rbg').src), null, { timeout: 5000 });
+    assert.deepStrictEqual((await bgOf()).at, [0, 0, 1920, 1080], 'your own picture, read from the Cache Storage');
+    await shot(page, 'board-bg-own');
+    await fire(state(board({ bg: 'own:1700000000000', us: board().us.slice(0, 4) })));
+    assert.match((await bgOf()).src, /^blob:/, 'read once: there at once when the cards change');
+    for (const bad of ['https://example.com/Ahri_15.jpg', 'own:', 'javascript:alert(1)']) {
+      await fire(state(board({ bg: bad })));
+      assert.strictEqual(await bgOf(), null, `nothing for ${bad}`);
+    }
+    await fire(state(board({ load: false, bg: SPLASH }), 'Dragon 1:00'));
+    bg = await bgOf();
+    assert.deepStrictEqual([bg.src, bg.at, bg.under, bg.line], [SPLASH, bg.box, true, true], 'in a game, inside the box, which still moves by its top line');
+    assert.match(await page.$eval('.rbg', (e) => getComputedStyle(e).clipPath), /^inset\(0px round/, 'the blur kept inside the box’s corners');
+    await shot(page, 'board-bg-in-game');
     // What's new 217: long tags stay inside the card, the second under the first, and the cards still line up; a tag
     // wider than the card ends in "…", whole on hover
     const LONG = 'Pro player: ' + 'Team Liquid Honda Academy '.repeat(2);

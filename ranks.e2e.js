@@ -4,8 +4,9 @@
 // flagged with a popup, Avoid on another, the list in Pregame settings, a Riot ID added there), the hovered champion
 // locked in when time is almost up, and Dodge (twice to be sure, a note on an app without it, none in a custom game); on
 // the loading screen, each team's average rank and which is favored on the Game page and the overlay, an enemy on the
-// avoid list flagged there, everyone's last games with League's client slower than the app waits (What's new 224); and
-// only calls the desktop app lets through (client/main.js LCU_OK).
+// avoid list flagged there, everyone's last games with League's client slower than the app waits (What's new 224); the
+// background behind everyone's rank picked in Settings (What's new 226); and only calls the desktop app lets through
+// (client/main.js LCU_OK).
 // Needs the npm packages peer@1.0.2, peerjs@1.5.4 and playwright; run with NODE_PATH listing their node_modules:
 //   NODE_PATH=/path/to/node_modules:$(npm root -g) node ranks.e2e.js        (SHOTS=folder saves screenshots)
 const fs = require('fs');
@@ -126,6 +127,7 @@ async function context(browser) {
     const u = r.request().url();
     if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.1', '1.0'], headers: cors });
     if (u.endsWith('/champion.json')) return r.fulfill({ json: { data: DDATA }, headers: cors });
+    if (u.endsWith('/champion/Ahri.json')) return r.fulfill({ json: { data: { Ahri: { id: 'Ahri', skins: [{ num: 0, name: 'default' }, { num: 1, name: 'Dynasty Ahri' }, { num: 15, name: 'Spirit Blossom Ahri' }] } } }, headers: cors });
     if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
     r.fulfill({ body: PNG, contentType: 'image/png', headers: cors });
   });
@@ -265,6 +267,50 @@ const calls = (re) => L.calls.filter((c) => re.test(c));
     assert(L.histMax <= 2, `one player at a time: ${L.histMax} waiting at once`);
     await wait(page, () => [...document.querySelectorAll('#liveRows tr')].filter((tr) => /Last 1: 1W 0L/.test(tr.textContent)).length === 6, null, 'the Game page too');
     console.log('loading screen: League slower than the app waits, and every card still gets its last games');
+
+    // ---- What's new 226: the background behind everyone's rank, from Settings > Overlay > Loading screen: Plain at
+    // first; A skin starts on your Profile's (Ahri, your most played) with its champion's skins; another champion found
+    // by name; Your picture asks for one first, cut to what covers 1920 x 1080 and kept in the site's Cache Storage for
+    // the overlay; Plain, then Your picture again without asking; a file that isn't a picture turned down
+    const SPL = 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/';
+    const bgNow = () => page.evaluate(() => lpcClient.lastOverlay.board.bg);
+    const pressed = () => page.$$eval('#boardBgKind button[aria-pressed="true"]', (l) => l.map((b) => b.textContent));
+    await openPage(page, 'settings');
+    await page.click('#setList [data-sec="overlay"]');
+    assert.deepStrictEqual([await pressed(), await bgNow(), await page.isVisible('#boardBgSkin'), await page.isVisible('#boardBgOwn')], [['Plain'], '', false, false], 'plain at first');
+    await page.click('#boardBgKind [data-bg="skin"]');
+    await wait(page, () => document.querySelectorAll('#boardBgSkins button').length === 3, null, 'Ahri’s skins');
+    assert.deepStrictEqual([await pressed(), await bgNow()], [['A skin'], SPL + 'Ahri_0.jpg'], 'your Profile’s skin first');
+    assert.deepStrictEqual(await page.$$eval('#boardBgChamps button', (l) => [l[0].textContent, l[0].getAttribute('aria-pressed')]), ['Ahri', 'true']);
+    assert.deepStrictEqual(await page.$$eval('#boardBgSkins button', (l) => l.map((b) => [b.textContent, b.getAttribute('aria-pressed')])), [['Ahri', 'true'], ['Dynasty Ahri', 'false'], ['Spirit Blossom Ahri', 'false']]);
+    await page.click('#boardBgSkins button:has-text("Spirit Blossom Ahri")');
+    assert.strictEqual(await bgNow(), SPL + 'Ahri_15.jpg');
+    assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')).boardBg), 103015, 'kept');
+    await shot(page, 'settings-board-bg-skin');
+    await page.fill('#boardBgFind', 'ze');
+    await page.click('#boardBgChamps button:has-text("Zed")');
+    await wait(page, () => (document.querySelector('#boardBgSkins button') || {}).textContent === 'Zed', null, 'Zed’s skins');
+    await page.click('#boardBgSkins button');
+    assert.strictEqual(await bgNow(), SPL + 'Zed_0.jpg');
+    const big = await page.evaluate(() => new Promise((ok) => { const c = Object.assign(document.createElement('canvas'), { width: 3000, height: 2000 }), x = c.getContext('2d'); x.fillStyle = '#2a8a6a'; x.fillRect(0, 0, 3000, 2000); c.toBlob((b) => b.arrayBuffer().then((a) => ok([...new Uint8Array(a)])), 'image/png'); }));
+    let [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#boardBgKind [data-bg="own"]')]);
+    assert.deepStrictEqual(await pressed(), ['A skin'], 'nothing changes until a picture is picked');
+    await chooser.setFiles({ name: 'wall.png', mimeType: 'image/png', buffer: Buffer.from(big) });
+    await wait(page, () => /^own:\d+$/.test(lpcClient.lastOverlay.board.bg), null, 'your picture on the overlay');
+    const at = await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-opts')).boardPic);
+    assert.deepStrictEqual([await pressed(), await bgNow()], [['Your picture'], `own:${at}`]);
+    assert.deepStrictEqual(await page.evaluate(async () => { const b = await (await caches.match('board-bg')).blob(), i = await createImageBitmap(b); return [b.type, i.width, i.height, document.getElementById('boardBgImg').src.slice(0, 5)]; }),
+      ['image/jpeg', 1920, 1280, 'blob:'], 'cut to what covers 1920 x 1080, a JPEG, shown in Settings');
+    await shot(page, 'settings-board-bg-own');
+    await page.click('#boardBgKind [data-bg="plain"]');
+    assert.strictEqual(await bgNow(), '');
+    await page.click('#boardBgKind [data-bg="own"]');
+    assert.deepStrictEqual([await pressed(), await bgNow()], [['Your picture'], `own:${at}`], 'the kept picture again, without asking');
+    [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#boardBgPick')]);
+    await chooser.setFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not a picture') });
+    await wait(page, () => !document.getElementById('boardBgNote').hidden, null, 'the note');
+    assert.deepStrictEqual([await text(page, '#boardBgNote'), await bgNow()], ['Premade can’t open that file. Pick a JPG, PNG or WebP picture.', `own:${at}`], 'turned down, the picture kept');
+    console.log('loading screen background: plain, your Profile’s skin then any skin, your own picture kept on the PC, a file that isn’t a picture turned down');
 
     assert.deepStrictEqual(L.refused, [], 'only calls the desktop app lets through');
     await ctx.close();

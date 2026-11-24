@@ -1456,6 +1456,17 @@ output.vend { font-family: var(--mono); }
 .ovcard > .field > select { max-width: min(100%, 240px); }
 .ovcard .range > select { justify-self: end; } /* Fade: its own width on the right, as the other choices */
 .ovin, .ovmore { --ind: 24px; } /* a choice under its switch */
+/* What's new 226: the background behind everyone's rank: Plain, A skin (Profile's Background picker's parts) or Your picture */
+.ovcard > .bgpick { display: grid; gap: 12px; padding: 11px 0 14px; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.bghead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
+.bghead > span { display: grid; gap: 1px; font-size: 14px; }
+.bghead > span > span + span, .bgown small { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.bgskin { display: grid; gap: 12px; }
+#boardBgChamps { display: contents; }
+.bgown { display: flex; align-items: center; gap: 14px; }
+.bgown img { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--raised); }
+.bgown > span { display: grid; gap: 6px; justify-items: start; }
+.bgpick > .hint { margin: 0; font-size: 13px; }
 div.ovin { padding-left: 24px; }
 .ovin .check { --ind: 0px; }
 .ovwhere { gap: 12px; padding-bottom: 20px; }
@@ -3380,6 +3391,13 @@ dialog.wizard { transform: scale(var(--from)); }
           <section class="ovcard" aria-labelledby="h-ovload">
             <h3 id="h-ovload">Loading screen</h3><p class="ovsub">Covers League’s loading screen until the game starts</p>
             <label class="check lcu-only"><input id="optOverlayBoard" type="checkbox"><span><span>Everyone’s rank</span><span>All ten players with ranks and tags, and your matchup tips</span></span></label>
+            <div id="boardBg" class="bgpick lcu-only">
+              <div class="bghead"><span><span>Background</span><span>Behind the cards, also with Alt+X in a game</span></span><div id="boardBgKind" class="pills" role="group" aria-label="Background"><button type="button" data-bg="plain" aria-pressed="true">Plain</button><button type="button" data-bg="skin" aria-pressed="false">A skin</button><button type="button" data-bg="own" aria-pressed="false">Your picture</button></div></div>
+              <div id="boardBgSkin" class="bgskin" hidden><div class="prochamps"><input id="boardBgFind" type="search" autocomplete="off" spellcheck="false" placeholder="Find a champion" aria-label="Find a champion"><span id="boardBgChamps"></span></div><div id="boardBgSkins" class="proskins"></div></div>
+              <div id="boardBgOwn" class="bgown" hidden><img id="boardBgImg" alt="Your picture"><span><button id="boardBgPick" class="btn small" type="button">Change picture</button><small>It stays on this PC</small></span></div>
+              <input id="boardBgFile" type="file" accept="image/*" hidden>
+              <p id="boardBgNote" class="hint" role="status" hidden></p>
+            </div>
           </section>
           <section class="ovcard rooms-only" aria-labelledby="h-ovvoice">
             <h3 id="h-ovvoice">Voice</h3><p class="ovsub">Over League, and over other full-screen games</p>
@@ -4126,7 +4144,7 @@ dialog.wizard { transform: scale(var(--from)); }
     foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
-    motion: 'auto', motionGame: false, slimRail: false, frSlim: true,
+    motion: 'auto', motionGame: false, slimRail: false, frSlim: true, boardBg: '', boardPic: 0,
     hook: '', hookGames: true, hookClips: true, lolStatus: false,
     attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
     ...load('lpc-opts', {}),
@@ -7559,7 +7577,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const avg = (t, fav) => [t, TIER_C[TIERS.findIndex((x) => t.toUpperCase().startsWith(x))] || '', fav];
     return { load: !!loading, dd: ddVersion ? `${DD}/cdn/${ddVersion}` : '', side: mineT === 'CHAOS' ? 'red' : 'blue',
       us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
-      heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null,
+      heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null, bg: boardBgNow(),
       tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null };
   }
   // the mini profile on a name (What's new 205, planned as 201): who they are, without what the card shows. other: the
@@ -8734,6 +8752,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const c = champOf(topChamps(1)[0]); // your most played champion's splash behind the presets
     if (c) $('ovArt').src = `${DD}/cdn/img/champion/splash/${c.id}_0.jpg`;
     $('ovArt').hidden = !c;
+    renderBoardBg();
     ovSync();
     ovDraw();
   }
@@ -16297,7 +16316,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!skinList.has(c.id)) {
       skinList.set(c.id, null);
       fetch(`${DD}/cdn/${ddVersion}/data/en_US/champion/${c.id}.json`).then((r) => r.json()).then((j) => j.data[c.id].skins.map((x) => ({ num: x.num | 0, name: x.num ? String(x.name) : c.name })))
-        .catch(() => [{ num: 0, name: c.name }]).then((l) => { skinList.set(c.id, l); if (!profView.hidden) renderProfile(); });
+        .catch(() => [{ num: 0, name: c.name }]).then((l) => { skinList.set(c.id, l); if (!profView.hidden) renderProfile(); renderBoardBg(); });
     }
     return skinList.get(c.id);
   }
@@ -16383,30 +16402,33 @@ dialog.wizard { transform: scale(var(--from)); }
       if ($('proBgLeague').firstChild.getAttribute('src') !== lg.src) $('proBgLeague').firstChild.src = lg.src;
       $('proBgLeague').querySelector('small').textContent = `${lg.name}, the background you set in League`;
     }
-    const c = champOf(proBgChamp) || (sk && sk.c), all = Object.values(ddChampByName).filter((x, i, l) => l.indexOf(x) === i);
-    const champs = q ? all.filter((x) => x.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 6)
-      : [...new Set([c, ...(p.m || []).map((m) => champOf(m.championId))].filter(Boolean))].slice(0, 5);
-    const skins = c ? skinsOf(c) || [] : [], key = JSON.stringify([champs.map((x) => x.id), c && c.id, sk && sk.id, skins.length, ddVersion]);
-    if ($('proBgSkins').dataset.key !== key) {
-      $('proBgSkins').dataset.key = key;
-      $('proBgChamps').replaceChildren(...champs.map((x) => {
-        const b = Object.assign(document.createElement('button'), { type: 'button', className: 'prochip' });
-        b.dataset.c = x.id;
-        b.setAttribute('aria-pressed', String(!!c && x.id === c.id));
-        b.append(Object.assign(new Image(), { src: champPic(x.id), alt: '' }), x.name);
-        return b;
-      }));
-      $('proBgSkins').replaceChildren(...skins.map((x) => {
-        const b = Object.assign(document.createElement('button'), { type: 'button' }), id = +c.key * 1000 + x.num;
-        b.dataset.skin = id;
-        b.setAttribute('aria-pressed', String(!!sk && sk.id === id));
-        b.append(Object.assign(new Image(), { src: `${DD}/cdn/img/champion/splash/${c.id}_${x.num}.jpg`, alt: '', loading: 'lazy' }), x.name);
-        return b;
-      }));
-    }
+    skinPicker($('proBgChamps'), $('proBgSkins'), q, champOf(proBgChamp) || (sk && sk.c), (p.m || []).map((m) => champOf(m.championId)), sk && sk.id);
     $('proBgTint').setAttribute('aria-checked', String(proBgSet.tint !== false));
     for (const b of $('proBgReach').children) b.setAttribute('aria-pressed', String(b.dataset.reach === (proBgSet.reach || 'top')));
     $('proBgTintNote').textContent = `${proBgSet.reach === 'app' ? 'Every page' : 'Only Profile'}. Off keeps Premade’s usual colors`;
+  }
+  // the champions to pick from (those with q in their name, else c then tops) and c's skins as their splashes, picked
+  // outlined: Profile's Background, and Settings > Overlay's background behind everyone's rank (What's new 226)
+  function skinPicker(chipsBox, skinsBox, q, c, tops, picked) {
+    const all = Object.values(ddChampByName).filter((x, i, l) => l.indexOf(x) === i);
+    const champs = q ? all.filter((x) => x.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 6) : [...new Set([c, ...tops].filter(Boolean))].slice(0, 5);
+    const skins = c ? skinsOf(c) || [] : [], key = JSON.stringify([champs.map((x) => x.id), c && c.id, picked, skins.length, ddVersion]);
+    if (skinsBox.dataset.key === key) return;
+    skinsBox.dataset.key = key;
+    chipsBox.replaceChildren(...champs.map((x) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'prochip' });
+      b.dataset.c = x.id;
+      b.setAttribute('aria-pressed', String(!!c && x.id === c.id));
+      b.append(Object.assign(new Image(), { src: champPic(x.id), alt: '' }), x.name);
+      return b;
+    }));
+    skinsBox.replaceChildren(...skins.map((x) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button' }), id = +c.key * 1000 + x.num;
+      b.dataset.skin = id;
+      b.setAttribute('aria-pressed', String(picked === id));
+      b.append(Object.assign(new Image(), { src: `${DD}/cdn/img/champion/splash/${c.id}_${x.num}.jpg`, alt: '', loading: 'lazy' }), x.name);
+      return b;
+    }));
   }
   function proBgPick(id) { // a skin, or 0 for Same as League
     const p = shownMine();
@@ -16426,6 +16448,61 @@ dialog.wizard { transform: scale(var(--from)); }
   $('proBgSkins').addEventListener('click', (e) => { const b = e.target.closest('[data-skin]'); if (b) proBgPick(+b.dataset.skin); });
   $('proBgReach').addEventListener('click', (e) => { const b = e.target.closest('[data-reach]'); if (b) { proBgSet.reach = b.dataset.reach; saveBg(); proTint(); renderProfile(); } });
   $('proBgTint').addEventListener('click', () => { proBgSet.tint = proBgSet.tint === false; saveBg(); proTint(); renderProfile(); });
+  // What's new 226: what's behind everyone's rank (the loading screen, and Alt+X's in a game), from Settings > Overlay >
+  // Loading screen: Plain (the theme's), A skin (opts.boardBg: its id, as Profile keeps them) or Your picture
+  // (opts.boardBg 'own'), cut to what covers 1920 x 1080 and kept in this site's Cache Storage, where the overlay's page
+  // (the same site) reads it, so it never leaves the PC; opts.boardPic: when it was kept. A skin starts on your Profile's.
+  let bgKind = opts.boardBg === 'own' ? 'own' : opts.boardBg ? 'skin' : 'plain', bgChamp = '', bgSkin = Number.isInteger(opts.boardBg) ? opts.boardBg : 0; // bgSkin: the last skin, for A skin again
+  function boardBgNow() { // for the overlay: a splash's address, 'own:' and when yours was kept, or ''
+    if (opts.boardBg === 'own') return opts.boardPic ? `own:${opts.boardPic}` : '';
+    const s = Number.isInteger(opts.boardBg) && skinArt(opts.boardBg);
+    return s ? s.src : '';
+  }
+  function boardBgSet(v) { opts.boardBg = v; if (Number.isInteger(v)) bgSkin = v; saveOpts(); renderBoardBg(); pushOverlay(); }
+  function renderBoardBg() {
+    for (const b of $('boardBgKind').children) b.setAttribute('aria-pressed', String(b.dataset.bg === bgKind));
+    $('boardBgSkin').hidden = bgKind !== 'skin';
+    $('boardBgOwn').hidden = bgKind !== 'own';
+    if (bgKind === 'skin') {
+      const art = Number.isInteger(opts.boardBg) ? skinArt(opts.boardBg) : null;
+      skinPicker($('boardBgChamps'), $('boardBgSkins'), $('boardBgFind').value.trim().toLowerCase(), champOf(bgChamp) || (art && art.c), topChamps(5).map(champOf), art && art.id);
+    }
+    if (bgKind === 'own' && !$('boardBgImg').src && self.caches) caches.match('board-bg').then((r) => r && r.blob()).then((pic) => { if (pic && !$('boardBgImg').src) $('boardBgImg').src = URL.createObjectURL(pic); }).catch(() => {});
+  }
+  $('boardBgKind').addEventListener('click', (e) => {
+    const k = (e.target.closest('[data-bg]') || {}).dataset?.bg;
+    $('boardBgNote').hidden = true;
+    if (k === 'own' && !opts.boardPic) return $('boardBgFile').click(); // none kept yet: it's picked first
+    if (!k || k === bgKind) return;
+    bgKind = k;
+    const mine = bgSkin || (proBgMine && proBgMine.id) || (topChamps(1)[0] || 0) * 1000; // the last one, else your Profile's skin, else your top champion's
+    if (k === 'skin' && !mine) renderBoardBg(); // nothing to start on: the picker
+    else boardBgSet(k === 'own' ? 'own' : k === 'skin' ? mine : '');
+  });
+  $('boardBgFind').addEventListener('input', () => renderBoardBg());
+  $('boardBgChamps').addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { bgChamp = b.dataset.c; renderBoardBg(); } });
+  $('boardBgSkins').addEventListener('click', (e) => { const b = e.target.closest('[data-skin]'); if (b) boardBgSet(+b.dataset.skin); });
+  $('boardBgPick').addEventListener('click', () => $('boardBgFile').click());
+  $('boardBgFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    e.target.value = ''; // the same file again is a new pick
+    if (!f) return;
+    try {
+      const pic = await createImageBitmap(f), k = Math.min(1, Math.max(1920 / pic.width, 1080 / pic.height), 3840 / Math.max(pic.width, pic.height));
+      const cv = Object.assign(document.createElement('canvas'), { width: Math.round(pic.width * k), height: Math.round(pic.height * k) });
+      cv.getContext('2d').drawImage(pic, 0, 0, cv.width, cv.height);
+      pic.close();
+      const jpg = await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.85));
+      await (await caches.open('premade')).put('board-bg', new Response(jpg));
+      if ($('boardBgImg').src) URL.revokeObjectURL($('boardBgImg').src);
+      $('boardBgImg').src = URL.createObjectURL(jpg);
+      bgKind = 'own';
+      opts.boardPic = Date.now();
+      boardBgSet('own');
+    } catch {
+      Object.assign($('boardBgNote'), { hidden: false, textContent: 'Premade can’t open that file. Pick a JPG, PNG or WebP picture.' });
+    }
+  });
   $('proMenu').addEventListener('click', (e) => { if (e.target.closest('.cmenu button')) $('proMenu').open = false; }); // a pick in the ⋯ menu closes it
   const liveRk = new Map(); // puuid -> { at, rk } for the players in a live game on Profile: undefined while asked, null when it failed
   let proSaved = '', proList = '', riotOn = false, riotAt = -Infinity, riotMineAt = -Infinity, riotBusy = false, riotSlot = 0;
@@ -21351,6 +21428,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [226, 'November 24: your own loading screen background', [
+      'Settings, Overlay, Loading screen has Background: keep it plain, pick any champion’s skin, or choose a picture of your own. It shows darkened behind everyone’s rank cards, on the loading screen and with Alt+X in a game. Your picture stays on your PC.',
+    ]],
     [225, 'November 24: size the overlay in a game', [
       'Move it on my screen has a corner now: drag it to make the overlay bigger or smaller right on the League screen. Settings’ Size goes with it.',
     ]],
@@ -22693,6 +22773,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['After the game', 'A card over League’s end screen: win or loss, the LP you won or lost, your score (MVP or ACE), the clips you saved that game and a Scoreboard button that opens the Game page.', 'On unless you turn it off: Settings, Overlay, After the game.', '#optOverlayAfter', 'app'],
       ['Premade’s loading screen', 'Over League’s whole loading screen, a tall card for each player like League’s, in Premade’s look: their champion’s art in their skin, their keystone and second rune tree, rank emblem and two summoner spells, then name, rank, their last 10 games, their champion and main role, and up to 2 tags. Your team on top on the red side and at the bottom on the blue side, one line a team with its average rank, and the tips for your lane between them. Alt+X shows the same cards at half size in a game, or hides them on the loading screen; in a game drag them by the top line anywhere and resize them by the corner, and they stay there. Rest the mouse on a name for their mini profile (Flex rank, last season, top mastery); click it to open their profile in Premade, in front. Over the cards the overlay shows only callouts, who’s talking, room chat and popups: the timers line with the win chance, the enemy spell strip and the rest wait until the cards go.',
         'On unless you turn it off: Settings, Overlay, Loading screen, Everyone’s rank. Double-click the top line in a game to put it back.', '#optOverlayBoard', 'app'],
+      ['Loading screen background', 'Behind everyone’s rank cards, on the loading screen and with Alt+X in a game: plain, any champion’s skin, or a picture of your own, darkened so the cards stay easy to read. Your picture stays on your PC.',
+        'Settings, Overlay, Loading screen, Background: Plain, A skin (find a champion, then click a skin) or Your picture.', '#boardBg', 'app'],
       ['Three stats a player', 'Under each name, like Porofessor: the rank line with the win % (from Riot, as League’s client gives other players’ wins only), the last 10 games as win and loss blocks, their games and win % on this champion with its mastery level, and their main role’s icon, red when they play another. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; this season’s peak and the champions in the last 20 with Played and Winrate bars; the same bars a role.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on the Game page.', 'Nothing to set up.', '#liveRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion, what those games won, and the other team’s damage, healing, armor and magic resist. While you’re dead or in your base the overlay shows the next item, like “Next: Zhonya’s Hourglass · armor against Zed and Talon”. Move items, take them out or add others; it’s kept for that champion and role.',

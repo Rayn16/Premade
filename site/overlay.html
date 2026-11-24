@@ -88,6 +88,12 @@ body.board { font-size: calc(1vh * var(--k, 1)); }
 .rb:not(.load) > :first-child > .team { cursor: move; }
 .rsz { --rszc: color-mix(in srgb, var(--fg) 45%, transparent); position: absolute; right: 0; bottom: 0; width: 3.2em; height: 3.2em; cursor: nwse-resize; border-radius: 0 0 1.4em 0; background: linear-gradient(135deg, transparent 55%, var(--rszc) 55% 63%, transparent 63% 75%, var(--rszc) 75% 83%, transparent 83%); }
 .rb.load .rsz { display: none; }
+/* What's new 226: a picture behind the cards (Settings > Overlay > Loading screen > Background), a skin's splash or your
+   own, darkened and softened so the cards and lines stay easy to read; the blur kept inside the board */
+.rb.hasbg { isolation: isolate; }
+.rbg { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; border-radius: inherit; clip-path: inset(0 round 1.4em); filter: brightness(0.42) blur(0.3em); }
+.rb.load .rbg { clip-path: none; }
+.rbg:not([src]) { visibility: hidden; }
 .pop.dn { bottom: auto; top: calc(100% + 0.6em); }
 .pop.rt { left: auto; right: -1em; }
 .st:hover .pop { display: grid; gap: 0.7em; }
@@ -547,8 +553,9 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     dd = /^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/[\w.]+$/.test(b.dd || '') ? b.dd : '';
     const a = team(hs[0], true, Array.isArray(b.us) ? b.us : []), z = team(hs[1], false, Array.isArray(b.them) ? b.them : []);
     const tips = b.load && b.tips && Array.isArray(b.tips.lines) && b.tips.lines.length ? [tipLine(b.tips)] : [];
-    const box = el(`rb${b.load ? ' load' : ''}`);
+    const art = bgArt(b.bg), box = el(`rb${b.load ? ' load' : ''}${art === null ? '' : ' hasbg'}`);
     box.append(...(red ? [a] : [z]), ...tips, ...(red ? [z] : [a]));
+    if (art !== null) box.append(Object.assign(new Image(), { className: 'rbg', alt: '', ...(art && { src: art }) }));
     if (!b.load) { // What's new 179: move it by its top line and resize it by its corner
       const head = box.firstChild.firstChild, grip = el('rsz');
       head.dataset.take = grip.dataset.take = '';
@@ -562,6 +569,26 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     boardKey = k;
     return (boardEl = box);
+  }
+  // What's new 226: the picture behind the cards: a skin's splash from Data Dragon, or your own ('own:' and when it was
+  // kept), which index.html keeps in this site's Cache Storage, read once here. -> its address, '' while yours is read,
+  // null for none
+  let own = { at: '', url: '' };
+  function bgArt(v) {
+    const s = String(v || '');
+    if (/^https:\/\/ddragon\.leagueoflegends\.com\/cdn\/img\/champion\/splash\/\w+_\d+\.jpg$/.test(s)) return s;
+    if (!/^own:\d+$/.test(s) || !self.caches) return null;
+    if (own.at !== s) {
+      if (own.url) URL.revokeObjectURL(own.url);
+      own = { at: s, url: '' };
+      caches.match('board-bg').then((r) => r && r.blob()).then((pic) => {
+        if (own.at !== s || !pic) return;
+        own.url = URL.createObjectURL(pic);
+        const i = boardEl && boardEl.querySelector('.rbg');
+        if (i) i.src = own.url;
+      }).catch(() => {});
+    }
+    return own.url;
   }
   // What's new 205: a new key, so the old board's place and size (ovBoard) don't carry over to the cards
   const savedBox = () => { try { const v = JSON.parse(localStorage.getItem('ovCards')); return v && [v.x, v.y, v.k].every(Number.isFinite) ? v : null; } catch { return null; } };
