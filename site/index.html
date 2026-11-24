@@ -2208,7 +2208,7 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 /* faces only, picked with the arrow at its top (What's new 220; the same as a smaller window, below, which hides the
    arrow). :where() keeps these as weak as the window-size rules, so a phone-sized window still stacks the column */
 :where(.fr-slim) .frcol { width: 64px; }
-:where(.fr-slim) :is(.frhead > :not(.frfold), .frtext, .frring, .fracts, #proFrNote) { display: none !important; }
+:where(.fr-slim) .frcol :is(.frhead > :not(.frfold), .frtext, .frring, .fracts, #proFrNote) { display: none !important; }
 :where(.fr-slim) .frhead { padding: 12px 0 0; align-items: center; }
 :where(.fr-slim) .frhead .frfold { position: static; }
 :where(.fr-slim) .frfold svg { transform: scaleX(-1); }
@@ -2223,7 +2223,7 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 :where(.fr-slim) .frsq:is(:hover, :focus-within) .frsqcard { display: flex; }
 @container app (max-width: 1240px) {
   .frcol { width: 64px; }
-  .frhead, .frtext, .frring, .fracts, #proFrNote { display: none !important; }
+  .frcol :is(.frhead, .frtext, .frring, .fracts, #proFrNote) { display: none !important; } /* not Pregame's invite rows, which share the row look */
   .frlist { padding: 12px 0; align-items: center; gap: 6px; }
   .fr { background: none !important; }
   .frgo { padding: 4px; border-radius: 50%; }
@@ -21031,6 +21031,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ]],
     [220, 'November 24: a smaller friends list', [
       'Friends you play with on Profile is smaller now: just their faces, each in a ring coloured by your win rate together. Click the arrow at its top for the whole list, and again to make it small. Premade remembers which you left it on.',
+      'Pregame’s Invite friends rows keep your friends’ names and win rates in a smaller window too.',
     ]],
     [219, 'November 23: a new look at how you played', [
       'After a game the scoreboard is lane against lane: your laner facing theirs, one tag each, and an arrow to who won the lane. The gold difference is on top, with dragons, Barons, towers and big fights above it and your deaths on its line.',
