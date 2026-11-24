@@ -2395,7 +2395,9 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await text(pc, '#statsWho'), 'Rayan#EUW · last 20 games');
     assert.deepStrictEqual(await pc.$$eval('#form > div', (l) => l.map((d) => d.firstChild.textContent + ' ' + d.querySelector('b').textContent)), ['KDA 4.00', 'CS a minute 5.7', 'Vision score 19.3', 'Kill participation —', 'Deaths a game 3.0']);
     assert.strictEqual(await pc.locator('#form svg:not([hidden]) polyline').count(), 4, 'a line for each, none for kill participation (not in League’s games)');
-    assert.deepStrictEqual(await pc.$$eval('#comebacks .srow, #throws .srow', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' ').trim())), ['Victory 1.3k gold behind at 15 Nov 23', 'Defeat 3.8k gold ahead at 15 Nov 23']);
+    const cbRows = await pc.$$eval('#comebacks .srow, #throws .srow', (l) => l.map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
+    assert.ok(cbRows.every((r) => / [A-Z][a-z]{2} \d{1,2}$/.test(r)), 'each comeback/throw row ends with its game day: ' + cbRows); // the test games are dated from today
+    assert.deepStrictEqual(cbRows.map((r) => r.replace(/ [A-Z][a-z]{2} \d{1,2}$/, '')), ['Victory 1.3k gold behind at 15', 'Defeat 3.8k gold ahead at 15']);
     assert.deepStrictEqual(await pc.$$eval('#fame .hcard', (l) => l.map((e) => e.querySelectorAll('small')[0].textContent)), ['Pentakill', 'Most kills', 'Best KDA', 'Most damage']);
     assert.strictEqual(await pc.locator('#times i[data-r]').count() > 0 && await pc.locator('#stops .barrow').count() > 0 && await pc.locator('#lens > div').count(), 3, 'when you win');
     await pc.click('#throws .srow');
