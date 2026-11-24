@@ -2513,7 +2513,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label>Champion <select id="mfChamp"><option value="">Any</option></select></label>
             <label>Role <select id="mfRole"><option value="">Any</option><option value="TOP">Top</option><option value="JUNGLE">Jungle</option><option value="MIDDLE">Middle</option><option value="BOTTOM">Bottom</option><option value="UTILITY">Support</option></select></label>
             <label>Result <select id="mfRes"><option value="">Any</option><option value="w">Wins</option><option value="l">Losses</option></select></label>
-            <label id="mfWithBox">With <select id="mfWith"><option value="">Anyone</option></select></label>
+            <label id="mfWithBox">Friend <select id="mfWith"><option value="">Anyone</option></select></label>
             <label>When <select id="mfWhen"><option value="">Any time</option><option value="0">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label>
             <button id="exportBtn" class="btn small" type="button">Export to a spreadsheet</button>
           </form>
@@ -16361,8 +16361,9 @@ dialog.wizard { transform: scale(var(--from)); }
       .map(([c, l]) => champTile(c, `${l.length} game${l.length === 1 ? '' : 's'} · ${Math.round((100 * l.filter((x) => x.win).length) / l.length)}% won · ${kda(...['k', 'd', 'a'].map((s) => l.reduce((t, x) => t + x[s], 0)))} KDA`, pages)));
     renderProChamps(p, all, label, pages);
     fillSel($('mfChamp'), [...new Set(all.map((x) => x.champ))].filter((c) => champOf(c)).map((c) => [c, champName(c)]).sort((a, b) => a[1].localeCompare(b[1])), 'Any'); // the filters (What's new 203)
-    $('mfWithBox').hidden = !mine;
-    if (mine) fillSel($('mfWith'), playedWith().slice(0, 20).map((f) => [f.u, f.name]), 'Anyone');
+    const fr = mine && client ? frRows().map((x) => ({ ...x, t: frTog(x) })).filter((x) => x.t).sort((a, b) => b.t.n - a.t.n || b.t.w - a.t.w || a.riot.localeCompare(b.riot)) : []; // Friend (What's new 221): the Friends you play with, in the column's order
+    $('mfWithBox').hidden = !fr.length;
+    fillSel($('mfWith'), fr.map((x) => [x.u || 'n:' + acctOf(x.riot), x.riot]), 'Anyone'); // League's puuid, or the Riot ID of a friend added by hand
     const hits = matchList(all, mine), shown = hits.slice(0, proShow), list = `${p.n} ${q} ${ddVersion} ${shown.map((x) => x.id + ',').join('')}`;
     $('matchFilter').hidden = !all.length;
     $('matchNote').hidden = !filtering();
@@ -18217,7 +18218,8 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   // Profile's Recent games filters (What's new 203, from Stats' match history): champion, role, result, a friend on your
   // team, when, and a search by champion or by anyone's name in the game (from your games in detail, so yours only).
-  // Filtered, every match of the games Profile has shows.
+  // Friend (What's new 221) finds them by puuid or Riot ID in your games in detail, and by puuid in older Rift games
+  // (the duo store). Filtered, every match of the games Profile has shows.
   const MF = ['mfFind', 'mfChamp', 'mfRole', 'mfRes', 'mfWith', 'mfWhen'];
   const filtering = () => MF.some((id) => $(id).value.trim());
   function matchList(g, mine) {
@@ -18225,9 +18227,9 @@ dialog.wizard { transform: scale(var(--from)); }
     const [find, c, role, res, u, when] = MF.map((id) => $(id).value.trim()), s = find.toLowerCase(), since = !when ? 0 : +when ? Date.now() - when * 864e5 : new Date().setHours(0, 0, 0, 0);
     const has = (t) => String(t || '').toLowerCase().includes(s);
     return g.filter((x) => {
-      const d = mine && deep[x.id], m = d && d.ps && d.ps[d.me];
+      const d = mine && deep[x.id], m = d && d.ps && d.ps[d.me], o = mine && duoX.g[x.id];
       return (!c || x.champ === +c) && (!role || x.lane === role) && (!res || x.win === (res === 'w')) && x.at >= since
-        && (!u || (!!m && d.ps.some((p) => p !== m && p.u === u && p.t === m.t))) && (!s || has(champName(x.champ)) || (!!d && d.ps.some((p) => has(p.n) || has(champName(p.c)))));
+        && (!u || (m ? d.ps.some((p) => p !== m && p.t === m.t && (p.u === u || 'n:' + acctOf(p.n) === u)) : !!o && o.m.some(([v]) => v === u))) && (!s || has(champName(x.champ)) || (!!d && d.ps.some((p) => has(p.n) || has(champName(p.c)))));
     });
   }
   function fillSel(sel, list, any) { // a filter's choices ([value, text]), keeping the one picked
@@ -20995,6 +20997,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [221, 'November 24: your games with a friend', [
+      'Profile’s Recent games has a Friend filter: pick one of your Friends you play with and only your games with them on your team show.',
+    ]],
     [219, 'November 23: a new look at how you played', [
       'After a game the scoreboard is lane against lane: your laner facing theirs, one tag each, and an arrow to who won the lane. The gold difference is on top, with dragons, Barons, towers and big fights above it and your deaths on its line.',
       'Press yourself for Your game: rings for how many high elo games on your champion and role you beat, overall and in Fighting, Damage, Farming, Vision and Laning, with your best number, your biggest leak and a target for next game. Press a ring for its numbers, and where you rank among the 10 in this game.',
@@ -22174,7 +22179,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Queues and older games', 'A tab for each queue (All, Solo/Duo, Flex, Normal and ARAM), each with its own record. Show more games goes back months, 20 games at a time.',
         'Pick a tab above Recent games.', '#proQueues'],
       ['Match history and game reports', 'Recent games, searched and filtered by champion, role, result, friend or date, and saved as a spreadsheet. Each report has three tabs (Overview, Laning and Builds) and scores every player (MVP and ACE), with the replay, Riot’s extra numbers and where their jungler was in the first 14 minutes. Builds shows yours and your lane opponent’s by shop trip, finished items ringed in gold, with buy times from Riot’s copy when League’s has none. Saves anyone’s runes or build in League.',
-        'Profile, Recent games: search or pick a filter, click a game, or Export to a spreadsheet. With is for your own games.', '#mfFind, #exportBtn'],
+        'Profile, Recent games: search or pick a filter, click a game, or Export to a spreadsheet. Friend shows on your own profile and lists your Friends you play with.', '#mfFind, #mfWith, #exportBtn'],
       ['Rank cards', 'Each rank with Riot’s emblem, this season’s peak and your past seasons, and League’s warnings: placement games left, days until decay from Diamond up, and when one loss can drop you a division. Under Solo/Duo, where it stands on its server’s ladder at every rank, like “Top 14% of EUW · about #420,000”, and in the desktop app a rough idea of your hidden MMR, like “Your games are around Gold I while you’re Silver II, so you should climb fast”.',
         'Nothing to set up. Ladder places are for EUW, NA and KR, counted once a day. A goal you pick in Stats, You, shows on its card too.', '#proRanks'],
       ['Live game', 'When you or a player you look up is in a game, all ten players in it with their rank, each team’s average rank and which team is favored.',

@@ -92,6 +92,7 @@ function fakeLcu(method, p) {
   if (p === '/lol-ranked/v1/current-ranked-stats') return ok({ queueMap: a.ranks });
   if (p === '/lol-champion-mastery/v1/local-player/champion-mastery') return ok([]);
   if (p === '/lol-perks/v1/recommended-champion-positions') return ok({});
+  if (p === '/lol-chat/v1/friends') return ok([{ puuid: 'duo', gameName: 'Duo', gameTag: 'EUW', availability: 'chat', product: 'league_of_legends', lol: {} }]); // Duo is a League friend
   if ((m = /alias\/lookup\?gameName=([^&]*)&tagLine=(.*)$/.exec(p))) return m[1] === 'Duo' && m[2] === 'EUW' ? ok({ puuid: 'duo' }) : none;
   if (p === '/lol-ranked/v1/ranked-stats/duo') { const [tier, division, leaguePoints] = L.duoRank; return ok({ queueMap: { RANKED_SOLO_5x5: { tier, division, leaguePoints, wins: 20, losses: 20 } } }); }
   if (p === '/lol-summoner/v2/summoners/puuid/duo') return ok({ puuid: 'duo', summonerLevel: 150, profileIconId: 3 });
@@ -151,15 +152,17 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.j
       if (u.pathname === '/riot/champ') return r.fulfill({ json: { patch: '15.20', role: u.searchParams.get('r'), roles: {}, games: [] }, headers: cors });
       r.fulfill({ status: 404, json: { status: { status_code: 404 } }, headers: cors });
     });
-    await ctx.addInitScript((lp) => {
+    await ctx.addInitScript(([lp, duo]) => {
       if (localStorage.getItem('lpc-setup')) return;
+      localStorage.setItem('lpc-friends', JSON.stringify(['Trio#EUW'])); // a friend added by hand, by Riot ID
+      localStorage.setItem('lpc-duo', JSON.stringify(duo));
       localStorage.setItem('lpc-setup', '1');
       localStorage.setItem('lpc-name', 'Rayan');
       localStorage.setItem('lpc-news', '9999'); // no What's new
       localStorage.setItem('lpc-opts', JSON.stringify({ denoise: false, compact: false, autoRoom: false }));
       localStorage.setItem('lpc-lp', JSON.stringify(lp));
       localStorage.setItem('lpc-patch-seen', '1.0'); // the app saw patch 1.0, so 1.1 is new
-    }, LP);
+    }, [LP, { u: 'me-a', g: { 6009: { at: MINE[9].at, q: 420, w: 0, c: 86, l: 'TOP', m: [['duo', 412, 'UTILITY']] } } }]); // the duo store has one of your games with Duo
     await ctx.addInitScript(fakeApp, '1.12.0');
     await ctx.exposeFunction('fakeLcu', fakeLcu);
     const pc = await ctx.newPage();
@@ -221,9 +224,15 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.j
     assert.deepStrictEqual(await filter({ mfChamp: '99' }), of(3), 'Lux');
     assert.deepStrictEqual(await filter({ mfRole: 'TOP' }), of(8), 'top');
     assert.deepStrictEqual(await filter({ mfChamp: '103', mfRes: 'w' }), of(9), 'Ahri wins');
+    // Friend (What's new 221): the Friends you play with, most games first: Duo from League (10 games), Trio added by hand (4)
+    assert.strictEqual(await pc.$eval('#mfWithBox', (e) => e.firstChild.textContent.trim()), 'Friend');
     assert.deepStrictEqual(await pc.$$eval('#mfWith option', (l) => l.map((o) => o.textContent)), ['Anyone', 'Duo#EUW', 'Trio#EUW']);
     assert.deepStrictEqual(await filter({ mfWith: 'duo' }), of(10), 'with Duo');
     await shot(pc, 'filters');
+    assert.deepStrictEqual(await filter({ mfWith: 'n:trio#euw' }), of(4), 'with Trio, by Riot ID');
+    await pc.evaluate(() => { window.kept = lpc.deep()[6009]; delete lpc.deep()[6009]; }); // a game not read in detail: Duo found in the duo store
+    assert.deepStrictEqual(await filter({ mfWith: 'duo' }), of(10), 'with Duo, one game from the duo store');
+    await pc.evaluate(() => { lpc.deep()[6009] = window.kept; });
     assert.deepStrictEqual(await filter({ mfWhen: '0' }), of(2), 'today');
     assert.deepStrictEqual(await filter({ mfFind: 'trio' }), of(4), 'Trio by name');
     assert.deepStrictEqual(await filter({ mfFind: 'LUX' }), of(3), 'Lux by name');
@@ -254,6 +263,7 @@ const shot = (page, name) => process.env.SHOTS && page.screenshot({ path: path.j
     await pc.fill('#proId', 'Duo#EUW');
     await pc.press('#proId', 'Enter');
     await wait(pc, () => document.getElementById('proName').textContent === 'Duo', null, 'Duo’s profile');
+    assert(await pc.isHidden('#mfWithBox'), 'Friend only on your own profile');
     await pc.click('#proMenu > summary'); // Compare with me and Add to my accounts are in the ⋯ menu
     assert(await pc.isVisible('#proMineToo'), 'Add to my accounts');
     await pc.click('#proCmp');
