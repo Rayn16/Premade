@@ -224,6 +224,12 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
     assert.strictEqual(await ray.isVisible('#proFrNote'), false);
     assert.deepStrictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-lolfriends'))).map((x) => [x.riot, x.u]).sort(), [['Duo#EUW', 'duo-puuid'], ['Sleepy#EUW', 'off-puuid']], 'League friends kept for when League is closed, with their puuid');
     await wait(ray, () => !!document.querySelector('#proFrList .frpm'), null, 'Duo has Premade');
+    // faces only at first (What's new 220); the arrow at the top opens the whole list, and Premade remembers it
+    assert(await ray.isVisible('#proFrList .frface') && await ray.isHidden('#proFrList .frtext') && await ray.isHidden('#h-profr'), 'faces only at first');
+    if (process.env.SHOTS) await ray.screenshot({ path: path.join(process.env.SHOTS, 'friends-faces.png') });
+    await ray.click('#proFrFold');
+    assert(await ray.isVisible('#proFrList .frtext') && await ray.isVisible('#h-profr'), 'the whole list from the arrow');
+    assert.strictEqual(JSON.parse(await ray.evaluate(() => localStorage.getItem('lpc-opts'))).frSlim, false, 'and remembered');
     await ray.hover('#proFrList li');
     assert(await ray.isVisible('#proFrList li .fracts button') && await ray.isHidden('#proFrList li .frring'), 'Invite in place of the ring on hover');
     await ray.click('#proFrList li .frmore summary');
@@ -272,6 +278,7 @@ const id = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('lpc-sq
 
     // ---- a squad: Rayan makes one, Duo joins it from the room and turns off pings for rank-ups
     await openPage(ray, 'profile'); await openPage(duo, 'profile'); // the squad, at the foot of Profile's friends column
+    await duo.click('#proFrFold'); // Duo's whole list too (the invite above was joined from faces only)
     assert.match(await text(ray, '#sqNote'), /^Your group of up to 12\./);
     await ray.click('#sqMake');
     await wait(ray, () => document.getElementById('sqList').textContent === 'Rayan (you) · phone remote on', null, 'Rayan’s squad');
