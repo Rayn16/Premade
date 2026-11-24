@@ -1015,7 +1015,7 @@ const leagueData = (over = {}) => ({
     await pc.click('#proQueues [data-q="all"]');
     await wait(pc, () => document.getElementById('h-proform').textContent === 'Last 20 games' && /Gold II/.test(document.getElementById('proRanks').textContent), null, 'all your games again');
     console.log('Profile: Rayan#EUW, level 300, Gold II, in the client, 13W 7L in 20 games, Ahri first; a report; Sniper looked up with 10 older games; Solo/Duo and Flex tabs (no TFT tab: What’s new 203)');
-    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Pregame', 'Game', 'Stats', 'TFT', 'Clips', 'Premade'], 'League’s pages in the sidebar on Profile, in the app (no Proximity voice or Overlay: What’s new 207)');
+    assert.deepStrictEqual(await pc.$$eval('.nav', (b) => b.filter((x) => x.offsetParent).map((x) => x.textContent.trim())), ['Profile', 'Squad', 'Pregame', 'Game', 'Stats', 'TFT', 'Clips', 'Premade'], 'League’s pages in the sidebar on Profile, in the app (no Proximity voice or Overlay: What’s new 207)');
     // RE4 co-op: the helper's checks drawn as rows, and Play's answer
     await openPage(pc, 're4');
     await wait(pc, () => document.getElementById('re4Role').textContent === 'Host · Tailscale 100.101.102.103' && !document.getElementById('re4SignIn').hidden && document.querySelectorAll('#re4Conn .re4row .dot[data-h="good"]').length === 1

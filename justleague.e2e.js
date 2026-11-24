@@ -38,7 +38,7 @@ function fakeClient() {
 }
 const shot = async (p, name) => { if (SHOTS) { await p.waitForTimeout(400); await p.screenshot({ path: path.join(SHOTS, name + '.png') }); } }; // after fades and switches settle
 const shown = (p) => p.$$eval('.rail .nav', (b) => b.filter((x) => x.checkVisibility()).map((x) => x.textContent.trim()));
-const LEAGUE = ['Profile', 'Pregame', 'Game', 'Stats', 'TFT']; // no Proximity voice or Overlay (What's new 207)
+const LEAGUE = ['Profile', 'Squad', 'Pregame', 'Game', 'Stats', 'TFT']; // no Proximity voice or Overlay (What's new 207)
 const secs = (p) => p.$$eval('#setList [data-sec]', (b) => b.filter((x) => x.checkVisibility()).map((x) => x.dataset.sec)); // Settings' sections shown
 const openSet = async (p, sec) => { await p.click('.rail [data-view="settings"]'); await p.click(`#setList [data-sec="${sec}"]`); };
 const cur = (p) => p.evaluate(() => document.querySelector('main > .view:not([hidden])').dataset.view);

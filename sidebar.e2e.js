@@ -93,7 +93,7 @@ async function drag(p, toX, { up = true } = {}) { // from the edge's middle to t
     await page.click('#leagueNav');
     const sw = await page.evaluate(() => ({ list: !document.getElementById('leagueList').hidden, premade: document.getElementById('premadeList').hidden, top: document.getElementById('brandL').checkVisibility() && document.getElementById('brandL').textContent, bottom: document.querySelector('#leagueNav span').textContent, page: !document.querySelector('.view[data-view="profile"]').hidden, slide: document.getElementById('leagueList').getAnimations().map((a) => a.animationName), fade: document.querySelector('.view[data-view="profile"]').getAnimations().length }));
     assert.deepStrictEqual(sw, { list: true, premade: true, top: 'League', bottom: 'Premade', page: true, slide: ['rail-in'], fade: 0 }, 'League’s list slides in on Profile (What’s new 207), the page doesn’t also fade');
-    assert.deepStrictEqual(await visibleNames(page), ['Profile', 'Pregame', 'Game', 'Stats', 'TFT', 'Premade'], 'League’s pages in the sidebar, no Proximity voice or Overlay');
+    assert.deepStrictEqual(await visibleNames(page), ['Profile', 'Squad', 'Pregame', 'Game', 'Stats', 'TFT', 'Premade'], 'League’s pages in the sidebar, no Proximity voice or Overlay');
     assert.strictEqual(await page.getAttribute('#leagueNav', 'aria-current'), null, 'the bottom button isn’t lit');
     await page.waitForTimeout(300);
     await page.click('.nav[data-view="stats"]');
