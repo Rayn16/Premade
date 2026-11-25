@@ -284,7 +284,7 @@ function fakeLcu(method, p, body) {
   if (p === '/lol-matchmaking/v1/ready-check') return lcu.rc ? ok(lcu.rc) : { status: 404, data: null };
   if ((m = /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/.exec(p))) { if (lcu.rc) lcu.rc.playerResponse = m[1] === 'accept' ? 'Accepted' : 'Declined'; return { status: 204, data: null }; }
   if (p === '/lol-champ-select/v1/session') return lcu.cs && lcu.phase === 'ChampSelect' ? ok(lcu.cs) : { status: 404, data: null };
-  if (/pickable-champion-ids|bannable-champion-ids/.test(p)) return ok(CHAMPS.map((c) => c[1]));
+  if (/pickable-champion-ids|bannable-champion-ids/.test(p)) return ok(lcu.pickable && p.endsWith('/pickable-champion-ids') ? lcu.pickable : CHAMPS.map((c) => c[1])); // lcu.pickable: fewer you can pick (What's new 231)
   if ((m = /^\/lol-champ-select\/v1\/session\/actions\/(\d+)$/.exec(p))) {
     const a = flatActions().find((x) => x.id === +m[1]);
     a.championId = body.championId;
@@ -1708,7 +1708,13 @@ const leagueData = (over = {}) => ({
     await wait(phone, () => document.getElementById('lock').textContent === 'Lock in Ahri' && !document.getElementById('lock').disabled && document.getElementById('lock').className === 'big red', null, 'Lock in Ahri, red, on the phone');
     await wait(pc, () => /hovering Ahri/.test(document.getElementById('csTurn').textContent), null, 'Ahri hovered from the phone');
     await wait(pc, () => document.querySelector('#dGrid .dchamp[aria-pressed="true"] img').alt === 'Ahri', null, 'Ahri hovered in the grid');
+    // What's new 231: once you lock in, League lists neither Lux nor their banned Vi as yours to pick: Lux leaves the grid
+    // (as in League's own grid), Vi stays greyed out as banned; only banned and picked champions are greyed
+    lcu.pickable = CHAMPS.map((c) => c[1]).filter((c) => c !== 99 && c !== 254);
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])');
+    await wait(pc, () => [...document.querySelectorAll('#dGrid .dchamp')].map((b) => b.querySelector('img').alt + (b.getAttribute('aria-disabled') === 'true' ? ' (off)' : '')).sort().join() === 'Ahri (off),Vi (off),Zed (off)', null, 'Lux left out, banned Vi greyed');
+    assert.match(await pc.getAttribute('#dGrid .dchamp:has(img[alt="Vi"])', 'title'), /^Vi: banned or picked\n/);
+    lcu.pickable = null;
     await wait(pc, () => /Runes: the most popular page/.test(lpc.lcu().runesNote), null, 'the runes');
     assert.strictEqual(await pc.evaluate(() => lpc.lcu().runesNote), 'Runes: the most popular page for Ahri, middle, in high elo (Electrocute: 63% won in 30 games). Spells: Flash on D, Ignite on F.');
     const page1 = callsTo(/^\/lol-perks\/v1\/pages$/, 'POST');

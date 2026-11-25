@@ -9919,8 +9919,9 @@ dialog.wizard { transform: scale(var(--from)); }
     return d;
   }
   // the champions to rank for a role: those with 10 high elo games there that play it (playsIn), yours with 2 games
-  // there, your favorites Riot recommends there; or, while searching, every champion with that in its name. Banned,
-  // picked and ones you can't pick (or ban, on your ban turn) are greyed out.
+  // there, your favorites Riot recommends there; or, while searching, every champion with that in its name. Banned and
+  // picked ones are greyed out; ones League won't let you pick (or ban, on your ban turn), like champions you don't own,
+  // are left out, as in League's own grid and on the phone (What's new 231).
   // What's new 189: Meta is the high elo win rate alone; Matchups the draft's matchups (Bot lane first weighing them for
   // an ADC or a support), what your team lacks and your games with your duo; Balanced both, and your own games and mastery
   function advPool(role, d, q = advQ.trim().toLowerCase()) {
@@ -9932,11 +9933,11 @@ dialog.wizard { transform: scale(var(--from)); }
         ...[...(d.foe ? [] : advFavs)].filter((c) => champPos && champPos[c] && (champPos[c].recommendedPositions || []).includes(role))])];
     const mates = d.us.filter((p) => p.c > 0 && p.role && p.role !== role), foes = d.them.filter((p) => p.c > 0 && p.role);
     const meta = advOpts.mode === 'meta', need = needIn(d), duo = d.try || meta ? null : duoNow(), bot = botFirst(role);
-    return ids.filter((id) => champOf(id)).map((id) => {
+    return ids.filter((id) => champOf(id) && (taken.has(id) || !can.size || can.has(id))).map((id) => {
       const x = advScore(id, role, mates, foes, !meta && taken), w = bot ? x.parts.reduce((n, p) => n + p.d * (botTerm(p, role) ? 1 : 0.25), 0) : x.v, why = [...x.why];
       const me = advOpts.mode === 'balanced' && !d.foe ? (d.sqk ? sqMine(d.sqk, role, id, why) : mineScore(id, why)) : 0, nd = meta ? 0 : needFor(champOf(id), need, why), du = duoPart(id, duo, duo && duo.c);
       if (du && du.n) why.push(`With ${duo.name}: won ${du.w} of ${du.n}`);
-      return { id, ...x, why, w, du, s: meta ? x.m : w + nd + (du ? du.s : 0) + (advOpts.mode === 'balanced' ? x.m + me : 0), off: taken.has(id) || (can.size > 0 && !can.has(id)), fav: !d.foe && advFavs.has(id) };
+      return { id, ...x, why, w, du, s: meta ? x.m : w + nd + (du ? du.s : 0) + (advOpts.mode === 'balanced' ? x.m + me : 0), off: taken.has(id), fav: !d.foe && advFavs.has(id) };
     }).sort((x, y) => y.fav - x.fav || y.s - x.s || y.m - x.m);
   }
   // Bot lane first (What's new 189): for an ADC or a support, your lane (with your partner, against their ADC and
@@ -10006,7 +10007,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     const by = { meta: 'their high elo win rate', matchups: 'how each does with your team and against theirs', balanced: 'their high elo win rate and how each does with your team and against theirs' }[advOpts.mode];
     const blind = advOpts.mode !== 'meta' && !d.them.some((p) => p.c > 0 && p.role === role); // their laner isn't known: safe blind picks first
-    $('dNote').textContent = td ? (pool.length ? `Ranked by ${by}. No score: few high elo games as ${POS[role].toLowerCase()}.` : advQ ? 'No champion by that name.' : `Nobody has 10 high elo games as ${POS[role].toLowerCase()} yet.`) : `${POS[role]}: ${pool.length ? `champions by ${by}.${blind ? ' Their laner isn’t picked yet, so champions they can counter rank lower.' : ''} Hold the mouse on one to see why, and right-click one to make it a favorite.` : advQ ? 'no champion by that name.' : 'no champion has 10 high elo games here yet.'}`;
+    $('dNote').textContent = td ? (pool.length ? `Ranked by ${by}. No score: few high elo games as ${POS[role].toLowerCase()}.` : advQ ? 'No champion by that name.' : `Nobody has 10 high elo games as ${POS[role].toLowerCase()} yet.`) : `${POS[role]}: ${pool.length ? `champions by ${by}.${blind ? ' Their laner isn’t picked yet, so champions they can counter rank lower.' : ''} Hold the mouse on one to see why, and right-click one to make it a favorite.` : advQ ? `no champion by that name you can ${a && a.type === 'ban' ? 'ban' : 'pick'}.` : 'no champion has 10 high elo games here yet.'}`;
     $('dGrid').replaceChildren(...pool.map((x) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -10016,7 +10017,7 @@ dialog.wizard { transform: scale(var(--from)); }
       b.setAttribute('aria-disabled', String(x.off));
       b.setAttribute('aria-pressed', String(td ? own === x.id : !!a && a.championId === x.id));
       b.toggleAttribute('data-fav', x.fav);
-      b.title = [`${champName(x.id)}${x.off ? (td ? ': on the board' : ': taken, or not yours to pick') : ''}`, ...x.why].join('\n');
+      b.title = [`${champName(x.id)}${x.off ? (td ? ': on the board' : ': banned or picked') : ''}`, ...x.why].join('\n');
       b.append(Object.assign(new Image(), { src: champImg(x.id), alt: champName(x.id) }), advBadge(x.s));
       return b;
     }));
@@ -21687,6 +21688,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [231, 'November 25: only banned and picked champions greyed out', [
+      'In champ select the pick helper greys out only banned and picked champions. Champions League won’t let you pick, like ones you don’t own, are left out of its list, as in League’s own grid and on your phone.',
+    ]],
     [230, 'November 25: auto enemy Flash, if you want it', [
       'Off unless you turn it on (Settings, Overlay, In game, under Enemy spell strip): Premade watches your screen for enemy Flashes and starts their Flash on your strip by itself, for you only, with a gold A. Click it to take it off.',
       'After each game, a Flash check replays every Flash-like light it saw. Answer each with a click or keys 1 to 5, and it learns from your games.',
@@ -22940,7 +22944,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame, each slot a card with its champion’s art: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup, both champions side by side: the high elo record, runes, first items and tips. With a squad, Your team starts with your squad’s best comp, each card showing who plays it. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
       ['Ban ideas', 'Your bans at the top of the draft board: 5 squares and 3 ideas, what beats the team you’re building, how often high elo picks and bans it, and in Balanced the champions you lose to. Click an idea to ban it: it greys out everywhere, and its x takes it back.', 'Outside champ select, on Pregame: Your bans on the draft board.', '#tdBans', 'app'],
       ['Mock draft helper', 'In a room’s Mock draft, each player on a side sees the top 3 for their side and a score on every champion.', 'Rooms: start a Mock draft and join a side.', '#mdHelp'],
-      ['The draft', 'Both teams by role with a score for each champion and each team, and the champions that play the role you pick (the roles League lists for each) ranked by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked.',
+      ['The draft', 'Both teams by role with a score for each champion and each team, and the champions that play the role you pick (the roles League lists for each) ranked by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked. Only champions you can pick are listed; banned and picked ones are greyed out.',
         'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
       ['Auto hover', 'Hovers your first free champion that fits your role as soon as champ select starts, and your ban on your ban turn. You still lock in yourself.',
         'Settings, Champ select: type your champions, first choice first, then your bans.', '#optHoverPicks', 'app'],
