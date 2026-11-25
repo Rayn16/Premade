@@ -4070,7 +4070,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
 <div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Where it sits, press Edit layout, then drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it on my screen lets you drag the rest on the League screen itself, and size it by its corner. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keys) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
 <div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
-<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, “Jungler on topside” (or botside, or in mid) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read them out loud (Callouts, Sound) is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
+<div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, where they are (“Vi at your red”, “Vi in top river”, “Vi in their bot jungle”) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read them out loud (Callouts, Sound) is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
 <div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, League, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read them out loud, under Sound, uses your computer’s own voice.</div>
 <div id="t-coach" class="tipbox" popover><b>Enemy timers</b>: during a game, say “Premade, mid flash”, “Premade, top ultimate” (top, jungle, mid, bot or support) or “Premade, their red” (or blue), or tap them on your phone remote, and the countdown shows with the objective timers on the overlay, the Game page and your phone, for everyone in your voice room in that game who has them on. Flash takes 5 minutes and an ultimate its cooldown at their level, less the haste in their items; a buff is back 5 minutes after it’s taken. Tap a running one on your phone to take it off. Premade listens for these phrases on your computer, as it does for clips by voice. <b>Power spikes</b>: “Zed is level 6” at levels 6, 11 and 16, and “Jinx finished Infinity Edge”. <b>Coach</b>: a tip now and then at the top of the screen: when you have the gold for the next item of your build (app 1.15), an objective in 60 seconds, 3 or more of them dead (app 1.15), or 2 levels down on your lane opponent. <b>I’m new</b> adds why, and what to do. <b>Jungle clock</b>: at 2:45, where their jungler likely is when their first clear ends, from their own last games and where your minimap first showed them. Enemy timers are in In game, the rest in Callouts, From the game. These show at the top of the screen (app 1.10), and Read them out loud reads them too.</div>
 <div id="t-customs" class="tipbox" popover><b>Inhouse ladder</b>: every custom game you play to the end with the desktop app counts, for everyone in it: a rating that goes up when you win and down when you lose, more against a stronger team. Everyone in the room shares the games they have, so the ladder is the same for all of you, and Balance teams uses it once two of the room are on it. <b>Fearless series</b> (Room games, the host starts it): in the custom games after it starts, nobody picks a champion already played in it; champ select shows the ones used up.</div>
@@ -7730,7 +7730,8 @@ dialog.wizard { transform: scale(var(--from)); }
     return ZONES[z] || z;
   }
   // Named spots (What's new 181): camps, pits and scuttles in Riot's game units (the blue base bottom left); a callout
-  // names the nearest within 900 units, else the area: top, mid or bot lane, top or bot river, a jungle or a base.
+  // names the lane it's in, else the nearest spot within 900 units, else the area: top or bot river, a jungle's top or
+  // bot half, or a base (What's new 232).
   // Camps on your half are "your", on theirs "their", never blue side or red side.
   const SPOTS = [['blue', 3821, 8101, 100], ['gromp', 2110, 8450, 100], ['wolves', 3780, 6443, 100], ['raptors', 6990, 5394, 100], ['red', 7765, 4020, 100], ['krugs', 8380, 2750, 100],
     ['blue', 11032, 6990, 200], ['gromp', 12703, 6443, 200], ['wolves', 11008, 8387, 200], ['raptors', 7852, 9471, 200], ['red', 7101, 10900, 200], ['krugs', 6317, 12146, 200],
@@ -7738,11 +7739,12 @@ dialog.wizard { transform: scale(var(--from)); }
   const AREAS = { 'the top lane': 'top lane', 'the middle lane': 'mid lane', 'the bottom lane': 'bot lane' };
   function mapSpot(p) { // a spot on your minimap: { name: 'your red' or 'top river', at: true for a named spot }
     const o = Terrain.onMinimap, x = ((p.x - o.x) / o.w) * MAP, y = (1 - (p.y - o.y) / o.h) * MAP, team = mine.team === 'CHAOS' ? 200 : 100;
+    const z = placeOf({ x, y }, team), half = y > x ? 'top' : 'bot';
+    if (AREAS[z]) return { name: AREAS[z], at: false }; // a lane, even by a camp's wall
     let best = null, bd = 900;
     for (const [n, sx, sy, side] of SPOTS) { const d = Math.hypot(x - sx, y - sy); if (d < bd) { bd = d; best = side ? `${side === team ? 'your' : 'their'} ${n}` : n; } }
     if (best) return { name: best, at: true };
-    const z = placeOf({ x, y }, team);
-    return { name: z === 'the river' ? (y > x ? 'top river' : 'bot river') : AREAS[z] || z, at: false };
+    return { name: z === 'the river' ? `${half} river` : /jungle/.test(z) ? z.replace('jungle', `${half} jungle`) : z, at: false };
   }
   const spotSay = (sp) => `${sp.at ? 'at' : 'in'} ${sp.name}`; // "at your red", "in top river"
   const fountain = (team) => { const o = Terrain.onMinimap, [x, y] = team === 'CHAOS' ? [14340, 14390] : [530, 480]; return { x: (x / MAP) * o.w + o.x, y: (1 - y / MAP) * o.h + o.y }; }; // on your minimap
@@ -16104,6 +16106,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (Terrain.at(x, 1 - y) === 2) return 'the river';
     if (x < 0.13 || y > 0.87) return 'the top lane';
     if (y < 0.13 || x > 0.87) return 'the bottom lane';
+    if ((x < 0.21 && y > 0.765) || (x > 0.79 && y < 0.235)) return 'the river'; // where it meets top or bot lane
     if (Math.abs(x - y) < 0.07) return 'the middle lane';
     return ours ? 'your jungle' : 'their jungle';
   }
@@ -21688,6 +21691,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [232, 'November 25: callouts name the right spot', [
+      'Where the river meets top or bot lane is called top river or bot river now, not your or their jungle, so an enemy laner standing there no longer sets off an invade callout.',
+      'A lane is called by its name even right by a camp: a jungler walking up top lane next to your gromp is in top lane, not at your gromp.',
+      'Away from camps, a jungle callout says which half: “Vi in their top jungle”, “Vi in your bot jungle”.',
+    ]],
     [231, 'November 25: only banned and picked champions greyed out', [
       'In champ select the pick helper greys out only banned and picked champions. Champions League won’t let you pick, like ones you don’t own, are left out of its list, as in League’s own grid and on your phone.',
     ]],
@@ -23064,7 +23072,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'Settings, Overlay, Where it sits, Edit layout: drag the rest, or Move it on my screen and drag it on the League screen, its corner to size it. Size and See-through are there too.', '#moveBtn', 'app'],
       ['Minimap reminder', 'For new players: “Check your minimap” at the top of the screen every 10 seconds from 1:00, a little less often each game, until it turns itself off after 20 games.',
         'Off until you turn it on: Settings, Callouts, Minimap reminder.', '#optMapNudge', 'app'],
-      ['Callouts', 'Faces and signs with 1 to 3 words at the top of the screen, read from your own minimap, up to 3 at once with the newest on top: “Vi at your red” when their jungler shows up after 10 seconds out of sight, named by the nearest camp, pit or scuttle (your red, their raptors, Dragon, Baron), else the area (top river, mid lane); “Lee Sin heading your way” when your minimap shows them walking straight at you; “Zed missing from mid” when a laner has been out of sight for 10 seconds; and “Vi and Zed at your blue” for an invade. They can be read out loud too, in the voice you pick.',
+      ['Callouts', 'Faces and signs with 1 to 3 words at the top of the screen, read from your own minimap, up to 3 at once with the newest on top: “Vi at your red” when their jungler shows up after 10 seconds out of sight, named by the lane they’re in (top, mid, bot), else the nearest camp, pit or scuttle (your red, their raptors, Dragon, Baron), else the area (top river, their bot jungle); “Lee Sin heading your way” when your minimap shows them walking straight at you; “Zed missing from mid” when a laner has been out of sight for 10 seconds; and “Vi and Zed at your blue” for an invade. They can be read out loud too, in the voice you pick.',
         'Off until you turn them on: Settings, Callouts: Minimap callouts turns on all of them, or tick each under it. Read them out loud and Voice are under Sound; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
       ['Faded faces', 'Each enemy you lose sight of stays on League’s minimap as a faded grey face where you last saw them, with the seconds since, until you see them again, they die, or 45 seconds pass.',
         'Off until you turn it on: Settings, Callouts, under Minimap callouts.', '#optMissList', 'app'],

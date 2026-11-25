@@ -39,4 +39,25 @@ const agree = (terrainAt) => {
 const before = agree((p) => at(p.x, p.y)), now = agree(Terrain.atMinimap);
 console.log(`lined up with Rayan's minimap: ${(now * 100).toFixed(0)}% agree, ${(before * 100).toFixed(0)}% stretched over the frame`);
 assert(now > 0.75 && now > before + 0.15, 'walls line up with the real minimap');
+
+// The callouts' spot names (index.html placeOf and mapSpot, What's new 181 and 232), at Riot's game units read off the
+// minimap as the tracker does, for a player on blue (100) and on red (200). The river mouths are spots where enemies
+// stood in Rayan's recorded games of 2026-11-20 and 2026-11-22.
+const src = fs.readFileSync(__dirname + '/site/index.html', 'utf8'), grab = (re) => src.match(re)[0];
+const code = [/const MAP = \d+;/, /function placeOf\(pos, team\) \{[\s\S]*?\n {2}\}/, /const SPOTS = \[[\s\S]*?\]\];/, /const AREAS = \{[^\n]*\};/, /function mapSpot\(p\) \{[\s\S]*?\n {2}\}/].map(grab).join('\n');
+const spotFor = (team) => new Function('mine', 'Terrain', `${code}\nreturn { mapSpot, placeOf };`)({ team: team === 200 ? 'CHAOS' : 'ORDER' }, Terrain);
+const B = spotFor(100), Rd = spotFor(200), onMm = (x, y) => ({ x: o.x + (x / 14870) * o.w, y: o.y + (1 - y / 14870) * o.h });
+const says = (S, x, y) => S.mapSpot(onMm(x, y)).name;
+assert.strictEqual(says(B, 7765, 4020), 'your red', 'blue side: your red buff');
+assert.strictEqual(says(Rd, 7765, 4020), 'their red', 'red side: their red buff');
+assert.strictEqual(says(B, 12160, 2620), 'bot river', 'where the river meets bot lane: bot river, not your jungle');
+assert.strictEqual(B.placeOf({ x: 12160, y: 2620 }, 100), 'the river', 'so an enemy laner there is no invader');
+assert.strictEqual(says(Rd, 2430, 12530), 'top river', 'where the river meets top lane: top river, not your jungle');
+assert.strictEqual(says(B, 1500, 8450), 'top lane', 'top lane by your gromp: top lane');
+assert.strictEqual(says(Rd, 13370, 6420), 'bot lane', 'bot lane by their gromp: bot lane');
+assert.strictEqual(says(B, 6400, 5900), 'mid lane', 'mid lane by your raptors: mid lane');
+assert.strictEqual(says(B, 2680, 9750), 'your top jungle', 'a jungle away from camps: its half');
+assert.strictEqual(says(Rd, 6740, 3010), 'their bot jungle', 'the other jungle, the bot half');
+assert.strictEqual(says(B, 4400, 9600), 'top scuttle', 'top scuttle');
+console.log('callout spots: camps, lanes by camps, river mouths and jungle halves named right on both sides');
 console.log('ok');
