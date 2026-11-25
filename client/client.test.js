@@ -532,6 +532,13 @@ app.once('browser-window-created', (e, win) => win.webContents.once('did-finish-
     let gv;
     await until(async () => { [gv] = await js('lpcClient.gameVideo("list")'); return gv && !gv.rec && sized(path.join(gamesDir, gv.name)); }, 'the game’s video', 20000);
     const file = path.join(gamesDir, gv.name);
+    // auto enemy Flash's marks (app 1.55): a game's JSON and a replay JPEG in Games\Flash marks, every JSON back to re-tune on,
+    // no other names or folders
+    const fm = await js(`(async () => [await lpcClient.flashMarks('save', 'Game 2026-11-25 13-00-00 Kai\\'Sa.json', '{"v":1}'), await lpcClient.flashMarks('save', 'Game 2026-11-25 13-00-00 Kai\\'Sa 1.jpg', new Uint8Array([255, 216, 255]).buffer),
+      await lpcClient.flashMarks('save', '../x.json', '{}'), await lpcClient.flashMarks('save', 'notes.txt', 'x'), await lpcClient.flashMarks('list')])()`);
+    assert.deepStrictEqual(fm, [true, true, false, false, ['{"v":1}']], `Flash marks: ${JSON.stringify(fm)}`);
+    assert.deepStrictEqual(fs.readdirSync(path.join(gamesDir, 'Flash marks')).sort(), ["Game 2026-11-25 13-00-00 Kai'Sa 1.jpg", "Game 2026-11-25 13-00-00 Kai'Sa.json"]);
+    fs.rmSync(path.join(gamesDir, 'Flash marks'), { recursive: true }); // the Games folder as the checks below expect it
     assert(/^Game \d{4}-\d\d-\d\d \d\d-\d\d-\d\d Wukong\.webm$/.test(gv.name) && gv.size > 20000, `the game’s video: ${JSON.stringify(gv)}`);
     const [len, mid] = await js(`(async () => {
       const v = document.createElement('video'), b = Uint8Array.from(atob(${JSON.stringify(fs.readFileSync(file).toString('base64'))}), (c) => c.charCodeAt(0));

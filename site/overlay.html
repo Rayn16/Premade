@@ -265,6 +265,10 @@ body:not(.full) #call, body:not(.full) #ghosts { display: none; }
 .strip button img { display: block; width: 100%; height: 100%; }
 .strip button .left { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(0 0 0 / 0.6); color: #fff; font: 700 11px/1 'Segoe UI', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 .strip button .by { position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 1px solid #0ac8b9; background: #0a1428; color: #f0e6d2; display: grid; place-items: center; font: 700 8px/1 Georgia, serif; }
+/* What's new 230: a timer Premade started from your screen has a gold A; "Whose Flash?" with the faces it could be */
+.strip button .by.auto { border-color: #c8aa6e; color: #c8aa6e; }
+.strip .ask { display: flex; align-items: center; gap: 4px; padding-top: 4px; border-top: 1px solid var(--gold-line); color: #f0e6d2; font: 600 11px/1 'Segoe UI', system-ui, sans-serif; }
+.strip .ask button { border-radius: 50%; border: 2px solid #ff5c5c; box-sizing: border-box; }
 /* faded faces on League's minimap (What's new 181): grey, a third see-through, a grey ring, never red, and the seconds
    since in grey (not white, which the minimap reader takes for the camera box) */
 #ghosts { position: fixed; inset: 0; pointer-events: none; }
@@ -876,7 +880,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   }
   const sp = (className, textContent) => Object.assign(document.createElement('span'), { className, textContent });
   const mss = (n) => (n >= 60 ? `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}` : String(n));
-  function strip(rows) { // [{ name, pic, spells: [{ k, icon, name, left, by }] }]
+  function strip(rows, ask) { // [{ name, pic, spells: [{ k, icon, name, left, by, auto }] }], ask: [{ k, pic, name }]
     const box = el('strip');
     for (const r of rows.slice(0, 5)) {
       if (!r || !Array.isArray(r.spells)) continue;
@@ -887,8 +891,22 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
         const b = Object.assign(document.createElement('button'), { type: 'button' }), left = Math.max(0, +x.left | 0);
         b.dataset.take = '';
         b.setAttribute('aria-label', `${r.name}’s ${x.name}${left ? `, ${mss(left)} left` : ', ready'}`);
-        b.append(Object.assign(new Image(), { src: x.icon, alt: '' }), ...(left ? [sp('left', mss(left))] : []), ...(left && x.by ? [sp('by', String(x.by).slice(0, 1))] : []));
+        b.append(Object.assign(new Image(), { src: x.icon, alt: '' }), ...(left ? [sp('left', mss(left))] : []), ...(left && x.by ? [sp(x.auto ? 'by auto' : 'by', String(x.by).slice(0, 1))] : []));
+        if (left && x.auto) b.title = 'Premade saw it on your screen. Click to turn it off';
         b.onclick = () => api.overlayProg && api.overlayProg({ id: 'strip', go: x.k });
+        row.append(b);
+      }
+      box.append(row);
+    }
+    if (Array.isArray(ask) && ask.length) {
+      const row = el('ask', 'Whose Flash?');
+      for (const a of ask.slice(0, 5)) {
+        if (!a || typeof a.k !== 'string' || !/^https:\/\//.test(a.pic)) continue;
+        const b = Object.assign(document.createElement('button'), { type: 'button' });
+        b.dataset.take = '';
+        b.setAttribute('aria-label', `${a.name}’s Flash`);
+        b.append(Object.assign(new Image(), { src: a.pic, alt: '' }));
+        b.onclick = () => api.overlayProg && api.overlayProg({ id: 'flashAsk', go: a.k });
         row.append(b);
       }
       box.append(row);
@@ -983,7 +1001,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     }
     for (const t of s.toasts || []) add('toasts', el('toast', String(t)));
     if (Array.isArray(s.missing) && s.missing.length) add('missing', missing(s.missing));
-    if (Array.isArray(s.strip) && s.strip.length) add('strip', strip(s.strip));
+    if (Array.isArray(s.strip) && s.strip.length) add('strip', strip(s.strip, s.flashAsk));
     if (s.after && typeof s.after === 'object') add('after', after(s.after));
     if (s.vote && typeof s.vote === 'object') add('vote', after(s.vote));
     if (s.tips && Array.isArray(s.tips.lines)) add('tips', tips(s.tips));

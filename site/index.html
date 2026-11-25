@@ -462,6 +462,25 @@ button.sb:hover { background: var(--raised); border-color: var(--line); }
 /* the setup wizard */
 dialog.wizard { width: min(580px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--gold-line); border-radius: var(--r-lg); background: var(--panel); color: var(--fg); box-shadow: 0 30px 80px rgb(0 0 0 / 0.55); }
 dialog.wizard::backdrop { background: rgb(1 10 19 / 0.78); }
+/* the Flash check after a game (What's new 230): the light replayed, five answers with their keys, then how it did */
+dialog.flashdlg { width: min(600px, calc(100vw / var(--zoom, 1) - 32px)); }
+#flashOne, #flashEnd { min-width: 0; }
+#flashCv { display: block; width: 100%; aspect-ratio: 8 / 5; border-radius: var(--r); background: #000; }
+.flkeys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.flkeys .btn { padding: 8px 4px; font-size: 12.5px; }
+.flkeys kbd { margin-right: 4px; color: var(--gold); font: inherit; font-weight: 700; }
+.flsaid { min-height: 1.4em; margin: 8px 0 0; color: var(--gold); }
+#flashEnd h3 { margin: 4px 0 8px; font-size: 14px; }
+.flrow { display: grid; grid-template-columns: 13em 1fr auto; align-items: center; gap: 10px; margin-bottom: 8px; }
+.flb { display: flex; flex-wrap: wrap; gap: 3px; }
+.flb i { width: 12px; height: 12px; border-radius: 2px; }
+.flb i.ok, .fltrend .ok { background: var(--gold); fill: var(--gold); }
+.flb i.bad, .fltrend .bad { background: var(--bad); fill: var(--bad); }
+.flb i.miss { box-sizing: border-box; border: 1.5px solid var(--muted); }
+.fltrend { display: block; height: 80px; max-width: 100%; }
+.fltrend .all { fill: none; stroke: var(--line); }
+.flgood { color: var(--gold); font-weight: 600; }
+@container app (max-width: 520px) { .flkeys { grid-template-columns: repeat(2, 1fr); } .flrow { grid-template-columns: 1fr auto; } .flrow .flb { grid-column: 1 / -1; } }
 .wz { display: grid; gap: 18px; padding: 26px 28px; }
 .steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
 .steps li { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
@@ -3407,6 +3426,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="check lcu-only"><input id="optOverlayCs" type="checkbox"><span><span>CS counter</span><span>CS a minute against your usual</span></span></label>
             <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"><span><span>My lane</span><span>CS and gold against your lane opponent</span></span></label>
             <label class="check"><input id="optFoeTimers" type="checkbox"><span><span>Enemy spell strip</span><span>Click their spells and ultimates above your minimap, or say “Premade, mid flash”. Every Premade teammate gets the timer</span></span></label>
+            <label class="check client-only" data-when="optFoeTimers"><input id="optFlashAuto" type="checkbox"><span><span>Auto enemy Flash</span><span>Starts their Flash on the strip when Premade sees it on your screen, for you only. After each game you check what it saw, so it learns your games</span></span></label>
             <label class="check"><input id="optOverlayToasts" type="checkbox"><span><span>Popups</span><span>Invites, trades and other alerts</span></span></label>
           </section>
           <section class="ovcard" aria-labelledby="h-ovdead">
@@ -3999,6 +4019,20 @@ dialog.wizard { transform: scale(var(--from)); }
   </div>
 </dialog>
 
+<dialog id="flashDlg" class="wizard flashdlg" aria-labelledby="flashTitle">
+  <div class="wz">
+    <h2 id="flashTitle" class="title">Flash check</h2>
+    <div id="flashOne">
+      <p id="flashOf" class="hint"></p>
+      <canvas id="flashCv" width="480" height="300" aria-label="The light, replayed slowly"></canvas>
+      <div id="flashKeys" class="flkeys"><button class="btn" type="button" data-m="enemy"><kbd>1</kbd> Enemy</button><button class="btn" type="button" data-m="ally"><kbd>2</kbd> Ally</button><button class="btn" type="button" data-m="mine"><kbd>3</kbd> Mine</button><button class="btn" type="button" data-m="no"><kbd>4</kbd> Not Flash</button><button class="btn" type="button" data-m="unsure"><kbd>5</kbd> Not sure</button></div>
+      <p id="flashSaid" class="flsaid" aria-live="polite"></p>
+    </div>
+    <div id="flashEnd" hidden></div>
+    <footer><button id="flashClose" class="btn primary" type="button">Close</button></footer>
+  </div>
+</dialog>
+
 <dialog id="updDlg" class="wizard" aria-labelledby="updTitle">
   <div class="wz">
     <h2 id="updTitle" class="title">App update</h2>
@@ -4069,6 +4103,7 @@ dialog.wizard { transform: scale(var(--from)); }
 
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js" integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR" crossorigin="anonymous"></script>
 <script src="camera-box.js"></script>
+<script src="flash-finder.js"></script>
 <script src="terrain.js"></script>
 
 <script>
@@ -4133,7 +4168,7 @@ dialog.wizard { transform: scale(var(--from)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true,
     overlayLane: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, speakCalls: false, callVoice: '',
-    foeTimers: false, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
+    foeTimers: false, flashAuto: false, flashP: null, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false, frSlim: true, boardBg: '', boardPic: 0,
@@ -7486,7 +7521,7 @@ dialog.wizard { transform: scale(var(--from)); }
     let s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, calls: call && callCur && callCur.text === call ? callUp.map((c) => ({ text: c.text, pics: c.pics })) : null, theme: look.dark ? look : null,
       prog: !!(board && typeof board === 'object') || !!(after && after.board) || !!strip || !!buy, // the mouse reaches the overlay for the stats' boxes, the Scoreboard button (app 1.46) and the enemy spell strip (What's new 188)
-      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, ghosts, strip, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
+      parts: boardOk() ? { ...ovSpots(), ...voteAt } : null, ghosts, strip, flashAsk: strip ? flashAsk() : null, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(any && { any: true }),
@@ -7682,7 +7717,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // a row seen), from (in sight since), seen, at, trail (the last 2 s), zone, where, lane (the lane they were last in),
   // called (missing, said), d (deaths), dead (when they're back) }.
   const SR = /^(CLASSIC|SWIFTPLAY)$/;
-  const foesOn = () => (opts.jgCall || opts.gankCall || opts.laneCall || opts.missCall || opts.invadeCall || opts.missList || opts.jgClock) && !!league && !!mine.team && SR.test(league.mode) && boardOk();
+  const foesOn = () => (opts.jgCall || opts.gankCall || opts.laneCall || opts.missCall || opts.invadeCall || opts.missList || opts.jgClock || (opts.flashAuto && opts.foeTimers)) && !!league && !!mine.team && SR.test(league.mode) && boardOk();
   function theirJungler() { // by League's positions, else by the jungle pet they carry
     // ponytail: jungle pets are items 1101 to 1103 (since 2024); if Riot renumbers them, only games with positions find them
     const pet = (league.players || []).find((p) => p.team !== mine.team && (p.items || []).some(([i]) => i >= 1101 && i <= 1103));
@@ -8852,6 +8887,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (m && m.prog) { // the Scoreboard button on the card over League's end screen: Premade in front, on the Game page
       if (m.prog.go === 'scoreboard') { if (client.front) client.front(); view('game', true); }
       if (m.prog.id === 'strip' && TIMER_K.test(m.prog.go)) startTimer(m.prog.go, true); // a click on the enemy strip (What's new 183)
+      if (m.prog.id === 'flashAsk' && typeof m.prog.go === 'string') flashAsked(m.prog.go); // whose Flash it was (What's new 230)
       if (m.prog.id === 'buy' && league && /^(wr|team|mine)$/.test(m.prog.go)) { buyVer = { room: league.room, v: m.prog.go }; pushOverlay(); } // a version pill, on the strip or the panel (What's new 228)
       if (m.prog.id === 'player' && riotIdOk(m.prog.go)) { boardAway = true; pushOverlay(); if (client.front) client.front(); view('profile', true); lookUp(m.prog.go); } // a name on everyone's rank (What's new 195)
       if (m.prog.id === 'size' && overlayEdit && Number.isFinite(m.prog.x)) { opts.overlayScale = Math.min(2, Math.max(0.7, m.prog.x)); saveOpts(); showScale(); pushOverlay(); ovDraw(); } // Move it's corner on the League screen (What's new 225)
@@ -10495,6 +10531,12 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function startTimer(k, tap) {
     if (!league || !opts.foeTimers || !TIMER_K.test(k)) return;
+    const was = foeT.room === league.room && foeT.list.find((x) => x.k === k);
+    if (tap && was && was.by === 'auto' && was.end > gameNow()) { // an auto Flash timer (What's new 230) was yours alone, so it goes off here only
+      addTimer(league.room, k, 0);
+      for (const x of fl ? fl.lights : []) if (`flash:${x.foe}` === k && x.timer) x.off = true;
+      return notify(`${timerName(k)} timer off.`, true);
+    }
     const off = tap && foeTimers().some(([, s, x]) => x === k && s > 0), cd = off ? 0 : cooldown(k);
     if (!off && !cd) return notify(`Couldn’t time ${timerName(k)}${k.startsWith('r:') ? ': its cooldown isn’t loaded yet. Try again in a moment.' : '.'}`, true);
     const end = off ? 0 : Math.round(gameNow() + cd);
@@ -10555,7 +10597,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const run = new Map(foeT.room === league.room ? foeT.list.map((x) => [x.k, x]) : []), t = gameNow();
     const rows = (league.players || []).filter((p) => p.team !== mine.team && champOf(p.champ)).slice(0, 5).map((p) => {
       const c = champOf(p.champ), sp = gameSpec.room === league.room && gameSpec.foes.get(+c.key), tips = riotTips(c), r = tips && tips.sheet.find((x) => x.key === 'R');
-      const one = (k, icon, name) => { const x = run.get(k), left = x ? Math.max(0, Math.ceil(x.end - t)) : 0; return { k, icon, name, left, by: left && x.by ? String(x.by).slice(0, 1).toUpperCase() : '' }; };
+      const one = (k, icon, name) => { const x = run.get(k), left = x ? Math.max(0, Math.ceil(x.end - t)) : 0; return { k, icon, name, left, by: left && x.by ? String(x.by).slice(0, 1).toUpperCase() : '', ...(left && x.by === 'auto' && { auto: true }) }; }; // auto: Premade started it (What's new 230)
       const live = Array.isArray(p.spells) && p.spells.map(spellId).filter(Boolean);
       return { name: c.name, pic: champImg(c.id), spells: [...(live && live.length === 2 ? live : sp ? sp.spells : [4]).filter((id) => spellPic(id)).map((id) => one(id === 4 ? `flash:${c.id}` : `sp${id}:${c.id}`, spellPic(id), SPELLS[id] || 'Spell')),
         ...(r && r.icon ? [one(`r:${c.id}`, r.icon, r.name)] : [])] };
@@ -10599,6 +10641,172 @@ dialog.wizard { transform: scale(var(--from)); }
     const who = (by || 'A teammate').slice(0, 20), foe = liveList().find((q) => !q.ally && CALL_POS[lane].includes(q.pos)), c = foe && champOf(foe.champ), where = lane === 'jungle' ? 'their jungle' : lane;
     sayCall(c ? `${who}: ${c.name} missing from ${where}` : `${who}: ${lane} missing`, 2, undefined, ['p:' + who.slice(0, 1).toUpperCase(), ...(c ? [foeFace(c.id)] : []), 's:missing', `w:missing ${lane}`]);
   }
+  // ---- auto enemy Flash (What's new 230, Rayan 2026-11-25): flash-finder.js reads League's share track 15 times a
+  // second (a clone of it, beside the minimap reader); an enemy's Flash starts their Flash timer on the strip by itself,
+  // marked auto and for you only (never sent to the room or the game channel). Which enemy: the one whose minimap icon
+  // jumped then (seeFoes' trails), else their faces to click for 10 s. After the game a check (flashDlg) asks about
+  // every Flash-like light, its replay kept during the game (480x300 crops of the full screen, 12 frames); the marks
+  // go in Games\Flash marks (app 1.55) and the clues are re-weighed on all of them (FlashFinder.retune), a version kept
+  // only if it scores better. Off for everyone until ticked.
+  // ponytail: on the page's own thread (~5 ms a frame on fixtures); a worker if Rayan's PC shows it costs too much
+  const flashOn = () => !!(opts.flashAuto && opts.foeTimers && client && client.flashMarks && league && SR.test(league.mode) && mine.team && boardOk());
+  let fl = null, flashGame = null; // fl: this game's finder; flashGame: the last game's lights, for the check
+  function flashTick() {
+    const want = flashOn() && share && share.mode === 'league' && share.track && share.track.readyState === 'live';
+    if (fl && (!want || fl.room !== league.room || fl.s !== share)) flashStop();
+    if (fl) { flashRate(); if (fl.ask && performance.now() > fl.ask.until) { fl.ask = null; pushOverlay(); } return; }
+    if (!want) return;
+    const f = FlashFinder.create(), meP = meIn(), cv = Object.assign(document.createElement('canvas'), { width: FlashFinder.W, height: FlashFinder.H });
+    f.flashSlot = meP && Array.isArray(meP.spells) && spellId(meP.spells[0]) === 4 ? 0 : 1; // which key holds your Flash: League's live data
+    const track = share.track.clone();
+    fl = { room: league.room, s: share, f, track, g: cv.getContext('2d', { willReadFrequently: true }), full: [...Array(5)].map(() => document.createElement('canvas')), caps: new Map(), lights: [], ticks: [], ask: null, slow: false,
+      start: Date.now(), champ: (league.me && league.me.champName) || '', P: { ...FlashFinder.P0, ...opts.flashP } };
+    const stop = CameraBox.watch(new MediaStream([track]), 60, flashFrame);
+    fl.stop = () => { stop(); track.stop(); };
+  }
+  function flashFrame(src, w, h) {
+    if (!fl) return;
+    const now = performance.now(), fi = fl.f.frames, full = fl.full[fi % 5];
+    fl.ticks.push(now);
+    fl.g.drawImage(src, 0, 0, FlashFinder.W, FlashFinder.H);
+    if (full.width !== w || full.height !== h) Object.assign(full, { width: w, height: h });
+    full.getContext('2d').drawImage(src, 0, 0);
+    const { started, done } = fl.f.push(fl.g.getImageData(0, 0, FlashFinder.W, FlashFinder.H).data, now), sc = w / FlashFinder.W;
+    const cell = (c, n, from) => c.cv.getContext('2d').drawImage(from, c.x * sc, c.y * sc, 160 * sc, 100 * sc, (n % 4) * 480, Math.floor(n / 4) * 300, 480, 300);
+    for (const c of fl.caps.values()) if (c.n < 12) cell(c, c.n++, full); // the frames after a light, as they come
+    for (const b of started) { // a light's replay: 160x100 of the 360p screen around it, sharp from the full screen, the 4 frames before it too
+      const x = Math.max(0, Math.min(FlashFinder.W - 160, b.xb - 80)), y = Math.max(0, Math.min(FlashFinder.H - 100, Math.round((b.yb + b.yt) / 2) - 50));
+      const c = { x, y, n: 0, cv: Object.assign(document.createElement('canvas'), { width: 1920, height: 900 }) };
+      for (let j = fi - 4; j <= fi; j++) { if (j >= 0) cell(c, c.n, fl.full[j % 5]); c.n++; }
+      fl.caps.set(b.id, c);
+    }
+    for (const l of done) flashLight(l);
+  }
+  function flashRate() { // frames in the last 10 s: under 12 a second, no auto timers (said once a game)
+    const now = performance.now();
+    fl.ticks = fl.ticks.filter((t) => now - t < 10000);
+    if (now - fl.ticks[0] < 9000 && !fl.slow) return;
+    fl.slow = fl.ticks.length < 120;
+    if (fl.slow && !fl.warned) { fl.warned = true; notify(`Auto Flash timers are paused: Premade sees League’s screen ${Math.round(fl.ticks.length / 10)} times a second, and Flash needs 15.`, true); }
+  }
+  function flashLight(l) {
+    const c = fl.caps.get(l.id);
+    fl.caps.delete(l.id);
+    if (!FlashFinder.loose(l) || !c) return; // not Flash-like, or your own Flash (your F key says so)
+    const call = FlashFinder.call(l, fl.P), x = { ...l, call, clock: Math.round(gameNow() - (performance.now() - l.t) / 1000), foe: '', timer: '', asked: [], off: false, mark: '', spot: [(l.xb - c.x) * 3, (l.yb - c.y) * 3], pic: null };
+    fl.lights.push(x);
+    c.cv.toBlob((b) => { x.pic = b; }, 'image/jpeg', 0.85);
+    if (call !== 'enemy' || fl.slow) return;
+    const running = new Set(foeTimers().filter(([, s]) => s > 0).map(([, , k]) => k));
+    const can = (league.players || []).filter((p) => p.team !== mine.team && !p.dead && champOf(p.champ)).map((p) => champOf(p.champ).id).filter((id) => !running.has(`flash:${id}`));
+    const foes = share && share.foes && share.foes.room === league.room ? share.foes.list.map((f) => ({ id: f.id, trail: f.trail })) : [];
+    const ids = FlashFinder.jumped(foes, l.t).filter((id) => can.includes(id));
+    if (ids.length === 1) return flashTimer(x, ids[0], 'auto');
+    x.asked = ids.length ? ids : can;
+    if (x.asked.length) { fl.ask = { x, until: performance.now() + 10000 }; pushOverlay(); }
+  }
+  function flashTimer(x, id, how) { // that enemy's Flash from when the light was, on your strip only
+    const k = `flash:${id}`, cd = cooldown(k);
+    if (!cd) return;
+    Object.assign(x, { foe: id, timer: how });
+    addTimer(league.room, k, Math.round(gameNow() - (performance.now() - x.t) / 1000 + cd), 'auto');
+  }
+  function flashAsked(id) { // a face clicked by the strip
+    if (!fl || !fl.ask || !fl.ask.x.asked.includes(id)) return;
+    const { x } = fl.ask;
+    fl.ask = null;
+    flashTimer(x, id, 'picked');
+    pushOverlay();
+  }
+  const flashAsk = () => (fl && fl.ask && performance.now() < fl.ask.until ? fl.ask.x.asked.slice(0, 5).map((id) => ({ k: id, pic: champImg(id), name: champName(id) })) : null);
+  function flashStop() {
+    if (!fl) return;
+    fl.stop();
+    if (fl.lights.length) flashGame = { lights: fl.lights, start: fl.start, champ: fl.champ, slot: fl.f.flashSlot, P: fl.P };
+    fl = null;
+    pushOverlay();
+    if (flashGame && !flashGame.shown) { flashGame.shown = true; setTimeout(flashCheck, 1500); } // its pictures are made by then
+  }
+  // ---- the check after the game: each light replayed slowly, one click or key 1-5, its own guess after your answer
+  const FL_MARKS = [['enemy', 'Enemy Flash'], ['ally', 'Ally Flash'], ['mine', 'My Flash'], ['no', 'Not Flash'], ['unsure', 'Not sure']];
+  const flashSaid = (x) => ({ enemy: x.timer ? `Enemy Flash: it started ${champName(x.foe)}’s timer${x.timer === 'picked' ? ' after you picked them' : ''}${x.off ? ', and you turned it off' : ''}` : x.asked.length ? 'Enemy Flash: it asked you whose' : 'Enemy Flash, but it couldn’t time it',
+    ally: 'Ally Flash', self: 'Your Flash', '?': 'Flash, but it couldn’t tell whose', no: 'Not Flash' })[x.call];
+  const flashStem = (g) => { const d = new Date(g.start), two = (n) => String(n).padStart(2, '0'); return `Game ${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}${/^[\w .'&-]{1,30}$/.test(g.champ) ? ' ' + g.champ : ''}`; };
+  function flashSave(g) { // the game's lights with their clues and your marks (pictures beside them, once)
+    const stem = flashStem(g), lights = g.lights.map(({ pic, ...x }, i) => ({ ...x, pic: `${stem} ${i + 1}.jpg` }));
+    client.flashMarks('save', `${stem}.json`, JSON.stringify({ v: 1, at: g.start, champ: g.champ, flashSlot: g.slot, P: g.P, lights })).catch(() => {});
+    if (!g.picsSaved) { g.picsSaved = true; g.lights.forEach((x, i) => x.pic && x.pic.arrayBuffer().then((b) => client.flashMarks('save', `${stem} ${i + 1}.jpg`, b)).catch(() => {})); }
+  }
+  let flashI = 0, flashPlay = 0, flashWait = 0;
+  function flashCheck() {
+    const g = flashGame;
+    if (!g || !g.lights.length) return;
+    flashSave(g);
+    if (client.notify && !document.hasFocus()) client.notify('Flash check', `${g.lights.length} Flash-like ${g.lights.length === 1 ? 'light' : 'lights'} from your game to check in Premade.`);
+    flashI = 0;
+    $('flashEnd').hidden = true;
+    $('flashOne').hidden = false;
+    flashShow();
+    if (!$('flashDlg').open) $('flashDlg').showModal();
+  }
+  function flashShow() {
+    const g = flashGame, x = g.lights[flashI];
+    clearInterval(flashPlay);
+    if (!x) return flashEnd();
+    $('flashOf').textContent = `${flashI + 1} of ${g.lights.length} · ${mmss(Math.max(0, x.clock))} in the game`;
+    $('flashSaid').textContent = '';
+    for (const b of $('flashKeys').children) b.disabled = false;
+    const cv = $('flashCv'), c = cv.getContext('2d'), img = new Image();
+    if (x.pic) img.src = URL.createObjectURL(x.pic);
+    let n = 0, hold = 0;
+    const draw = () => {
+      c.fillStyle = '#000'; c.fillRect(0, 0, 480, 300);
+      if (img.complete && img.naturalWidth) c.drawImage(img, (n % 4) * 480, Math.floor(n / 4) * 300, 480, 300, 0, 0, 480, 300);
+      c.strokeStyle = '#f2b630'; c.lineWidth = 2; c.setLineDash([6, 5]);
+      c.beginPath(); c.arc(x.spot[0], x.spot[1], 26, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+      if (n === 4 && hold++ < 3) return; // a second on the light's own frame
+      hold = 0; n = (n + 1) % 12;
+    };
+    draw();
+    flashPlay = setInterval(draw, 300); // 15 frames a second, played at about 3
+  }
+  function flashMark(mark) {
+    const g = flashGame, x = g && g.lights[flashI];
+    if (!x || flashWait) return;
+    x.mark = mark;
+    flashSave(g);
+    for (const b of $('flashKeys').children) b.disabled = true;
+    $('flashSaid').textContent = `It said: ${flashSaid(x)}.`;
+    flashWait = setTimeout(() => { flashWait = 0; flashI++; flashShow(); }, 1000);
+  }
+  async function flashEnd() {
+    clearInterval(flashPlay);
+    $('flashOne').hidden = true;
+    const g = flashGame, end = $('flashEnd');
+    end.hidden = false;
+    end.textContent = 'Working out how it did…';
+    const all = ((await client.flashMarks('list').catch(() => [])) || []).map((t) => { try { return JSON.parse(t); } catch { return null; } }).filter((d) => d && Array.isArray(d.lights) && d.at !== g.start);
+    all.push({ at: g.start, lights: g.lights }); // this game as it is now (its file may still be on its way)
+    all.sort((a, b) => a.at - b.at);
+    const marks = all.flatMap((d) => d.lights.filter((l) => l.mark && l.arr)), was = { ...FlashFinder.P0, ...opts.flashP }, next = FlashFinder.retune(marks, was);
+    const [s0, s1] = [FlashFinder.score(marks, was), FlashFinder.score(marks, next)], better = s1.points > s0.points;
+    if (better) { opts.flashP = next; saveOpts(); }
+    const me = FlashFinder.score(g.lights, null), blocks = (n, cls) => Array.from({ length: n }, () => `<i class="${cls}"></i>`).join('');
+    const games = all.map((d) => FlashFinder.score(d.lights, null)).filter((s) => s.caught + s.missed + s.wrong > 0).slice(-20);
+    const chart = games.length < 2 ? '' : `<svg class="fltrend" viewBox="0 0 ${games.length * 14} 60" role="img" aria-label="Enemy Flashes caught in each game, wrong calls in red">${games.map((s, i) => {
+      const n = s.caught + s.missed, h = n ? Math.round((s.caught / n) * 48) : 0;
+      return `<rect x="${i * 14 + 2}" y="${52 - h}" width="10" height="${h}" class="ok"></rect><rect x="${i * 14 + 2}" y="0" width="10" height="52" class="all"></rect>${s.wrong ? `<circle cx="${i * 14 + 7}" cy="57" r="${Math.min(3, 1 + s.wrong)}" class="bad"></circle>` : ''}`;
+    }).join('')}</svg>`;
+    end.innerHTML = `<h3>This game</h3>
+      <div class="flrow"><span>Its enemy calls</span><span class="flb">${blocks(me.right, 'ok')}${blocks(me.wrong, 'bad')}</span><span class="hint">${me.right} right, ${me.wrong} wrong</span></div>
+      <div class="flrow"><span>Enemy Flashes you marked</span><span class="flb">${blocks(me.caught, 'ok')}${blocks(me.missed, 'miss')}</span><span class="hint">${me.caught} caught, ${me.missed} missed</span></div>
+      ${chart ? `<h3>Each game since you started</h3>${chart}<p class="hint">Filled: the share of your marked enemy Flashes it caught. Red dot: wrong calls.</p>` : ''}
+      ${better ? `<p class="flgood">Better now: re-tuned on your ${marks.length} marks, it catches ${s1.caught} of ${s1.caught + s1.missed} (was ${s0.caught}) with ${s1.wrong} wrong (was ${s0.wrong}).</p>` : ''}`;
+  }
+  for (const b of $('flashKeys').children) b.addEventListener('click', () => flashMark(b.dataset.m));
+  document.addEventListener('keydown', (e) => { const m = FL_MARKS[+e.key - 1]; if (m && $('flashDlg').open && !$('flashOne').hidden && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); flashMark(m[0]); } });
+  $('flashClose').addEventListener('click', () => $('flashDlg').close());
+  $('flashDlg').addEventListener('close', () => { clearInterval(flashPlay); if (!$('flashOne').hidden && flashGame && flashGame.lights.some((x) => x.mark)) flashEnd(); }); // closed early: what you marked still teaches it
   try { localStorage.removeItem('lpc-calllog'); } catch {} // the callout log's last game (What's new 183, gone in 193)
   // ---- power spikes (the Overlay page, Callouts): the other team reaching level 6, 11 or 16 (their ultimate's
   // ranks) or finishing an item, from League's scoreboard (what Tab shows), on the line at the top: “Zed is level 6”,
@@ -21256,7 +21464,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
+    ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
     ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
@@ -21264,7 +21472,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
   $('attenRow').hidden = !client;
-  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ['optFlashAuto', client && client.flashMarks && boardOk()], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   $('optOverlayAny').value = ['full', 'always', 'off'].includes(opts.overlayAny) ? opts.overlayAny : 'full';
@@ -21479,6 +21687,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [230, 'November 25: auto enemy Flash, if you want it', [
+      'Off unless you turn it on (Settings, Overlay, In game, under Enemy spell strip): Premade watches your screen for enemy Flashes and starts their Flash on your strip by itself, for you only, with a gold A. Click it to take it off.',
+      'After each game, a Flash check replays every Flash-like light it saw. Answer each with a click or keys 1 to 5, and it learns from your games.',
+    ]],
     [229, 'November 24: Settings on League’s pages too', [
       'Settings is at the bottom of League’s list in the sidebar now as well, one click away on Profile, Pregame or Game, and the sidebar stays on League’s pages.',
     ]],
@@ -22854,6 +23066,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: Settings, Callouts, under Minimap callouts.', '#optMissList', 'app'],
       ['Enemy spell strip', 'Their 5 faces above your minimap with Flash, their other spell (from League itself with app 1.52, so a Spellbook swap shows) and their ultimate: click one while you play, without Alt+X, say “Premade, mid flash”, or tap it on your phone, and the countdown starts for you and every Premade teammate in your game, with the letter of who started it. Cooldowns count Cosmic Insight, Ultimate Hunter, Transcendence, their level and their items.',
         'Off until you turn it on: Settings, Overlay, In game. Teammates in your game share it without being in your room.', '#optFoeTimers', 'app'],
+      ['Auto enemy Flash', 'When an enemy Flashes on your screen, Premade starts their Flash on your enemy spell strip by itself, with a gold A, for you only. It knows who from their minimap icon jumping; when it can’t tell, their faces show by the strip for 10 seconds to click. After the game, a Flash check replays every Flash-like light it saw for one click or key 1 to 5 each, then shows how it did, and it re-tunes itself on your answers, kept only when it scores better. Your answers and the replays are saved in Clips’ Games folder, under Flash marks.',
+        'Off until you turn it on: Settings, Overlay, In game, under Enemy spell strip (Windows app 1.55).', '#optFlashAuto, #flashDlg', 'app'],
       ['Teammates’ callouts', 'Say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid” with your letter, and you see theirs.',
         'Off until you turn it on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
       ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: Settings, Callouts, From the game.', '#optSpikeCall', 'app'],
@@ -22932,7 +23146,7 @@ dialog.wizard { transform: scale(var(--from)); }
   remoteCheck();
   // each second's jobs (positions go stale even when no message arrives); one that throws doesn't stop the ones after
   // it (the voices' fade is 4th), and says so once
-  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, spikeTick, objTick, windowTick, coachTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
+  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, flashTick, spikeTick, objTick, windowTick, coachTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
   setInterval(() => { for (const f of TICK) try { f(); } catch (err) { if (!tickErr.has(f)) { tickErr.add(f); console.warn(`${f.name}:`, err); clog(`${f.name} failed: ${err.message}`); } } }, 1000);
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
@@ -22958,6 +23172,17 @@ dialog.wizard { transform: scale(var(--from)); }
     lc: () => lcS && { ...lcS, r: undefined, deck: lcS.deck.length, acts: lcG.acts.length, id: lcG.id, names: lcG.names },
     phoneQuality,
     jungler: (r, tl) => junglerEl(r, tl),
+    flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
+    flashLight: (l, foes) => { if (fl) { if (foes && share) share.foes = { room: league.room, list: foes }; fl.caps.set(l.id, { x: 0, y: 0, cv: document.createElement('canvas') }); flashLight(l); } }, // a light as the finder says it, past the screen
+    flashStop: () => flashStop(),
+    flashFeed: async (urls) => { // recorded frames into the finder in place of the screen, 15 a second
+      if (!fl) return false;
+      fl.stop();
+      fl.stop = () => {};
+      const cv = Object.assign(document.createElement('canvas'), { width: FlashFinder.W, height: FlashFinder.H }), g = cv.getContext('2d');
+      for (const u of urls) { const b = await createImageBitmap(await (await fetch(u)).blob()); const at = performance.now(); g.drawImage(b, 0, 0); flashFrame(cv, cv.width, cv.height); await new Promise((r) => setTimeout(r, Math.max(0, 66 - (performance.now() - at)))); }
+      return true;
+    },
     foes: () => (share && share.foes ? share.foes.list.map(({ name, id, seen, zone, where, lane, called, dead }) => ({ name, id, seen, zone, where, lane, called, dead })) : null),
     zone: (p) => zoneOf(p),
     me: () => ({ ...me, fresh: fresh(me), minimap: share && share.sq, icons: share && share.last ? share.last.icons : [], mine }),

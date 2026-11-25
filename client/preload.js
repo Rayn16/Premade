@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   metrics: () => ipcRenderer.invoke('metrics'),
   videoFolder: (what) => ipcRenderer.invoke('video-folder', String(what)),
   gameVideo: (what, name, data) => ipcRenderer.invoke('game-video', String(what), name, data),
+  flashMarks: (what, name, data) => ipcRenderer.invoke('flash-marks', String(what), name, data), // app 1.55: auto enemy Flash's marks
   combo: (on) => ipcRenderer.send('combo', !!on),
   mayCards: (on) => ipcRenderer.send('may-cards', !!on), // app 1.51: ARAM: Mayhem's cards are up, so where you click is sent (may-click)
   record: (on) => ipcRenderer.send('record', !!on),

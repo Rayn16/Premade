@@ -1317,6 +1317,28 @@ ipcMain.handle('game-video', async (e, what, a, b) => {
   }
   return null;
 });
+// Auto enemy Flash (What's new 230, app 1.55): the page's after-game marks for each game (a JSON with each light's clues
+// and your answer) and each light's replay (a JPEG), in Games\Flash marks, where Claude's weekly check reads them.
+// 'save' writes one (a: its name, b: text or bytes), 'list' gives every game's JSON (the newest 500), to re-tune on.
+const flashDir = () => path.join(vidDir(), 'Flash marks'), flashOk = (n) => typeof n === 'string' && n.length <= 120 && /^Game [\w .()'&-]+\.(json|jpg)$/.test(n);
+ipcMain.handle('flash-marks', async (e, what, a, b) => {
+  if (!fromSite(e)) return null;
+  if (what === 'save') {
+    const buf = typeof b === 'string' ? Buffer.from(b) : bytes(b);
+    if (!flashOk(a) || !buf || buf.length > 5e6) return false;
+    await fs.promises.mkdir(flashDir(), { recursive: true }).catch(() => {});
+    return fs.promises.writeFile(path.join(flashDir(), a), buf).then(() => true, () => false);
+  }
+  if (what === 'list') {
+    const out = [];
+    for (const n of (await fs.promises.readdir(flashDir()).catch(() => [])).filter((n) => flashOk(n) && n.endsWith('.json')).sort().slice(-500)) {
+      const t = await fs.promises.readFile(path.join(flashDir(), n), 'utf8').catch(() => '');
+      if (t) out.push(t);
+    }
+    return out;
+  }
+  return null;
+});
 // A WebM from Chrome's MediaRecorder, made seekable: its EBML header, then a Segment of known size with a SeekHead (to
 // Info, Tracks and the Cues), Info with a Duration, Tracks, every Cluster as recorded up to the last whole one (with its
 // size, where Chrome left it unknown), and Cues with each cluster whose first video frame is a key frame. The sizes and
