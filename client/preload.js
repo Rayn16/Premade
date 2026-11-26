@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('lpcClient', {
   shareAudioCancel: () => ipcRenderer.send('share-audio-cancel'),
   startFilteredAudio: () => ipcRenderer.invoke('filtered-audio-start'),
   stopFilteredAudio: () => ipcRenderer.send('filtered-audio-stop'),
+  pauseFilteredAudio: () => ipcRenderer.send('filtered-audio-pause'), // app 1.56
   useScreen: (id) => ipcRenderer.send('screen', String(id)),
   keys: (keys) => ipcRenderer.invoke('keys', keys),
   windowMode: () => ipcRenderer.invoke('window-mode'),

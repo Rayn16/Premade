@@ -361,6 +361,21 @@ const game = (over = {}) => ({
       console.log(`callouts: Zed missing from mid 10 s after leaving the minimap with his faded face where he was, “${invade}”, then heading your way, all as pictures and read out loud`);
     }
 
+    // ---- What's new 234: with no callout on and no room, the League share doesn't follow you on the minimap (it did five
+    // times a second for nobody); a callout turned on mid-game starts it
+    {
+      const [c, page] = await context(browser, {});
+      await page.evaluate(() => { const g = navigator.mediaDevices.getDisplayMedia; window.caps = 0; navigator.mediaDevices.getDisplayMedia = (x) => { caps++; return g(x); }; window.screenNow = 'zedMid'; });
+      await page.evaluate((d) => lpcClient.emit('league', d), foesGame());
+      await wait(page, () => window.caps > 0, null, 'the League share');
+      await page.waitForTimeout(2000);
+      assert.strictEqual(await page.evaluate(() => lpc.me().minimap), null, 'no minimap read for nobody');
+      await page.$eval('#optJgCall', (e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
+      await wait(page, () => !!lpc.me().minimap, null, 'read once a callout is on');
+      await c.close();
+      console.log('no callouts and no room: the minimap isn’t read; turning a callout on reads it');
+    }
+
     // ---- What's new 182: no missing call after a recall to buy (the face moves to their base), "back mid", ganks from
     // anyone but your lane opponents with "2 coming" and the sharp sound, their jungler heading to a teammate's lane,
     // an objective window, Voidgrubs and the Herald, and the soul's element

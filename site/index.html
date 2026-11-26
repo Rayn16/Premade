@@ -7316,20 +7316,27 @@ dialog.wizard { transform: scale(var(--from)); }
     s.watched = true;
     s.stop = CameraBox.watch(new MediaStream([s.track]), 200, (src, w, h) => {
       if (share !== s || s.mode !== 'league') return;
-      if (!s.sq || s.frames++ % 25 === 0) s.sq = CameraBox.locateMinimap(cctx, src, w, h); // again every 5 s, in case Minimap Scale changed
       s.fw = w; s.fh = h; // the frame, for where the faded faces go on the screen
-      if (!s.sq && ++s.miss % 10 === 0) { s.hint = shareHint(s); render(); }
-      if (s.sq) s.miss = 0;
+      // What's new 234: your champion is followed only while something uses where you are (a friend in your room, a
+      // callout, a map on screen or the setup's screen check); every game was followed five times a second for nobody
+      const mapShown = [mapEl, roomMapEl].some((c) => c.offsetParent); // as drawMap
+      if (!(peers.size || foesOn() || mapShown || $('setup').open)) { s.sq = s.px = s.foes = null; trackedAt = 0; } // as seeFoes does with the callouts off
+      else {
+        if (!s.sq || s.frames++ % 25 === 0) s.sq = CameraBox.locateMinimap(cctx, src, w, h); // again every 5 s, in case Minimap Scale changed
+        if (!s.sq && ++s.miss % 10 === 0) { s.hint = shareHint(s); render(); }
+        if (s.sq) s.miss = 0;
+      }
       if (s.sq) {
         s.px = CameraBox.minimapPixels(cctx, src, s.sq);
         const res = s.last = s.follower.update(s.px, s.sq.s, performance.now(), allyCam);
         if (res.found) { me = { x: res.x, y: res.y, t: performance.now(), by: res.by, learned: res.learned }; send(posMsg()); }
-        if (!document.hidden) preview(src, s.sq, res);
+        if (mapShown && !document.hidden) preview(src, s.sq, res); // not while the map is on another page
         seeFoes(s);
       }
-      // League's surrender vote box (votePop): on after 2 frames with it, off after 2 without
-      if (league && SR.test(league.mode) && opts.overlayWin) { s.vote = CameraBox.seeVote(cctx, src, w, h) ? Math.min(3, s.vote + 1) : Math.max(0, s.vote - 1); s.wide = w / h; }
-      volumes();
+      // League's surrender vote box (votePop): on after 2 frames with it, off after 2 without; looked for once a second
+      // until it shows (What's new 234: each look reads the whole screen, five times a second all game)
+      if (league && SR.test(league.mode) && opts.overlayWin && (s.vote || performance.now() - (s.voteAt || 0) >= 1000)) { s.voteAt = performance.now(); s.vote = CameraBox.seeVote(cctx, src, w, h) ? Math.min(3, s.vote + 1) : Math.max(0, s.vote - 1); s.wide = w / h; }
+      if (s.sq) volumes();
     });
   }
   // an auto share starts or stops reading the minimap on the same track, so friends watching it never reconnect
@@ -8232,6 +8239,24 @@ dialog.wizard { transform: scale(var(--from)); }
         if (log) clog(`screen to ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight || 0} ${Math.round(r.framesPerSecond || 0)} fps, held back by ${r.qualityLimitationReason || '?'}, ${r.encoderImplementation || '?'}`);
         if (l.room) tellOnce(p, { t: 'shq', why: r.qualityLimitationReason || 'none' });
       })).catch(() => {});
+    }
+    shareSound();
+  }
+  // app 1.56: the share's sound filter (audio-capture.exe, its sound relay and the worklet) runs only while a friend
+  // hears your screen: 10 s after the last one stops it sleeps, and the next one starts it again
+  function shareSound() {
+    const f = share && share.filteredAudio;
+    if (!f || f.broken || !client.pauseFilteredAudio) return;
+    const heard = [...lends.values()].some((l) => l.sound && l.sound.enabled);
+    if (heard) f.quietAt = 0; else f.quietAt ||= performance.now();
+    if (heard && f.paused) {
+      f.paused = false;
+      f.ctx.resume();
+      client.startFilteredAudio().then((ok) => { if (!ok) throw new Error('not started'); }).catch((err) => { f.broken = true; console.warn('screen-share audio filter:', err); notify('Screen audio stopped. Share your screen again to bring it back.'); });
+    } else if (!heard && !f.paused && performance.now() - f.quietAt > 10000) {
+      f.paused = true;
+      client.pauseFilteredAudio();
+      f.ctx.suspend();
     }
   }
   // Screens in the room (opts.roomScreen, on, the toggle under Players in your room): while you share your screen
@@ -21692,6 +21717,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [234, 'November 26: Premade is lighter while you play', [
+      'In a game, Premade follows your champion on the minimap only while something uses it: a friend in your room, a callout or the live map. With none of those, it no longer reads your screen five times a second, and it looks for League’s surrender vote box once a second until one shows.',
+      'While you share your screen, the filter that keeps Premade’s voices and Discord out of its sound runs only while a friend is listening. With nobody watching, or Share my screen’s sound off, it sleeps after 10 seconds and starts again the moment someone listens (app 1.56).',
+      'Outside games, the app checks your keys 20 times a second instead of 66, unless you use push to talk, and its connection log looks for Riot’s apps every 5 minutes instead of every 30 seconds (app 1.56).',
+    ]],
     [233, 'November 26: matches accepted with 3 seconds left', [
       'Accept matches for me waits until 3 seconds are left on the match found timer. Until then you can still accept or decline yourself, here, on your phone or in League, and Premade won’t accept over your Decline.',
     ]],
@@ -22786,7 +22816,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Create room, then Copy invite link and send it, or leave the room open for others to find. To join a friend, choose an open room or type their code.', '#copyBtn, #createBtn, #openRoomsSearch, #refreshOpenRooms'],
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
-      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. It stays on for everyone when a game starts, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can, and nothing while they can’t see it (Premade on another page, minimized or under a full-screen game): it’s back the moment they look. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain; Discord in a browser can still be included. The Discord filter box turns that off, so the share sends all of your PC’s sound.',
+      ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. It stays on for everyone when a game starts, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can, and nothing while they can’t see it (Premade on another page, minimized or under a full-screen game): it’s back the moment they look. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain, and the filter sleeps while nobody listens (app 1.56); Discord in a browser can still be included. The Discord filter box turns that off, so the share sends all of your PC’s sound.',
         'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Discord filter, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareFilter, #optShareQ, #changeShareBtn, #createBtn'],
       ['Side by side and zoom', 'Watch every screen in your room full screen side by side; full screen, the controls and the mouse hide after 3 seconds without moving the mouse. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
@@ -22898,7 +22928,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Settings, Voice, In a game: Hearing range and Fade.', '#range, #optFade'],
       ['Walls, bushes and 3D sound', 'Walls muffle voices, and so do the river and bushes. With headphones, 3D sound brings voices from their champion’s direction, in front and behind too, and far-away voices lose their bass. In a room, with no map, voices come straight and clear.',
         'Walls work by themselves. 3D sound and the bass fade are on unless you turn them off: Settings, Voice, In a game, and Popups and sounds.', '#optSurround'],
-      ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself.',
+      ['Following your champion', 'Premade reads your minimap from your shared screen and follows your champion’s icon, so your camera can roam. The desktop app knows your champion from League itself. It follows you only while something uses it: a friend in your room, a callout or the live map.',
         'Share League screen under your room, in Your tracking. Early in a game, hold Space for a moment while you walk. If the gold circle isn’t on you, press Not my champion, or type your champion and press Find me.', '#shareBtn, #createBtn'],
       ['Game modes', 'The host picks one for the whole room: Classic, Legends (your voice changes with Baron, dragons, towers and sprees), Immersive, Gibberish, Voice swap (guess who’s really talking), Showdown and Chaos.',
         'Game mode, under your room with League mode on. Most need League’s own data, so the desktop app.', '#modeSel, #createBtn'],

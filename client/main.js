@@ -224,6 +224,7 @@ ipcMain.handle('filtered-audio-start', async (e) => {
   return result;
 });
 ipcMain.on('filtered-audio-stop', (e) => { if (fromSite(e)) { stopFilteredCapture(); filteredLeaveOut = []; } });
+ipcMain.on('filtered-audio-pause', (e) => { if (fromSite(e)) stopFilteredCapture(); }); // app 1.56: nobody hears the share's sound; filtered-audio-start runs the helper again
 ipcMain.handle('screens', async (e) => (!fromSite(e) ? [] : (await screens(true)).map((s) => ({ id: s.id, main: s.main, thumb: s.thumbnail.toDataURL() }))));
 // thumbs false: names only. On Windows each picture is a Windows Graphics Capture of that window, and with an NVIDIA
 // card every capture left its driver threads behind in this process (~13 threads and ~30 MB each time), so the Aion 2
@@ -259,13 +260,17 @@ function leagueDirs() {
   return [...new Set(dirs.filter(Boolean))];
 }
 // For the connection log: which Riot apps run and which Riot folders have a client lockfile, a line each time that
-// changes (checked every 30 s), so one TFT game in TFT's own app shows how Premade can find it
-let riotSeen = '';
+// changes, so one TFT game in TFT's own app shows how Premade can find it. The lockfiles every 30 s; app 1.56: the
+// apps (tasklist) only when a lockfile comes or goes, else every 5 min (it ran every 30 s, 2,880 times a day)
+let riotSeen = '', riotLocks = null, riotAt = 0;
 async function riotCheck(diag) {
-  let apps = '';
-  try { apps = [...new Set([...(await run('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 2500 })).matchAll(/^"([^"]*(?:riot|league|tft|teamfight)[^"]*)\.exe"/gim)].map((m) => m[1]))].sort().join(', '); } catch {}
   const locks = [];
   for (const d of leagueDirs()) if (await fs.promises.access(path.join(d, 'lockfile')).then(() => true, () => false)) locks.push(d);
+  if (locks.join() === riotLocks && Date.now() - riotAt < 300000) return;
+  riotLocks = locks.join();
+  riotAt = Date.now();
+  let apps = '';
+  try { apps = [...new Set([...(await run('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 2500 })).matchAll(/^"([^"]*(?:riot|league|tft|teamfight)[^"]*)\.exe"/gim)].map((m) => m[1]))].sort().join(', '); } catch {}
   const line = `Riot apps running: ${apps || 'none'}; client lockfile in: ${locks.join(', ') || 'none'}`;
   if (line !== riotSeen) { riotSeen = line; diag(line); }
 }
@@ -367,7 +372,7 @@ function moments(d, all, me, game) {
   }
   return out;
 }
-let leagueWas = '', practiceTool = false; // practiceTool: the combo trainer reads its keys only in a Practice Tool game
+let leagueWas = '', practiceTool = false, leagueGame = false; // practiceTool: the combo trainer reads its keys only in a Practice Tool game
 // League's client API, while League's client runs: its port and password are in the lockfile it writes in its folder
 async function lcuAuth() {
   for (const dir of leagueDirs()) {
@@ -453,6 +458,7 @@ async function pollLeague() {
   clientWas = phase;
   recordTick(game, phase);
   practiceTool = !!(game && game.gameData && game.gameData.gameMode === 'PRACTICETOOL');
+  leagueGame = !!game;
   setTimeout(pollLeague, practiceTool ? 500 : 2000); // the jungle clear's camps to half a second
 }
 
@@ -1784,7 +1790,7 @@ ipcMain.handle('keys', (e, k) => {
       keyState = keyState || require('koffi').load('user32.dll').func('short __stdcall GetAsyncKeyState(int vKey)');
       let down = false, onAlly = false;
       const held = new Set();
-      pttTimer = setInterval(() => {
+      const poll = () => {
         if (win.isDestroyed()) return; // closed, the app is quitting
         const now = !!code && (keyState(code) & 0x8000) !== 0;
         if (now !== down) { down = now; win.webContents.send('key', now ? 'ptt-down' : 'ptt-up'); }
@@ -1800,7 +1806,9 @@ ipcMain.handle('keys', (e, k) => {
           if (!held.has(name) && !(keyState(0x11) & 0x8000)) win.webContents.send('press', { k: name, t: Math.round(performance.now()) }); // 0x11: Ctrl
           held.add(name);
         }
-      }, 15);
+        pttTimer = setTimeout(poll, code || leagueGame ? 15 : 50); // app 1.56: 20 times a second outside games without a push-to-talk key (it was 66 all day)
+      };
+      pttTimer = setTimeout(poll, 15);
       ok.ptt = !!code;
       for (const h of hots) ok[h.name] = true;
       // app 1.45.1: while a Change button waits for keys ({ capture: true }), the keys pressed are read here too and sent
@@ -2064,7 +2072,7 @@ app.whenReady().then(async () => {
     const roomShare = shareAudioMode, filtered = shareAudioMode && shareAudioFiltered; // the room share asks for its sound mode just before
     shareAudioMode = false;
     shareAudioFiltered = false;
-    filteredLeaveOut = filtered ? shareLeaveOut : [];
+    if (roomShare) filteredLeaveOut = filtered ? shareLeaveOut : []; // a clip recording's request keeps the room share's, so a paused filter can start again
     shareLeaveOut = [];
     if (roomShare) { sharedSource = s || null; if (marks && !marks.isDestroyed()) marks.hide(); } // what pointing maps a friend's mouse onto: not a clip recording's, the augment cards' or the tracker's
     done(s ? { video: s, ...(req.audioRequested && process.platform === 'win32' && { audio: 'loopback' }) } : {}); // always loopback: the page swaps it for the filtered sound (no Premade, no Discord) once that starts, and keeps it if that fails
