@@ -1463,13 +1463,23 @@ const leagueData = (over = {}) => ({
     // the PC's 1 s tick back in the queue first (the phone shows the queue only after it), so it sees a new match found
     await wait(phone, () => !document.getElementById('finding').hidden && /^\d+:\d\d$/.test(document.getElementById('qTime').textContent), null, 'the PC back in the queue');
     await readyCheck();
-    await wait(pc, () => lpc.toasts().includes('Match found: accepted it for you'), null, 'accepted for you');
+    await pc.waitForTimeout(2500); // two of the PC's 1 s ticks at timer 2: not yet (What's new 233)
+    assert.strictEqual(callsTo(/ready-check\/accept$/, 'POST').length, 2, 'not accepted with 10 s left');
+    lcu.rc.timer = 9; // 3 of League's 12 seconds left
+    await wait(pc, () => lpc.toasts().includes('Match found: accepted it for you'), null, 'accepted for you with 3 s left');
     assert.strictEqual(callsTo(/ready-check\/accept$/, 'POST').length, 3);
     await until(() => pushes.some(([m, p]) => m === 'POST' && p === `/push/${code}/ring`), 'the notification for a phone that isn’t looking');
     assert.strictEqual(pushes.filter(([, p]) => p.endsWith('/ring')).length, 1);
     await onScreen('visible');
+    await backToQueue();
+    await readyCheck();
+    await wait(pc, () => /\d+ s left/.test(document.getElementById('rcState').textContent), null, 'the next ready check');
+    await pc.click('#declineBtn');
+    lcu.rc.timer = 9;
+    await pc.waitForTimeout(2500);
+    assert.strictEqual(callsTo(/ready-check\/accept$/, 'POST').length, 3, 'not accepted over your Decline');
     await pc.evaluate(() => { const c = document.getElementById('optAutoAccept'); c.checked = false; c.dispatchEvent(new Event('change')); });
-    console.log('ready check: accepted on the PC, on the phone, and for you (turned on from the phone)');
+    console.log('ready check: accepted on the PC, on the phone, and for you with 3 s left (turned on from the phone), never over your Decline');
 
     // ---- champ select
     champSelect(777);

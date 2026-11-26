@@ -9510,12 +9510,13 @@ dialog.wizard { transform: scale(var(--from)); }
     return tr;
   }
 
-  // ---- the ready check: Accept and Decline here and on the phone remote, or accepted for you (Pregame settings)
+  // ---- the ready check: Accept and Decline here and on the phone remote, or accepted for you (Pregame settings) once
+  // 3 of League's 12 seconds are left (What's new 233; its timer counts up 0 to 12 in whole seconds), so until then
+  // your own Accept or Decline, here or in League, stands
   async function readyTick() {
     rc = await lcuGet('/lol-matchmaking/v1/ready-check');
-    if (!rc || rc.state !== 'InProgress' || rc.playerResponse !== 'None' || !opts.autoAccept || accepting) return;
+    if (!rc || rc.state !== 'InProgress' || rc.playerResponse !== 'None' || !opts.autoAccept || accepting || rc.timer < 9) return;
     accepting = true;
-    await sleep(1500); // a moment to see it
     if (lcu === 'ReadyCheck' && okStatus(await lcuAsk('POST', '/lol-matchmaking/v1/ready-check/accept'))) notify('Match found: accepted it for you', true);
     accepting = false;
   }
@@ -21691,6 +21692,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [233, 'November 26: matches accepted with 3 seconds left', [
+      'Accept matches for me waits until 3 seconds are left on the match found timer. Until then you can still accept or decline yourself, here, on your phone or in League, and Premade won’t accept over your Decline.',
+    ]],
     [232, 'November 25: callouts name the right spot', [
       'Where the river meets top or bot lane is called top river or bot river now, not your or their jungle, so an enemy laner standing there no longer sets off an invade callout.',
       'A lane is called by its name even right by a camp: a jungler walking up top lane next to your gromp is in top lane, not at your gromp.',
@@ -22941,7 +22945,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online (with your win rate together this season), Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox, #friendRows', 'app'],
       ['League chat', 'Your League friends’ messages and party invites: read and answer them here or on the phone remote, accept or decline an invite, and message any friend who’s online.', 'League chat, on Pregame, while League is open.', '#lolChatBox', 'app'],
       ['Your room in your League status', 'While you’re in a room, your League status says “Premade room KAYN”, so friends know where to join. Your old status comes back when you leave.', 'Off until you turn it on: League chat on Pregame, Show my Premade room.', '#optLolStatus', 'app'],
-      ['Match found', 'Accept or decline right here, or let Premade accept every match for you. It can also come to the front and open Pregame when a match is found, and ring on your pick or ban turn.',
+      ['Match found', 'Accept or decline right here, or let Premade accept every match for you with 3 seconds left, so until then you can still decline. It can also come to the front and open Pregame when a match is found, and ring on your pick or ban turn.',
         'Settings, Champ select, Match found and champ select. Accept matches for me is off until you tick it.', '#optAutoAccept', 'app'],
       ['Best picks and bans', 'In champ select, your top 3 for this draft in words (Great, Good, OK, Risky) with pictures: how each does in your lane and with your team in high elo, your own games and what your team lacks. Bans for you starts with the champions you lose to most.',
         'Nothing to set up: click a champion to hover it, and again on your turn to lock it in.', '#dTop', 'app'],
