@@ -1901,10 +1901,16 @@ const leagueData = (over = {}) => ({
     { // memory: champ select redrawn 300 times (each click redraws it: tabs, the spell keys) keeps no nodes or listeners
       const cdp = await pc.context().newCDPSession(pc);
       await cdp.send('Performance.enable');
+      // listeners on the page and window, as the clips rows check counts them: Chrome's JSEventListeners also counts
+      // something outside the page that comes and goes by 72, which failed this check by timing (What's new 233)
+      const listeners = async (expression) => {
+        const { result } = await cdp.send('Runtime.evaluate', { expression });
+        return (await cdp.send('DOMDebugger.getEventListeners', { objectId: result.objectId, depth: -1, pierce: true })).listeners.length;
+      };
       const metrics = async () => {
         await cdp.send('HeapProfiler.collectGarbage');
-        const { metrics: m } = await cdp.send('Performance.getMetrics'), g = (n) => m.find((x) => x.name === n).value;
-        return [g('Nodes'), g('JSEventListeners')];
+        const { metrics: m } = await cdp.send('Performance.getMetrics');
+        return [m.find((x) => x.name === 'Nodes').value, await listeners('document') + await listeners('window')];
       };
       const redraw = (n) => pc.evaluate((n) => { const q = (s) => document.querySelector(s); for (let i = 0; i < n; i++) { q(`#csTabs [data-cs="${['runes', 'skins', 'spells'][i % 3]}"]`).click(); q(i % 2 ? '#csSlotD' : '#csSlotF').click(); } }, n);
       await redraw(60);
