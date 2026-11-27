@@ -8369,11 +8369,15 @@ dialog.wizard { transform: scale(var(--from)); }
       const log = performance.now() - lendLogAt > 60000;
       lendStatAt = performance.now();
       if (log) lendLogAt = lendStatAt;
-      for (const [p, l] of lends) if (l.call.peerConnection) l.call.peerConnection.getStats().then((st) => st.forEach((r) => {
-        if (r.type !== 'outbound-rtp' || r.kind !== 'video') return;
-        if (log) clog(`screen to ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight || 0} ${Math.round(r.framesPerSecond || 0)} fps, held back by ${r.qualityLimitationReason || '?'}, ${r.encoderImplementation || '?'}`);
-        if (l.room) tellOnce(p, { t: 'shq', why: r.qualityLimitationReason || 'none' });
-      })).catch(() => {});
+      for (const [p, l] of lends) if (l.call.peerConnection) l.call.peerConnection.getStats().then((st) => {
+        const of = (type) => [...st.values()].find((r) => r.type === type && r.kind === 'video'), r = of('outbound-rtp'), src = (of('media-source') || {}).framesPerSecond;
+        if (!r) return;
+        // What's new 250: under 5 frames a second from the screen itself is a still screen (a loading screen, a page
+        // being read): Windows hands over a picture only when something on it changes, so the tile says so, not just "1 fps"
+        const why = r.qualityLimitationReason && r.qualityLimitationReason !== 'none' ? r.qualityLimitationReason : src < 5 ? 'still' : 'none';
+        if (log) clog(`screen to ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight || 0} ${Math.round(r.framesPerSecond || 0)} fps of the screen's ${Math.round(src || 0)}, held back by ${why}, ${r.encoderImplementation || '?'}`);
+        if (l.room) tellOnce(p, { t: 'shq', why });
+      }).catch(() => {});
     }
     shareSound();
   }
@@ -8440,7 +8444,7 @@ dialog.wizard { transform: scale(var(--from)); }
         // paused 2 minutes (a game behind League): the call goes too, so both apps free what it holds, and it's asked
         // for again once the tile can be seen
         if (idle && performance.now() - v.idleAt > 120e3) { const old = v.call; v.call = null; v.vid.srcObject = null; v.streamAt = 0; tell(p, { t: 'see', on: false }); old.close(); }
-        else if (performance.now() - v.statAt > 3000 && v.call.peerConnection) { v.statAt = performance.now(); seeStats(v); }
+        else if (performance.now() - v.statAt > 3000 && v.call.peerConnection) { v.statAt = performance.now(); seeStats(v, p); }
       } else v.tile.querySelector('.shq').textContent = '';
     }
     if (ptTo && !seen.has(ptTo)) ptTo = null;
@@ -8794,11 +8798,13 @@ dialog.wizard { transform: scale(var(--from)); }
   // Their app stops making it for you ({t:'see', idle}: its encoding off), so neither PC spends anything on it, and
   // it's back the moment you look, on the same call. Never while it's popped out, full screen or the overlay's.
   const seeIdle = (v, p) => !(document.pictureInPictureElement === v.vid || document.fullscreenElement || (cam && cam.p === p)) && (!!(front && front.hid) || !v.vid.getBoundingClientRect().height);
-  const SHQ_WHY = { bandwidth: 'held back by their upload', cpu: 'held back by their PC', other: 'held back' };
-  function seeStats(v) {
+  const SHQ_WHY = { bandwidth: 'held back by their upload', cpu: 'held back by their PC', other: 'held back', still: 'their screen is still' };
+  function seeStats(v, p) {
     v.call.peerConnection.getStats().then((st) => st.forEach((r) => {
       if (r.type !== 'inbound-rtp' || r.kind !== 'video' || !r.frameHeight) return;
       v.tile.querySelector('.shq').textContent = [`${r.frameHeight}p`, `${Math.round(r.framesPerSecond || 0)} fps`, SHQ_WHY[v.why]].filter(Boolean).join(' · ');
+      // What's new 250: once a minute in your connection log too, so what reached you is in your log, not only theirs
+      if (performance.now() - (v.logAt || 0) > 60000) { v.logAt = performance.now(); clog(`screen from ${nameOf(p)}: ${r.frameWidth || 0}x${r.frameHeight} ${Math.round(r.framesPerSecond || 0)} fps, ${SHQ_WHY[v.why] || 'nothing held back'}, ${r.packetsLost | 0} packets lost, ${r.freezeCount | 0} freezes`); }
     })).catch(() => {});
   }
   function popTile(v) { // Pop out: the screen in its own window on top of your other apps (Chromium's picture in picture)
@@ -22032,6 +22038,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [250, 'November 27: a still screen says so', [
+      'A friend’s screen tile now says “their screen is still” when nothing on it moves, like League’s loading screen or a page they’re reading. A still screen sends only a frame or two a second, so it showed “1 fps” and looked broken. When their upload or their PC holds a moving screen back, the tile still says that instead.',
+    ]],
     [240, 'November 27: your jungler coming', [
       'With the lane box showing and a minimap callout on, the box says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, from their walk round the walls at their speed. Nothing while they farm near you, and nothing out loud.',
     ]],
@@ -23155,7 +23164,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Rooms on your phone', 'Open Premade’s website on your phone to join a room: talk and listen, chat with pictures, watch your friends’ shared screens, and see your friends and invites. The menu sits along the bottom, Share invite link opens your phone’s share sheet, and your screen stays on while you’re in a room. Phones can’t share their own screen, so those buttons are left out there. A phone isn’t on the League map, so during a League game you and the friends in it can’t hear each other.',
         'Open rayn16.github.io/Premade on your phone, or tap a friend’s invite link, then Join. Settings, App says how to keep it on your home screen.', '#createBtn, #code', 'web'],
       ['Screen share', 'While you share your screen, everyone in your room sees it in their room, straight from your PC, at 720p, 1080p or 1440p and 30, 60 or 120 fps, with its sound in stereo. It stays on for everyone when a game starts, and you’re told who’s watching. A still picture or a minimized window doesn’t cut it off, a share that stops getting through is sent again by itself, friends whose routers can’t reach each other connect through a relay, and a busy PC or connection costs frames, never sharpness. Each friend gets it at the size they watch it, in H.264 from your graphics card where it can, and nothing while they can’t see it (Premade on another page, minimized or under a full-screen game): it’s back the moment they look. In the Windows app, friends never hear themselves: Premade’s own voices and the Discord desktop app are filtered out of the sound while game and other system audio remain, and the filter sleeps while nobody listens (app 1.56); Discord in a browser can still be included. The Discord filter box turns that off, so the share sends all of your PC’s sound.',
-        'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Discord filter, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareFilter, #optShareQ, #changeShareBtn, #createBtn'],
+        'In your room’s Current room card: Share screen or app, then under Screen share, Let the room watch my screen, Share my screen’s sound, Discord filter, Screen share quality and Frame rate. Each screen tile has its own volume and shows the size and frame rate you get, and why when it’s low: their upload, their PC, or their screen is still; Pop out puts it in its own window on top of your other apps; Hide one, and Show screen on their card brings it back.', '#optRoomScreen, #optRoomSound, #optShareFilter, #optShareQ, #changeShareBtn, #createBtn'],
       ['Side by side and zoom', 'Watch every screen in your room full screen side by side; full screen, the controls and the mouse hide after 3 seconds without moving the mouse. Ctrl + scroll (or pinch) on a screen zooms in where you point, up to 4x, and drag moves around; zoomed in, your friend’s PC sends a sharper picture.', 'Side by side next to Screens in your room; Ctrl + scroll on a screen tile.', '#sideBtn, #roomScreens, #createBtn'],
       ['Point at a friend’s screen', 'Show a friend where you mean: your pointer appears on their screen as a dot with your name, and dragging draws a line that fades after 3 seconds. It only draws, so it works inside games too, in Borderless.',
         'Point on their screen tile in your room, while they share their whole screen with you. They need the desktop app. Under Players, Let people watching my screen point and draw on it turns it off for yours.', '#roomScreens, #optLetPoint, #createBtn'],
