@@ -636,7 +636,10 @@ const game = (over = {}) => ({
       await page.click('#ovEdit > summary'); // Edit layout, for the HUD check's drag
       await wait(page, () => document.querySelector('#ovStage .ovmap').style.left === '0.4%', null, 'League’s HUD read: the minimap on the left');
       assert.deepStrictEqual(await page.evaluate(() => ['.ovscore', '.ovhud', '.ovmap'].map((q) => { const st = document.querySelector('#ovStage ' + q).style; return [st.width, st.height]; })), [['33.6%', '5.6%'], ['', '18.2%'], ['', '39%']]);
-      const box = (k) => page.locator(`#ovHandles .ovhandle[data-part="${k}"]`).boundingBox();
+      const box = async (k) => { // the handles are drawn again as the preview redraws, so one can be between draws: ask again
+        for (let i = 0; i < 20; i++) { const b = await page.locator(`#ovHandles .ovhandle[data-part="${k}"]`).boundingBox().catch(() => null); if (b) return b; await page.waitForTimeout(100); }
+        return null;
+      };
       const stage = await page.evaluate(() => { const e = document.getElementById('ovStage'), r = e.getBoundingClientRect(); return { x: r.left + e.clientLeft, y: r.top + e.clientTop, w: e.clientWidth, h: e.clientHeight }; });
       const chat = await box('chat');
       assert(!(await page.getAttribute('#ovHandles .ovhandle[data-part="chat"]', 'data-covers')), 'chat clear of League’s HUD at first');
@@ -679,8 +682,52 @@ const game = (over = {}) => ({
       assert.strictEqual(says.map, 'Where Lee Sin was each minute for the first 14 minutes, and where you died');
       await shot(page, 'jungler-review', '#jgShot');
       assert.strictEqual(await page.evaluate(([r, tl]) => lpc.jungler({ ...r, mode: 'ARAM' }, tl), [r, tl]), null, 'not in ARAM');
+      // What's new 235: this game's jungler calls against Riot's copy: one matched (2:05, Riot's 2:00 spot), one didn't
+      // (4:10, far from Riot's 4:00), one 30 s from both its minutes isn't counted; the miss is kept for the tuning
+      const chk = await page.evaluate(([r, tl, a, b]) => {
+        lpc.jgLog({ g: '7', list: [{ t: 125, id: 'LeeSin', name: 'their raptors', at: true, ...a }, { t: 250, id: 'LeeSin', name: 'your krugs', at: true, ...b }, { t: 390, id: 'LeeSin', name: 'top river', at: false, ...a }] });
+        const box = lpc.jungler(r, tl), q = box.querySelector('.jgchk');
+        lpc.jgLog({ g: '', list: [] });
+        return q && { head: q.querySelector('b').textContent, blocks: [...q.querySelectorAll('.blk i')].map((i) => i.className), lines: [...q.querySelectorAll('p')].map((e) => e.textContent),
+          fig: box.querySelector('figcaption').textContent, kept: JSON.parse(localStorage.getItem('lpc-jgmiss')) };
+      }, [r, tl, at(0.62, 0.7), at(0.2, 0.15)]);
+      assert(chk, 'the check shows');
+      assert.strictEqual(chk.head, '1 of 2 jungler calls matched Riot’s copy of the game');
+      assert.deepStrictEqual(chk.blocks, ['ok', 'miss']);
+      assert.match(chk.lines[0], /^4:10 “Lee Sin at your krugs”: at 4:00 Riot had Lee Sin (in|at) .+\.$/);
+      assert.strictEqual(chk.lines[1], 'Premade tunes its jungler calls from these by itself. Calls more than 20 s from one of Riot’s once-a-minute spots aren’t counted.');
+      assert.match(chk.fig, /the call that didn’t match \(orange rings\)/);
+      assert.deepStrictEqual(chk.kept, [{ g: '7', m: ['your krugs'] }]);
+      assert.strictEqual(await page.evaluate(([r, tl]) => !lpc.jungler(r, tl).querySelector('.jgchk'), [r, tl]), true, 'no check without this game’s calls');
+      // What's new 235: Dodge or stay?, What wins for you's habits, their weak side
+      const v = await page.evaluate(() => {
+        const d = (n, w, t, v = 'behind') => Array.from({ length: n }, (_, i) => ({ g: String(v + t + w + i), v, t, w: i < w }));
+        const many = [...d(11, 3, true), ...d(12, 7, false), ...d(30, 15, false, 'even')];
+        return [lpc.dodgeSay(many.slice(0, 34), 'x', 'behind', 'Lina is on Autofill and new to Thresh'), lpc.dodgeSay(many, 'x', 'behind', 'Lina is on Autofill and new to Thresh'),
+          lpc.dodgeSay(many, 'x', 'behind', ''), lpc.dodgeSay([...d(11, 6, true), ...many.slice(11)], 'x', 'behind', 'Lina is on Autofill')];
+      });
+      assert.deepStrictEqual(v, ['Learning from your drafts: 34 of 50 saved.', 'A dodge may be worth it: Lina is on Autofill and new to Thresh, and drafts like this went 3 of 11 for you.',
+        'Stay: drafts like this went 7 of 12 for you.', 'Stay: drafts like this went 6 of 11 for you.']);
+      const hb = await page.evaluate(([tl]) => {
+        const t2 = JSON.parse(JSON.stringify(tl));
+        t2.frames[10].participantFrames[1] = { ...t2.frames[10].participantFrames[1], minionsKilled: 60, jungleMinionsKilled: 12 };
+        t2.frames[3].events.push({ type: 'ITEM_PURCHASED', timestamp: 170000, participantId: 1, itemId: 2055 });
+        return [lpc.habits(tl, 1), lpc.habits(t2, 1), lpc.habits(tl, 2)];
+      }, [tl]);
+      assert.deepStrictEqual(hb, [[false, null, null, false], [false, true, false, true], [true, null, null, false]], 'deaths before 10, a Control Ward, first back (no item data here), CS at 10');
+      const ws = await page.evaluate(() => {
+        const g = (w) => Array.from({ length: 10 }, (_, i) => ({ win: i < w, champ: 1, lane: '' }));
+        const rows = [['TOP', 6], ['JUNGLE', 5], ['MIDDLE', 6], ['BOTTOM', 2], ['UTILITY', 4]].map(([pos, w], i) => ({ puuid: 'w' + i, name: ['Rook', 'Vex', 'Mara', 'Ivy', 'Noor'][i] + '#EUW', champ: 103, pos, ally: false }));
+        const data = Object.fromEntries(rows.map((p, i) => [p.puuid, { games: g([6, 5, 6, 2, 4][i]), mastery: i === 3 ? [] : [{ championId: 103, championPoints: 50000 }], ranked: {}, level: 200 }]));
+        const a = lpc.weakSide(rows, data);
+        data.w3.games = g(5);
+        data.w3.mastery = [{ championId: 103, championPoints: 50000 }];
+        return [a && { lane: a.lane, why: a.why, ps: a.ps.map((p) => p.name) }, lpc.weakSide(rows, data)];
+      });
+      assert.deepStrictEqual(ws[0], { lane: 'bot', why: 'Ivy won 2 of the last 10 and is new to Ahri. Noor won 4 of 10.', ps: ['Ivy#EUW', 'Noor#EUW'] });
+      assert.strictEqual(ws[1], null, 'no line when no lane stands out');
       await c.close();
-      console.log('game report: their jungler’s first 14 minutes, the death they were in on and where they were before it');
+      console.log('game report: their jungler’s first 14 minutes, the death they were in on and where they were before it, and Premade’s calls checked against Riot’s copy; Dodge or stay?, What wins for you’s habits and their weak side');
     }
     console.log('ok');
   } catch (e) {

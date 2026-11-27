@@ -281,6 +281,8 @@ function fakeLcu(method, p, body) {
     teamOne: TEAM1.map(([puuid, gameName, championId, selectedPosition]) => ({ puuid, gameName, tagLine: 'EUW', championId, selectedPosition })),
     teamTwo: TEAM2.map(([puuid, gameName, championId, selectedPosition]) => ({ puuid, gameName, tagLine: 'EUW', championId, selectedPosition })),
     playerChampionSelections: [...TEAM1, ...TEAM2].filter(([, n]) => n !== 'Sniper').map(([puuid, , championId]) => ({ puuid, championId, selectedSkinIndex: puuid === ME ? 7 : 0, spell1Id: 4, spell2Id: puuid === ME ? 14 : 12 })) } }); // Sniper: not listed
+  if (p === '/riotclient/kill-and-restart-ux') { lcu.uxRestarts = (lcu.uxRestarts || 0) + 1; return { status: 204, data: null }; } // What's new 235
+  if (p === '/lol-gameflow/v1/gameflow-phase') return ok(lcu.phase || 'None');
   if (p === '/lol-matchmaking/v1/ready-check') return lcu.rc ? ok(lcu.rc) : { status: 404, data: null };
   if ((m = /^\/lol-matchmaking\/v1\/ready-check\/(accept|decline)$/.exec(p))) { if (lcu.rc) lcu.rc.playerResponse = m[1] === 'accept' ? 'Accepted' : 'Declined'; return { status: 204, data: null }; }
   if (p === '/lol-champ-select/v1/session') return lcu.cs && lcu.phase === 'ChampSelect' ? ok(lcu.cs) : { status: 404, data: null };
@@ -1950,7 +1952,7 @@ const leagueData = (over = {}) => ({
     [86, 64, 103, 222, 412].forEach((c, i) => { lcu.cs.myTeam[i].championId = c; });
     [122, 254, 238, 51, 64].forEach((c, i) => { lcu.cs.theirTeam[i].championId = c; });
     await wait(pc, () => !document.getElementById('csVerdict').hidden, null, 'the draft verdict');
-    assert.match(await text(pc, '#csVerdict'), /^Draft: (you’re ahead|even|you’re behind)\s*Your team has a frontline, magic damage, crowd control and engage\s*Their team lacks magic damage$/);
+    assert.match(await text(pc, '#csVerdict'), /^Draft: (you’re ahead|even|you’re behind)\s*Your team has a frontline, magic damage, crowd control and engage\s*Their team lacks magic damage\s*Dodge or stay\? Learning from your drafts: 1 of 50 saved\.$/); // What's new 235: this draft saved
     assert(!/%/.test(await text(pc, '#csVerdict')), 'no percentage');
     await shot(pc, 'cs-verdict');
     [lcu.cs.myTeam, lcu.cs.theirTeam] = JSON.parse(wasCs);
@@ -2978,6 +2980,17 @@ const leagueData = (over = {}) => ({
       await openPage(hp, 'pregame');
       await wait(hp, () => document.getElementById('winFix').hidden, null, 'no Fullscreen fix any more');
       console.log('Fullscreen fix: Borderless in one click from the ready check, through League’s own settings');
+      // What's new 235: League's window stuck? Fix it, from app 1.57: League's own call, then Restarting until League answers, then Done
+      assert(await hp.isHidden('#uxFix'), 'not in an app before 1.57');
+      await hp.evaluate(() => { lpcClient.version = '1.57.0'; });
+      await hl({ inGame: false, phase: 'None' });
+      await wait(hp, () => !document.getElementById('uxFix').hidden && document.getElementById('uxFixBtn').textContent === 'League’s window stuck? Fix it' && document.getElementById('uxFixNote').textContent === 'Only League’s window restarts. Your party and your place in the queue stay.', null, 'the Fix it button');
+      await hp.click('#uxFixBtn');
+      await wait(hp, () => document.getElementById('uxFixBtn').textContent === 'Restarting League’s window…' && document.getElementById('uxFixBtn').disabled, null, 'restarting');
+      assert.strictEqual(lcu.uxRestarts, 1, 'League’s own call, once');
+      await wait(hp, () => document.getElementById('uxFixBtn').textContent === 'Done', null, 'done', 20000);
+      await hp.evaluate(() => { lpcClient.version = '1.13.0'; });
+      console.log('League’s window stuck? Fix it: one call to League’s kill-and-restart-ux, Restarting, then Done (app 1.57)');
       // in a game the explorer hides, like all advice
       await hl(leagueData());
       await wait(hp, () => document.getElementById('tdBox').hidden && !document.getElementById('tierBox').hidden, null, 'no draft board in a game, the tier list stays');

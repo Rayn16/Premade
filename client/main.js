@@ -393,7 +393,7 @@ async function clientPhase() {
 // The calls the page may make to League's client, for scouting players (Clash opponents too), Riot's recommended runes
 // and spells, your item sets, hovering, banning and locking in champions, trades, the ready check, starting and
 // stopping the queue, your role, a Practice Tool game, ranked LP, match history with timelines and replays, spectating,
-// the patch, League's window mode (Borderless in one click: the overlay only shows over it), and League chat: your
+// the patch, League's window mode (Borderless in one click: the overlay only shows over it), restarting League's window, and League chat: your
 // conversations and their messages, sending one, your status message and party invites you got. Nothing else goes
 // through, so the page can't do anything else with your account (deleting all your rune pages, buying, friends).
 const LCU_OK = [
@@ -441,6 +441,7 @@ const LCU_OK = [
   ['GET', /^\/lol-game-settings\/v1\/game-settings$/],
   ['PATCH', /^\/lol-game-settings\/v1\/game-settings$/],
   ['POST', /^\/lol-game-settings\/v1\/save$/],
+  ['POST', /^\/riotclient\/kill-and-restart-ux$/], // Fix it on Pregame: only League's window restarts, your party and queue stay
 ];
 const lcuOk = (method, p) => typeof method === 'string' && typeof p === 'string' && LCU_OK.some(([m, re]) => m === method && re.test(p));
 ipcMain.handle('lcu', async (e, method, p, body) => {

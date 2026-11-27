@@ -188,6 +188,8 @@ main > #msg:not(:empty) { margin-top: 16px; }
 .view, #msg { max-width: 1320px; margin-inline: auto; }
 .view { display: grid; gap: 18px; align-content: start; }
 .view[data-view="pregame"] { padding-top: 28px; } /* no page title (What's new 198) */
+.uxfix { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; } /* What's new 235: League's window stuck? Fix it, the line under it */
+.uxfix .hint { margin: 0; }
 .view[data-view="game"] { padding-top: 28px; } /* no page title (What's new 200) */
 /* Aion 2: the group tracker (github.com/Rayn16/aion2-tracker) in its embed look, filling the page */
 .view[data-view="aion"] { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding-bottom: 0; }
@@ -2381,6 +2383,15 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 .takeaways { list-style: none; padding-left: 0; }
 .takeaways li { position: relative; padding-left: 16px; }
 .takeaways li::before { content: ""; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.wins { display: grid; gap: 14px; } /* What's new 235: What wins for you, with the habit (light) and without (grey) */
+.winrow { display: grid; grid-template-columns: minmax(0, 16em) minmax(0, 1fr) auto; grid-template-areas: "l b g" ". t ."; gap: 4px 14px; align-items: center; }
+.winrow > b:first-child { grid-area: l; } .winrow .winbars { grid-area: b; } .winrow small { grid-area: t; } .winrow .gap { grid-area: g; color: var(--good); }
+.winbars { position: relative; display: grid; gap: 3px; }
+.winbars i { height: 10px; border-radius: 3px; background: var(--fg); } .winbars i.o { background: var(--line); }
+.winbars .half { position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px dashed var(--muted); }
+@container app (max-width: 760px) { .winrow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "l g" "b b" "t t"; } }
+.jgchk { display: grid; gap: 6px; margin-top: 14px; } /* What's new 235: the jungler calls against Riot's copy */
+.blk i.ok { background: var(--fg); } .blk i.miss { background: #f59e5b; }
 
 /* Motion (Settings > Look > Animations, 2026-11-12): calm, and only transform and opacity, so it costs no layout while
    a game runs. data-motion on <html>: on; reduced (Windows' Show animations off, or picked): what moves becomes a short
@@ -3004,6 +3015,7 @@ dialog.wizard { transform: scale(var(--from)); }
     <section class="view" data-view="pregame" aria-label="Pregame" hidden>
       <p id="preNote" class="phase" role="status"></p>
       <p id="winFix" class="hint" hidden>League is in Fullscreen, so the overlay can’t show over it. <button id="winFixBtn" class="btn small" type="button">Switch to Borderless</button></p>
+      <div id="uxFix" class="uxfix" hidden><button id="uxFixBtn" class="btn small" type="button">League’s window stuck? Fix it</button><p id="uxFixNote" class="hint" role="status"></p></div>
       <section id="queueBox" class="panel" aria-labelledby="h-queue" hidden>
         <h2 id="h-queue" class="ph">Queue</h2>
         <p id="queueState" role="status"></p>
@@ -3201,6 +3213,11 @@ dialog.wizard { transform: scale(var(--from)); }
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-form">
         <h2 id="h-form" class="ph">Your last 20 games</h2>
         <div id="form" class="form5"></div>
+      </section>
+      <section class="panel lcu-only" data-tab="you" aria-labelledby="h-wins">
+        <h2 id="h-wins" class="ph">What wins for you</h2>
+        <p id="winsNote" class="hint"></p>
+        <div id="wins" class="wins"></div>
       </section>
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-climb">
         <div class="phbar"><h2 id="h-climb" class="ph">Ranked climb</h2>
@@ -7052,6 +7069,22 @@ dialog.wizard { transform: scale(var(--from)); }
   const winBtn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn small', textContent: 'Switch to Borderless' }); // kept, so a redraw can't eat a click
   winBtn.addEventListener('click', fixWindow);
   $('winFixBtn').addEventListener('click', fixWindow);
+  // League's window stuck (What's new 235, app 1.57): League's own call restarts only its window, and League keeps your
+  // party and your place in the queue. uxStep: 0 the button, 1 restarting until League answers again, 2 done (5 s)
+  let uxStep = 0;
+  const uxOk = () => winOk() && !newer('1.57.0', client.version) && !!lcu;
+  async function fixUx() {
+    if (uxStep === 1) return;
+    uxStep = 1;
+    renderGame();
+    const ok = okStatus(await lcuAsk('POST', '/riotclient/kill-and-restart-ux'));
+    if (ok) { await sleep(8000); for (let i = 0; i < 30 && !(await lcuGet('/lol-gameflow/v1/gameflow-phase')); i++) await sleep(1000); }
+    else notify('League didn’t restart its window. Close League and open it again.', true);
+    uxStep = ok ? 2 : 0;
+    renderGame();
+    if (ok) setTimeout(() => { uxStep = 0; renderGame(); }, 5000);
+  }
+  $('uxFixBtn').addEventListener('click', fixUx);
   const CELLS = {
     mic: { ok: ['good', 'Working'], quiet: ['ok', 'No sound yet'], muted: ['bad', 'Muted'], off: ['bad', 'Off'] },
     win: { borderless: ['good', 'Borderless'], windowed: ['ok', 'Windowed'], fullscreen: ['bad', 'Fullscreen: no overlay'] },
@@ -7594,6 +7627,7 @@ dialog.wizard { transform: scale(var(--from)); }
     // a player it doesn't list gets the base art and no spells
     const sel = (gfs && gfs.gameData && Array.isArray(gfs.gameData.playerChampionSelections) ? gfs.gameData.playerChampionSelections : []).filter((x) => x && typeof x === 'object');
     const selOf = (p) => sel.find((x) => p.puuid && x.puuid === p.puuid) || sel.find((x) => x.summonerInternalName && sameName(String(x.summonerInternalName), p.name)) || sel.find((x) => +x.championId === p.champ) || {};
+    const weak = loading ? weakSide(rows) : null;
     const card = (p) => {
       const c = champOf(p.champ), s = p.puuid ? scoutData.get(p.puuid) : null, rk = s && [s.ranked.RANKED_SOLO_5x5, s.ranked.RANKED_FLEX_SR].find((q) => q && TIERS.includes(q.tier));
       const on = s && s.games ? s.games.filter((x) => x.champ === p.champ) : [], m = s && s.mastery.find((x) => x.championId === p.champ), x = selOf(p);
@@ -7604,6 +7638,7 @@ dialog.wizard { transform: scale(var(--from)); }
         rank: !s ? (p.puuid ? 'Looking up…' : '') : rk ? (rk === s.ranked.RANKED_SOLO_5x5 ? '' : 'Flex: ') + rankText(rk) : 'Unranked', tc: rk ? TIER_C[TIERS.indexOf(rk.tier)] : '', emb: rk ? emblems[rk.tier] || '' : '',
         on: s && s.games ? [on.length, on.filter((x) => x.win).length, m ? m.championLevel | 0 : 0] : null, // this champion in the last 20 and its mastery level
         stats: s ? cardStats(s, p) : null, tags: keyTags([...(avoidOf(p) ? [['bad', 'On your avoid list']] : []), ...(s && s.games ? tagsOf(s, p.champ, p) : [])], 2), mp: s && riotIdOk(p.name) ? miniOf(s, p.name, rk) : null,
+        ...(weak && weak.ps.includes(p) && { weak: true }), // their weak side's cards (What's new 235)
       };
     };
     const lb = lobbyNow(rows), mineT = (rows.find((p) => p.ally) || {}).team, runes = boardRunes(); // each row's line: its average rank in its color, and which is favored
@@ -7612,7 +7647,24 @@ dialog.wizard { transform: scale(var(--from)); }
     return { load: !!loading, dd: ddVersion ? `${DD}/cdn/${ddVersion}` : '', side: mineT === 'CHAOS' ? 'red' : 'blue',
       us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
       heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null, bg: boardBgNow(), items: loading ? null : boardItems(rows),
-      tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null };
+      tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null, ...(weak && { weak: { lane: weak.lane, why: weak.why } }) };
+  }
+  // Their weak side (What's new 235): each of their lanes (bot: the ADC and support together) scored from its players'
+  // last 10 games, less 15 points for each First time on, Autofill or Rusty tag; named only once everyone's games are
+  // in and one lane is 15 points or more below the next. ponytail: 15 points a tag is a guess, tune it from real games
+  function weakSide(rows) {
+    const LN = { TOP: 'top', JUNGLE: 'jungle', MIDDLE: 'mid', BOTTOM: 'bot', UTILITY: 'bot' }, by = {};
+    for (const p of rows.filter((x) => !x.ally)) {
+      const s = p.puuid ? scoutData.get(p.puuid) : null, g = s && s.games ? s.games.slice(0, 10) : null, l = LN[p.pos];
+      if (!l || !g || g.length < 5) return null;
+      const w = g.filter((x) => x.win).length, t = tagsOf(s, p.champ, p).map(([, x]) => x), ch = champName(p.champ);
+      const why = [t.some((x) => /^First time on/.test(x)) && `is new to ${ch}`, t.some((x) => /^Autofill/.test(x)) && 'is on Autofill', t.some((x) => /^Rusty on/.test(x)) && `is rusty on ${ch}`].filter(Boolean);
+      (by[l] ||= []).push({ p, w, n: g.length, why, score: w / g.length - 0.15 * why.length });
+    }
+    const lanes = Object.entries(by).map(([lane, ps]) => ({ lane, ps: ps.sort((a, b) => a.score - b.score), score: avgOf(ps.map((x) => x.score)) })).sort((a, b) => a.score - b.score);
+    if (lanes.length < 2 || lanes[1].score - lanes[0].score < 0.15) return null;
+    const why = lanes[0].ps.map((x, i) => `${x.p.name.split('#')[0] || champName(x.p.champ)} won ${x.w} of ${i ? '' : 'the last '}${x.n}${x.why.length ? ` and ${x.why.join(' and ')}` : ''}.`).join(' ');
+    return { lane: lanes[0].lane, why, ps: lanes[0].ps.map((x) => x.p) };
   }
   // the mini profile on a name (What's new 205, planned as 201): who they are, without what the card shows. other: the
   // Flex rank when the card shows Solo/Duo; last: the card's queue's last season [end, peak when higher]; the banner:
@@ -7744,8 +7796,11 @@ dialog.wizard { transform: scale(var(--from)); }
     ['blue', 11032, 6990, 200], ['gromp', 12703, 6443, 200], ['wolves', 11008, 8387, 200], ['raptors', 7852, 9471, 200], ['red', 7101, 10900, 200], ['krugs', 6317, 12146, 200],
     ['Dragon', 9866, 4414], ['Baron', 5007, 10471], ['bot scuttle', 10500, 5170], ['top scuttle', 4400, 9600]];
   const AREAS = { 'the top lane': 'top lane', 'the middle lane': 'mid lane', 'the bottom lane': 'bot lane' };
-  function mapSpot(p) { // a spot on your minimap: { name: 'your red' or 'top river', at: true for a named spot }
-    const o = Terrain.onMinimap, x = ((p.x - o.x) / o.w) * MAP, y = (1 - (p.y - o.y) / o.h) * MAP, team = mine.team === 'CHAOS' ? 200 : 100;
+  function mapSpot(p) { // a spot on your minimap: { name: 'your red' or 'top river', at: true for a named spot, x, y in game units }
+    const o = Terrain.onMinimap, x = ((p.x - o.x) / o.w) * MAP, y = (1 - (p.y - o.y) / o.h) * MAP;
+    return { ...riftSpot(x, y, mine.team === 'CHAOS' ? 200 : 100), x, y };
+  }
+  function riftSpot(x, y, team) { // the same from game units (Riot's timeline), for team 100 or 200
     const z = placeOf({ x, y }, team), half = y > x ? 'top' : 'bot';
     if (AREAS[z]) return { name: AREAS[z], at: false }; // a lane, even by a camp's wall
     let best = null, bd = 900;
@@ -7754,6 +7809,11 @@ dialog.wizard { transform: scale(var(--from)); }
     return { name: z === 'the river' ? `${half} river` : /jungle/.test(z) ? z.replace('jungle', `${half} jungle`) : z, at: false };
   }
   const spotSay = (sp) => `${sp.at ? 'at' : 'in'} ${sp.name}`; // "at your red", "in top river"
+  // Callouts that check themselves (What's new 235): this game's jungler calls { t (game clock, s), id, name (the
+  // spot), x, y }, in memory for the game report only; lpc-jgmiss: the spots that didn't match in the last 10 checked
+  // games [{ g, m: [spot names] }]. A spot that missed 3 times or more there waits 2 s longer before its call.
+  let jgLog = { g: '', list: [] };
+  const jgSlow = () => { const n = {}; for (const x of load('lpc-jgmiss', [])) for (const m of x.m || []) n[m] = (n[m] || 0) + 1; return new Set(Object.keys(n).filter((k) => n[k] >= 3)); };
   const fountain = (team) => { const o = Terrain.onMinimap, [x, y] = team === 'CHAOS' ? [14340, 14390] : [530, 480]; return { x: (x / MAP) * o.w + o.x, y: (1 - y / MAP) * o.h + o.y }; }; // on your minimap
   const LANE_POS = { top: ['TOP'], mid: ['MIDDLE'], bot: ['BOTTOM', 'UTILITY'] };
   // a callout's pictures (What's new 181), drawn by overlay.html: f: their face (a red ring), a: your team's (a light
@@ -7815,7 +7875,7 @@ dialog.wizard { transform: scale(var(--from)); }
       if (++f.run < 2) continue; // twice in a row, so a passing likeness doesn't count
       const at = { x: i.x / n, y: i.y / n }, gap = now - f.seen;
       const back = gap > 1000 && f.missed; // called missing, now back on your minimap
-      if (gap > 1000) Object.assign(f, { from: now, trail: [], called: false, shop: 0 });
+      if (gap > 1000) Object.assign(f, { from: now, trail: [], called: false, shop: 0, jgPend: 0 });
       f.trail = [...f.trail.filter((p) => now - p.t < 2000), { ...at, t: now }];
       const o = f.trail[0], dx = at.x - o.x, dy = at.y - o.y, far = Math.hypot(dx, dy);
       f.zone = zoneOf(at);
@@ -7831,7 +7891,14 @@ dialog.wizard { transform: scale(var(--from)); }
       if (f.id !== jg) continue;
       const d = at.x + at.y - 1; // the mid lane runs corner to corner, the blue base bottom left
       if (!F.jg1 && gameNow() < 150) F.jg1 = d < 0 ? 'top' : 'bot';
-      if (opts.jgCall && gap > 10000 && !/base/.test(f.zone)) { const sp = mapSpot(at); sayCall(`${champName(f.id)} ${spotSay(sp)}`, 2, f.name, [foeFace(f.id), 's:pin', 'w:' + sp.name]); }
+      if (opts.jgCall && gap > 10000 && !/base/.test(f.zone)) f.jgPend = now + (jgSlow().has(mapSpot(at).name) ? 2000 : 0); // still in sight then: the call
+      if (f.jgPend && now >= f.jgPend && !/base/.test(f.zone)) {
+        const sp = mapSpot(at), g = curGame ? String(curGame.id) : '';
+        f.jgPend = 0;
+        sayCall(`${champName(f.id)} ${spotSay(sp)}`, 2, f.name, [foeFace(f.id), 's:pin', 'w:' + sp.name]);
+        if (jgLog.g !== g) jgLog = { g, list: [] };
+        if (g) jgLog.list.push({ t: gameNow(), id: f.id, name: sp.name, at: sp.at, x: sp.x, y: sp.y });
+      }
       // their jungler walking toward a lane where a teammate's blue icon is, not yours (that's a gank), once every 20 s
       if (opts.laneCall && far > 0.02 && now - F.head > 20000) {
         const lane = zoneOf({ x: at.x + (dx / far) * 0.1, y: at.y + (dy / far) * 0.1 });
@@ -11581,6 +11648,10 @@ dialog.wizard { transform: scale(var(--from)); }
     renderChat();
     const old = !client ? '' : !lcuOn() ? 'Restart the app to finish its update: version 1.6 adds all of this.' : lcu === null ? 'Looking for League…' : '';
     $('winFix').hidden = !winFixable();
+    $('uxFix').hidden = !uxOk() && !uxStep;
+    $('uxFixBtn').textContent = ['League’s window stuck? Fix it', 'Restarting League’s window…', 'Done'][uxStep];
+    $('uxFixBtn').disabled = uxStep === 1;
+    $('uxFixNote').textContent = ['Only League’s window restarts. Your party and your place in the queue stay.', 'League’s window closes and opens again by itself, in about 10 seconds. You stay in the queue.', 'League’s window is back. Your party and your place in the queue stayed.'][uxStep];
     $('preNote').textContent = old || (inGame ? 'In game: your build and matchup notes are on the Game page.' : ''); // What's new 202: the draft board and tier list are the idle page
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
@@ -12694,12 +12765,38 @@ dialog.wizard { transform: scale(var(--from)); }
     const done = us.length >= (cs.myTeam || []).length && them.length >= Math.max(1, (cs.theirTeam || []).length), el = $('csVerdict');
     el.hidden = !done;
     if (!done) return;
-    const a = lacksOf(us), b = lacksOf(them), key = JSON.stringify([advWord, a, b]);
+    const a = lacksOf(us), b = lacksOf(them), dg = dodgeOrStay(), key = JSON.stringify([advWord, a, b, dg]);
     if (el.dataset.key === key) return;
     el.dataset.key = key;
     el.dataset.v = advWord;
     const part = (head, l) => { const s = document.createElement('span'); s.append(head, ...(l.length ? [' lacks ', Object.assign(document.createElement('b'), { textContent: andList(l) })] : [' has a frontline, magic damage, crowd control and engage'])); return s; };
-    el.replaceChildren(...(advWord ? [Object.assign(document.createElement('span'), { className: 'vword', textContent: `Draft: ${{ ahead: 'you’re ahead', even: 'even', behind: 'you’re behind' }[advWord]}` })] : []), part('Your team', a), part('Their team', b));
+    el.replaceChildren(...(advWord ? [Object.assign(document.createElement('span'), { className: 'vword', textContent: `Draft: ${{ ahead: 'you’re ahead', even: 'even', behind: 'you’re behind' }[advWord]}` })] : []), part('Your team', a), part('Their team', b),
+      ...(dg ? [Object.assign(document.createElement('span'), { className: 'dodge' })] : []));
+    if (dg) el.lastChild.append(Object.assign(document.createElement('b'), { textContent: 'Dodge or stay?' }), ' ' + dg);
+  }
+  // Dodge or stay? (What's new 235): each locked-in draft is kept (lpc-drafts, the last 200: { g: the game, v: the
+  // verdict, t: a teammate on Autofill or First time on, w: won, filled from your match history once the game is in it).
+  // Drafts like this: the same verdict and t. It never dodges for you.
+  function dodgeOrStay() {
+    if (!advWord || !cs.gameId || cs.isCustomGame) return '';
+    const tagged = (cs.myTeam || []).filter((p) => p.cellId !== cs.localPlayerCellId && !hidden(p)).map((p) => {
+      const s = scoutData.get(p.puuid), k = p.championId | 0, t = s && s.games ? tagsOf(s, k, { pos: String(p.assignedPosition || '').toUpperCase(), puuid: p.puuid }).map(([, x]) => x) : [];
+      const why = [t.some((x) => /^Autofill/.test(x)) && 'is on Autofill', t.some((x) => /^First time on/.test(x)) && `new to ${champName(k)}`].filter(Boolean);
+      return why.length ? `${p.gameName || champName(k)} ${why.join(' and ')}` : '';
+    }).filter(Boolean);
+    let list = load('lpc-drafts', []);
+    const g = String(cs.gameId), mine = list.find((d) => d.g === g), t = !!tagged.length;
+    let changed = !mine || mine.v !== advWord || mine.t !== t;
+    if (changed) list = [...list.filter((d) => d.g !== g), { g, v: advWord, t, w: null }].slice(-200);
+    for (const d of list) if (d.w == null) { const x = (myHist || []).find((h) => String(h.id) === d.g); if (x) { d.w = x.win; changed = true; } }
+    if (changed) store.set('lpc-drafts', JSON.stringify(list));
+    return dodgeSay(list, g, advWord, tagged[0] || '');
+  }
+  function dodgeSay(list, g, v, who) { // who: the first tagged teammate ("Lina is on Autofill and new to Thresh"), or ''
+    if (list.length < 50) return `Learning from your drafts: ${list.length} of 50 saved.`;
+    const like = list.filter((d) => d.g !== g && d.w != null && d.v === v && d.t === !!who), n = like.length, x = like.filter((d) => d.w).length;
+    const went = `drafts like this went ${x} of ${n} for you.`;
+    return who && n >= 10 && x / n <= 0.4 ? `A dodge may be worth it: ${who}, and ${went}` : `Stay${n ? `: ${went}` : '.'}`;
   }
   function pushRemote() {
     if (!remoteConns.size) return;
@@ -16011,6 +16108,18 @@ dialog.wizard { transform: scale(var(--from)); }
       says.push(`${mmss(e.timestamp / 1000)}: ${name} ${e.killerId === jg.id ? 'killed' : 'helped kill'} you in ${placeOf(e.position, me.t)}.${f ? ` At ${mmss(f.timestamp / 1000)} they were in ${placeOf(at(f), me.t)} on ${side(at(f))}.` : ''}`);
     }
     if (ganks.length) says.push(`Next game, glance at your minimap every few seconds, and play safe when their jungler shows up near your lane until you see them again.${opts.mapNudge || opts.jgCall ? '' : ' Settings, Callouts can remind you, or call out their jungler when they show up.'}`);
+    // What's new 235: Premade's calls this game against Riot's copy, the ones within 20 s of one of its minute spots
+    // ponytail: near = 900 units (the spot names' reach) plus 100 a second between the call and Riot's spot; a jungler
+    // walks ~350 a second, so a call far from its minute can still miss; Riot keeps no finer path
+    const calls = jgLog.g && jgLog.g === String(r.id) ? jgLog.list.filter((c) => champOf(c.id) === champOf(jg.c)).map((c) => {
+      const f = tl.frames.find((x) => at(x) && Math.abs(x.timestamp / 1000 - c.t) <= 20), p = f && at(f);
+      return p ? { ...c, f: f.timestamp / 1000, p, ok: Math.hypot(p.x - c.x, p.y - c.y) <= 900 + 100 * Math.abs(f.timestamp / 1000 - c.t) } : null;
+    }).filter(Boolean) : [];
+    const miss = calls.filter((c) => !c.ok);
+    if (calls.length) {
+      const was = load('lpc-jgmiss', []).filter((x) => x.g !== jgLog.g);
+      store.set('lpc-jgmiss', JSON.stringify([...was, { g: jgLog.g, m: miss.map((c) => c.name) }].slice(-10)));
+    }
     // their spot each minute (gold, numbered) and where you died (crosses)
     const cv = document.createElement('canvas'), g = cv.getContext('2d'), W = 480, xy = (pos) => [(pos.x / MAP) * W, (1 - pos.y / MAP) * W];
     cv.width = cv.height = W;
@@ -16034,15 +16143,28 @@ dialog.wizard { transform: scale(var(--from)); }
     g.strokeStyle = look.bad;
     g.lineWidth = 4;
     for (const e of died) { const [x, y] = xy(e.position); g.beginPath(); g.moveTo(x - 8, y - 8); g.lineTo(x + 8, y + 8); g.moveTo(x + 8, y - 8); g.lineTo(x - 8, y + 8); g.stroke(); }
+    g.strokeStyle = g.fillStyle = '#f59e5b'; // the calls that didn't match: an orange ring where the call said, with its time
+    g.lineWidth = 3;
+    g.font = 'bold 11px system-ui, sans-serif';
+    for (const c of miss) { const [x, y] = xy(c); g.beginPath(); g.arc(x, y, 13, 0, 7); g.stroke(); g.fillText(mmss(c.t), x, y + 23); }
     cv.setAttribute('role', 'img');
-    cv.setAttribute('aria-label', `Where ${name} was each minute for the first 14 minutes, and where you died`);
+    cv.setAttribute('aria-label', `Where ${name} was each minute for the first 14 minutes, and where you died${miss.length ? `, and the ${miss.length} calls that didn’t match` : ''}`);
     const box = document.createElement('div'), fig = document.createElement('figure'), side2 = document.createElement('div'), ul = document.createElement('ul');
     box.className = 'analysis';
     fig.className = 'goldfig';
-    fig.append(cv, Object.assign(document.createElement('figcaption'), { className: 'hint', textContent: `Where ${name} was at each minute (numbers) and where you died (crosses), in the first 14 minutes.` }));
+    fig.append(cv, Object.assign(document.createElement('figcaption'), { className: 'hint', textContent: `Where ${name} was at each minute (numbers)${miss.length ? `, where you died (crosses) and the ${miss.length > 1 ? `${miss.length} calls` : 'call'} that didn’t match (orange rings)` : ' and where you died (crosses)'}, in the first 14 minutes.` }));
     ul.className = 'takeaways';
     ul.append(...says.map((x) => Object.assign(document.createElement('li'), { textContent: x })));
     side2.append(Object.assign(document.createElement('h3'), { className: 'ph', textContent: `Their jungler, ${name}` }), ul);
+    if (calls.length) {
+      const chk = mk('div', 'jgchk'), bl = mk('span', 'blk sm');
+      bl.setAttribute('aria-hidden', 'true');
+      bl.append(...calls.map((c) => mk('i', c.ok ? 'ok' : 'miss')));
+      chk.append(mk('b', '', `${calls.length - miss.length} of ${calls.length} jungler calls matched Riot’s copy of the game`), bl,
+        ...miss.map((c) => mk('p', '', `${mmss(c.t)} “${name} ${spotSay(c)}”: at ${mmss(c.f)} Riot had ${name} ${spotSay(riftSpot(c.p.x, c.p.y, me.t))}.`)),
+        mk('p', 'hint', `${miss.length ? 'Premade tunes its jungler calls from these by itself. ' : ''}Calls more than 20 s from one of Riot’s once-a-minute spots aren’t counted.`));
+      side2.append(chk);
+    }
     const duo = document.createElement('div');
     duo.className = 'duo';
     duo.append(fig, side2);
@@ -16181,7 +16303,7 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const b of statsView.querySelectorAll('.tab[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === statsTab));
     for (const s of statsView.querySelectorAll('.panel[data-tab]')) s.hidden = !g.length || s.dataset.tab !== statsTab;
     if (!g.length) return;
-    if (statsTab === 'you') { renderForm(g); renderRanked(); renderWhen(g); renderHigh(g); renderSwings(); }
+    if (statsTab === 'you') { renderForm(g); renderWins(g); renderRanked(); renderWhen(g); renderHigh(g); renderSwings(); }
     else { renderMyChamps(g); renderNemeses(); renderDuos(); renderCollection(); patchChanges(); }
   }
   for (const b of statsView.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { statsTab = b.dataset.tab; store.set('lpc-stats-tab', statsTab); renderStats(); });
@@ -16191,6 +16313,52 @@ dialog.wizard { transform: scale(var(--from)); }
   // line its average) and the change in your last 5 against all 20, green when it's better (fewer deaths is better)
   const FORM = [['KDA', (x) => (x.k + x.a) / Math.max(1, x.d), (v) => v.toFixed(2), 1], ['CS a minute', (x) => x.cs / (x.len / 60), (v) => v.toFixed(1), 1], ['Vision score', (x) => x.vision, (v) => v.toFixed(1), 1],
     ['Kill participation', (x) => (typeof x.kp === 'number' ? 100 * x.kp : null), (v) => `${Math.round(v)}%`, 1], ['Deaths a game', (x) => x.d, (v) => v.toFixed(1), -1]];
+  // What wins for you (What's new 235): habits in your last 100 Summoner's Rift games, from League's timelines (no
+  // server reads), each game counted once into lpc-habits { game: [won, no deaths before 10:00, a Control Ward before
+  // 10:00, first back worth 1,300+, 70+ CS at 10:00] } (null: the timeline doesn't say). Only habits with 20 games or
+  // more each way that win 5 points more often, biggest gap first. ponytail: first item time left out; add it here
+  const HABITS = ['No deaths before 10:00', 'A Control Ward before 10:00', 'First back with 1,300 gold or more', '70 CS or more at 10:00'];
+  let habitsBusy = false;
+  const habitsTried = new Set(); // once a session each, so a game League has no timeline for isn't asked again and again
+  function habitsOf(tl, pid) {
+    const fr = tl.frames, at10 = fr.find((x) => Math.abs(x.timestamp - 600000) < 30000), q = at10 && (at10.participantFrames || {})[pid];
+    const buys = buysOf(tl, pid), back = tripsOf(buys).find(([t]) => t >= 120);
+    return [!tlEvents(tl, 'CHAMPION_KILL').some((e) => e.victimId === pid && e.timestamp < 600000), buys.length ? buys.some(([t, i]) => i === 2055 && t < 600) : null,
+      back ? back[1].reduce((n, i) => n + (((ddItems || {})[i] || {}).gold | 0), 0) >= 1300 : null, q ? (q.minionsKilled | 0) + (q.jungleMinionsKilled | 0) >= 70 : null];
+  }
+  async function countHabits(games) {
+    habitsBusy = true;
+    for (const x of games) {
+      habitsTried.add(x.id);
+      const tl = await lcuGet(`/lol-match-history/v1/game-timelines/${x.id}`), h = load('lpc-habits', {});
+      if (!goodTl(tl)) continue; // asked again next time
+      h[x.id] = [x.win, ...habitsOf(tl, x.pid)];
+      const keep = new Set(riftOf(statsHist()).slice(0, 100).map((y) => String(y.id)));
+      store.set('lpc-habits', JSON.stringify(Object.fromEntries(Object.entries(h).filter(([k]) => keep.has(k)))));
+    }
+    habitsBusy = false;
+    if (!statsView.hidden && statsTab === 'you') renderWins(statsHist());
+  }
+  function renderWins(all) {
+    const g = riftOf(all).slice(0, 100), h = load('lpc-habits', {}), todo = g.filter((x) => !h[x.id] && x.pid && !habitsTried.has(x.id));
+    if (todo.length && lcuOn() && !habitsBusy) { if (ddItems) countHabits(todo); else itemsSoon(); }
+    const done = g.filter((x) => h[x.id]).map((x) => h[x.id]), pct = (l) => Math.round((100 * l.filter((x) => x[0]).length) / l.length);
+    const rows = HABITS.map((label, i) => {
+      const yes = done.filter((x) => x[i + 1] === true), no = done.filter((x) => x[i + 1] === false);
+      return yes.length >= 20 && no.length >= 20 ? { label, yes, no, gap: pct(yes) - pct(no) } : null;
+    }).filter((r) => r && r.gap >= 5).sort((a, b) => b.gap - a.gap);
+    $('winsNote').textContent = `Your last ${done.length} games on Summoner’s Rift${todo.length && lcuOn() ? `, ${todo.length} still to count` : ''}. Only habits with 20 games or more each way.${rows.length ? '' : ' None stands out yet.'}`;
+    $('wins').replaceChildren(...rows.map((r) => {
+      const d = mk('div', 'winrow'), bars = mk('div', 'winbars'), a = pct(r.yes), b = pct(r.no);
+      bars.innerHTML = '<i class="w"></i><i class="o"></i><span class="half"></span>';
+      bars.children[0].style.width = `${a}%`;
+      bars.children[1].style.width = `${b}%`;
+      bars.setAttribute('role', 'img');
+      bars.setAttribute('aria-label', `${a}% won with it, ${b}% without; the line is half your games won`);
+      d.append(mk('b', '', r.label), bars, mk('small', 'hint', `${a}% won in ${r.yes.length} games · without: ${b}% in ${r.no.length}`), mk('b', 'gap', `+${r.gap} points`));
+      return d;
+    }));
+  }
   function renderForm(all) {
     const g = riftOf(all).slice(0, 20).reverse();
     $('form').replaceChildren(...FORM.map(([what, f, fmt, better]) => {
@@ -21717,6 +21885,13 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [235, 'November 27: five League helpers', [
+      'The game report’s Their jungler checks Premade’s jungler callouts against Riot’s copy of the game: “18 of 20 jungler calls matched”, with an orange ring for each that didn’t. Spots that keep missing wait 2 seconds longer before their call.',
+      'In champ select, once both teams lock in, the draft verdict adds Dodge or stay? from your own saved drafts. Until 50 are saved it says how many. It never dodges for you.',
+      'Stats, You has What wins for you: the habits that win you the most games, from your last 100 on Summoner’s Rift.',
+      'Premade’s loading screen names their weak side when one lane clearly stands out, and outlines its cards.',
+      'League’s window stuck? Fix it, on Pregame, restarts only League’s window. Your party and your place in the queue stay (app 1.57).',
+    ]],
     [234, 'November 26: Premade is lighter while you play', [
       'In a game, Premade follows your champion on the minimap only while something uses it: a friend in your room, a callout or the live map. With none of those, it no longer reads your screen five times a second, and it looks for League’s surrender vote box once a second until one shows.',
       'While you share your screen, the filter that keeps Premade’s voices and Discord out of its sound runs only while a friend is listening. With nobody watching, or Share my screen’s sound off, it sleeps after 10 seconds and starts again the moment someone listens (app 1.56).',
@@ -23002,6 +23177,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked, with their name straight over the art, their rank, last 20 games, spells and their one most important tag. Click a teammate’s card for the rest: Riot ID, every tag, Avoid and swaps. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
         'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
       ['Draft verdict', 'Once both teams have locked in: you’re ahead, even or behind on the draft, in words, and what each team lacks: a frontline, magic damage, crowd control or engage.', 'At the top of champ select, on Pregame.', '#csVerdict', 'app'],
+      ['Dodge or stay?', 'After the draft verdict, one line from your own saved drafts: Stay, with how drafts like this went for you, or A dodge may be worth it, only when drafts like this won 4 of 10 or fewer and a teammate is on Autofill or new to their champion. Until 50 drafts are saved it says how many. It never dodges for you.', 'At the top of champ select, on Pregame, once both teams lock in.', '#csVerdict', 'app'],
       ['Enemy abilities', 'Your lane opponent’s show by themselves in champ select; click another enemy for theirs: their passive and Q, W, E and R, each with its cooldown at every rank and a short line, the ultimate marked Watch this, and Riot’s tips for playing against them.', 'Enemy team, in champ select on Pregame.', '#csThem', 'app'],
       ['Dodge', 'Leave champ select in one click without closing League. League still counts it as a dodge: you lose LP and wait before you can queue again.', 'Dodge, bottom left of champ select: click it, then again to be sure.', '#dodgeBtn', 'app'],
       ['Avoid list', 'Players you never want to play with again, flagged with a popup in champ select when League shows their name, on the loading screen and in a game.',
@@ -23010,6 +23186,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Tier list', 'The strongest champions in each role in high elo (or Emerald and Diamond) this patch, S tier first with See more for the rest, with arrows for the ones rising or falling and how often each is banned. Click a champion for its page.', 'Tier list, on Pregame.', '#tierMore', 'app'],
       ['Clash', 'Your next Clash match’s other team: their ranks, recent games and tags.', 'On Pregame while you’re in Clash, once the bracket is out.', '#clashBox', 'app'],
       ['Borderless in one click', 'When League is in Fullscreen, where the overlay can’t show, one button switches it to Borderless through League’s own settings.', 'Switch to Borderless, on Pregame or in your ready check, outside a game.', '#winFix', 'app'],
+      ['Fix League’s window', 'When League’s window freezes or goes blank, one button restarts only its window through League’s own call: your party and your place in the queue stay (app 1.57).', 'League’s window stuck? Fix it, on Pregame, whenever League is open.', '#uxFix', 'app'],
     ]],
     ['League: Game', 'What’s going on in your game, and how you played once it’s over.', [
       ['In game', 'From the loading screen on, Game has your build to edit and your matchup notes. Everyone’s rank, the timers, the gold difference and your lane are on the overlay.',
@@ -23029,6 +23206,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ['League: Stats', 'How you play, in two tabs: You and Champions, for the account Profile shows, also with League closed.', [
       ['Your last 20 games', 'KDA, CS a minute, vision score, kill participation and deaths in your last 20 games on Summoner’s Rift, each with a line of the 20 and the change in your last 5.',
         'Stats, You. With League closed it uses the games from the last time League was open and newer ones from Riot.', '#h-form', 'app'],
+      ['What wins for you', 'From your last 100 games on Summoner’s Rift: how often you win with and without a habit (no deaths before 10:00, a Control Ward before 10:00, a first back worth 1,300 gold, 70 CS at 10:00), only habits with 20 games each way and a gap of 5 points or more, biggest first.', 'Stats, You, under Your last 20 games.', '#h-wins', 'app'],
       ['Ranked climb and rank goal', 'Your LP line over your last 30 ranked games with your goal on it, the LP to go and about how many wins it takes, and today’s games as blocks with their LP.',
         'Stats, You, Ranked climb: pick Solo/Duo or Flex and a Goal. It counts the games you play with the app open.', '#lpGoal', 'app'],
       ['When you win', 'Your win rate by day and time of day, right after a win or losses and by game of the day, and in short and long games, each with one line on what it means.',
@@ -23096,6 +23274,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Loading screen background', 'Behind everyone’s rank cards, on the loading screen and with Alt+X in a game: plain, any champion’s skin, or a picture of your own, darkened so the cards stay easy to read. Your picture stays on your PC.',
         'Settings, Overlay, Loading screen, Background: Plain, A skin (find a champion, then click a skin) or Your picture.', '#boardBg', 'app'],
       ['Three stats a player', 'Under each name, like Porofessor: the rank line with the win % (from Riot, as League’s client gives other players’ wins only), the last 10 games as win and loss blocks, their games and win % on this champion with its mastery level, and their main role’s icon, red when they play another. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; this season’s peak and the champions in the last 20 with Played and Winrate bars; the same bars a role.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
+      ['Their weak side', 'Between the teams on Premade’s loading screen: the enemy lane with the worst last 10 games and tags like First time on, Autofill or Rusty, with why, and a light outline on its cards. Only when one lane clearly stands out.', 'Nothing to set up: on Premade’s loading screen.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on a player’s card in champ select.', 'Nothing to set up.', '#csRows', 'app'],
       ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion and what those games won. Move items, take them out or add others; it’s kept for that champion and role. In a game the overlay shows your next 3 items under League’s score, the first with a bar your gold fills, and two pills switch the build: Best win rate (the first 3 items that won the most, where every game starts) and Vs their team (moved up against their damage, healing, armor and magic resist, with those enemies’ faces), plus Yours once you changed it. Hover an item for why. With Alt+X a panel beside the rank board shows the whole build (start, core, boots, later, skills), and Their team and Your team: win rate, kills, deaths and assists from their last 20 games, damage split, front line and what they lack. In ARAM: Mayhem, DeepARAM’s build.',
         'In champ select once you have a champion, and on the Game page in a game. On the overlay unless you turn it off: Settings, Overlay, In game, What to buy.', '#csBuild', 'app'],
@@ -23108,6 +23287,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: Settings, Callouts, Minimap reminder.', '#optMapNudge', 'app'],
       ['Callouts', 'Faces and signs with 1 to 3 words at the top of the screen, read from your own minimap, up to 3 at once with the newest on top: “Vi at your red” when their jungler shows up after 10 seconds out of sight, named by the lane they’re in (top, mid, bot), else the nearest camp, pit or scuttle (your red, their raptors, Dragon, Baron), else the area (top river, their bot jungle); “Lee Sin heading your way” when your minimap shows them walking straight at you; “Zed missing from mid” when a laner has been out of sight for 10 seconds; and “Vi and Zed at your blue” for an invade. They can be read out loud too, in the voice you pick.',
         'Off until you turn them on: Settings, Callouts: Minimap callouts turns on all of them, or tick each under it. Read them out loud and Voice are under Sound; Try it plays one.', '#optJgCall, #optGankCall, #optMissCall, #optInvadeCall, #optSpeakCalls, #optCallVoice', 'app'],
+      ['Callouts that check themselves', 'The game report’s Their jungler checks each jungler callout against Riot’s copy of the game: how many matched, an orange ring on the map for each that didn’t, and why. Spots that keep missing wait 2 seconds longer before their call, by themselves.', 'Laning tab of a game report, after a game with jungler callouts on.', '#optJgCall', 'app'],
       ['Faded faces', 'Each enemy you lose sight of stays on League’s minimap as a faded grey face where you last saw them, with the seconds since, until you see them again, they die, or 45 seconds pass.',
         'Off until you turn it on: Settings, Callouts, under Minimap callouts.', '#optMissList', 'app'],
       ['Enemy spell strip', 'Their 5 faces above your minimap with Flash, their other spell (from League itself with app 1.52, so a Spellbook swap shows) and their ultimate: click one while you play, without Alt+X, say “Premade, mid flash”, or tap it on your phone, and the countdown starts for you and every Premade teammate in your game, with the letter of who started it. Cooldowns count Cosmic Insight, Ultimate Hunter, Transcendence, their level and their items.',
@@ -23218,6 +23398,9 @@ dialog.wizard { transform: scale(var(--from)); }
     lc: () => lcS && { ...lcS, r: undefined, deck: lcS.deck.length, acts: lcG.acts.length, id: lcG.id, names: lcG.names },
     phoneQuality,
     jungler: (r, tl) => junglerEl(r, tl),
+    jgLog: (v) => { jgLog = v; }, // What's new 235: this game's jungler calls, as seeFoes keeps them
+    dodgeSay, habits: (tl, pid) => habitsOf(tl, pid),
+    weakSide: (rows, data) => { for (const [k, v] of Object.entries(data)) scoutData.set(k, v); return weakSide(rows); },
     flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
     flashLight: (l, foes) => { if (fl) { if (foes && share) share.foes = { room: league.room, list: foes }; fl.caps.set(l.id, { x: 0, y: 0, cv: document.createElement('canvas') }); flashLight(l); } }, // a light as the finder says it, past the screen
     flashStop: () => flashStop(),

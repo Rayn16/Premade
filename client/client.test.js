@@ -147,6 +147,7 @@ assert(lcuOk('GET', '/lol-game-queues/v1/queues') && lcuOk('GET', '/lol-chat/v1/
   && !lcuOk('DELETE', '/lol-lobby/v2/lobby/members/abc') && !lcuOk('POST', '/lol-chat/v1/friends'), 'the lobby: games, friends, invites and leaving');
 assert(lcuOk('GET', '/lol-game-settings/v1/game-settings') && lcuOk('PATCH', '/lol-game-settings/v1/game-settings') && lcuOk('POST', '/lol-game-settings/v1/save')
   && !lcuOk('PUT', '/lol-game-settings/v1/game-settings') && !lcuOk('PATCH', '/lol-game-settings/v1/input-settings'), 'League’s window mode, and nothing else in its settings');
+assert(lcuOk('POST', '/riotclient/kill-and-restart-ux') && !lcuOk('GET', '/riotclient/kill-and-restart-ux') && !lcuOk('POST', '/riotclient/kill-ux'), 'restarting League’s window, and only that');
 assert(lcuOk('GET', '/lol-chat/v1/me') && lcuOk('PUT', '/lol-chat/v1/me') && lcuOk('GET', '/lol-chat/v1/conversations') && lcuOk('GET', '/lol-chat/v1/conversations/a1-b2@eu1.pvp.net/messages')
   && lcuOk('POST', '/lol-chat/v1/conversations/a1-b2@eu1.pvp.net/messages') && lcuOk('GET', '/lol-lobby/v2/received-invitations') && lcuOk('POST', '/lol-lobby/v2/received-invitations/ab-12/accept')
   && !lcuOk('GET', '/lol-chat/v1/conversations/../../lol-store/v1/messages') && !lcuOk('GET', '/lol-chat/v1/conversations/../messages') && !lcuOk('POST', '/lol-chat/v1/conversations/a%2F..%2Fb/messages')
