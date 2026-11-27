@@ -171,6 +171,39 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
     assert.deepStrictEqual(line.map(([i, t, f]) => [i, t, /Thresh\.png$/.test(f)]), [['clock', 'You win late, Baron after 25', false], ['dragon', 'Fight for first Dragon', false], ['', 'Play around Thresh', true]]);
     console.log('4: loading screen line:', line.map((x) => x[1]).join(' · '));
 
+    // 6. step 2 (What's new 245): the plan kept as a game starts; its words on the fight check line before the first
+    // Dragon only; the report's Done and Missed; the Squad page's followed and missed blocks
+    const live = [[ME, 103], [ALI, 412], ['z1', 122], ['z2', 254], ['z3', 222]].map(([puuid, champ]) => ({ puuid, champ, team: 'ORDER' })).concat([{ puuid: 'e1', champ: 238, team: 'CHAOS' }]);
+    await page.evaluate((l) => lpc.planKeep(7001, l), live);
+    assert.deepStrictEqual((await page.evaluate(() => lpc.planStore())).p['7001'], { w: 'late', o: 'd', u: ALI, c: 412 });
+    const words = (n, t, ev) => page.evaluate(([a, b, c]) => lpc.planWords(a, b, 7001, c), [n, t, ev]);
+    assert.strictEqual(await words('Dragon', 'Dragon in 1:00. their Flash 1 of 5 down', []), 'Dragon in 1:00. Plan: fight for first Dragon. Their Flash 1 of 5 down');
+    assert.strictEqual(await words('Dragon', 'Dragon in 1:00.', [{ e: 'dragon', t: 330 }]), 'Dragon in 1:00.', 'only before the first Dragon');
+    assert.strictEqual(await words('Baron', 'Baron in 1:00.', []), 'Baron in 1:00.', 'not another objective');
+    assert((await words('Dragon', 'Dragon in 1:00. Ults 2 of 5 up, their Flash 2 of 5 down', [])).length <= 96, 'fits the overlay’s line');
+    const rp = { id: 7001, me: 0, len: 2050, players: Array.from({ length: 10 }, (_, k) => ({ pid: k + 1, puuid: [ME, ALI, 'z1', 'z2', 'z3'][k] || `e${k}`, team: k < 5 ? 100 : 200, win: k < 5, champ: [103, 412, 122, 254, 222][k % 5] })) };
+    const tl7 = { frames: [{ timestamp: 0, participantFrames: {}, events: [] }, { timestamp: 360000, participantFrames: {}, events: [{ type: 'ELITE_MONSTER_KILL', monsterType: 'DRAGON', killerId: 6, killerTeamId: 200, timestamp: 320000 }] },
+      { timestamp: 900000, participantFrames: Object.fromEntries(Array.from({ length: 10 }, (_, k) => [k + 1, { totalGold: k === 1 ? 6000 : 4000 }])), events: [] }, { timestamp: 2050000, participantFrames: {}, events: [] }] };
+    const card = await page.evaluate(([r, tl]) => { const d = document.createElement('div'); d.id = 'gpTry'; d.style.cssText = 'position:fixed;left:380px;top:20px;width:620px;padding:16px;background:var(--panel);z-index:99'; d.innerHTML = lpc.planReport(r, tl); document.body.append(d); return [...d.querySelectorAll('.gprow')].map((x) => [x.querySelector('.gptext b').textContent, x.querySelector('.gptext small').textContent, x.querySelector('.gppill').textContent]); }, [rp, tl7]);
+    assert.deepStrictEqual(card, [['Win late', 'The game lasted 34:10', 'Done'], ['First Dragon', 'They took it at 5:20', 'Missed'], ['Play around Thresh', 'Thresh had your most gold at 15', 'Done']]);
+    if (process.env.SHOTS) await page.locator('#gpTry').screenshot({ path: path.join(process.env.SHOTS, 'gameplan-report.png') });
+    await page.evaluate(() => document.getElementById('gpTry').remove());
+    assert.deepStrictEqual((await page.evaluate(() => lpc.planStore())).g['7001'], { w: 1, s: 2050, d: 0, dt: 320, v: -1, h: -1, t: -1, b: -1, bt: 0, top: ALI }, 'kept from the report');
+    for (let i = 0; i < 24; i++) await page.evaluate(([id, l]) => lpc.planKeep(id, l), [9000 + i, live]);
+    const fol = [7001, ...Array.from({ length: 24 }, (_, i) => i)].map((i) => { const f = i === 7001 ? { w: 1, s: 2050, d: 0, top: ALI } : FACT(i); return [f.w, (f.s >= 1500) + (f.d === 1) + (f.top === ALI) >= 2]; });
+    const sq = (ok) => { const l = fol.filter(([, x]) => x === ok); return `${l.filter(([w]) => w).length} of ${l.length}`; };
+    await page.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'None' }));
+    if (!(await page.isVisible('.nav[data-view="squad"]'))) await page.click('#leagueNav');
+    await page.click('.nav[data-view="squad"]');
+    await wait(page, () => !document.getElementById('sqGpBox').hidden, null, 'Your game plan on the Squad page');
+    const sqt = await page.$$eval('#sqGp .gpn', (l) => l.map((e) => e.textContent));
+    assert.deepStrictEqual(sqt, [sq(true), sq(false)]);
+    await page.locator('#sqGpBox').screenshot({ path: path.join(process.env.SHOTS || '/tmp', 'gameplan-squad.png') });
+    console.log(`6: step 2: plan kept, words on the fight check line before the first Dragon only, report Done/Missed, Squad page followed ${sq(true)}, missed ${sq(false)}`);
+    await page.click('.nav[data-view="pregame"]');
+    await page.evaluate(() => lpcClient.emit('league', { inGame: false, phase: 'ChampSelect' }));
+    await wait(page, () => !document.getElementById('csPlan').hidden, null, 'the plan again');
+
     // 5. the switch off: no plan, no line, no reading
     await page.evaluate(() => { const c = document.getElementById('optGamePlan'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); });
     await wait(page, () => document.getElementById('csPlan').hidden, null, 'the plan gone');
