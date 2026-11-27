@@ -3516,7 +3516,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="check lcu-only"><input id="optOverlayLane" type="checkbox"><span><span>My lane</span><span>CS and gold against your lane opponent</span></span></label>
             <label class="check lcu-only"><input id="optLaneBox" type="checkbox"><span><span>Lane box <button class="tip" type="button" popovertarget="t-lanebox" aria-label="About the lane box">?</button></span><span>For 14 minutes My lane shows everyone in your lane and who’s stronger</span></span></label>
             <label class="check"><input id="optFoeTimers" type="checkbox"><span><span>Enemy spell strip</span><span>Click their spells and ultimates above your minimap, or say “Premade, mid flash”. Every Premade teammate gets the timer</span></span></label>
-            <label class="check client-only" data-when="optFoeTimers"><input id="optFlashAuto" type="checkbox"><span><span>Auto enemy Flash</span><span>Starts their Flash on the strip when Premade sees it on your screen, for you only. After each game you check what it saw, so it learns your games</span></span></label>
+            <label class="check client-only" data-when="optFoeTimers"><input id="optFlashAuto" type="checkbox"><span><span>Auto enemy Flash</span><span>Starts their Flash on the strip when Premade sees it on your screen, on Premade friends’ strips in your game too. After each game you check what it saw, so it learns your games</span></span></label>
             <label class="check"><input id="optOverlayToasts" type="checkbox"><span><span>Popups</span><span>Invites, trades and other alerts</span></span></label>
           </section>
           <section class="ovcard" aria-labelledby="h-ovdead">
@@ -3565,7 +3565,7 @@ dialog.wizard { transform: scale(var(--from)); }
           </section>
           <section class="ovcard rooms-only" aria-labelledby="h-callteam">
             <h3 id="h-callteam">From your team</h3>
-            <label class="check"><input id="optTeamCall" type="checkbox"><span><span>Teammates’ callouts</span><span>Say “Premade, mid missing” or tap your phone: every Premade teammate in your game sees it, and you see theirs</span></span></label>
+            <label class="check"><input id="optTeamCall" type="checkbox"><span><span>Teammates’ callouts</span><span>Say “Premade, mid missing”, “Premade, go Dragon”, “Premade, group mid”, “Premade, back off” or “Premade, reset”, or tap your phone: every Premade teammate in your game sees it, and you see theirs</span></span></label>
           </section>
           <section class="ovcard" aria-labelledby="h-callsound">
             <h3 id="h-callsound">Sound</h3>
@@ -7640,7 +7640,7 @@ dialog.wizard { transform: scale(var(--from)); }
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, laneBox, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, calls: call && callCur && callCur.text === call ? callUp.map((c) => ({ text: c.text, pics: c.pics })) : null, theme: look.dark ? look : null,
       prog: !!(board && typeof board === 'object') || !!(after && after.board) || !!strip || !!buy, // the mouse reaches the overlay for the stats' boxes, the Scoreboard button (app 1.46) and the enemy spell strip (What's new 188)
       parts: boardOk() ? { ...ovSpots(), ...voteAt, ...(!opts.overlayParts.gank && sq && share.fh && { gank: { x: sq.x / share.fw, y: sq.y / share.fh, ax: 'r', ay: 't' } }) } : null, ghosts, // the gank clock left of League's minimap's top left corner (above it are League's teammate portraits), till it's moved
-      gank: gank && gank.t ? { t: gank.t, red: !!gank.red } : null, reach: gank && gank.reach, strip, flashAsk: strip ? flashAsk() : null, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
+      gank: gank && gank.t ? { t: gank.t, red: !!gank.red } : null, reach: gank && gank.reach, strip, mates: strip ? mateRows() : null, flashAsk: strip ? flashAsk() : null, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
       ...(any && { any: true }),
@@ -7914,9 +7914,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // pics: pictures the overlay shows instead of the words (a power spike's champion and item, or champion and level);
   // the words are still what's said out loud
   // sharp: its sound (What's new 182) is the sharp one, for ganks, 2 coming and invades
-  function sayCall(text, pri, who, pics, sharp, ms) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
+  function sayCall(text, pri, who, pics, sharp, ms, quiet) { // one waiting a champion, the most urgent: a gank 4, an invade 3, their jungler 2, a missing laner or a power spike 1, the coach 0
+    if (league && callRoom !== league.room) { callRoom = league.room; calls = []; callCur = null; callUp = []; } // this game's first, so callNow keeps it (What's new 242)
     if (who && calls.some((c) => c.who === who && c.pri >= pri)) return;
-    calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, pics: pics && pics.every(Boolean) ? pics : null, sharp: !!sharp, ms, at: performance.now() });
+    calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, pics: pics && pics.every(Boolean) ? pics : null, sharp: !!sharp, ms, quiet, at: performance.now() });
   }
   // Your jungler coming (What's new 240): while the lane box shows and the minimap reader runs for a callout, your team's
   // icons are matched to your jungler's face the way the enemies' are; when they walk toward you from more than 1,200
@@ -8071,7 +8072,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const objOn = () => !!league && boardOk() && SR.test(league.mode) && !!(opts.objCall || opts.grubCall);
   function callNow() { // the line at the top of the screen: null with no reminder or callouts this game, else what it says now, or ''
     const n = nudgeNow(), now = performance.now();
-    if (!league || (n === null && !(share && share.foes) && !callsOn() && !objOn() && !laneRows())) return null;
+    if (!league || (n === null && !(share && share.foes) && !callsOn() && !objOn() && !laneRows() && !calls.length && !callUp.length)) return null; // What's new 242: or a friend's phrase, the fight check waiting
     if (callRoom !== league.room) { callRoom = league.room; calls = []; callCur = null; callUp = []; }
     // each for 3 s, up to 3 at once, newest on top, the most urgent first; one that waited 8 s is dropped, 4 s for where
     // someone is now (only while 3 are up)
@@ -8083,7 +8084,7 @@ dialog.wizard { transform: scale(var(--from)); }
       if (overlayHide || overlayEdit) continue;
       const sound = opts.callSounds && !!next.pics; // a short sound, then the words (callouts with pictures: not the reminder or the coach's tips)
       if (sound) chime(next.sharp ? 'sharp' : 'soft', opts.callVol / 100);
-      if (opts.speakCalls) { if (sound) setTimeout(() => speak(next.text, true), 250); else speak(next.text, true); }
+      if (opts.speakCalls && !next.quiet) { if (sound) setTimeout(() => speak(next.text, true), 250); else speak(next.text, true); }
     }
     callCur = callUp[0] || null;
     return callCur ? callCur.text : n ? 'Check your minimap' : '';
@@ -10752,12 +10753,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ponytail: Unsealed Spellbook's swaps aren't seen (League's game data doesn't show spells), so the strip keeps the spells they started with
   let foeT = { room: '', list: [] }; // list: { k: 'flash:Zed', 'sp14:Zed', 'r:Zed', 'red' or 'blue' (theirs), end, by }
   const SAY_ROLE = { top: 'TOP', jungle: 'JUNGLE', mid: 'MIDDLE', bot: 'BOTTOM', support: 'UTILITY' };
-  const timerSays = () => [...(opts.foeTimers ? [...Object.keys(SAY_ROLE).flatMap((r) => [`premade ${r} flash`, `premade ${r} ultimate`]), 'premade their red', 'premade their blue'] : []), ...(opts.teamCall ? CALL_LANES.map((l) => `premade ${l} missing`) : [])];
+  const timerSays = () => [...(opts.foeTimers ? [...Object.keys(SAY_ROLE).flatMap((r) => [`premade ${r} flash`, `premade ${r} ultimate`]), 'premade their red', 'premade their blue'] : []), ...(opts.teamCall ? [...CALL_LANES.map((l) => `premade ${l} missing`), ...Object.keys(SHOTS)] : [])];
   const TIMER_K = /^(red|blue|(flash|r|sp\d{1,3}):[A-Za-z0-9]{1,30})$/;
   const timerName = (k) => { const [w, id] = k.split(':'); return id ? `${champName(id)} ${w === 'r' ? 'ultimate' : w === 'flash' ? 'Flash' : SPELLS[+w.slice(2)] || 'spell'}` : `Their ${k}`; };
   const foeTimers = () => (opts.foeTimers && league && foeT.room === league.room ? foeT.list.map((x) => [timerName(x.k), x.end - gameNow(), x.k]).filter(([, s]) => s > -10) : []); // “up” for 10 s
-  function cooldown(k) { // in seconds, or 0 when it can't be timed (not on the other team, or their ultimate's cooldown not loaded yet)
-    const [w, id] = k.split(':'), c = champOf(id), p = c && (league.players || []).find((q) => q.team !== mine.team && q.champ === c.id), tips = c && riotTips(c);
+  function cooldown(k, own) { // in seconds, or 0 when it can't be timed (not on the other team, or their ultimate's cooldown not loaded yet); own: you (What's new 242)
+    const [w, id] = k.split(':'), c = champOf(id), p = own || (c && (league.players || []).find((q) => q.team !== mine.team && q.champ === c.id)), tips = c && riotTips(c);
     if (!id) return 300;
     if (!p || !ddItems || (w === 'r' && !(tips && tips.r.length))) return 0;
     const haste = (f) => (p.items || []).reduce((n, [i]) => n + ((ddItems[i] || {})[f] || 0), 0), rn = runesOf(c);
@@ -10775,11 +10776,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function startTimer(k, tap) {
     if (!league || !opts.foeTimers || !TIMER_K.test(k)) return;
     const was = foeT.room === league.room && foeT.list.find((x) => x.k === k);
-    if (tap && was && was.by === 'auto' && was.end > gameNow()) { // an auto Flash timer (What's new 230) was yours alone, so it goes off here only
-      addTimer(league.room, k, 0);
-      for (const x of fl ? fl.lights : []) if (`flash:${x.foe}` === k && x.timer) x.off = true;
-      return notify(`${timerName(k)} timer off.`, true);
-    }
+    if (tap && was && was.by === 'auto' && was.end > gameNow()) for (const x of fl ? fl.lights : []) if (`flash:${x.foe}` === k && x.timer) x.off = true; // an auto Flash timer turned off: off on friends' strips too (What's new 242)
     const off = tap && foeTimers().some(([, s, x]) => x === k && s > 0), cd = off ? 0 : cooldown(k);
     if (!off && !cd) return notify(`Couldn’t time ${timerName(k)}${k.startsWith('r:') ? ': its cooldown isn’t loaded yet. Try again in a moment.' : '.'}`, true);
     const end = off ? 0 : Math.round(gameNow() + cd);
@@ -10790,6 +10787,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function heardTimer(p) { // “premade mid flash”, or “premade mid missing” (sendCall)
     const [, role, what] = p.split(' '), pos = SAY_ROLE[role];
+    if (SHOTS[p]) return sendShot(p.slice(8));
     if (what === 'missing') return sendCall(role);
     if (!pos) return startTimer(what);
     const id = pos === 'JUNGLE' ? theirJungler() : (champOf((liveList().find((x) => !x.ally && x.pos === pos) || {}).champ) || {}).id;
@@ -10866,7 +10864,9 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function gameSend(m) { if (gameWs && gameWs.readyState === 1) gameWs.send(JSON.stringify(m)); }
   function fromTeam(m, by) { // a timer or a callout from a teammate, in the room or through the game channel
-    if (m.t === 'timer' && typeof m.k === 'string' && TIMER_K.test(m.k) && Number.isFinite(m.end)) return addTimer(league.room, m.k, Math.min(7200, m.end), by);
+    if (m.t === 'timer' && typeof m.k === 'string' && MINE_K.test(m.k)) return mateHeard(m.k.slice(3), m);
+    if (m.t === 'timer' && typeof m.k === 'string' && TIMER_K.test(m.k) && Number.isFinite(m.end)) return addTimer(league.room, m.k, Math.min(7200, m.end), m.auto ? 'auto' : by);
+    if (m.t === 'call' && opts.teamCall && typeof m.shot === 'string' && SHOTS['premade ' + m.shot] && typeof m.id === 'string' && !gameSeen.has(m.id)) { gameSeen.add(m.id); return heardShot(m.shot, by, m.c); }
     if (m.t === 'call' && opts.teamCall && typeof m.id === 'string' && CALL_LANES.includes(m.lane) && !gameSeen.has(m.id)) { gameSeen.add(m.id); heardCall(m.lane, by); }
   }
   // Teammates' callouts (What's new 183): “Premade, mid missing” said in a game or tapped on the phone remote shows and is
@@ -10884,9 +10884,60 @@ dialog.wizard { transform: scale(var(--from)); }
     const who = (by || 'A teammate').slice(0, 20), foe = liveList().find((q) => !q.ally && CALL_POS[lane].includes(q.pos)), c = foe && champOf(foe.champ), where = lane === 'jungle' ? 'their jungle' : lane;
     sayCall(c ? `${who}: ${c.name} missing from ${where}` : `${who}: ${lane} missing`, 2, undefined, ['p:' + who.slice(0, 1).toUpperCase(), ...(c ? [foeFace(c.id)] : []), 's:missing', `w:missing ${lane}`]);
   }
+  // Shotcaller phrases (What's new 242): “Premade, group mid”, “Premade, go Dragon”, “Premade, back off” or “Premade,
+  // reset” puts your face, a sign and the words at the top of every Premade friend's overlay in the game for 5 s (yours
+  // for 2 s), never read out loud. {t:'call', g, shot ('go dragon'), c (your champion), id, by}
+  const SHOTS = { 'premade group top': ['Group top', 'pin'], 'premade group mid': ['Group mid', 'pin'], 'premade group bot': ['Group bot', 'pin'], 'premade go dragon': ['Go Dragon', 'flame'],
+    'premade go herald': ['Go Herald', 'flame'], 'premade go baron': ['Go Baron', 'flame'], 'premade go void grubs': ['Go Voidgrubs', 'bug'], 'premade back off': ['Back off', 'back'], 'premade reset': ['Reset', 'home'] };
+  function sendShot(shot) {
+    if (!league || !opts.teamCall) return;
+    const c = league.me && champOf(league.me.champ), m = { t: 'call', g: league.room, shot, c: c ? c.id : '', id: id12(), by: myName }, [words, sign] = SHOTS['premade ' + shot];
+    gameSeen.add(m.id);
+    send(m);
+    gameSend(m);
+    sayCall(`Sent: ${words}`, 3, 'shot', [myFace() || 'p:' + (myName || 'Y').slice(0, 1).toUpperCase(), 's:' + sign, 'w:' + words], false, 2000, true);
+  }
+  function heardShot(shot, by, id) {
+    const who = (by || 'A teammate').slice(0, 20), c = typeof id === 'string' && champOf(id), mate = c && (league.players || []).some((p) => p.team === mine.team && p.champ === c.id), [words, sign] = SHOTS['premade ' + shot];
+    sayCall(`${who}: ${words}`, 3, 'shot:' + who, [mate ? 'a:' + champImg(c.id) : 'p:' + who.slice(0, 1).toUpperCase(), 's:' + sign, 'w:' + words], false, 5000, true);
+  }
+  // Friends' rows on the strip (What's new 242): with Auto enemy Flash reading your screen, your Premade sends your own
+  // Flash and ultimate times (your F key and R slot going dark, Data Dragon's cooldowns less your haste) to Premade
+  // friends in the game every 10 s and when they change; each friend who sends gets a row under the enemies on your
+  // strip, gone after 30 s of nothing. {t:'timer', g, k: 'me:<your champion>', f, r (League's clock, s; 0: up), end: 1}
+  const MINE_K = /^me:[A-Za-z0-9]{1,30}$/;
+  let mates = { room: '', map: new Map() }; // champion -> { f, r, at }
+  function mateHeard(id, m) {
+    if (mates.room !== league.room) mates = { room: league.room, map: new Map() };
+    mates.map.set(id, { f: Math.min(7200, +m.f || 0), r: Math.min(7200, +m.r || 0), at: performance.now() });
+    pushOverlay();
+  }
+  function mineTick() {
+    const p = fl && fl.room === league.room && meIn(), c = p && champOf(p.champ);
+    if (!c) return;
+    riotTips(c);
+    if (fl.f.ultAt && fl.ultSeen !== fl.f.ultAt && !p.dead) { const cd = cooldown(`r:${c.id}`, p); if (cd) fl.ultEnd = Math.round(gameNow() - (performance.now() - fl.f.ultAt) / 1000 + cd); }
+    fl.ultSeen = fl.f.ultAt;
+    const f = fl.mine ? Math.round(fl.mine + (cooldown(`flash:${c.id}`, p) || 300)) : 0, m = { t: 'timer', g: league.room, k: `me:${c.id}`, f, r: fl.ultEnd || 0, end: 1 }, key = `${f},${m.r}`;
+    if (key === fl.sent && performance.now() - fl.sentAt < 10000) return;
+    Object.assign(fl, { sent: key, sentAt: performance.now() });
+    send(m);
+    gameSend({ ...m, by: myName });
+  }
+  function mateRows() { // [{ name, pic, spells: [{ icon, name, left }] }]
+    if (!opts.foeTimers || !league || mates.room !== league.room) return null;
+    const t = gameNow(), now = performance.now(), left = (end) => Math.max(0, Math.ceil(end - t)), you = meIn();
+    const rows = (league.players || []).filter((p) => p.team === mine.team && p !== you && champOf(p.champ)).map((p) => {
+      const c = champOf(p.champ), x = mates.map.get(c.id), tips = x && now - x.at < 30000 && riotTips(c), r = tips && tips.sheet.find((q) => q.key === 'R');
+      if (!x || now - x.at >= 30000) return null;
+      const flash = !Array.isArray(p.spells) || p.spells.map(spellId).includes(4);
+      return { name: c.name, pic: champImg(c.id), spells: [...(flash ? [{ icon: spellPic(4), name: 'Flash', left: left(x.f) }] : []), ...(r && r.icon ? [{ icon: r.icon, name: r.name, left: left(x.r) }] : [])] };
+    }).filter(Boolean).slice(0, 4);
+    return rows.length ? rows : null;
+  }
   // ---- auto enemy Flash (What's new 230, Rayan 2026-11-25): flash-finder.js reads League's share track 15 times a
   // second (a clone of it, beside the minimap reader); an enemy's Flash starts their Flash timer on the strip by itself,
-  // marked auto and for you only (never sent to the room or the game channel). Which enemy: the one whose minimap icon
+  // marked auto (What's new 242: on Premade friends' strips in the game too, through the room and the game channel). Which enemy: the one whose minimap icon
   // jumped then (seeFoes' trails), else their faces to click for 10 s. After the game a check (flashDlg) asks about
   // every Flash-like light, its replay kept during the game (480x300 crops of the full screen, 12 frames); the marks
   // go in Games\Flash marks (app 1.55) and the clues are re-weighed on all of them (FlashFinder.retune), a version kept
@@ -10897,7 +10948,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function flashTick() {
     const want = flashOn() && share && share.mode === 'league' && share.track && share.track.readyState === 'live';
     if (fl && (!want || fl.room !== league.room || fl.s !== share)) flashStop();
-    if (fl) { flashRate(); if (fl.ask && performance.now() > fl.ask.until) { fl.ask = null; pushOverlay(); } return; }
+    if (fl) { flashRate(); mineTick(); if (fl.ask && performance.now() > fl.ask.until) { fl.ask = null; pushOverlay(); } return; }
     if (!want) return;
     const f = FlashFinder.create(), meP = meIn(), cv = Object.assign(document.createElement('canvas'), { width: FlashFinder.W, height: FlashFinder.H });
     f.flashSlot = meP && Array.isArray(meP.spells) && spellId(meP.spells[0]) === 4 ? 0 : 1; // which key holds your Flash: League's live data
@@ -10949,11 +11000,13 @@ dialog.wizard { transform: scale(var(--from)); }
     x.asked = ids.length ? ids : can;
     if (x.asked.length) { fl.ask = { x, until: performance.now() + 10000 }; pushOverlay(); }
   }
-  function flashTimer(x, id, how) { // that enemy's Flash from when the light was, on your strip only
-    const k = `flash:${id}`, cd = cooldown(k);
+  function flashTimer(x, id, how) { // that enemy's Flash from when the light was, on your strip and your Premade friends' in the game (What's new 242)
+    const k = `flash:${id}`, cd = cooldown(k), end = Math.round(gameNow() - (performance.now() - x.t) / 1000 + cd);
     if (!cd) return;
     Object.assign(x, { foe: id, timer: how });
-    addTimer(league.room, k, Math.round(gameNow() - (performance.now() - x.t) / 1000 + cd), 'auto');
+    addTimer(league.room, k, end, 'auto');
+    send({ t: 'timer', g: league.room, k, end, auto: 1 });
+    gameSend({ t: 'timer', g: league.room, k, end, by: myName, auto: 1 });
   }
   function flashAsked(id) { // a face clicked by the strip
     if (!fl || !fl.ask || !fl.ask.x.asked.includes(id)) return;
@@ -22360,6 +22413,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [242, 'November 27: your squad on the strip', [
+      'With Auto enemy Flash on, an enemy Flash it catches also starts on the strips of your Premade friends in the game, with the gold A, and theirs come to yours. Turn a wrong one off and it goes off for everyone.',
+      'Each friend in your game whose Premade reads their screen gets a row under the enemies on your strip: their face, their Flash and their ultimate, with the time left while it’s down. Your Premade sends yours the same way.',
+      'With Teammates’ callouts on, say “Premade, group mid”, “Premade, go Dragon”, “Premade, back off” or “Premade, reset”: your face and the words show at the top of your friends’ overlays for 5 seconds. Never read out loud.',
+    ]],
     [241, 'November 27: your lane report', [
       'With the lane box on, a game’s report has Your lane, 0:00 to 14:00 at the top of Laning: CS at 14:00 and the gold in your items against your lane opponent, the level 2 race, each of your deaths (when, who, where, and whether it was a gank) and your backs with the gold you had. Nothing pops up in the game.',
       'Stats, You has Your lane this week: your level 2 races won and lost, your CS at 14:00 against theirs on average, your deaths in lane and how many were ganks, and one line on what to work on.',
@@ -23800,10 +23858,14 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: Settings, Callouts, under Faded faces. Move it moves and sizes the box.', '#optGankClock', 'app'],
       ['Enemy spell strip', 'Their 5 faces above your minimap with Flash, their other spell (from League itself with app 1.52, so a Spellbook swap shows) and their ultimate: click one while you play, without Alt+X, say “Premade, mid flash”, or tap it on your phone, and the countdown starts for you and every Premade teammate in your game, with the letter of who started it. Cooldowns count Cosmic Insight, Ultimate Hunter, Transcendence, their level and their items.',
         'Off until you turn it on: Settings, Overlay, In game. Teammates in your game share it without being in your room.', '#optFoeTimers', 'app'],
-      ['Auto enemy Flash', 'When an enemy Flashes on your screen, Premade starts their Flash on your enemy spell strip by itself, with a gold A, for you only. It knows who from their minimap icon jumping; when it can’t tell, their faces show by the strip for 10 seconds to click. After the game, a Flash check replays every Flash-like light it saw for one click or key 1 to 5 each, then shows how it did, and it re-tunes itself on your answers, kept only when it scores better. Your answers and the replays are saved in Clips’ Games folder, under Flash marks.',
+      ['Auto enemy Flash', 'When an enemy Flashes on your screen, Premade starts their Flash on your enemy spell strip by itself, with a gold A, and on the strips of Premade friends in your game (theirs come to yours the same way; one turned off goes off for everyone). It knows who from their minimap icon jumping; when it can’t tell, their faces show by the strip for 10 seconds to click. After the game, a Flash check replays every Flash-like light it saw for one click or key 1 to 5 each, then shows how it did, and it re-tunes itself on your answers, kept only when it scores better. Your answers and the replays are saved in Clips’ Games folder, under Flash marks.',
         'Off until you turn it on: Settings, Overlay, In game, under Enemy spell strip (Windows app 1.55).', '#optFlashAuto, #flashDlg', 'app'],
       ['Teammates’ callouts', 'Say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid” with your letter, and you see theirs.',
         'Off until you turn it on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
+      ['Shotcaller phrases', 'Say “Premade, group mid” (top, bot), “Premade, go Dragon” (Herald, Baron, Void grubs), “Premade, back off” or “Premade, reset”: your face, a sign and the words show at the top of every Premade friend’s overlay in the game for 5 seconds, and on yours for 2 so you know it went. Never read out loud.',
+        'With Teammates’ callouts on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
+      ['Squad on the strip', 'Each friend in your game whose Premade reads their screen (Auto enemy Flash on) gets a row under the enemies on your strip, below a thin gold line: their face in a light ring, their Flash and their ultimate, with the time left over the icon while it’s down. Their Premade reads their own F key and R slot. A friend who leaves, or sends nothing for 30 seconds, loses their row.',
+        'With Enemy spell strip on; your own times go to friends while Auto enemy Flash is on: Settings, Overlay, In game.', '#optFoeTimers, #optFlashAuto', 'app'],
       ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: Settings, Callouts, From the game.', '#optSpikeCall', 'app'],
       ['Dragon soul and Baron', '“You’re on Ocean soul point” or “They’re on Infernal soul point” once a team has 3 dragons, with the soul’s element, and “Your Baron ends in 0:30” or “Their Elder ends in 0:30” before a buff runs out.', 'With Power spikes, the coach or the jungle clock on: Settings, Callouts, From the game.', '#optSpikeCall', 'app'],
       ['Ganks and heading to a lane', '“Vi heading your way” with a sharp sound when anyone but your lane opponents walks straight at you, “Vi and Zed heading your way” when two do within 2 seconds, and “Vi heading top” when their jungler walks toward a lane a teammate is in. No missing call when a laner bought an item out of sight (their faded face moves to their base), and “Zed back mid” when a missing laner returns.',
@@ -23913,6 +23975,8 @@ dialog.wizard { transform: scale(var(--from)); }
     flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
     flashLight: (l, foes) => { if (fl) { if (foes && share) share.foes = { room: league.room, list: foes }; fl.caps.set(l.id, { x: 0, y: 0, cv: document.createElement('canvas') }); flashLight(l); } }, // a light as the finder says it, past the screen
     flashStop: () => flashStop(),
+    said: (p) => heardTimer(p), // a voice phrase as heard (What's new 242: the shotcaller phrases)
+    ultNow: () => { if (fl) fl.f.ultAt = performance.now(); }, // your R slot gone dark, as the finder sees it (What's new 242)
     flashFeed: async (urls) => { // recorded frames into the finder in place of the screen, 15 a second
       if (!fl) return false;
       fl.stop();
