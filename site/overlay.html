@@ -281,6 +281,26 @@ body:not(.full) #call, body:not(.full) #ghosts { display: none; }
 .toast.gank { padding: 4px 9px; font: 700 15px/1.2 'Segoe UI', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 .toast.gank.red { border-color: #ff5c5c; color: #ff5c5c; }
 #ghosts svg { position: absolute; overflow: visible; }
+/* the lane box (What's new 238): Your lane for the first 14 minutes, a row a laner (face in their team's ring, level,
+   Flash or its time, the gold in their items as a bar, CS), a line between the teams, then one line in words */
+.toast.lanebox { width: 340px; padding: 6px 10px; font-variant-numeric: tabular-nums; }
+.lbhead { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--gold); font-weight: 700; }
+.lbclock, .lbfl span { font-family: ui-monospace, Consolas, monospace; font-weight: 500; }
+.lbclock { color: var(--muted); }
+.lbrow { display: grid; grid-template-columns: 22px 18px 58px 1fr 34px 46px; align-items: center; gap: 6px; height: 26px; }
+.lbrow.gap { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--gold-line); }
+.lbface { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #4ea3e0; object-fit: cover; }
+.them .lbface { border-color: #ff5c5c; }
+.lbrow.back > :not(.lbpill) { opacity: 0.45; }
+.lbfl { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.lbfl img { width: 16px; height: 16px; border-radius: 3px; }
+.lbfl.down img { filter: grayscale(1); opacity: 0.6; }
+.lbpill { justify-self: start; padding: 0 7px; border: 1px solid var(--muted); border-radius: 999px; font-size: 12px; font-weight: 500; color: var(--fg); }
+.lbbar { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 15%, transparent); }
+.lbbar div { height: 100%; border-radius: 2px; background: var(--fg); }
+.lbg { font-size: 12px; text-align: right; }
+.lbcs { font-size: 12px; text-align: right; color: var(--muted); }
+.lbline { margin-top: 5px; font-weight: 500; }
 #ghosts path { fill: none; stroke: #9aa0a6; stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linecap: round; opacity: 0.8; }
 .cpics .lvl { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: #010a13; display: grid; place-items: center; font-size: 19px; font-weight: 700; }
 /* while you're dead: the tips for your lane (tips) and a teammate's screen (cam) */
@@ -396,6 +416,22 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
   const MIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>';
   const main = document.getElementById('main'), parts = document.getElementById('parts'), mayhemLayer = document.getElementById('mayhem'), call = document.getElementById('call'), ghostLayer = document.getElementById('ghosts');
   const el = (cls, text) => { const e = document.createElement('div'); e.className = cls; if (text) e.textContent = text; return e; };
+  function laneBox(b) { // { t, fi (Flash's icon), rows: [{ pic, ally, lvl, fl, back, g, cs }], line }
+    const box = el('toast lanebox'), head = el('lbhead'), rows = Array.isArray(b.rows) ? b.rows.slice(0, 4) : [], top = Math.max(1, ...rows.map((r) => +r.g || 0));
+    const img = (src, cls) => { const i = new Image(); i.alt = ''; if (cls) i.className = cls; if (/^https:\/\//.test(src)) i.src = src; return i; };
+    head.append(el('', 'Your lane'), el('lbclock', String(b.t || '')));
+    box.append(head);
+    rows.forEach((r, i) => {
+      const row = el('lbrow ' + (r.ally ? 'us' : 'them') + (r.back ? ' back' : '') + (i && rows[i - 1].ally && !r.ally ? ' gap' : '')), fl = el('lbfl' + (r.fl ? ' down' : '')), bar = el('lbbar'), fill = el('');
+      if (typeof r.fl === 'string') { fl.append(img(b.fi)); if (r.fl) { const t = document.createElement('span'); t.textContent = r.fl; fl.append(t); } }
+      fill.style.width = `${Math.min(100, ((+r.g || 0) / top) * 100)}%`;
+      bar.append(fill);
+      row.append(img(r.pic, 'lbface'), el('', String(r.lvl | 0)), r.back ? el('lbpill', 'back') : fl, bar, el('lbg', `${((+r.g || 0) / 1000).toFixed(1)}k`), el('lbcs', Number.isFinite(r.cs) ? `CS ${r.cs | 0}` : ''));
+      box.append(row);
+    });
+    if (b.line) box.append(el('lbline', String(b.line)));
+    return box;
+  }
   function mayBox(a) { // ARAM: Mayhem: Best for <champion>, then your picks
     const box = el('toast maybox'), row = el('mrow'), mau = (x, sm) => {
       const e = el('mau ' + (/^(prismatic|gold|silver)$/.test(x && x.r) ? x.r : '') + (sm ? ' sm' : ''));
@@ -999,7 +1035,8 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if (s.aug && typeof s.aug === 'object') add('game', mayBox(s.aug));
     else if (s.aug) add('game', el('toast', String(s.aug)));
     if (s.cs) add('cs', el('toast game', String(s.cs)));
-    if (s.lane) add('cs', el('toast game', String(s.lane)));
+    if (s.laneBox && typeof s.laneBox === 'object') add('cs', laneBox(s.laneBox));
+    else if (s.lane) add('cs', el('toast game', String(s.lane)));
     if (s.tft && Array.isArray(s.tft.c) && Array.isArray(s.tft.g)) add('tft', recipes(s.tft));
     if (s.buy && Array.isArray(s.buy.items) && s.buy.items.length) add('buy', buy(s.buy));
     for (const t of Array.isArray(s.practice) ? s.practice : []) add('practice', el('toast game', String(t)));

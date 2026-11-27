@@ -2062,7 +2062,8 @@ const leagueData = (over = {}) => ({
     assert.match(await phone.$eval('#objs .obj:first-child b', (b) => b.textContent), /^1:\d\d$/, 'Dragon’s time left');
     // your lane and CS a minute on the overlay, against your usual on Ahri
     await wait(pc, () => /^CS 100 · \d+\.\d a minute \(usual 5\.3\)$/.test(lpcClient.lastOverlay.cs), null, 'the CS counter on the overlay');
-    await wait(pc, () => lpcClient.lastOverlay.lane === 'vs Zed: CS +10 · gold +3.1k', null, 'your lane on the overlay: CS and item gold against Zed');
+    // What's new 238: before 14:00 with League's positions, My lane is the lane box (you and Zed, mid) instead of its one line
+    await wait(pc, () => { const b = lpcClient.lastOverlay.laneBox; return lpcClient.lastOverlay.lane === '' && b && b.rows.length === 2 && b.rows[0].ally && b.rows[0].cs === 100 && !b.rows[1].ally && b.rows[1].cs === 90 && b.rows[0].g - b.rows[1].g === 3100 && /stronger|Even/.test(b.line); }, null, 'your lane box on the overlay: you and Zed, CS and item gold');
     // and the chance to win, your CS and gold against Zed, and all ten players with their rank, folded away
     await wait(phone, () => /^9\d%$/.test((document.querySelector('#winRing b') || {}).textContent) && /^\d+(\.\d)? CS a minute, your usual is 5\.3\. Gold \+3\.1k on Zed\.$/.test(document.getElementById('laneLine').textContent), null, 'the game on the phone');
     assert.deepStrictEqual(await phone.$$eval('#lane .lrow', (l) => l.map((r) => `${r.firstChild.textContent} ${r.lastChild.textContent}`)), ['You 100 CS', 'Zed 90 CS']);

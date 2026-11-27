@@ -410,6 +410,69 @@ const game = (over = {}) => ({
       console.log(`gank clock: Safe ${n0} s once Lee Sin left your minimap, longer with his Flash used, red under 5 s, Could be here for 5 s, then nothing; his outline grew; none while seen`);
     }
 
+    // ---- What's new 238, the lane box: bot with League's positions (Ahri ADC + Garen support against Yasuo + Zed), all 4
+    // rows, CS for the carries only; Yasuo hits 2 first: "They hit 2 first: back off" on the box and the line at the top;
+    // later who's stronger, with Yasuo's Flash timed on the strip; both bought: "Both went back" with their rows marked;
+    // the Coach's levels-down tip quiet while it shows; mid shows 2 rows; no box without positions, nor at 14:00
+    {
+      const [c, page] = await context(browser, { foeTimers: true, coach: true });
+      await c.route(/item\.json$/, (r) => r.fulfill({ json: { data: { 1055: { name: 'Doran’s Blade', gold: { total: 450 } }, 1056: { name: 'Doran’s Ring', gold: { total: 400 } }, 3006: { name: 'Berserker’s Greaves', gold: { total: 1100 }, tags: ['Boots'] }, 1036: { name: 'Long Sword', gold: { total: 350 } } } }, headers: { 'access-control-allow-origin': '*' } }));
+      const bot = (t, lv, over = {}) => game({ t, room: 'g0123456789b', players: [['Rayan', 'ORDER', 'Ahri', 'BOTTOM', [[1055, 1]]], ['Sup', 'ORDER', 'Garen', 'UTILITY', [[1056, 1]]], ['Them', 'CHAOS', 'Yasuo', 'BOTTOM', [[1055, 1]]], ['Two', 'CHAOS', 'Zed', 'UTILITY', [[1056, 1]]], ['Jg', 'CHAOS', 'LeeSin', 'JUNGLE', [[1102, 1]]]]
+        .map(([n, team, champ, pos, items], i) => ({ name: n + '#EUW', team, champ, champName: '', pos, lvl: lv[i] || 1, k: 0, d: 0, a: 0, cs: 10 + i, items, dead: false, respawn: 0, spells: ['SummonerFlash', 'SummonerDot'], ...(over[i] || {}) })) });
+      const box = () => page.evaluate(() => lpcClient.lastOverlay.laneBox);
+      await page.evaluate((d) => lpcClient.emit('league', d), bot(80, [1, 1, 1, 1, 1]));
+      await wait(page, () => (lpcClient.lastOverlay.laneBox || {}).line === 'Even: level 1 vs 1', null, 'the box, even');
+      let b = await box();
+      assert.deepStrictEqual(b.rows.map((r) => [r.ally, r.cs]), [[true, 10], [true, null], [false, 12], [false, null]], `4 rows, CS for the carries: ${JSON.stringify(b.rows)}`);
+      assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.lane), '', 'no one-line My lane while the box shows');
+      await page.evaluate((d) => lpcClient.emit('league', d), bot(100, [1, 1, 2, 1, 2]));
+      await wait(page, () => (lpcClient.lastOverlay.laneBox || {}).line === 'They hit 2 first: back off' && /They hit 2 first/.test(lpcClient.lastOverlay.call), null, 'the level 2 race on the box and at the top');
+      // 6:00: Ahri 4 against Yasuo 6 and his Flash timed on the strip: they're stronger, and the Coach says nothing of levels
+      await page.evaluate((d) => lpcClient.emit('league', d), bot(360, [4, 4, 6, 5, 5], { 2: { items: [[1055, 1], [3006, 1]] } }));
+      await wait(page, () => /^They’re stronger: level 6 vs 4/.test((lpcClient.lastOverlay.laneBox || {}).line), null, 'they’re stronger');
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'strip', go: 'flash:Yasuo' } }));
+      await wait(page, () => /^\d:\d\d$/.test(((lpcClient.lastOverlay.laneBox || { rows: [] }).rows[2] || {}).fl), null, 'Yasuo’s Flash time on his row');
+      b = await box();
+      assert(b.rows[2].g === 1550 && b.rows[0].g === 450 && b.rows[1].fl === null && b.rows[3].fl === '', `gold in items, no Flash for your support, Zed’s up: ${JSON.stringify(b.rows)}`);
+      await page.waitForTimeout(2500);
+      const said = await page.evaluate(() => JSON.stringify(lpcClient.lastOverlay.calls || []) + lpcClient.lastOverlay.call);
+      assert(!/levels down/.test(said), `the Coach's levels-down tip is quiet: ${said}`);
+      await overlayShot(browser, 'lane-box-stronger', await page.evaluate(() => lpcClient.lastOverlay), 'none');
+      // both buy: their rows marked back, about N s till they're in lane
+      await page.evaluate((d) => lpcClient.emit('league', d), bot(366, [4, 4, 6, 5, 5], { 2: { items: [[1055, 1], [3006, 1], [1036, 1]] }, 3: { items: [[1056, 1], [1036, 1]] } }));
+      await wait(page, () => /^Both went back: about \d+ s till they’re in lane$/.test((lpcClient.lastOverlay.laneBox || {}).line), null, 'both went back');
+      b = await box();
+      const secs = +b.line.match(/\d+/)[0];
+      assert(b.rows[2].back && b.rows[3].back && !b.rows[0].back && secs >= 20 && secs <= 60, `their rows back, ${secs} s: ${JSON.stringify(b)}`);
+      await overlayShot(browser, 'lane-box-back', await page.evaluate(() => lpcClient.lastOverlay), 'none');
+      // mid: you and Zed
+      const mid = bot(400, [5, 5, 4, 4, 5]);
+      mid.room = 'g0123456789c';
+      mid.players[0].pos = 'MIDDLE'; mid.players[3].pos = 'MIDDLE';
+      await page.evaluate((d) => lpcClient.emit('league', d), mid);
+      await wait(page, () => ((lpcClient.lastOverlay.laneBox || {}).rows || []).length === 2, null, 'mid: 2 rows');
+      b = await box();
+      assert(b.line === 'You’re stronger: level 5 vs 4' && b.rows[1].pic.includes('Zed'), `mid: ${JSON.stringify(b)}`);
+      await overlayShot(browser, 'lane-box-mid', await page.evaluate(() => lpcClient.lastOverlay), 'none');
+      // without positions (blind pick): one line; at 14:00: one line
+      const blind = bot(400, [5, 5, 4, 4, 5]);
+      blind.players.forEach((p) => { p.pos = ''; });
+      await page.evaluate((d) => lpcClient.emit('league', d), blind);
+      await wait(page, () => !lpcClient.lastOverlay.laneBox, null, 'no box in blind pick');
+      await page.evaluate((d) => lpcClient.emit('league', d), bot(841, [9, 9, 9, 9, 9]));
+      await wait(page, () => !lpcClient.lastOverlay.laneBox && /^vs Yasuo/.test(lpcClient.lastOverlay.lane), null, 'one line at 14:00');
+      await c.close();
+      // the overlay draws it: a row each, the line between the teams, the back pills, the line in words
+      const p = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
+      await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
+      await p.evaluate((s) => window.fire(s), { visible: true, scale: 1, opacity: 1, laneBox: b && { ...b, rows: [...b.rows, { ...b.rows[1], back: true }] } });
+      const drawn = await p.evaluate(() => ({ rows: document.querySelectorAll('.lanebox .lbrow').length, gap: document.querySelectorAll('.lanebox .lbrow.gap').length, pills: document.querySelectorAll('.lanebox .lbpill').length, line: (document.querySelector('.lanebox .lbline') || {}).textContent }));
+      assert.deepStrictEqual(drawn, { rows: 3, gap: 1, pills: 1, line: 'You’re stronger: level 5 vs 4' }, `the box drawn: ${JSON.stringify(drawn)}`);
+      await p.close();
+      console.log(`lane box: 4 rows bot, the level 2 race, they're stronger with Yasuo's Flash timed and no levels-down tip, both went back (${secs} s), 2 rows mid, none blind or at 14:00`);
+    }
+
     // ---- What's new 234: with no callout on and no room, the League share doesn't follow you on the minimap (it did five
     // times a second for nobody); a callout turned on mid-game starts it
     {
