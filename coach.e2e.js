@@ -377,7 +377,7 @@ const game = (over = {}) => ({
       await wait(page, () => /^Safe \d+ s$/.test((lpcClient.lastOverlay.gank || {}).t), null, 'the gank clock');
       const first = await page.evaluate(() => lpcClient.lastOverlay), sq = await page.evaluate(() => lpc.me().minimap), n0 = +first.gank.t.match(/\d+/)[0];
       assert(n0 >= 13 && n0 <= 15 && !first.gank.red, `Safe 13 to 15 s at first: ${JSON.stringify(first.gank)}`);
-      assert(Math.abs(first.parts.gank.x * 2560 - sq.x) < 1 && Math.abs(first.parts.gank.y * 1436 - sq.y) < 1 && first.parts.gank.ay === 'b', `over the minimap's top left: ${JSON.stringify(first.parts.gank)}`);
+      assert(Math.abs(first.parts.gank.x * 2560 - sq.x) < 1 && Math.abs(first.parts.gank.y * 1436 - sq.y) < 1 && first.parts.gank.ax === 'r' && first.parts.gank.ay === 't', `left of the minimap's top left corner: ${JSON.stringify(first.parts.gank)}`);
       // just as the number drops, his Flash timed: about a second more
       const was = await page.evaluate(() => lpcClient.lastOverlay.gank.t);
       await wait(page, (w) => lpcClient.lastOverlay.gank.t !== w, was, 'the next second');
@@ -404,8 +404,8 @@ const game = (over = {}) => ({
       await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
       await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
       await p.evaluate((s) => window.fire(s), { visible: true, board: true, scale: 1, opacity: 1, parts: { gank: first.parts.gank }, gank: { t: 'Safe 4 s', red: true }, reach: r });
-      const box = await p.evaluate(() => { const e = document.querySelector('#parts [data-part="gank"] .toast.gank.red'), b = e && e.getBoundingClientRect(), svg = document.querySelector('#ghosts svg'), sb = svg && svg.getBoundingClientRect(); return e && sb && { text: e.textContent, color: getComputedStyle(e).color, bottom: b.bottom, left: b.left, svg: [sb.left, sb.width], path: !!svg.querySelector('path').getAttribute('d') }; });
-      assert(box && box.text === 'Safe 4 s' && box.color === 'rgb(255, 92, 92)' && Math.abs(box.left - first.parts.gank.x * 1280) < 2 && Math.abs(box.bottom - first.parts.gank.y * 720) < 2 && box.path && Math.abs(box.svg[0] - r.x * 1280) < 1, `the red box above the minimap and the outline: ${JSON.stringify(box)}`);
+      const box = await p.evaluate(() => { const e = document.querySelector('#parts [data-part="gank"] .toast.gank.red'), b = e && e.getBoundingClientRect(), svg = document.querySelector('#ghosts svg'), sb = svg && svg.getBoundingClientRect(); return e && sb && { text: e.textContent, color: getComputedStyle(e).color, top: b.top, right: b.right, svg: [sb.left, sb.width], path: !!svg.querySelector('path').getAttribute('d') }; });
+      assert(box && box.text === 'Safe 4 s' && box.color === 'rgb(255, 92, 92)' && Math.abs(box.right - first.parts.gank.x * 1280) < 2 && Math.abs(box.top - first.parts.gank.y * 720) < 2 && box.path && Math.abs(box.svg[0] - r.x * 1280) < 1, `the red box left of the minimap and the outline: ${JSON.stringify(box)}`);
       await p.close();
       console.log(`gank clock: Safe ${n0} s once Lee Sin left your minimap, longer with his Flash used, red under 5 s, Could be here for 5 s, then nothing; his outline grew; none while seen`);
     }
