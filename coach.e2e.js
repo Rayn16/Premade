@@ -832,6 +832,41 @@ const game = (over = {}) => ({
       assert.match(chk.fig, /the call that didn’t match \(orange rings\)/);
       assert.deepStrictEqual(chk.kept, [{ g: '7', m: ['your krugs'] }]);
       assert.strictEqual(await page.evaluate(([r, tl]) => !lpc.jungler(r, tl).querySelector('.jgchk'), [r, tl]), true, 'no check without this game’s calls');
+      // What's new 241: the lane box keeps your lane at 14:00 (you hit 2 first, a back at 6:40 with 1,300 gold), then the
+      // report's Laning tab shows it with your 2 deaths from Riot's copy (both ganks: Zed was your lane), and Stats > You
+      // the week's card
+      {
+        const lg = (t, lv, items) => game({ t, room: 'g0123456789e', me: { ...game().me, gold: 1300 }, players: [['Rayan', 'ORDER', 'Ahri', 'MIDDLE'], ['Them', 'CHAOS', 'Zed', 'MIDDLE']]
+          .map(([n, team, champ, pos], i) => ({ name: n + '#EUW', team, champ, champName: '', pos, lvl: lv[i], k: 0, d: 0, a: 0, cs: [80, 70][i], items: i ? [] : items, dead: false, respawn: 0, spells: [] })) });
+        await page.evaluate(() => lpc.curGame({ id: 7 }));
+        await page.evaluate((d) => lpcClient.emit('league', d), lg(100, [2, 1], [[1056, 1]]));
+        await wait(page, () => (lpcClient.lastOverlay.laneBox || {}).line === 'You hit 2 first: trade now', null, 'you hit 2 first');
+        await page.evaluate((d) => lpcClient.emit('league', d), lg(400, [6, 5], [[1056, 1], [1036, 1]]));
+        await page.waitForTimeout(2500);
+        await page.evaluate((d) => lpcClient.emit('league', d), lg(845, [9, 8], [[1056, 1], [1036, 1]]));
+        await wait(page, () => (JSON.parse(localStorage.getItem('lpc-lanes') || '[]')[0] || {}).g === '7', null, 'the lane kept at 14:00');
+        const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('lpc-lanes'))[0]);
+        assert(kept.race === 'won' && kept.raceT >= 100 && kept.raceT < 105 && kept.cs.join() === '80,70' && kept.backs.length === 1 && kept.backs[0][1] === 1300 && kept.them.join() === 'Zed', `kept: ${JSON.stringify(kept)}`);
+        const lr = await page.evaluate(([r, tl]) => {
+          const box = document.createElement('div');
+          box.id = 'laneShot';
+          box.className = 'report';
+          box.style.cssText = 'position: fixed; inset: 0; z-index: 99; padding: 20px; background: var(--bg); overflow: auto; align-content: start';
+          box.append(lpc.laneRep(r, tl));
+          document.body.append(box);
+          return { head: box.querySelector('h3').textContent, dt: [...box.querySelectorAll('dt')].map((e) => e.textContent), dd: [...box.querySelectorAll('dd')].map((e) => e.textContent), pill: box.querySelector('.opill.good').textContent, deaths: JSON.parse(localStorage.getItem('lpc-lanes'))[0].deaths };
+        }, [r, tl]);
+        assert.deepStrictEqual(lr.dt, ['Level 2 race', 'Death', 'Death', 'Back'], JSON.stringify(lr));
+        assert(lr.head === 'Your lane, 0:00 to 14:00' && lr.pill === 'Won' && /^5:30a gank in the middle lane$/.test(lr.dd[1]) && /with 1,300 gold$/.test(lr.dd[3]) && JSON.stringify(lr.deaths) === '[[330,true],[540,true]]', JSON.stringify(lr));
+        await shot(page, 'lane-report', '#laneShot');
+        await page.evaluate(() => document.getElementById('laneShot').remove());
+        const wk = await page.evaluate(() => { const e = lpc.laneWeek(); return { shown: !e.closest('section').hidden, text: e.textContent, blocks: e.querySelectorAll('.blk i.w').length, ganks: e.querySelectorAll('.lwdots i.gank').length }; });
+        await page.evaluate(() => { const s = document.getElementById('laneWeek').closest('section'), b = document.createElement('div'); b.id = 'weekShot'; b.style.cssText = 'position: fixed; inset: 0; z-index: 99; padding: 20px; background: var(--bg)'; const h = document.createElement('h2'); h.textContent = 'Your lane this week'; b.append(h, s.querySelector('#laneWeek').cloneNode(true)); b.lastChild.id = ''; document.body.append(b); });
+        await shot(page, 'lane-week', '#weekShot');
+        await page.evaluate(() => document.getElementById('weekShot').remove());
+        assert(wk.shown && wk.blocks === 1 && wk.ganks === 2 && /Won 1 of 1/.test(wk.text) && /2, and 2 of them were ganks/.test(wk.text) && /Most of your lane deaths are ganks/.test(wk.text), JSON.stringify(wk));
+        console.log('lane report: kept at 14:00 (won the level 2 race, one back with 1,300 gold), shown on Laning with 2 ganks from Riot’s copy, and the week’s card');
+      }
       // What's new 235: Dodge or stay?, What wins for you's habits, their weak side
       const v = await page.evaluate(() => {
         const d = (n, w, t, v = 'behind') => Array.from({ length: n }, (_, i) => ({ g: String(v + t + w + i), v, t, w: i < w }));

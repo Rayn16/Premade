@@ -2383,6 +2383,18 @@ body:has(.view[data-view="pregame"]:not([hidden]) #csBox:not([hidden])) .toasts 
 .takeaways { list-style: none; padding-left: 0; }
 .takeaways li { position: relative; padding-left: 16px; }
 .takeaways li::before { content: ""; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.laneweek { --ally: #4a9fe8; --foe: #e05a5a; display: grid; gap: 8px; max-width: 560px; } [data-theme="light"] .laneweek { --ally: #1f6fbf; --foe: #c0392b; }
+.lrhead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; } .lrhead img { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--ally); } .lrhead img.them { border-color: var(--foe); } .lrhead .sub { color: var(--muted); }
+.lanerep .latrow { grid-template-columns: 8em 52px minmax(0, 1fr) 52px; max-width: 640px; } /* What's new 241: Your lane this week, and the lane report in Laning */
+.lwrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 8px; }
+.lwbars { display: grid; grid-template-columns: minmax(0, 1fr) 3em; gap: 4px 10px; align-items: center; margin-bottom: 8px; }
+.lwbars i { height: 8px; border-radius: 4px; background: var(--ally); } .lwbars i.them { background: var(--foe); }
+.lwdots { display: flex; flex-wrap: wrap; gap: 6px; } .lwdots i { width: 14px; height: 14px; border-radius: 50%; background: var(--muted); } .lwdots i.gank { background: var(--bad); }
+.lwsay { margin: 8px 0 0; }
+.lrlist { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 24px; margin: 0; }
+.lrlist dt { color: var(--muted); } .lrlist dd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.lrlist .mono { font-family: ui-monospace, Consolas, monospace; } .lrlist .pic0.sm { width: 22px; height: 22px; }
+.opill { padding: 1px 12px; border: 1px solid var(--muted); border-radius: 999px; } .opill.good { border-color: var(--good); color: var(--good); } .opill.bad { border-color: var(--bad); color: var(--bad); }
 .wins { display: grid; gap: 14px; } /* What's new 235: What wins for you, with the habit (light) and without (grey) */
 .winrow { display: grid; grid-template-columns: minmax(0, 16em) minmax(0, 1fr) auto; grid-template-areas: "l b g" ". t ."; gap: 4px 14px; align-items: center; }
 .winrow > b:first-child { grid-area: l; } .winrow .winbars { grid-area: b; } .winrow small { grid-area: t; } .winrow .gap { grid-area: g; color: var(--good); }
@@ -3218,6 +3230,10 @@ dialog.wizard { transform: scale(var(--from)); }
         <h2 id="h-wins" class="ph">What wins for you</h2>
         <p id="winsNote" class="hint"></p>
         <div id="wins" class="wins"></div>
+      </section>
+      <section class="panel lcu-only" data-tab="you" aria-labelledby="h-laneweek" hidden>
+        <h2 id="h-laneweek" class="ph">Your lane this week</h2>
+        <div id="laneWeek" class="laneweek"></div>
       </section>
       <section class="panel lcu-only" data-tab="you" aria-labelledby="h-climb">
         <div class="phbar"><h2 id="h-climb" class="ph">Ranked climb</h2>
@@ -11128,9 +11144,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // lb: race ('won', 'lost', 'even', 'late': decided before the box saw it), raceAt (game s), back: { name: when
   // they're in lane again (performance ms) }, items: { name: their item ids }
   let lb = { room: '' }, lbWalk = {};
-  const laneBoxOn = () => !!(opts.overlayLane && opts.laneBox && league && SR.test(league.mode) && gameNow() < 840 && boardOk());
-  function laneRows() { // { m: you, foe: your lane opponent, us, them } (League's players, carries first), or null
-    const m = laneBoxOn() && meIn(), pos = m && posIn(m), foe = pos && laneFoeIn(m);
+  const laneOn = () => !!(opts.overlayLane && opts.laneBox && league && SR.test(league.mode) && boardOk()), laneBoxOn = () => laneOn() && gameNow() < 840;
+  function laneRows(late) { // { m: you, foe: your lane opponent, us, them } (League's players, carries first), or null; late: after 14:00 too
+    const m = (late ? laneOn() : laneBoxOn()) && meIn(), pos = m && posIn(m), foe = pos && laneFoeIn(m);
     if (!foe || pos === 'JUNGLE') return null;
     const ps = DUO[pos] ? ['BOTTOM', 'UTILITY'] : [pos], at = (mine, x) => (x === pos && mine ? m : league.players.find((q) => (q.team === m.team) === mine && posIn(q) === x));
     return { m, foe, us: ps.map((x) => at(true, x)).filter(Boolean), them: ps.map((x) => at(false, x)).filter(Boolean) };
@@ -11143,9 +11159,22 @@ dialog.wizard { transform: scale(var(--from)); }
     return lbWalk[k] / speedOf(q, champOf(q.champ) || {});
   }
   function laneTick() {
-    const L = laneRows(), now = performance.now(), t = gameNow();
+    const L = laneRows(true), now = performance.now(), t = gameNow();
     if (!L) return;
-    if (lb.room !== league.room) lb = { room: league.room, race: '', raceAt: 0, back: {}, items: {} };
+    if (lb.room !== league.room) lb = { room: league.room, race: '', raceAt: 0, back: {}, items: {}, mine: null, gold: NaN, died: -99, backs: [], kept: false };
+    // your backs for the lane report (What's new 241): a new item while alive, not within 30 s of a death or another back,
+    // with the gold you had the tick before
+    const mine = (L.m.items || []).map(([i]) => i), last = lb.backs[lb.backs.length - 1];
+    if (L.m.dead) lb.died = t;
+    else if (lb.mine && t > 60 && t - lb.died > 30 && !(last && t - last[0] < 30) && Number.isFinite(lb.gold) && mine.some((i) => !lb.mine.includes(i) && !(i >= 3865 && i <= 3877))) lb.backs.push([Math.round(t), lb.gold]);
+    Object.assign(lb, { mine, gold: league.me ? league.me.gold : NaN });
+    if (t >= 840 && !lb.kept && curGame && curGame.id) { // 14:00: the lane report, kept for the game report's Laning tab and the week's card
+      lb.kept = true;
+      const gi = (q) => (itemGold ? goldOf(q) : 0), r = { g: String(curGame.id), at: Date.now(), pos: posIn(L.m), us: L.us.map((q) => q.champ), them: L.them.map((q) => q.champ),
+        race: ['won', 'lost', 'even'].includes(lb.race) ? lb.race : '', raceT: Math.round(lb.raceAt), cs: [L.m.cs, L.foe.cs], gold: [gi(L.m), gi(L.foe)], backs: lb.backs.filter(([x]) => x < 840), deaths: null };
+      store.set('lpc-lanes', JSON.stringify([...load('lpc-lanes', []).filter((x) => x.g !== r.g), r].slice(-60)));
+    }
+    if (t >= 840) return;
     if (!lb.race && (L.m.lvl >= 2 || L.foe.lvl >= 2)) { // League has no XP, so it's known within the 2 s poll after someone hits 2
       lb.race = t > 150 ? 'late' : L.m.lvl === L.foe.lvl ? 'even' : L.m.lvl > L.foe.lvl ? 'won' : 'lost';
       lb.raceAt = t;
@@ -15872,8 +15901,8 @@ dialog.wizard { transform: scale(var(--from)); }
       for (let i = 0; i < 10 && !ddItems; i++) await sleep(300);
       const ok = goodTl(tl), buys = await buysFor(r, ok ? tl : null), how = await hiBits(r).catch(() => null), ov = paneOf(box, 'overview');
       if (ok) {
-        const lane = laningEl(r, tl, how);
-        rtabFill(box, 'laning', lane ? [lane, junglerEl(r, tl)] : []);
+        const lane = laningEl(r, tl, how), mine = laneRepEl(r, tl);
+        rtabFill(box, 'laning', lane ? [mine, lane, junglerEl(r, tl)].filter(Boolean) : mine ? [mine] : []);
         const grubs = teamMonsters(r, tl, 'HORDE'), vs = box.querySelector('.sbvs');
         if (vs && grubs) vs.append(vsBar('Voidgrubs', ...grubs));
         let fig = ov.querySelector(':scope > .goldfig.lead');
@@ -16234,6 +16263,71 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     return box;
   }
+  // Your lane, 0:00 to 14:00 (What's new 241): the lane box's report kept at 14:00 (lpc-lanes: { g, at, pos, us, them
+  // (champions), race ('won', 'lost', 'even', ''), raceT, cs and gold [you, your lane opponent], backs [[s, gold]],
+  // deaths [[s, gank]] }), with your deaths before 14:00 from Riot's timeline: when, who (a gank: anyone not in your
+  // lane), where. The deaths are kept back into it for the week's card.
+  function laneRepEl(r, tl) {
+    const all = load('lpc-lanes', []), x = Array.isArray(all) && all.find((y) => y && y.g === String(r.id)), me = r.players[r.me];
+    if (!x || !me) return null;
+    const pid = me.pid || r.me + 1, champAt = (id) => (r.players.find((p, i) => (p.pid || i + 1) === id) || {}).champ, inLane = new Set(x.them.map((c) => (champOf(c) || {}).id));
+    const died = tlEvents(tl, 'CHAMPION_KILL').filter((e) => e.victimId === pid && e.timestamp < 840000).map((e) => {
+      const by = [e.killerId, ...(e.assistingParticipantIds || [])].map(champAt).filter((c) => champOf(c));
+      return { t: Math.round(e.timestamp / 1000), by, gank: by.some((c) => !inLane.has(champOf(c).id)), pos: e.position };
+    });
+    if (!x.deaths) { x.deaths = died.map((d) => [d.t, d.gank]); store.set('lpc-lanes', JSON.stringify(all)); }
+    const box = mk('section', 'laning lanerep'), faces = mk('div', 'lrhead');
+    box.setAttribute('aria-label', 'Your lane, 0:00 to 14:00');
+    faces.append(...x.us.map((c) => img(champImg(c), 'us')), mk('span', 'sub', 'against'), ...x.them.map((c) => img(champImg(c), 'them')));
+    box.append(mk('h3', 'ph', 'Your lane, 0:00 to 14:00'), faces);
+    const vs = (what, a, b, f) => {
+      const row = mk('div', 'latrow');
+      row.innerHTML = '<span class="sub"></span><b class="us"></b><span class="vsbar"><i></i><i></i></span><b class="them"></b>';
+      row.children[0].textContent = what; row.children[1].textContent = f(a); row.children[3].textContent = f(b);
+      row.querySelector('.vsbar i').style.width = `${a + b ? (100 * a) / (a + b) : 50}%`;
+      return row;
+    };
+    box.append(vs('CS at 14:00', x.cs[0] | 0, x.cs[1] | 0, String), vs('Gold in items', x.gold[0] | 0, x.gold[1] | 0, k1));
+    const list = mk('dl', 'lrlist'), line = (dt, ...dd) => { const d = mk('dd'); d.append(...dd); list.append(mk('dt', '', dt), d); };
+    if (x.race) line('Level 2 race', mk('span', 'opill' + (x.race === 'won' ? ' good' : x.race === 'lost' ? ' bad' : ''), x.race === 'won' ? 'Won' : x.race === 'lost' ? 'Lost' : 'Even'), mk('span', 'mono', mmss(x.raceT)));
+    for (const d of died) line('Death', mk('span', 'mono', mmss(d.t)), ...d.by.map((c) => img(champImg(c), 'pic0 sm')), `${d.gank ? 'a gank' : d.by.length > 1 ? `${d.by.length} on you` : 'one on one'}${d.pos ? ` in ${placeOf(d.pos, me.team)}` : ''}`);
+    for (const [t, g] of x.backs) line('Back', mk('span', 'mono', mmss(t)), `with ${Math.round(g).toLocaleString('en-US')} gold`);
+    if (!died.length) line('Deaths', 'None before 14:00');
+    box.append(list);
+    return box;
+  }
+  // Your lane this week (What's new 241), on Stats > You: the last 7 days' lane reports
+  function renderLaneWeek() {
+    const all = load('lpc-lanes', []), xs = (Array.isArray(all) ? all : []).filter((x) => x && Date.now() - x.at < 7 * 864e5), out = [];
+    $('laneWeek').closest('section').hidden = !xs.length;
+    if (!xs.length) return;
+    const races = xs.filter((x) => x.race === 'won' || x.race === 'lost').map((x) => x.race === 'won'), won = races.filter(Boolean).length;
+    if (races.length) {
+      const row = mk('div', 'lwrow'), b = mk('div', 'blk');
+      b.append(...wlBlocks(races));
+      row.append(b, mk('b', '', `Won ${won} of ${races.length}`));
+      out.push(mk('span', 'hint', `Level 2 races, last ${races.length === 1 ? 'game' : `${races.length} games`}`), row);
+    }
+    const avg = (i) => Math.round(avgOf(xs.map((x) => x.cs[i] | 0))), a = avg(0), o = avg(1);
+    const bars = mk('div', 'lwbars');
+    bars.innerHTML = '<i class="us"></i><b></b><i class="them"></i><b></b>';
+    bars.children[0].style.width = `${(100 * a) / Math.max(1, a, o)}%`; bars.children[1].textContent = String(a);
+    bars.children[2].style.width = `${(100 * o) / Math.max(1, a, o)}%`; bars.children[3].textContent = String(o);
+    out.push(mk('span', 'hint', 'CS at 14:00, you against them on average'), bars);
+    const ds = xs.filter((x) => Array.isArray(x.deaths)).flatMap((x) => x.deaths), ganks = ds.filter(([, g]) => g).length;
+    if (xs.some((x) => Array.isArray(x.deaths))) {
+      const dots = mk('div', 'lwrow'), d = mk('div', 'lwdots');
+      d.append(...ds.map(([, g]) => mk('i', g ? 'gank' : '')));
+      dots.append(d, mk('span', '', ds.length ? `${ds.length}, and ${ganks} of them ${ganks === 1 ? 'was a gank' : 'were ganks'}` : 'None'));
+      out.push(mk('span', 'hint', 'Deaths in lane'), dots);
+    }
+    const late = ds.filter(([t]) => t >= 480).length;
+    out.push(mk('p', 'lwsay', ds.length >= 2 && ganks * 2 > ds.length ? `Most of your lane deaths are ganks${late * 2 > ds.length ? ', and most come after 8:00' : ''}: watch your minimap for their jungler.`
+      : races.length >= 3 && won * 5 >= races.length * 3 ? 'You win the level 2 race in most games: look for a trade when you hit 2.'
+      : races.length >= 3 && won * 5 <= races.length * 2 ? 'You lose the level 2 race in most games: step back when they hit 2 first.'
+      : a < o - 5 ? `You’re ${o - a} CS behind them at 14:00 on average: last hits before trades.` : 'Your lane is about even this week.'));
+    $('laneWeek').replaceChildren(...out);
+  }
   // Their jungler in the first 14 minutes, to learn what to watch for on the minimap: where they were each minute
   // (Riot's timeline has everyone's spot once a minute), the deaths of yours they were in on, and where they were
   // before each. After the game only, like all of How you played.
@@ -16450,7 +16544,7 @@ dialog.wizard { transform: scale(var(--from)); }
     for (const b of statsView.querySelectorAll('.tab[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === statsTab));
     for (const s of statsView.querySelectorAll('.panel[data-tab]')) s.hidden = !g.length || s.dataset.tab !== statsTab;
     if (!g.length) return;
-    if (statsTab === 'you') { renderForm(g); renderWins(g); renderRanked(); renderWhen(g); renderHigh(g); renderSwings(); }
+    if (statsTab === 'you') { renderForm(g); renderWins(g); renderLaneWeek(); renderRanked(); renderWhen(g); renderHigh(g); renderSwings(); }
     else { renderMyChamps(g); renderNemeses(); renderDuos(); renderCollection(); patchChanges(); }
   }
   for (const b of statsView.querySelectorAll('.tab[data-tab]')) b.addEventListener('click', () => { statsTab = b.dataset.tab; store.set('lpc-stats-tab', statsTab); renderStats(); });
@@ -22032,6 +22126,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [241, 'November 27: your lane report', [
+      'With the lane box on, a game’s report has Your lane, 0:00 to 14:00 at the top of Laning: CS at 14:00 and the gold in your items against your lane opponent, the level 2 race, each of your deaths (when, who, where, and whether it was a gank) and your backs with the gold you had. Nothing pops up in the game.',
+      'Stats, You has Your lane this week: your level 2 races won and lost, your CS at 14:00 against theirs on average, your deaths in lane and how many were ganks, and one line on what to work on.',
+    ]],
     [240, 'November 27: your jungler coming', [
       'With the lane box showing and a minimap callout on, the box says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, from their walk round the walls at their speed. Nothing while they farm near you, and nothing out loud.',
     ]],
@@ -23428,6 +23526,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['HUD check', 'The layout picture puts League’s score, abilities and minimap where your HUD settings have them, and marks in red any part that covers one, with a line saying what it covers.', 'Settings, Overlay, Where it sits.', '#ovStage', 'app'],
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'Settings, Overlay, Voice and In game: turn on what you want.', '#optOverlay', 'app'],
       ['Who’s talking in any game', 'In your room outside League, who’s talking and new room chat show over any full-screen game, only while someone talks or writes, then fade away. Or have it whenever Premade isn’t the window in front.', 'Settings, Overlay, Voice: In other games, under Who’s talking and Room chat. Games in Borderless or Windowed mode.', '#optOverlayAny', 'app'],
+      ['Your lane report', 'With the lane box on, each Summoner’s Rift game’s lane is kept at 14:00. Its game report’s Laning tab starts with Your lane, 0:00 to 14:00: everyone in your lane, your CS and the gold in your items against your lane opponent’s, the level 2 race (Won or Lost and when), each of your deaths before 14:00 with who killed you, where and whether it was a gank, and your backs with the gold you had. Stats, You has Your lane this week from the last 7 days’ reports: level 2 races as won and lost blocks, CS at 14:00 against them on average, your deaths in lane with the ganks marked, and one line on what to work on.',
+        'Laning tab of a game report, and Stats, You, after games with the lane box on.', '#h-laneweek', 'app'],
       ['Your jungler coming', 'With the lane box showing and a minimap callout on, the box’s last line says when your own jungler walks toward you from further than 1,200 units, like “Jarvan IV coming bot, about 6 s”: their walk round the walls at their speed. Quiet while they’re near you or walking off, and never out loud.',
         'In the lane box, with any minimap callout on: Settings, Overlay, In game, Lane box.', '#optLaneBox', 'app'],
       ['Lane box', 'For the first 14 minutes of a Summoner’s Rift game, My lane is a box: everyone in your lane (bot: all four bot laners, mid and top: you and your lane opponent) with their level, Flash and its time left once timed (yours while Auto Flash reads your spell keys), the gold in their items and CS. One line under them: who hit level 2 first (at the top of the screen for 5 seconds too), “Both went back: about 30 s till they’re in lane” with their rows marked back, or who’s stronger by levels, Flash and gold in items. The Coach’s levels-down tip waits while it shows. Needs League’s positions, so not in blind pick.',
@@ -23567,6 +23667,7 @@ dialog.wizard { transform: scale(var(--from)); }
     lc: () => lcS && { ...lcS, r: undefined, deck: lcS.deck.length, acts: lcG.acts.length, id: lcG.id, names: lcG.names },
     phoneQuality,
     jungler: (r, tl) => junglerEl(r, tl),
+    laneRep: (r, tl) => laneRepEl(r, tl), laneWeek: () => { renderLaneWeek(); return $('laneWeek'); }, curGame: (v) => { curGame = v; }, // What's new 241
     jgLog: (v) => { jgLog = v; }, // What's new 235: this game's jungler calls, as seeFoes keeps them
     dodgeSay, habits: (tl, pid) => habitsOf(tl, pid),
     weakSide: (rows, data) => { for (const [k, v] of Object.entries(data)) scoutData.set(k, v); return weakSide(rows); },
