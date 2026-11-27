@@ -812,8 +812,9 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .analysis { display: grid; gap: 22px; }
 /* a game's report (What's new 187): the head over the skin you played, tabs, the rows with drawers, the teams side by
    side, filled lead charts, bars against your usual and builds by shop trip. Under 900 px of report a row folds onto two lines. */
-.report { --ally: #4a9fe8; --foe: #e05a5a; flex: 1 1 100%; min-width: 0; display: grid; container: rep / inline-size; }
-[data-theme="light"] .report { --ally: #1f6fbf; --foe: #c0392b; }
+.report, #liveWin { --ally: #4a9fe8; --foe: #e05a5a; }
+.report { flex: 1 1 100%; min-width: 0; display: grid; container: rep / inline-size; }
+[data-theme="light"] :is(.report, #liveWin) { --ally: #1f6fbf; --foe: #c0392b; }
 .rhead { position: relative; min-height: 212px; overflow: hidden; border-radius: var(--r); }
 .rart { position: absolute; top: 0; right: 0; width: 74%; height: 100%; object-fit: cover; object-position: 50% 21%; pointer-events: none;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 50%), linear-gradient(to bottom, #000 60%, transparent); -webkit-mask-composite: source-in;
@@ -1217,6 +1218,59 @@ output.vend { font-family: var(--mono); }
 .blist .sub { font-size: 12px; }
 .blist li[data-k="have"] { opacity: 0.6; }
 .blist li[data-k="next"] span:not(.sub) { color: var(--gold); font-weight: 600; }
+.ibuild { display: grid; gap: 20px; }
+.ibhead { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ibhead .ph { margin: 0; }
+.ibchamp { width: 36px; height: 36px; border-radius: 50%; }
+.ibhead .vpills { margin-left: auto; }
+.ibrate { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 32px; }
+.ibrate > div { display: grid; gap: 6px; width: 136px; font-size: 13px; color: var(--muted); }
+.ibrate b { font-size: 18px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.ibtrack, .ibbar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+:is(.ibtrack, .ibbar) > i { display: block; height: 100%; background: var(--best); }
+.ibtrack.won > i { background: var(--good); }
+.ibrate > .ibvs { display: flex; align-items: center; gap: 8px; width: auto; }
+.ibvs img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.ibgrid { display: grid; gap: 28px; }
+.ibgrid > div { display: flex; flex-wrap: wrap; gap: 24px 40px; }
+.ibsec { display: grid; gap: 10px; align-content: start; }
+.ibsec > span { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.ibrow { display: flex; align-items: flex-start; gap: 4px; }
+.ibrow > .gt { align-self: start; padding-top: 14px; color: var(--muted); }
+.ibit { position: relative; width: 92px; display: grid; justify-items: center; gap: 6px; font-size: 12.5px; line-height: 1.25; text-align: center; }
+.ibit > img { width: 48px; height: 48px; border-radius: 6px; }
+.ibit.have { opacity: 0.4; }
+.ibit.can > img { outline: 2px solid var(--fg); outline-offset: 2px; }
+.ibit .ibbar { width: 48px; }
+.ibit small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ibfaces { position: absolute; top: -6px; left: calc(50% + 12px); display: flex; }
+.ibfaces img { width: 20px; height: 20px; box-sizing: border-box; border: 2px solid var(--bad); border-radius: 50%; object-fit: cover; }
+.ibfaces img + img { margin-left: -6px; }
+.ibpots { align-self: center; font-size: 12.5px; color: var(--muted); }
+.ibkey { display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; font-weight: 700; }
+.ibrow > .ibkey + .gt { padding-top: 6px; }
+#liveBuild.edit :is(h3, .bwhy) { display: none; }
+#liveBuild.edit .blist { max-width: 600px; }
+.imore { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 48px; align-items: start; padding-top: 24px; border-top: 1px solid var(--hair); }
+@container app (max-width: 1100px) { .imore { grid-template-columns: minmax(0, 1fr); } }
+.ilane, #liveLane, .iteams { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.iteams { padding-top: 24px; border-top: 1px solid var(--hair); }
+.ibrate b.up { color: var(--good); } .ibrate b.dn { color: var(--bad); }
+.ibrate small { font-size: 12px; color: var(--muted); }
+.ibhead .tag { margin-left: 4px; }
+.itips { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+#liveWin .goldfig.lead { margin: 0; padding: 0; }
+.itgrid { display: grid; grid-template-columns: max-content repeat(2, minmax(0, 1fr)); gap: 14px 32px; align-items: center; font-size: 13px; }
+.itgrid > .lab { color: var(--muted); }
+.itgrid > b { font-size: 15px; font-variant-numeric: tabular-nums; } .itgrid > b.up { color: var(--good); } .itgrid > b.dn { color: var(--bad); }
+.itfaces { display: flex; flex-wrap: wrap; gap: 4px; }
+.itfaces img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.itdmg { display: grid; gap: 6px; color: var(--muted); }
+.itdmg > span { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--g-great); }
+.itdmg > span > i { background: var(--g-risky); }
+.itdmg small { font-size: 12px; }
+.ithead { display: grid; gap: 8px; }
+#liveWin figcaption .sub b { font-size: 18px; color: var(--fg); }
 .noteedit summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .noteedit form { margin-top: 8px; }
 #whoForm { align-items: end; }
@@ -3187,8 +3241,10 @@ dialog.wizard { transform: scale(var(--from)); }
     <section class="view" data-view="game" aria-label="Game" hidden>
       <section id="liveBox" class="panel" aria-label="In game" hidden>
         <div id="mayBox" class="maybox" hidden></div>
+        <div id="liveItems" class="ibuild" hidden><div class="ibhead"><img class="ibchamp" alt=""><h3 class="ph">Item build</h3><span class="vpills"></span><button class="btn small ibchg" type="button" aria-controls="liveBuild" aria-expanded="false">Change it</button></div><div class="ibrate"></div><div class="ibgrid"></div></div>
         <div id="liveBuild" class="buildbox" hidden><h3 class="ph"></h3><p class="hint bwhy"></p><ol class="blist"></ol><form class="pick badd"><label>Add an item <input list="itemList" autocomplete="off" spellcheck="false" placeholder="Item name"></label><button class="btn small" type="submit">Add</button><button class="btn small breset" type="button" hidden>Back to Premade’s build</button></form></div>
-        <div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div>
+        <div class="imore"><div class="ilane"><div id="liveLane" hidden></div><div id="liveNotes" class="notes"><p class="notehint hint"></p><div class="notelist"></div><details class="noteedit"><summary>Write a matchup note</summary><form class="noteform pick"><label>Against <input list="champs" autocomplete="off" spellcheck="false" placeholder="Champion name"></label><label>Note <textarea rows="3" maxlength="500"></textarea></label><button class="btn small" type="submit">Save the note</button></form></details></div></div><div id="liveWin" hidden></div></div>
+        <div id="liveTeams" class="iteams" hidden></div>
       </section>
       <section id="comboBox" class="panel" aria-labelledby="h-combo" hidden>
         <h2 id="h-combo" class="ph">Combo trainer <button class="tip" type="button" popovertarget="t-combo" aria-label="About the combo trainer">?</button></h2>
@@ -7524,6 +7580,7 @@ dialog.wizard { transform: scale(var(--from)); }
     applyFx();
     if (league && opts.autoRoom && !opts.justLeague && GAME_ROOM.test(league.room)) autoRoom(league.room); // Just League has no voice (What's new 207)
     autoPick();
+    winTick();
     render();
   }
   async function autoRoom(code) {
@@ -7666,10 +7723,11 @@ dialog.wizard { transform: scale(var(--from)); }
     const lb = lobbyNow(rows), mineT = (rows.find((p) => p.ally) || {}).team, runes = boardRunes(); // each row's line: its average rank in its color, and which is favored
     skinsSoon(rows.map((p) => p.name).filter(riotIdOk));
     const avg = (t, fav) => [t, TIER_C[TIERS.findIndex((x) => t.toUpperCase().startsWith(x))] || '', fav];
+    const tips = loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null; // the overlay draws the title and lines (vs is the Game page's)
     return { load: !!loading, dd: ddVersion ? `${DD}/cdn/${ddVersion}` : '', side: mineT === 'CHAOS' ? 'red' : 'blue',
       us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
       heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null, bg: boardBgNow(), items: loading ? null : boardItems(rows),
-      tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null, ...(weak && { weak: { lane: weak.lane, why: weak.why } }) };
+      tips: tips && { title: tips.title, lines: tips.lines }, ...(weak && { weak: { lane: weak.lane, why: weak.why } }) };
   }
   // Their weak side (What's new 235): each of their lanes (bot: the ADC and support together) scored from its players'
   // last 10 games, less 15 points for each First time on, Autofill or Rusty tag; named only once everyone's games are
@@ -8223,20 +8281,23 @@ dialog.wizard { transform: scale(var(--from)); }
     return { items: l.map((x) => ({ name: ddItems[x.id].name, pic: itemPic(x.id), why: x.why, of: x.of, faces: x.faces })), gold: Number.isFinite(g) ? Math.floor(g) : null,
       left: leftOf(l[0].id, owned(meIn().items)), ver: p.ver, vers: p.has };
   }
-  // the panel beside the rank board in a game (What's new 228): the build you're on in full (Item build), and each
-  // team's averages from the rank cards' last 20 games, damage, front line and tags (Their team, Your team)
-  function boardItems(rows) {
+  // the build you're on in full (What's new 228): Item build in the panel beside the rank board in a game, and the Game
+  // page (What's new 239); next is the item What to buy shows first; null when What to buy has no build
+  function buildNow() {
     const p = buyPlan(), m = meIn(), it = (id) => (ddItems && ddItems[id]) || {};
-    let build = null;
-    if (p) {
-      const have = owned(m.items), path = p.v.path, faces = new Map(path.map((x) => [x.id, x.faces])), item = (id) => ({ pic: itemPic(id), name: it(id).name || '', have: have.has(id), faces: faces.get(id) || [] });
-      const ids = (m.items || []).map(([id]) => (+id > 99999 ? +id % 10000 : +id)), done = [...new Set([...ids, ...path.map((x) => x.id)].filter((id) => it(id).done))];
-      const boots = ids.filter((id) => it(id).boots && !it(id).done).pop() || (path.find((x) => it(x.id).boots) || {}).id || p.v.boots, core = done.slice(0, 3);
-      const t = p.top, with3 = t && core.length ? t.buys.map((b, i) => (core.every((x) => b.some(([, y]) => y === x)) ? i : -1)).filter((i) => i >= 0) : [], sk = t && skillsFrom(t.skills), o = laneFoeIn(m);
-      build = { ver: p.ver, vers: p.has, picked: t ? with3.length / t.buys.length : null, won: with3.length ? with3.filter((i) => t.bw[i]).length / with3.length : null,
-        vs: o ? champImg(o.champ) : '', start: p.v.start.filter((id) => id !== 2003).map(item), pots: p.v.start.filter((id) => id === 2003).length, core: core.map(item), boots: boots ? item(boots) : null,
-        later: done.slice(3, 6).map(item), lv: sk ? sk.first.split(', ') : [], max: sk ? sk.max.split(', then ') : [] };
-    }
+    if (!p) return null;
+    const have = owned(m.items), path = p.v.path, at = new Map(path.map((x) => [x.id, x])), item = (id) => ({ id, pic: itemPic(id), name: it(id).name || '', have: have.has(id), faces: (at.get(id) || {}).faces || [], why: [(at.get(id) || {}).why, (at.get(id) || {}).of].filter(Boolean).join('. ') });
+    const ids = (m.items || []).map(([id]) => (+id > 99999 ? +id % 10000 : +id)), done = [...new Set([...ids, ...path.map((x) => x.id)].filter((id) => it(id).done))];
+    const boots = ids.filter((id) => it(id).boots && !it(id).done).pop() || (path.find((x) => it(x.id).boots) || {}).id || p.v.boots, core = done.slice(0, 3);
+    const t = p.top, with3 = t && core.length ? t.buys.map((b, i) => (core.every((x) => b.some(([, y]) => y === x)) ? i : -1)).filter((i) => i >= 0) : [], sk = t && skillsFrom(t.skills), o = laneFoeIn(m);
+    return { ver: p.ver, vers: p.has, next: path[0].id, picked: t ? with3.length / t.buys.length : null, won: with3.length ? with3.filter((i) => t.bw[i]).length / with3.length : null,
+      vs: o ? champImg(o.champ) : '', start: p.v.start.filter((id) => id !== 2003).map(item), pots: p.v.start.filter((id) => id === 2003).length, core: core.map(item), boots: boots ? item(boots) : null,
+      later: done.slice(3, 6).map(item), lv: sk ? sk.first.split(', ') : [], max: sk ? sk.max.split(', then ') : [] };
+  }
+  // the panel beside the rank board in a game (What's new 228): Item build (buildNow), and each team's averages from
+  // the rank cards' last 20 games, damage, front line and tags (Their team, Your team)
+  function boardItems(rows) {
+    const build = buildNow();
     const team = (ally) => {
       const ps = rows.filter((x) => x.ally === ally), gs = ps.map((x) => x.puuid && (scoutData.get(x.puuid) || {}).games).filter((g) => Array.isArray(g) && g.length);
       const avg = (f) => gs.reduce((v, g) => v + g.reduce((a, x) => a + f(x), 0) / g.length, 0) / gs.length;
@@ -9068,7 +9129,7 @@ dialog.wizard { transform: scale(var(--from)); }
       if (m.prog.go === 'scoreboard') { if (client.front) client.front(); view('game', true); }
       if (m.prog.id === 'strip' && TIMER_K.test(m.prog.go)) startTimer(m.prog.go, true); // a click on the enemy strip (What's new 183)
       if (m.prog.id === 'flashAsk' && typeof m.prog.go === 'string') flashAsked(m.prog.go); // whose Flash it was (What's new 230)
-      if (m.prog.id === 'buy' && league && /^(wr|team|mine)$/.test(m.prog.go)) { buyVer = { room: league.room, v: m.prog.go }; pushOverlay(); } // a version pill, on the strip or the panel (What's new 228)
+      if (m.prog.id === 'buy' && league && /^(wr|team|mine)$/.test(m.prog.go)) { buyVer = { room: league.room, v: m.prog.go }; pushOverlay(); renderGame(); } // a version pill, on the strip or the panel (What's new 228); the Game page follows (239)
       if (m.prog.id === 'player' && riotIdOk(m.prog.go)) { boardAway = true; pushOverlay(); if (client.front) client.front(); view('profile', true); lookUp(m.prog.go); } // a name on everyone's rank (What's new 195)
       if (m.prog.id === 'size' && overlayEdit && Number.isFinite(m.prog.x)) { opts.overlayScale = Math.min(2, Math.max(0.7, m.prog.x)); saveOpts(); showScale(); pushOverlay(); ovDraw(); } // Move it's corner on the League screen (What's new 225)
       return;
@@ -11821,7 +11882,7 @@ dialog.wizard { transform: scale(var(--from)); }
     $('uxFixBtn').textContent = ['League’s window stuck? Fix it', 'Restarting League’s window…', 'Done'][uxStep];
     $('uxFixBtn').disabled = uxStep === 1;
     $('uxFixNote').textContent = ['Only League’s window restarts. Your party and your place in the queue stay.', 'League’s window closes and opens again by itself, in about 10 seconds. You stay in the queue.', 'League’s window is back. Your party and your place in the queue stayed.'][uxStep];
-    $('preNote').textContent = old || (inGame ? 'In game: your build and matchup notes are on the Game page.' : ''); // What's new 202: the draft board and tier list are the idle page
+    $('preNote').textContent = old || (inGame ? 'In game: your build, your lane and both teams are on the Game page.' : ''); // What's new 202: the draft board and tier list are the idle page
     $('rcBox').hidden = !(ph === 'ReadyCheck' && rc && rc.state === 'InProgress');
     if (!$('rcBox').hidden) $('rcState').textContent = rc.playerResponse === 'Accepted' ? 'You accepted. Waiting for the others…' : rc.playerResponse === 'Declined' ? 'You declined.' : `${Math.max(0, 12 - Math.round(rc.timer || 0))} s left`;
     $('csBox').hidden = !(ph === 'ChampSelect' && cs);
@@ -11832,13 +11893,16 @@ dialog.wizard { transform: scale(var(--from)); }
     renderPost(live);
     renderCombo();
     renderJg();
-    if (live) { // What's new 227: only what the overlay doesn't show (Mayhem's part, your build, matchup notes)
+    if (live) { // What's new 227 and 239: Mayhem's part, your build, your lane with your notes, the win chance and both teams
       if (mayhem() && meIn()) renderMay();
       const rows = liveList();
       renderNotes($('liveNotes'), myChampNow(), rows.filter((p) => !p.ally).map((p) => p.champ).filter(Boolean));
-      const mi = meIn();
-      renderBuild($('liveBuild'), myChampNow(), mi ? posIn(mi) : (livePlayers.find((p) => me0 && p.puuid === me0.puuid) || {}).pos || '');
-      if (!$('mayBox').hidden && mayBuild()) $('liveBuild').hidden = true; // Mayhem's builds are in its own part
+      const mi = meIn(), br = boardRows(), bi = boardItems(br);
+      renderItems(myChampNow(), mi ? posIn(mi) : (livePlayers.find((p) => me0 && p.puuid === me0.puuid) || {}).pos || '', bi.build);
+      renderLane(rows);
+      renderWin();
+      renderBoth(br, bi);
+      if (!$('mayBox').hidden && mayBuild()) $('liveItems').hidden = $('liveBuild').hidden = true; // Mayhem's builds are in its own part
     }
     renderClash(ph);
     renderTier();
@@ -15549,9 +15613,9 @@ dialog.wizard { transform: scale(var(--from)); }
     return ids.find((id) => ddItems[id] && !have.has(id) && !(shod && it(id).boots && !it(id).from.some((f) => have.has(f)))) || 0;
   }
   const buildWas = new WeakMap();
-  function renderBuild(box, c, pos) {
+  function renderBuild(box, c, pos, base) { // base: the build to start from instead of Premade's (the Game page's, What's new 239)
     itemsSoon();
-    const picked = pickedBuild(c, pos, renderGame), mineB = c ? myBuild(c, pos) : null, ids = mineB || (picked && picked.ids) || [];
+    const picked = pickedBuild(c, pos, renderGame), mineB = c ? myBuild(c, pos) : null, ids = mineB || base || (picked && picked.ids) || [];
     box.hidden = !ids.length;
     if (box.hidden) return;
     const m = league && meIn(), have = owned(m && +(champOf(m.champ) || {}).key === c ? m.items : []), next = nextOf(ids, have);
@@ -15560,8 +15624,9 @@ dialog.wizard { transform: scale(var(--from)); }
     buildWas.set(box, key);
     box.dataset.c = c;
     box.dataset.pos = pos || '';
-    box.querySelector('h3').textContent = `${mineB ? 'Your build' : picked.title || 'Premade’s build'} on ${champName(c)}`;
-    box.querySelector('.bwhy').textContent = mineB ? `You changed this build, so what to buy next goes by it, in this order.${picked ? ' Premade’s is a click away.' : ''}` : picked.why;
+    box.dataset.base = base ? base.join() : '';
+    box.querySelector('h3').textContent = `${mineB ? 'Your build' : (picked && picked.title) || 'Premade’s build'} on ${champName(c)}`;
+    box.querySelector('.bwhy').textContent = mineB ? `You changed this build, so what to buy next goes by it, in this order.${picked ? ' Premade’s is a click away.' : ''}` : picked ? picked.why : '';
     box.querySelector('.breset').hidden = !mineB;
     box.querySelector('.blist').replaceChildren(...ids.map((id, i) => {
       const li = document.createElement('li'), img = Object.assign(new Image(), { src: itemPic(id), alt: '' }), name = document.createElement('span'), sub = document.createElement('span');
@@ -15578,11 +15643,13 @@ dialog.wizard { transform: scale(var(--from)); }
     }));
   }
   function editBuild(box, f) {
-    const c = +box.dataset.c, pos = box.dataset.pos, picked = pickedBuild(c, pos, renderGame), l = [...(myBuild(c, pos) || (picked && picked.ids) || [])];
+    const c = +box.dataset.c, pos = box.dataset.pos, picked = pickedBuild(c, pos, renderGame), base = box.dataset.base ? box.dataset.base.split(',').map(Number) : null;
+    const l = [...(myBuild(c, pos) || base || (picked && picked.ids) || [])];
     f(l);
     myBuilds[buildKey(c, pos)] = l.slice(0, 12);
     store.set('lpc-builds', JSON.stringify(myBuilds));
     if (itemsFor === buildKey(c, pos)) { itemsFor = ''; setItems(c, pos); } // League's shop item set too
+    if (league) { buyVer = { room: league.room, v: 'mine' }; pushOverlay(); } // in a game, What to buy goes by it from now (What's new 239)
     renderGame();
   }
   for (const box of document.querySelectorAll('.buildbox')) {
@@ -15605,6 +15672,171 @@ dialog.wizard { transform: scale(var(--from)); }
       if (itemsFor === buildKey(c, pos)) { itemsFor = ''; setItems(c, pos); }
       renderGame();
     });
+  }
+  // The Game page in a game (What's new 239): the build you're on, drawn like Item build beside the rank board but page
+  // sized, in the version picked here or on the overlay (one choice for both): picked and won, start, core, boots, later
+  // and skills, items you have dimmed, the next one with a bar your gold fills (a ring once you can buy it) and, on Vs
+  // their team, the faces of the enemies an item moved up for; hover an item for why. Change it opens your build below
+  // (#liveBuild, starting from the build shown). Before the game starts, and where What to buy has no build (not on
+  // Summoner's Rift or in Mayhem), #liveBuild shows as before.
+  const VERS = { wr: 'Best win rate', team: 'Vs their team', mine: 'Yours' };
+  let ibEdit = false, ibWas = '';
+  function renderItems(c, pos, b) { // b: buildNow()
+    const box = $('liveItems'), ed = $('liveBuild');
+    box.hidden = !b;
+    ed.classList.toggle('edit', !!b);
+    if (!b) return renderBuild(ed, c, pos);
+    renderBuild(ed, c, pos, [...b.core, ...(b.boots ? [b.boots] : []), ...b.later].map((x) => x.id));
+    if (!ibEdit) ed.hidden = true;
+    const chg = box.querySelector('.ibchg');
+    chg.textContent = ibEdit ? 'Done' : 'Change it';
+    chg.setAttribute('aria-expanded', String(ibEdit));
+    const m = meIn(), g = league.me && league.me.gold, gold = Number.isFinite(g) ? Math.floor(g) : null, left = leftOf(b.next, owned(m.items)), can = gold !== null && gold >= left;
+    const key = JSON.stringify([b, can, gold !== null]);
+    if (key !== ibWas) {
+      ibWas = key;
+      box.querySelector('.ibchamp').src = champImg(m.champ);
+      box.querySelector('.vpills').replaceChildren(...(b.vers.length > 1 ? b.vers : []).map((v) => {
+        const x = mk('button', 'vpill', VERS[v]);
+        x.type = 'button';
+        x.dataset.v = v;
+        x.setAttribute('aria-pressed', String(v === b.ver));
+        return x;
+      }));
+      const rate = [];
+      for (const [v, w, cls] of [[b.picked, 'picked', ''], [b.won, 'won', ' won']]) {
+        if (!Number.isFinite(v)) continue;
+        const d = mk('div'), t = mk('span'), track = mk('span', 'ibtrack' + cls), fill = mk('i');
+        t.append(mk('b', '', `${Math.round(v * 100)}%`), ` ${w}`);
+        fill.style.width = `${Math.round(v * 100)}%`;
+        track.append(fill);
+        d.append(t, track);
+        rate.push(d);
+      }
+      if (b.vs) { const d = mk('div', 'ibvs', 'vs'); d.append(img(b.vs)); rate.push(d); }
+      box.querySelector('.ibrate').replaceChildren(...rate);
+      const tile = (x) => {
+        const d = mk('div', `ibit${x.have ? ' have' : ''}${x.id === b.next ? ' next' : ''}${x.id === b.next && can ? ' can' : ''}`);
+        d.title = x.why;
+        d.append(img(x.pic));
+        if (x.id === b.next && gold !== null) { const bar = mk('span', 'ibbar'); bar.append(mk('i')); d.append(bar); }
+        d.append(mk('span', '', x.name));
+        if (x.id === b.next && gold !== null) d.append(mk('small'));
+        if (x.faces.length) { const f = mk('span', 'ibfaces'); f.append(...x.faces.slice(0, 2).map((src) => img(src))); d.append(f); }
+        return d;
+      };
+      const sec = (name, parts) => { const d = mk('div', 'ibsec'), r = mk('div', 'ibrow'); r.append(...parts); d.append(mk('span', '', name), r); return d; };
+      const order = (l, f) => l.flatMap((x, i) => (i ? [mk('span', 'gt', '›'), f(x)] : [f(x)])), skill = (k) => mk('span', 'ibkey', String(k).slice(0, 1));
+      const items = mk('div'), skills = mk('div');
+      if (b.start.length || b.pots) items.append(sec('Start', [...b.start.map(tile), ...(b.pots ? [mk('span', 'ibpots', `+${b.pots} potion${b.pots === 1 ? '' : 's'}`)] : [])]));
+      if (b.core.length) items.append(sec('Core, in order', order(b.core, tile)));
+      if (b.boots) items.append(sec('Boots', [tile(b.boots)]));
+      if (b.later.length) items.append(sec('Later', b.later.map(tile)));
+      if (b.lv.length) skills.append(sec('Levels 1 to 3', b.lv.slice(0, 3).map(skill)));
+      if (b.max.length) skills.append(sec('Skill order', order(b.max.slice(0, 3), skill)));
+      box.querySelector('.ibgrid').replaceChildren(...[items, skills].filter((x) => x.childElementCount));
+    }
+    const fill = box.querySelector('.ibit.next .ibbar > i');
+    if (fill) {
+      fill.style.width = `${(left ? Math.min(1, gold / left) : 1) * 100}%`;
+      box.querySelector('.ibit.next small').textContent = can ? 'You can buy it now' : `${(left - gold).toLocaleString('en-US')} gold to go`;
+    }
+  }
+  $('liveItems').addEventListener('click', (e) => {
+    const v = e.target.closest('.vpill');
+    if (v && league) { buyVer = { room: league.room, v: v.dataset.v }; pushOverlay(); renderGame(); } // the overlay's strip and panel follow
+    if (e.target.closest('.ibchg')) { ibEdit = !ibEdit; renderGame(); }
+  });
+  // Below the build (What's new 239): your lane, the tips the overlay shows while you're dead with high elo's numbers
+  // drawn, beside your team's chance to win over the game (the game report's lead graph, objectives over it); then both
+  // teams from the panel beside the rank board, side by side
+  let laneWas = null, winWas = '', teamsWas = '';
+  function renderLane(rows) {
+    const box = $('liveLane'), lane = league && SR.test(league.mode) ? myLane(rows) : null, t = lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null;
+    box.hidden = !t;
+    if (!t || t === laneWas) return;
+    laneWas = t;
+    const v = t.vs, head = mk('div', 'ibhead'), parts = [head];
+    head.append(...[lane.foe, lane.duo].filter(Boolean).map((c) => img(champImg(c), 'ibchamp')), mk('h3', 'ph', t.title));
+    if (v) {
+      const tag = mk('span', 'tag', v.k < 0.46 ? 'Hard matchup' : v.k > 0.54 ? 'Good matchup' : 'Even matchup'), rate = mk('div', 'ibrate'), won = mk('div'), num = mk('span'), track = mk('span', 'ibtrack won'), fill = mk('i');
+      if (v.k < 0.46 || v.k > 0.54) tag.dataset.k = v.k < 0.46 ? 'bad' : 'good';
+      head.append(tag);
+      num.append(mk('b', '', pct(v.w / v.n)), ' won');
+      fill.style.width = pct(v.w / v.n);
+      track.append(fill);
+      won.append(num, track, mk('small', '', `${v.n} high elo games`));
+      rate.append(won);
+      for (const [x, what] of [[v.gold, 'gold at 10'], [v.cs, 'CS at 10']]) {
+        if (x == null) continue;
+        const d = mk('div'), n = mk('span');
+        n.append(mk('b', Math.round(x) > 0 ? 'up' : Math.round(x) < 0 ? 'dn' : '', sgn(x)), ` ${what}`);
+        d.append(n);
+        rate.append(d);
+      }
+      parts.push(rate);
+    }
+    const tips = t.lines.filter((l) => l !== (v && v.line) && !/^Your note/.test(l)); // your notes are just below
+    if (tips.length) { const ul = mk('ul', 'itips'); ul.append(...tips.map((l) => mk('li', '', l))); parts.push(ul); }
+    box.replaceChildren(...parts);
+  }
+  let winLine = { room: '', pts: [] }; // your team's chance to win every 15 s of game time while Premade is open: [[s, chance]]
+  function winTick() { // on each of League's updates, so the line goes on while the page is closed
+    if (!league) return;
+    if (winLine.room !== league.room) winLine = { room: league.room, pts: [] };
+    const t = gameNow(), l = winLine.pts;
+    if (l.length && t - l[l.length - 1][0] < 15) return;
+    const w = winChance();
+    if (w != null) l.push([Math.round(t), w]);
+  }
+  const TOOK_NOW = { dragon: ['dragon', 'a dragon'], elder: ['dragon', 'the Elder Dragon'], herald: ['baron', 'the Rift Herald'], baron: ['baron', 'Baron'], tower: ['tower', 'a tower'] };
+  function renderWin() {
+    const box = $('liveWin'), l = league && winLine.room === league.room ? winLine.pts : [], ev = (league && league.events) || [], key = `${l.length},${ev.length}`;
+    box.hidden = l.length < 2;
+    if (box.hidden || key === winWas) return;
+    winWas = key;
+    const us = mine.team || 'ORDER', now = l[l.length - 1], fig = leadGraph([[0, 0], ...l.map(([t, w]) => [t, w - 0.5])], 'Win chance', (v) => pct(v + 0.5), 0.02, ['Your team ahead', 'Their team ahead']); // every game starts even
+    fig.querySelector('figcaption b').replaceWith(mk('h3', 'ph', 'Win chance'));
+    fig.querySelector('figcaption .sub').replaceChildren(mk('b', '', pct(now[1])), ' now');
+    fig.querySelector('svg').setAttribute('aria-label', `Your team’s chance to win over the game: ${pct(now[1])} now`);
+    const strip = mk('div', 'when');
+    strip.append(...ev.filter((e) => TOOK_NOW[e.e] && (e.e === 'tower' ? e.of : e.team) && e.t <= now[0]).map((e) => {
+      const [k, what] = TOOK_NOW[e.e], ours = e.e === 'tower' ? e.of !== us : e.team === us, s = mk('span'); // a tower: whose fell
+      s.innerHTML = svgPath(WHEN[k], 14).replace('0 0 24 24', '0 0 16 16');
+      s.dataset.side = ours ? 'us' : 'them';
+      s.style.left = `${fig.at(e.t)[0]}%`;
+      s.title = `${mmss(e.t)}: ${ours ? 'your' : 'their'} team took ${what}`;
+      return s;
+    }));
+    if (strip.childElementCount) fig.insertBefore(strip, fig.querySelector('.leadbox'));
+    box.replaceChildren(fig);
+  }
+  function renderBoth(rows, bi) { // both teams
+    const box = $('liveTeams'), key = JSON.stringify([rows.map((p) => [p.champ, p.ally]), bi.us, bi.them]);
+    box.hidden = !rows.length;
+    if (box.hidden || key === teamsWas) return;
+    teamsWas = key;
+    const { us, them } = bi, g = mk('div', 'itgrid'), row = (label, a, b) => g.append(mk('span', 'lab', label), a, b);
+    const faces = (l) => { const d = mk('div', 'itfaces'); d.append(...l.map((src) => img(src))); return d; };
+    const head = (name, ally) => { const d = mk('div', 'ithead'); d.append(mk('h3', 'ph', name), faces(rows.filter((p) => p.ally === ally).map((p) => champImg(p.champ)))); return d; };
+    row('', head('Your team', true), head('Their team', false));
+    if (us.n > 0 || them.n > 0) for (const [k, name] of [['wr', 'Win rate'], ['k', 'Kills'], ['d', 'Deaths'], ['a', 'Assists']]) {
+      const show = (t) => (!(t.n > 0) ? '–' : k === 'wr' ? pct(t[k]) : t[k].toFixed(1)), better = (t, o) => t.n > 0 && o.n > 0 && show(t) !== show(o) && (k === 'd' ? t[k] < o[k] : t[k] > o[k]); // fewer deaths is better
+      row(name, mk('b', better(us, them) ? 'up' : '', show(us)), mk('b', better(them, us) ? 'dn' : '', show(them))); // green where your team is better, red where theirs is
+    }
+    const dmg = (t) => {
+      if (!Number.isFinite(t.magic)) return mk('span');
+      const d = mk('div', 'itdmg'), bar = mk('span'), ph = mk('i'), p = Math.round((1 - t.magic) * 100);
+      ph.style.width = `${p}%`;
+      bar.append(ph);
+      d.append(bar, mk('small', '', `${p}% physical, ${100 - p}% magic`));
+      return d;
+    };
+    row('Damage', dmg(us), dmg(them));
+    row('Front line', us.front.length ? faces(us.front) : mk('span', 'lab', 'None'), them.front.length ? faces(them.front) : mk('span', 'lab', 'None'));
+    const tags = (t) => { const d = mk('div', 'tags'); d.append(...t.tags.map((x) => mk('span', 'tag', x))); return d; };
+    if (us.tags.length || them.tags.length) row('', tags(us), tags(them));
+    box.replaceChildren(g, ...(us.n > 0 || them.n > 0 ? [mk('p', 'hint', 'Win rate, kills, deaths and assists: each player’s last 20 games.')] : []));
   }
   // A player's runes or items from a game report, copied into League (desktop app): the runes as a rune page of this
   // app's own ("Copy: ...", one, reused), with the shards from Riot's copy of the game (League's client leaves them
@@ -17914,7 +18146,7 @@ dialog.wizard { transform: scale(var(--from)); }
 
   // ---- matchup tips: playing your champion against their champion in your lane, before the game (champ select and the
   // loading screen) and while you're dead (deadTips: Riot's rules keep advice out of the game itself, and Rayan's Riot
-  // contact said yes to this). From the high elo games our server counts (how
+  // contact said yes to this); on the Game page all game (What's new 239, Rayan's call). From the high elo games our server counts (how
   // the matchup goes, gold and CS at 10 minutes, the runes, spells and early items players take in it, and what their
   // champion takes against yours; 5 games or more), your own games against it, the two champions' range and damage,
   // Riot's own tips for both (Data Dragon's allytips and enemytips) and your matchup note. Nothing from other sites.
@@ -17960,6 +18192,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const key = [mine, foe, role, duo, notes[noteKey(mine, foe)] || '', notes[noteKey(mine, duo)] || '', deepVer, !!ddItems, !!runeNames].join(), hit = tipsMemo.get(key);
     if (hit && hit.top === top && hit.them === them && hit.ta === ta && hit.tb === tb && hit.td === td) return hit.out;
     const A = a.name, B = b && b.name, D = d && d.name, lines = [], note = b && notes[noteKey(mine, foe)];
+    let vsHi = null; // the high elo numbers, which the Game page draws (What's new 239)
     const kind = (x) => { const r = +((x.stats || {}).attackrange) || 0; return `${x.name} is ${r ? (r < 300 ? 'a melee ' : 'a ranged ') : 'a '}${String((x.tags || [])[0] || 'champion').toLowerCase()} with mostly ${isMagic(x) ? 'magic' : 'physical'} damage`; };
     if (note) lines.push(`Your note: ${note}`);
     const vs = b ? ((top && top.all) || []).filter((g) => g.o === foe) : [], y = (b && top && top.yvs && top.yvs[foe]) || [], n = vs.length + (y[0] | 0); // and the last year's games, without gold or CS
@@ -17967,6 +18200,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const w = vs.filter((g) => g.w).length + (y[1] | 0), k = adj(w, n, 10), avg = (f) => { const v = vs.map(f).filter(Number.isFinite); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
       const gold = avg((g) => g.g), cs = avg((g) => (Array.isArray(g.l) ? g.l[0] : NaN));
       lines.push(`High elo: ${A} won ${w} of ${n} games against ${B}${gold == null ? '' : `, ${sgn(gold)} gold${cs == null ? '' : ` and ${sgn(cs)} CS`} at 10 minutes`}. ${k < 0.46 ? `A hard matchup for ${A}.` : k > 0.54 ? `A good matchup for ${A}.` : 'An even matchup.'}`);
+      vsHi = { w, n, k, gold, cs, line: lines[lines.length - 1] };
     }
     if (b) {
       const mg = myGames().filter((g) => g.mode === 'CLASSIC').map((g) => { const m = g.ps[g.me], o = m.l ? g.ps.find((p) => p.t !== m.t && p.l === m.l) : null; return o && o.c === foe ? m : null; }).filter(Boolean);
@@ -17993,7 +18227,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     for (const t of ((ta && ta.ally) || []).slice(0, 1)) lines.push(`Riot’s tip for ${A}: ${t}`);
     if (tipsMemo.size > 20) tipsMemo.clear();
-    const out = { title: `${A} against ${[B, D].filter(Boolean).join(' and ')}`, lines };
+    const out = { title: `${A} against ${[B, D].filter(Boolean).join(' and ')}`, lines, vs: vsHi };
     tipsMemo.set(key, { top, them, ta, tb, td, out });
     return out;
   }
@@ -22133,6 +22367,11 @@ dialog.wizard { transform: scale(var(--from)); }
     [240, 'November 27: your jungler coming', [
       'With the lane box showing and a minimap callout on, the box says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, from their walk round the walls at their speed. Nothing while they farm near you, and nothing out loud.',
     ]],
+    [239, 'November 27: a fuller Game page in your games', [
+      'In a game, the Game page shows the build What to buy is on, in pictures: start, core in order, boots, later and your skill order, with how often it’s picked and won. Items you have are dimmed, and your next one has a bar your gold fills. Best win rate or Vs their team here switches the overlay too, and the other way round. Hover an item for why.',
+      'Change it opens your build to edit, starting from the build shown. Once you change it, What to buy goes by Yours for that game.',
+      'Below it: your lane (how high elo players do in your matchup, their gold and CS at 10 minutes, Riot’s tips and your notes), your team’s chance to win over the game with dragons, Herald and towers marked, and both teams side by side from each player’s last 20 games.',
+    ]],
     [238, 'November 27: the lane box', [
       'For the first 14 minutes of a Summoner’s Rift game, My lane on the overlay is a box: everyone in your lane (bot: all four, mid and top: you and your lane opponent) with their level, Flash, the gold in their items and CS. At 14:00 it’s one line again.',
       'Under them, one line: “You hit 2 first: trade now” or “They hit 2 first: back off” (also at the top of the screen for 5 seconds), “Both went back: about 30 s till they’re in lane”, or who’s stronger, like “You’re stronger: level 5 vs 4, their Flash is down”.',
@@ -23432,8 +23671,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'On unless you turn it off: Settings, Champ select, Runes and items, which also picks the games.', '#optRunes', 'app'],
       ['Scouting', 'Your team’s ranks, last 20 games and tags (a win streak, a first game on a champion, premades, Autofill, a possible smurf) in champ select, and everyone’s from the loading screen on. Names Riot hides in Solo/Duo champ select stay hidden.',
         'On unless you turn it off: Settings, League, and Settings, Overlay, Loading screen. In a game, Alt+X shows or hides everyone’s rank.', '#optScout', 'app'],
-      ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen.',
-        'In champ select and on the loading screen, once both champions are known. The overlay’s are on unless you turn them off: Settings, Overlay, While you’re dead.', '#csTips', 'app'],
+      ['Tips for your lane', 'How your matchup goes in high elo, the runes and early items taken in it, your own games against that champion and Riot’s tips. ADCs and supports get both enemy bot laners. You can write your own matchup notes too. While you wait to respawn on Summoner’s Rift, the overlay shows them on the left of your screen, and the Game page has them all game, high elo’s numbers drawn.',
+        'In champ select and on the loading screen, once both champions are known; on the Game page in a game. The overlay’s are on unless you turn them off: Settings, Overlay, While you’re dead.', '#csTips, #liveLane', 'app'],
       ['Trades', 'Ask a teammate to swap champions, positions or pick order, and answer their asks, with a popup when one comes in.', 'In champ select: click a teammate’s card on Pregame (one asking you opens by itself), or on your phone.', '#csRows', 'app'],
       ['Champ select in Premade', 'Each player is a card over their champion’s art, in the skin they picked, with their name straight over the art, their rank, last 20 games, spells and their one most important tag. Click a teammate’s card for the rest: Riot ID, every tag, Avoid and swaps. Tabs in the middle: Picks, Runes, Spells, Skins, Build and Tips. Change your rune page (start from high elo’s or Riot’s), your D and F spells, your skin or chroma, or a Random skin, all from Premade’s window. A page or spells you pick yourself stay when you lock in.',
         'In champ select, on Pregame. Star a skin with Make it my favorite and Premade puts it on the next time you lock in that champion.', '#csTabs', 'app'],
@@ -23450,7 +23689,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Fix League’s window', 'When League’s window freezes or goes blank, one button restarts only its window through League’s own call: your party and your place in the queue stay (app 1.57).', 'League’s window stuck? Fix it, on Pregame, whenever League is open.', '#uxFix', 'app'],
     ]],
     ['League: Game', 'What’s going on in your game, and how you played once it’s over.', [
-      ['In game', 'From the loading screen on, Game has your build to edit and your matchup notes. Everyone’s rank, the timers, the gold difference and your lane are on the overlay.',
+      ['In game', 'From the loading screen on, Game has your build and your matchup notes. Once the game starts, the build is the one What to buy is on, in pictures, and Change it edits yours; below it your lane, the win chance over the game and both teams side by side. Everyone’s rank, the timers and the gold difference are on the overlay.',
         'Nothing to set up: Game opens by itself when a game loads (Settings, Champ select).', '#liveBox', 'app'],
       ['Objective sounds', 'A sound 30 seconds before Dragon and Baron.', 'On unless you turn it off: Settings, Callouts, Sound.', '#optSpawnSounds', 'app'],
       ['ARAM: Mayhem augments', 'On each augment card (3, or 4 with Maestro) its tier and a strength bar (DeepScore) for your champion, with its pick rate and Boost: Best pick on the strongest (by Boost when the cards differ in rarity) and Reroll? on a weak C or D card; Goes with when it makes one of DeepARAM’s best pairs with an augment you clicked (app 1.51), Fits your build, and New in 26.23 for an augment with no numbers yet. The overlay shows your champion’s best augments as pictures and your picks. Game shows your picks, the best augments, DeepARAM’s top 5 pairs, both core builds (What to buy follows yours) and your champion’s Mayhem changes; Stats, Games shows the augments of each Mayhem game. Data: DeepARAM, patch-specific. Source: https://deeparam.com/tier-list.',
@@ -23543,10 +23782,10 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Three stats a player', 'Under each name, like Porofessor: the rank line with the win % (from Riot, as League’s client gives other players’ wins only), the last 10 games as win and loss blocks, their games and win % on this champion with its mastery level, and their main role’s icon, red when they play another. Hover one for pictures: a block a game and the newest 10 games with champion, result, K/D/A and items; this season’s peak and the champions in the last 20 with Played and Winrate bars; the same bars a role.', 'Hover a stat on the loading screen, or with Alt+X in a game.', '#optOverlayBoard', 'app'],
       ['Their weak side', 'Between the teams on Premade’s loading screen: the enemy lane with the worst last 10 games and tags like First time on, Autofill or Rusty, with why, and a light outline on its cards. Only when one lane clearly stands out.', 'Nothing to set up: on Premade’s loading screen.', '#optOverlayBoard', 'app'],
       ['Key tags', 'Only the tags that matter on the overlay, 2 a player on the loading screen and in a game, like Autofill, First time on, Millionaire or Pro player. New: Beat you, Almost promoted, last season, Rusty, Off-meta, Patch pick, Counter pick, On Premade voice and Top 10. All of them on a player’s card in champ select.', 'Nothing to set up.', '#csRows', 'app'],
-      ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion and what those games won. Move items, take them out or add others; it’s kept for that champion and role. In a game the overlay shows your next 3 items under League’s score, the first with a bar your gold fills, and two pills switch the build: Best win rate (the first 3 items that won the most, where every game starts) and Vs their team (moved up against their damage, healing, armor and magic resist, with those enemies’ faces), plus Yours once you changed it. Hover an item for why. With Alt+X a panel beside the rank board shows the whole build (start, core, boots, later, skills), and Their team and Your team: win rate, kills, deaths and assists from their last 20 games, damage split, front line and what they lack. In ARAM: Mayhem, DeepARAM’s build.',
-        'In champ select once you have a champion, and on the Game page in a game. On the overlay unless you turn it off: Settings, Overlay, In game, What to buy.', '#csBuild', 'app'],
-      ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too.',
-        'On unless you turn it off: Settings, Overlay, In game, Win chance. The pop-up needs your League screen shared, as for proximity voice or the callouts.', '#optOverlayWin', 'app'],
+      ['Your build', 'The whole build for this game, in order, with which items you have and which is next, and why Premade picked it: what players at your rank buy on your champion and what those games won. Move items, take them out or add others; it’s kept for that champion and role. In a game the overlay shows your next 3 items under League’s score, the first with a bar your gold fills, and two pills switch the build: Best win rate (the first 3 items that won the most, where every game starts) and Vs their team (moved up against their damage, healing, armor and magic resist, with those enemies’ faces), plus Yours once you changed it. Hover an item for why. With Alt+X a panel beside the rank board shows the whole build (start, core, boots, later, skills), and Their team and Your team: win rate, kills, deaths and assists from their last 20 games, damage split, front line and what they lack. The Game page shows that build too, page sized, with the same pills (Change it there edits yours), and both teams side by side. In ARAM: Mayhem, DeepARAM’s build.',
+        'In champ select once you have a champion, and on the Game page in a game. On the overlay unless you turn it off: Settings, Overlay, In game, What to buy.', '#csBuild, #liveItems, #liveTeams', 'app'],
+      ['Win chance', 'Your team’s chance to win, live at the end of the timers line, from the gold in items, kills, towers, dragons, Baron, Elder and inhibitors, weighed by the game time. When a surrender vote starts, it pops up beside League’s vote box too. The Game page draws it over the game, with dragons, Herald, Baron and towers marked, while Premade is open.',
+        'On unless you turn it off: Settings, Overlay, In game, Win chance. The pop-up needs your League screen shared, as for proximity voice or the callouts. The graph is on the Game page in a game.', '#optOverlayWin, #liveWin', 'app'],
       ['A teammate’s screen', 'While you’re dead, a friend’s screen live in a corner of yours. Only friends in your room on your team in the same game, and only when they let you.',
         'On unless you turn it off: Settings, Overlay, While you’re dead. Each friend turns on Settings, Voice, In a game, Let teammates in my room watch my screen.', '#optWatchMates', 'app'],
       ['Move and size it', 'The rest at the top left, middle left, middle right or anywhere you drag it, bigger or smaller, and as see-through as you like.', 'Settings, Overlay, Where it sits, Edit layout: drag the rest, or Move it on my screen and drag it on the League screen, its corner to size it. Size and See-through are there too.', '#moveBtn', 'app'],

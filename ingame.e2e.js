@@ -273,7 +273,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert.strictEqual(await page.evaluate(() => lpcClient.lastOverlay.buy.left), 3250);
       // the panel beside the rank board: the whole Vs their team build, Luden's and Sorcerer's dimmed, Zed's face
       const pan = await page.evaluate(() => { const b = lpc.boardItems().build, n = (x) => `${x.name}${x.have ? ' (have)' : ''}${x.faces.length ? ` (${x.faces.length} faces)` : ''}`; return { ...b, start: b.start.map(n), core: b.core.map(n), boots: n(b.boots), later: b.later.map(n), vs: !!b.vs }; });
-      assert.deepStrictEqual(pan, { ver: 'team', vers: ['wr', 'team'], picked: 1, won: 0.5, vs: true, start: ['Doran’s Ring'], pots: 1, core: ['Luden’s Companion (have)', 'Zhonya’s Hourglass (2 faces)', 'Rabadon’s Deathcap'],
+      assert.deepStrictEqual(pan, { ver: 'team', vers: ['wr', 'team'], next: 3157, picked: 1, won: 0.5, vs: true, start: ['Doran’s Ring'], pots: 1, core: ['Luden’s Companion (have)', 'Zhonya’s Hourglass (2 faces)', 'Rabadon’s Deathcap'],
         boots: 'Sorcerer’s Shoes (have)', later: ['Morellonomicon'], lv: [], max: [] }, JSON.stringify(pan));
       const them = await page.evaluate(() => lpc.boardItems().them);
       assert.deepStrictEqual(them, { n: 0, magic: them.magic, front: [them.front[0]], tags: ['Mostly physical: armor helps', 'No engage'] }, JSON.stringify(them));
@@ -304,28 +304,60 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert.strictEqual(await buyVs(HEAL, four), 'team Morellonomicon: Moved up: Grievous Wounds against Vladimir and Aatrox');
       assert.strictEqual(await buyVs(EVEN, [...four, [3102, 1], [3165, 1]]), null, 'nothing left that high elo players build: the strip goes');
       assert.strictEqual(await buyVs(EVEN, [[6655, 1], [3175, 1]]), 'team Rabadon’s Deathcap: Usual next on Ahri', 'tier 3 boots count as your boots: no Sorcerer’s Shoes again');
-      // ---- your build on the Game page: Premade's, why, which you have and which is next; then changed, and back
-      const build = () => page.evaluate(() => { const b = document.getElementById('liveBuild'); return { hidden: b.hidden, head: b.querySelector('h3').textContent, why: b.querySelector('.bwhy').textContent, rows: [...b.querySelectorAll('li')].map((l) => `${l.dataset.k}:${l.innerText.split('\n')[0]}`) }; });
-      await page.evaluate((g) => lpcClient.emit('league', g), ahri(true, EVEN, undefined, { room: 'g0123456789b' }));
-      await wait(page, () => !document.getElementById('liveBuild').hidden && document.querySelectorAll('#liveBuild li[data-k="have"]').length === 2, null, 'your build on the Game page');
-      let b = await build();
-      assert.strictEqual(b.head, 'Premade’s build on Ahri');
-      assert(/high elo players buy on Ahri middle \(40 games this patch.*Games with all three first items: won 50% of 40\./.test(b.why), b.why);
-      assert.deepStrictEqual(b.rows, ['have:Luden’s Companion', 'next:Rabadon’s Deathcap', ':Zhonya’s Hourglass', 'have:Sorcerer’s Shoes', ':Morellonomicon', ':Banshee’s Veil'], JSON.stringify(b.rows));
+      // ---- the Game page (What's new 239): the build What to buy is on, in pictures, in the version picked here or on the
+      // overlay; Change it opens your build, starting from the build shown, and changing it switches the game to Yours
+      const ib = () => page.evaluate(() => {
+        const b = document.getElementById('liveItems'), flag = (x) => (x.classList.contains('have') ? ' (have)' : '') + (x.classList.contains('next') ? ' (next)' : '') + (x.querySelector('.ibfaces') ? ' (faces)' : '');
+        const part = (x) => (x.classList.contains('ibit') ? x.querySelector(':scope > span:not(.ibbar):not(.ibfaces)').textContent + flag(x) : x.textContent);
+        return { list: document.getElementById('liveBuild').hidden ? 'hidden' : [...document.querySelectorAll('#liveBuild li')].map((l) => `${l.dataset.k}:${l.innerText.split('\n')[0]}`),
+          pills: [...b.querySelectorAll('.vpill')].map((x) => x.textContent + (x.getAttribute('aria-pressed') === 'true' ? ' (on)' : '')), rate: b.querySelector('.ibrate').innerText.replace(/\s+/g, ' ').trim(),
+          secs: [...b.querySelectorAll('.ibsec')].map((s) => `${s.firstChild.textContent}: ${[...s.lastChild.children].filter((x) => !x.classList.contains('gt')).map(part).join(', ')}`),
+          gold: (b.querySelector('.ibit.next small') || {}).textContent, chg: b.querySelector('.ibchg').textContent };
+      });
+      const dead = (gold) => ahri(true, EVEN, undefined, { room: 'g0123456789b', me: { champName: 'Ahri', champ: 'Ahri', team: 'ORDER', hp: 1, speed: 330, dead: true, respawn: 30, gold } });
+      await page.evaluate((g) => lpcClient.emit('league', g), dead(1180.6));
+      await wait(page, () => !document.getElementById('liveItems').hidden && !!document.querySelector('#liveItems .ibit.next small'), null, 'the build on the Game page');
+      let b = await ib();
+      assert.deepStrictEqual(b, { list: 'hidden', pills: ['Best win rate', 'Vs their team (on)'], rate: '100% picked 50% won vs', secs: ['Start: Doran’s Ring, +1 potion', 'Core, in order: Luden’s Companion (have), Rabadon’s Deathcap (next), Zhonya’s Hourglass',
+        'Boots: Sorcerer’s Shoes (have)', 'Later: Morellonomicon (faces)'], gold: '2,420 gold to go', chg: 'Change it' }, JSON.stringify(b));
+      // Best win rate here: the overlay follows; Vs their team on the overlay: the page follows
+      await page.click('#liveItems .vpill[data-v="wr"]');
+      await wait(page, () => lpcClient.lastOverlay.buy.ver === 'wr', null, 'Best win rate from the Game page');
+      b = await ib();
+      assert.deepStrictEqual([b.pills, b.secs[3]], [['Best win rate (on)', 'Vs their team'], 'Later: Morellonomicon, Banshee’s Veil'], JSON.stringify(b));
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'buy', go: 'team' } }));
+      await wait(page, () => document.querySelector('#liveItems .vpill[aria-pressed="true"]').dataset.v === 'team', null, 'Vs their team from the overlay');
+      // Change it: your build, from the build shown; moved, taken out and added, What to buy goes by Yours
+      await page.click('#liveItems .ibchg');
+      b = await ib();
+      assert.deepStrictEqual([b.list, b.chg], [['have:Luden’s Companion', 'next:Rabadon’s Deathcap', ':Zhonya’s Hourglass', 'have:Sorcerer’s Shoes', ':Morellonomicon'], 'Done'], JSON.stringify(b));
       await page.click('#liveBuild li:nth-child(2) button[aria-label^="Take out"]');
       await page.click('#liveBuild li:nth-child(4) button[aria-label^="Move up"]');
       await page.fill('#liveBuild input', 'Youmuu’s Ghostblade');
       await page.click('#liveBuild .badd button[type="submit"]');
-      await wait(page, () => document.querySelectorAll('#liveBuild li').length === 6 && /^Your build/.test(document.querySelector('#liveBuild h3').textContent), null, 'your changed build');
-      b = await build();
-      assert.deepStrictEqual(b.rows, ['have:Luden’s Companion', 'next:Zhonya’s Hourglass', ':Morellonomicon', 'have:Sorcerer’s Shoes', ':Banshee’s Veil', ':Youmuu’s Ghostblade'], JSON.stringify(b.rows));
-      assert.deepStrictEqual(await page.evaluate(() => lpc.buyNext().vers), ['wr', 'team', 'mine'], 'Yours once you changed your build');
-      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'buy', go: 'mine' } }));
+      await wait(page, () => !!document.querySelector('#liveItems .vpill[data-v="mine"][aria-pressed="true"]') && /Youmuu/.test(document.getElementById('liveBuild').innerText), null, 'your changed build, on Yours');
+      b = await ib();
+      assert.deepStrictEqual(b, { list: ['have:Luden’s Companion', 'next:Zhonya’s Hourglass', ':Morellonomicon', 'have:Sorcerer’s Shoes', ':Youmuu’s Ghostblade'], pills: ['Best win rate', 'Vs their team', 'Yours (on)'], rate: '38% picked 60% won vs',
+        secs: ['Start: Doran’s Ring, +1 potion', 'Core, in order: Luden’s Companion (have), Zhonya’s Hourglass (next), Morellonomicon', 'Boots: Sorcerer’s Shoes (have)', 'Later: Youmuu’s Ghostblade'], gold: '2,070 gold to go', chg: 'Done' }, JSON.stringify(b));
+      assert.deepStrictEqual(await page.evaluate(() => [lpc.buyNext().vers, lpc.buyNext().ver]), [['wr', 'team', 'mine'], 'mine'], 'Yours once you changed your build, and on it');
       assert.strictEqual(await page.evaluate(() => { const x = lpc.buyNext(); return `${x.items[0].name}: ${x.items[0].why} ${x.items[0].faces.length}`; }), 'Zhonya’s Hourglass: Next in your build 0', 'Yours goes by your build, no faces');
-      assert.strictEqual(await page.evaluate(() => localStorage.getItem('lpc-builds')), '{"103/MIDDLE":[6655,3157,3165,3020,3102,3142]}');
+      assert.strictEqual(await page.evaluate(() => localStorage.getItem('lpc-builds')), '{"103/MIDDLE":[6655,3157,3165,3020,3142]}');
       await page.click('#liveBuild .breset');
-      await wait(page, () => document.querySelector('#liveBuild h3').textContent === 'Premade’s build on Ahri', null, 'back to Premade’s build');
-      console.log('your build: tier 3 boots count; Premade’s build with why, which you have and next; moved, taken out and added, and what to buy goes by it; back to Premade’s');
+      await wait(page, () => !document.querySelector('#liveItems .vpill[data-v="mine"]'), null, 'back to Premade’s build');
+      b = await ib();
+      assert.deepStrictEqual([b.list, b.pills], [['have:Luden’s Companion', 'next:Rabadon’s Deathcap', ':Zhonya’s Hourglass', 'have:Sorcerer’s Shoes', ':Morellonomicon', ':Banshee’s Veil'], ['Best win rate (on)', 'Vs their team']], JSON.stringify(b));
+      await page.click('#liveItems .ibchg');
+      assert.deepStrictEqual(await ib().then((x) => [x.list, x.chg]), ['hidden', 'Change it'], 'Done folds your build away');
+      // below it: your lane (your note only in your notes), the win chance over the game (two of League's updates 30 s
+      // apart, a dragon and a tower) and both teams
+      await page.evaluate((g) => { lpcClient.emit('league', g); lpcClient.emit('league', { ...g, t: 630, events: [{ t: 300, team: 'ORDER', e: 'dragon' }, { t: 500, team: 'ORDER', e: 'tower', of: 'CHAOS' }] }); }, dead(1180.6));
+      await wait(page, () => !document.getElementById('liveWin').hidden, null, 'the win chance graph');
+      const more = await page.evaluate(() => ({ lane: document.getElementById('liveLane').innerText.replace(/\s+/g, ' '), win: [document.querySelector('#liveWin .chart').getAttribute('aria-label'), ...[...document.querySelectorAll('#liveWin .when span')].map((x) => `${x.dataset.side} ${x.title}`)],
+        teams: document.getElementById('liveTeams').innerText.replace(/\s+/g, ' '), faces: document.querySelectorAll('#liveTeams .itfaces img').length }));
+      assert.deepStrictEqual({ ...more, win: more.win.slice(1) }, { lane: 'Ahri against Zed Hard matchup 40% won 20 high elo games −150 gold at 10 +5 CS at 10 Zed is a melee assassin with mostly physical damage, so armor helps against them. You outrange Zed: 550 against 125. Riot’s tip against Zed: Stay away from the shadows. Riot’s tip against Zed: Zhonya’s Hourglass stops Death Mark. Riot’s tip for Ahri: Use Charm to set up your combos.',
+        win: ['us 5:00: your team took a dragon', 'us 8:20: your team took a tower'], teams: 'Your team Their team Damage 33% physical, 67% magic 40% physical, 60% magic Front line None No engage No frontline No engage', faces: 11 }, JSON.stringify(more));
+      assert.match(more.win[0], /^Your team’s chance to win over the game: \d+% now$/);
+      console.log('the Game page in a game: the build What to buy is on, in the version picked here or on the overlay; Change it from the build shown, Yours once changed, back to Premade’s; your lane with high elo’s numbers, the win chance with a dragon and a tower, both teams');
       await page.evaluate((g) => lpcClient.emit('league', g), ahri(false, BURST));
       await wait(page, () => !lpcClient.lastOverlay.tips && !!lpcClient.lastOverlay.buy, null, 'the tips gone when you’re back, what to buy stays');
       // What to buy off: gone, the coach's next item stays

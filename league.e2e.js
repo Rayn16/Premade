@@ -2052,7 +2052,7 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => lpc.lcu().scouted.includes('enemy5'), null, 'all ten scouted');
     assert.strictEqual(callsTo(/alias\/lookup\?gameName=Singer&tagLine=EUW/).length, 1, 'the player League gave no puuid is found by Riot ID');
     assert.strictEqual(await pc.evaluate(() => document.querySelector('#liveNotes .notelist').textContent), 'Ahri against Zed: Respect his level 6. Ward the side bushes.');
-    assert(await pc.locator('#liveRows, #timers, #laneStats, #gameTips, #liveAvg, #augTips, #liveBox h2').count() === 0, 'Game in a game: no ranks, timers, lane or tips, the overlay has them (What’s new 227)');
+    assert(await pc.locator('#liveRows, #timers, #laneStats, #gameTips, #liveAvg, #augTips, #liveBox h2').count() === 0, 'Game in a game: no ranks or timers, the overlay has them (What’s new 227); your lane and both teams are parts of their own (239)');
     await wait(pc, () => lpcClient.lastOverlay && /^Dragon 1:\d\d · Voidgrubs up · Herald \d+:\d\d · Baron \d+:\d\d · Their mid inhibitor 4:\d\d · Kills 5–3 · Gold \+15\.5k · Win chance 9\d%$/.test(lpcClient.lastOverlay.game), null, 'the overlay line, ending with the chance to win');
     assert(await pc.evaluate(() => typeof lpcClient.lastOverlay.board !== 'object' && !lpcClient.lastOverlay.tips), 'no ranks on the overlay and no tips once the game is on');
     // the phone as a second screen (What's new 215): the clock, the score, the objectives' timers
