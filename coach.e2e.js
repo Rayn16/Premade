@@ -377,6 +377,7 @@ const game = (over = {}) => ({
       assert.strictEqual(await gank(), null, 'no box while he’s in sight');
       await page.evaluate(() => { window.screenNow = 'none'; });
       await wait(page, () => /^Safe \d+ s$/.test((lpcClient.lastOverlay.gank || {}).t), null, 'the gank clock');
+      assert.match(await page.evaluate(() => lpc.answerOf('jungler')), /^Lee Sin in mid lane, (now|\d+ seconds ago)$/, 'Ask Premade, jungler: where the callouts last saw him (What’s new 248)');
       const first = await page.evaluate(() => lpcClient.lastOverlay), sq = await page.evaluate(() => lpc.me().minimap), n0 = +first.gank.t.match(/\d+/)[0];
       assert(n0 >= 13 && n0 <= 15 && !first.gank.red, `Safe 13 to 15 s at first: ${JSON.stringify(first.gank)}`);
       assert(Math.abs(first.parts.gank.x * 2560 - sq.x) < 1 && Math.abs(first.parts.gank.y * 1436 - sq.y) < 1 && first.parts.gank.ax === 'r' && first.parts.gank.ay === 't', `left of the minimap's top left corner: ${JSON.stringify(first.parts.gank)}`);

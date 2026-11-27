@@ -260,6 +260,8 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 
 /* help tips: a "?" button opens a short note next to it */
 .tip { width: 20px; height: 20px; padding: 0; flex: none; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid var(--gold-line); background: none; color: var(--gold); font: 700 12px/1 var(--body); cursor: help; }
+.askwords { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; } .askwords .tag, .asktip .tag { color: var(--fg); }
+.asktip { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; margin-top: 8px; } .asktip .tag { justify-self: start; }
 .tipbox { max-width: min(330px, calc(100% - 32px)); padding: 12px 14px; border: 1px solid var(--gold-line); border-radius: var(--r); background: var(--raised); color: var(--fg); font: 400 14px/1.5 var(--body); box-shadow: 0 12px 32px rgb(0 0 0 / 0.45); }
 @supports (anchor-name: --a) {
   .tipbox { position-anchor: --tip; inset: auto; top: anchor(bottom); left: anchor(left); margin: 8px 0 0; position-try-fallbacks: flip-block, flip-inline; }
@@ -3495,6 +3497,13 @@ dialog.wizard { transform: scale(var(--from)); }
             <h3 id="h-callteam">From your team</h3>
             <label class="check"><input id="optTeamCall" type="checkbox"><span><span>Teammates’ callouts</span><span>Say “Premade, mid missing”, “Premade, go Dragon”, “Premade, group mid”, “Premade, back off” or “Premade, reset”, or tap your phone: every Premade teammate in your game sees it, and you see theirs</span></span></label>
           </section>
+          <section class="ovcard" aria-labelledby="h-ask">
+            <h3 id="h-ask">Ask Premade <button class="tip" type="button" popovertarget="t-ask" aria-label="About Ask Premade">?</button></h3>
+            <label class="check"><input id="optAskVoice" type="checkbox"><span><span>Listen for questions</span><span>In a game, say “Premade” and a word below: you hear the answer, even while muted</span></span></label>
+            <p class="hint">Say “Premade” and</p>
+            <div class="tags askwords"><span class="tag">Dragon</span><span class="tag">Baron</span><span class="tag">Herald</span><span class="tag">their Flash</span><span class="tag">their ults</span><span class="tag">jungler</span><span class="tag">buy</span><span class="tag">winning</span><span class="tag">lane</span><span class="tag">dead</span></div>
+            <div class="toolbar"><button id="askTest" class="btn small" type="button">Test</button><span id="askNote" class="hint" role="status">Say one now and hear its answer</span></div>
+          </section>
           <section class="ovcard" aria-labelledby="h-callsound">
             <h3 id="h-callsound">Sound</h3>
             <label class="check"><input id="optCallSounds" type="checkbox"><span><span>Sounds</span><span>A sharp one for ganks and invades, a soft one for the rest, through your Premade output</span></span></label>
@@ -4090,6 +4099,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Where it sits, press Edit layout, then drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it on my screen lets you drag the rest on the League screen itself, and size it by its corner. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keys) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
 <div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
 <div id="t-lanebox" class="tipbox" popover>For the first 14 minutes of a Summoner’s Rift game, My lane is a box: each player in your lane (bot: all four, mid and top: you and your lane opponent) with their level, Flash (its time left once it’s timed on the enemy spell strip; yours only while Auto Flash reads your spell keys, your support’s isn’t known), the gold in their items and CS. Below, one line: who hit level 2 first (also at the top of the screen for 5 seconds, read out only with Read them out loud), “Both went back: about 30 s” when their side of the lane went to buy or died, or who’s stronger by levels, Flash and gold in items. League shows no XP, so the level 2 race is known only once someone hits 2. It needs League’s positions, so not in blind pick, and shows only on Summoner’s Rift. With a minimap callout on, it also says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, never out loud.</div>
+<div id="t-ask" class="tipbox" popover><b>Ask Premade</b>: in a game, say “Premade” and a word. Premade answers out loud in your callouts’ voice, even while you’re muted. Only what Premade already shows; when it doesn’t know, it says so.<div class="asktip"><span class="tag">Dragon</span><span>“Dragon in 3:00”</span><span class="tag">Baron</span><span>“Baron at 20:00”</span><span class="tag">Herald</span><span>“Voidgrubs in 6:00” (or say grubs)</span><span class="tag">their Flash</span><span>“Jinx Flash down, 1:40. The rest up”</span><span class="tag">their ults</span><span>“Malphite ult down, 40 seconds”</span><span class="tag">jungler</span><span>“Lee Sin at their red, 25 seconds ago”</span><span class="tag">buy</span><span>“Infinity Edge, 340 short”</span><span class="tag">winning</span><span>“58 percent, up 2.1k”</span><span class="tag">lane</span><span>“Level 7 against 8, 15 CS ahead”</span><span class="tag">dead</span><span>“Zed back in 22 seconds, Lee Sin in 8 seconds”</span></div></div>
 <div id="t-gankclock" class="tipbox" popover>When their jungler drops off your minimap, a small box by League’s minimap says how many seconds you have before they could walk to you: the shortest way round the walls at their move speed (with boots and items), and about a second sooner while their Flash is up on the enemy spell strip. It counts down, turns red under 5 seconds and says “Could be here” at 0, then goes until you see them again. Before you first see them it counts from their fountain at 0:00, and after they buy something out of sight, from their fountain then. With Faded faces on, their faded face gets a grey outline of everywhere they could have walked since, up to 20 seconds. Walls only: it doesn’t know your team’s wards, so it’s on the careful side. Move it moves and sizes the box. Summoner's Rift only.</div>
 <div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, where they are (“Vi at your red”, “Vi in top river”, “Vi in their bot jungle”) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read them out loud (Callouts, Sound) is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
 <div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, League, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read them out loud, under Sound, uses your computer’s own voice.</div>
@@ -4189,7 +4199,7 @@ dialog.wizard { transform: scale(var(--from)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true,
     overlayLane: true, laneBox: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, gankClock: false, speakCalls: false, callVoice: '',
-    foeTimers: false, flashAuto: false, flashP: null, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
+    foeTimers: false, flashAuto: false, flashP: null, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false, askVoice: false,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false, frSlim: true, boardBg: '', boardPic: 0,
@@ -13915,13 +13925,13 @@ dialog.wizard { transform: scale(var(--from)); }
   setInterval(() => { if (opts.clipVoice && opts.clipsAll && client && client.frontApp) client.frontApp().then((f) => { if (f && f.full) fullAt = performance.now(); }, () => {}); }, 5000);
   const SAY = 'Premade, clip that';
   const micWhere = () => (opts.justLeague && !peer ? 'Windows’ sound settings' : 'Settings, Voice'); // Just League has no Voice section outside a room (What's new 207)
-  let vosk = null, ear = null, fired = false, testing = null, recording = false, voiceErr = '', voiceBusy = null;
+  let vosk = null, ear = null, fired = false, testing = null, asking = null, recording = false, voiceErr = '', voiceBusy = null;
   const ears = new Set();
   const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
   const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
   const quoted = (ps, or) => ps.map((p) => `“${p}”`).reduce((all, p, i) => all + (i === ps.length - 1 ? or : ', ') + p); // A, B and C
-  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && clipsOn() && !!recorder && !recorder.failed && (!!league || performance.now() - fullAt < 300e3)) || (opts.foeTimers && !!league))); // and enemy timers
+  const voiceWant = () => !!testing || !!asking || recording || (!voiceErr && ((opts.clipVoice && clipsOn() && !!recorder && !recorder.failed && (!!league || performance.now() - fullAt < 300e3)) || ((opts.foeTimers || opts.askVoice) && !!league))); // and enemy timers, Ask Premade
   const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
   async function voiceStart() {
@@ -13956,16 +13966,18 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function listen(v) {
     if (ear) { ears.delete(ear); ear.remove(); }
-    ear = new v.KaldiRecognizer(ac.sampleRate, JSON.stringify([...phrases().map(words), ...timerSays(), '[unk]']));
+    ear = new v.KaldiRecognizer(ac.sampleRate, JSON.stringify([...phrases().map(words), ...timerSays(), ...(opts.askVoice || asking ? ASK_SAYS : []), '[unk]']));
     ear.on('partialresult', (m) => voiceHeard(m.result.partial));
-    ear.on('result', (m) => { voiceHeard(m.result.text); fired = false; });
+    ear.on('result', (m) => { voiceHeard(m.result.text, true); fired = false; });
     ears.add(ear);
   }
-  function voiceHeard(text) {
+  function voiceHeard(text, end) { // end: the sentence's end (Vosk's result), not a partial one
     const t = !fired && !testing && !recording && timerSays().find((x) => ` ${words(text)} `.includes(` ${x} `)), p = !fired && !t && saidIn(text);
-    if (!t && !p) return;
+    const q = end && !fired && !t && !p && !testing && !recording && (asking || (opts.askVoice && !!league)) && askOf(text);
+    if (!t && !p && !q) return;
     fired = true; // once a sentence
-    if (t) heardTimer(t);
+    if (q) asking ? asking(q) : speak(answerOf(q));
+    else if (t) heardTimer(t);
     else if (testing) testing(p);
     else if (!recording && opts.clipVoice) saveClip('voice', opts.clipLen, p);
   }
@@ -14005,6 +14017,75 @@ dialog.wizard { transform: scale(var(--from)); }
     $('voiceNote').textContent = !p ? 'Didn’t hear it. Say it a little louder, or record your own phrase.'
       : `Heard “${p}”.${opts.clipVoice ? ' In a game, that saves a clip.' : ' Turn on the box above to save clips with it.'}`;
     voiceCheck();
+  });
+  // ---- Ask Premade (What's new 248): with it on, in a game “Premade” and one of 10 words, anything in between
+  // (“Premade, when’s Dragon?”), gets its answer out loud in the callouts' voice (the one under Read them out loud, even
+  // with that off), cutting off what's being said, so before any callout waiting. The speech model hears your mic before
+  // mute, so it works muted or with push to talk. Nothing new on the overlay, and only what Premade already shows: when
+  // it doesn't know, it says so. Taken at the sentence's end, so “Premade, jungle flash” stays the timer and “Premade,
+  // go Dragon” the call (What's new 242). The speech model knows no “jungler” or “ults”: it hears “jungle” and “ult”.
+  // ponytail: set words only (the speech model's grammar); free questions need a local AI (idea 43)
+  const ASK = { dragon: 'dragon', baron: 'baron', herald: 'herald', grubs: 'herald', flash: 'flash', ult: 'ults', ultimate: 'ults', ultimates: 'ults', jungle: 'jungler', buy: 'buy', winning: 'winning', lane: 'lane', dead: 'dead' };
+  const ASK_SAYS = ['premade', 'their', ...Object.keys(ASK)];
+  const ASK_WORD = { dragon: 'Dragon', baron: 'Baron', herald: 'Herald', flash: 'their Flash', ults: 'their ults', jungler: 'jungler', buy: 'buy', winning: 'winning', lane: 'lane', dead: 'dead' };
+  const ASK_EX = { dragon: 'Dragon in 3:00', baron: 'Baron at 20:00', herald: 'Voidgrubs in 6:00', flash: 'Jinx Flash down, 1:40. The rest up', ults: 'Malphite ult down, 40 seconds', jungler: 'Lee Sin at their red, 25 seconds ago', buy: 'Infinity Edge, 340 short', winning: '58 percent, up 2.1k', lane: 'Level 7 against 8, 15 CS ahead', dead: 'Zed back in 22 seconds, Lee Sin in 8 seconds' }; // outside a game (Test)
+  function askOf(text) { // 'dragon' for “premade unk dragon”, within 4 words of “premade”; nothing with “go” before the word (the call)
+    const w = words(text).split(' '), i = w.indexOf('premade');
+    if (i < 0) return null;
+    for (const x of w.slice(i + 1, i + 5)) { if (x === 'go') return null; if (ASK[x]) return ASK[x]; }
+    return null;
+  }
+  function answerOf(q) {
+    if (!league) return ASK_EX[q];
+    const secs = (s) => (s < 60 ? `${Math.max(1, Math.ceil(s))} seconds` : mmss(Math.ceil(s))), t = gameNow();
+    const obj = (re, none) => { const x = timers().find(([n]) => re.test(n)); return !x ? none : x[1] <= 0 ? `${x[0]} is up` : x[1] > 600 ? `${x[0]} at ${mmss(Math.round(t + x[1]))}` : `${x[0]} in ${mmss(Math.ceil(x[1]))}`; };
+    if (q === 'dragon') return obj(/^(Dragon|Elder)$/, 'No Dragon timer');
+    if (q === 'baron') return obj(/^Baron$/, 'No Baron timer');
+    if (q === 'herald') return obj(/^(Voidgrubs|Herald)$/, 'No Voidgrubs or Herald left this game');
+    if (q === 'flash' || q === 'ults') {
+      const what = q === 'flash' ? 'Flash' : 'ult', down = foeTimers().filter(([, s, k]) => k.startsWith(q === 'flash' ? 'flash:' : 'r:') && s > 0).sort((a, b) => a[1] - b[1]);
+      if (!opts.foeTimers) return `Premade isn’t timing their ${what}s: turn on the enemy spell strip`;
+      if (!down.length) return `No ${what} timers running`;
+      return down.map(([n, s]) => `${n.replace(/ (Flash|ultimate)$/, '')} ${what} down, ${secs(s)}`).join('. ') + (q === 'flash' ? '. The rest up' : '');
+    }
+    if (q === 'jungler') {
+      const id = theirJungler(), p = id && (league.players || []).find((x) => x.team !== mine.team && (champOf(x.champ) || {}).id === id), F = share && share.foes, f = F && F.room === league.room && F.list.find((x) => x.id === id);
+      if (!id) return 'Premade doesn’t know their jungler';
+      if (p && p.dead) return `${champName(id)} is dead, back in ${secs(p.respawn)}`;
+      if (!f || !f.at) return `${champName(id)} not seen yet`;
+      const ago = (performance.now() - f.seen) / 1000;
+      return `${champName(id)} ${spotSay(mapSpot(f.at))}, ${ago < 2 ? 'now' : `${secs(ago)} ago`}`;
+    }
+    if (q === 'buy') {
+      const b = nextBuy(), g = league.me && league.me.gold, short = b && Math.ceil(b.left - g);
+      return !b ? 'Premade has no build for you this game' : !Number.isFinite(g) ? b.name : short > 0 ? `${b.name}, ${short} short` : `You can buy ${b.name}`;
+    }
+    if (q === 'winning') {
+      const w = winChance(), d = w != null && teamGold().gold;
+      return w == null ? 'No win chance yet' : `${Math.round(Math.min(0.99, Math.max(0.01, w)) * 100)} percent, ${Math.abs(d) < 100 ? 'gold even' : `${d > 0 ? 'up' : 'down'} ${(Math.abs(d) / 1000).toFixed(1)}k`}`;
+    }
+    if (q === 'lane') { // levels and CS against your lane opponent, as the lane box shows them
+      const m = meIn(), o = m && laneFoeIn(m), cs = o && m.cs - o.cs;
+      return !o ? 'Premade doesn’t know your lane opponent' : `Level ${m.lvl} against ${o.lvl}${posIn(m) === 'UTILITY' || !Number.isFinite(cs) ? '' : !cs ? ', even CS' : `, ${Math.abs(cs)} CS ${cs > 0 ? 'ahead' : 'behind'}`}`;
+    }
+    const dead = (league.players || []).filter((p) => p.team !== mine.team && p.dead).sort((a, b) => a.respawn - b.respawn); // 'dead'
+    return !dead.length ? 'Nobody on their team is dead' : dead.map((p, i) => `${champName(p.champ)} ${i ? 'in' : 'back in'} ${secs(p.respawn)}`).join(', ');
+  }
+  $('askTest').addEventListener('click', async () => { // say one now and hear its answer (outside a game, an example)
+    if (asking || testing || recording) return;
+    let got;
+    const heard = new Promise((res) => { got = res; });
+    asking = got;
+    fired = false;
+    if (!(await voiceOn())) { asking = null; return void ($('askNote').textContent = voiceErr); }
+    listen(await vosk); // with the words, also while Ask Premade is off
+    $('askNote').textContent = 'Say “Premade” and a word…';
+    const q = await Promise.race([heard, sleep(10000)]);
+    asking = null;
+    if (q) speak(answerOf(q));
+    $('askNote').textContent = q ? `Heard “Premade, ${ASK_WORD[q]}”.` : 'Didn’t hear it. Say it a little louder.';
+    await voiceCheck(); // let go of it when nothing else wants it
+    if (ear && !opts.askVoice) listen(await vosk); // else without the words again
   });
   // Record my phrase: writes down the first thing you say with two words or more (Vosk without the grammar)
   $('phraseRec').addEventListener('click', async () => {
@@ -21855,14 +21936,14 @@ dialog.wizard { transform: scale(var(--from)); }
   $('name').addEventListener('change', (e) => setName(e.target.value));
   const optDone = { motionGame: () => motionTick(), themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
-    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, shareFilter: () => { if (!share) return; const auto = share.auto; startShare(share.mode, share.src).then(() => { if (share) share.auto = auto; }); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
+    foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, askVoice: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); }, shareFilter: () => { if (!share) return; const auto = share.auto; startShare(share.mode, share.src).then(() => { if (share) share.auto = auto; }); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'], ['optClipSolo', 'clipSolo'], ['optClipFirst', 'clipFirst'], ['optClipTake', 'clipTake'], ['optClipWin', 'clipWin'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optLaneBox', 'laneBox'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optGankClock', 'gankClock'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
+    ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'], ['optAskVoice', 'askVoice'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
     ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
@@ -22085,6 +22166,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [248, 'November 27: Ask Premade', [
+      'In a game, say “Premade” and a word, like “Premade, when’s Dragon?”, and hear the answer out loud in your callouts’ voice, even while you’re muted: Dragon, Baron, Herald, their Flash, their ults, jungler, buy, winning, lane or dead. Nothing new on your screen.',
+      'Only what Premade already shows, and when it doesn’t know it says so, like “No Flash timers running”. Settings, Callouts, Ask Premade: off until you tick it, and Test says one now.',
+    ]],
     [242, 'November 27: your squad on the strip', [
       'With Auto enemy Flash on, an enemy Flash it catches also starts on the strips of your Premade friends in the game, with the gold A, and theirs come to yours. Turn a wrong one off and it goes off for everyone.',
       'Each friend in your game whose Premade reads their screen gets a row under the enemies on your strip: their face, their Flash and their ultimate, with the time left while it’s down. Your Premade sends yours the same way.',
@@ -23525,6 +23610,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
       ['Shotcaller phrases', 'Say “Premade, group mid” (top, bot), “Premade, go Dragon” (Herald, Baron, Void grubs), “Premade, back off” or “Premade, reset”: your face, a sign and the words show at the top of every Premade friend’s overlay in the game for 5 seconds, and on yours for 2 so you know it went. Never read out loud.',
         'With Teammates’ callouts on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
+      ['Ask Premade', 'In a game, say “Premade” and Dragon, Baron, Herald, their Flash, their ults, jungler, buy, winning, lane or dead, with anything in between, and hear the answer out loud in your callouts’ voice, even while you’re muted: “Dragon in 3:00”, “Jinx Flash down, 1:40. The rest up”, “Infinity Edge, 340 short”, “58 percent, up 2.1k”. Only what Premade already shows; when it doesn’t know, it says so. A new question cuts the last answer off.',
+        'Off until you turn it on: Settings, Callouts, Ask Premade. Test says one now (outside a game, an example answer).', '#optAskVoice, #askTest', 'app'],
       ['Squad on the strip', 'Each friend in your game whose Premade reads their screen (Auto enemy Flash on) gets a row under the enemies on your strip, below a thin gold line: their face in a light ring, their Flash and their ultimate, with the time left over the icon while it’s down. Their Premade reads their own F key and R slot. A friend who leaves, or sends nothing for 30 seconds, loses their row.',
         'With Enemy spell strip on; your own times go to friends while Auto enemy Flash is on: Settings, Overlay, In game.', '#optFoeTimers, #optFlashAuto', 'app'],
       ['Power spikes', 'Zed’s picture and a 6 at levels 6, 11 and 16, and Jinx’s picture and Infinity Edge’s when she finishes it, from League’s scoreboard. Read out loud as “Zed is level 6”.', 'Off until you turn it on: Settings, Callouts, From the game.', '#optSpikeCall', 'app'],
@@ -23701,7 +23788,7 @@ dialog.wizard { transform: scale(var(--from)); }
     lcu: () => ({ phase: lcu, cs: !!cs, rc, curGame, runesNote, live: livePlayers.length, scouted: [...scoutData.keys()], me0, hist: myHist && myHist.length, remote: !!remote, phones: remoteConns.size, seen: [...remoteConns].filter((c) => c.seen).length }),
     profile: () => shownPro(), riotOn: () => riotOn,
     timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
-    said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
+    said: (t) => { voiceHeard(t, true); fired = false; }, askOf, answerOf, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, buyPlan, bestSet, boardItems: () => boardItems(boardRows()), nextBuy, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), lendSound: async () => { // the screen's sound to the first watcher
       const l = [...lends.values()][0], st = l && l.call.peerConnection && await l.call.peerConnection.getStats(), o = st && [...st.values()].find((r) => r.type === 'outbound-rtp' && r.kind === 'audio');
       return o ? { target: o.targetBitrate || 0, fmtp: (st.get(o.codecId) || {}).sdpFmtpLine || '' } : null;
