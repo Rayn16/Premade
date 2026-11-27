@@ -79,6 +79,17 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
     assert.deepStrictEqual(await page.$eval('.tm:not(.foes) .pc:nth-child(5)', (c) => [c.querySelector('.rkl').textContent, c.querySelectorAll('.ru img').length, c.querySelectorAll('.ru i').length, c.querySelectorAll('.sp img').length, c.querySelector('.srow').childElementCount]),
       ['Looking up…', 0, 2, 2, 0], 'looking up: art, champion, empty rune spots, spells, name');
     await shot(page, 'board-red');
+    // What's new 244: the Game plan's line next to your team (red: under it, before the matchup line; blue: over your team)
+    const PLAN = [['clock', 'You win late, Baron after 25', ''], ['dragon', 'Fight for first Dragon', ''], ['', 'Play around Twitch', `${DDV}/img/champion/Twitch.png`]];
+    await fire(state(board({ plan: PLAN })));
+    assert.deepStrictEqual(await page.$$eval('.rb > *', (l) => l.map((e) => e.className)), ['tm', 'tip gp', 'tip', 'tm foes'], 'red: right under your team');
+    assert.strictEqual(await page.textContent('.tip.gp'), 'Game plan:You win late, Baron after 25Fight for first DragonPlay around Twitch');
+    assert.deepStrictEqual(await page.$eval('.tip.gp', (e) => [e.querySelectorAll('.gpi svg').length, e.querySelectorAll('img.gpf').length]), [2, 1], 'two signs and a face');
+    await shot(page, 'board-game-plan');
+    await fire(state(board({ plan: PLAN, side: 'blue' })));
+    assert.deepStrictEqual(await page.$$eval('.rb > *', (l) => l.map((e) => e.className)), ['tm foes', 'tip', 'tip gp', 'tm'], 'blue: right over your team');
+    await fire(state({ ...board({ plan: PLAN }), load: false }));
+    assert.strictEqual(await page.locator('.tip.gp').count(), 0, 'in a game: no line');
     // What's new 226: a picture behind the cards (Settings > Overlay > Loading screen > Background): a skin's splash over
     // the whole screen, darkened and softened, under the cards; your own read from the site's Cache Storage; in a game
     // inside the half-size box, which still moves by its top line; any other address shows nothing
