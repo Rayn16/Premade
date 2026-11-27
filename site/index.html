@@ -765,6 +765,16 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .gppill { flex: none; padding: 2px 12px; border: 1.5px solid var(--muted); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); } .gppill.done { border-color: var(--good); color: var(--good); }
 .gpcheck { display: grid; gap: 0; margin-top: 4px; } .gpcheck .ph + .gprow { border-top: 0; }
 .gpsq { display: grid; grid-template-columns: max-content auto auto; justify-content: start; align-items: center; gap: 6px 14px; } .gpsq > small { font-size: 13px; color: var(--muted); } .gpsq .gpn { color: var(--fg); }
+.cgoal { display: flex; align-items: center; gap: 14px; margin: 10px 0 12px; } .cgoal .gpic { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; } .cgoal .gptext b { font-size: 17px; } /* the Squad coach (What's new 246) */
+.cpick { margin: 0; } .cweek { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; } .cweek > small { font-size: 13px; color: var(--muted); } .cweek .gpn { color: var(--fg); }
+.blk.cblk i { background: color-mix(in srgb, var(--muted) 60%, transparent); } .blk.cblk i.w { background: var(--good); }
+.cclips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+.cclip { display: flex; flex-direction: column; gap: 3px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; } .cclip b { font-size: 13.5px; font-weight: 600; } .cclip small { font-size: 12.5px; color: var(--muted); }
+.cthumb { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--line); } .cthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ctime { position: absolute; left: 8px; top: 8px; padding: 1px 7px; border-radius: 6px; background: rgb(0 0 0 / 0.7); color: #fff; font-size: 12.5px; font-weight: 600; }
+.cplay { position: absolute; inset: 0; margin: auto; width: 40px; height: 40px; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; display: grid; place-items: center; } .cplay svg { width: 18px; height: 18px; }
+.cclip:hover .cthumb, .cclip:focus-visible .cthumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+@container app (max-width: 760px) { .cclips { grid-template-columns: 1fr 1fr; } }
 .gphead { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 2px; } .gphead b { font-size: 14px; font-weight: 600; } .gphead small { font-size: 12.5px; color: var(--muted); }
 .gprow { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); } .gphead + .gprow { border-top: 0; }
 .gprow .gpic, .gprow .gpface { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; box-sizing: border-box; }
@@ -2666,6 +2676,7 @@ dialog.wizard { transform: scale(var(--from)); }
     </section>
 
     <section class="view" data-view="squad" aria-label="Squad" hidden>
+      <section id="sqCoachBox" class="panel" aria-labelledby="h-sqcoach" hidden><h2 id="h-sqcoach" class="ph">Squad goal this week</h2><div id="sqCoach"></div></section>
       <section class="panel" aria-labelledby="h-sqc">
         <div class="tophead"><h1 id="h-sqc" class="title sqtitle">Squad <small id="sqCount"></small> <span id="sqWord"></span></h1><button id="sqPlan" class="btn primary" type="button" hidden>Plan it on the draft board</button></div>
         <p id="sqNote" class="hint" role="status" hidden></p>
@@ -3532,6 +3543,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="check"><input id="optTurnAlarm" type="checkbox"> Ring when it's my turn to pick or ban</label>
             <label class="check"><input id="optAutoLock" type="checkbox"> Lock in my hovered champion when time is almost up</label>
             <label class="check"><input id="optGamePlan" type="checkbox"><span><span>Game plan <button class="tip" type="button" popovertarget="t-gameplan" aria-label="About the game plan">?</button></span><span>From my games with the friends in my lobby</span></span></label>
+            <label class="check"><input id="optSquadCoach" type="checkbox"><span><span>Squad coach <button class="tip" type="button" popovertarget="t-squadcoach" aria-label="About the Squad coach">?</button></span><span>Each Monday, one goal for my squad from last week’s games together</span></span></label>
             <label class="field">Hover for me: champions, first choice first <input id="optHoverPicks" autocomplete="off" spellcheck="false" placeholder="Ahri, Lux, Syndra"></label>
             <label class="field">And bans <input id="optHoverBans" autocomplete="off" spellcheck="false" placeholder="Yasuo, Zed"></label>
             <p id="hoverNote" class="hint" role="status"></p>
@@ -4125,6 +4137,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Settings, Clips, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, League, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
 <div id="t-gameplan" class="tipbox" popover>With friends from your League lobby on your team, Premade reads League’s timeline of each of your games together while you’re not playing, and turns them into a plan: when you win (late or early), what to fight for and who to play around. Once all 5 have locked in it shows in champ select and on the loading screen. It needs 20 games together, and a part shows only when 8 games each way differ by 15 points or more. A minute before the objective it names, its words join the fight check line; after the game the report ticks each part Done or Missed, and the Squad page shows how often you win when you follow it. Each friend’s Premade makes its own from the same games; nothing is sent.</div>
+<div id="t-squadcoach" class="tipbox" popover>Each Monday, from last week’s Summoner’s Rift games with a friend from Your squad on your team (10 or more), Premade picks the one habit about deaths and fights that showed up most more often in your losses than in your wins: two of you dying to one gank before 14:00, dying alone after 20:00, dying in the minute before their objective, or fighting for one with 2 or fewer ults up (from the fight check). It needs 3 losses with it and 15 points between losses and wins; otherwise there’s no goal that week. The Squad page shows the goal, a block for each game together this week (green: kept) and your 3 worst moments with it, cut from your match videos and kept as clips.</div>
 <div id="t-remote" class="tipbox" popover>Your phone as a remote for League, on any network, while this app is open on your PC: scan the code with your phone’s camera, or Copy link and open it there. It follows League one screen at a time, in your colours: pick the game and your roles, invite friends and find a match; accept it; go through champ select (picks for you, trades, runes, spells, skins and dodge); and in a game see the score, the objectives and your lane, time their Flash and ultimates and call them missing. Chat has your room’s chat and League chat. It buzzes and rings when a match is found or it’s your turn while the page is open; turn on “Tell me when a match is found” in its Settings for a notification even with its screen off (on an iPhone, open the remote from its home screen icon first). Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
@@ -4210,7 +4223,7 @@ dialog.wizard { transform: scale(var(--from)); }
     overlayLane: true, laneBox: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, gankClock: false, speakCalls: false, callVoice: '',
     foeTimers: false, flashAuto: false, flashP: null, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false, fightCheck: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
-    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, gamePlan: true, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
+    surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, gamePlan: true, squadCoach: true, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false, frSlim: true, boardBg: '', boardPic: 0,
     hook: '', hookGames: true, hookClips: true, lolStatus: false,
     attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
@@ -11136,6 +11149,7 @@ dialog.wizard { transform: scale(var(--from)); }
       if (!/^(Dragon|Herald|Baron)$/.test(n) || left > 60 || left <= 50 || fight.said.has(k)) continue;
       fight.said.add(k);
       const text = fightLine(n), shown = planWords(n, text); // the Game plan's words shown, never said (What's new 245)
+      coachUlt(n, text); // What's new 246
       sayCall(text, 1, 'fight', [n === 'Herald' ? 's:bug' : 's:flame', 'w:' + shown.charAt(0).toUpperCase() + shown.slice(1)], false, 8000);
     }
   }
@@ -13668,6 +13682,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // a clip's when it's saved, a cut's from the video it came from
   // ponytail: never pruned (about 40 bytes each); prune with the lists if it ever grows big
   let vidKda = load('lpc-vid-kda', {});
+  const vidT0 = load('lpc-vid-t0', {}); // each match video's game clock at its start (What's new 246: the Squad coach's clips)
   function keepKda(name, from) {
     const p = from ? vidKda[from] : meIn(), m = p && { c: p.c || p.champ, k: p.k, d: p.d, a: p.a };
     if (!name || !m || JSON.stringify(m) === JSON.stringify(vidKda[name])) return;
@@ -13688,7 +13703,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function keepMarks(g) {
     if (!g.name || !league || !Array.isArray(league.events)) return;
     keepKda(g.name);
-    if (g.t0 == null) g.t0 = Math.max(0, gameNow() - (performance.now() - g.wall) / 1000);
+    if (g.t0 == null) { g.t0 = Math.max(0, gameNow() - (performance.now() - g.wall) / 1000); vidT0[g.name] = g.t0; store.set('lpc-vid-t0', JSON.stringify(vidT0)); } // the Squad coach's clips (What's new 246)
     const m = marksOf(league.events, g.t0, mine.team);
     if (m.length === (vidMarks[g.name] || []).length) return;
     vidMarks[g.name] = m;
@@ -15270,6 +15285,9 @@ dialog.wizard { transform: scale(var(--from)); }
     return `With ${n.map((p) => champName(p.c)).join(' and ')}`;
   }
   function renderSquadPage() {
+    const ce = coachEl(); // What's new 246
+    $('sqCoachBox').hidden = !ce;
+    $('sqCoach').replaceChildren(...(ce ? [ce] : []));
     const gpe = planSquadEl(); // What's new 245
     $('sqGpBox').hidden = !gpe;
     $('sqGp').replaceChildren(...(gpe ? [gpe] : []));
@@ -15490,10 +15508,11 @@ dialog.wizard { transform: scale(var(--from)); }
     return all.filter((g) => g.m.some((x) => n.get(x[0]) >= 3)).slice(0, 200);
   }
   async function planStep() {
-    if (!opts.gamePlan || !me0 || !me0.puuid) return false;
+    if (!(opts.gamePlan || coachOn()) || !me0 || !me0.puuid) return false;
     if (planX.u !== me0.puuid) planX = { u: me0.puuid, g: {}, p: {} }; // another account
-    const list = planTodo(), g = list.find((x) => !planX.g[x.id] && !crawlSkip.has('p' + x.id));
-    if (!g) return false;
+    if (coachX.u !== me0.puuid) coachX = { u: me0.puuid, g: {}, ult: {}, cur: null, prev: null };
+    const list = planTodo(), g = list.find((x) => (!planX.g[x.id] || (coachOn() && !coachX.g[x.id])) && !crawlSkip.has('p' + x.id)); // the Squad coach's deaths too (What's new 246)
+    if (!g) { coachPick(); return false; }
     const d = (deep[g.id] && deep[g.id].ps && deep[g.id]) || planDetail.get(g.id);
     if (!d) {
       const x = deepOf(await lcuGet(`/lol-match-history/v1/games/${g.id}`));
@@ -15504,6 +15523,7 @@ dialog.wizard { transform: scale(var(--from)); }
     planDetail.delete(g.id);
     if (!goodTl(tl) || d.me < 0) { crawlSkip.add('p' + g.id); return true; }
     planX.g[g.id] = planFacts(d, tl);
+    coachKeep(g.id, d, tl);
     const keep = new Set(list.map((x) => x.id));
     planX.g = Object.fromEntries(Object.entries(planX.g).filter(([k]) => keep.has(k)));
     planVer++;
@@ -15576,6 +15596,154 @@ dialog.wizard { transform: scale(var(--from)); }
     const yes = all.filter((g) => g.ok), no = all.filter((g) => !g.ok);
     if (!opts.gamePlan || !all.length) return null;
     return elm('div', 'gpsq', ...[['Plan followed: you won', yes], ['Plan missed: you won', no]].filter(([, l]) => l.length).flatMap(([t, l]) => [elm('small', '', t), planBlocks(l), elm('small', 'gpn', `${won0(l)} of ${l.length}`)]));
+  }
+  // ---- Squad coach (What's new 246, idea 49; Rayan's cards 27 Nov): each Monday, from last week's games together
+  // (Summoner's Rift with a Your squad friend on your team, 10 or more), the habit about deaths and fights that showed
+  // most more often in losses than in wins (3 losses with it and 15 points or more) is the squad's goal for the week:
+  // on the Squad page with a block per game together since, and your 3 worst moments with it as clips from your match
+  // videos. Each game's moments come from the game plan's timeline read (still one read a game), kept in lpc-coach
+  // { u, g: { id: { g, a, o, u } }, ult: { id: [[objective, ults up, s]] }, cur, prev }: a moment is [s, deaths,
+  // victims' champions (0: you), their champion or the objective, you were in 0|1, s from first to last death].
+  // u (ults down) only in games the fight check (243) counted ults in.
+  let coachX = load('lpc-coach', {});
+  if (!coachX || typeof coachX !== 'object' || !coachX.g || typeof coachX.g !== 'object') coachX = { u: '', g: {}, ult: {}, cur: null, prev: null };
+  const saveCoach = () => store.set('lpc-coach', JSON.stringify(coachX));
+  const coachOn = () => !!opts.squadCoach;
+  const COACH = { g: ['No two of us die to one gank before 14:00', 'No two of you died to one gank before 14:00'], a: ['Nobody dies alone after 20:00', 'Nobody died alone after 20:00'],
+    o: ['Nobody dies in the minute before their objective', 'Nobody died in the minute before their objectives'], u: ['Fight for objectives with 3 or more ults up', 'No objective lost with 2 or fewer ults up'] };
+  const COACH_I = { q: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01', u: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z' };
+  const OBJ_TL = { DRAGON: 'Dragon', RIFT_HERALD: 'Herald', HORDE: 'Voidgrubs', BARON_NASHOR: 'Baron' }, ULT_TL = { Dragon: 'DRAGON', Herald: 'RIFT_HERALD', Baron: 'BARON_NASHOR' };
+  function coachFacts(d, tl, id) {
+    const ps = d.ps.map((p) => ({ ...p, l: p.l || '' })), m = ps[d.me];
+    fillLanes(ps, tl);
+    const by = new Map(ps.map((p) => [p.id, p])), jg = ps.find((p) => p.t !== m.t && p.l === 'JUNGLE'), s = (e) => Math.round(e.timestamp / 1000), has = (e, id) => e.killerId === id || (e.assistingParticipantIds || []).includes(id);
+    const kills = tlEvents(tl, 'CHAMPION_KILL').filter((e) => by.has(e.victimId)).sort((a, b) => a.timestamp - b.timestamp), ours = kills.filter((e) => by.get(e.victimId).t === m.t);
+    const theirs = (e) => (e.killerTeamId || (by.get(e.killerId) || {}).t) !== m.t;
+    const mo = (l, foe) => [s(l[0]), l.length, l.map((e) => (e.victimId === m.id ? 0 : by.get(e.victimId).c)), foe,
+      +kills.some((e) => e.timestamp >= l[0].timestamp - 5000 && e.timestamp <= l[l.length - 1].timestamp + 5000 && (e.victimId === m.id || has(e, m.id))), s(l[l.length - 1]) - s(l[0])];
+    const g = [], o = [], used = new Set();
+    for (let i = 0; i < ours.length && ours[i].timestamp < 840000; i++) { // gank: 2 or more of you within 10 s before 14:00, their jungler in on one
+      const l = ours.slice(i).filter((e) => e.timestamp - ours[i].timestamp <= 10000 && e.timestamp < 840000);
+      if (l.length < 2 || !jg || !l.some((e) => has(e, jg.id))) continue;
+      g.push(mo(l, jg.c));
+      i += l.length - 1;
+    }
+    const near = (a, b) => !a.position || !b.position || Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y) <= 2000;
+    const a = ours.filter((e) => e.timestamp >= 1200000 && !kills.some((k) => k !== e && Math.abs(k.timestamp - e.timestamp) <= 15000 && near(k, e))).map((e) => mo([e], (by.get(e.killerId) || {}).c || 0));
+    const obj = tlEvents(tl, 'ELITE_MONSTER_KILL').filter((e) => OBJ_TL[e.monsterType]).sort((x, y) => x.timestamp - y.timestamp);
+    for (const e of obj.filter(theirs)) { // deaths in the minute before their objective
+      const l = ours.filter((k) => !used.has(k) && k.timestamp < e.timestamp && e.timestamp - k.timestamp <= 60000);
+      l.forEach((k) => used.add(k));
+      if (l.length) o.push(mo(l, e.monsterSubType === 'ELDER_DRAGON' ? 'Elder Dragon' : OBJ_TL[e.monsterType]));
+    }
+    const ul = coachX.ult[String(id)]; // the fight check's count, then the next one of that objective theirs
+    const u = Array.isArray(ul) ? ul.filter(([n, up, t]) => { const nx = obj.find((e) => e.monsterType === ULT_TL[n] && e.timestamp / 1000 > t); return up <= 2 && nx && theirs(nx); }).map(([n, up, t]) => [t + 60, up, [], n, 0, 0]) : null;
+    return { g, a, o, ...(u && { u }) };
+  }
+  function coachKeep(id, d, tl) {
+    if (!coachOn()) return;
+    coachX.g[String(id)] = coachFacts(d, tl, id);
+    coachX.g = Object.fromEntries(Object.entries(coachX.g).slice(-300)); // game ids sort as numbers: the newest 300
+    saveCoach();
+  }
+  function coachUlt(n, text) { // the ults the fight check said, for the ults habit
+    const m = /Ults (\d+) of/.exec(text);
+    if (!m || !curGame) return;
+    const id = String(curGame.id);
+    coachX.ult[id] = [...(coachX.ult[id] || []), [n, +m[1], Math.round(gameNow())]];
+    coachX.ult = Object.fromEntries(Object.entries(coachX.ult).slice(-60));
+    saveCoach();
+  }
+  const monOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }; // its Monday 00:00, your time
+  function coachGames(a, b) { // your games together from a to b, read, oldest first
+    const sq = new Set(squadM.map((x) => x.u));
+    return duoAll().filter((g) => g.at >= a && g.at < b && coachX.g[g.id] && g.m.some((x) => sq.has(x[0]))).reverse();
+  }
+  const coachHas = (g, h) => !!((coachX.g[g.id] || {})[h] || []).length;
+  // a week's games together: each habit's [losses with it, losses, wins with it, wins] and the goal ('' for none)
+  function coachWeek(a, b) {
+    const gs = coachGames(a, b), s = {};
+    for (const h of 'gaou') {
+      const l = gs.filter((g) => h !== 'u' || coachX.g[g.id].u), L = l.filter((g) => !g.w), W = l.filter((g) => g.w);
+      s[h] = [L.filter((g) => coachHas(g, h)).length, L.length, W.filter((g) => coachHas(g, h)).length, W.length];
+    }
+    const gap = ([lh, L, wh, W]) => (lh >= 3 ? lh / L - (W ? wh / W : 0) : 0), best = [...'gaou'].filter((h) => gap(s[h]) >= 0.15).sort((x, y) => gap(s[y]) - gap(s[x]))[0];
+    return { n: gs.length, wr: [gs.filter((g) => g.w).length, gs.length], s, h: gs.length >= 10 && best ? best : '' };
+  }
+  function coachPick() { // the first time Premade has read last week's games on or after a Monday
+    if (!coachOn() || !me0 || !me0.puuid || !squadM.length) return;
+    const wk = monOf(Date.now());
+    if (coachX.cur && coachX.cur.k === wk) return;
+    const w = coachWeek(monOf(wk - 1), wk);
+    coachX.cur = { k: wk, n: w.n, h: w.h, s: w.s, wr: w.wr, cf: '', clips: [] };
+    saveCoach();
+    coachClips();
+    renderSquadPage();
+  }
+  // your 3 worst moments: last week's moments of the goal you were in, most deaths first, cut from your match videos
+  // ("Game 2026-11-27 18-08-58 Gwen.webm": its start, your time) from 10 s before to 5 s after, kept as clips
+  // ponytail: a video's game clock comes from vidT0 (kept from What's new 246 on), else 0; a video cut to its highlights is skipped
+  let coachCutting = false;
+  const vidStart = (n) => { const m = /^Game (\d{4})-(\d\d)-(\d\d) (\d\d)-(\d\d)-(\d\d) /.exec(n); return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : NaN; };
+  function coachVid(vids, g) {
+    const len = (planX.g[g.id] || {}).s || 0;
+    return vids.map((v) => [v, vidStart(v.name) - g.at]).filter(([v, dt]) => dt >= -60000 && dt <= 600000 && !(len && vidPics[v.name] && vidPics[v.name][1] < len - 120)).sort((x, y) => Math.abs(x[1]) - Math.abs(y[1])).map(([v]) => v)[0];
+  }
+  async function coachPic(name, t) { // a picture of the moment: [data url, jpg bytes]
+    const el = Object.assign(document.createElement('video'), { muted: true, crossOrigin: 'anonymous', preload: 'auto' }), ev = (n) => new Promise((res, rej) => { el.addEventListener(n, res, { once: true }); el.addEventListener('error', rej, { once: true }); setTimeout(rej, 15000); });
+    try {
+      el.src = client.media('game', name);
+      await ev('loadedmetadata');
+      el.currentTime = t;
+      await ev('seeked');
+      const c = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
+      c.getContext('2d').drawImage(el, 0, 0, 320, 180);
+      return [c.toDataURL('image/jpeg', 0.7), await shot(c)];
+    } catch { return ['', null]; } finally { el.removeAttribute('src'); el.load(); }
+  }
+  async function coachClips() {
+    const c = coachX.cur;
+    if (coachCutting || !c || !c.h || c.h === 'u' || c.cf === c.h || !client || !client.clipEdit || !client.gameVideo || !client.media) return;
+    coachCutting = true;
+    try {
+      const vids = ((await client.gameVideo('list').catch(() => [])) || []).filter((v) => !v.rec && !isRec(v.name)), out = [];
+      const ms = coachGames(monOf(c.k - 1), c.k).flatMap((g) => coachX.g[g.id][c.h].filter((m) => m[4]).map((m) => ({ g, m }))).sort((x, y) => y.m[1] - x.m[1] || x.g.at - y.g.at);
+      for (const { g, m } of ms) {
+        const v = out.length < 3 && coachVid(vids, g);
+        if (!v) continue;
+        const t0 = vidT0[v.name] || 0, from = Math.max(0, m[0] - t0 - 10), to = m[0] + m[5] - t0 + 5, [pic, jpg] = await coachPic(v.name, Math.max(0, m[0] - t0));
+        const name = await client.clipEdit('game', v.name, from, to, { speed: 1, crop: null, text: '', vol: 1, mute: false }, jpg, () => {}).catch(() => '');
+        if (name) out.push({ name, pic, m, at: g.at });
+      }
+      Object.assign(c, { cf: c.h, clips: out });
+      saveCoach();
+      renderSquadPage();
+    } finally { coachCutting = false; }
+  }
+  const coachWho = (m) => { const v = m[2].map((c) => (c ? champName(c) : 'You')).sort((x, y) => (y === 'You') - (x === 'You')); return v.length > 1 ? `${v.slice(0, -1).join(', ')} and ${v[v.length - 1]}` : v[0] || 'You'; };
+  const coachLine = (h, m) => h === 'g' ? `${coachWho(m)}, to their ${champName(m[3])}` : h === 'a' ? `${coachWho(m)}, alone${m[3] ? `, to their ${champName(m[3])}` : ''}` : `${coachWho(m)}, before their ${m[3]}`;
+  const coachIcon = (h) => { const s = elm('span', 'gpic'); s.innerHTML = svgPath(COACH_I[h === 'u' ? 'u' : 'q'], 24); return s; };
+  const coachBlocks = (l) => elm('span', 'blk sm cblk', ...l.map((k) => elm('i', k ? 'w' : '')));
+  const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  // this week's games together against the goal: [kept, won] each, oldest first (the ults one only where it counted)
+  const coachTicks = (c) => coachGames(c.k, Infinity).filter((g) => c.h !== 'u' || coachX.g[g.id].u).map((g) => [!coachHas(g, c.h), g.w]);
+  function coachEl() { // the Squad page's Squad goal this week
+    const c = coachX.cur;
+    if (!coachOn() || !c || !squadM.length || c.k !== monOf(Date.now())) return null;
+    if (!c.h) return elm('p', 'hint', c.n < 10 ? `${c.n ? `Only ${c.n} games` : 'No games'} together last week: a goal needs 10, so none this week.` : 'No habit cost you games last week: no goal this week.');
+    const [lh, L, wh, W] = c.s[c.h], t = coachTicks(c), kept = t.filter(([k]) => k);
+    const out = [elm('p', 'hint cpick', `Picked Monday from ${c.n} games together`),
+      elm('div', 'cgoal', coachIcon(c.h), elm('span', 'gptext', elm('b', '', COACH[c.h][0]), elm('small', '', `Last week: in ${lh} of ${L} losses, and ${wh} of ${W} wins`))),
+      elm('div', 'cweek', elm('small', '', 'This week'), ...(t.length ? [coachBlocks(t.map(([k]) => k)), elm('small', 'gpn', `Kept in ${kept.length} of ${t.length} games, and you won ${kept.filter(([, w]) => w).length} of those ${kept.length}`)] : [elm('small', 'gpn', 'No games together yet')]))];
+    if (c.clips.length) out.push(elm('p', 'gphead', elm('b', '', `Your ${c.clips.length > 1 ? `${c.clips.length} worst moments` : 'worst moment'}`), elm('small', '', 'from your match videos, only moments you were in')),
+      elm('div', 'cclips', ...c.clips.map((x) => {
+        const b = mkBtn('cclip', [elm('span', 'cthumb', ...(x.pic ? [Object.assign(new Image(), { src: x.pic, alt: '' })] : []), elm('span', 'ctime', mmss(x.m[0])), elm('span', 'cplay', ''))
+          , elm('b', '', coachLine(c.h, x.m)), elm('small', '', `${WEEKDAYS[new Date(x.at).getDay()]} · ${x.m[1] > 1 ? `${x.m[1]} deaths in ${x.m[5]} s` : '1 death'}`)], () => playClip(x.name));
+        b.querySelector('.cplay').innerHTML = ico('play');
+        b.setAttribute('aria-label', `Watch ${coachLine(c.h, x.m)} at ${mmss(x.m[0])}`);
+        return b;
+      })));
+    return elm('div', 'cbox', ...out);
   }
   const PLAN_I = { clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 7v5l3 2' };
   const planIcon = (p) => { if (p.c) return champFace(p.c, 'gpface'); const s = elm('span', 'gpic'); s.innerHTML = PLAN_I[p.i] ? svgPath(PLAN_I[p.i], 22) : svgPath(WHEN[p.i], 22).replace('0 0 24 24', '0 0 16 16'); return s; };
@@ -22065,14 +22233,14 @@ dialog.wizard { transform: scale(var(--from)); }
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { motionGame: () => motionTick(), themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, gamePlan: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { motionGame: () => motionTick(), themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, gamePlan: renderGame, squadCoach: renderSquadPage, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, shareFilter: () => { if (!share) return; const auto = share.auto; startShare(share.mode, share.src).then(() => { if (share) share.auto = auto; }); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
     ['optChimes', 'chimes'], ['optBeeps', 'beeps'], ['optEcho', 'echo'], ['optDenoise', 'denoise'], ['optStudio', 'studio'], ['optHurt', 'hurt'], ['optDiscord', 'discord'],
     ['optGameView', 'gameView'], ['optFront', 'front'], ['optAutoAccept', 'autoAccept'], ['optScout', 'scout'], ['optRunes', 'runes'], ['optOverlayGame', 'overlayGame'], ['optRemote', 'remote'], ['optClips', 'clips'], ['optClipMulti', 'clipMulti'], ['optClipVoice', 'clipVoice'], ['optClipSolo', 'clipSolo'], ['optClipFirst', 'clipFirst'], ['optClipTake', 'clipTake'], ['optClipWin', 'clipWin'],
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
-    ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optGamePlan', 'gamePlan'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
+    ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optGamePlan', 'gamePlan'], ['optSquadCoach', 'squadCoach'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optLaneBox', 'laneBox'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optGankClock', 'gankClock'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'], ['optFightCheck', 'fightCheck'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
@@ -22297,6 +22465,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [246, 'November 27: your squad’s goal this week', [
+      'Every Monday, Premade looks at last week’s games with your squad (Summoner’s Rift with a friend from Your squad on your team) and picks the one habit that cost you the most games: two of you dying to one gank before 14:00, dying alone after 20:00, dying in the minute before their objective, or fighting for one with 2 or fewer ults up. That becomes your goal for the week, like “No two of us die to one gank before 14:00”.',
+      'The Squad page shows it at the top with how often it happened (“in 7 of 10 losses, and 2 of 12 wins”), a block for each game together this week (green when you kept it), and your 3 worst moments with it, cut from your match videos and kept as clips. A habit needs 3 losses and to show 15 points more often in losses than in wins, so some weeks there’s no goal, never a filler.',
+      'Settings, Champ select: Squad coach, on to start with.',
+    ]],
     [245, 'November 27: your game plan, checked', [
       'A minute before the objective your game plan names, its words join the fight check line at the top of your screen: “Dragon in 1:00. Plan: fight for first Dragon. Their Flash 1 of 5 down”. Still one line, and nothing new out loud.',
       'After the game, the report has a Game plan card: each part with what happened (“The game lasted 34:10”, “They took it at 5:20”) and Done or Missed.',
@@ -23597,6 +23770,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Nothing to set up: play with friends in your lobby. Settings, Champ select: Game plan turns it off.', '#csPlan, #optGamePlan', 'app'],
       ['Game plan check', 'A minute before the objective your game plan names, its words join the fight check line (“Dragon in 1:00. Plan: fight for first Dragon”). After the game the report has a Game plan card with each part Done or Missed, and the Squad page shows how often you win when you follow it.',
         'Nothing to set up: play with your game plan. Squad, Your game plan.', '#sqGpBox', 'app'],
+      ['Squad coach', 'Each Monday, from last week’s games with your squad, the one habit about deaths and fights that cost you the most games becomes your goal for the week (“No two of us die to one gank before 14:00”). The Squad page shows it with how often it happened in losses and wins, a block per game together this week, and your 3 worst moments with it as clips from your match videos.',
+        'Nothing to set up: add friends to Your squad and play together. Settings, Champ select: Squad coach turns it off.', '#sqCoachBox, #optSquadCoach', 'app'],
     ]],
     ['League: Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online (with your win rate together this season), Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox, #friendRows', 'app'],
@@ -23864,6 +24039,7 @@ dialog.wizard { transform: scale(var(--from)); }
     jungler: (r, tl) => junglerEl(r, tl),
     jgLog: (v) => { jgLog = v; }, // What's new 235: this game's jungler calls, as seeFoes keeps them
     dodgeSay, habits: (tl, pid) => habitsOf(tl, pid),
+    coachFacts: (d, tl, id) => coachFacts(d, tl, id), coachWeek: (a, b) => coachWeek(a, b), coachStore: () => coachX, monOf: (t) => monOf(t), coachPick: () => coachPick(), coachClips: () => coachClips(), // What's new 246
     plan: (gs, team) => planOf(gs, team), planStore: () => planX, planLine: (rows) => planLine(rows), planKeep: (id, ps) => planKeep(id, ps), planWords: (n, t, id, ev) => { const was = [curGame, league]; curGame = { id }; league = { events: ev || [] }; try { return planWords(n, t); } finally { [curGame, league] = was; } }, planReport: (r, tl) => { const e = planReportEl(r, tl); return e && e.outerHTML; },
     weakSide: (rows, data) => { for (const [k, v] of Object.entries(data)) scoutData.set(k, v); return weakSide(rows); },
     flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
