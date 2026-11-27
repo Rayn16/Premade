@@ -357,6 +357,12 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .chatlog time { font: 500 12px/1 var(--mono); color: var(--muted); margin-right: 8px; }
 .chatlog b { color: var(--gold); margin-right: 6px; }
 .chatform { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.airev { display: grid; gap: 8px; }
+.airev p { margin: 0; font-size: 15px; line-height: 1.45; }
+.airev .aiask { margin-top: 4px; max-width: 560px; }
+.airev .aians, .airev .aimute { color: var(--muted); font-size: 14px; }
+.airev .aimute .btn { margin-left: 8px; }
+.airev + .ptop { padding-top: 14px; border-top: 1px solid var(--hair); }
 .roomform { grid-template-columns: auto minmax(0, 1fr) auto; }
 .roomchat { max-height: 420px; }
 .roomchat li { position: relative; padding: 2px 4px; border-radius: 4px; }
@@ -3657,6 +3663,7 @@ dialog.wizard { transform: scale(var(--from)); }
           <section class="ovcard lcu-only" aria-labelledby="h-setleague">
             <h3 id="h-setleague">League <button class="tip" type="button" popovertarget="t-league" aria-label="About League's client">?</button></h3>
             <label class="check"><input id="optScout" type="checkbox"> Look up players' ranks and recent games</label>
+            <label class="check"><input id="optAiReview" type="checkbox"><span><span>Review my games with AI <button class="tip" type="button" popovertarget="t-ai" aria-label="About the AI review">?</button></span><span id="aiNote"></span></span></label>
             <label class="check rooms-only"><input id="optShareLol" type="checkbox"><span><span>Show my rank to my room</span><span>And let friends see our record together and watch my games</span></span></label>
             <label class="check"><input id="optRecord" type="checkbox"> Save test recordings of my games <button class="tip" type="button" popovertarget="t-record" aria-label="About test recordings">?</button></label>
             <div class="toolbar"><button id="recordingsBtn" class="btn small" type="button">Open the recordings folder</button></div>
@@ -4116,6 +4123,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-tftgames" class="tipbox" popover>Newest first, from League’s client on this PC. Traits count when they were on in that game.</div>
 <div id="t-clips" class="tipbox" popover>During a game the app keeps the last part of the screen League is on in memory, with what you hear and your mic. The clip key, saying “Premade, clip that” (Settings, Clips), a double kill or a big moment saves it as a video in Videos\Premade; nothing is saved otherwise. Clips are .mp4, which phones, WhatsApp and Discord play; the first one is .webm while the app fetches FFmpeg to make them. Each game is a row with its clips. Here you can play, cut, rename and save your clips, copy one to paste into a chat, or drag one straight into Discord. Saved clips stay in their game (press Saved to see only them) and are never binned when the folder gets too big. Recording takes some of your computer's power: 720p, 30 fps or turning clips off helps if League stutters. Quality is never more than your screen's size.</div>
 <div id="t-voice" class="tipbox" popover>Faster sends your friends' voices to you in smaller pieces, so they arrive a little sooner; it uses a bit more internet. Less data sends fewer, bigger pieces at a lower quality, both ways, for anyone on slow internet. Changing it reconnects voice for a moment. Whatever you pick, when a friend starts losing some of your voice on the way, it goes to them in lower quality by itself until that stops, without reconnecting.</div>
+<div id="t-ai" class="tipbox" popover>After each Summoner’s Rift game, a free AI on your own graphics card writes 3 lines at the top of your drawer on the Game page: how the game went, your best, and the one thing for next game. Ask it about that game under them. It only uses the numbers Premade measured, runs only after games, never in one, and nothing leaves your PC. Unticking it frees the 4.6 GB. Built with Llama.</div>
 <div id="t-record" class="tipbox" popover>Saves what League tells the app during each game (its game data and what champ select and match history said) in Documents\Premade\Test recordings, with every name and account id swapped for Player 1, Player 2 and so on. No voice and no video. Send one to whoever builds the app so new features get tried on a real game. The newest 20 are kept.</div>
 <div id="t-goals" class="tipbox" popover>Everyone in the room who picked a rank goal in the desktop app (Stats, You: Goal), and how close they are: the LP to go, and a bar from where they were when they picked it. It’s shared like your rank, unless that’s off in Settings, League.</div>
 <div id="t-lolchat" class="tipbox" popover>Your League friends’ messages and party invites, through League’s own client: read and answer them here or on the phone remote, and accept or decline an invite. With Show my Premade room on, your League status says “Premade room KAYN” while you’re in a room, and your old status comes back when you leave.</div>
@@ -4194,7 +4202,7 @@ dialog.wizard { transform: scale(var(--from)); }
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false, frSlim: true, boardBg: '', boardPic: 0,
     hook: '', hookGames: true, hookClips: true, lolStatus: false,
-    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null,
+    attenuate: 0, aionLive: false, aionParty: true, aionRec: true, aionBoss: true, combo: false, comboGap: 1, jgCamps: 6, gameVideo: false, gameHigh: true, recMic: true, clipsAll: false, gameDays: 7, champLook: false, champMain: null, aiReview: false,
     ...load('lpc-opts', {}),
   };
   if (!opts.overlayParts || typeof opts.overlayParts !== 'object') opts.overlayParts = {};
@@ -11741,8 +11749,10 @@ dialog.wizard { transform: scale(var(--from)); }
         if (mine && rs && ms.length > 1) kids.push(cardsEl(box, r, i, ms, b));
         if (mine && (dr.dataset.area || !rs)) kids.push(detailEl(box, r, i, rs ? dr.dataset.area : '', ms, b));
       }
+      if (i === r.me) kids.unshift(aiEl(box, r)); // the AI coach's lines (What's new 249)
       dr.replaceChildren(...kids.filter(Boolean), drawerActs(r, p, i));
     }
+    aiAfter(box, r);
   }
   // a game's row on the Clips page, opened: from the head's Watch the match and Your clips
   function openGameClips(id) {
@@ -12300,6 +12310,7 @@ dialog.wizard { transform: scale(var(--from)); }
         if (ph === 'ReadyCheck') ringPhone();
         if (/^(GameStart|InProgress|Reconnect)$/.test(ph) && !preViewEl.hidden && opts.gameView) view('game'); // from champ select to the game
         if (ph === 'ChampSelect') {
+          aiStop(); // the AI coach never runs from champ select on (What's new 249)
           cs = null; pickable = null; runesFor = ''; runesNote = runesWhy = ''; csReset(); scouting.clear(); scoutData.clear(); tradeSeen.clear();
           autoDone.clear(); avoidSaid.clear(); buildNote = itemsFor = ''; tierRole = advRole = advQ = $('dFind').value = ''; runesSoon(); itemsSoon();
         }
@@ -16110,7 +16121,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const WHEN = { dragon: 'M8 2c1 3 4 4 4 8a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-7z', baron: 'M2 8c3-4 9-4 12 0-3 4-9 4-12 0zM8 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z',
     tower: 'M5 14h6l-1-7h1V3H9.5v1.5h-.75V3h-1.5v1.5H6.5V3H5v4h1z', fight: 'M3 3l7 7M13 3 6 10M3 13l2-2M13 13l-2-2' };
   const TOOK = { DRAGON: 'a dragon', ELDER: 'the Elder Dragon', RIFT_HERALD: 'the Rift Herald', BARON_NASHOR: 'Baron', ATAKHAN: 'Atakhan' };
-  function whenEl(r, tl, fig) {
+  function whenOf(r, tl) { // [[ms, kind, side, what, row, as a finished line (for the AI coach)]]
     const me = r.players[r.me], ours = me ? me.team : 100, team = (id) => (r.players.find((p, i) => (p.pid || i + 1) === id) || {}).team, evs = [];
     const by = (t) => (t === ours ? ['us', me ? 'Your team' : 'Blue side'] : ['them', me ? 'Their team' : 'Red side']);
     for (const e of tlEvents(tl, 'ELITE_MONSTER_KILL')) {
@@ -16124,11 +16135,16 @@ dialog.wizard { transform: scale(var(--from)); }
       while (z < ks.length && ks[z].timestamp - ks[z - 1].timestamp <= 20000) z++;
       const f = ks.slice(a, z), won = f.filter((e) => team(e.victimId) !== ours).length;
       a = z;
-      if (f.length >= 3) evs.push([f[0].timestamp, 'fight', won > f.length - won ? 'us' : won < f.length - won ? 'them' : '', `a fight, ${won} for ${f.length - won}${f[0].position ? ` in ${placeOf(f[0].position, ours)}` : ''}`, 1]);
+      if (f.length >= 3) evs.push([f[0].timestamp, 'fight', won > f.length - won ? 'us' : won < f.length - won ? 'them' : '', `a fight, ${won} for ${f.length - won}${f[0].position ? ` in ${placeOf(f[0].position, ours)}` : ''}`, 1,
+        `a fight${f[0].position ? ` in ${placeOf(f[0].position, ours)}` : ''}: ${won} kills for ${me ? 'your team' : 'blue side'}, ${f.length - won} for ${me ? 'theirs' : 'red side'}`]);
     }
+    return evs.sort((a, b) => a[0] - b[0]);
+  }
+  function whenEl(r, tl, fig) {
+    const me = r.players[r.me], evs = whenOf(r, tl);
     const strip = mk('div', 'when');
     strip.setAttribute('aria-label', 'What happened when');
-    strip.append(...evs.sort((a, b) => a[0] - b[0]).map(([t, k, sd, what, row]) => {
+    strip.append(...evs.map(([t, k, sd, what, row]) => {
       const s = mk('span');
       s.innerHTML = svgPath(WHEN[k], 14).replace('0 0 24 24', '0 0 16 16');
       Object.assign(s.dataset, { side: sd, row });
@@ -16433,6 +16449,158 @@ dialog.wizard { transform: scale(var(--from)); }
     const rep = reportEl(r);
     $('postBody').replaceChildren(rep);
     reportOpen(rep, r);
+  }
+
+  // ---- Local AI coach (What's new 249): after a Summoner's Rift game, Llama 3.1 8B on your own graphics card (WebLLM
+  // in a Web Worker: nothing leaves the PC, Premade never freezes) writes 3 lines at the top of your drawer and answers
+  // questions about that game, only from finished statements Premade builds (aiFacts: the model never compares raw
+  // numbers itself, test 43). Off until ticked (Settings > League); never from champ select to the game's end; unloads 5
+  // minutes after the last use. A line with a number that isn't in the facts is dropped (aiFits).
+  const AI_LIB = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm', AI_MODEL = 'Llama-3.1-8B-Instruct-q4f16_1-MLC';
+  const AI_CANT = 'I can’t tell that from this game’s numbers.', AI_FIT = 'The review didn’t fit on your graphics card this time.';
+  const AI_REVIEW = 'You are a League of Legends coach talking to the player. From the facts only, write exactly 3 lines, one sentence each, at most 25 words, no headings or numbering. Line 1: how the game went, from what happened when and the gold. Line 2: the player\'s best, with when or why, not only the number. Line 3: the one thing for next game: the Next game aim, with what to do. Say "you". Copy numbers and times exactly as the facts write them. Never work out a new number and never compare two numbers yourself.';
+  const AI_ASK = `You are a League of Legends coach. Answer the player's question about this game in 1 to 3 short sentences, only from the facts. Copy numbers and times exactly as the facts write them; never work out a new number. If the facts don't answer it, reply exactly: ${AI_CANT}`;
+  const AI_WORKER = `let lib, eng;
+onmessage = async ({ data: m }) => {
+  const say = (x) => postMessage({ id: m.id, ...x });
+  try {
+    lib = lib || await import('${AI_LIB}');
+    if (m.do === 'del') return say({ ok: await lib.deleteModelAllInfoInCache(m.model).then(() => 1) });
+    eng = eng || lib.CreateMLCEngine(m.model, { initProgressCallback: (p) => postMessage({ id: m.id, p: p.progress }) });
+    const e = await eng.catch((x) => { eng = null; throw x; });
+    if (m.do === 'load') return say({ ok: 1 });
+    const r = await e.chat.completions.create(m.req);
+    say({ ok: r.choices[0].message.content || '' });
+  } catch (x) { say({ err: String((x && x.message) || x) }); }
+};`;
+  let aiW = null, aiN = 0, aiOff = 0, aiGet = '', aiPct = 0, aiBox = null; // aiGet: '' | 'getting' (the switch's download) | 'failed'; aiBox: [the Game page's report, its game]
+  const aiWait = new Map(), aiState = new Map(), aiAns = new Map(); // call id -> [ok, no, progress]; game id -> 'busy' | 'fail'; game id -> [question, answer]
+  const aiOk = () => opts.aiReview && !curGame && !['select', 'loading', 'game'].includes(PHASES[lcu]);
+  function aiCall(m, prog) {
+    if (!aiW) {
+      aiW = new Worker(URL.createObjectURL(new Blob([AI_WORKER], { type: 'text/javascript' })), { type: 'module' });
+      aiW.onmessage = ({ data: d }) => { const w = aiWait.get(d.id); if (!w) return; if ('p' in d) return void (w[2] && w[2](d.p)); aiWait.delete(d.id); if ('err' in d) w[1](new Error(d.err)); else w[0](d.ok); };
+    }
+    return new Promise((ok, no) => { const id = ++aiN; aiWait.set(id, [ok, no, prog]); aiW.postMessage({ ...m, id }); });
+  }
+  function aiStop() { // at once: the worker and its graphics memory go
+    clearTimeout(aiOff);
+    if (aiW) aiW.terminate();
+    aiW = null;
+    for (const [, w] of aiWait) w[1](new Error('stopped'));
+    aiWait.clear();
+  }
+  async function aiChat(sys, facts, q) {
+    if (!aiOk()) throw new Error('not now');
+    clearTimeout(aiOff);
+    const load = aiCall({ do: 'load', model: AI_MODEL });
+    await (aiGet === 'getting' ? load : Promise.race([load, sleep(120000).then(() => { aiStop(); throw new Error('slow'); })])); // over 2 minutes: no room on the card
+    const out = await aiCall({ do: 'chat', req: { messages: [{ role: 'system', content: sys }, { role: 'user', content: `Facts:\n- ${facts.join('\n- ')}${q ? `\n\nQuestion: ${q}` : ''}` }], temperature: 0.3, max_tokens: q ? 150 : 220 } });
+    aiOff = setTimeout(aiStop, 300000);
+    return String(out);
+  }
+  // the numbers in a text, times and decimals whole ("12:40", "15.5k" -> 15.5, "1,300" -> 1300); a line fits when every
+  // number in it is one of the facts'
+  const aiNums = (t) => (t.match(/\d+(?:[.:,]\d+)*/g) || []).map((n) => n.replace(/,(?=\d{3})/g, ''));
+  const aiFits = (line, facts) => { const ok = new Set(aiNums(facts.join('\n'))); return aiNums(line).every((n) => ok.has(n)); };
+  const aiLines = (t) => t.split('\n').map((l) => l.replace(/^\s*(?:[-*•]|\d[.)]|line \d:?)\s*/i, '').replace(/^\*\*[^*]+\*\*:?\s*/, '').trim()).filter((l) => l.split(/\s+/).length >= 4).slice(0, 3);
+  // this game as finished statements: result and length, the gold at 10:00, 15:00 and the end, what happened when, your
+  // numbers and deaths, the 3 cards, your lane opponent's gaps at 10:00, your wards
+  function aiFacts(box, r) {
+    const i = r.me, p = r.players[i], foe = repFoe(r, p), fn = foe && champName(foe.champ), b = benchFor(box, r, i), ms = b && b.gs.length ? measure(gameOf(box, r, i), b.gs) : [], w = p.wards || [0, 0, 0];
+    const f = [`You played ${champName(p.champ)}${POS[p.l] ? ` (${POS[p.l].toLowerCase()})` : ''}${foe ? ` against ${fn}` : ''}. Result: ${p.win ? 'a win' : 'a loss'}. Game length: ${Math.floor(r.len / 60)} minutes ${r.len % 60} seconds.`,
+      `Your K/D/A: ${p.k}/${p.d}/${p.a}, a ${kda(p.k, p.d, p.a)} KDA. Your CS: ${p.cs}, ${(p.cs / Math.max(1, r.len / 60)).toFixed(1)} a minute.`, `Wards you placed: ${w[0]}. Control Wards you bought: ${w[2]}.`];
+    const g = r.gold && r.gold.length > 1 ? r.gold : box.tl && tlTeamGold(r, box.tl), lead = (v) => (Math.abs(v) < 100 ? 'even on gold' : `${k1(Math.abs(v))} gold ${v > 0 ? 'ahead' : 'behind'}`);
+    if (g) {
+      for (const t of [600, 900]) { const at = g.filter(([s]) => s <= t).pop(); if (at && g[g.length - 1][0] > t) f.push(`At ${mmss(t)} your team was ${lead(at[1])}.`); }
+      f.push(`At the end your team was ${lead(g[g.length - 1][1])}.`);
+    }
+    if (box.tl) {
+      const evs = whenOf(r, box.tl).map(([t, , , what, , say]) => `${mmss(t / 1000)} ${say || what}`);
+      if (evs.length) f.push(`What happened when: ${evs.join('; ')}.`);
+      const died = deathsOf(box, r, i) || [];
+      f.push(`You died ${died.length} times.`, ...died.map((e) => `You died at ${mmss(e.t)} ${e.by.length ? `to ${e.by.map((q) => champName(q.champ)).join(' with ')}` : 'to a tower or minions'}${e.pos ? `, in ${placeOf(e.pos, p.team)}` : ''}.`));
+    }
+    if (ms.length > 1) for (const c of cardsEl(box, r, i, ms, b).children) { const [k, h, sub] = [...c.lastChild.children].map((e) => e.textContent); f.push(`${k} card: ${h}. ${sub}`); }
+    const d = box.l10 && box.l10[i];
+    if (d && foe) [['CS', d[0]], ['gold', d[1]], ['XP', d[2]]].forEach(([what, v]) => { v = Math.round(v); f.push(!v ? `You and ${fn} had the same ${what} at 10:00.` : v > 0 ? `You were ${v} ${what} ahead of ${fn} at 10:00.` : `${fn} was ${-v} ${what} ahead of you at 10:00.`); });
+    return f;
+  }
+  async function aiWrite(box, r) {
+    if (aiState.get(r.id) === 'busy' || !aiOk()) return;
+    aiState.set(r.id, 'busy');
+    drawerFill(box, r);
+    const facts = aiFacts(box, r), tries = [];
+    try {
+      for (let n = 0; n < 2 && !(tries[0] && tries[0].length === 3 && tries[0].every((l) => aiFits(l, facts))); n++) tries.push(aiLines(await aiChat(AI_REVIEW, facts))); // a line that doesn't fit is written once more
+      const out = [0, 1, 2].map((k) => tries.map((t) => t[k]).find((l) => l && aiFits(l, facts))).filter(Boolean);
+      r.ai = out.length >= 2 ? out : [];
+      aiState.delete(r.id);
+      if (reports[r.id] === r) store.set('lpc-reports', JSON.stringify(reports));
+    } catch (e) {
+      if (aiOk()) aiState.set(r.id, 'fail'); else aiState.delete(r.id); // stopped by champ select: nothing kept
+    }
+    if (!box.isConnected) return;
+    drawerFill(box, r);
+    const me = box.querySelector('.pside[data-me]');
+    if (box.closest('#postBox') && (aiState.get(r.id) === 'fail' || (r.ai && r.ai.length)) && me && me.getAttribute('aria-expanded') !== 'true') me.click(); // your drawer opens by itself after a game
+  }
+  async function aiAsk(box, r, q) {
+    aiAns.set(r.id, [q, '…']);
+    drawerFill(box, r);
+    const facts = aiFacts(box, r);
+    let a;
+    try { a = (await aiChat(AI_ASK, facts, q)).trim().split('\n').join(' '); a = a && aiFits(a, facts) ? a : AI_CANT; } catch (e) { a = aiOk() ? AI_FIT : 'Questions wait until your game is over.'; }
+    aiAns.set(r.id, [q, a]);
+    if (box.isConnected) drawerFill(box, r);
+  }
+  // the top of your drawer: the 3 lines, then Ask about this game (needs the timeline, and the switch on)
+  function aiEl(box, r) {
+    const st = aiState.get(r.id), lines = r.ai || [], ask = opts.aiReview && box.tl && r.mode === 'CLASSIC';
+    if (!lines.length && !st && !ask) return null;
+    const el = mk('div', 'airev');
+    el.append(...lines.map((l) => mk('p', '', l)));
+    if (st === 'busy') el.append(mk('p', 'aimute', 'Writing your review on your graphics card…'));
+    if (st === 'fail') {
+      const p = mk('p', 'aimute', `${AI_FIT} `), b = mk('button', 'btn small', 'Try again');
+      b.type = 'button';
+      b.addEventListener('click', () => { aiState.delete(r.id); aiWrite(box, r); });
+      p.append(b);
+      el.append(p);
+    }
+    if (ask) {
+      const f = mk('form', 'chatform aiask'), inp = mk('input'), b = mk('button', 'btn small', 'Ask'), last = aiAns.get(r.id);
+      Object.assign(inp, { type: 'text', placeholder: 'Ask about this game', maxLength: 200, value: last ? last[0] : '' });
+      inp.setAttribute('aria-label', 'Ask about this game');
+      b.disabled = !!last && last[1] === '…';
+      f.append(inp, b);
+      f.addEventListener('submit', (e) => { e.preventDefault(); const q = inp.value.trim(); if (q && !b.disabled) aiAsk(box, r, q); });
+      el.append(f);
+      if (last) el.append(mk('p', 'aians', last[1]));
+    }
+    return el;
+  }
+  // after a game: the Game page's report, once its timeline and high elo games are in, gets its review (once)
+  function aiAfter(box, r) {
+    if (!box.closest('#postBox')) return;
+    aiBox = [box, r];
+    if (r.mode === 'CLASSIC' && !r.ai && !aiState.has(r.id) && box.tl && box.bench && aiOk()) aiWrite(box, r);
+  }
+  const aiNote = () => { $('aiNote').textContent = aiGet === 'getting' ? `Downloading the AI once: ${Math.round(100 * aiPct)}% of 4.6 GB` : aiGet === 'failed' ? 'The download didn’t finish. Untick and tick it to try again' : opts.aiReview ? 'Written on your graphics card after each game' : 'Written on your graphics card after each game. Downloads 4.6 GB once'; };
+  async function aiSwitch() {
+    const redo = () => { if (aiBox && aiBox[0].isConnected) drawerFill(...aiBox); };
+    aiStop();
+    aiGet = '';
+    if (!opts.aiReview) { // frees the 4.6 GB
+      aiNote(); redo();
+      await aiCall({ do: 'del', model: AI_MODEL }).catch(() => {});
+      return aiStop();
+    }
+    if (aiOk()) {
+      aiGet = 'getting'; aiPct = 0; aiNote();
+      try { await aiCall({ do: 'load', model: AI_MODEL }, (x) => { aiPct = x; aiNote(); }); aiGet = ''; aiOff = setTimeout(aiStop, 300000); } catch (e) { aiGet = opts.aiReview ? 'failed' : ''; }
+    }
+    aiNote(); redo();
   }
 
   // ---- Stats (What's new 203): two tabs, You and Champions, for the account Profile shows (shownMine). Its games are
@@ -21800,7 +21968,7 @@ dialog.wizard { transform: scale(var(--from)); }
     checkIn();
   }
   $('name').addEventListener('change', (e) => setName(e.target.value));
-  const optDone = { motionGame: () => motionTick(), themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
+  const optDone = { aiReview: aiSwitch, motionGame: () => motionTick(), themeAuto: () => relook(), denoise: () => (raw ? getMic().catch(() => say('Could not reopen your microphone.')) : wireMic()), studio, hurt: applyHurt, echo: volumes, discord: pushDiscord, remote: remoteCheck, clips: () => { clipsCheck(); renderClips(); renderVoice(); }, clipsAll: () => { clipsCheck(); renderClips(); renderVoice(); }, gameVideo: () => { clipsCheck(); renderVids(); }, clipVoice: () => { voiceErr = ''; renderVoice(); renderClips(); voiceCheck(); }, clipMulti: renderClips, clipBig: renderClips, autoAccept: pushRemote, scout: renderGame, runes: renderGame, itemSet: renderGame, shareLol: () => { if (peer) send(meMsg()); },
     surround: volumes, record: () => client && client.record && client.record(opts.record), hello: () => checkIn(), roomSound: () => { lendTick(); $('roomSoundState').textContent = opts.roomSound ? (share && share.sound ? 'Screen audio is on and ready to share with the room.' : 'Screen audio is on by default. The next screen share will include sound when selected in the picker.') : 'Screen audio sharing is off. Turn it on here to share sound.'; },
     foeTimers: () => { voiceErr = ''; voiceCheck(); if (ear) vosk.then(listen); pushOverlay(); pushRemote(); ovDraw(); }, shareFilter: () => { if (!share) return; const auto = share.auto; startShare(share.mode, share.src).then(() => { if (share) share.auto = auto; }); }, lendScreen: () => { if (peer) send(meMsg()); lendTick(); }, roomScreen: () => { if (peer) send(meMsg()); lendTick(); seeTick(); render(); }, autoShare: () => { if (!opts.autoShare && share && share.auto) stopShare(); } }; // what else to redo; pushOverlay for the rest
   for (const [id, k] of [['optOverlay', 'overlay'], ['optOverlayChat', 'overlayChat'], ['optAutoRoom', 'autoRoom'], ['optNotify', 'notify'],
@@ -21811,10 +21979,11 @@ dialog.wizard { transform: scale(var(--from)); }
     ['optOverlayLane', 'overlayLane'], ['optLaneBox', 'laneBox'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optGankClock', 'gankClock'], ['optSpeakCalls', 'speakCalls'],
     ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
-    ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
+    ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh'], ['optAiReview', 'aiReview']]) {
     $(id).checked = opts[k];
     $(id).addEventListener('change', (e) => { opts[k] = e.target.checked; saveOpts(); (optDone[k] || (() => { pushOverlay(); ovDraw(); }))(); });
   }
+  aiNote();
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
   $('attenRow').hidden = !client;
   for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ['optFlashAuto', client && client.flashMarks && boardOk()], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optGankClock', 'optLaneBox', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
@@ -22032,6 +22201,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [249, 'November 27: the AI coach', [
+      'Tick Settings, League, Review my games with AI: after each Summoner’s Rift game a free AI on your own graphics card writes 3 lines at the top of your drawer on the Game page (how the game went, your best, the one thing for next game), and your drawer opens by itself to show them. It downloads once (4.6 GB) and nothing leaves your PC.',
+      'Under the lines, ask about that game, like “Why did I die at 12:40?”, for an answer in about 10 seconds. It only uses the numbers Premade measured: when they don’t cover it, it says so. It never runs in a game, stops when champ select starts, and unticking it frees the 4.6 GB.',
+    ]],
     [240, 'November 27: your jungler coming', [
       'With the lane box showing and a minimap callout on, the box says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, from their walk round the walls at their speed. Nothing while they farm near you, and nothing out loud.',
     ]],
@@ -23365,6 +23538,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Your last game, on Game, once a game ends; every game report; Scoreboard on each game on the Clips page and on the card after a game.', '#postBox', 'app'],
       ['How you played', 'After a game the Game page shows your game, opening on Overview. Press yourself for Your game: a ring for how many high elo games on your champion and role you beat, and one each for Fighting, Damage, Farming, Vision and Laning, then your best number, your biggest leak and a target for next game. Press a ring for its numbers as bars against high elo, where you rank among the 10 in Riot’s extra numbers (your own turret plates), and for Fighting where you got kills and died. Laning sets you against your lane opponent at 10 and 15 minutes, with your gold and CS leads filled blue ahead and red behind.',
         'Your last game, on Game, once a game ends: press your own side of your lane. Every game report has it too.', '#postBox', 'app'],
+      ['AI coach', 'After each Summoner’s Rift game, a free AI on your own graphics card writes 3 lines at the top of your drawer (how the game went, your best, the one thing for next game) and answers questions about that game, only from the numbers Premade measured. Never in a game; nothing leaves your PC.',
+        'Off until you tick it: Settings, League, Review my games with AI (downloads 4.6 GB once). Then play a game and open Game.', '#optAiReview', 'app'],
     ]],
     ['League: Stats', 'How you play, in two tabs: You and Champions, for the account Profile shows, also with League closed.', [
       ['Your last 20 games', 'KDA, CS a minute, vision score, kill participation and deaths in your last 20 games on Summoner’s Rift, each with a line of the 20 and the change in your last 5.',
@@ -23636,7 +23811,7 @@ dialog.wizard { transform: scale(var(--from)); }
     winsMore, runeCountsAgain: () => rcounts.clear(),
     lcu: () => ({ phase: lcu, cs: !!cs, rc, curGame, runesNote, live: livePlayers.length, scouted: [...scoutData.keys()], me0, hist: myHist && myHist.length, remote: !!remote, phones: remoteConns.size, seen: [...remoteConns].filter((c) => c.seen).length }),
     profile: () => shownPro(), riotOn: () => riotOn,
-    timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog,
+    timers, teamGold, gameLine, remoteState, cutClip, makeReport, reports: () => reports, lpLog: () => lpLog, ai: () => ({ on: !!aiW, get: aiGet, facts: aiBox && aiFacts(...aiBox) }), aiFits,
     said: (t) => { voiceHeard(t); fired = false; }, cooldown, jgSide, inhouse: () => [...inhouse().values()], customs: () => customs, fearless: () => ({ ...fs, used: usedUp() }), // a sentence Vosk heard; timers, coach and customs
     deadTips, buyNext, buyPlan, bestSet, boardItems: () => boardItems(boardRows()), nextBuy, winChance, cam: () => cam && { name: nameOf(cam.p), call: !!cam.call, img: !!cam.img }, lends: () => [...lends.keys()].map(nameOf), lendH: () => [...lends.values()].map((l) => l.h), lendSound: async () => { // the screen's sound to the first watcher
       const l = [...lends.values()][0], st = l && l.call.peerConnection && await l.call.peerConnection.getStats(), o = st && [...st.values()].find((r) => r.type === 'outbound-rtp' && r.kind === 'audio');

@@ -44,6 +44,26 @@ const SITE = path.join(__dirname, 'site');
 const PEERJS_URL = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
 const PEERJS = fs.readFileSync(require.resolve('peerjs/dist/peerjs.min.js'));
 const URL_ = 'http://127.0.0.1:8081/index.html?peer=127.0.0.1:9001&debug';
+// a stand-in for WebLLM (the AI coach, What's new 249; no graphics card in the cloud): it "downloads" in 3 steps, logs
+// each call to /ai-log, and answers with fixed lines: the first review has a line with a made-up number, the second
+// doesn't; the question "made up" gets a made-up number, "slow" never ends
+const AI_LIB = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm';
+const FAKE_AI = `const log = (x) => fetch('http://127.0.0.1:8081/ai-log', { method: 'POST', body: JSON.stringify(x) });
+let reviews = 0;
+export async function CreateMLCEngine(model, o) {
+  log({ do: 'load', model });
+  for (const p of [0.25, 0.5, 1]) { o.initProgressCallback({ progress: p, text: '' }); await new Promise((r) => setTimeout(r, 400)); }
+  return { chat: { completions: { create: async (req) => {
+    const u = req.messages[1].content, q = (/\\nQuestion: (.*)$/.exec(u) || [])[1];
+    log({ do: 'chat', q: q || '', t: req.temperature });
+    if (q === 'slow') await new Promise(() => {});
+    if (q) return { choices: [{ message: { content: /made up/.test(q) ? 'You had 987654 gold at 10:00.' : 'Zed was in on it, with their jungler.' } }] };
+    reviews++;
+    return { choices: [{ message: { content: ['1. You won it with your team ahead on gold the whole game.', reviews === 1 ? '2. Your best was your 424242 kills.' : '2. Your best was staying alive in fights.', '3. Next game, place more wards before objectives.'].join('\\n') } }] };
+  } } } };
+}
+export async function deleteModelAllInfoInCache(model) { await log({ do: 'del', model }); }`;
+const aiLog = [];
 // the desktop app's allowlist, read from its source (main.js needs Electron to load)
 const LCU_OK = eval(fs.readFileSync(path.join(__dirname, 'client/main.js'), 'utf8').match(/const LCU_OK = (\[[\s\S]*?\n\]);/)[1]);
 const allowed = (m, p) => LCU_OK.some(([mm, re]) => mm === m && re.test(p));
@@ -463,6 +483,8 @@ async function context(browser, { version = '', phone = false } = {}) {
   await ctx.route(PEERJS_URL, (r) => r.fulfill({ body: PEERJS, headers: { 'content-type': 'text/javascript', 'access-control-allow-origin': '*' } }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   const cors = { 'access-control-allow-origin': '*' };
+  await ctx.route(AI_LIB, (r) => r.fulfill({ body: FAKE_AI, headers: { 'content-type': 'text/javascript', ...cors } }));
+  await ctx.route('**/ai-log', (r) => { aiLog.push(JSON.parse(r.request().postData())); r.fulfill({ status: 204, headers: cors }); });
   await ctx.route(/ddragon\.leagueoflegends\.com/, (r) => {
     const u = r.request().url();
     let m;
@@ -2400,6 +2422,43 @@ const leagueData = (over = {}) => ({
     assert(await pc.$$eval('#postBox .pside[data-me] .sbit img', (l) => l.length) > 0, 'your items');
     assert.deepStrictEqual(await pc.$$eval('#postBox .sbvs .vs', (l) => l.map((v) => v.title)), ['Kills: yours 14, theirs 12', 'Gold: yours 54.0k, theirs 52.0k', 'Towers: yours 3, theirs 1', 'Dragons: yours 2, theirs 0', 'Barons: yours 1, theirs 0', 'Voidgrubs: yours 0, theirs 1'], 'the teams side by side, Voidgrubs from the timeline');
     await repShot(pc, '#postBox', 'report-overview-game-page');
+    // What's new 249: the AI coach, off until ticked; ticked, it downloads once (said on the switch), then writes this
+    // game's review: your drawer opens by itself with 3 lines, the one with a made-up number written once more; the
+    // question box answers from the same facts, and a made-up number becomes "I can't tell"
+    assert.strictEqual(await pc.locator('#postBox .airev').count(), 0, 'no AI coach until ticked');
+    if (await pc.getAttribute('#postBox .pside[data-me]', 'aria-expanded') === 'true') await pc.click('#postBox .pside[data-me] .c-pic');
+    await openSet(pc, 'league');
+    assert.strictEqual(await text(pc, '#aiNote'), 'Written on your graphics card after each game. Downloads 4.6 GB once');
+    await pc.check('#optAiReview');
+    await wait(pc, () => /^Downloading the AI once: \d+% of 4\.6 GB$/.test(document.getElementById('aiNote').textContent), null, 'the download on the switch');
+    await wait(pc, () => document.getElementById('aiNote').textContent === 'Written on your graphics card after each game', null, 'the AI ready');
+    if (process.env.SHOTS) await pc.locator('[aria-labelledby="h-setleague"]').screenshot({ path: path.join(process.env.SHOTS, 'ai-setting.png') });
+    await openPage(pc, 'game');
+    await wait(pc, () => document.querySelectorAll('#postBox .sbdrawer:not([hidden]) .airev > p:not([class])').length === 3, null, 'your drawer open by itself with the review');
+    assert.deepStrictEqual(await texts(pc, '#postBox .sbdrawer:not([hidden]) .airev > p:not([class])'), ['You won it with your team ahead on gold the whole game.', 'Your best was staying alive in fights.', 'Next game, place more wards before objectives.']);
+    assert.deepStrictEqual(aiLog.filter((x) => x.do !== 'del').map((x) => x.do + (x.q || '')), ['load', 'chat', 'chat'], 'one download, the review written once more for its made-up number');
+    assert.strictEqual(aiLog[1].t, 0.3);
+    assert.strictEqual((await pc.evaluate((id) => lpc.reports()[id].ai, GAME)).length, 3, 'kept with its report');
+    const aiFacts = await pc.evaluate(() => lpc.ai().facts);
+    console.log('AI facts:\n' + aiFacts.join('\n'));
+    assert.deepStrictEqual(aiFacts, ['You played Ahri (middle) against Zed. Result: a win. Game length: 28 minutes 20 seconds.', 'Your K/D/A: 6/2/9, a 7.5 KDA. Your CS: 360, 12.7 a minute.', 'Wards you placed: 11. Control Wards you bought: 2.',
+      'At 10:00 your team was 15.5k gold ahead.', 'At 15:00 your team was 15.5k gold ahead.', 'At the end your team was 15.5k gold ahead.',
+      'What happened when: 9:00 Your team took a dragon; 14:00 Their team took the Rift Herald; 15:00 Your team took a tower; 16:40 Their team took a tower; 21:00 Your team took a dragon; 25:00 Your team took Baron; 26:00 Your team took a tower; 26:40 Your team took a tower; 28:20 a fight in the middle lane: 2 kills for your team, 1 for theirs.',
+      'You died 2 times.', 'You died at 8:10 to Zed with Vi, in the river.', 'You died at 12:40 to Zed with Vi, in the river.', 'Your best card: KDA: 7.5. Better than 100% of high elo Ahri games.', 'Biggest leak card: Vision score a minute: 0.71. Behind 100% of high elo Ahri games.', 'Next game card: Aim for 0.97 vision score a minute. That’s their middle. Zed had 0.71.',
+      'You were 10 CS ahead of Zed at 10:00.', 'You were 500 gold ahead of Zed at 10:00.', 'Zed was 200 XP ahead of you at 10:00.'], 'this game as finished statements');
+    assert(await pc.evaluate(() => lpc.aiFits('Back at 12:40 you were 15.5k gold and 1,300 CS ahead.', ['12:40 a fight', 'gold 15.5k', '1300 CS'])), 'numbers and times from the facts kept');
+    assert(!(await pc.evaluate(() => lpc.aiFits('Back at 12:41 you were ahead.', ['12:40 a fight']))) && !(await pc.evaluate(() => lpc.aiFits('You had 16 kills.', ['6 kills']))), 'a made-up number or time dropped');
+    await pc.fill('#postBox .sbdrawer:not([hidden]) .aiask input', 'Why did I die at 12:40?');
+    await pc.click('#postBox .sbdrawer:not([hidden]) .aiask button');
+    await wait(pc, () => document.querySelector('#postBox .sbdrawer:not([hidden]) .aians')?.textContent === 'Zed was in on it, with their jungler.', null, 'the answer');
+    await repShot(pc, '#postBox', 'ai-review');
+    await pc.fill('#postBox .sbdrawer:not([hidden]) .aiask input', 'made up');
+    await pc.click('#postBox .sbdrawer:not([hidden]) .aiask button');
+    await wait(pc, () => document.querySelector('#postBox .sbdrawer:not([hidden]) .aians')?.textContent === 'I can’t tell that from this game’s numbers.', null, 'a made-up number: I can’t tell');
+    await pc.fill('#postBox .sbdrawer:not([hidden]) .aiask input', 'slow'); // still writing when the next champ select starts, below
+    await pc.click('#postBox .sbdrawer:not([hidden]) .aiask button');
+    await wait(pc, () => document.querySelector('#postBox .sbdrawer:not([hidden]) .aians')?.textContent === '…' && lpc.ai().on, null, 'a question being answered');
+    console.log('AI coach: downloaded once, the review in your drawer (a made-up number written again), questions answered, made-up answers dropped');
     // What's new 218: a player's name opens their profile, without opening their drawer
     assert.strictEqual(await pc.locator('#postBox .pside .sbname b.plink').count(), 10, 'every name a link');
     await pc.click('#postBox .plink:text-is("Sniper")');
@@ -2658,6 +2717,13 @@ const leagueData = (over = {}) => ({
     lcu.phase = 'ChampSelect';
     await league({ inGame: false, phase: 'ChampSelect' });
     await wait(pc, () => /Runes: Riot’s page for Lux/.test(lpc.lcu().runesNote), null, 'the second runes', 20000);
+    // the AI coach (What's new 249) stopped and unloaded the moment champ select started; unticked, it frees its download
+    await wait(pc, () => !lpc.ai().on && document.querySelector('#postBox .aians')?.textContent === 'Questions wait until your game is over.', null, 'the AI stopped at champ select');
+    await pc.evaluate(() => { const c = document.getElementById('optAiReview'); c.checked = false; c.dispatchEvent(new Event('change')); });
+    await wait(pc, () => !lpc.ai().on && document.getElementById('aiNote').textContent === 'Written on your graphics card after each game. Downloads 4.6 GB once', null, 'the AI unticked');
+    for (let i = 0; i < 50 && !aiLog.some((x) => x.do === 'del'); i++) await pc.waitForTimeout(100);
+    assert.deepStrictEqual(aiLog.filter((x) => x.do === 'del'), [{ do: 'del', model: 'Llama-3.1-8B-Instruct-q4f16_1-MLC' }], 'its 4.6 GB freed');
+    assert.strictEqual(await pc.locator('#postBox .aiask').count(), 0, 'no question box once unticked');
     assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages$/, 'POST', cs2).length, 0, 'no second page');
     assert.strictEqual(callsTo(/^\/lol-perks\/v1\/pages\/50$/, 'PUT', cs2).length, 1);
     assert.strictEqual(callsTo(/currentpage$/, 'PUT', cs2)[0][2], 50);
