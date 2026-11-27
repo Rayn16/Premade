@@ -90,6 +90,12 @@ const state = (b, game = '', scale = 1) => ({ visible: true, board: b, pos: 'tl'
     assert.deepStrictEqual(await page.$$eval('.rb > *', (l) => l.map((e) => e.className)), ['tm foes', 'tip', 'tip gp', 'tm'], 'blue: right over your team');
     await fire(state({ ...board({ plan: PLAN }), load: false }));
     assert.strictEqual(await page.locator('.tip.gp').count(), 0, 'in a game: no line');
+    // What's new 247: the Squad coach's goal after the plan, past a short divider; with no plan, just the goal
+    await fire(state(board({ plan: PLAN, goal: 'no two of us die to one gank before 14:00' })));
+    assert.strictEqual(await page.textContent('.tip.gp'), 'Game plan:You win late, Baron after 25Fight for first DragonPlay around Twitch|Squad goal:no two of us die to one gank before 14:00');
+    await shot(page, 'board-squad-goal');
+    await fire(state(board({ goal: 'nobody dies alone after 20:00' })));
+    assert.strictEqual(await page.textContent('.tip.gp'), 'Squad goal:nobody dies alone after 20:00', 'no plan: just the goal');
     // What's new 226: a picture behind the cards (Settings > Overlay > Loading screen > Background): a skin's splash over
     // the whole screen, darkened and softened, under the cards; your own read from the site's Cache Storage; in a game
     // inside the half-size box, which still moves by its top line; any other address shows nothing
