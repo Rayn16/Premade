@@ -80,7 +80,7 @@ function fakeApp([lcu, colour]) {
   cv.width = 1280; cv.height = 720;
   g.fillStyle = colour; g.fillRect(0, 0, 1280, 720);
   let n = 0;
-  setInterval(() => { g.fillStyle = n++ % 2 ? colour : '#000'; g.fillRect(0, 0, 1, 1); }, 100);
+  setInterval(() => { if (window.still) return; g.fillStyle = n++ % 2 ? colour : '#000'; g.fillRect(0, 0, 1, 1); }, 100); // window.still: a screen where nothing moves
   navigator.mediaDevices.getDisplayMedia = async (c) => { // with a tone for its sound, when asked; captures counts them
     window.captures = (window.captures || 0) + 1;
     const s = cv.captureStream(10);
@@ -486,6 +486,12 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       assert(snd && snd.target === 128000 && /stereo=1/.test(snd.fmtp), `its sound in stereo at 128 kbps: ${JSON.stringify(snd)}`);
       // each watcher gets the size they watch, and the tile says what they get (What's new 89)
       await wait(ben, () => /^\d+p · \d+ fps/.test(document.querySelector('#screenGrid .shq').textContent), null, 'size and frame rate on the tile', 15000);
+      // a still screen says so (What's new 250): nothing moves on Ana's, so her app sends a frame or two a second and Ben's
+      // tile says why; moving again, it doesn't
+      await ana.evaluate(() => { window.still = true; });
+      await wait(ben, () => document.querySelector('#screenGrid .shq').textContent.endsWith(' fps · their screen is still'), null, 'a still screen says so', 15000);
+      await ana.evaluate(() => { window.still = false; });
+      await wait(ben, () => /^\d+p · \d+ fps$/.test(document.querySelector('#screenGrid .shq').textContent), null, 'moving again, no reason on the tile', 15000);
       const benH = await ben.evaluate(() => lpc.seen()[0].h);
       assert.ok([360, 540, 720, 1080, 1440, 2160].includes(benH), `Ben asks for his tile's height: ${benH}`);
       await wait(ana, (h) => lpc.lendH()[lpc.lends().indexOf('Ben')] === Math.min(1080, h), benH, 'Ana sends Ben that size');
@@ -581,7 +587,7 @@ const HEAL = [['Shadow', 'CHAOS', 'Zed', 'MIDDLE'], ['Blood', 'CHAOS', 'Vladimir
       console.log(`leak check, Ben then Cat, before: ${JSON.stringify(before)}, after: ${JSON.stringify(after)}`);
       for (const [i, b] of before.entries()) assert(after[i].nodes - b.nodes < 200 && after[i].listeners - b.listeners < 50 && after[i].heapMB - b.heapMB < 3, `flat: ${JSON.stringify([b, after[i]])}`);
       for (const [c] of ps.slice(1)) await c.close();
-      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, hides it and shows it again, Cat on the other team sees it too, Ana turning hers off ends it; Ben’s pointer on Ana’s screen until Ana turns it off');
+      console.log('teammate’s screen: Ben sees Ana’s while dead once Ana lets teammates watch, until Ben is back; Cat on the other team never does; screens in the room: Ben sees Ana’s on the Voice page with his own off, his tile says when hers is still, hides it and shows it again, Cat on the other team sees it too, Ana turning hers off ends it; Ben’s pointer on Ana’s screen until Ana turns it off');
     }
 
     // ---- Remote help (What's new 83): no room, no screen share. Ana's code, Ben types it in: Ana's app says no; Ben
