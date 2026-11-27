@@ -249,12 +249,12 @@ const saw = (page, text) => wait(page, (t) => (window.calls || []).includes(t), 
     const dead = { dead: true, respawn: 25 };
     await feed(rayan, game(700, SR({ Zedd: dead, Jungler: dead, Topper: { ...dead, respawn: 20 } })));
     await saw(rayan, '3 of them are dead: take Dragon');
-    // two levels down on Zed in your lane
-    await feed(rayan, game(710, SR({ Rayan: { lvl: 7 }, Zedd: { lvl: 9 } })));
+    // two levels down on Zed in your lane, after 14:00 (before it the lane box says who's stronger and this tip waits: What's new 238)
+    await feed(rayan, game(850, SR({ Rayan: { lvl: 7 }, Zedd: { lvl: 9 } })));
     await saw(rayan, 'You’re two levels down: play safe');
     // I'm new: the same tips say why
     await rayan.evaluate(() => { document.getElementById('optCoachNew').click(); });
-    await feed(rayan, game(720, SR({ Rayan: { lvl: 7 }, Zedd: { lvl: 10 } })));
+    await feed(rayan, game(860, SR({ Rayan: { lvl: 7 }, Zedd: { lvl: 10 } })));
     await saw(rayan, 'You’re three levels down: play safe. Zed wins fights until you catch up, so farm near your tower');
     console.log('the coach: the gold for your next item, Dragon in 60 seconds, 3 of them dead, levels down, and I’m new');
 
