@@ -950,7 +950,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
     if ((m = /^([fad]):(https:\/\/.+)$/.exec(x))) return Object.assign(new Image(), { src: m[2], alt: '', className: 'face ' + m[1] });
     if ((m = /^p:(.{1,2})$/.exec(x))) return el('mate', m[1]);
     if ((m = /^s(!?):(\w+)$/.exec(x)) && SIGNS[m[2]]) { const e = el('sign' + (m[1] ? ' foe' : '')); e.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${SIGNS[m[2]]}"/></svg>`; return e; }
-    if ((m = /^w:(.{1,64})$/.exec(x))) return el('cw', m[1]); // 64: the fight check's line (What's new 243)
+    if ((m = /^w:(.{1,96})$/.exec(x))) return el('cw', m[1]); // 96: the fight check's line (What's new 243) with the Game plan's words (245)
     return el('lvl', '');
   }
   function callPill(c) {

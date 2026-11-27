@@ -762,6 +762,9 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cssq:not([hidden]):has(+ .csplanbox:not([hidden])) { margin-bottom: 0; border-bottom: 0; border-radius: 12px 12px 0 0; }
 .cssq:not([hidden]) + .csplanbox { margin-top: -14px; border-top: 0; border-radius: 0 0 12px 12px; } /* .panel's gap */
 .cssq:not([hidden]) + .csplanbox .gphead b { display: none; }
+.gppill { flex: none; padding: 2px 12px; border: 1.5px solid var(--muted); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); } .gppill.done { border-color: var(--good); color: var(--good); }
+.gpcheck { display: grid; gap: 0; margin-top: 4px; } .gpcheck .ph + .gprow { border-top: 0; }
+.gpsq { display: grid; grid-template-columns: max-content auto auto; justify-content: start; align-items: center; gap: 6px 14px; } .gpsq > small { font-size: 13px; color: var(--muted); } .gpsq .gpn { color: var(--fg); }
 .gphead { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 2px; } .gphead b { font-size: 14px; font-weight: 600; } .gphead small { font-size: 12.5px; color: var(--muted); }
 .gprow { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); } .gphead + .gprow { border-top: 0; }
 .gprow .gpic, .gprow .gpface { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; box-sizing: border-box; }
@@ -2674,6 +2677,7 @@ dialog.wizard { transform: scale(var(--from)); }
           <div id="sqOthers" class="big"></div>
         </div>
       </section>
+      <section id="sqGpBox" class="panel" aria-labelledby="h-sqgp" hidden><h2 id="h-sqgp" class="ph">Your game plan</h2><div id="sqGp"></div></section>
       <section class="panel" aria-labelledby="h-sqin">
         <h2 id="h-sqin" class="ph">Who’s in</h2>
         <ul id="sqList" class="plain sqlist"></ul>
@@ -4120,7 +4124,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Settings, Clips, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, League, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
-<div id="t-gameplan" class="tipbox" popover>With friends from your League lobby on your team, Premade reads League’s timeline of each of your games together while you’re not playing, and turns them into a plan: when you win (late or early), what to fight for and who to play around. Once all 5 have locked in it shows in champ select and on the loading screen. It needs 20 games together, and a part shows only when 8 games each way differ by 15 points or more. Each friend’s Premade makes its own from the same games; nothing is sent.</div>
+<div id="t-gameplan" class="tipbox" popover>With friends from your League lobby on your team, Premade reads League’s timeline of each of your games together while you’re not playing, and turns them into a plan: when you win (late or early), what to fight for and who to play around. Once all 5 have locked in it shows in champ select and on the loading screen. It needs 20 games together, and a part shows only when 8 games each way differ by 15 points or more. A minute before the objective it names, its words join the fight check line; after the game the report ticks each part Done or Missed, and the Squad page shows how often you win when you follow it. Each friend’s Premade makes its own from the same games; nothing is sent.</div>
 <div id="t-remote" class="tipbox" popover>Your phone as a remote for League, on any network, while this app is open on your PC: scan the code with your phone’s camera, or Copy link and open it there. It follows League one screen at a time, in your colours: pick the game and your roles, invite friends and find a match; accept it; go through champ select (picks for you, trades, runes, spells, skins and dodge); and in a game see the score, the objectives and your lane, time their Flash and ultimates and call them missing. Chat has your room’s chat and League chat. It buzzes and rings when a match is found or it’s your turn while the page is open; turn on “Tell me when a match is found” in its Settings for a notification even with its screen off (on an iPhone, open the remote from its home screen icon first). Anyone with the link can use it, so keep it to yourself; New code makes a fresh one.</div>
 <div id="t-league" class="tipbox" popover>The desktop app talks to League's own client on this PC, through the local connection League offers apps. It never reads the game's memory. Accept matches for me waits a moment, then accepts every match found while the app runs. Hover for me hovers the first champion on your list that's free and fits your role as soon as champ select starts, and your ban on your ban turn; you still lock in yourself.</div>
 <div id="t-games" class="tipbox" popover>Games for the whole room, started by the host. <b>Balance teams</b>: two even teams for a custom game, from the inhouse ladder once two of the room are on it (Customs, below), else from everyone's Solo/Duo rank (shared by the desktop app with League; anyone whose rating or rank isn't known counts as the room's average). <b>Role roulette</b>: a random role each, different within each team; in the desktop app, one click puts yours first in League's lobby. <b>Best roles</b>: the same, but each player gets the role they win most in, from their recent Summoner's Rift games (shared by the desktop app with League; a role played fewer than 10 times counts for less). <b>MVP vote</b>: after a game with friends in voice everyone votes for the MVP, and the winner wears a crown on their card next game; the host can also start one. <b>Mock draft</b>: practice a Clash-style draft, bans and picks, 30 seconds a turn; anyone on the side whose turn it is can choose. <b>Room awards</b> come after each game with friends in voice, from talk time and League's scoreboard. <b>Fearless series</b>: custom games where nobody picks a champion already played in the series; champ select shows the ones used up (Customs, below).</div>
@@ -10627,6 +10631,7 @@ dialog.wizard { transform: scale(var(--from)); }
       .filter(([p]) => p && typeof p === 'object').map(([p, team]) => ({ puuid: typeof p.puuid === 'string' ? p.puuid : '', name: nameOf_(p), champ: +p.championId || 0, team, pos: String(p.selectedPosition || '').toUpperCase() }));
     for (const p of livePlayers) scoutOf(p.puuid);
     if (!me0) loadMine(true);
+    if (curGame && me0) planKeep(curGame.id, livePlayers);
   }
   const sameName = (a, b) => !!a && !!b && a.toLowerCase().split('#')[0] === b.toLowerCase().split('#')[0];
   // Lobby rank: each team's average rank in the queue being played (Flex in Flex, else Solo/Duo), from the players
@@ -11130,8 +11135,8 @@ dialog.wizard { transform: scale(var(--from)); }
       const k = `${n}${Math.round(t + left)}`;
       if (!/^(Dragon|Herald|Baron)$/.test(n) || left > 60 || left <= 50 || fight.said.has(k)) continue;
       fight.said.add(k);
-      const text = fightLine(n);
-      sayCall(text, 1, 'fight', [n === 'Herald' ? 's:bug' : 's:flame', 'w:' + text.charAt(0).toUpperCase() + text.slice(1)], false, 8000);
+      const text = fightLine(n), shown = planWords(n, text); // the Game plan's words shown, never said (What's new 245)
+      sayCall(text, 1, 'fight', [n === 'Herald' ? 's:bug' : 's:flame', 'w:' + shown.charAt(0).toUpperCase() + shown.slice(1)], false, 8000);
     }
   }
   // Objective windows and Voidgrubs and Herald (What's new 182): their jungler dying with Dragon, Voidgrubs, Herald or
@@ -15265,6 +15270,9 @@ dialog.wizard { transform: scale(var(--from)); }
     return `With ${n.map((p) => champName(p.c)).join(' and ')}`;
   }
   function renderSquadPage() {
+    const gpe = planSquadEl(); // What's new 245
+    $('sqGpBox').hidden = !gpe;
+    $('sqGp').replaceChildren(...(gpe ? [gpe] : []));
     const v = main.querySelector('.view[data-view="squad"]');
     if (!v || v.hidden) return;
     const fr = client ? frRows().map((x) => ({ ...x, t: frTog(x) })).filter((x) => x.t && x.u).sort((a, b) => b.t.n - a.t.n || a.riot.localeCompare(b.riot)) : [];
@@ -15465,6 +15473,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // ponytail: "friends" = teammates in 3 or more of your games, the newest 200 such games; widen if plans come out thin
   let planX = load('lpc-plan', {}), planVer = 0;
   if (!planX || typeof planX !== 'object' || !planX.g || typeof planX.g !== 'object') planX = { u: '', g: {} };
+  if (!planX.p || typeof planX.p !== 'object') planX.p = {}; // each game's plan as it started (What's new 245): { id: { w: 'late' | 'early' | '', o, u, c } }
   const planDetail = new Map(); // a game past the 150 in detail: League's copy, until its timeline is read
   function planFacts(d, tl) {
     const m = d.ps[d.me], ours = (e) => (e.killerTeamId || (d.ps.find((p) => p.id === e.killerId) || {}).t) === m.t;
@@ -15482,7 +15491,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   async function planStep() {
     if (!opts.gamePlan || !me0 || !me0.puuid) return false;
-    if (planX.u !== me0.puuid) planX = { u: me0.puuid, g: {} }; // another account
+    if (planX.u !== me0.puuid) planX = { u: me0.puuid, g: {}, p: {} }; // another account
     const list = planTodo(), g = list.find((x) => !planX.g[x.id] && !crawlSkip.has('p' + x.id));
     if (!g) return false;
     const d = (deep[g.id] && deep[g.id].ps && deep[g.id]) || planDetail.get(g.id);
@@ -15509,12 +15518,12 @@ dialog.wizard { transform: scale(var(--from)); }
     if (gs.length < 20) return null;
     const won = (l) => l.filter((g) => g.w).length, gap = (a, b) => (a.length >= 8 && b.length >= 8 ? won(a) / a.length - won(b) / b.length : 0), parts = [];
     const late = gs.filter((g) => g.s >= 1800), early = gs.filter((g) => g.s < 1500), when = gap(late, early);
-    if (Math.abs(when) >= 0.15) parts.push(when > 0 ? { k: 'when', i: 'clock', b: 'You win late games', sub: 'Play safe early, Baron after 25', line: 'You win late, Baron after 25', rows: [['Past 30 min', late], ['Under 25 min', early]] }
-      : { k: 'when', i: 'clock', b: 'You win early games', sub: 'Fight early, end before 25', line: 'You win early, end before 25', rows: [['Under 25 min', early], ['Past 30 min', late]] });
+    if (Math.abs(when) >= 0.15) parts.push(when > 0 ? { k: 'when', w: 'late', i: 'clock', b: 'You win late games', sub: 'Play safe early, Baron after 25', line: 'You win late, Baron after 25', rows: [['Past 30 min', late], ['Under 25 min', early]] }
+      : { k: 'when', w: 'early', i: 'clock', b: 'You win early games', sub: 'Fight early, end before 25', line: 'You win early, end before 25', rows: [['Under 25 min', early], ['Past 30 min', late]] });
     const what = PLAN_OBJ.map(([k, name, sub]) => { const a = gs.filter((g) => g[k] === 1), b = gs.filter((g) => g[k] !== 1); return { k, name, sub, a, b, v: gap(a, b) }; }).sort((x, y) => y.v - x.v)[0];
     if (what.v >= 0.15) parts.push({ k: 'what', o: what.k, i: what.k === 'd' ? 'dragon' : what.k === 't' ? 'tower' : 'baron', b: `Fight for ${what.name}`, sub: what.sub, line: `Fight for ${what.name}`, rows: [['With it', what.a], ['Without it', what.b]] });
     const who = team.filter((p) => p.u && p.c).map((p) => { const on = gs.filter((g) => g.m.includes(p.u)), a = on.filter((g) => g.top === p.u), b = on.filter((g) => g.top !== p.u); return { ...p, a, b, v: gap(a, b) }; }).sort((x, y) => y.v - x.v)[0];
-    if (who && who.v >= 0.15) { const n = champName(who.c); parts.push({ k: 'who', c: who.c, b: `Play around ${n}`, sub: `When ${n} has your most gold at 15`, line: `Play around ${n}`, rows: [[`${n} ahead`, who.a], ['Not ahead', who.b]] }); }
+    if (who && who.v >= 0.15) { const n = champName(who.c); parts.push({ k: 'who', u: who.u, c: who.c, b: `Play around ${n}`, sub: `When ${n} has your most gold at 15`, line: `Play around ${n}`, rows: [[`${n} ahead`, who.a], ['Not ahead', who.b]] }); }
     return parts.length ? { n: gs.length, parts } : null;
   }
   // your team now ([{ u, c }], you included): the plan from your games with the friends in your League lobby on it
@@ -15527,6 +15536,46 @@ dialog.wizard { transform: scale(var(--from)); }
     const gs = fr.size ? duoAll().filter((g) => planX.g[g.id] && g.m.some((x) => fr.has(x[0]))).map((g) => ({ ...planX.g[g.id], m: [me0.puuid, ...g.m.map((x) => x[0])] })) : [];
     Object.assign(planMemo, { k, v: planOf(gs, team.map((p) => ({ ...p, u: p.u || '' }))) });
     return planMemo.v;
+  }
+  // ---- Game plan, step 2 (What's new 245): the plan kept as the game starts, its words on the fight check line a
+  // minute before the objective it names (only before the first one), Done or Missed after the game in the report, and
+  // on the Squad page how often you win when you follow it (2 of 3 parts Done: followed)
+  function planKeep(id, ps) {
+    const me = ps.find((p) => p.puuid === me0.puuid), gp = me && planNow(ps.filter((p) => p.team === me.team).map((p) => ({ u: p.puuid || '', c: p.champ | 0 })));
+    if (!gp) return;
+    const by = (k) => gp.parts.find((p) => p.k === k) || {};
+    planX.p = Object.fromEntries([...Object.entries(planX.p), [String(id), { w: by('when').w || '', o: by('what').o || '', u: by('who').u || '', c: by('who').c || 0 }]].slice(-100));
+    store.set('lpc-plan', JSON.stringify(planX));
+  }
+  const PLAN_EV = { d: ['Dragon', 'dragon'], h: ['Herald', 'herald'], b: ['Baron', 'baron'] };
+  function planWords(name, text) { // “Dragon in 1:00. Plan: fight for first Dragon. Their Flash 1 of 5 down”
+    const pp = opts.gamePlan && curGame && planX.p[String(curGame.id)], ev = pp && PLAN_EV[pp.o];
+    if (!ev || ev[0] !== name || (league.events || []).some((e) => e.e === ev[1])) return text;
+    const head = `${name} in 1:00.`, rest = text.slice(head.length).trim();
+    return `${head} Plan: fight for ${PLAN_OBJ.find(([k]) => k === pp.o)[1]}.${rest ? ` ${rest.charAt(0).toUpperCase()}${rest.slice(1)}` : ''}`;
+  }
+  // each part of a game's plan against how it went (f: planFacts): [{ i, c, b, sub, done }]
+  function planCheck(pp, f, champOfU) {
+    const out = [], n = (o) => PLAN_OBJ.find(([k]) => k === o)[1];
+    if (pp.w) out.push({ i: 'clock', b: pp.w === 'late' ? 'Win late' : 'Win early', sub: `The game lasted ${mmss(f.s)}`, done: pp.w === 'late' ? f.s >= 1500 : f.s < 1500 });
+    if (pp.o) { const t = { d: f.dt, b: f.bt }[pp.o], at = t ? ` at ${mmss(t)}` : ''; out.push({ i: pp.o === 'd' ? 'dragon' : pp.o === 't' ? 'tower' : 'baron', b: n(pp.o).replace(/^the /, '').replace(/^./, (x) => x.toUpperCase()), sub: f[pp.o] === 1 ? `You took it${at}` : f[pp.o] === 0 ? `They took it${at}` : 'Nobody took it', done: f[pp.o] === 1 }); }
+    if (pp.u) { const top = champOfU(f.top); out.push({ c: pp.c, b: `Play around ${champName(pp.c)}`, sub: top ? `${champName(top)} had your most gold at 15` : 'No gold at 15 in the timeline', done: f.top === pp.u }); }
+    return out;
+  }
+  const planFollowed = (l) => l.filter((x) => x.done).length >= Math.ceil((2 * l.length) / 3);
+  function planReportEl(r, tl) { // the report's Game plan card, from its timeline
+    const pp = planX.p[String(r.id)];
+    if (!pp || !opts.gamePlan || r.me < 0) return null;
+    const d = { ps: r.players.map((p, i) => ({ id: p.pid || i + 1, u: p.puuid || '', t: p.team, w: !!p.win, c: p.champ })), me: r.me, len: r.len }, f = planFacts(d, tl);
+    if (!planX.g[String(r.id)]) { planX.g[String(r.id)] = f; planVer++; store.set('lpc-plan', JSON.stringify(planX)); } // the reader needn't ask League again
+    const l = planCheck(pp, f, (u) => (d.ps.find((p) => p.u === u) || {}).c);
+    return elm('section', 'gpcheck', elm('h3', 'ph', 'Game plan'), ...l.map((x) => elm('div', 'gprow', planIcon(x), elm('span', 'gptext', elm('b', '', x.b), elm('small', '', x.sub)), elm('span', `gppill${x.done ? ' done' : ''}`, x.done ? 'Done' : 'Missed'))));
+  }
+  function planSquadEl() { // the Squad page: your wins when you followed the plan, and when you didn't
+    const all = Object.entries(planX.p).filter(([id]) => planX.g[id]).map(([id, pp]) => { const f = planX.g[id]; return { w: f.w, ok: planFollowed(planCheck(pp, f, () => 0)) }; });
+    const yes = all.filter((g) => g.ok), no = all.filter((g) => !g.ok);
+    if (!opts.gamePlan || !all.length) return null;
+    return elm('div', 'gpsq', ...[['Plan followed: you won', yes], ['Plan missed: you won', no]].filter(([, l]) => l.length).flatMap(([t, l]) => [elm('small', '', t), planBlocks(l), elm('small', 'gpn', `${won0(l)} of ${l.length}`)]));
   }
   const PLAN_I = { clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 7v5l3 2' };
   const planIcon = (p) => { if (p.c) return champFace(p.c, 'gpface'); const s = elm('span', 'gpic'); s.innerHTML = PLAN_I[p.i] ? svgPath(PLAN_I[p.i], 22) : svgPath(WHEN[p.i], 22).replace('0 0 24 24', '0 0 16 16'); return s; };
@@ -16093,6 +16142,8 @@ dialog.wizard { transform: scale(var(--from)); }
         let fig = ov.querySelector(':scope > .goldfig.lead');
         if (!fig) { const g = tlTeamGold(r, tl); if (g) ov.prepend((fig = goldFig(g))); }
         if (fig) whenEl(r, tl, fig);
+        const gpc = planReportEl(r, tl); // What's new 245
+        if (gpc) ov.append(gpc);
         laneWinners(r, tl, box);
         Object.assign(box, { tl, l10: r.mode === 'CLASSIC' ? lanesAt10(r, tl) : null });
         r.plates = platesOf(tl, r.players.map((p, i) => p.pid || i + 1)) || r.plates;
@@ -22246,6 +22297,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [245, 'November 27: your game plan, checked', [
+      'A minute before the objective your game plan names, its words join the fight check line at the top of your screen: “Dragon in 1:00. Plan: fight for first Dragon. Their Flash 1 of 5 down”. Still one line, and nothing new out loud.',
+      'After the game, the report has a Game plan card: each part with what happened (“The game lasted 34:10”, “They took it at 5:20”) and Done or Missed.',
+      'The Squad page shows how your plan works: “Plan followed: you won 6 of 7” and “Plan missed: you won 3 of 9”. A game counts as followed when 2 of its 3 parts are Done.',
+    ]],
     [244, 'November 27: your game plan', [
       'Playing with friends from your League lobby? Premade reads League’s timeline of your games together while you’re not playing and turns them into a game plan: when you win (“You win late games: play safe early, Baron after 25”), what to fight for (“Fight for first Dragon: group bot before 5:00”) and who to play around (“Play around Twitch”), each with your wins and losses in those games.',
       'It shows in champ select once all 5 have locked in (in Squad comp’s card when you have a squad) and as one line on the loading screen, between your team and the matchup line. It needs 20 games together, and a part shows only when it really makes a difference. Each friend’s Premade makes its own; nothing is sent.',
@@ -23539,6 +23595,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Add friends on the Squad page, then Plan it on the draft board. In a League lobby only the squad friends in it count.', '#sqBest, #tdSq, #tdSqBtn, #csSq', 'app'],
       ['Game plan', 'With friends from your League lobby on your team, Premade turns your games together into a plan: when you win (late or early), what to fight for and who to play around, each with how those games went. It shows in champ select once all 5 have locked in, and as one line on the loading screen. It needs 20 games together; each friend’s Premade makes its own and nothing is sent.',
         'Nothing to set up: play with friends in your lobby. Settings, Champ select: Game plan turns it off.', '#csPlan, #optGamePlan', 'app'],
+      ['Game plan check', 'A minute before the objective your game plan names, its words join the fight check line (“Dragon in 1:00. Plan: fight for first Dragon”). After the game the report has a Game plan card with each part Done or Missed, and the Squad page shows how often you win when you follow it.',
+        'Nothing to set up: play with your game plan. Squad, Your game plan.', '#sqGpBox', 'app'],
     ]],
     ['League: Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online (with your win rate together this season), Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox, #friendRows', 'app'],
@@ -23806,7 +23864,7 @@ dialog.wizard { transform: scale(var(--from)); }
     jungler: (r, tl) => junglerEl(r, tl),
     jgLog: (v) => { jgLog = v; }, // What's new 235: this game's jungler calls, as seeFoes keeps them
     dodgeSay, habits: (tl, pid) => habitsOf(tl, pid),
-    plan: (gs, team) => planOf(gs, team), planStore: () => planX, planLine: (rows) => planLine(rows),
+    plan: (gs, team) => planOf(gs, team), planStore: () => planX, planLine: (rows) => planLine(rows), planKeep: (id, ps) => planKeep(id, ps), planWords: (n, t, id, ev) => { const was = [curGame, league]; curGame = { id }; league = { events: ev || [] }; try { return planWords(n, t); } finally { [curGame, league] = was; } }, planReport: (r, tl) => { const e = planReportEl(r, tl); return e && e.outerHTML; },
     weakSide: (rows, data) => { for (const [k, v] of Object.entries(data)) scoutData.set(k, v); return weakSide(rows); },
     flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
     flashLight: (l, foes) => { if (fl) { if (foes && share) share.foes = { room: league.room, list: foes }; fl.caps.set(l.id, { x: 0, y: 0, cv: document.createElement('canvas') }); flashLight(l); } }, // a light as the finder says it, past the screen
