@@ -186,6 +186,48 @@ const wait = (page, fn, arg, what, timeout = 15000) => page.waitForFunction(fn, 
     if (process.env.SHOTS) await page.locator('#sqCoachBox').screenshot({ path: path.join(process.env.SHOTS, 'squadcoach-panel.png') });
     console.log('4: Squad page: goal, 7 of 10 losses, blocks missed/kept/kept, 3 clip cards');
 
+    // 6. step 2 (What's new 247): the loading screen's words, the report's row, the squad's one goal, Monday's result
+    const rows = (mate) => [{ ally: true, me: true, champ: ID.Ahri }, { ally: true, puuid: mate, champ: ID.Thresh }, { ally: false, puuid: ALI, champ: ID.Zed }];
+    assert.strictEqual(await page.evaluate((r) => lpc.coachGoal(r), rows(ALI)), 'no two of us die to one gank before 14:00');
+    assert.strictEqual(await page.evaluate((r) => lpc.coachGoal(r), rows('p2')), null, 'no squad friend on your team: no words');
+    const rp = { id: 8200, at: Date.now() - 60000, mode: 'CLASSIC', me: 0, len: 1800, players: PS.map((p) => ({ pid: p.id, puuid: p.u, team: p.t, win: p.t === 200, champ: p.c, l: p.l })) };
+    const report = (tl) => page.evaluate(([r, t]) => { const d = document.createElement('div'); d.id = 'cTry'; d.style.cssText = 'position:fixed;left:380px;top:20px;width:620px;padding:16px;background:var(--panel);z-index:99'; d.innerHTML = lpc.coachReport(r, t);
+      document.body.append(d); const o = [...d.querySelectorAll('.gprow')].map((x) => [x.querySelector('.gptext b').textContent, x.querySelector('.gptext small').textContent, x.querySelector('.gppill').textContent]); return [o, d.querySelector(".crep .gpn").textContent]; }, [rp, tl]);
+    const [row, weekLine] = await report(tlOf([kill(492, 1, 6, [7]), kill(495, 2, 7)]));
+    assert.deepStrictEqual(row, [['Squad goal: no two of us die to one gank before 14:00', 'You and Thresh died to their Vi at 8:12', 'Missed']]);
+    assert.strictEqual(weekLine, 'This week: kept in 2 of 3 games together', 'this week’s blocks (the game isn’t in your history yet)');
+    if (process.env.SHOTS) await page.locator('#cTry').screenshot({ path: path.join(process.env.SHOTS, 'squadcoach-report.png') });
+    await page.evaluate(() => document.getElementById('cTry').remove());
+    rp.id = 8201;
+    assert.deepStrictEqual((await report(tlOf([kill(492, 1, 6)])))[0], [['Squad goal: no two of us die to one gank before 14:00', 'No two of you died to one gank before 14:00', 'Done']]);
+    await page.evaluate(() => document.getElementById('cTry').remove());
+    rp.at = MON - 60000;
+    assert.strictEqual(await page.evaluate(([r, t]) => lpc.coachReport(r, t), [rp, tlOf([])]), null, 'a game from last week: no row');
+    // a friend's goal picked from fewer games: ours stays (sent again); from more: theirs (alone, clips cut again)
+    await page.evaluate((k) => lpc.coachHeard({ h: 'a', k, n: 20 }, 'zz'), MON);
+    assert.deepStrictEqual(await page.evaluate(() => [lpc.coachStore().cur.h, lpc.coachStore().cur.sh]), ['g', 1]);
+    await page.evaluate((k) => lpc.coachHeard({ h: 'o', k: k - 7 * 864e5, n: 40 }, 'aa'), MON);
+    assert.strictEqual(await page.evaluate(() => lpc.coachStore().cur.h), 'g', 'last week’s goal: not taken');
+    await page.evaluate(() => { window.cuts = []; });
+    await page.evaluate((k) => lpc.coachHeard({ h: 'a', k, n: 24 }, 'aa'), MON);
+    assert.deepStrictEqual(await page.evaluate(() => [lpc.coachStore().cur.h, lpc.coachStore().cur.from]), ['a', 24], 'a tie: the lower player id');
+    await wait(page, () => lpc.coachStore().cur.cf === 'a', null, 'clips for the new goal');
+    assert.strictEqual(await page.textContent('#sqCoach .cpick'), 'Picked Monday from 24 games together · your squad’s Premade has the same one');
+    assert.strictEqual(await page.textContent('#sqCoach .cgoal b'), 'Nobody dies alone after 20:00');
+    // Monday: last week's goal against the week before (the goal picked a week ago from 10 games)
+    await page.evaluate(([k, s]) => { const c = lpc.coachStore(); c.cur = { k: k - 7 * 864e5, n: 10, h: 'g', s, wr: [4, 10], cf: 'g', clips: [] }; lpc.coachPick(); }, [MON, { g: [7, 6, 0, 4], a: [0, 6, 0, 4], o: [0, 6, 0, 4], u: [0, 0, 0, 0] }]);
+    const prev = await page.evaluate(() => lpc.coachStore().prev);
+    assert.deepStrictEqual(prev, { k: MON, h: 'g', b: [7, 6, 0, 4], a: [7, 10, 2, 14], wr: [4, 10], wr2: [14, 24] });
+    await page.evaluate(([k]) => { const c = lpc.coachStore(); c.prev.b = [7, 10, 0, 10]; c.prev.a = [3, 10, 2, 14]; }, [MON]);
+    await page.evaluate(() => { const g = lpc.coachStore().g; for (const id of ['8100', '8101', '8102']) delete g[id]; }); // no game together yet this week: shown as on Monday
+    await page.click('.nav[data-view="pregame"]');
+    await page.click('.nav[data-view="squad"]');
+    await wait(page, () => document.querySelector('#sqCoach .cres'), null, 'Monday’s result');
+    const res = await page.evaluate(() => [...document.querySelectorAll('#sqCoach .cres .gpsq small, #sqCoach .cres .cwr, #sqCoach .cres .gppill')].map((e) => e.textContent));
+    assert.deepStrictEqual(res, ['Better', 'The week before: in 7 of 10 losses', 'Last week: in 3 of 10 losses', 'You won 58% of your games together (was 40%): +18 points']);
+    if (process.env.SHOTS) await page.locator('#sqCoachBox').screenshot({ path: path.join(process.env.SHOTS, 'squadcoach-monday.png') });
+    console.log('6: step 2: loading screen words, report Missed/Done, a friend’s goal from more games (tie: lower id), Monday result Better +18');
+
     // 5. the switch off: no panel, nothing read for it
     await page.evaluate(() => { const c = document.getElementById('optSquadCoach'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); });
     await wait(page, () => document.getElementById('sqCoachBox').hidden, null, 'the panel gone');

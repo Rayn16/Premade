@@ -775,6 +775,9 @@ tr[data-me] td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cplay { position: absolute; inset: 0; margin: auto; width: 40px; height: 40px; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; display: grid; place-items: center; } .cplay svg { width: 18px; height: 18px; }
 .cclip:hover .cthumb, .cclip:focus-visible .cthumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 @container app (max-width: 760px) { .cclips { grid-template-columns: 1fr 1fr; } }
+.blk.rblk i { box-sizing: border-box; background: none; border: 1.5px solid var(--muted); } .blk.rblk i.h { background: var(--muted); } /* the Squad coach's Monday result (What's new 247) */
+.cres { display: grid; gap: 8px; padding-bottom: 14px; margin-bottom: 10px; border-bottom: 1px solid var(--line); } .cres .gphead { justify-content: space-between; } .cres .gphead b, .cnow b { font-size: 16px; }
+.cwr { margin: 0; font-size: 14px; font-weight: 600; color: var(--muted); } .cwr.up { color: var(--good); } .crep { padding: 2px 0 8px 50px; }
 .gphead { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 2px; } .gphead b { font-size: 14px; font-weight: 600; } .gphead small { font-size: 12.5px; color: var(--muted); }
 .gprow { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); } .gphead + .gprow { border-top: 0; }
 .gprow .gpic, .gprow .gpface { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; box-sizing: border-box; }
@@ -7686,7 +7689,7 @@ dialog.wizard { transform: scale(var(--from)); }
     return { load: !!loading, dd: ddVersion ? `${DD}/cdn/${ddVersion}` : '', side: mineT === 'CHAOS' ? 'red' : 'blue',
       us: rows.filter((p) => p.ally).sort(byPos).map(card), them: rows.filter((p) => !p.ally).sort(byPos).map(card),
       heads: lb ? [avg(lb.us, lb.fav > 0), avg(lb.them, lb.fav < 0)] : null, bg: boardBgNow(), items: loading ? null : boardItems(rows),
-      tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null, ...(weak && { weak: { lane: weak.lane, why: weak.why } }), ...(loading && { plan: planLine(rows) }) };
+      tips: loading && lane && (lane.foe || lane.duo) ? tipsFor(lane.me.champ, lane.foe, lane.me.pos, lane.duo) : null, ...(weak && { weak: { lane: weak.lane, why: weak.why } }), ...(loading && { plan: planLine(rows), goal: coachGoal(rows) }) };
   }
   // the Game plan's line on the loading screen (What's new 244), between your team and the matchup line: [[icon, words, picture]]
   function planLine(rows) {
@@ -10813,7 +10816,7 @@ dialog.wizard { transform: scale(var(--from)); }
   let gameWs = null, gameWsAt = -Infinity, gameWsKey = '';
   const gameSeen = new Set();
   function gameTick() {
-    const want = !!league && !!gameSpec.g && gameSpec.room === league.room && !!me0 && (opts.foeTimers || opts.teamCall), key = want ? `${gameSpec.plat}:${gameSpec.g}:${gameSpec.team}` : '';
+    const want = !!league && !!gameSpec.g && gameSpec.room === league.room && !!me0 && (opts.foeTimers || opts.teamCall || coachWants()), key = want ? `${gameSpec.plat}:${gameSpec.g}:${gameSpec.team}` : '';
     specTick();
     if (gameWs && gameWsKey !== key) { try { gameWs.close(); } catch {} gameWs = null; }
     if (!want || gameWs || performance.now() - gameWsAt < 15000) return;
@@ -10826,6 +10829,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   function gameSend(m) { if (gameWs && gameWs.readyState === 1) gameWs.send(JSON.stringify(m)); }
   function fromTeam(m, by) { // a timer or a callout from a teammate, in the room or through the game channel
+    if (m.t === 'call' && m.coach && typeof m.id === 'string' && !gameSeen.has(m.id)) { gameSeen.add(m.id); return coachHeard(m.coach, m.u); } // the Squad coach (What's new 247)
     if (m.t === 'timer' && typeof m.k === 'string' && MINE_K.test(m.k)) return mateHeard(m.k.slice(3), m);
     if (m.t === 'timer' && typeof m.k === 'string' && TIMER_K.test(m.k) && Number.isFinite(m.end)) return addTimer(league.room, m.k, Math.min(7200, m.end), m.auto ? 'auto' : by);
     if (m.t === 'call' && opts.teamCall && typeof m.shot === 'string' && SHOTS['premade ' + m.shot] && typeof m.id === 'string' && !gameSeen.has(m.id)) { gameSeen.add(m.id); return heardShot(m.shot, by, m.c); }
@@ -15674,7 +15678,8 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!coachOn() || !me0 || !me0.puuid || !squadM.length) return;
     const wk = monOf(Date.now());
     if (coachX.cur && coachX.cur.k === wk) return;
-    const w = coachWeek(monOf(wk - 1), wk);
+    const w = coachWeek(monOf(wk - 1), wk), old = coachX.cur;
+    coachX.prev = old && old.h && old.k === monOf(wk - 1) ? { k: wk, h: old.h, b: old.s[old.h], a: w.s[old.h], wr: old.wr, wr2: w.wr } : null; // What's new 247
     coachX.cur = { k: wk, n: w.n, h: w.h, s: w.s, wr: w.wr, cf: '', clips: [] };
     saveCoach();
     coachClips();
@@ -15732,7 +15737,8 @@ dialog.wizard { transform: scale(var(--from)); }
     if (!coachOn() || !c || !squadM.length || c.k !== monOf(Date.now())) return null;
     if (!c.h) return elm('p', 'hint', c.n < 10 ? `${c.n ? `Only ${c.n} games` : 'No games'} together last week: a goal needs 10, so none this week.` : 'No habit cost you games last week: no goal this week.');
     const [lh, L, wh, W] = c.s[c.h], t = coachTicks(c), kept = t.filter(([k]) => k);
-    const out = [elm('p', 'hint cpick', `Picked Monday from ${c.n} games together`),
+    const p = coachX.prev && coachX.prev.k === c.k && (new Date().getDay() === 1 || !t.length) ? coachX.prev : null; // Monday, or till your first game together
+    const out = [...(p ? coachResultEl(p) : []), elm('p', 'hint cpick', `Picked Monday from ${c.from || c.n} games together${c.sh ? ' · your squad’s Premade has the same one' : ''}`),
       elm('div', 'cgoal', coachIcon(c.h), elm('span', 'gptext', elm('b', '', COACH[c.h][0]), elm('small', '', `Last week: in ${lh} of ${L} losses, and ${wh} of ${W} wins`))),
       elm('div', 'cweek', elm('small', '', 'This week'), ...(t.length ? [coachBlocks(t.map(([k]) => k)), elm('small', 'gpn', `Kept in ${kept.length} of ${t.length} games, and you won ${kept.filter(([, w]) => w).length} of those ${kept.length}`)] : [elm('small', 'gpn', 'No games together yet')]))];
     if (c.clips.length) out.push(elm('p', 'gphead', elm('b', '', `Your ${c.clips.length > 1 ? `${c.clips.length} worst moments` : 'worst moment'}`), elm('small', '', 'from your match videos, only moments you were in')),
@@ -15744,6 +15750,64 @@ dialog.wizard { transform: scale(var(--from)); }
         return b;
       })));
     return elm('div', 'cbox', ...out);
+  }
+  // ---- Squad coach, step 2 (What's new 247): the goal on League's loading screen and in the report in a game
+  // together, last week's goal against the week before on Monday, and one goal for the squad: in a game together each
+  // Premade sends its goal over the game channel ({t:'call', coach: { h, k, n }, u}) and every one keeps the goal picked
+  // from the most games (ties: the lower player id) for the rest of the week. Ticks, clips and results stay your own.
+  const coachLive = () => { const c = coachX.cur; return coachOn() && c && c.h && c.k === monOf(Date.now()) ? c : null; };
+  const coachMates = (l) => { const sq = new Set(squadM.map((x) => x.u)); return l.some((u) => sq.has(u)); }; // a squad friend on your team
+  function coachGoal(rows) { // the loading screen's words, in a game together
+    const c = coachLive();
+    return c && coachMates(rows.filter((p) => p.ally && !p.me).map((p) => p.puuid)) ? COACH[c.h][0].replace(/^./, (x) => x.toLowerCase()) : null;
+  }
+  function coachWhat(h, m) { // a game's first miss: “You and Twitch died to their Lee Sin at 8:12”
+    const who = coachWho(m), at = ` at ${mmss(m[0])}`;
+    return h === 'g' ? `${who} died to their ${champName(m[3])}${at}` : h === 'a' ? `${who} died alone${m[3] ? ` to their ${champName(m[3])}` : ''}${at}`
+      : h === 'o' ? `${who} died before their ${m[3]}${at}` : `They took ${m[3]} with ${m[1]} of your ults up${at}`;
+  }
+  function coachReportEls(r, tl) { // the goal's row and this week's blocks, for the report's Game plan card
+    const c = coachLive(), m = r.players[r.me];
+    if (!c || !m || !me0 || m.puuid !== me0.puuid || r.mode !== 'CLASSIC' || r.at < c.k || !coachMates(r.players.filter((p) => p.team === m.team).map((p) => p.puuid))) return null;
+    const id = String(r.id);
+    if (!coachX.g[id]) coachKeep(id, { ps: r.players.map((p, i) => ({ id: p.pid || i + 1, u: p.puuid || '', t: p.team, w: !!p.win, c: p.champ, l: p.l || '' })), me: r.me }, tl);
+    const f = coachX.g[id], ms = (f && f[c.h]) || [];
+    if (!f || (c.h === 'u' && !f.u)) return null;
+    const t = coachTicks(c), kept = t.filter(([k]) => k).length;
+    return [elm('div', 'gprow', coachIcon(c.h), elm('span', 'gptext', elm('b', '', `Squad goal: ${COACH[c.h][0].replace(/^./, (x) => x.toLowerCase())}`), elm('small', '', ms.length ? coachWhat(c.h, ms[0]) : COACH[c.h][1])), elm('span', `gppill${ms.length ? '' : ' done'}`, ms.length ? 'Missed' : 'Done')),
+      ...(t.length ? [elm('div', 'cweek crep', elm('small', 'gpn', `This week: kept in ${kept} of ${t.length} games together`), coachBlocks(t.map(([k]) => k)))] : [])];
+  }
+  const winPct = ([w, n]) => (n ? Math.round((100 * w) / n) : 0);
+  const lossBlocks = ([lh, L]) => elm('span', 'blk sm rblk', ...Array.from({ length: L }, (_, i) => elm('i', i < lh ? 'h' : '')));
+  function coachResultEl(p) { // Monday: last week's goal, the week before against last week
+    const rate = ([lh, L]) => (L ? lh / L : 0), d = rate(p.a) - rate(p.b), word = d <= -0.1 ? 'Better' : d >= 0.1 ? 'Worse' : 'Same', up = winPct(p.wr2) - winPct(p.wr);
+    return [elm('div', 'cres', elm('p', 'gphead', elm('b', '', 'Last week’s goal'), elm('span', `gppill${word === 'Better' ? ' done' : ''}`, word)),
+      elm('div', 'cgoal', coachIcon(p.h), elm('span', 'gptext', elm('b', '', COACH[p.h][0]))),
+      elm('div', 'gpsq', elm('small', '', `The week before: in ${p.b[0]} of ${p.b[1]} losses`), lossBlocks(p.b), elm('span', ''), elm('small', '', `Last week: in ${p.a[0]} of ${p.a[1]} losses`), lossBlocks(p.a), elm('span', '')),
+      elm('p', `cwr${up > 0 ? ' up' : ''}`, `You won ${winPct(p.wr2)}% of your games together (was ${winPct(p.wr)}%): ${up > 0 ? '+' : ''}${up} points`)), elm('p', 'gphead cnow', elm('b', '', 'This week’s goal'))];
+  }
+  let coachSent = '';
+  const coachTeam = () => { const me = livePlayers.find((p) => me0 && p.puuid === me0.puuid); return me ? livePlayers.filter((p) => p.team === me.team && p !== me).map((p) => p.puuid) : []; };
+  const coachWants = () => { const c = coachLive(); return !!c && !c.sh && coachMates(coachTeam()); }; // the game channel, until your squad agrees
+  function sqGoalTick() { // in a game together: your goal to your squad's Premades, once a game
+    const c = coachLive();
+    if (!c || !league || !gameWs || gameWs.readyState !== 1 || coachSent === league.room || !coachMates(coachTeam())) return;
+    coachSent = league.room;
+    const m = { t: 'call', g: league.room, coach: { h: c.h, k: c.k, n: c.from || c.n }, u: me0.puuid, id: id12(), by: myName };
+    gameSeen.add(m.id);
+    send(m);
+    gameSend(m);
+  }
+  function coachHeard(x, u) { // a friend's goal: the one picked from more games wins
+    const c = coachX.cur;
+    if (!coachOn() || !c || !me0 || !x || x.k !== c.k || !COACH[x.h] || !(x.n > 0) || typeof u !== 'string' || u === me0.puuid) return;
+    const n = c.from || c.n;
+    if (x.n > n || (x.n === n && u < me0.puuid)) { if (c.h !== x.h) Object.assign(c, { h: x.h, cf: '', clips: [] }); c.from = x.n; }
+    else if (!c.sh) coachSent = ''; // ours wins: sent again so theirs takes it
+    c.sh = 1;
+    saveCoach();
+    coachClips();
+    renderSquadPage();
   }
   const PLAN_I = { clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 7v5l3 2' };
   const planIcon = (p) => { if (p.c) return champFace(p.c, 'gpface'); const s = elm('span', 'gpic'); s.innerHTML = PLAN_I[p.i] ? svgPath(PLAN_I[p.i], 22) : svgPath(WHEN[p.i], 22).replace('0 0 24 24', '0 0 16 16'); return s; };
@@ -16310,8 +16374,9 @@ dialog.wizard { transform: scale(var(--from)); }
         let fig = ov.querySelector(':scope > .goldfig.lead');
         if (!fig) { const g = tlTeamGold(r, tl); if (g) ov.prepend((fig = goldFig(g))); }
         if (fig) whenEl(r, tl, fig);
-        const gpc = planReportEl(r, tl); // What's new 245
+        const gpc = planReportEl(r, tl), cre = coachReportEls(r, tl); // What's new 245, 247
         if (gpc) ov.append(gpc);
+        if (cre) (gpc || ov.appendChild(elm('section', 'gpcheck', elm('h3', 'ph', 'Game plan')))).append(...cre);
         laneWinners(r, tl, box);
         Object.assign(box, { tl, l10: r.mode === 'CLASSIC' ? lanesAt10(r, tl) : null });
         r.plates = platesOf(tl, r.players.map((p, i) => p.pid || i + 1)) || r.plates;
@@ -22465,6 +22530,12 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [247, 'November 27: your squad goal in the game', [
+      'In a game with your squad, the goal joins the game plan’s line on League’s loading screen: “Squad goal: no two of us die to one gank before 14:00”.',
+      'After the game, the report’s Game plan card gets a row for it: what happened (“You and Twitch died to their Lee Sin at 8:12”) with Done or Missed, and this week’s blocks.',
+      'On Monday the Squad page shows how last week’s goal went: the week before against last week, and your win rate together (“54%, was 45%: +9 points”).',
+      'One goal for the whole squad: in your first game together each week, your Premades share their goals and all keep the one picked from the most games.',
+    ]],
     [246, 'November 27: your squad’s goal this week', [
       'Every Monday, Premade looks at last week’s games with your squad (Summoner’s Rift with a friend from Your squad on your team) and picks the one habit that cost you the most games: two of you dying to one gank before 14:00, dying alone after 20:00, dying in the minute before their objective, or fighting for one with 2 or fewer ults up. That becomes your goal for the week, like “No two of us die to one gank before 14:00”.',
       'The Squad page shows it at the top with how often it happened (“in 7 of 10 losses, and 2 of 12 wins”), a block for each game together this week (green when you kept it), and your 3 worst moments with it, cut from your match videos and kept as clips. A habit needs 3 losses and to show 15 points more often in losses than in wins, so some weeks there’s no goal, never a filler.',
@@ -23772,6 +23843,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Nothing to set up: play with your game plan. Squad, Your game plan.', '#sqGpBox', 'app'],
       ['Squad coach', 'Each Monday, from last week’s games with your squad, the one habit about deaths and fights that cost you the most games becomes your goal for the week (“No two of us die to one gank before 14:00”). The Squad page shows it with how often it happened in losses and wins, a block per game together this week, and your 3 worst moments with it as clips from your match videos.',
         'Nothing to set up: add friends to Your squad and play together. Settings, Champ select: Squad coach turns it off.', '#sqCoachBox, #optSquadCoach', 'app'],
+      ['Squad goal in the game', 'In a game with your squad, the week’s goal shows on League’s loading screen after the game plan, and the report says Done or Missed with what happened. On Monday the Squad page shows last week’s goal against the week before. In your first game together each week your Premades agree on one goal: the one picked from the most games.',
+        'Nothing to set up: play with your squad. Squad, Squad goal this week.', '#sqCoachBox', 'app'],
     ]],
     ['League: Pregame', 'Everything before a game, while League is open: the queue, match found, champ select, the tier list and Clash. It opens by itself when a match is found.', [
       ['Queue and lobby', 'Pick the game and your two roles, invite League friends who are online (with your win rate together this season), Find match, or start a Practice Tool game in one click.', 'Queue, on Pregame, while League is open.', '#queueBox, #friendRows', 'app'],
@@ -24011,7 +24084,7 @@ dialog.wizard { transform: scale(var(--from)); }
   remoteCheck();
   // each second's jobs (positions go stale even when no message arrives); one that throws doesn't stop the ones after
   // it (the voices' fade is 4th), and says so once
-  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, flashTick, spikeTick, objTick, fightTick, windowTick, coachTick, laneTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
+  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, flashTick, spikeTick, objTick, fightTick, sqGoalTick, windowTick, coachTick, laneTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
   setInterval(() => { for (const f of TICK) try { f(); } catch (err) { if (!tickErr.has(f)) { tickErr.add(f); console.warn(`${f.name}:`, err); clog(`${f.name} failed: ${err.message}`); } } }, 1000);
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
@@ -24040,6 +24113,7 @@ dialog.wizard { transform: scale(var(--from)); }
     jgLog: (v) => { jgLog = v; }, // What's new 235: this game's jungler calls, as seeFoes keeps them
     dodgeSay, habits: (tl, pid) => habitsOf(tl, pid),
     coachFacts: (d, tl, id) => coachFacts(d, tl, id), coachWeek: (a, b) => coachWeek(a, b), coachStore: () => coachX, monOf: (t) => monOf(t), coachPick: () => coachPick(), coachClips: () => coachClips(), // What's new 246
+    coachGoal: (rows) => coachGoal(rows), coachReport: (r, tl) => { const l = coachReportEls(r, tl); return l && l.map((e) => e.outerHTML).join(''); }, coachHeard: (x, u) => coachHeard(x, u), coachMsg: () => coachSent, // What's new 247
     plan: (gs, team) => planOf(gs, team), planStore: () => planX, planLine: (rows) => planLine(rows), planKeep: (id, ps) => planKeep(id, ps), planWords: (n, t, id, ev) => { const was = [curGame, league]; curGame = { id }; league = { events: ev || [] }; try { return planWords(n, t); } finally { [curGame, league] = was; } }, planReport: (r, tl) => { const e = planReportEl(r, tl); return e && e.outerHTML; },
     weakSide: (rows, data) => { for (const [k, v] of Object.entries(data)) scoutData.set(k, v); return weakSide(rows); },
     flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
