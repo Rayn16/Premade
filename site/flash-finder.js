@@ -10,7 +10,7 @@ globalThis.FlashFinder = (() => {
   const HUD = new Uint8Array(W * H); // League's HUD: no beams there
   for (const [y0, y1, x0, x1] of [[318, H, 180, 420], [285, H, 560, W], [0, 135, 0, 82], [150, 215, 595, W], [180, 250, 0, 100], [0, 14, 0, W]])
     for (let y = y0; y < y1; y++) HUD.fill(1, y * W + x0, y * W + x1);
-  const SLOTS = [[331, 340, 330, 339], [331, 340, 341, 350]]; // the D and F summoner spell slots at 360p
+  const SLOTS = [[331, 340, 330, 339], [331, 340, 341, 350], [331, 340, 315, 324]]; // the D and F summoner spell slots and R (What's new 242) at 360p
   const luma = (px) => { const Y = new Float32Array(W * H); for (let i = 0, p = 0; i < Y.length; i++, p += 4) Y[i] = px[p] * 0.299 + px[p + 1] * 0.587 + px[p + 2] * 0.114; return Y; };
   const slotsOf = (Y) => SLOTS.map(([y0, y1, x0, x1]) => { let s = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) s += Y[y * W + x]; return s / ((y1 - y0) * (x1 - x0)); });
 
@@ -235,15 +235,19 @@ globalThis.FlashFinder = (() => {
 
   // The finder for one game: push each 640x360 frame (15 a second) with its time (ms); it says when a light starts
   // (started: { id, fi, xb, yb, yt }, for its replay pictures) and, a second later, what it was (done: lights with their
-  // clues). flashSlot: 0 when your Flash is on D, 1 on F.
+  // clues). flashSlot: 0 when your Flash is on D, 1 on F. ultAt (What's new 242): when your R slot last went from ready to
+  // its cooldown shade (under 72% of its light before, for 4 frames), the time you used your ultimate.
+  // ponytail: a fixed spot for R on his HUD (x 315-324 at 360p) and a relative drop, as icons differ; tune on recordings
   function create() {
     const ring = [], recent = [], open = [], slots = [];
     let fi = 0, ids = 0;
-    const f = { flashSlot: 1, frames: 0, push };
+    const f = { flashSlot: 1, frames: 0, ultAt: 0, push };
     function push(px, t) {
       const Y = luma(px), started = [], done = [];
       slots.push([t, ...slotsOf(Y)]);
       if (slots.length > 45) slots.shift();
+      const i = slots.length - 4, v = slots.map((x) => x[3]), was = i >= 2 && Math.max(v[i - 2], v[i - 1]);
+      if (was >= 95 && (!f.ultAt || t - f.ultAt > 3000) && Math.min(slots[i][1], slots[i][2]) >= 40 && v.slice(i).every((y) => y >= 30 && y <= 0.72 * was)) f.ultAt = slots[i][0];
       ring.push({ fi, t, px, Y });
       if (ring.length > 22) ring.shift();
       const old = ring.length >= 3 && ring[ring.length - 3];
