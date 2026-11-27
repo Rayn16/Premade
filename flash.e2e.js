@@ -1,6 +1,6 @@
 // Test of auto enemy Flash (What's new 230): site/flash-finder.js on Rayan's 6 fixture moments (640x360 frames of his
-// games, cut by the planning thread: fixtures/flash), the auto timer on the enemy strip (marked auto, never sent to the
-// game channel), the faces to click when it can't tell who, and the Flash check after the game (keys 1-5, its guess
+// games, cut by the planning thread: fixtures/flash), the auto timer on the enemy strip (marked auto, and since What's new 242 sent
+// to Premade friends in the game, its turning off too), the faces to click when it can't tell who, and the Flash check after the game (keys 1-5, its guess
 // after the answer, the last screen) with a re-tune kept only when it scores better on his marks.
 // Needs playwright; run with NODE_PATH listing its node_modules:   NODE_PATH=/path/to/node_modules node flash.e2e.js
 const fs = require('fs');
@@ -80,6 +80,7 @@ const L = (over = {}) => ({ t: 0, xb: 0, yb: 0, len: 60, wide: 3.5, glowHi: 0.5,
             g.drawImage(await createImageBitmap(await (await fetch('/fx/' + m.frames[Math.min(k, 11)])).blob()), 0, 0);
             done.push(...f.push(g.getImageData(0, 0, 640, 360).data, m.first_frame_t * 1000 + (k * 1000) / 15).done);
           }
+          if (f.ultAt) return 'ult'; // no R slot going dark on these moments (What's new 242)
           return done.map((l) => ({ t: l.t / 1000, len: l.len, xb: l.xb, yb: l.yb, self: l.self, arr: l.arr, call: FlashFinder.call(l), loose: FlashFinder.loose(l) }));
         }, [m]);
         const at = out.find((l) => Math.abs(l.t - m.t) < 0.05);
@@ -88,6 +89,20 @@ const L = (over = {}) => ({ t: 0, xb: 0, yb: 0, len: 60, wide: 3.5, glowHi: 0.5,
         assert.strictEqual(at.call, WANT[m.id], `${m.id} (${m.note}): ${JSON.stringify(at)}`);
         assert(!out.some((l) => l.call === 'enemy') || m.rayan === 'enemy', `${m.id}: no enemy call on a moment that isn't one: ${JSON.stringify(out)}`);
       }
+      // your R slot (What's new 242): ready, then its cooldown shade for 4 frames on a fixture moment = your ultimate used then
+      const ult = await p.evaluate(async () => {
+        const cv = document.createElement('canvas'), g = cv.getContext('2d', { willReadFrequently: true }), f = FlashFinder.create(), b = await createImageBitmap(await (await fetch('/fx/K-1686_27-00.jpg')).blob()), at = [];
+        cv.width = 640; cv.height = 360;
+        for (let k = 0; k < 14; k++) {
+          g.drawImage(b, 0, 0);
+          g.fillStyle = k < 6 ? '#787878' : '#3c3c3c'; // 120, then 60
+          g.fillRect(315, 331, 9, 9);
+          f.push(g.getImageData(0, 0, 640, 360).data, 1000 + k * 66);
+          at.push(f.ultAt);
+        }
+        return at;
+      });
+      assert(ult.slice(0, 9).every((t) => !t) && ult[9] === 1000 + 6 * 66 && ult[13] === ult[9], `your ultimate when R went dark, once: ${ult}`);
       // scoring and re-tuning: a wrong enemy call costs twice a missed one; a version is only better on more points
       const r = await p.evaluate(([a, b, c]) => {
         const marks = [{ ...a, mark: 'enemy' }, { ...b, len: 40, mark: 'enemy' }, { ...c, mark: 'no' }];
@@ -162,11 +177,15 @@ const L = (over = {}) => ({ t: 0, xb: 0, yb: 0, len: 60, wide: 3.5, glowHi: 0.5,
       }
       await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'flashAsk', go: 'LeeSin' } }));
       await wait(page, () => !lpcClient.lastOverlay.flashAsk && lpcClient.lastOverlay.strip.find((r) => r.name === 'Lee Sin').spells.find((x) => x.k === 'flash:LeeSin').auto, null, 'Lee Sin’s Flash after the click');
-      // 3: a click on Zed's auto timer turns it off, here only
+      // 3: a click on Zed's auto timer turns it off, for friends too (What's new 242)
       await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'strip', go: 'flash:Zed' } }));
       await wait(page, () => !lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells.find((x) => x.k === 'flash:Zed').left, null, 'Zed’s timer off');
       await page.waitForTimeout(500);
-      assert.deepStrictEqual(sent.filter((m) => m.t === 'timer'), [], `no auto timer, or its turning off, went to the game channel: ${JSON.stringify(sent)}`);
+      const foeSent = sent.filter((m) => m.t === 'timer' && !/^me:/.test(m.k));
+      assert.deepStrictEqual(foeSent.map((m) => [m.k, !!m.end, m.auto || 0, m.by]), [['flash:Zed', true, 1, 'Rayan'], ['flash:LeeSin', true, 1, 'Rayan'], ['flash:Zed', false, 0, 'Rayan']], `the auto timers and Zed's off went to the game channel: ${JSON.stringify(foeSent)}`);
+      for (let i = 0; i < 30 && !sent.some((m) => m.k === 'me:Ahri' && m.f); i++) await page.waitForTimeout(100); // sent each second when it changes
+      const mine = sent.filter((m) => m.k === 'me:Ahri').pop();
+      assert(mine && mine.f > 590 && mine.f <= 605 && mine.r === 0, `your own Flash (seen at 5:00) sent for your friends' strips: ${JSON.stringify(mine)}`);
       // a recorded moment played in: fixture a1 (an enemy), its replay kept from the frames, Zed and Garen asked about
       const a1 = FIX.find((m) => m.id === 'K-524_80');
       await page.evaluate((fr) => lpc.flashFeed([...fr, ...Array(18).fill(fr[11])].map((f) => '/fx/' + f)), a1.frames);
@@ -222,7 +241,91 @@ const L = (over = {}) => ({ t: 0, xb: 0, yb: 0, len: 60, wide: 3.5, glowHi: 0.5,
       assert(P && P.len <= 40, `the re-tuned version kept: ${JSON.stringify(P)}`);
       assert(await page.evaluate(() => lpc.features().some(([, , l]) => l.some(([n]) => n === 'Auto enemy Flash'))), 'its FEATURES line');
       await c.close();
-      console.log('in a game: Zed’s auto Flash for you only, Lee Sin from the faces, an ally’s and your own left alone, the timer off with a click; the Flash check with keys, guesses after answers, the last screen; a better re-tune kept, an equal one not');
+      console.log('in a game: Zed’s auto Flash, sent to friends, Lee Sin from the faces, an ally’s and your own left alone (yours sent as your Flash time), the timer off with a click, for friends too; the Flash check with keys, guesses after answers, the last screen; a better re-tune kept, an equal one not');
+    }
+
+    // ---- What's new 242, two Premade friends in one game (Rayan on Ahri, Kai on Lee Sin), their game channels joined:
+    // Rayan's auto Flash on Kai's strip and off on both; Kai's own Flash and ultimate as a row on Rayan's strip, gone
+    // 30 s after Kai's Premade stops; "Premade, go Dragon" from Rayan on Kai's line for 5 s with Ahri's face, not spoken
+    {
+      const cors = { 'access-control-allow-origin': '*' }, socks = [];
+      const players = [['Rayan', 'ORDER', 'Ahri'], ['Kai', 'ORDER', 'LeeSin'], ['Mid', 'CHAOS', 'Zed'], ['Top', 'CHAOS', 'Garen']]
+        .map(([n, team, champ]) => ({ name: n + '#EUW', team, champ, champName: '', pos: '', lvl: 6, k: 0, d: 0, a: 0, cs: 10, items: [], spells: ['SummonerDot', 'SummonerFlash'] }));
+      const open = async (name, champ) => {
+        const c = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+        await c.route(/cdn\.jsdelivr\.net\/npm\/peerjs/, (r) => r.fulfill({ body: 'window.Peer = class { on() {} destroy() {} };', headers: { 'content-type': 'text/javascript', ...cors } }));
+        await c.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+        await c.route(/ddragon\.leagueoflegends\.com/, (r) => {
+          const u = r.request().url(), ch = /\/champion\/(\w+)\.json$/.exec(u);
+          if (u.endsWith('versions.json')) return r.fulfill({ json: ['1.1', '1.0'], headers: cors });
+          if (u.endsWith('champion.json')) return r.fulfill({ json: { data: DDATA }, headers: cors });
+          if (u.endsWith('summoner.json')) return r.fulfill({ json: { data: { SummonerFlash: { key: '4', cooldown: [300] }, SummonerDot: { key: '14', cooldown: [180] } } }, headers: cors });
+          if (ch) return r.fulfill({ json: { data: { [ch[1]]: { passive: { name: 'P', image: { full: 'P.png' } }, spells: ['Q', 'W', 'E', 'R'].map((k) => ({ name: k, cooldown: k === 'R' ? [100, 85, 70] : [5], image: { full: k + '.png' } })) } } }, headers: cors });
+          if (u.endsWith('.json')) return r.fulfill({ json: { data: {} }, headers: cors });
+          r.fulfill({ body: PNG1, contentType: 'image/png', headers: cors });
+        });
+        await c.route(/\/riot\/api\/euw1\/lol\/spectator\/v5\/active-games\/by-summoner\/me-p$/, (r) => r.fulfill({ json: { gameId: 777, participants: [['me-p', 100, 103], ['kai-p', 100, 64], ['zed-p', 200, 238], ['garen-p', 200, 86]].map(([puuid, teamId, championId]) => ({ puuid, teamId, championId, spell1Id: 4, spell2Id: 14, perks: { perkIds: [] } })) }, headers: cors }));
+        await c.routeWebSocket(/\/game\?/, (ws) => { socks.push(ws); ws.onMessage((m) => { for (const o of socks) if (o !== ws) o.send(m); }); }); // our server's game channel: on to the others
+        await c.addInitScript(() => localStorage.setItem('lpc-opts', JSON.stringify({ denoise: false, compact: false, autoRoom: false, foeTimers: true, flashAuto: true, teamCall: true, speakCalls: true })));
+        await c.addInitScript(fakeApp);
+        await c.addInitScript((n) => { localStorage.setItem('lpc-name', n); window.spoke = []; speechSynthesis.speak = (u) => window.spoke.push(u.text); }, name);
+        const page = await c.newPage();
+        page.on('pageerror', (e) => console.log(name, 'page error:', e.message));
+        await page.goto(URL_);
+        await page.evaluate((d) => lpcClient.emit('league', d), game({ me: { champ, champName: champ, team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 }, players }));
+        await wait(page, () => lpc.flash().fl, null, `${name}’s finder`, 30000);
+        return { c, page };
+      };
+      const A = await open('Rayan', 'Ahri'), B = await open('Kai', 'LeeSin');
+      for (let i = 0; i < 100 && socks.length < 2; i++) await A.page.waitForTimeout(200);
+      assert.strictEqual(socks.length, 2, 'both on the game channel');
+      await A.page.waitForTimeout(2500); // Data Dragon's items and spells, for the cooldowns
+      const flashOf = (page, name) => page.evaluate((n) => ((lpcClient.lastOverlay.strip || []).find((r) => r.name === n) || { spells: [] }).spells.find((x) => /^flash:/.test(x.k)) || null, name);
+      // 1: Rayan's Premade sees Zed Flash: on Kai's strip too, with the gold A; Rayan turns it off: off on both
+      await light(A.page, {}, [['Zed', 0.03]]);
+      await wait(B.page, () => { const z = (lpcClient.lastOverlay.strip || []).find((r) => r.name === 'Zed'); return z && z.spells.find((x) => x.k === 'flash:Zed').left > 0; }, null, 'Zed’s Flash on Kai’s strip');
+      const z = await flashOf(B.page, 'Zed');
+      assert(z.auto && z.by === 'A' && z.left >= 290 && z.left <= 310, `Kai sees it auto (his page’s clock started a few seconds later), gold A: ${JSON.stringify(z)}`);
+      await A.page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'strip', go: 'flash:Zed' } }));
+      await wait(B.page, () => !lpcClient.lastOverlay.strip.find((r) => r.name === 'Zed').spells.find((x) => x.k === 'flash:Zed').left, null, 'Zed’s Flash off on Kai’s strip');
+      assert(!(await flashOf(A.page, 'Zed')).left, 'and on Rayan’s');
+      // 2: Kai Flashes and uses his ultimate: his row on Rayan's strip, under the enemies, Flash ~5:00 and ultimate ~1:40
+      await light(B.page, { self: true });
+      await B.page.evaluate(() => lpc.ultNow());
+      await wait(A.page, () => { const m = (lpcClient.lastOverlay.mates || [])[0]; return m && m.spells.length === 2 && m.spells.every((x) => x.left > 0); }, null, 'Kai’s row on Rayan’s strip');
+      const row = await A.page.evaluate(() => lpcClient.lastOverlay.mates);
+      assert(row.length === 1 && row[0].name === 'Lee Sin' && row[0].spells[0].name === 'Flash' && row[0].spells[0].left >= 290 && row[0].spells[0].left <= 305 && row[0].spells[1].left >= 90 && row[0].spells[1].left <= 105,
+        `Lee Sin’s Flash and ultimate times: ${JSON.stringify(row)}`);
+      await wait(B.page, () => ((lpcClient.lastOverlay.mates || [])[0] || { spells: [] }).spells.length === 2, null, 'Rayan’s row on Kai’s strip (sent every 10 s), with his ultimate’s icon');
+      const kai = await B.page.evaluate(() => lpcClient.lastOverlay.mates);
+      assert(kai.length === 1 && kai[0].name === 'Ahri' && kai[0].spells.length === 2 && kai[0].spells.every((x) => !x.left), `Kai’s strip: Rayan’s row, both up, none for himself: ${JSON.stringify(kai)}`);
+      // 3: "Premade, go Dragon" said by Rayan: Kai's line with Ahri's face, the flame and the words for 5 s, never spoken
+      await A.page.evaluate(() => lpc.said('premade go dragon'));
+      await wait(B.page, () => (lpcClient.lastOverlay.calls || []).some((c) => c.pics && c.pics.join() === `a:${c.pics[0].slice(2)},s:flame,w:Go Dragon` && /Ahri/.test(c.pics[0])), null, 'Go Dragon on Kai’s line');
+      await wait(A.page, () => (lpcClient.lastOverlay.calls || []).some((c) => c.text === 'Sent: Go Dragon'), null, 'Sent: Go Dragon on Rayan’s line');
+      const t0 = Date.now();
+      if (process.env.SHOTS) { // Rayan's strip with Kai's row, and Kai's line
+        for (const [pg, name, w, h] of [[A.page, 'squad-strip', 220, 300], [B.page, 'squad-go-dragon', 520, 120]]) {
+          const o = await pg.evaluate(() => lpcClient.lastOverlay), p = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+          await p.route(/ddragon\.leagueoflegends\.com/, (r) => r.fulfill({ body: PNG1, contentType: 'image/png' }));
+          await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
+          await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
+          await p.evaluate((s) => { document.body.style.background = '#1d2b25'; window.fire({ ...s, board: null, parts: null }); }, name === 'squad-strip' ? { ...o, call: '', calls: null } : { ...o, strip: null, mates: null });
+          await p.waitForTimeout(800);
+          await shot(p, name);
+          await p.close();
+        }
+      }
+      await wait(A.page, () => !(lpcClient.lastOverlay.calls || []).some((c) => c.text === 'Sent: Go Dragon'), null, 'Rayan’s own line gone after 2 s', 5000);
+      await wait(B.page, () => !(lpcClient.lastOverlay.calls || []).some((c) => (c.pics || []).includes('w:Go Dragon')), null, 'Kai’s line gone after 5 s', 8000);
+      assert(Date.now() - t0 >= 3000, 'Kai’s line stayed about 5 s');
+      assert.deepStrictEqual(await B.page.evaluate(() => window.spoke), [], 'nothing read out loud on Kai’s, with Read them out loud on');
+      // 4: Kai leaves (his Premade stops sending): his row goes after 30 s
+      await B.c.close();
+      await wait(A.page, () => !lpcClient.lastOverlay.mates, null, 'Kai’s row gone', 40000);
+      assert(await A.page.evaluate(() => lpc.features().some(([, , l]) => l.some(([n]) => n === 'Squad on the strip'))), 'its FEATURES line');
+      await A.c.close();
+      console.log('two friends in one game: an auto Flash shared and turned off on both, a friend’s Flash and ultimate as a row on the strip till 30 s of silence, Go Dragon with the caller’s face for 5 s and not spoken');
     }
   } finally {
     await browser.close();
