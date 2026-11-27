@@ -7564,7 +7564,7 @@ dialog.wizard { transform: scale(var(--from)); }
     let s = !visible && !full ? { visible: false } : {
       visible: true, pos: opts.overlayPos, scale: opts.overlayScale, box: opts.overlayBox, edit: overlayEdit, opacity: opts.overlayOpacity, game, cs, aug, lane, tft, practice, board: board || (full ? true : null), call: call || '', callPics: call && callCur && callCur.text === call ? callCur.pics : null, calls: call && callCur && callCur.text === call ? callUp.map((c) => ({ text: c.text, pics: c.pics })) : null, theme: look.dark ? look : null,
       prog: !!(board && typeof board === 'object') || !!(after && after.board) || !!strip || !!buy, // the mouse reaches the overlay for the stats' boxes, the Scoreboard button (app 1.46) and the enemy spell strip (What's new 188)
-      parts: boardOk() ? { ...ovSpots(), ...voteAt, ...(!opts.overlayParts.gank && sq && share.fh && { gank: { x: sq.x / share.fw, y: sq.y / share.fh, ax: 'l', ay: 'b' } }) } : null, ghosts, // the gank clock at League's minimap's top left, till it's moved
+      parts: boardOk() ? { ...ovSpots(), ...voteAt, ...(!opts.overlayParts.gank && sq && share.fh && { gank: { x: sq.x / share.fw, y: sq.y / share.fh, ax: 'r', ay: 't' } }) } : null, ghosts, // the gank clock left of League's minimap's top left corner (above it are League's teammate portraits), till it's moved
       gank: gank && gank.t ? { t: gank.t, red: !!gank.red } : null, reach: gank && gank.reach, strip, flashAsk: strip ? flashAsk() : null, after, tips, buy, screen, vote, cards, mayhemCards: mayCards,
       toasts: on(opts.overlayToasts) ? toasts.filter((t) => now - t.at < 5000).map((t) => t.text) : [],
       ...(meOn && { muted, ptt: !!keys.ptt, talking: myTalking(), hear: fresh(me) ? hearMe() : null, fx: [...new Set(fxNow.map((n) => FX[n].name))] }),
@@ -8817,7 +8817,7 @@ dialog.wizard { transform: scale(var(--from)); }
   // of their own need the whole screen, so app 1.10.
   const OV_SPOTS = { call: { x: 0.5, y: 0.025, ax: 'c', ay: 't' }, strip: { x: 0.995, y: 0.72, ax: 'r', ay: 'b' }, after: { x: 0.5, y: 0.06, ax: 'c', ay: 't' },
     buy: { x: 0.99, y: 0.06, ax: 'r', ay: 't' }, tips: { x: 0.01, y: 0.5, ax: 'l', ay: 't' }, screen: { x: 0.99, y: 0.3, ax: 'r', ay: 't' }, // under League's score, under the rest
-    gank: { x: 0.85, y: 0.733, ax: 'l', ay: 'b' } }; // over the minimap's top left (in a game, where the reader finds it)
+    gank: { x: 0.85, y: 0.733, ax: 'r', ay: 't' } }; // left of the minimap's top left corner (in a game, where the reader finds it)
   const OV_NAMES = { '': 'The rest', call: 'Callouts', game: 'Timers and gold', cs: 'CS and my lane', tft: 'TFT items', practice: 'Practice Tool', me: 'My mic', talk: 'Who’s talking', chat: 'Room chat', toasts: 'Popups', strip: 'Enemy spell strip', after: 'After the game',
     buy: 'What to buy', tips: 'Tips while dead', screen: 'Teammate’s screen', gank: 'Gank clock' };
   const ovSpots = () => ({ ...OV_SPOTS, ...opts.overlayParts });
