@@ -320,6 +320,34 @@ const L = (over = {}) => ({ t: 0, xb: 0, yb: 0, len: 60, wide: 3.5, glowHi: 0.5,
       await wait(B.page, () => !(lpcClient.lastOverlay.calls || []).some((c) => (c.pics || []).includes('w:Go Dragon')), null, 'Kai’s line gone after 5 s', 8000);
       assert(Date.now() - t0 >= 3000, 'Kai’s line stayed about 5 s');
       assert.deepStrictEqual(await B.page.evaluate(() => window.spoke), [], 'nothing read out loud on Kai’s, with Read them out loud on');
+      // 5 (What's new 243): the fight check. League's ult dots read off his fixture moments at 1080p (the minimap's square
+      // where his HUD has it), 2 readings for a change; then 59 s before the first Dragon with 2 Flash timers running
+      const dots = await A.page.evaluate(async (ids) => {
+        const out = {}, cv = Object.assign(document.createElement('canvas'), { width: 1920, height: 1080 }), g = cv.getContext('2d');
+        for (const id of ids) {
+          g.drawImage(await createImageBitmap(await (await fetch(`/fx/${id}-00.jpg`)).blob()), 0, 0, 1920, 1080);
+          lpc.readDots(cv, 1920, 1080, { x: 1715, y: 874, s: 205 });
+          const r = lpc.readDots(cv, 1920, 1080, { x: 1715, y: 874, s: 205 });
+          out[id] = r.dots.join('') + (r.r ? ' R' : '');
+        }
+        return out;
+      }, ['K-524_80', 'K-1541_33', 'K-1686_27', 'MF-262_93', 'T-854_80']);
+      assert.deepStrictEqual(dots, { 'K-524_80': '1110', 'K-1541_33': '1000', 'K-1686_27': '1000 R', 'MF-262_93': '0000', 'T-854_80': '0110' }, `the ult dots and your R on his moments: ${JSON.stringify(dots)}`);
+      await A.page.evaluate((d) => lpcClient.emit('league', d), game({ t: 241, me: { champ: 'Ahri', champName: 'Ahri', team: 'ORDER', dead: false, respawn: 0, hp: 1, speed: 330 }, players }));
+      for (const k of ['flash:Zed', 'flash:Garen']) await A.page.evaluate((go) => lpcClient.emit('overlay-moved', { prog: { id: 'strip', go } }), k);
+      await wait(A.page, () => (lpcClient.lastOverlay.calls || []).some((c) => /^Dragon in 1:00/.test(c.text)), null, 'the fight check a minute before Dragon', 5000);
+      const fc = await A.page.evaluate(() => lpcClient.lastOverlay.calls.find((c) => /^Dragon in 1:00/.test(c.text)));
+      assert.deepStrictEqual(fc, { text: 'Dragon in 1:00. Ults 2 of 2 up, their Flash 2 of 2 down', pics: ['s:flame', 'w:Dragon in 1:00. Ults 2 of 2 up, their Flash 2 of 2 down'] }, JSON.stringify(fc));
+      assert(await A.page.evaluate(() => lpc.features().some(([, , l]) => l.some(([n]) => n === 'Fight check'))), 'its FEATURES line');
+      if (process.env.SHOTS) {
+        const o = await A.page.evaluate(() => lpcClient.lastOverlay), p = await browser.newPage({ viewport: { width: 520, height: 70 }, deviceScaleFactor: 2 });
+        await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
+        await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
+        await p.evaluate((s) => { document.body.style.background = '#1d2b25'; window.fire({ ...s, strip: null, mates: null, game: null, cs: null, toasts: [], board: null, parts: null, calls: [s.calls.find((c) => /^Dragon/.test(c.text))] }); }, o);
+        await p.waitForTimeout(500);
+        await shot(p, 'fight-check');
+        await p.close();
+      }
       // 4: Kai leaves (his Premade stops sending): his row goes after 30 s
       await B.c.close();
       await wait(A.page, () => !lpcClient.lastOverlay.mates, null, 'Kai’s row gone', 40000);

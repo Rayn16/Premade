@@ -3487,6 +3487,7 @@ dialog.wizard { transform: scale(var(--from)); }
             <label class="check"><input id="optSpikeCall" type="checkbox"><span><span>Power spikes</span><span>Level 6, 11 and 16, and finished items</span></span></label>
             <label class="check"><input id="optObjCall" type="checkbox"><span><span>Objective windows</span><span>Their jungler dead with Dragon, Voidgrubs, Herald or Baron up</span></span></label>
             <label class="check"><input id="optGrubCall" type="checkbox"><span><span>Voidgrubs and Herald</span><span>30 s before they spawn</span></span></label>
+            <label class="check"><input id="optFightCheck" type="checkbox"><span><span>Fight check <button class="tip" type="button" popovertarget="t-fightcheck" aria-label="About the fight check">?</button></span><span>A minute before Dragon, Herald and Baron: your team’s ults up, their Flash down</span></span></label>
             <label class="check"><input id="optCoach" type="checkbox"><span><span>Coach</span><span>A tip now and then: gold, objectives, levels</span></span></label>
             <label class="check ovin" data-when="optCoach"><input id="optCoachNew" type="checkbox"><span><span>I’m new: say why</span><span>The coach adds why, and what to do</span></span></label>
             <label class="check"><input id="optJgClock" type="checkbox"><span><span>Jungle clock</span><span>Where their jungler likely is after the first clear, timed for 2026</span></span></label>
@@ -4090,6 +4091,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Where it sits, press Edit layout, then drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it on my screen lets you drag the rest on the League screen itself, and size it by its corner. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keys) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
 <div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
 <div id="t-lanebox" class="tipbox" popover>For the first 14 minutes of a Summoner’s Rift game, My lane is a box: each player in your lane (bot: all four, mid and top: you and your lane opponent) with their level, Flash (its time left once it’s timed on the enemy spell strip; yours only while Auto Flash reads your spell keys, your support’s isn’t known), the gold in their items and CS. Below, one line: who hit level 2 first (also at the top of the screen for 5 seconds, read out only with Read them out loud), “Both went back: about 30 s” when their side of the lane went to buy or died, or who’s stronger by levels, Flash and gold in items. League shows no XP, so the level 2 race is known only once someone hits 2. It needs League’s positions, so not in blind pick, and shows only on Summoner’s Rift. With a minimap callout on, it also says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, never out loud.</div>
+<div id="t-fightcheck" class="tipbox" popover>A minute before Dragon, the Herald and Baron come up, the line at the top of your screen says for 8 seconds: “Dragon in 1:00. Ults 2 of 5 up, their Flash 2 of 5 down”. Ults up are the green dots League shows above your 4 teammates’ portraits, read from your shared screen, plus your own R. Their Flash down are the Flash timers running on your enemy spell strip, whoever started them. Ults are left out until someone on your team is level 6, and when Premade can’t see your teammates’ portraits. Read out only with Read them out loud. Summoner’s Rift only.</div>
 <div id="t-gankclock" class="tipbox" popover>When their jungler drops off your minimap, a small box by League’s minimap says how many seconds you have before they could walk to you: the shortest way round the walls at their move speed (with boots and items), and about a second sooner while their Flash is up on the enemy spell strip. It counts down, turns red under 5 seconds and says “Could be here” at 0, then goes until you see them again. Before you first see them it counts from their fountain at 0:00, and after they buy something out of sight, from their fountain then. With Faded faces on, their faded face gets a grey outline of everywhere they could have walked since, up to 20 seconds. Walls only: it doesn’t know your team’s wards, so it’s on the careful side. Move it moves and sizes the box. Summoner's Rift only.</div>
 <div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, where they are (“Vi at your red”, “Vi in top river”, “Vi in their bot jungle”) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read them out loud (Callouts, Sound) is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
 <div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, League, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read them out loud, under Sound, uses your computer’s own voice.</div>
@@ -4189,7 +4191,7 @@ dialog.wizard { transform: scale(var(--from)); }
     scout: true, runes: true, flash: 'keep', autoAccept: false, gameView: true, front: true, overlayGame: true, clips: true, clipMulti: true, remote: false,
     overlayMe: true, overlayCs: true, overlayToasts: true, overlayBoard: true, overlayOpacity: 1, clipBig: true, clipQ: '1080', clipFps: 60, recQ: '1440', recFps: 60, shareQ: '1080', shareFps: 30, clipLen: 30, clipCap: 20, clipSolo: true, clipFirst: true, clipTake: true, clipWin: true,
     overlayLane: true, laneBox: true, overlayAfter: true, overlayAny: 'full', overlayTft: false, tftAugs: false, mayhemAugs: false, mayhemRating: 'rate', overlayParts: {}, gankCall: false, missCall: false, invadeCall: false, missList: false, gankClock: false, speakCalls: false, callVoice: '',
-    foeTimers: false, flashAuto: false, flashP: null, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false,
+    foeTimers: false, flashAuto: false, flashP: null, spikeCall: false, coach: false, coachNew: false, jgClock: false, laneCall: false, objCall: false, grubCall: false, callSounds: false, callVol: 60, teamCall: false, fightCheck: true,
     deadTips: true, overlayBuy: true, overlayWin: true, watchMates: true, lendScreen: false, autoShare: true, roomScreen: true, roomSound: true, shareFilter: true, letPoint: true, history: true,
     surround: true, voice: 'normal', fade: 'normal', echoCheck: true, mutedWarn: true, turnAlarm: true, autoLock: false, spawnSounds: true, record: false, hello: true, shareLol: true, runeSrc: 'riot', elo: 'auto', itemSet: true, hoverPicks: '', hoverBans: '', main: '', themeAuto: false, clipVoice: false, clipPhrase: '', customBg: '', customFg: '',
     motion: 'auto', motionGame: false, slimRail: false, frSlim: true, boardBg: '', boardPic: 0,
@@ -7374,6 +7376,7 @@ dialog.wizard { transform: scale(var(--from)); }
       // until it shows (What's new 234: each look reads the whole screen, five times a second all game)
       if (league && SR.test(league.mode) && opts.overlayWin && (s.vote || performance.now() - (s.voteAt || 0) >= 1000)) { s.voteAt = performance.now(); s.vote = CameraBox.seeVote(cctx, src, w, h) ? Math.min(3, s.vote + 1) : Math.max(0, s.vote - 1); s.wide = w / h; }
       if (s.sq) volumes();
+      if (fightOn() && performance.now() - (s.dotAt || 0) >= 1000) { s.dotAt = performance.now(); readDots(s, src, w, h); }
     });
   }
   // an auto share starts or stops reading the minimap on the same track, so friends watching it never reconnect
@@ -11059,6 +11062,58 @@ dialog.wizard { transform: scale(var(--from)); }
     if (drakes(true) < 4 && drakes(false) < 4) for (const ours of [true, false]) if (drakes(ours) === 3 && !objSaid.set.has(`soul${ours}`)) { objSaid.set.add(`soul${ours}`); sayCall(`${ours ? 'You’re' : 'They’re'} on ${el ? el + ' ' : ''}soul point`, 1, undefined, [ours ? 's:drop' : 's!:drop', `w:${el ? el + ' ' : ''}soul point`]); }
     for (const [what, s, name] of [['baron', 180, 'Baron'], ['elder', 150, 'Elder']]) {
       for (const e of ev.filter((x) => x.e === what && x.team)) { const left = e.t + s - t; if (left > 0 && left <= 30) say(`${what}${e.t}`, `${e.team === mine.team ? 'Your' : 'Their'} ${name} ends in 0:30`); }
+    }
+  }
+  // The fight check (What's new 243): a minute before Dragon, the Herald and Baron, the line at the top for 8 s: “Dragon in
+  // 1:00. Ults 2 of 5 up, their Flash 2 of 5 down”. Ults: the green dots League shows above your 4 teammates' portraits
+  // (read once a second from your share, 28% of the minimap's size above its square; a dot counts as changed after 2
+  // readings in a row) and your own R slot (ready = bright); left out till someone on your team is level 6, and while
+  // no dot has shown green this game (no portraits on your HUD). Their Flash: Flash timers running on your strip.
+  // ponytail: the dots' and R's spots are where Rayan's HUD puts them (HUD scale 100%); other HUD scales need their own
+  const DOTS = [0.165, 0.405, 0.645, 0.885], DOT_Y = -0.285, R_SLOT = [315 / 640, 331 / 360, 9 / 640, 9 / 360];
+  const fightOn = () => !!(opts.fightCheck && league && SR.test(league.mode) && mine.team && boardOk());
+  let fight = { room: '', dots: [0, 0, 0, 0], pend: [0, 0, 0, 0], green: false, r: null, said: new Set() };
+  function readDots(s, src, w, h) {
+    if (fight.room !== league.room) fight = { room: league.room, dots: [0, 0, 0, 0], pend: [0, 0, 0, 0], green: false, r: null, said: new Set() };
+    if (!s.dsq || (s.dn = (s.dn || 0) + 1) % 5 === 0) s.dsq = s.sq || CameraBox.locateMinimap(cctx, src, w, h); // every 5 s, as the minimap reader does
+    const sq = s.dsq;
+    if (!sq) return;
+    const top = Math.max(0, Math.round(sq.y + DOT_Y * sq.s) - 1), rx = Math.round(R_SLOT[0] * w), ry = Math.round(R_SLOT[1] * h), rw = Math.max(1, Math.round(R_SLOT[2] * w)), rh = Math.max(1, Math.round(R_SLOT[3] * h));
+    cctx.canvas.width = sq.s; cctx.canvas.height = 3;
+    cctx.drawImage(src, sq.x, top, sq.s, 3, 0, 0, sq.s, 3);
+    const px = cctx.getImageData(0, 0, sq.s, 3).data;
+    DOTS.forEach((f, i) => { // 3x3 around the dot: green when ready
+      let r = 0, g = 0, b = 0;
+      const x = Math.round(f * sq.s);
+      for (let y = 0; y < 3; y++) for (let dx = -1; dx <= 1; dx++) { const p = (y * sq.s + Math.min(sq.s - 1, Math.max(0, x + dx))) * 4; r += px[p]; g += px[p + 1]; b += px[p + 2]; }
+      const up = g / 9 > 100 && g - r > 540 && g - b > 135 ? 1 : 0;
+      if (up === fight.dots[i]) fight.pend[i] = 0; else if (++fight.pend[i] >= 2) { fight.dots[i] = up; fight.pend[i] = 0; }
+      if (fight.dots[i]) fight.green = true;
+    });
+    cctx.canvas.width = rw; cctx.canvas.height = rh;
+    cctx.drawImage(src, rx, ry, rw, rh, 0, 0, rw, rh);
+    const q = cctx.getImageData(0, 0, rw, rh).data;
+    let l = 0;
+    for (let i = 0; i < q.length; i += 4) l += q[i] * 0.299 + q[i + 1] * 0.587 + q[i + 2] * 0.114;
+    fight.r = l / (rw * rh) >= 95; // ready ~120, its cooldown shade 60-80 (flash-finder.js)
+  }
+  function fightLine(name) { // “Dragon in 1:00. Ults 2 of 5 up, their Flash 2 of 5 down”
+    const ps = league.players || [], ours = ps.filter((p) => p.team === mine.team), theirs = ps.filter((p) => p.team !== mine.team && champOf(p.champ)), you = meIn();
+    const parts = [];
+    if (fight.room === league.room && fight.green && ours.some((p) => p.lvl >= 6)) parts.push(`Ults ${fight.dots.reduce((a, b) => a + b, 0) + (fight.r && you && !you.dead && !(league.me && league.me.dead) && you.lvl >= 6 ? 1 : 0)} of ${Math.max(ours.length, 1)} up`);
+    if (opts.foeTimers && theirs.length) parts.push(`their Flash ${new Set(foeTimers().filter(([, s, k]) => s > 0 && /^flash:/.test(k || '')).map(([, , k]) => k)).size} of ${theirs.length} down`);
+    return `${name} in 1:00.${parts.length ? ' ' + parts.join(', ') : ''}`;
+  }
+  function fightTick() {
+    if (!fightOn() || !Array.isArray(league.events)) return;
+    if (fight.room !== league.room) fight = { room: league.room, dots: [0, 0, 0, 0], pend: [0, 0, 0, 0], green: false, r: null, said: new Set() };
+    const t = gameNow();
+    for (const [n, left] of timers()) {
+      const k = `${n}${Math.round(t + left)}`;
+      if (!/^(Dragon|Herald|Baron)$/.test(n) || left > 60 || left <= 50 || fight.said.has(k)) continue;
+      fight.said.add(k);
+      const text = fightLine(n);
+      sayCall(text, 1, 'fight', [n === 'Herald' ? 's:bug' : 's:flame', 'w:' + text.charAt(0).toUpperCase() + text.slice(1)], false, 8000);
     }
   }
   // Objective windows and Voidgrubs and Herald (What's new 182): their jungler dying with Dragon, Voidgrubs, Herald or
@@ -21862,7 +21917,7 @@ dialog.wizard { transform: scale(var(--from)); }
     ['optOverlayMe', 'overlayMe'], ['optOverlayCs', 'overlayCs'], ['optOverlayToasts', 'overlayToasts'], ['optOverlayBoard', 'overlayBoard'], ['optClipBig', 'clipBig'], ['optSurround', 'surround'], ['optMutedWarn', 'mutedWarn'], ['optEchoCheck', 'echoCheck'],
     ['optTurnAlarm', 'turnAlarm'], ['optAutoLock', 'autoLock'], ['optSpawnSounds', 'spawnSounds'], ['optRecord', 'record'], ['optHello', 'hello'], ['optShareLol', 'shareLol'], ['optItemSet', 'itemSet'], ['optThemeAuto', 'themeAuto'], ['optMotionGame', 'motionGame'],
     ['optOverlayLane', 'overlayLane'], ['optLaneBox', 'laneBox'], ['optOverlayAfter', 'overlayAfter'], ['optOverlayTft', 'overlayTft'], ['optTftAugs', 'tftAugs'], ['optMayhemAugs', 'mayhemAugs'], ['optGankCall', 'gankCall'], ['optMissCall', 'missCall'], ['optInvadeCall', 'invadeCall'], ['optMissList', 'missList'], ['optGankClock', 'gankClock'], ['optSpeakCalls', 'speakCalls'],
-    ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'],
+    ['optFoeTimers', 'foeTimers'], ['optFlashAuto', 'flashAuto'], ['optSpikeCall', 'spikeCall'], ['optCoach', 'coach'], ['optCoachNew', 'coachNew'], ['optJgClock', 'jgClock'], ['optLaneCall', 'laneCall'], ['optObjCall', 'objCall'], ['optGrubCall', 'grubCall'], ['optCallSounds', 'callSounds'], ['optTeamCall', 'teamCall'], ['optFightCheck', 'fightCheck'],
     ['optDeadTips', 'deadTips'], ['optOverlayBuy', 'overlayBuy'], ['optOverlayWin', 'overlayWin'], ['optWatchMates', 'watchMates'], ['optLendScreen', 'lendScreen'], ['optAutoShare', 'autoShare'], ['optRoomScreen', 'roomScreen'], ['optRoomSound', 'roomSound'], ['optShareFilter', 'shareFilter'], ['optLetPoint', 'letPoint'], ['optHistory', 'history'],
     ['optHookGames', 'hookGames'], ['optHookClips', 'hookClips'], ['optLolStatus', 'lolStatus'], ['optGameVideo', 'gameVideo'], ['optRecMic', 'recMic'], ['optClipsAll', 'clipsAll'], ['optAionRec', 'aionRec'], ['optAionBoss', 'aionBoss'], ['optGameHigh', 'gameHigh']]) {
     $(id).checked = opts[k];
@@ -21870,7 +21925,7 @@ dialog.wizard { transform: scale(var(--from)); }
   }
   $('discordRow').hidden = !DISCORD_APP || !(client && client.discord);
   $('attenRow').hidden = !client;
-  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ['optFlashAuto', client && client.flashMarks && boardOk()], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optGankClock', 'optLaneBox', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
+  for (const [id, ok] of [['optAtten', client && client.attenuate], ['optFront', client && client.front], ['optCombo', client && client.combo], ['optGameVideo', client && client.gameVideo], ['optFlashAuto', client && client.flashMarks && boardOk()], ...['optOverlayBoard', 'optOverlayAfter', 'optMapNudge', 'optJgCall', 'optGankCall', 'optMissCall', 'optInvadeCall', 'optMissList', 'optGankClock', 'optLaneBox', 'optSpeakCalls', 'optCallVoice', 'optSpikeCall', 'optCoach', 'optCoachNew', 'optJgClock', 'optLaneCall', 'optObjCall', 'optGrubCall', 'optCallSounds', 'optCallVol', 'optTeamCall', 'optFightCheck', 'optDeadTips', 'optWatchMates', 'optTftAugs', 'optMayhemAugs'].map((x) => [x, boardOk()])]) {
     if (!ok) { $(id).disabled = true; $(id).parentElement.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: ' (comes with the next app update)' })); }
   }
   $('optOverlayAny').value = ['full', 'always', 'off'].includes(opts.overlayAny) ? opts.overlayAny : 'full';
@@ -22085,6 +22140,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [243, 'November 27: the fight check', [
+      'A minute before Dragon, the Herald and Baron, the line at the top of your screen says for 8 seconds: “Dragon in 1:00. Ults 2 of 5 up, their Flash 2 of 5 down”. In every Summoner’s Rift game, friends or not.',
+      'Ults up are the green dots League shows above your teammates’ portraits, read from your screen, plus your own R; their Flash down are the Flash timers on your enemy spell strip. Read out only with Read them out loud.',
+      'On by itself; Settings, Callouts, From the game, Fight check turns it off.',
+    ]],
     [242, 'November 27: your squad on the strip', [
       'With Auto enemy Flash on, an enemy Flash it catches also starts on the strips of your Premade friends in the game, with the gold A, and theirs come to yours. Turn a wrong one off and it goes off for everyone.',
       'Each friend in your game whose Premade reads their screen gets a row under the enemies on your strip: their face, their Flash and their ultimate, with the time left while it’s down. Your Premade sends yours the same way.',
@@ -23523,6 +23583,8 @@ dialog.wizard { transform: scale(var(--from)); }
         'Off until you turn it on: Settings, Overlay, In game, under Enemy spell strip (Windows app 1.55).', '#optFlashAuto, #flashDlg', 'app'],
       ['Teammates’ callouts', 'Say “Premade, mid missing” or tap Missing on your phone, and every Premade teammate in your game sees “Kai: Zed missing from mid” with your letter, and you see theirs.',
         'Off until you turn it on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
+      ['Fight check', 'A minute before Dragon, the Herald and Baron, the line at the top of your screen says for 8 seconds: “Dragon in 1:00. Ults 2 of 5 up, their Flash 2 of 5 down”. Ults up: the green dots League shows above your 4 teammates’ portraits, read from your screen, plus your own R. Their Flash down: the Flash timers on your enemy spell strip. Ults are left out until someone on your team is level 6. Read out only with Read them out loud.',
+        'On unless you turn it off: Settings, Callouts, From the game.', '#optFightCheck', 'app'],
       ['Shotcaller phrases', 'Say “Premade, group mid” (top, bot), “Premade, go Dragon” (Herald, Baron, Void grubs), “Premade, back off” or “Premade, reset”: your face, a sign and the words show at the top of every Premade friend’s overlay in the game for 5 seconds, and on yours for 2 so you know it went. Never read out loud.',
         'With Teammates’ callouts on: Settings, Callouts, From your team.', '#optTeamCall', 'app'],
       ['Squad on the strip', 'Each friend in your game whose Premade reads their screen (Auto enemy Flash on) gets a row under the enemies on your strip, below a thin gold line: their face in a light ring, their Flash and their ultimate, with the time left over the icon while it’s down. Their Premade reads their own F key and R slot. A friend who leaves, or sends nothing for 30 seconds, loses their row.',
@@ -23603,7 +23665,7 @@ dialog.wizard { transform: scale(var(--from)); }
   remoteCheck();
   // each second's jobs (positions go stale even when no message arrives); one that throws doesn't stop the ones after
   // it (the voices' fade is 4th), and says so once
-  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, flashTick, spikeTick, objTick, windowTick, coachTick, laneTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
+  const TICK = [swapTick, applyFx, statusTick, volumes, trackCheck, gameCheck, gamesTick, autoPick, autoShare, pushDiscord, leagueTick, goldTick, clipsCheck, augTick, dpsTick, crumbTick, clipMoments, voiceCheck, micIdle, spawnTick, patchWatch, timerTick, flashTick, spikeTick, objTick, fightTick, windowTick, coachTick, laneTick, jgClockTick, camTick, lendTick, seeTick, groupTick], tickErr = new Set();
   setInterval(() => { for (const f of TICK) try { f(); } catch (err) { if (!tickErr.has(f)) { tickErr.add(f); console.warn(`${f.name}:`, err); clog(`${f.name} failed: ${err.message}`); } } }, 1000);
   document.addEventListener('visibilitychange', render);
   addEventListener('resize', render);
@@ -23635,7 +23697,9 @@ dialog.wizard { transform: scale(var(--from)); }
     flash: () => ({ on: flashOn(), fl: fl && { lights: fl.lights.map(({ pic, ...x }) => x), ask: flashAsk(), slot: fl.f.flashSlot }, game: flashGame && flashGame.lights.map(({ pic, ...x }) => x) }),
     flashLight: (l, foes) => { if (fl) { if (foes && share) share.foes = { room: league.room, list: foes }; fl.caps.set(l.id, { x: 0, y: 0, cv: document.createElement('canvas') }); flashLight(l); } }, // a light as the finder says it, past the screen
     flashStop: () => flashStop(),
-    said: (p) => heardTimer(p), // a voice phrase as heard (What's new 242: the shotcaller phrases)
+    said: (p) => heardTimer(p),
+    fight: () => ({ ...fight, said: [...fight.said] }), // What's new 243: the dots read, your R, the checks said
+    readDots: (src, w, h, sq) => { readDots({ sq, dsq: sq }, src, w, h); return { dots: fight.dots, r: fight.r }; }, // a frame in place of the share // a voice phrase as heard (What's new 242: the shotcaller phrases)
     ultNow: () => { if (fl) fl.f.ultAt = performance.now(); }, // your R slot gone dark, as the finder sees it (What's new 242)
     flashFeed: async (urls) => { // recorded frames into the finder in place of the screen, 15 a second
       if (!fl) return false;
