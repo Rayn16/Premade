@@ -4098,7 +4098,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft, and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, plus what your team lacks and your games with your duo, and Balanced by both, plus your own games and mastery on it. For an ADC or a support, Bot lane first counts your lane 4 times the rest of the draft. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
-<div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time, and saying it needs the speech recognition loaded all the time too (about 200 MB of memory).</div>
+<div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time. Saying it works in League games and while a game or another app fills your screen: the speech recognition (about 200 MB of memory) loads then and goes 5 minutes after.</div>
 <div id="t-rec" class="tipbox" popover>Record any screen or app window, like OBS, whenever you like, not only in League: Record (or the Record key, which works while other apps are in front) asks which one, and the same again stops it. It records what you hear, and your mic if you tick it, at the quality and frame rate you pick here (never bigger than the screen or window). It goes in Videos\Premade\Games and is listed on this page, kept until you bin it; it plays here and in any video player, and you can skip around in it and cut it. While Record every match records a game, that game’s video is the recording.</div>
 <div id="t-vids" class="tipbox" popover>With Record every match on (the strip at the top of the Clips page), the app records each game you play, except Practice Tool, at the quality and frame rate in Settings, Clips, Recording (it says how big 30 minutes is). It goes in Videos\Premade\Games as it records. Its highlights come from League's own game events (your kills, multikills and deaths, Aces, Dragons, Barons, Heralds, Voidgrubs, towers and inhibitors): click one to watch it right here, Play highlights to watch them one after another, and Save the cut to keep one as a clip. You can also skip around in it in any video player. Videos older than the days you pick go to the Recycle Bin. It records the screen League is on (Settings, League, Screen) with what you hear and your mic, like clips.</div>
 <div id="t-post" class="tipbox" popover>Once a game is over: how you played against your usual games on that champion (from your last 100), high elo players on it in your role (Korea's Challenger and Grandmaster games our server counts) and your lane opponent, with what stood out; your gold and CS against your lane opponent minute by minute; where you got kills and died; the objectives each team took; then everyone's score, your laning and when everyone bought each item. From Riot's match history and the game's timeline. Riot doesn't allow advice during a game, so it comes after.</div>
@@ -13643,6 +13643,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const lol = !!league;
     try {
       await new Promise((res) => { r.flushed = res; r.mr.requestData(); setTimeout(res, 2000); });
+      for (let i = 0; i < 20 && r.parts.some((p) => p.blob instanceof Blob); i++) await sleep(50); // What's new 236: the last second on its way to the ring
       // only the seconds this clip needs (and a key frame's worth before them) are joined, not all that's kept;
       // joined here, not in a Blob: a Blob of the whole ring would copy it to the app's main process until a clean-up
       const since = performance.now() - (secs + 8) * 1000, keep = r.parts.filter((p) => p.at >= since), whole = keep.length === r.parts.length && !r.trimmed;
@@ -13653,8 +13654,9 @@ dialog.wizard { transform: scale(var(--from)); }
       const head = new Uint8Array(await r.head.arrayBuffer()), list = [...(whole ? [head] : [])];
       let o = 0;
       for (const x of snap) list.push(Array.isArray(x) ? got.subarray(o, (o += x[1])) : x instanceof Blob ? new Uint8Array(await x.arrayBuffer()) : x);
-      const body = new Uint8Array(list.reduce((n, u) => n + u.length, 0));
-      list.reduce((at, u) => (body.set(u, at), at + u.length), 0);
+      // What's new 236: all of it read back from the ring is already one piece, in order: not copied again (up to 100 MB)
+      const body = !whole && disk.length && disk.length === snap.length ? got : new Uint8Array(list.reduce((n, u) => n + u.length, 0));
+      if (body !== got) list.reduce((at, u) => (body.set(u, at), at + u.length), 0);
       const out = cutClip(head, body, secs);
       // "Yasuo triple kill 21-04": the champion, the moment and the time, so the file says what it is wherever it goes
       const d = new Date(), what = (why === 'multi' && MULTI_TAG[Math.min(5, n)]) || CLIP_TAG[why] || 'clip';
@@ -13713,6 +13715,11 @@ dialog.wizard { transform: scale(var(--from)); }
   // it's wanted: in a game, or while Record my phrase or Test listens. It listens for the phrases alone (a grammar,
   // with [unk] for every other word), which finds them in the middle of a sentence too. While enemy timers are on, it
   // listens for their phrases too, in every game.
+  // What's new 236: Clip anywhere records all the time, so the model used to stay loaded all day (Rayan's PC, 27 Nov:
+  // most of the 160 MB it adds). Outside League games it's loaded now only while an app fills its screen in front (a
+  // game in Borderless or full screen: the app's frontApp, asked every 5 s just for this) and for 5 minutes after.
+  let fullAt = -Infinity;
+  setInterval(() => { if (opts.clipVoice && opts.clipsAll && client && client.frontApp) client.frontApp().then((f) => { if (f && f.full) fullAt = performance.now(); }, () => {}); }, 5000);
   const SAY = 'Premade, clip that';
   const micWhere = () => (opts.justLeague && !peer ? 'Windows’ sound settings' : 'Settings, Voice'); // Just League has no Voice section outside a room (What's new 207)
   let vosk = null, ear = null, fired = false, testing = null, recording = false, voiceErr = '', voiceBusy = null;
@@ -13721,7 +13728,7 @@ dialog.wizard { transform: scale(var(--from)); }
   const phrases = () => [SAY, opts.clipPhrase].filter((p) => words(p).split(' ').length >= 2);
   const saidIn = (text) => phrases().find((p) => ` ${words(text)} `.includes(` ${words(p)} `));
   const quoted = (ps, or) => ps.map((p) => `“${p}”`).reduce((all, p, i) => all + (i === ps.length - 1 ? or : ', ') + p); // A, B and C
-  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && clipsOn() && !!recorder && !recorder.failed) || (opts.foeTimers && !!league))); // and enemy timers
+  const voiceWant = () => !!testing || recording || (!voiceErr && ((opts.clipVoice && clipsOn() && !!recorder && !recorder.failed && (!!league || performance.now() - fullAt < 300e3)) || (opts.foeTimers && !!league))); // and enemy timers
   const vendor = (f) => new URL('vendor/vosk/' + f, location.href).href;
   const voiceOn = () => (voiceBusy = voiceBusy || voiceStart().finally(() => { voiceBusy = null; }));
   async function voiceStart() {
@@ -13790,7 +13797,7 @@ dialog.wizard { transform: scale(var(--from)); }
     const short = opts.clipPhrase && words(opts.clipPhrase).split(' ').length < 2;
     $('voiceNote').textContent = voiceErr || (short ? 'Your own phrase needs two words or more, so it isn’t said by accident.'
       : !opts.clipVoice ? '' : !clipsOn() ? 'Turn on “Keep the last part of each game” too: that’s what a clip is saved from.'
-      : `${ear ? 'Listening' : opts.clipsAll ? 'It listens' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
+      : `${ear ? 'Listening' : opts.clipsAll ? 'In games and apps that fill your screen it listens' : 'During games it listens'} for ${quoted(phrases(), ' and ')}.`);
   }
   $('voiceTest').addEventListener('click', async () => {
     if (testing || recording) return;
@@ -13942,7 +13949,7 @@ dialog.wizard { transform: scale(var(--from)); }
     if (g) $('clipGrid').replaceChildren(...clipRows(gallery.filter((c) => !isAny(c.name) || clipMeta[c.name])));
     else $('clipList').replaceChildren(...clipNames.slice(0, 10).map((c) => Object.assign(document.createElement('li'), { textContent: c })));
     $('anyGrid').replaceChildren(...(g ? gallery.filter((c) => isAny(c.name)).map(clipCard) : [])); // Clip anywhere's, on the Recording page
-    $('anyNote').textContent = !client ? 'Clip anywhere needs the Premade app.' : !opts.clipsAll ? '' : `Press ${keys.clip || 'the clip key'}${opts.clipVoice ? ` or say “${SAY}”` : ''} in any app or game.${opts.clipVoice ? '' : ' Turn on Clips by voice in Settings, Clips, to say it.'} Clips from outside League are listed here.`;
+    $('anyNote').textContent = !client ? 'Clip anywhere needs the Premade app.' : !opts.clipsAll ? '' : `Press ${keys.clip || 'the clip key'} in any app or game${opts.clipVoice ? `, or say “${SAY}” in a game or an app that fills your screen` : ''}.${opts.clipVoice ? '' : ' Turn on Clips by voice in Settings, Clips, to say it.'} Clips from outside League are listed here.`;
     // a search and date filter over the cards, and how full the folder is (the big picked clip of the Open Design layout
     // went with the rows by game: the player opens over the page instead)
     $('clipFind').hidden = !g || !$('clipGrid').childElementCount;
@@ -21885,6 +21892,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [236, 'November 27: less memory outside your games', [
+      'With Clip anywhere on, “Premade, clip that” listens in League games and while a game or another app fills your screen, and for 5 minutes after. The rest of the time its speech recognition is no longer kept in memory, about 160 MB less on your desktop, in Discord or a browser. The clip key still saves a clip in any app.',
+      'Saving a clip takes less memory for a moment: the seconds it’s cut from are no longer copied twice.',
+    ]],
     [235, 'November 27: five League helpers', [
       'The game report’s Their jungler checks Premade’s jungler callouts against Riot’s copy of the game: “18 of 20 jungler calls matched”, with an orange ring for each that didn’t. Spots that keep missing wait 2 seconds longer before their call.',
       'In champ select, once both teams lock in, the draft verdict adds Dodge or stay? from your own saved drafts. Until 50 are saved it says how many. It never dodges for you.',
@@ -23253,7 +23264,7 @@ dialog.wizard { transform: scale(var(--from)); }
         'Recording in the menu: Each Aion 2 dungeon run and Keep only the boss fights (both on by default). Turn the second off to keep whole runs.', '#optAionRec, #optAionBoss', 'app'],
       ['Aion 2 run review', 'Under each Aion 2 run on the Recording page, a strip of the run: its boss fights (gold once killed), the bosses’ casts and each death, with every boss’s time from the pull to the kill against your best and the cast that was up at each death, like “2 of 3 deaths during Blue Light of Destruction”. Click a fight or a death to watch it. Deaths come from Live fight when it’s on, otherwise from each time you came back in.',
         'Recording in the menu: Your recordings. Runs recorded from this update on have it.', '#recList', 'app'],
-      ['Clip anywhere', 'The clip key and “Premade, clip that” save a clip in any app or game, not only League, from the last part of your screen with what you heard and your mic. Those clips are listed on the Recording page; League’s stay on the Clips page.',
+      ['Clip anywhere', 'The clip key saves a clip in any app or game, not only League, and “Premade, clip that” in any game or app that fills your screen, from the last part of your screen with what you heard and your mic. Its speech recognition is in memory only then, and for 5 minutes after. Those clips are listed on the Recording page; League’s stay on the Clips page.',
         'Recording in the menu: tick Clip anywhere. Clips by voice is turned on in Settings, Clips, on the Clips page.', '#optClipsAll, #anyBox', 'app'],
       ['Whole matches and highlights', 'Every game but Practice Tool recorded by itself, with what you heard and your mic, and its highlights (your kills, multikills and deaths, Aces, objectives, towers) to watch one by one or one after another. Each is a card with a picture from the game, its length, when, its size and how many highlights. Save the cut keeps one as a clip. After the days you pick it goes to the Recycle Bin. Keep only the highlights (on by default) cuts each game down to its highlights when it ends, so a game takes a fraction of the several GB it took whole. A video Premade was still finishing when it closed is finished at the next start, and half-made files a day old go to the Recycle Bin.',
         'Off until you tick it: Record every match, in the strip at the top of the Clips page. Untick Keep only the highlights beside it to keep whole games.', '#optGameVideo, #optGameHigh, #vidBox', 'app'],
