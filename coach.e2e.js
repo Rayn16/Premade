@@ -56,7 +56,9 @@ function withIcons(icons) { // [[champion, x, y]] in minimap pixels
   }
   return Buffer.from(out.buffer);
 }
-const SCREENS = { none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), red: withFoe([148, 198]), // x + y past the minimap's width: the bottom side; your red buff
+const MATE = [60, 140, 230]; // your team's blue ring
+const SCREENS = { j1: withIcons([['Garen', 30, 95, MATE]]), j2: withIcons([['Garen', 45, 110, MATE]]), j3: withIcons([['Garen', 60, 125, MATE]]), jNear: withIcons([['Garen', 100, 160, MATE]]), // your jungler walking down to you in bot, then by you
+  none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), red: withFoe([148, 198]), // x + y past the minimap's width: the bottom side; your red buff
   zedMid: withIcons([['Zed', 172, 109]]), leeMid: withIcons([['LeeSin', 172, 109]]), leeJungle: withIcons([['LeeSin', 130, 215]]), // Zed in the middle lane on their side, Lee Sin in your jungle
   g1: withIcons([['LeeSin', 165, 168]]), g2: withIcons([['LeeSin', 150, 168]]), g3: withIcons([['LeeSin', 135, 168]]), // Lee Sin coming toward you (ME)
   p1: withIcons([['LeeSin', 150, 140]]), p2: withIcons([['LeeSin', 150, 155]]), p3: withIcons([['LeeSin', 150, 170]]), // Lee Sin walking past you, closer but not at you
@@ -471,6 +473,25 @@ const game = (over = {}) => ({
       assert.deepStrictEqual(drawn, { rows: 3, gap: 1, pills: 1, line: 'You’re stronger: level 5 vs 4' }, `the box drawn: ${JSON.stringify(drawn)}`);
       await p.close();
       console.log(`lane box: 4 rows bot, the level 2 race, they're stronger with Yasuo's Flash timed and no levels-down tip, both went back (${secs} s), 2 rows mid, none blind or at 14:00`);
+    }
+
+    // ---- What's new 240, your jungler coming: Garen (your jungler) walking down from your top side toward you in bot,
+    // matched by his face in your team's blue ring: "Garen coming bot, about N s" on the lane box; nothing once he's by you
+    {
+      const [c, page] = await context(browser, { missList: true });
+      const g = game({ t: 200, room: 'g0123456789d', players: [['Rayan', 'ORDER', 'Ahri', 'BOTTOM'], ['Mate', 'ORDER', 'Garen', 'JUNGLE'], ['Them', 'CHAOS', 'Yasuo', 'BOTTOM'], ['Jg', 'CHAOS', 'LeeSin', 'JUNGLE']]
+        .map(([n, team, champ, pos]) => ({ name: n + '#EUW', team, champ, champName: '', pos, lvl: 3, k: 0, d: 0, a: 0, cs: 10, items: [], dead: false, respawn: 0, spells: [] })) });
+      await page.evaluate((d) => lpcClient.emit('league', d), g);
+      await wait(page, () => lpc.me().fresh && lpcClient.lastOverlay.laneBox, null, 'you on the minimap, the lane box');
+      for (const k of ['j1', 'j2', 'j3']) { await page.evaluate((x) => { window.screenNow = x; }, k); await page.waitForTimeout(700); }
+      await wait(page, () => /^Garen coming bot, about \d+ s$/.test(((lpcClient.lastOverlay.laneBox || {}).jg || {}).t), null, 'Garen coming bot', 5000);
+      const jg = (await page.evaluate(() => lpcClient.lastOverlay.laneBox)).jg, secs = +jg.t.match(/\d+/)[0];
+      assert(secs >= 3 && secs <= 15 && jg.pic.includes('Garen'), `about 3 to 15 s, his face: ${JSON.stringify(jg)}`);
+      await overlayShot(browser, 'lane-box-jungler', await page.evaluate(() => lpcClient.lastOverlay), 'j3');
+      await page.evaluate(() => { window.screenNow = 'jNear'; });
+      await wait(page, () => !(lpcClient.lastOverlay.laneBox || {}).jg, null, 'quiet once he’s by you');
+      await c.close();
+      console.log(`your jungler coming: “${jg.t}” as Garen walked down to you, nothing once he was by you`);
     }
 
     // ---- What's new 234: with no callout on and no room, the League share doesn't follow you on the minimap (it did five

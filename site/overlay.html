@@ -301,6 +301,7 @@ body:not(.full) #call, body:not(.full) #ghosts { display: none; }
 .lbg { font-size: 12px; text-align: right; }
 .lbcs { font-size: 12px; text-align: right; color: var(--muted); }
 .lbline { margin-top: 5px; font-weight: 500; }
+.lbjg { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 #ghosts path { fill: none; stroke: #9aa0a6; stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linecap: round; opacity: 0.8; }
 .cpics .lvl { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: #010a13; display: grid; place-items: center; font-size: 19px; font-weight: 700; }
 /* while you're dead: the tips for your lane (tips) and a teammate's screen (cam) */
@@ -430,6 +431,7 @@ button { -webkit-app-region: no-drag; margin-left: 8px; padding: 3px 10px; borde
       box.append(row);
     });
     if (b.line) box.append(el('lbline', String(b.line)));
+    if (b.jg && b.jg.t) { const j = el('lbline lbjg'); j.append(img(b.jg.pic, 'lbface'), String(b.jg.t)); box.append(j); } // your jungler coming (What's new 240)
     return box;
   }
   function mayBox(a) { // ARAM: Mayhem: Best for <champion>, then your picks

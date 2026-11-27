@@ -4089,7 +4089,7 @@ dialog.wizard { transform: scale(var(--from)); }
 <div id="t-screen" class="tipbox" popover>The screen the client shares to read your minimap. Pick the one League is on; the overlay shows up on that screen too.</div>
 <div id="t-overlay" class="tipbox" popover>A see-through layer on top of League with what you tick here. League must be in Borderless mode (Settings, Video, Window Mode) for anything to show on top of it. In Where it sits, press Edit layout, then drag a part anywhere on your screen, or drag the rest; Put it back returns the part you picked to where it started. Move it on my screen lets you drag the rest on the League screen itself, and size it by its corner. On the loading screen it shows all ten players, like Porofessor: your team on the left at the top, theirs below, with their rank, their record on their champion and tags, and the tips for your lane on the right (app 1.10). In a game, the overlay shortcut (Keys) shows everyone's rank again; press it again to hide the overlay, and once more to bring it back. The CS counter is your CS a minute against your usual on that champion; League only updates it every 10 CS. My lane is your CS and the gold in your items against the player in your lane on the other team.</div>
 <div id="t-nudge" class="tipbox" popover>For new players, to make glancing at the minimap a habit: “Check your minimap” shows at the top of the screen for 2 seconds, every 10 seconds in your first game with it and a second longer apart each game after that. After 20 games it turns itself off. Summoner's Rift only. It goes by League's clock alone, never by what happens in the game.</div>
-<div id="t-lanebox" class="tipbox" popover>For the first 14 minutes of a Summoner’s Rift game, My lane is a box: each player in your lane (bot: all four, mid and top: you and your lane opponent) with their level, Flash (its time left once it’s timed on the enemy spell strip; yours only while Auto Flash reads your spell keys, your support’s isn’t known), the gold in their items and CS. Below, one line: who hit level 2 first (also at the top of the screen for 5 seconds, read out only with Read them out loud), “Both went back: about 30 s” when their side of the lane went to buy or died, or who’s stronger by levels, Flash and gold in items. League shows no XP, so the level 2 race is known only once someone hits 2. It needs League’s positions, so not in blind pick, and shows only on Summoner’s Rift.</div>
+<div id="t-lanebox" class="tipbox" popover>For the first 14 minutes of a Summoner’s Rift game, My lane is a box: each player in your lane (bot: all four, mid and top: you and your lane opponent) with their level, Flash (its time left once it’s timed on the enemy spell strip; yours only while Auto Flash reads your spell keys, your support’s isn’t known), the gold in their items and CS. Below, one line: who hit level 2 first (also at the top of the screen for 5 seconds, read out only with Read them out loud), “Both went back: about 30 s” when their side of the lane went to buy or died, or who’s stronger by levels, Flash and gold in items. League shows no XP, so the level 2 race is known only once someone hits 2. It needs League’s positions, so not in blind pick, and shows only on Summoner’s Rift. With a minimap callout on, it also says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, never out loud.</div>
 <div id="t-gankclock" class="tipbox" popover>When their jungler drops off your minimap, a small box by League’s minimap says how many seconds you have before they could walk to you: the shortest way round the walls at their move speed (with boots and items), and about a second sooner while their Flash is up on the enemy spell strip. It counts down, turns red under 5 seconds and says “Could be here” at 0, then goes until you see them again. Before you first see them it counts from their fountain at 0:00, and after they buy something out of sight, from their fountain then. With Faded faces on, their faded face gets a grey outline of everywhere they could have walked since, up to 20 seconds. Walls only: it doesn’t know your team’s wards, so it’s on the careful side. Move it moves and sizes the box. Summoner's Rift only.</div>
 <div id="t-jgcall" class="tipbox" popover>For new players, to learn to watch for the other team’s jungler: when their jungler shows up on your minimap, where they are (“Vi at your red”, “Vi in top river”, “Vi in their bot jungle”) shows at the top of the screen for 3 seconds, and again each time they show up after 10 seconds out of sight. Text only, unless Read them out loud (Callouts, Sound) is on. It reads only your minimap from your screen, so it never knows more than you can see. Summoner's Rift only.</div>
 <div id="t-calls" class="tipbox" popover>Each callout shows at the top of the screen for 3 seconds, the most urgent first. Their jungler heading your way: when your minimap shows their jungler coming toward you. Missing laners: when a player you saw in a lane for a few seconds has been out of sight for 10 seconds, like “Zed missing from mid”. Enemies in your jungle: when they come in, like a level 1 invade, and again after 20 seconds without any. Who’s off your minimap: everyone on their team you can’t see, how long since you last saw them and where they were heading; a dead one shows about when they’re back. In Summoner’s Rift games, Premade reads your minimap from the screen in Settings, League, Screen, by itself, and nothing leaves your computer unless you’re in a voice room. Read them out loud, under Sound, uses your computer’s own voice.</div>
@@ -7844,9 +7844,33 @@ dialog.wizard { transform: scale(var(--from)); }
     if (who && calls.some((c) => c.who === who && c.pri >= pri)) return;
     calls = calls.filter((c) => !who || c.who !== who).concat({ text, pri, who, pics: pics && pics.every(Boolean) ? pics : null, sharp: !!sharp, ms, at: performance.now() });
   }
+  // Your jungler coming (What's new 240): while the lane box shows and the minimap reader runs for a callout, your team's
+  // icons are matched to your jungler's face the way the enemies' are; when they walk toward you from more than 1,200
+  // units away round the walls, the box says "Jarvan IV coming bot, about 6 s" (that walk at their speed). Quiet while
+  // they're near you or walking off. Nothing out loud.
+  // ponytail: a second icon search and a walking pass each time they move half a cell, only while the box shows
+  let myJg = { room: '' };
+  function seeMyJungler(s, now) {
+    const L = laneRows(), j = L && league.players.find((p) => p.team === L.m.team && p !== L.m && posIn(p) === 'JUNGLE'), c = j && champOf(j.champ);
+    if (!c || j.dead || !fresh(me)) return void (myJg.s = 0);
+    if (myJg.room !== league.room || myJg.name !== j.name) {
+      const x = (myJg = { room: league.room, name: j.name, id: c.id, look: null, trail: [], key: '', D: null, s: 0, at: 0 });
+      picPixels(c.id).then((px) => { x.look = CameraBox.picLook(px, 128); }).catch(() => {});
+    }
+    if (!myJg.look) return;
+    const n = s.sq.s, best = CameraBox.findIcons(s.px, n, false).map((i) => [CameraBox.lookDiff(CameraBox.iconLook(s.px, n, i.x, i.y), myJg.look), i]).filter(([d]) => d < CameraBox.PICK_LOOK).sort((a, b) => a[0] - b[0])[0];
+    if (!best) return;
+    const at = { x: best[1].x / n, y: best[1].y / n, t: now }, key = `${Math.round(at.x * 256)},${Math.round(at.y * 256)}`;
+    myJg.trail = [...myJg.trail.filter((p) => now - p.t < 2000), at];
+    if (myJg.key !== key) Object.assign(myJg, { key, D: Terrain.walk(at) });
+    const o = myJg.trail[0], d = Terrain.walkTo(myJg.D, me), toward = Math.hypot(o.x - me.x, o.y - me.y) - Math.hypot(at.x - me.x, at.y - me.y);
+    if (now - o.t < 600) return; // their own steps over half a second or more
+    Object.assign(myJg, toward > 0.01 && d > 1200 && Number.isFinite(d) ? { s: d / speedOf(j, c), at: now } : { s: 0 });
+  }
   function seeFoes(s) { // each minimap frame
     if (!foesOn()) return void (s.foes = null);
     const now = performance.now(), F = s.foes && s.foes.room === league.room ? s.foes : (s.foes = { room: league.room, list: [], inv: -Infinity, head: -Infinity, jg1: '' });
+    seeMyJungler(s, now);
     for (const p of league.players || []) { // the other team, and who died since the last frame
       const c = p.team !== mine.team && champOf(p.champ);
       if (!c) continue;
@@ -11137,7 +11161,7 @@ dialog.wizard { transform: scale(var(--from)); }
     }
   }
   const raceText = () => (lb.race === 'won' ? 'You hit 2 first: trade now' : lb.race === 'lost' ? 'They hit 2 first: back off' : '');
-  function laneBoxNow() { // for the overlay: { t: '6:54', fi: Flash's icon, rows: [{ pic, ally, lvl, fl ('' up, '3:12' its time left, null unknown), back, g (gold in items), cs }], line }
+  function laneBoxNow() { // for the overlay: { t: '6:54', fi: Flash's icon, rows: [{ pic, ally, lvl, fl ('' up, '3:12' its time left, null unknown), back, g (gold in items), cs }], line, jg: { pic, t } (your jungler coming) }
     const L = laneRows(), now = performance.now(), t = gameNow();
     if (!L) return null;
     itemsSoon();
@@ -11151,7 +11175,8 @@ dialog.wizard { transform: scale(var(--from)); }
       const s = Math.max(...L.them.map((q) => lb.back[q.name] - now)) / 1000;
       line = `${they.length > 1 ? 'Both went back' : `${champName(L.foe.champ)} went back`}: about ${Math.max(1, Math.ceil(s))} s till they’re in lane`;
     }
-    return { t: clock(t), fi: spellPic(4), rows, line: line || strongerLine(L, rows) };
+    const jg = myJg.room === league.room && myJg.s && now - myJg.at < 1500 ? { pic: champImg(myJg.id), t: `${champName(myJg.id)} coming ${{ TOP: 'top', MIDDLE: 'mid' }[posIn(L.m)] || 'bot'}, about ${Math.max(1, Math.ceil(myJg.s - (now - myJg.at) / 1000))} s` } : null;
+    return { t: clock(t), fi: spellPic(4), rows, line: line || strongerLine(L, rows), jg };
   }
   function strongerLine(L, rows) { // from levels, Flash and the gold in items: "You're stronger: level 5 vs 4, their Flash is down"
     const d = L.m.lvl - L.foe.lvl, g = rows.reduce((n, r) => n + (r.ally ? r.g : -r.g), 0), down = (us) => rows.some((r) => r.ally === us && r.fl);
@@ -22007,6 +22032,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [240, 'November 27: your jungler coming', [
+      'With the lane box showing and a minimap callout on, the box says when your own jungler walks toward you, like “Jarvan IV coming bot, about 6 s”, from their walk round the walls at their speed. Nothing while they farm near you, and nothing out loud.',
+    ]],
     [238, 'November 27: the lane box', [
       'For the first 14 minutes of a Summoner’s Rift game, My lane on the overlay is a box: everyone in your lane (bot: all four, mid and top: you and your lane opponent) with their level, Flash, the gold in their items and CS. At 14:00 it’s one line again.',
       'Under them, one line: “You hit 2 first: trade now” or “They hit 2 first: back off” (also at the top of the screen for 5 seconds), “Both went back: about 30 s till they’re in lane”, or who’s stronger, like “You’re stronger: level 5 vs 4, their Flash is down”.',
@@ -23400,6 +23428,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['HUD check', 'The layout picture puts League’s score, abilities and minimap where your HUD settings have them, and marks in red any part that covers one, with a line saying what it covers.', 'Settings, Overlay, Where it sits.', '#ovStage', 'app'],
       ['What it shows', 'Who’s talking, your mic and who hears you, room chat, objective timers and gold, your CS counter and popups. You pick which.', 'Settings, Overlay, Voice and In game: turn on what you want.', '#optOverlay', 'app'],
       ['Who’s talking in any game', 'In your room outside League, who’s talking and new room chat show over any full-screen game, only while someone talks or writes, then fade away. Or have it whenever Premade isn’t the window in front.', 'Settings, Overlay, Voice: In other games, under Who’s talking and Room chat. Games in Borderless or Windowed mode.', '#optOverlayAny', 'app'],
+      ['Your jungler coming', 'With the lane box showing and a minimap callout on, the box’s last line says when your own jungler walks toward you from further than 1,200 units, like “Jarvan IV coming bot, about 6 s”: their walk round the walls at their speed. Quiet while they’re near you or walking off, and never out loud.',
+        'In the lane box, with any minimap callout on: Settings, Overlay, In game, Lane box.', '#optLaneBox', 'app'],
       ['Lane box', 'For the first 14 minutes of a Summoner’s Rift game, My lane is a box: everyone in your lane (bot: all four bot laners, mid and top: you and your lane opponent) with their level, Flash and its time left once timed (yours while Auto Flash reads your spell keys), the gold in their items and CS. One line under them: who hit level 2 first (at the top of the screen for 5 seconds too), “Both went back: about 30 s till they’re in lane” with their rows marked back, or who’s stronger by levels, Flash and gold in items. The Coach’s levels-down tip waits while it shows. Needs League’s positions, so not in blind pick.',
         'On with My lane: Settings, Overlay, In game, Lane box.', '#optLaneBox', 'app'],
       ['Your lane', 'Beside your CS counter, your CS and the gold in your items against the player in your lane on the other team, like “vs Zed: CS +6 · gold +0.3k”.', 'On unless you turn it off: Settings, Overlay, In game, My lane.', '#optOverlayLane', 'app'],
