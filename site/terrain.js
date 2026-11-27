@@ -36,7 +36,67 @@ globalThis.Terrain = (() => {
   // (Practice Tool, smallest Minimap Scale, 2026-10-17; terrain.test.js checks it). Without it walls were about 5% off.
   const onMinimap = { x: 0.05, y: 0.045, w: 0.9175, h: 0.91 };
   const onMap = (p) => ({ x: (p.x - onMinimap.x) / onMinimap.w, y: (p.y - onMinimap.y) / onMinimap.h });
+  // The gank clock (What's new 237): walking distance in game units from a spot on the minimap to every cell (8
+  // neighbours, never cutting past a wall's corner; Infinity where nobody can walk), Dijkstra over the grid, ~5 ms a pass.
+  // A spot read on a wall cell (a camp icon, a rough read) walks from the open cells 1 round it, else 2 (2 at once can
+  // hop a thin wall). Distances stay in a Float64Array: with Float32 the stale-entry check skips most of the map.
+  const CELL = MAP / G;
+  let open = null;
+  const ring = (p) => { // the open cells at a minimap spot, else 1 round it, else 2: [[cell, units to it]]
+    if (!open) { open = new Uint8Array(G * G); for (let i = 0; i < G * G; i++) open[i] = at(((i % G) + 0.5) / G, (((i / G) | 0) + 0.5) / G) !== 1; }
+    const m = onMap(p), x = Math.floor(m.x * G), y = Math.floor(m.y * G);
+    for (let r = 0; r <= 2; r++) {
+      const out = [];
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (x + i >= 0 && y + j >= 0 && x + i < G && y + j < G && open[(y + j) * G + x + i]) out.push([(y + j) * G + x + i, Math.hypot(i, j) * CELL]);
+      if (out.length) return out;
+    }
+    return [];
+  };
+  function walk(p) {
+    const D = new Float64Array(G * G).fill(Infinity), h = [];
+    const push = (d, i) => { h.push([d, i]); let k = h.length - 1; while (k) { const q = (k - 1) >> 1; if (h[q][0] <= h[k][0]) break; [h[q], h[k]] = [h[k], h[q]]; k = q; } };
+    const pop = () => { const top = h[0], last = h.pop(); if (h.length) { h[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < h.length && h[l][0] < h[m][0]) m = l; if (r < h.length && h[r][0] < h[m][0]) m = r; if (m === k) break; [h[m], h[k]] = [h[k], h[m]]; k = m; } } return top; };
+    for (const [i, d] of ring(p)) if (d < D[i]) { D[i] = d; push(d, i); }
+    while (h.length) {
+      const [d, i] = pop();
+      if (d > D[i]) continue;
+      const x = i % G, y = (i / G) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy, j = ny * G + nx;
+        if ((!dx && !dy) || nx < 0 || ny < 0 || nx >= G || ny >= G || !open[j] || (dx && dy && (!open[y * G + nx] || !open[ny * G + x]))) continue;
+        const nd = d + (dx && dy ? Math.SQRT2 : 1) * CELL;
+        if (nd < D[j]) { D[j] = nd; push(nd, j); }
+      }
+    }
+    return D;
+  }
+  const walkTo = (D, p) => ring(p).reduce((m, [i, d]) => Math.min(m, D[i] + d), Infinity); // a pass read at another minimap spot
+  // the outline of everywhere within max units on a pass, as one shape: walls up to 2 cells from it count as inside, and
+  // so does anything it closes round, so only its outer edge is drawn. An SVG path over the grid (0 to 128 across the map)
+  function outline(D, max) {
+    const inR = new Uint8Array(G * G), out = new Uint8Array(G * G), todo = [];
+    for (let i = 0; i < G * G; i++) if (D[i] <= max) {
+      inR[i] = 1;
+      const x = i % G, y = (i / G) | 0;
+      for (let j = -2; j <= 2; j++) for (let k = -2; k <= 2; k++) { const u = x + k, v = y + j; if (u >= 0 && v >= 0 && u < G && v < G && !open[v * G + u]) inR[v * G + u] ||= 2; }
+    }
+    for (let i = 0; i < G * G; i++) if (!inR[i] && (i % G === 0 || i % G === G - 1 || i < G || i >= G * (G - 1))) { out[i] = 1; todo.push(i); } // from the map's edge in
+    while (todo.length) {
+      const i = todo.pop(), x = i % G, y = (i / G) | 0;
+      for (const j of [x > 0 && i - 1, x < G - 1 && i + 1, y > 0 && i - G, y < G - 1 && i + G]) if (j !== false && !inR[j] && !out[j]) { out[j] = 1; todo.push(j); }
+    }
+    const edge = (x, y) => x < 0 || y < 0 || x >= G || y >= G || out[y * G + x];
+    let s = '';
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) if (!out[y * G + x] && inR[y * G + x]) {
+      if (edge(x, y - 1)) s += `M${x} ${y}h1`;
+      if (edge(x, y + 1)) s += `M${x} ${y + 1}h1`;
+      if (edge(x - 1, y)) s += `M${x} ${y}v1`;
+      if (edge(x + 1, y)) s += `M${x + 1} ${y}v1`;
+    }
+    return s;
+  }
   return {
+    walk, walkTo, outline,
     at, onMinimap,
     atMinimap: (p) => { const m = onMap(p); return at(m.x, m.y); },
     inBrush: (p) => inBrush(onMap(p)),

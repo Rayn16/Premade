@@ -44,7 +44,7 @@ assert(now > 0.75 && now > before + 0.15, 'walls line up with the real minimap')
 // minimap as the tracker does, for a player on blue (100) and on red (200). The river mouths are spots where enemies
 // stood in Rayan's recorded games of 2026-11-20 and 2026-11-22.
 const src = fs.readFileSync(__dirname + '/site/index.html', 'utf8'), grab = (re) => src.match(re)[0];
-const code = [/const MAP = \d+;/, /function placeOf\(pos, team\) \{[\s\S]*?\n {2}\}/, /const SPOTS = \[[\s\S]*?\]\];/, /const AREAS = \{[^\n]*\};/, /function mapSpot\(p\) \{[\s\S]*?\n {2}\}/].map(grab).join('\n');
+const code = [/const MAP = \d+;/, /function placeOf\(pos, team\) \{[\s\S]*?\n {2}\}/, /const SPOTS = \[[\s\S]*?\]\];/, /const AREAS = \{[^\n]*\};/, /function mapSpot\(p\) \{[\s\S]*?\n {2}\}/, /function riftSpot\(x, y, team\) \{[\s\S]*?\n {2}\}/].map(grab).join('\n');
 const spotFor = (team) => new Function('mine', 'Terrain', `${code}\nreturn { mapSpot, placeOf };`)({ team: team === 200 ? 'CHAOS' : 'ORDER' }, Terrain);
 const B = spotFor(100), Rd = spotFor(200), onMm = (x, y) => ({ x: o.x + (x / 14870) * o.w, y: o.y + (1 - y / 14870) * o.h });
 const says = (S, x, y) => S.mapSpot(onMm(x, y)).name;
@@ -60,4 +60,18 @@ assert.strictEqual(says(B, 2680, 9750), 'your top jungle', 'a jungle away from c
 assert.strictEqual(says(Rd, 6740, 3010), 'their bot jungle', 'the other jungle, the bot half');
 assert.strictEqual(says(B, 4400, 9600), 'top scuttle', 'top scuttle');
 console.log('callout spots: camps, lanes by camps, river mouths and jungle halves named right on both sides');
+// What's new 237, the gank clock: walking distance round the walls, from the mockup's moment (Rayan's Sylas game of
+// 2026-11-26, 5:15): their jungler lost at their blue buff (a wall cell), you in mid, 5,797 units within one cell
+{
+  const blue = { x: 157 / 210, y: 107 / 210 }, mid = { x: 102 / 210, y: 112 / 210 }, CELL = 14870 / 128;
+  let t = performance.now();
+  const D = Terrain.walk(blue), ms = performance.now() - t, units = Terrain.walkTo(D, mid);
+  assert(Math.abs(units - 5797) < CELL, `their blue buff to mid: ${units}`);
+  assert(Math.abs(Terrain.walkTo(Terrain.walk(mid), blue) - units) < 1, 'the same both ways');
+  assert(units > Math.hypot((blue.x - mid.x) / o.w, (blue.y - mid.y) / o.h) * 14870, 'round the walls, longer than a straight line');
+  assert(D.filter(Number.isFinite).length > 9000 && ms < 100, `most of the map reached in a few ms: ${ms.toFixed(1)} ms`);
+  assert.strictEqual(Terrain.outline(D, -1), '', 'nothing within no distance');
+  assert(/^M\d/.test(Terrain.outline(D, 1500)) && Terrain.outline(D, 3000).length > Terrain.outline(D, 1500).length, 'the outline grows');
+  console.log(`gank clock: their blue buff to mid ${Math.round(units)} units round the walls, ${ms.toFixed(1)} ms a pass`);
+}
 console.log('ok');

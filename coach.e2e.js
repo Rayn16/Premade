@@ -57,7 +57,7 @@ function withIcons(icons) { // [[champion, x, y]] in minimap pixels
   return Buffer.from(out.buffer);
 }
 const SCREENS = { none: Buffer.from(corner.buffer), bot: withFoe([200, 205]), top: withFoe([60, 100]), red: withFoe([148, 198]), // x + y past the minimap's width: the bottom side; your red buff
-  zedMid: withIcons([['Zed', 172, 109]]), leeJungle: withIcons([['LeeSin', 130, 215]]), // Zed in the middle lane on their side, Lee Sin in your jungle
+  zedMid: withIcons([['Zed', 172, 109]]), leeMid: withIcons([['LeeSin', 172, 109]]), leeJungle: withIcons([['LeeSin', 130, 215]]), // Zed in the middle lane on their side, Lee Sin in your jungle
   g1: withIcons([['LeeSin', 165, 168]]), g2: withIcons([['LeeSin', 150, 168]]), g3: withIcons([['LeeSin', 135, 168]]), // Lee Sin coming toward you (ME)
   p1: withIcons([['LeeSin', 150, 140]]), p2: withIcons([['LeeSin', 150, 155]]), p3: withIcons([['LeeSin', 150, 170]]), // Lee Sin walking past you, closer but not at you
   // What's new 182: Lee Sin and Zed (their mid) coming at you together; Lee Sin walking toward the top lane, where a
@@ -359,6 +359,55 @@ const game = (over = {}) => ({
       await wait(page, () => !lpc.me().minimap && !lpcClient.lastOverlay.ghosts, null, 'the screen let go after the game');
       await c.close();
       console.log(`callouts: Zed missing from mid 10 s after leaving the minimap with his faded face where he was, “${invade}”, then heading your way, all as pictures and read out loud`);
+    }
+
+    // ---- What's new 237, the gank clock: Lee Sin (their jungler) seen in mid on their side, 5,442 units round the walls
+    // from you, then gone: "Safe 15 s" or so by the minimap at 340 speed with Flash up, about a second longer once his
+    // Flash is timed on the strip, red under 5 s, "Could be here" at 0 for 5 s, then nothing; his faded face's outline
+    // grows meanwhile; no box while he's in sight
+    {
+      const [c, page] = await context(browser, { gankClock: true, missList: true, foeTimers: true });
+      const gank = () => page.evaluate(() => lpcClient.lastOverlay.gank);
+      await page.evaluate(() => { window.screenNow = 'leeMid'; });
+      await page.evaluate((d) => lpcClient.emit('league', d), foesGame());
+      await wait(page, () => (lpc.foes() || []).some((f) => f.id === 'LeeSin' && f.zone === 'mid') && lpc.me().fresh, null, 'Lee Sin seen in mid, you on the minimap');
+      await page.waitForTimeout(1500);
+      assert.strictEqual(await gank(), null, 'no box while he’s in sight');
+      await page.evaluate(() => { window.screenNow = 'none'; });
+      await wait(page, () => /^Safe \d+ s$/.test((lpcClient.lastOverlay.gank || {}).t), null, 'the gank clock');
+      const first = await page.evaluate(() => lpcClient.lastOverlay), sq = await page.evaluate(() => lpc.me().minimap), n0 = +first.gank.t.match(/\d+/)[0];
+      assert(n0 >= 13 && n0 <= 15 && !first.gank.red, `Safe 13 to 15 s at first: ${JSON.stringify(first.gank)}`);
+      assert(Math.abs(first.parts.gank.x * 2560 - sq.x) < 1 && Math.abs(first.parts.gank.y * 1436 - sq.y) < 1 && first.parts.gank.ay === 'b', `over the minimap's top left: ${JSON.stringify(first.parts.gank)}`);
+      // just as the number drops, his Flash timed: about a second more
+      const was = await page.evaluate(() => lpcClient.lastOverlay.gank.t);
+      await wait(page, (w) => lpcClient.lastOverlay.gank.t !== w, was, 'the next second');
+      const edge = +(await gank()).t.match(/\d+/)[0];
+      await page.evaluate(() => lpcClient.emit('overlay-moved', { prog: { id: 'strip', go: 'flash:LeeSin' } }));
+      await wait(page, (e) => +lpcClient.lastOverlay.gank.t.match(/\d+/)[0] > e, edge, `longer than ${edge} s with his Flash used`, 1000);
+      await wait(page, () => (lpcClient.lastOverlay.reach || {}).d, null, 'his faded face’s outline');
+      const d1 = (await page.evaluate(() => lpcClient.lastOverlay.reach)).d.length;
+      await wait(page, () => lpcClient.lastOverlay.gank.red, null, 'red under 5 s', 15000);
+      assert(/^Safe [1-4] s$/.test((await gank()).t), `red at 4 s or less: ${JSON.stringify(await gank())}`);
+      const r = await page.evaluate(() => lpcClient.lastOverlay.reach);
+      assert(r.d.length > d1 && Math.abs(r.x * 2560 - (sq.x + 0.05 * sq.s)) < 1 && Math.abs(r.w * 2560 - 0.9175 * sq.s) < 1, `the outline grew, over League's map: ${d1} -> ${r.d.length}`);
+      await overlayShot(browser, 'gank-clock', await page.evaluate(() => lpcClient.lastOverlay), 'none');
+      await wait(page, () => (lpcClient.lastOverlay.gank || {}).t === 'Could be here' && lpcClient.lastOverlay.gank.red, null, 'Could be here, in red', 6000);
+      const at0 = Date.now();
+      await wait(page, () => !lpcClient.lastOverlay.gank, null, 'gone after 5 s', 7000);
+      assert(Date.now() - at0 > 4000, `Could be here for 5 s, not ${Date.now() - at0} ms`);
+      await page.evaluate(() => { window.screenNow = 'leeMid'; });
+      await wait(page, () => !lpcClient.lastOverlay.reach && (lpc.foes() || []).some((f) => f.id === 'LeeSin' && performance.now() - f.seen < 500), null, 'seen again: no outline');
+      assert.strictEqual(await gank(), null, 'no box while he’s in sight');
+      await c.close();
+      // the overlay draws them: the box red under 5 s, the outline over League's map
+      const p = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      await p.addInitScript(() => { window.lpcClient = { on: (n, fn) => { window.fire = fn; }, overlayDone() {} }; });
+      await p.goto(`http://127.0.0.1:${PORT}/overlay.html`);
+      await p.evaluate((s) => window.fire(s), { visible: true, board: true, scale: 1, opacity: 1, parts: { gank: first.parts.gank }, gank: { t: 'Safe 4 s', red: true }, reach: r });
+      const box = await p.evaluate(() => { const e = document.querySelector('#parts [data-part="gank"] .toast.gank.red'), b = e && e.getBoundingClientRect(), svg = document.querySelector('#ghosts svg'), sb = svg && svg.getBoundingClientRect(); return e && sb && { text: e.textContent, color: getComputedStyle(e).color, bottom: b.bottom, left: b.left, svg: [sb.left, sb.width], path: !!svg.querySelector('path').getAttribute('d') }; });
+      assert(box && box.text === 'Safe 4 s' && box.color === 'rgb(255, 92, 92)' && Math.abs(box.left - first.parts.gank.x * 1280) < 2 && Math.abs(box.bottom - first.parts.gank.y * 720) < 2 && box.path && Math.abs(box.svg[0] - r.x * 1280) < 1, `the red box above the minimap and the outline: ${JSON.stringify(box)}`);
+      await p.close();
+      console.log(`gank clock: Safe ${n0} s once Lee Sin left your minimap, longer with his Flash used, red under 5 s, Could be here for 5 s, then nothing; his outline grew; none while seen`);
     }
 
     // ---- What's new 234: with no callout on and no room, the League share doesn't follow you on the minimap (it did five
