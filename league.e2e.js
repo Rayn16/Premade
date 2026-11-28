@@ -2260,8 +2260,30 @@ const leagueData = (over = {}) => ({
     // full screen, or the whole window where it's refused
     await pc.click('#pFull');
     await wait(pc, () => document.fullscreenElement || document.getElementById('player').hasAttribute('data-full'), null, 'full screen');
+    // What's new 252: full screen's line is a timeline you grab a little above it and drag; Left and Right skip 5 s,
+    // full screen too, but not while you type in a box
+    const vidAt = () => pc.evaluate(() => document.getElementById('clipVideo').currentTime);
+    const pl = await pc.$eval('#pLine', (el) => { const r = el.getBoundingClientRect(), f = document.getElementById('pFill').getBoundingClientRect(); return { l: r.x, w: r.width, y: f.y - 6 }; });
+    await pc.mouse.move(pl.l + pl.w * 0.9, pl.y);
+    await pc.mouse.down();
+    await pc.mouse.move(pl.l + pl.w * 0.25, pl.y, { steps: 4 });
+    await pc.mouse.up();
+    const [t1, d1] = await pc.evaluate(() => [document.getElementById('clipVideo').currentTime, document.getElementById('clipVideo').duration]);
+    assert(Math.abs(t1 - d1 / 4) < 0.3, `dragged on full screen's line, from 6 px above it, to a quarter: ${t1} of ${d1}`);
+    await pc.keyboard.press('ArrowRight');
+    assert(Math.abs((await vidAt()) - Math.min(d1, t1 + 5)) < 0.05, `Right: 5 s on, in full screen: ${await vidAt()}`);
+    await pc.keyboard.press('ArrowLeft');
+    await pc.keyboard.press('ArrowLeft');
+    assert(Math.abs((await vidAt()) - Math.max(0, Math.min(d1, t1 + 5) - 10)) < 0.05, `Left twice: 10 s back: ${await vidAt()}`);
     await pc.click('#pFull');
     await wait(pc, () => !document.fullscreenElement && !document.getElementById('player').hasAttribute('data-full'), null, 'out of full screen');
+    await pc.keyboard.press('ArrowRight');
+    const t2 = await vidAt();
+    assert(Math.abs(t2 - Math.min(d1, Math.max(0, Math.min(d1, t1 + 5) - 10) + 5)) < 0.05, `Right out of full screen: ${t2}`);
+    await pc.focus('#cutA');
+    await pc.keyboard.press('ArrowLeft');
+    assert.strictEqual(await vidAt(), t2, 'in Cut’s Start box the arrows move in the box');
+    await pc.$eval('#cutA', (el) => el.blur());
     // the editor, in Premade: 2× speed, phone-shaped, a caption, saved as a new clip
     // the editor's tools under the video (What's new 211): Cut picked when it opens, one line of options for the picked one
     assert.deepStrictEqual(await pc.$$eval('#clipDlg .vtool[data-tool]', (l) => l.map((b) => `${b.textContent}${b.getAttribute('aria-pressed') === 'true' ? '*' : ''}`)), ['Cut*', 'Speed', 'Shape', 'Text', 'Sound'], 'one row of tools, Cut picked');

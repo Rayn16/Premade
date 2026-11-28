@@ -1132,8 +1132,10 @@ dialog.viewer { width: min(980px, calc(100vw - 32px)); }
 .vplayer:fullscreen #clipVideo { max-height: none; height: 100%; }
 .pbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); color: #fff; opacity: 0; transition: opacity .15s; }
 .vplayer:hover .pbar, .vplayer:focus-within .pbar, .vplayer[data-paused] .pbar { opacity: 1; }
-.pline { display: none; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: rgba(255, 255, 255, .3); cursor: pointer; }
-.pline i { display: block; height: 100%; width: 0; background: #fff; }
+/* full screen's timeline (What's new 252): the 4 px line with a handle, grabbed from 10 px above it to 6 px below */
+.pline { display: none; position: absolute; left: 10px; right: 10px; top: -10px; height: 20px; border: solid transparent; border-width: 10px 0 6px; background: rgba(255, 255, 255, .3) padding-box; cursor: pointer; }
+.pline i { position: relative; display: block; height: 100%; width: 0; background: #fff; }
+.pline i::after { content: ""; position: absolute; right: -7px; top: -5px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
 .vplayer:fullscreen .pline, .vplayer[data-full] .pline { display: block; }
 .pbtn { display: grid; place-items: center; background: none; border: 0; color: #fff; font: 600 14px/1 var(--body); padding: 7px; border-radius: 4px; cursor: pointer; }
 .pbtn .ico { width: 18px; height: 18px; }
@@ -14771,6 +14773,14 @@ dialog.wizard { transform: scale(var(--from)); }
   const playPause = () => (vid.paused ? vid.play().catch(() => {}) : vid.pause());
   $('pPlay').addEventListener('click', playPause);
   vid.addEventListener('click', playPause);
+  // Left and Right skip 5 s back or forward (Rayan, 2026-11-28), full screen too; in a box or on a slider they stay its own
+  document.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -5, ArrowRight: 5 }[e.key];
+    if (!step || !clipDlg.open || !dur() || e.ctrlKey || e.altKey || e.metaKey || typing(e)) return;
+    e.preventDefault();
+    vid.currentTime = Math.min(dur(), Math.max(0, vid.currentTime + step));
+    drawHead();
+  });
   // the speaker on the bar: only how loud you hear it (Sound changes the saved clip)
   const showVol = () => { const off = vid.muted || !vid.volume; $('pMute').innerHTML = ico(off ? 'mute' : 'vol'); $('pMute').setAttribute('aria-label', vid.muted ? 'Unmute' : 'Mute'); };
   showVol();
@@ -22945,6 +22955,9 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [252, 'November 28: skip through clips with the arrows', [
+      'In the clip player, Left and Right skip 5 seconds back or forward, in full screen too. Full screen’s timeline has a round handle now, and you can grab it a little above or below the line, then drag through the video.',
+    ]],
     [250, 'November 27: a still screen says so', [
       'A friend’s screen tile now says “their screen is still” when nothing on it moves, like League’s loading screen or a page they’re reading. A still screen sends only a frame or two a second, so it showed “1 fps” and looked broken. When their upload or their PC holds a moving screen back, the tile still says that instead.',
     ]],
@@ -24374,8 +24387,8 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Clips by themselves', 'A clip saves by itself when you get a double kill or better, a solo kill or first blood, for your team’s steals, Aces, Baron and Elder Dragon, your pentakills and the win. Moments close together make one clip, named after the biggest.', 'On unless you turn them off: Settings, Clips, Saving a clip has a box for each.', '#optClipMulti, #optClipSolo, #optClipFirst, #optClipTake, #optClipWin', 'app'],
       ['Your clips', 'Each game is a row over your champion’s splash art, in the skin you played in champ select, under Today, Yesterday or its day: win or loss, your K/D/A, the queue, the time, the match’s length and up to 4 of its clips’ pictures. Click it to open its full match big beside its clips: its picture plays it, Highlights plays them one after another, and Show in folder and Bin are under ⋯. Click a clip’s picture to play or edit it, Copy it to paste into Discord or WhatsApp with Ctrl+V, Save it, or drag it straight into Discord; Rename and Bin are under ⋯. Make a reel of this game joins a game’s clips into one video. A saved clip or match video stays in its game and is never moved to the Recycle Bin.',
         'The Clips page: search the rows or show only today’s, this week’s or the Saved ones. Clip storage shows how full the folder is: past the limit in Settings, Clips (20 GB unless you change it), clips made by themselves that you never played go to the Recycle Bin first.', '#h-clips, #clipSearch, [data-cf="saved"], #optClipCap', 'app'],
-      ['The clip player and editor', 'Clips and match videos open in Premade’s own editor: the video with play, the time, how loud you hear it and full screen, then a timeline with the highlights, each with an icon, and a strip of pictures whose white handles are the cut, their times under them. On a match video a thin whole-match line sits over the pictures, which zoom in to about 2 minutes around the cut. Under it one row of tools: Cut (type the times, Start here, End here, Play the cut), Speed (0.25× to 2×), Shape (square, 9:16 for your phone or 4:5, zoom, drag the picture), Text (a caption you drag on the video) and Sound (the clip’s volume up to 200%, or mute it). Save clip saves it as a new clip beside the first; with app 1.54 it’s about 3 times faster, at full quality.',
-        'Click a clip’s picture, or a match’s. Pick a tool, then Save clip.', '#h-clips, #clipDlg .vtools', 'app'],
+      ['The clip player and editor', 'Clips and match videos open in Premade’s own editor: the video with play, the time, how loud you hear it and full screen (a line with a handle to drag), then a timeline with the highlights, each with an icon, and a strip of pictures whose white handles are the cut, their times under them. On a match video a thin whole-match line sits over the pictures, which zoom in to about 2 minutes around the cut. Under it one row of tools: Cut (type the times, Start here, End here, Play the cut), Speed (0.25× to 2×), Shape (square, 9:16 for your phone or 4:5, zoom, drag the picture), Text (a caption you drag on the video) and Sound (the clip’s volume up to 200%, or mute it). Save clip saves it as a new clip beside the first; with app 1.54 it’s about 3 times faster, at full quality.',
+        'Click a clip’s picture, or a match’s. Left and Right skip 5 seconds back or forward. Pick a tool, then Save clip.', '#h-clips, #clipDlg .vtools', 'app'],
       ['Recording quality and folder', 'Clips and match videos at 720p, 1080p or 1440p (never more than your screen), at 30, 60 or 120 fps, recorded by your graphics card when it can so League keeps its frame rate, saved in Videos\\Premade or a folder you pick. The last seconds a clip is cut from wait in Windows’ temp folder, not in memory.',
         'Settings, Clips, Recording: Quality, Frame rate and Change folder. It says how big 30 minutes of match video is.', '#optClipQ', 'app'],
       ['Record your screen', 'Record any screen or app window whenever you like, like OBS: what you hear and your mic if you want, at up to 1440p and 120 fps, listed on its own page and kept until you bin it. Skip around and cut it in Premade or any video player.',
