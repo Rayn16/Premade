@@ -4216,7 +4216,7 @@ dialog.wizard { transform: scale(var(--from)); }
 
 <div id="t-tier" class="tipbox" popover><span id="tierTipNote"></span> The strongest champions in each role in high elo: the Challenger and Grandmaster ranked games in Korea, Europe West and North America our server counts from Riot, this patch (with the last one added while this one is new). Games from switches to Emerald and Diamond games in Europe West and North America, once our server has some; below Master the list starts on those when a role has enough of them. The tier comes from a champion's win rate, pulled toward 50% while it has few games so a lucky streak doesn't top the list: S, then A, B, C and D. Picked is how many of the games had it in that role. A champion shows once it has 10 games. It starts with S tier (the top 3 when a role has fewer): See more shows every tier. Click one to open its page in that role. An arrow shows a champion rising (▲) or falling (▼) since last patch: its win rate moved more than chance would, with 30 games or more in each patch. Banned is how many of the games had it banned, once our server counts bans.</div>
 <div id="t-try" class="tipbox" popover>Try any draft before you queue. Click a slot or Your bans, then one of its faces or any champion. Each role’s 3 faces are its best picks with everything else on the board, and on their side what beats your team. Your bans start with what beats your team most. Fill both laners of a lane for that matchup: the high elo record, runes, first items and tips. Nothing goes to League, and the board hides during a game, as Riot’s rules ask.</div>
-<div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft (yours is the same number as in the list below), and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, plus what your team lacks and your games with your duo, and Balanced by both, plus your own games and mastery on it. For an ADC or a support, Bot lane first counts your lane 4 times the rest of the draft. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
+<div id="t-draft" class="tipbox" popover>The draft: your team on top and theirs below, each champion in its role (theirs are guessed from where each plays in high elo) with its score in this draft (yours is the same number as in the list below), and each team's total. Pick a role between them to rank every champion for it: Meta by its high elo win rate in that role, Matchups by how it does in high elo against their champion in that lane, with your team's champions and against the rest of theirs, plus what your team lacks and your games with your duo, and Balanced by both, plus your own games and mastery on it. For an ADC or a support, Bot lane first counts your lane 4 times the rest of the draft. A score is win rate points above or below 50%, pulled toward what the champions' own win rates would give while there are few games: a champion's win rate counts half at 1,000 games, a lane matchup at 250, and a teammate or an enemy in another lane at 2,000, as our server's games show how much of each is luck. Click a champion to hover it (or ban it on your ban turn), and again on your turn to lock it in. While their laner isn't picked yet, Matchups and Balanced also count how often the champions they may still pick beat it in that lane, so safe blind picks come first. Right-click one to add it to your favorites, which come first. Type anywhere on this page to find a champion, and Enter hovers the first one. High elo is Korea's Challenger and Grandmaster ranked games our server counts from Riot.</div>
 <div id="t-combo" class="tipbox" popover>In a Practice Tool game, the app shows the keys you press on the overlay with the time between them: League's usual keys for your abilities (Q, W, E, R), summoner spells (D, F), items (1 to 7) and right clicks. Keys pressed less than the gap you pick apart make one combo, timed from its first key to its last, and Premade keeps your best time for each combo on each champion. Right clicks show, but moving between casts doesn't make it another combo. Ctrl with a key levels up an ability, so it isn't counted. Premade reads these keys only in Practice Tool games while this is on, the way push to talk reads its key, and keeps only the combos and their times, on this computer.</div>
 <div id="t-jg" class="tipbox" popover>In a Practice Tool game, buy a jungle pet and clear your camps: Premade times each camp you finish by League's game clock, from the gold it gives, and saves your clear once you've done the number of camps you pick. Your best clear on each champion with that many camps is the one each camp is held against, like a speedrun, and your clear's time is the game clock when its last camp is done. Practice Tool's gold buttons and selling items don't count as camps, but taking minions or a kill in between does. Needs app 1.15, which tells the page your gold.</div>
 <div id="t-any" class="tipbox" popover>With it on, the app keeps the last part of your main screen (or the one picked in Settings), with what you hear and your mic, in any app or game, not only League, so the clip key and “Premade, clip that” save a clip wherever you are. Clips from outside League are listed here; League’s stay on the Clips page. They use the clip length and the voice settings in Clip settings, on the Clips page. It takes some of your computer’s power all the time. Saying it works in League games and while a game or another app fills your screen: the speech recognition (about 200 MB of memory) loads then and goes 5 minutes after.</div>
@@ -10156,12 +10156,18 @@ dialog.wizard { transform: scale(var(--from)); }
     }
     return pairMemo.get(t);
   }
-  const advBase = (x, r) => { const [n, w] = recIn(x, r); return adj(w, n); }; // a champion's high elo win rate in a role, pulled toward 50% while games are few
+  // What's new 253 (Rayan, 28 Nov: "are these numbers actually correct"): how many games a part needs to count half,
+  // the other half being what the champions' own win rates give. Measured on our server's games that day: once luck is
+  // taken out, champions' win rates in a role differ by 1 to 1.5 points (K_WIN), lane matchups by about 3 (K_LANE), and
+  // a teammate or an enemy in another lane by 0 to 2 (K_PAIR, in the 40 most played champion-roles), so a handful of
+  // lucky games no longer moves a score. ponytail: measure again (sd of win rate minus luck, k = 0.25 / sd²) if they drift
+  const K_WIN = 1000, K_LANE = 250, K_PAIR = 2000;
+  const advBase = (x, r) => { const [n, w] = recIn(x, r); return adj(w, n, K_WIN); }; // a champion's high elo win rate in a role, pulled toward 50% while games are few
   // the champions nobody can pick any more: picked (a teammate's hover isn't) or banned
   const advGone = (d) => new Set([...[...d.us, ...d.them].filter((p) => p.c > 0 && !p.hover).map((p) => p.c), ...(d.try ? d.bans || [] : csBans().flat())]);
   // a blind pick, before their laner is known: how the 10 champions picked most in that lane in high elo (those still
   // free) do against it there, from their own games, so 10 answers from our server cover every champion. Each one that
-  // goes 4 points or more better than the two champions' own win rates give (10 games or more) counts as often as it's
+  // goes 2 points or more better than the two champions' own win rates give (10 games or more, K_LANE) counts as often as it's
   // picked there, and twice over, as their laner picks after seeing yours.
   const vsMemo = new WeakMap(); // a champion's high elo games in a role -> its lane opponents by champion
   function blindIn(c, role, gone) {
@@ -10175,8 +10181,8 @@ dialog.wizard { transform: scale(var(--from)); }
       const v = vsMemo.get(t).get(c);
       if (v && v.n >= 10) left.push({ x, n: v.n, w: v.n - v.w, sh: g / all }); // its games against x, and its wins
     }
-    const bad = left.map((b) => { const e = clamp(mine - advBase(b.x, role) + 0.5); return { ...b, d: 100 * ((b.w + 10 * e) / (b.n + 10) - e) }; })
-      .filter((b) => b.d <= -4).sort((a, b) => a.d * a.sh - b.d * b.sh), v = bad.reduce((s, b) => s + 2 * b.sh * b.d, 0);
+    const bad = left.map((b) => { const e = clamp(mine - advBase(b.x, role) + 0.5); return { ...b, d: 100 * ((b.w + K_LANE * e) / (b.n + K_LANE) - e) }; })
+      .filter((b) => b.d <= -2).sort((a, b) => a.d * a.sh - b.d * b.sh), v = bad.reduce((s, b) => s + 2 * b.sh * b.d, 0);
     return { v, bad: bad.map((b) => b.x), n: left.length, why: v <= -0.05 ? `Blind pick, their counters: ${bad.slice(0, 2).map((b, i) => `won ${b.w} of ${b.n}${i ? '' : ' games'} against ${champName(b.x)}`).join(', ')} (−${(-v).toFixed(1)})`
       : left.length >= 5 ? 'Safe blind pick: none of the champions picked most in its lane beats it in high elo' : '' };
   }
@@ -10192,14 +10198,14 @@ dialog.wizard { transform: scale(var(--from)); }
       const d = 100 * ((wins + k * e) / (games + k) - e);
       v += d;
       parts.push({ ...part, d, n: games, w: wins });
-      if (games >= 5) why.push(`${text}: won ${wins} of ${games} (${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1)})`);
+      why.push(`${text}: won ${wins} of ${games} (${d > -0.05 ? '+' : '−'}${Math.abs(d).toFixed(1)})`); // no −0.0
     };
     for (const f of foes) {
       const lane = f.role === role, x = lane ? ((topNow(f.c, role, renderGame) || {}).vs || []).find((y) => y.c === c) : null, p = lane ? null : (pairsIn(f.c, f.role) || { e: new Map() }).e.get(c);
-      if (x) add(x.n, x.n - x.w, clamp(mine - base(f.c, role) + 0.5), 10, `Against ${champName(f.c)} in lane`, { k: 'lane', c: f.c, role, gold: x.gold == null ? null : -x.gold });
-      else if (p) add(p[0], p[0] - p[1], clamp(mine - base(f.c, f.role) + 0.5), 20, `Against ${champName(f.c)}`, { k: 'foe', c: f.c, role: f.role });
+      if (x) add(x.n, x.n - x.w, clamp(mine - base(f.c, role) + 0.5), K_LANE, `Against ${champName(f.c)} in lane`, { k: 'lane', c: f.c, role, gold: x.gold == null ? null : -x.gold });
+      else if (p) add(p[0], p[0] - p[1], clamp(mine - base(f.c, f.role) + 0.5), K_PAIR, `Against ${champName(f.c)}`, { k: 'foe', c: f.c, role: f.role });
     }
-    for (const a of mates) { const p = (pairsIn(a.c, a.role) || { a: new Map() }).a.get(c); if (p) add(p[0], p[1], clamp(mine + base(a.c, a.role) - 0.5), 20, `With ${champName(a.c)}`, { k: 'mate', c: a.c, role: a.role }); }
+    for (const a of mates) { const p = (pairsIn(a.c, a.role) || { a: new Map() }).a.get(c); if (p) add(p[0], p[1], clamp(mine + base(a.c, a.role) - 0.5), K_PAIR, `With ${champName(a.c)}`, { k: 'mate', c: a.c, role: a.role }); }
     const bl = gone && !foes.some((f) => f.role === role) ? blindIn(c, role, gone) : null;
     if (bl) { v += bl.v; parts.push({ k: 'blind', d: bl.v, bad: bl.bad, n: bl.n }); if (bl.why) why.push(bl.why); }
     return { m: 100 * (mine - 0.5), v, why, parts };
@@ -10272,7 +10278,7 @@ dialog.wizard { transform: scale(var(--from)); }
     return -5; // new to you
   }
   const advBand = (s) => { const i = [3, 1.5, 0, -1.5, -3.5].findIndex((m) => s >= m); return String(i < 0 ? 0 : 5 - i); }; // a score's colour, 5 best
-  const advBadge = (s) => { const b = document.createElement('b'); b.className = 'dsc'; b.dataset.s = advBand(s); b.textContent = `${s >= 0 ? '+' : '−'}${Math.abs(s).toFixed(1)}`; return b; };
+  const advBadge = (s) => { const b = document.createElement('b'); b.className = 'dsc'; b.dataset.s = advBand(s); b.textContent = `${s > -0.05 ? '+' : '−'}${Math.abs(s).toFixed(1)}`; return b; };
   let advLast = null; // the draft the helper drew last (d, the role, the ranked champions, your duo), for the box beside a teammate
   function renderAdv(td, tdRole) { // td: the draft board's draft for its picked slot (role tdRole), else champ select's
     const t = tiers(), show = !!t && !!t.n && (!!td || (mapNow() === 11 && !cs.benchEnabled));
@@ -10311,7 +10317,7 @@ dialog.wizard { transform: scale(var(--from)); }
       }));
       const k = side.filter((p) => p.c > 0 && p.role), sum = k.reduce((n, p) => n + shown(p).s, 0);
       sc.hidden = !k.length;
-      if (k.length) { sc.dataset.s = advBand(sum / k.length); sc.textContent = `${sum >= 0 ? '+' : '−'}${Math.abs(sum).toFixed(1)}`; }
+      if (k.length) { sc.dataset.s = advBand(sum / k.length); sc.textContent = `${sum > -0.05 ? '+' : '−'}${Math.abs(sum).toFixed(1)}`; }
     }
     const by = { meta: 'their high elo win rate', matchups: 'how each does with your team and against theirs', balanced: 'their high elo win rate and how each does with your team and against theirs' }[advOpts.mode];
     const blind = advOpts.mode !== 'meta' && !d.them.some((p) => p.c > 0 && p.role === role); // their laner isn't known: safe blind picks first
@@ -10399,7 +10405,7 @@ dialog.wizard { transform: scale(var(--from)); }
       const r2 = DUO[role], theirs = advPool(r2, d, '').filter((x) => !x.off), pairs = [];
       for (const x of free.slice(0, 6)) for (const y of theirs.slice(0, 6)) if (y.id !== x.id) {
         const p = (pairsIn(x.id, role) || { a: new Map() }).a.get(y.id), e = clamp(advBase(x.id, role) + advBase(y.id, r2) - 0.5), du = duoPart(x.id, duo, y.id);
-        pairs.push({ x, y, du, s: x.s - (x.du ? x.du.s : 0) + y.s + (p ? 100 * ((p[1] + 20 * e) / (p[0] + 20) - e) : 0) + du.s });
+        pairs.push({ x, y, du, s: x.s - (x.du ? x.du.s : 0) + y.s + (p ? 100 * ((p[1] + K_PAIR * e) / (p[0] + K_PAIR) - e) : 0) + du.s });
       }
       $('dTopHead').textContent = `Top 3 pairs for you and ${duo.name}`;
       // ponytail: a pair's word goes by half its score, as two champions' scores add up; tune with real drafts
@@ -15381,7 +15387,7 @@ dialog.wizard { transform: scale(var(--from)); }
   function sqPair(a, b, mode) { // two picks together: high elo games with both on one team (as advScore's With), and your games together (as duoPart's)
     if (mode === 'meta') return 0;
     const p = (pairsIn(b.c, b.r) || { a: new Map() }).a.get(a.c), e = clamp(advBase(a.c, a.r) + advBase(b.c, b.r) - 0.5), l = sqTog(a, b), n = l.length, w = l.filter((g) => g.w).length;
-    return (p ? 100 * ((p[1] + 20 * e) / (p[0] + 20) - e) : 0) + (n ? Math.min(3, 1 + n / 2) + (n >= 5 ? 10 * (w / n - 0.5) : 0) : 0);
+    return (p ? 100 * ((p[1] + K_PAIR * e) / (p[0] + K_PAIR) - e) : 0) + (n ? Math.min(3, 1 + n / 2) + (n >= 5 ? 10 * (w / n - 0.5) : 0) : 0);
   }
   const sqFoe = (p, foes, mode) => (mode === 'meta' || !foes.length ? 0 : advScore(p.c, p.r, [], foes).v); // against their team on the board
   function sqNeed(cs) { // what the team lacks once 4 have champions: magic or physical damage, a front line
@@ -22961,6 +22967,10 @@ dialog.wizard { transform: scale(var(--from)); }
   // ---- what's new in each update: once after it comes out (for those who had the app before), and from Settings or
   // the version in the status bar any time
   const NEWS = [
+    [253, 'November 28: lucky games count less in the pick helper', [
+      'The pick helper’s numbers now count a part only as much as its games can show. In our server’s games, teammates and enemies in other lanes turned out to be mostly luck, lane matchups real but needing about 250 games, and champions’ win rates this patch about 1 point apart once luck is taken out. A few lucky games with Zac used to add 7.6 points to Gwen; now they add almost nothing.',
+      'So the numbers are smaller and closer, the lane matchup and your own games decide most of them, and every part that counts is listed when you hold the mouse on a champion.',
+    ]],
     [252, 'November 28: skip through clips with the arrows', [
       'In the clip player, Left and Right skip 5 seconds back or forward, in full screen too. Full screen’s timeline has a round handle now, and you can grab it a little above or below the line, then drag through the video.',
     ]],
@@ -24314,7 +24324,7 @@ dialog.wizard { transform: scale(var(--from)); }
       ['Draft board', 'Outside champ select, both teams and every champion are always on Pregame, each slot a card with its champion’s art: click a slot, then one of its faces or any champion. Every role shows its 3 best picks with the rest of the board, their roles what beats your team, and the picked slot the whole pick helper. Fill both laners for that lane’s matchup, both champions side by side: the high elo record, runes, first items and tips. With a squad, Your team starts with your squad’s best comp, each card showing who plays it. Nothing goes to League, and it hides during a game.', 'Draft board, on Pregame outside champ select.', '#tdBox', 'app'],
       ['Ban ideas', 'Your bans at the top of the draft board: 5 squares and 3 ideas, what beats the team you’re building, how often high elo picks and bans it, and in Balanced the champions you lose to. Click an idea to ban it: it greys out everywhere, and its x takes it back.', 'Outside champ select, on Pregame: Your bans on the draft board.', '#tdBans', 'app'],
       ['Mock draft helper', 'In a room’s Mock draft, each player on a side sees the top 3 for their side and a score on every champion.', 'Rooms: start a Mock draft and join a side.', '#mdHelp'],
-      ['The draft', 'Both teams by role with a score for each champion and each team (yours the same as in the list), and the champions that play the role you pick (the roles League lists for each) ranked by Meta, Matchups or Balanced. Safe blind picks rank higher while their laner isn’t picked. Only champions you can pick are listed; banned and picked ones are greyed out.',
+      ['The draft', 'Both teams by role with a score for each champion and each team (yours the same as in the list), and the champions that play the role you pick (the roles League lists for each) ranked by Meta, Matchups or Balanced, where a part with few games counts little. Safe blind picks rank higher while their laner isn’t picked. Only champions you can pick are listed; banned and picked ones are greyed out.',
         'In champ select. Type anywhere on Pregame to find a champion, and right-click one to make it a favorite.', '#draft', 'app'],
       ['Auto hover', 'Hovers your first free champion that fits your role as soon as champ select starts, and your ban on your ban turn. You still lock in yourself.',
         'Settings, Champ select: type your champions, first choice first, then your bans.', '#optHoverPicks', 'app'],

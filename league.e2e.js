@@ -124,9 +124,9 @@ const garenTop = () => ({ patch: '15.20', role: 'TOP', roles: { TOP: [20, 15] },
 
 // for the champ select helpers (app 1.13): our server's high elo games this patch and the last, with bans; Ahri's in the
 // middle: 20 against Zed on Arcane Comet with Teleport (6 won), 20 against Lux and 20 against Garen on Electrocute (10
-// and 12 won); Zed's: 20 against Ahri (14 won) and 20 against Lux (8 won); Lux's: 20 against Ahri (10 won); Jinx's at
-// the bottom, with each game's teams: 10 against Caitlyn and Sona (4 won), 10 against another with Sona (5 won) and 10
-// against Caitlyn and Thresh (6 won)
+// and 12 won); Zed's: 100 against Ahri (70 won) and 100 against Lux (40 won), enough to count since What's new 253;
+// Lux's: 20 against Ahri (10 won); Jinx's at the bottom, with each game's teams: 10 against Caitlyn and Sona (4 won),
+// 10 against another with Sona (5 won) and 10 against Caitlyn and Thresh (6 won)
 const HSUM = { p: '15.20', c: { 103: { MIDDLE: [80, 52] }, 238: { MIDDLE: [60, 24] }, 99: { MIDDLE: [40, 21] }, 254: { MIDDLE: [20, 14] }, 86: { TOP: [100, 50] }, 122: { TOP: [100, 50] },
   222: { BOTTOM: [50, 25] }, 51: { BOTTOM: [50, 25] }, 37: { UTILITY: [40, 20] }, 412: { UTILITY: [40, 20] } }, b: { 238: 30, 103: 6 }, bn: 120,
   old: { p: '15.19', c: { 103: { MIDDLE: [80, 36] }, 238: { MIDDLE: [60, 36] }, 99: { MIDDLE: [40, 20] }, 254: { MIDDLE: [20, 10] }, 86: { TOP: [100, 50] }, 122: { TOP: [100, 50] } }, b: { 238: 10 }, bn: 80 },
@@ -136,7 +136,7 @@ const hGame = (t, w, o, x = {}) => ({ p: '15.20', t, w, o, g: null, s: [4, 14], 
 const H_CHAMP = {
   '103/MIDDLE': Array.from({ length: 60 }, (_, i) => (i < 20 ? hGame(5000 + i, +(i < 6), 238, { rn: COMET, s: [4, 12], b: [[10, 1056], [10, 2003], [600, 6655], [700, 3020], [1200, 3157]] })
     : hGame(5000 + i, +(i < 30 || (i >= 40 && i < 52)), i < 40 ? 99 : 86))),
-  '238/MIDDLE': Array.from({ length: 40 }, (_, i) => hGame(5100 + i, +(i < 14 || (i >= 20 && i < 28)), i < 20 ? 103 : 99, { rn: null, s: null })),
+  '238/MIDDLE': Array.from({ length: 200 }, (_, i) => hGame(6100 + i, +(i < 70 || (i >= 100 && i < 140)), i < 100 ? 103 : 99, { rn: null, s: null })),
   '99/MIDDLE': Array.from({ length: 20 }, (_, i) => hGame(5200 + i, +(i < 10), 103, { rn: null, s: null })),
   '222/BOTTOM': Array.from({ length: 30 }, (_, i) => hGame(5300 + i, +(i < 4 || (i >= 10 && i < 15) || (i >= 20 && i < 26)), i < 10 || i >= 20 ? 51 : 21,
     { rn: null, s: null, e: [86, 64, 103, i < 10 || i >= 20 ? 51 : 21, i < 20 ? 37 : 412] })),
@@ -1087,8 +1087,8 @@ const leagueData = (over = {}) => ({
     assert(await pc.locator('#tdBtn, #mxBox').count() === 0, 'no Try a draft button, no Matchup explorer');
     assert.deepStrictEqual(await texts(pc, '#tdUs .slot[data-on] .tctext small'), ['Middle'], 'your usual role picked');
     const boardFaces = (team) => pc.$$eval(`${team} .slot`, (l) => l.map((s) => [...s.querySelectorAll('.face')].map((f) => `${f.querySelector('img').alt} ${f.textContent}`).join(', ')));
-    assert.deepStrictEqual(await boardFaces('#tdUs'), ['Garen Great, Lee Sin Risky, Darius Risky', 'Vi Risky', 'Ahri Great, Vi Great, Zed Great', '', 'Lux Great, Sona Good'], 'each of your roles: its best (up to 3) as faces, none off-role (no Zed at the bottom)');
-    assert.deepStrictEqual(await boardFaces('#tdThem'), ['Garen Great, Lee Sin OK, Darius Risky', 'Vi Good', 'Vi Great, Zed Good, Ahri OK', '', 'Lux OK'], 'and theirs, from their side');
+    assert.deepStrictEqual(await boardFaces('#tdUs'), ['Garen Great, Lee Sin Risky, Darius Risky', 'Vi Risky', 'Ahri Great, Lux Great, Zed Good', '', 'Lux Great, Sona Good'], 'each of your roles: its best (up to 3) as faces, none off-role (no Zed at the bottom)');
+    assert.deepStrictEqual(await boardFaces('#tdThem'), ['Garen OK, Lee Sin OK, Darius OK', 'Vi OK', 'Vi OK, Ahri OK, Lux OK', '', 'Lux OK'], 'and theirs, from their side: all OK, as their few high elo games count little (What’s new 253)');
     const tryPick = async (slot, name) => {
       await pc.click(`${slot} .tcard`);
       await pc.fill('#dFind', name);
@@ -1104,15 +1104,15 @@ const leagueData = (over = {}) => ({
     await pc.click('#tdUs .slot:nth-child(3) .tcard');
     await wait(pc, () => document.getElementById('dTopHead').textContent === 'Middle for your team' && document.querySelectorAll('#dTopRows .bigrow').length === 3, null, 'your middle');
     assert.strictEqual(await text(pc, '#dSub'), 'Best picks');
-    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lux Great Lane Even gold at 10 With You 3W 2L', 'Vi Great Lane With You Not played', 'Ahri Great Lane Even gold at 10 With You 6W 2L']);
+    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Ahri Great Lane Even gold at 10 With You 6W 2L', 'Lux Great Lane Even gold at 10 With You 3W 2L', 'Vi Risky Lane With You Not played']);
     assert.deepStrictEqual(await pc.$$eval('#dGrid .dchamp', (l) => l.slice(0, 6).map((b) => `${b.querySelector('img').alt}${b.querySelector('.dsc') ? '' : ' (no score)'}${b.getAttribute('aria-disabled') === 'true' ? ' (off)' : ''}`)),
-      ['Lux', 'Vi', 'Ahri', 'Zed (off)', 'Caitlyn (no score)', 'Darius (no score)'], 'ranked first, then every other champion A to Z; their Zed taken');
+      ['Ahri', 'Lux', 'Zed (off)', 'Vi', 'Caitlyn (no score)', 'Darius (no score)'], 'ranked first, then every other champion A to Z; their Zed taken');
     assert.strictEqual(await text(pc, '#dNote'), 'Ranked by their high elo win rate and how each does with your team and against theirs. No score: few high elo games as middle.');
     assert(await pc.locator('#draft').isHidden(), 'the slots stand in for the draft rows');
     await pc.click('#tdThem .slot:nth-child(1) .tcard');
     await wait(pc, () => document.getElementById('dTopHead').textContent === 'Top for their team' && document.querySelectorAll('#dTopRows .bigrow').length === 2, null, 'their top: your Garen taken');
     assert.strictEqual(await text(pc, '#dSub'), 'What beats your team here');
-    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lee Sin OK Lane With Tier C', 'Darius Risky Lane With Tier D'], 'their side: Tier, not your games');
+    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.innerText.replace(/\s+/g, ' '))), ['Lee Sin OK Lane With Tier C', 'Darius OK Lane With Tier D'], 'their side: Tier, not your games');
     await shot(pc, 'pregame-draft-board');
     if (process.env.SHOTS) { const vp = pc.viewportSize(); await pc.setViewportSize({ width: 390, height: 844 }); await shot(pc, 'pregame-draft-board-phone'); await pc.setViewportSize(vp); }
     await pc.click('#tdUs .slot:nth-child(1) .tcx');
@@ -1136,7 +1136,7 @@ const leagueData = (over = {}) => ({
     await shot(pc, 'pregame-draft-board-bans-picked');
     const withGaren = await ideaNames();
     assert(!withGaren.includes('Garen'), 'no idea on the board');
-    assert.notDeepStrictEqual(withGaren, emptyIdeas, 'your Garen changed the ideas');
+    assert.deepStrictEqual(withGaren, emptyIdeas, 'your Garen’s few high elo games don’t move them (What’s new 253), your own games against them do');
     assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.querySelector('.bighead b').textContent)), withGaren, 'the big rows are the same 3');
     assert(await pc.$eval('#dTopRows .bigrow', (b) => /Picked/.test(b.textContent) && /^as (top|jungle|middle|bottom|support)$/.test(b.querySelector('.as').textContent)), 'its role and how often it’s picked');
     assert.match(await text(pc, '#dNote'), /^Ranked by win rate, how much each beats your team, how often it’s picked and your own games against it\./);
@@ -1579,42 +1579,43 @@ const leagueData = (over = {}) => ({
     assert.deepStrictEqual(flatActions().find((a) => a.id === 3), { id: 3, actorCellId: 2, type: 'ban', completed: true, isInProgress: false, championId: 122 });
     // What's new 222: once a ban goes in, League is asked again what you can pick and ban
     await until(() => callsTo(/pickable-champion-ids$/, 'GET', asksAt).length > 0 && callsTo(/bannable-champion-ids$/, 'GET', asksAt).length > 0, 'what you can pick and ban asked again after the ban');
-    // the best picks for you, with why: Lux beat Zed (their middle now) in high elo, Ahri's your best, Vi's strong in
-    // high elo but new to you. Garen and Sona aren't middle, Zed is taken
+    // the best picks for you, with why: Ahri's your best, then Lux, whose 5 of 6 against Zed (their middle now) count
+    // little since What's new 253, and Vi, new to you. Garen and Sona aren't middle, Zed is taken
     // What's new 189: the top 3 first, above the draft rows, a word each and no numbers, why as pictures
     await wait(pc, () => document.querySelectorAll('#dTopRows .bigrow').length === 3 && /Against Zed in lane/.test(document.querySelector('#dTopRows .bigrow').title), null, 'the top 3 against Zed');
     assert(await pc.evaluate(() => !!(document.getElementById('dTop').compareDocumentPosition(document.getElementById('draft')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'the top 3 above the draft rows');
     assert(await pc.locator('#picks').isHidden(), 'Best picks for you folds into the top 3');
     assert.strictEqual(await text(pc, '#dTopHead'), 'Top 3 for Middle');
     const top3 = await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => [b.querySelector('.bighead').textContent, [...b.querySelectorAll('.wg > small:first-child')].map((x) => x.textContent).join('/'), b.querySelector('.blk') ? b.querySelector('.blk').childElementCount : 0, [...b.querySelectorAll('.wcap')].map((x) => x.textContent).join('/')].join(' | ')));
-    assert.deepStrictEqual(top3, ['LuxGreat | Lane/Team/You/With Friend | 5 | Even gold at 10/3W 2L/3W 2L', 'AhriGreat | Lane/Team/You/With Friend | 8 | Even gold at 10/6W 2L/6W 2L', 'ViGreat | Lane/Team/You/With Friend | 0 | Not played/No games'],
-      'Lux beat Zed in high elo, Ahri’s your best, Vi’s strong in high elo but new to you; your games with Friend, your duo');
+    assert.deepStrictEqual(top3, ['AhriGreat | Lane/Team/You/With Friend | 8 | Even gold at 10/6W 2L/6W 2L', 'LuxGreat | Lane/Team/You/With Friend | 5 | Even gold at 10/3W 2L/3W 2L', 'ViRisky | Lane/Team/You/With Friend | 0 | Not played/No games'],
+      'Ahri’s your best, then Lux, and Vi’s new to you; your games with Friend, your duo');
     assert.doesNotMatch(top3.join(), /%/, 'no percentages');
-    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.querySelector('.fm i').className)), ['up', '', ''], 'Lux won with Garen in high elo');
+    assert.deepStrictEqual(await pc.$$eval('#dTopRows .bigrow', (l) => l.map((b) => b.querySelector('.fm i').className)), ['', '', ''], 'Lux’s 15 of 20 with Garen are too few for an arrow (What’s new 253)');
     assert(highAsked.includes('238/MIDDLE'), 'Zed’s high elo games in the middle asked for');
-    // the draft: both teams by role with their scores, and every champion ranked for your role, middle: Lux beat Zed in
-    // high elo and won with Garen, Vi's strong in high elo, Zed's taken and Ahri lost to Zed
+    // the draft: both teams by role with their scores, and every champion ranked for your role, middle: your games put
+    // Ahri first and Lux next (their few high elo games against Zed and with Garen count little), Zed's taken, Vi's new to you
     const dGrid = () => pc.$$eval('#dGrid .dchamp', (l) => l.map((b) => `${b.querySelector('img').alt} ${b.querySelector('.dsc').textContent}${b.getAttribute('aria-disabled') === 'true' ? ' (off)' : ''}${b.hasAttribute('data-fav') ? ' (favorite)' : ''}`));
     const slots = (id) => pc.$$eval(`#${id} .dslot`, (l) => l.map((s) => (s.querySelector('img') ? `${s.querySelector('img').alt} ${s.querySelector('.dsc').textContent}` : '?') + (s.hasAttribute('data-hover') ? ' (hovering)' : '') + (s.hasAttribute('data-me') ? ' (you)' : '')));
     const dRole = () => pc.textContent('#dRoles [aria-selected="true"]');
-    await wait(pc, () => /With Garen/.test((document.querySelector('#dGrid .dchamp') || {}).title), null, 'the draft, with the pairs');
+    await wait(pc, () => /With Garen/.test((document.querySelector('#dGrid .dchamp:has(img[alt="Lux"])') || {}).title), null, 'the draft, with the pairs');
     // What's new 189: Balanced counts your own games (Ahri's your best) and your games with Friend, your duo, too
-    assert.deepStrictEqual(await dGrid(), ['Lux +32.6', 'Ahri +10.7', 'Vi +5.5', 'Zed +4.0 (off)']);
-    assert.strictEqual(await pc.getAttribute('#dGrid .dchamp', 'title'), 'Lux\nHigh elo middle: 58% won in 12 games\nAgainst Zed in lane: won 5 of 6 (+12.1)\nWith Garen: won 15 of 20 (+8.9)\nYou: won 3 of 5\nWith Friend: won 3 of 5');
+    assert.deepStrictEqual(await dGrid(), ['Ahri +12.8', 'Lux +9.6', 'Zed +2.1 (off)', 'Vi −4.6']);
+    assert.strictEqual(await pc.getAttribute('#dGrid .dchamp:has(img[alt="Lux"])', 'title'), 'Lux\nHigh elo middle: 58% won in 12 games\nAgainst Zed in lane: won 5 of 6 (+0.8)\nWith Garen: won 15 of 20 (+0.2)\nYou: won 3 of 5\nWith Friend: won 3 of 5');
     assert.strictEqual(await dRole(), 'Middle');
-    assert.deepStrictEqual(await slots('dUs'), ['Garen +4.0 (hovering)', '?', '? (you)', '?', 'Thresh +0.0 (hovering)']);
-    assert.deepStrictEqual(await slots('dThem'), ['?', '?', 'Zed +2.0', '?', '?'], 'Zed guessed in the middle');
-    assert.deepStrictEqual([await text(pc, '#dUsScore'), await text(pc, '#dThemScore')], ['+4.0', '+2.0']);
+    assert.deepStrictEqual(await slots('dUs'), ['Garen +0.2 (hovering)', '?', '? (you)', '?', 'Thresh +0.0 (hovering)']);
+    assert.deepStrictEqual(await slots('dThem'), ['?', '?', 'Zed +0.1', '?', '?'], 'Zed guessed in the middle');
+    assert.deepStrictEqual([await text(pc, '#dUsScore'), await text(pc, '#dThemScore')], ['+0.2', '+0.1']);
     assert.strictEqual(await text(pc, '#csTurn'), 'Your turn to pick.');
-    // another role: top, where Lee Sin did well against Zed, but you play Garen; by high elo win rate alone Garen's first too
+    // another role: top, where you play Garen and Lee Sin's 8 of 12 against Zed count little; by high elo win rate alone
+    // Garen's first too
     await pc.click('#dRoles [data-role="TOP"]');
     await wait(pc, () => /Lee Sin/.test(document.getElementById('dGrid').textContent + [...document.querySelectorAll('#dGrid img')].map((i) => i.alt).join()) && document.querySelector('#dGrid img').alt === 'Garen', null, 'the draft for top');
     assert.strictEqual(await dRole(), 'Top');
-    assert.deepStrictEqual(await dGrid(), ['Garen +10.0', 'Lee Sin +1.5', 'Darius −7.5 (off)']);
-    assert.match(await pc.getAttribute('#dGrid .dchamp:nth-child(2)', 'title'), /\nAgainst Zed: won 8 of 12 \(\+7\.3\)$/);
+    assert.deepStrictEqual(await dGrid(), ['Garen +6.2', 'Lee Sin −4.9', 'Darius −5.1 (off)']);
+    assert.match(await pc.getAttribute('#dGrid .dchamp:nth-child(2)', 'title'), /\nAgainst Zed: won 8 of 12 \(\+0\.1\)$/);
     await pc.click('#dModes [data-mode="meta"]');
     await wait(pc, () => document.querySelector('#dGrid img').alt === 'Garen', null, 'meta');
-    assert.deepStrictEqual(await dGrid(), ['Garen +4.0', 'Lee Sin −0.7', 'Darius −2.5 (off)']);
+    assert.deepStrictEqual(await dGrid(), ['Garen +0.2', 'Lee Sin +0.0', 'Darius −0.1 (off)'], 'no −0.0');
     assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-draft'))), { mode: 'meta' });
     await pc.click('#dModes [data-mode="balanced"]');
     await pc.click('#dRoles [data-role="MIDDLE"]');
@@ -1631,9 +1632,9 @@ const leagueData = (over = {}) => ({
     // in the draft rows has its number in the list (here with your games on it and with Friend), in every mode and
     // whatever role the list shows; teammates keep the draft's score, and the total adds up the numbers shown
     const mine = () => pc.textContent('#dUs .dslot[data-me] .dsc'), inList = (c) => pc.textContent(`#dGrid .dchamp:has(img[alt="${c}"]) .dsc`);
-    assert.deepStrictEqual(await slots('dUs'), ['Garen +4.0 (hovering)', '?', 'Lux +32.6 (hovering) (you)', '?', 'Thresh +0.0 (hovering)'], 'your Lux as in the list');
+    assert.deepStrictEqual(await slots('dUs'), ['Garen +0.2 (hovering)', '?', 'Lux +9.6 (hovering) (you)', '?', 'Thresh +0.0 (hovering)'], 'your Lux as in the list');
     assert.match(await pc.getAttribute('#dUs .dslot[data-me]', 'title'), /\nYou: won 3 of 5\nWith Friend: won 3 of 5$/, 'and why, as in the list');
-    assert.strictEqual(await text(pc, '#dUsScore'), '+36.6', 'the total adds up the numbers shown');
+    assert.strictEqual(await text(pc, '#dUsScore'), '+9.8', 'the total adds up the numbers shown');
     for (const m of ['matchups', 'meta']) {
       await pc.click(`#dModes [data-mode="${m}"]`);
       await wait(pc, (m) => document.querySelector(`#dModes [data-mode="${m}"]`).getAttribute('aria-selected') === 'true', m, m);
@@ -1645,23 +1646,23 @@ const leagueData = (over = {}) => ({
     assert.strictEqual(await mine(), metaLux, 'your middle Lux keeps its number while the list shows top');
     await pc.click('#dModes [data-mode="balanced"]');
     await pc.click('#dRoles [data-role="MIDDLE"]');
-    await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 4 && document.querySelector('#dUs .dslot[data-me] .dsc').textContent === '+32.6', null, 'balanced middle again');
+    await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 4 && document.querySelector('#dUs .dslot[data-me] .dsc').textContent === '+9.6', null, 'balanced middle again');
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])', { button: 'right' });
     await wait(pc, () => document.querySelector('#dGrid .dchamp').hasAttribute('data-fav'), null, 'a favorite');
-    assert.deepStrictEqual(await dGrid(), ['Ahri +10.7 (favorite)', 'Lux +32.6', 'Vi +5.5', 'Zed +4.0 (off)']);
+    assert.deepStrictEqual(await dGrid(), ['Ahri +12.8 (favorite)', 'Lux +9.6', 'Zed +2.1 (off)', 'Vi −4.6']);
     assert.deepStrictEqual(await pc.evaluate(() => JSON.parse(localStorage.getItem('lpc-favs'))), [103]);
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])', { button: 'right' });
     await wait(pc, () => !document.querySelector('#dGrid [data-fav]'), null, 'no favorite');
     // What's new 189: a top 3 row hovers its champion; hold the mouse on a teammate for your best picks with theirs
-    await pc.click('#dTopRows .bigrow:nth-child(2)');
-    await wait(pc, () => /hovering Ahri/.test(document.getElementById('csTurn').textContent) && document.querySelector('#dTopRows .bigrow:nth-child(2)').getAttribute('aria-pressed') === 'true', null, 'Ahri hovered from the top 3');
-    assert.strictEqual(await text(pc, '#dTopRows .bigrow:nth-child(2) .hov'), 'Hovering');
     await pc.click('#dTopRows .bigrow:nth-child(1)');
+    await wait(pc, () => /hovering Ahri/.test(document.getElementById('csTurn').textContent) && document.querySelector('#dTopRows .bigrow:nth-child(1)').getAttribute('aria-pressed') === 'true', null, 'Ahri hovered from the top 3');
+    assert.strictEqual(await text(pc, '#dTopRows .bigrow:nth-child(1) .hov'), 'Hovering');
+    await pc.click('#dTopRows .bigrow:nth-child(2)');
     await wait(pc, () => /hovering Lux/.test(document.getElementById('csTurn').textContent), null, 'Lux hovered from the top 3');
     await pc.hover('#csRows .cscard:nth-child(1) .csface');
     await wait(pc, () => !!document.querySelector('.csus .hbox[data-on]') && document.querySelectorAll('.csus .hbox .hrow').length === 3, null, 'the box beside Friend’s Garen');
     const palText = () => pc.$eval('.csus .hbox', (b) => [...b.children].map((e) => e.innerText.replace(/\s+/g, ' ').trim()));
-    assert.deepStrictEqual(await palText(), ['Best for you with Garen Middle · the whole draft counts', 'Lux Great', 'Ahri Great', 'Vi Good', 'Half how each goes with Garen, half the rest of the draft. Blocks: your games together on that pair.']);
+    assert.deepStrictEqual(await palText(), ['Best for you with Garen Middle · the whole draft counts', 'Ahri Great', 'Lux Great', 'Vi Risky', 'Half how each goes with Garen, half the rest of the draft. Blocks: your games together on that pair.']);
     await shot(pc, 'pick-helper-teammate-box');
     await pc.mouse.move(2, 2);
     await wait(pc, () => !document.querySelector('.csus .hbox[data-on]'), null, 'the box closed');
@@ -1712,7 +1713,7 @@ const leagueData = (over = {}) => ({
     // out of the top 3, with the bans in the Picks tab; and League's lists asked once since your ban, not every second
     lcu.cs.bans = { myTeamBans: [], theirTeamBans: [254], numBans: 10 };
     await wait(pc, () => document.querySelector('#dGrid .dchamp:has(img[alt="Vi"])')?.getAttribute('aria-disabled') === 'true', null, 'their ban of Vi greyed out');
-    assert.deepStrictEqual(await texts(pc, '#dTopRows .bighead b'), ['Lux', 'Ahri'], 'no Vi in the top 3');
+    assert.deepStrictEqual(await texts(pc, '#dTopRows .bighead b'), ['Ahri', 'Lux'], 'no Vi in the top 3');
     assert.deepStrictEqual(await texts(pc, '#csBans span'), ['a champion', 'Darius', 'Vi'], 'their ban with yours in the Picks tab');
     assert.strictEqual(callsTo(/pickable-champion-ids$/, 'GET', asksAt).length, 1, 'what you can pick asked once since your ban');
     // on the phone: their Zed, Darius and their Vi banned, so none can be picked; your role's champions first (Middle), then all
@@ -2951,8 +2952,8 @@ const leagueData = (over = {}) => ({
       await wait(hp, () => /Blind pick, their counters/.test((document.querySelector('#dGrid .dchamp:has(img[alt="Ahri"])') || {}).title), null, 'the draft with safe blind picks');
       await hp.click('#dModes [data-mode="matchups"]'); // What's new 189: Balanced counts your own games too, so the matchups alone here
       await wait(hp, () => document.querySelector('#dModes [aria-selected="true"]').dataset.mode === 'matchups', null, 'matchups');
-      assert.deepStrictEqual(await hGrid(), ['Vi +0.0', 'Lux +0.0', 'Zed +0.0', 'Ahri −9.8']);
-      assert.strictEqual(await hp.getAttribute('#dGrid .dchamp:has(img[alt="Ahri"])', 'title'), 'Ahri\nHigh elo middle: 55% won in 160 games\nBlind pick, their counters: won 6 of 20 games against Zed (−9.8)');
+      assert.deepStrictEqual(await hGrid(), ['Vi +0.0', 'Lux +0.0', 'Zed +0.0', 'Ahri −3.5']);
+      assert.strictEqual(await hp.getAttribute('#dGrid .dchamp:has(img[alt="Ahri"])', 'title'), 'Ahri\nHigh elo middle: 55% won in 160 games\nBlind pick, their counters: won 30 of 100 games against Zed (−3.5)');
       assert.match(await text(hp, '#dNote'), /Their laner isn’t picked yet, so champions they can counter rank lower\./);
       // their Zed in, you lock in Ahri: the most popular page first, then one click for the page against Zed
       Object.assign(flatActions().find((a) => a.id === 3), { completed: true, isInProgress: false });
@@ -2964,7 +2965,7 @@ const leagueData = (over = {}) => ({
       assert.strictEqual(await text(hp, '#ruVsNote'), 'Most taken first, from 20 high elo games against Zed');
       assert.deepStrictEqual(await ruRows(hp, '#ruVsList'), ['Arcane Comet + Domination · 20 of 20 games 6 won']);
       assert.deepStrictEqual(await hp.$$eval('#ruVsList .ruspell', (l) => l.map((i) => i.alt)), ['Flash', 'Teleport']);
-      assert.deepStrictEqual(await hGrid(), ['Lux +6.0', 'Vi +0.0', 'Zed +0.0', 'Ahri −16.3'], 'Zed known: the lane matchup counts instead of the blind pick');
+      assert.deepStrictEqual(await hGrid(), ['Lux +2.8', 'Vi +0.0', 'Zed +0.0', 'Ahri −5.9'], 'Zed known: the lane matchup counts instead of the blind pick');
       // a tap puts it on as Premade's page with its spells, and the check moves to it
       const since = lcu.calls.length;
       await hp.click('#ruVsList .rurow');
