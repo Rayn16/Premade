@@ -1627,8 +1627,25 @@ const leagueData = (over = {}) => ({
     await wait(pc, () => /hovering Lux/.test(document.getElementById('csTurn').textContent), null, 'Lux hovered from the search');
     await pc.keyboard.press('Escape');
     await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 4, null, 'the search cleared');
-    assert.deepStrictEqual(await slots('dUs'), ['Garen +4.0 (hovering)', '?', 'Lux +24.1 (hovering) (you)', '?', 'Thresh +0.0 (hovering)'], 'the draft rows keep the draft’s own scores');
-    assert.strictEqual(await text(pc, '#dUsScore'), '+28.1');
+    // What's new 251 (Rayan, 28 Nov: "the numbers doesn't match, look at the number at top and bottem"): your champion
+    // in the draft rows has its number in the list (here with your games on it and with Friend), in every mode and
+    // whatever role the list shows; teammates keep the draft's score, and the total adds up the numbers shown
+    const mine = () => pc.textContent('#dUs .dslot[data-me] .dsc'), inList = (c) => pc.textContent(`#dGrid .dchamp:has(img[alt="${c}"]) .dsc`);
+    assert.deepStrictEqual(await slots('dUs'), ['Garen +4.0 (hovering)', '?', 'Lux +32.6 (hovering) (you)', '?', 'Thresh +0.0 (hovering)'], 'your Lux as in the list');
+    assert.match(await pc.getAttribute('#dUs .dslot[data-me]', 'title'), /\nYou: won 3 of 5\nWith Friend: won 3 of 5$/, 'and why, as in the list');
+    assert.strictEqual(await text(pc, '#dUsScore'), '+36.6', 'the total adds up the numbers shown');
+    for (const m of ['matchups', 'meta']) {
+      await pc.click(`#dModes [data-mode="${m}"]`);
+      await wait(pc, (m) => document.querySelector(`#dModes [data-mode="${m}"]`).getAttribute('aria-selected') === 'true', m, m);
+      assert.strictEqual(await mine(), await inList('Lux'), `your Lux as in the list in ${m}`);
+    }
+    const metaLux = await mine();
+    await pc.click('#dRoles [data-role="TOP"]');
+    await wait(pc, () => document.querySelector('#dRoles [data-role="TOP"]').getAttribute('aria-selected') === 'true', null, 'the list for top');
+    assert.strictEqual(await mine(), metaLux, 'your middle Lux keeps its number while the list shows top');
+    await pc.click('#dModes [data-mode="balanced"]');
+    await pc.click('#dRoles [data-role="MIDDLE"]');
+    await wait(pc, () => document.querySelectorAll('#dGrid .dchamp').length === 4 && document.querySelector('#dUs .dslot[data-me] .dsc').textContent === '+32.6', null, 'balanced middle again');
     await pc.click('#dGrid .dchamp:has(img[alt="Ahri"])', { button: 'right' });
     await wait(pc, () => document.querySelector('#dGrid .dchamp').hasAttribute('data-fav'), null, 'a favorite');
     assert.deepStrictEqual(await dGrid(), ['Ahri +10.7 (favorite)', 'Lux +32.6', 'Vi +5.5', 'Zed +4.0 (off)']);
